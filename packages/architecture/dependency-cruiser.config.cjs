@@ -148,6 +148,12 @@ module.exports = {
     // import edge for them and the npm-purity rules silently stop seeing those packages.
     exclude: { path: '^(?!.*node_modules/).*(?:^|/)(?:dist|coverage)(?:/|$)' },
     tsPreCompilationDeps: true,
-    enhancedResolveOptions: { extensions: ['.ts', '.js', '.json'] },
+    // Without exportsFields/conditionNames, package subpath imports ("vitest/config", "zod/v4")
+    // resolve to nothing, fail no-unresolvable, and teach people to ignore that rule.
+    enhancedResolveOptions: {
+      extensions: ['.ts', '.js', '.json'],
+      exportsFields: ['exports'],
+      conditionNames: ['import', 'require', 'node', 'default', 'types'],
+    },
   },
 };
