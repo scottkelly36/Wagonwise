@@ -4,7 +4,7 @@
 
 | Milestone            | Status                       |
 | -------------------- | ---------------------------- |
-| M1 Foundations       | In progress — M1.1–M1.2 done |
+| M1 Foundations       | In progress — M1.1–M1.3 done |
 | M2 Routing core      | Not started                  |
 | M3 Hazards core      | Not started                  |
 | M4 Driver BFF + auth | Not started                  |
@@ -73,15 +73,15 @@ reports visible immediately, labelled "1 report, unconfirmed".
 
 ## M1 task breakdown
 
-| #    | Task                                 | Status                |
-| ---- | ------------------------------------ | --------------------- |
-| M1.1 | Monorepo skeleton                    | Done — 2026-09-21     |
-| M1.2 | Architecture enforcement             | Done — 2026-09-21     |
-| M1.3 | Core skeleton + shared kernel        | Next                  |
-| M1.4 | Database, migrations, docker compose | Not started — blocked |
-| M1.5 | `identity` as reference module       | Not started           |
-| M1.6 | `driver-bff` + vertical slice        | Not started           |
-| M1.7 | CI (GitHub Actions per-PR tier)      | Not started           |
+| #    | Task                                 | Status              |
+| ---- | ------------------------------------ | ------------------- |
+| M1.1 | Monorepo skeleton                    | Done — 2026-09-21   |
+| M1.2 | Architecture enforcement             | Done — 2026-09-21   |
+| M1.3 | Core skeleton + shared kernel        | Done — 2026-09-21   |
+| M1.4 | Database, migrations, docker compose | Next — needs Docker |
+| M1.5 | `identity` as reference module       | Not started         |
+| M1.6 | `driver-bff` + vertical slice        | Not started         |
+| M1.7 | CI (GitHub Actions per-PR tier)      | Not started         |
 
 **M1.1 delivered:** pnpm workspace (`apps/*`, `packages/*`) with Turborepo, git repo,
 `packages/config` holding the shared tsconfig base, ESLint flat config and Prettier config.
@@ -121,16 +121,66 @@ made CI fail on a fresh clone while passing locally. Re-included explicitly.
     the design doc cite them. Add new rules at the end; don't renumber.
 17. **Architecture checks fail closed.** A check that can't see something must fail, not pass.
 
+**M1.3 delivered:** `apps/core` boots and answers `GET /health`. `shared/` holds `Result`,
+branded IDs, the `Clock` / `IdGenerator` / `UnitOfWork` ports and pure in-memory fakes;
+`platform/` holds the real `SystemClock` and `UuidIdGenerator`; `host/` is the Fastify app with
+request-ID handling and an error handler that never leaks a 5xx message; `config.ts` is the one
+zod-validated reader of the environment; `composition/` wires ports to adapters and takes
+overrides so tests run the whole stack on fakes. 59 core tests and 16 architecture tests, all
+green; `pnpm arch` passes on real code (34 modules, 57 dependencies).
+
+Verified by actually running it, not only `inject()`: the compiled build (no test or fake files in
+`dist/`) and `pnpm dev` both serve `/health`; bad config exits 1 naming every problem; an
+inbound `x-request-id` is echoed back.
+
+## Decisions from M1.3
+
+18. **Cross-cutting ports live in `shared/ports/`, not in a module's `application/`**, because no
+    module owns them. Implementations live in `platform/`, fakes in `shared/testing/`. AGENTS.md
+    rule 3 updated; the design doc's `Clock`/`IdGenerator` mentions stand.
+19. **Three sibling folders added to core: `platform/`, `host/`, `composition/`** — with rules
+    that the kernel imports none of them and modules import none of them. Three new rules in
+    `packages/architecture` cover this.
+20. **Test files are exempt from the domain's no-npm rule** (they import vitest); non-test domain
+    files are not, and a fixture proves the exemption is narrow.
+21. **`process.env` is guarded by a test, not a lint rule.** `conventions.test.ts` scans `src/`
+    for readers other than `config.ts`, and tests its own detector against good and bad samples.
+    Best-effort: it cannot see `globalThis.process.env`.
+22. **`pnpm arch` scopes to `apps/*/src`**, not whole app directories. Package-root config files
+    are tooling, not architecture.
+
+## Deviations and open items from M1.3
+
+- **Real `UnitOfWork` deferred to M1.4.** The task description said "real and fake"; a Postgres
+  transaction adapter can't exist before the database does. The port and a contract-enforcing fake
+  (commit/rollback recording, no nesting) exist now.
+- **Composition-root vs module facade is undecided.** AGENTS.md rule 5 says `composition/` holds a
+  `createXModule(deps)` per context, but that requires composition to import a module's internals
+  (its adapters), which rule 6 forbids. Two options: the factory lives in the module's `api.ts`
+  (module wires its own adapters, composition calls it), or composition is exempted from the
+  facade rule. **Decide in M1.5** when identity is the first real module.
+- **Graceful shutdown is untested on this machine.** Windows does not deliver SIGTERM, so the
+  handler in `main.ts` has only been exercised by reading it. It targets Linux containers.
+- **No `.env` loading yet.** Nothing requires it; `DATABASE_URL` in M1.4 will.
+
+Five more defects were caught while building this, each by a test or a real run that failed
+rather than by inspection: a `dist` exclude that hid npm packages from the purity rules; a
+test-file exemption regex that lost its backslashes and matched far too broadly; missing export
+conditions that made legitimate subpath imports (`vitest/config`) fail `no-unresolvable`;
+Turborepo silently dropping `PORT` and `LOG_LEVEL`; and a gitignore ordering bug that would have
+dropped fixture stubs on a fresh clone.
+
 ## Environment notes
 
 - Node 24.21, git 2.55 present. pnpm 12.5.1 via corepack (`corepack enable pnpm`).
 - pnpm 12 blocks install scripts by default; allowed ones are listed under `allowBuilds` in
   `pnpm-workspace.yaml` (currently esbuild). The `pnpm` field in package.json is no longer read.
-- Docker not installed yet — needed from M1.4 onwards (Postgres/PostGIS + Valhalla).
+- Docker not installed yet — **needed for M1.4** (Postgres/PostGIS + Valhalla).
 
 ## Next session
 
-M1.3 — core skeleton and shared kernel: Fastify host, zod-validated `config.ts`, `shared/` with
-`Result` and branded IDs, `Clock` / `IdGenerator` / `UnitOfWork` ports with real and fake
-implementations, the composition root, and a health route. `pnpm arch` starts checking real code
-from here, so the first thing to confirm is that it passes on what M1.3 writes.
+M1.4 — database. Needs Docker Desktop installed first. Scope: docker compose with Postgres/PostGIS
+and Valhalla (Northumberland extract), a raw-SQL migration runner, the first migration (four
+schemas, `outbox.events`, `outbox.handled`), the Postgres `UnitOfWork`, a Testcontainers harness,
+and `DATABASE_URL` in config, `.env.example` and the README. If Docker isn't ready, M1.6 (BFF and
+the first `packages/contracts` schema) doesn't need it and can go first.

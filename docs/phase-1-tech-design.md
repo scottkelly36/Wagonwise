@@ -471,7 +471,10 @@ Agent-assisted, built in small pockets of time. Each milestone ends with somethi
 **M1 contains the skeleton that proves the rules, not a full scaffold:**
 
 1. pnpm workspaces + Turborepo, `packages/config` presets, strict TS everywhere.
-2. `apps/core` with **one** context (`identity`) fully wired through all four layers, a composition root, and `Clock` / `IdGenerator` / `UnitOfWork` ports with real and fake implementations.
+2. `apps/core` with **one** context (`identity`) fully wired through all four layers, a
+   composition root, and `Clock` / `IdGenerator` / `UnitOfWork` ports with fake implementations
+   (real `Clock` and `IdGenerator` in M1.3; the real Postgres `UnitOfWork` lands with the
+   database in M1.4, since a transaction adapter can't exist without one).
 3. Architecture tests in CI (dependency-cruiser) — this is what makes rules 1–9 real rather than aspirational.
 4. `infra/docker/compose.yml` — Postgres/PostGIS + Valhalla with the Northumberland extract, one documented command.
 5. Migration tooling and the first migration: schemas, `outbox.events`, `outbox.handled`.

@@ -44,15 +44,46 @@ That's the whole set-up today. Verify it worked:
 pnpm lint && pnpm typecheck && pnpm test && pnpm arch && pnpm format:check
 ```
 
-`pnpm test` runs the architecture-rule tests, so that's real work from day one.
-`pnpm arch` reports "nothing to check" until `apps/core` exists (M1.3) — it says so
-loudly rather than passing silently.
+Then start the core service and check it answers:
+
+```bash
+pnpm dev
+```
+
+```bash
+curl http://127.0.0.1:3001/health
+```
+
+You should see `{"status":"ok","service":"core","product":"WagonWise","time":"…"}`. Core needs
+no environment variables to run locally — every one has a default (see below).
+
+## Configuration
+
+Core reads its environment in exactly one place, `apps/core/src/config.ts`, validated at boot.
+An invalid value stops the process with a message naming every problem, rather than starting
+half-configured.
+
+| Variable    | Default       | Notes                                                        |
+| ----------- | ------------- | ------------------------------------------------------------ |
+| `NODE_ENV`  | `development` | `development`, `test` or `production`                        |
+| `HOST`      | `127.0.0.1`   | Use `0.0.0.0` inside a container                             |
+| `PORT`      | `3001`        | 1–65535                                                      |
+| `LOG_LEVEL` | `info`        | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
+
+```bash
+PORT=4000 LOG_LEVEL=debug pnpm dev
+```
+
+More variables arrive with the milestones that need them (`DATABASE_URL` in M1.4). Each one
+must also be added to `passThroughEnv` on the `dev` task in `turbo.json`, or `pnpm dev`
+will ignore it.
 
 ## Everyday commands
 
 | Command             | Does                                           |
 | ------------------- | ---------------------------------------------- |
 | `pnpm install`      | Install workspace dependencies                 |
+| `pnpm dev`          | Run core with reload on change (port 3001)     |
 | `pnpm lint`         | ESLint across every package, via Turborepo     |
 | `pnpm typecheck`    | `tsc --noEmit` across every package            |
 | `pnpm test`         | Vitest across every package                    |
@@ -68,7 +99,7 @@ Turborepo caches task results locally in `.turbo/`. If a task result looks stale
 
 ```
 apps/
-  core/           core service — Fastify host, modular monolith   (M1.3)
+  core/           core service — Fastify host, modular monolith   ✅ skeleton
   driver-bff/     Fastify BFF for the driver app                  (M1.6)
   driver-app/     Expo React Native app                           (M5)
 packages/
@@ -83,7 +114,18 @@ docs/
   progress.md               milestone status and decisions log
 ```
 
-Only `packages/config` and `packages/architecture` exist so far. The rest arrive with the milestone shown.
+Inside `apps/core/src` (the shape the architecture rules enforce):
+
+```
+shared/         pure kernel: Result, branded IDs, cross-cutting ports, test fakes
+platform/       adapters for those ports: system clock, UUID generator
+host/           Fastify app builder, health route, error handling
+composition/    the one place that wires ports to adapters
+config.ts       the one place that reads the environment
+modules/        bounded contexts — none yet, identity arrives in M1.5
+```
+
+Only `packages/config`, `packages/architecture` and a skeleton `apps/core` exist so far. The rest arrive with the milestone shown.
 
 ## Conventions
 
@@ -127,6 +169,9 @@ with npm; the version would drift from the one pinned in `package.json`.
 
 **Corepack asks to download pnpm on first use** — expected, it's fetching the pinned
 version. Accept it.
+
+**`PORT=… pnpm dev` is ignored** — Turborepo strips environment variables it hasn't been told
+about. Add the variable to `passThroughEnv` on the `dev` task in `turbo.json`.
 
 **`ERR_PNPM_IGNORED_BUILDS` on install** — pnpm 12 blocks dependency install scripts by
 default. If a new dependency legitimately needs one (esbuild does), run

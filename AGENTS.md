@@ -55,9 +55,12 @@ can subscribe later.
    `packages/architecture` in the same commit.
 2. **Domain is pure TypeScript.** No imports from Fastify, database drivers, SDKs or
    `process.env` in `domain/` — and no npm dependencies at all beyond TypeScript itself.
-3. **Every external thing sits behind a port** defined in `application/` and implemented
-   in `infrastructure/`: `RoutingEngine`, `HazardRepository`, `PushNotifier`,
-   `HazardParser`, `OtpSender`, `FeedbackNotifier`, `Clock`, `IdGenerator`, `UnitOfWork`.
+3. **Every external thing sits behind a port.** A module's own ports (`RoutingEngine`,
+   `HazardRepository`, `PushNotifier`, `HazardParser`, `OtpSender`, `FeedbackNotifier`) are
+   defined in that module's `application/` and implemented in its `infrastructure/`. The
+   cross-cutting ones no single module owns — `Clock`, `IdGenerator`, `UnitOfWork` — are defined
+   in `shared/ports/` and implemented in `platform/`. Pure in-memory fakes for them live in
+   `shared/testing/`; use cases are tested against fakes, never mocks.
 4. **`process.env` is read in exactly one place:** `apps/core/src/config.ts`, zod-validated
    at boot. Everything else receives config as arguments.
 5. **Wiring lives in `apps/core/src/composition/`** — one `createXModule(deps)` factory per
@@ -120,6 +123,20 @@ can subscribe later.
 - Keep `docs/progress.md` current with milestone status and decisions made, so the
   next session can pick up without re-explaining.
 - UK English in user-facing text. Show bridge heights in metres and feet/inches.
+
+## Tooling gotchas
+
+- **Relative imports in `apps/core` need a `.js` suffix** (`import { ok } from './result.js'`),
+  even though the file is `.ts`. That is what `module: NodeNext` requires; the compiler, tsx,
+  Vitest and dependency-cruiser all map it back to the `.ts` file.
+- **A new config environment variable must be added to `passThroughEnv` on the `dev` task in
+  `turbo.json`**, or `pnpm dev` silently ignores it: Turborepo strips undeclared variables.
+- **pnpm 12 blocks dependency install scripts** unless listed under `allowBuilds` in
+  `pnpm-workspace.yaml` (use `pnpm approve-builds`). It no longer reads a `pnpm` field in
+  `package.json`.
+- **Architecture checks must fail closed.** A check that cannot see something must fail, not
+  pass: every rule in `packages/architecture` needs a fixture proving it fires, and a rule that
+  has only ever been seen passing is untested.
 
 ## Useful commands
 

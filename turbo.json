@@ -19,6 +19,11 @@
     },
     "arch": {
       "cache": false
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["NODE_ENV", "HOST", "PORT", "LOG_LEVEL"]
     }
   }
 }
