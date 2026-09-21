@@ -106,5 +106,6 @@ with npm; the version would drift from the one pinned in `package.json`.
 **Corepack asks to download pnpm on first use** — expected, it's fetching the pinned
 version. Accept it.
 
-**Windows line endings** — `.editorconfig` and Prettier both enforce LF. If git is
-converting on checkout, `git config core.autocrlf false` in this repo.
+**Windows line endings** — `.gitattributes` forces LF in every working copy, so this
+should be handled. If you still see CRLF churn, run `git config core.autocrlf false` in
+this repo and re-checkout with `git rm --cached -r . && git reset --hard`.
