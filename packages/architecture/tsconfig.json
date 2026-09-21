@@ -1,0 +1,9 @@
+{
+  "extends": "@wagonwise/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.ts"],
+  "exclude": ["fixtures/**"]
+}

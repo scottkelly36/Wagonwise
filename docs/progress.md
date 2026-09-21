@@ -2,16 +2,16 @@
 
 ## Status
 
-| Milestone            | Status                  |
-| -------------------- | ----------------------- |
-| M1 Foundations       | In progress — M1.1 done |
-| M2 Routing core      | Not started             |
-| M3 Hazards core      | Not started             |
-| M4 Driver BFF + auth | Not started             |
-| M5 Driver app        | Not started             |
-| M6 Alerts            | Not started             |
-| M7 Voice             | Not started             |
-| M8 Field-ready       | Not started             |
+| Milestone            | Status                       |
+| -------------------- | ---------------------------- |
+| M1 Foundations       | In progress — M1.1–M1.2 done |
+| M2 Routing core      | Not started                  |
+| M3 Hazards core      | Not started                  |
+| M4 Driver BFF + auth | Not started                  |
+| M5 Driver app        | Not started                  |
+| M6 Alerts            | Not started                  |
+| M7 Voice             | Not started                  |
+| M8 Field-ready       | Not started                  |
 
 ## Decisions made before coding (from planning)
 
@@ -76,8 +76,8 @@ reports visible immediately, labelled "1 report, unconfirmed".
 | #    | Task                                 | Status                |
 | ---- | ------------------------------------ | --------------------- |
 | M1.1 | Monorepo skeleton                    | Done — 2026-09-21     |
-| M1.2 | Architecture enforcement             | Next                  |
-| M1.3 | Core skeleton + shared kernel        | Not started           |
+| M1.2 | Architecture enforcement             | Done — 2026-09-21     |
+| M1.3 | Core skeleton + shared kernel        | Next                  |
 | M1.4 | Database, migrations, docker compose | Not started — blocked |
 | M1.5 | `identity` as reference module       | Not started           |
 | M1.6 | `driver-bff` + vertical slice        | Not started           |
@@ -91,12 +91,46 @@ all run clean.
 **M1.4 is blocked on Docker Desktop** not being installed on this machine. Nothing before
 M1.4 depends on it.
 
+**M1.2 delivered:** `packages/architecture` — a dependency-cruiser ruleset with eight rules,
+a clean reference fixture, nine deliberately-broken fixtures (at least one per rule), and a test asserting each
+violating fixture trips _exactly_ its own rule (and that every rule has a fixture). `pnpm arch`
+runs the rules against `apps/`; it exits 1 on a violation and 0 on clean code, both verified
+against the real path, not just the fixtures.
+
+Three defects were found and fixed while building it, all of the "fails open" kind:
+
+1. `exclude: node_modules` deleted the edge from the graph, so the npm-purity rules could never
+   see a domain file importing `zod`. Fixed with `doNotFollow` only. Mutation-tested: putting it
+   back fails exactly the two npm-purity tests.
+2. Packages not declared in a `package.json` are classed `npm-no-pkg` / `npm-unknown`, not `npm`,
+   so the rule missed them. It now covers every npm classification.
+3. An import that cannot be resolved is classed `unknown` and matched nothing, so a domain file
+   importing a missing package passed every check. New `no-unresolvable` rule fails closed.
+
+Also: the fixtures' stub `node_modules/zod` were being dropped by `.gitignore`, which would have
+made CI fail on a fresh clone while passing locally. Re-included explicitly.
+
+## Decisions from M1.2
+
+15. **Layers live inside each module**, not above them:
+    `apps/core/src/modules/<context>/{api.ts,domain,application,infrastructure,interface}` plus
+    `src/shared/` and `src/composition/`. The rules need this shape to tell "same module" from
+    "other module". Recorded in AGENTS.md rule 1 and the design doc's §2 diagram, which previously
+    drew the layers directly under core.
+16. **Rule numbers in AGENTS.md are stable identifiers** — the dependency-cruiser rule comments and
+    the design doc cite them. Add new rules at the end; don't renumber.
+17. **Architecture checks fail closed.** A check that can't see something must fail, not pass.
+
 ## Environment notes
 
 - Node 24.21, git 2.55 present. pnpm 12.5.1 via corepack (`corepack enable pnpm`).
+- pnpm 12 blocks install scripts by default; allowed ones are listed under `allowBuilds` in
+  `pnpm-workspace.yaml` (currently esbuild). The `pnpm` field in package.json is no longer read.
 - Docker not installed yet — needed from M1.4 onwards (Postgres/PostGIS + Valhalla).
 
 ## Next session
 
-M1.2 — dependency-cruiser encoding architecture rules 1, 2, 6 and 7, with deliberately
-violating fixtures so the enforcement is visibly working before any module code exists.
+M1.3 — core skeleton and shared kernel: Fastify host, zod-validated `config.ts`, `shared/` with
+`Result` and branded IDs, `Clock` / `IdGenerator` / `UnitOfWork` ports with real and fake
+implementations, the composition root, and a health route. `pnpm arch` starts checking real code
+from here, so the first thing to confirm is that it passes on what M1.3 writes.

@@ -41,23 +41,25 @@ pnpm install
 That's the whole set-up today. Verify it worked:
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm test && pnpm format:check
+pnpm lint && pnpm typecheck && pnpm test && pnpm arch && pnpm format:check
 ```
 
-`typecheck` and `test` currently report "no tasks" — expected, because no package has
-source yet. They start doing real work at M1.3.
+`pnpm test` runs the architecture-rule tests, so that's real work from day one.
+`pnpm arch` reports "nothing to check" until `apps/core` exists (M1.3) — it says so
+loudly rather than passing silently.
 
 ## Everyday commands
 
-| Command             | Does                                       |
-| ------------------- | ------------------------------------------ |
-| `pnpm install`      | Install workspace dependencies             |
-| `pnpm lint`         | ESLint across every package, via Turborepo |
-| `pnpm typecheck`    | `tsc --noEmit` across every package        |
-| `pnpm test`         | Vitest across every package                |
-| `pnpm build`        | Build every package                        |
-| `pnpm format`       | Prettier write                             |
-| `pnpm format:check` | Prettier check — this is what CI runs      |
+| Command             | Does                                           |
+| ------------------- | ---------------------------------------------- |
+| `pnpm install`      | Install workspace dependencies                 |
+| `pnpm lint`         | ESLint across every package, via Turborepo     |
+| `pnpm typecheck`    | `tsc --noEmit` across every package            |
+| `pnpm test`         | Vitest across every package                    |
+| `pnpm build`        | Build every package                            |
+| `pnpm arch`         | Architecture rules against `apps/` (see below) |
+| `pnpm format`       | Prettier write                                 |
+| `pnpm format:check` | Prettier check — this is what CI runs          |
 
 Turborepo caches task results locally in `.turbo/`. If a task result looks stale,
 `pnpm lint --force` (or any task) re-runs it ignoring the cache.
@@ -71,6 +73,7 @@ apps/
   driver-app/     Expo React Native app                           (M5)
 packages/
   config/         shared tsconfig / ESLint / Prettier presets     ✅
+  architecture/   dependency-cruiser rules + fixtures + tests     ✅
   contracts/      zod schemas + inferred types shared everywhere  (M1.6)
 infra/
   docker/         compose for local Postgres/PostGIS + Valhalla   (M1.4)
@@ -80,7 +83,7 @@ docs/
   progress.md               milestone status and decisions log
 ```
 
-Only `packages/config` exists so far. The rest arrive with the milestone shown.
+Only `packages/config` and `packages/architecture` exist so far. The rest arrive with the milestone shown.
 
 ## Conventions
 
@@ -98,6 +101,25 @@ Tooling worth knowing about before your first PR:
   is on, which matters because much of the domain is discriminated unions.
 - **Prettier formats markdown too.** Run `pnpm format` before committing.
 
+## Architecture enforcement
+
+The rules in [`AGENTS.md`](AGENTS.md) are checked by machine, not by review.
+`packages/architecture` holds the dependency-cruiser ruleset; `pnpm arch` runs it against
+`apps/` and fails on any violation, and CI runs it on every PR.
+
+What it enforces: dependencies point inward only (domain → application → infrastructure and
+interface); the domain and `shared/` kernel import no npm packages and no Node builtins; a
+module is reachable from another only through its `api.ts`; no circular imports; and no
+unresolvable imports (fail closed — an import that can't be resolved would otherwise slip past
+every purity rule).
+
+**Adding or changing a rule** — every rule needs a fixture proving it fires. Add a
+deliberately-broken example under `packages/architecture/fixtures/violations/`, add a row to
+`src/architecture-rules.test.ts`, and `pnpm test` will fail if any rule has no fixture.
+
+**A rule failing on real code** — fix the code, not the rule. If you genuinely believe the rule
+is wrong, change it in `packages/architecture` in the same PR and say why.
+
 ## Troubleshooting
 
 **`pnpm: command not found`** — run `corepack enable pnpm`. Don't install pnpm globally
@@ -105,6 +127,11 @@ with npm; the version would drift from the one pinned in `package.json`.
 
 **Corepack asks to download pnpm on first use** — expected, it's fetching the pinned
 version. Accept it.
+
+**`ERR_PNPM_IGNORED_BUILDS` on install** — pnpm 12 blocks dependency install scripts by
+default. If a new dependency legitimately needs one (esbuild does), run
+`pnpm approve-builds <package> -y`, which records it under `allowBuilds` in
+`pnpm-workspace.yaml`. Don't add a `pnpm` field to `package.json` — pnpm 12 no longer reads it.
 
 **Windows line endings** — `.gitattributes` forces LF in every working copy, so this
 should be handled. If you still see CRLF churn, run `git config core.autocrlf false` in

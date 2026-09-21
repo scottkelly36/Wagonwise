@@ -1,0 +1,24 @@
+{
+  "name": "@wagonwise/architecture",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./config": "./dependency-cruiser.config.cjs"
+  },
+  "scripts": {
+    "arch": "node scripts/check.mjs",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dependency-cruiser": "^17.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "@wagonwise/config": "workspace:*",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

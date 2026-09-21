@@ -37,11 +37,14 @@ Driver BFF (Fastify)  ── token verification, request shaping, app-specific D
         │  internal HTTP over private networking (typed contract + X-Internal-Key)
         ▼
 Core service (Fastify host, modular monolith)
-  ├─ domain/          pure TS: entities, value objects, rules, events
-  ├─ application/     use cases + ports
-  ├─ infrastructure/  Postgres/PostGIS, routing engine, push, LLM, storage
-  ├─ interface/       HTTP routes the BFFs call
-  └─ composition/     module factories, manual wiring
+  ├─ shared/                     pure kernel: Result, branded IDs
+  ├─ modules/<context>/          identity | routing | hazards | feedback
+  │    ├─ api.ts                 the module's only public surface (facade)
+  │    ├─ domain/                pure TS: entities, value objects, rules, events
+  │    ├─ application/           use cases + ports
+  │    ├─ infrastructure/        Postgres/PostGIS, routing engine, push, LLM, storage
+  │    └─ interface/             HTTP routes the BFFs call
+  └─ composition/                module factories, manual wiring
         │
         ├─ Postgres + PostGIS
         ├─ Valhalla (self-hosted routing engine)

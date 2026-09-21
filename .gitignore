@@ -1,4 +1,7 @@
 node_modules/
+# ...except the stub packages the architecture fixtures resolve against. Without these
+# committed, a fresh clone would see the npm-import fixtures as unresolvable instead.
+!packages/architecture/fixtures/**/node_modules/
 dist/
 build/
 coverage/

@@ -43,8 +43,13 @@ can subscribe later.
 ### Layering
 
 1. **Clean architecture inside core:** `domain/` → `application/` → `infrastructure/` +
-   `interface/`. Dependencies point inward only. Enforced in CI by dependency-cruiser,
+   `interface/`. Dependencies point inward only. Enforced by `pnpm arch` (dependency-cruiser) in CI,
    not by good intentions.
+   **Layers live inside each module, not above them** — the rules match on this shape:
+   `apps/core/src/modules/<context>/{api.ts,domain,application,infrastructure,interface}`,
+   plus `apps/core/src/shared/` (pure kernel) and `apps/core/src/composition/`. Don't add
+   new top-level folders in core; if the shape must change, change the rules in
+   `packages/architecture` in the same commit.
 2. **Domain is pure TypeScript.** No imports from Fastify, database drivers, SDKs or
    `process.env` in `domain/` — and no npm dependencies at all beyond TypeScript itself.
 3. **Every external thing sits behind a port** defined in `application/` and implemented
@@ -119,5 +124,5 @@ See [`README.md`](README.md) — it holds prerequisites, first-time set-up, the 
 table and troubleshooting, and it is kept current as milestones add steps. Day to day:
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm test && pnpm format:check
+pnpm lint && pnpm typecheck && pnpm test && pnpm arch && pnpm format:check
 ```
