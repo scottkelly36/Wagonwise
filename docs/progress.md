@@ -177,33 +177,62 @@ dropped fixture stubs on a fresh clone.
 
 ## Environment notes
 
-- Node 24.21 (`C:Program Files
-odejs`), git 2.55, pnpm 12.5.1 via corepack
-  (`corepack enable pnpm`). The pnpm store lives on E: (`E:.pnpm-store`).
+- Node 24.21 (`C:\Program Files\nodejs`), git 2.55, pnpm 12.5.1 via corepack
+  (`corepack enable pnpm`). The pnpm store lives on E: (`E:\.pnpm-store`), which is pnpm's default of
+  one store per drive.
 - pnpm 12 blocks install scripts by default; allowed ones are listed under `allowBuilds` in
   `pnpm-workspace.yaml` (currently esbuild). The `pnpm` field in package.json is no longer read.
 - Docker Desktop is **not installed yet** — needed for M1.4 (Postgres/PostGIS + Valhalla).
 
-## Paused: Windows 11 upgrade (2026-09-21)
+## Paused: fresh Windows 11 install (2026-09-21)
 
-Work is paused while the machine is upgraded to Windows 11 and tools are reinstalled.
+Work is paused while the machine gets a clean Windows 11 install. Only `C:` is wiped.
+
+**Disk layout (checked 2026-09-21):** Disk 2 is a 224 GB NVMe holding `C:`, the EFI boot partition and
+the recovery partitions. Disk 1 is a 447 GB Kingston SATA SSD holding `E:`, which is where this repo
+lives. Disk 0 is a 932 GB WD hard disk holding `D:`. A USB stick is `F:`. Install Windows onto Disk 2
+only. Its boot partition is on the same disk, so `E:` and `D:` need no changes. In the setup's
+partition screen, do not delete or format anything on Disk 0 or Disk 1; unplugging the two SATA
+drives during setup is the surest way to guarantee that.
 
 **State at pause:** M1.1–M1.3 done, all on `main`, working tree clean, all checks green
 (59 core tests, 16 architecture tests). **There is no git remote**, so the commits exist only in
-`E:projectswagonwise`. Push to a private remote before a risky upgrade if E: could be wiped.
+`E:\projects\wagonwise`.
+
+**Before wiping `C:`, back the repo up** to a second physical disk or the USB stick, either by copying
+`E:\projects\wagonwise` (skip `node_modules`) or with a single-file git bundle:
+
+```bash
+git bundle create D:\backups\wagonwise.bundle --all
+```
+
+Restore a bundle with `git clone D:\backups\wagonwise.bundle wagonwise`.
 
 **Rebuild checklist, in order:**
 
-1. Confirm `E:projectswagonwise` survived: `git log --oneline` should list the M1.1–M1.3 commits.
-2. Reinstall Node 24 and git. On a clean install the global git identity is gone, so set it again
-   (`git config --global user.name` and `user.email`).
+1. Confirm `E:\projects\wagonwise` survived: `git log --oneline` lists the M1.1–M1.3 commits.
+2. Install git and Node 24 (Windows 11 ships with winget):
+
+   ```bash
+   winget install -e --id Git.Git
+   winget install -e --id OpenJS.NodeJS.LTS
+   ```
+
+   Check `node -v` prints v24 (`.nvmrc` says 24; `engines` allows 22 and up). Git for Windows also
+   provides the Git Bash that the Claude desktop app's Bash tool uses. A clean install loses the
+   global git identity, so set it again: `git config --global user.name "scottkelly36"` and
+   `git config --global user.email "49844516+scottkelly36@users.noreply.github.com"`.
+
 3. `corepack enable pnpm`, then `pnpm install` in the repo.
 4. Install Docker Desktop: `winget install -e --id Docker.DockerDesktop` (approve the admin
    prompt). Its installer enables WSL 2; if it complains, run `wsl --install` from an admin
    PowerShell and reboot. Then check it: `docker run --rm hello-world`.
 5. Optional: in Docker Desktop's Resources settings, move the disk image to E: (C: is small).
-6. Verify the repo: `pnpm lint && pnpm typecheck && pnpm test && pnpm arch && pnpm format:check`.
-7. Start the next session and say Docker works.
+6. Reinstall the Claude desktop app, sign in, and open `E:\projects\wagonwise` as the project.
+   Session memory under `C:\Users\scott\.claude` is lost with `C:`; `AGENTS.md` and these docs
+   carry everything a new session needs.
+7. Verify the repo: `pnpm lint && pnpm typecheck && pnpm test && pnpm arch && pnpm format:check`.
+8. Start the next session and say Docker works.
 
 ## Next session
 

@@ -126,6 +126,12 @@ can subscribe later.
 
 ## Tooling gotchas
 
+- **On Windows, do not write files containing backslashes through a shell heredoc or a `node -e`
+  script.** Paired backslashes get collapsed, so `E:\projects\wagonwise` becomes
+  `E:projectswagonwise` and `\n` in a Windows path becomes a real newline, with no error. Use the
+  file-editing tools for anything holding Windows paths or regex escapes, and grep the result.
+  Keep shell commands under about 5 KB; longer ones fail with a quote-matching error before
+  anything runs.
 - **Relative imports in `apps/core` need a `.js` suffix** (`import { ok } from './result.js'`),
   even though the file is `.ts`. That is what `module: NodeNext` requires; the compiler, tsx,
   Vitest and dependency-cruiser all map it back to the `.ts` file.
