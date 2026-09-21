@@ -1,7 +1,4 @@
 node_modules/
-# ...except the stub packages the architecture fixtures resolve against. Without these
-# committed, a fresh clone would see the npm-import fixtures as unresolvable instead.
-!packages/architecture/fixtures/**/node_modules/
 dist/
 build/
 coverage/
@@ -26,3 +23,10 @@ Thumbs.db
 # Valhalla tiles and OSM extracts are large build artefacts, never committed
 infra/docker/valhalla_tiles/
 infra/docker/*.osm.pbf
+
+# Re-includes go LAST: gitignore uses the last matching pattern, so a negation placed
+# above the pattern it overrides (node_modules/, dist/) has no effect.
+# ...except the stub packages the architecture fixtures resolve against. Without these
+# committed, a fresh clone would see the npm-import fixtures as unresolvable instead.
+!packages/architecture/fixtures/**/node_modules/
+!packages/architecture/fixtures/**/dist/

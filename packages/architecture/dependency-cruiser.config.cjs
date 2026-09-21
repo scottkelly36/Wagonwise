@@ -3,7 +3,9 @@
  *
  * Path shape these rules assume (decided M1.2):
  *
- *   apps/core/src/shared/                    pure kernel: Result, branded IDs
+ *   apps/core/src/shared/                    pure kernel: Result, branded IDs, cross-cutting ports
+ *   apps/core/src/platform/                  adapters for the cross-cutting ports (clock, ids, ...)
+ *   apps/core/src/host/                      the Fastify host: app builder, health, error mapping
  *   apps/core/src/modules/<context>/api.ts   the module's only public surface
  *   apps/core/src/modules/<context>/domain/
  *   apps/core/src/modules/<context>/application/
@@ -51,7 +53,8 @@ module.exports = {
       comment:
         'AGENTS.md rule 2: the domain is pure TypeScript with no npm dependencies at all — not ' +
         'even type-only ones. That is what keeps domain tests instant and the rules portable.',
-      from: { path: '(modules/[^/]+/domain/|src/shared/)' },
+      // Test files are exempt: a domain test importing vitest is fine, a domain file is not.
+      from: { path: '(modules/[^/]+/domain/|src/shared/)', pathNot: '[.]test[.]ts$' },
       to: {
         // Every npm classification, including undeclared imports (npm-no-pkg / npm-unknown),
         // which are worse than declared ones, not better.
@@ -94,6 +97,33 @@ module.exports = {
       to: { path: 'modules/[^/]+/infrastructure/' },
     },
     {
+      name: 'shared-imports-only-shared',
+      severity: 'error',
+      comment:
+        'The shared kernel is the bottom of the graph. If it imports a module, the platform or ' +
+        'the host, every module transitively depends on that thing and the layering is gone.',
+      from: { path: 'src/shared/' },
+      to: { path: 'src/(modules|platform|host|composition)/' },
+    },
+    {
+      name: 'platform-no-inward',
+      severity: 'error',
+      comment:
+        'Cross-cutting adapters implement shared ports and nothing more. They must not know that ' +
+        'a bounded context, the HTTP host or the composition root exists.',
+      from: { path: 'src/platform/' },
+      to: { path: 'src/(modules|host|composition)/' },
+    },
+    {
+      name: 'modules-no-outward',
+      severity: 'error',
+      comment:
+        'AGENTS.md rules 3 and 5: a module receives its dependencies from the composition root; ' +
+        'it never reaches for a concrete platform adapter, the HTTP host or the wiring itself.',
+      from: { path: 'src/modules/' },
+      to: { path: 'src/(platform|host|composition)/' },
+    },
+    {
       name: 'no-cross-module-internals',
       severity: 'error',
       comment:
@@ -113,7 +143,10 @@ module.exports = {
     doNotFollow: { path: 'node_modules' },
     // Fixtures are excluded by not being cruised (the root script targets apps/ only),
     // not here — the tests need to cruise them.
-    exclude: { path: '(^|/)(dist|coverage)(/|$)' },
+    // Exclude this project's own build output only. The negative lookahead is essential: most npm
+    // packages ship their entry point under dist/ or lib/, so a plain "dist" exclude deletes the
+    // import edge for them and the npm-purity rules silently stop seeing those packages.
+    exclude: { path: '^(?!.*node_modules/).*(?:^|/)(?:dist|coverage)(?:/|$)' },
     tsPreCompilationDeps: true,
     enhancedResolveOptions: { extensions: ['.ts', '.js', '.json'] },
   },

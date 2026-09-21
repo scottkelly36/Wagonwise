@@ -47,8 +47,11 @@ can subscribe later.
    not by good intentions.
    **Layers live inside each module, not above them** — the rules match on this shape:
    `apps/core/src/modules/<context>/{api.ts,domain,application,infrastructure,interface}`,
-   plus `apps/core/src/shared/` (pure kernel) and `apps/core/src/composition/`. Don't add
-   new top-level folders in core; if the shape must change, change the rules in
+   plus four sibling folders: `shared/` (pure kernel: `Result`, branded IDs, cross-cutting
+   ports), `platform/` (adapters for those ports: system clock, UUIDs, the Postgres transaction),
+   `host/` (the Fastify app builder, health route, error mapping) and `composition/`. Modules
+   never import `platform/`, `host/` or `composition/`; `shared/` imports none of them. Don't
+   add new top-level folders in core; if the shape must change, change the rules in
    `packages/architecture` in the same commit.
 2. **Domain is pure TypeScript.** No imports from Fastify, database drivers, SDKs or
    `process.env` in `domain/` — and no npm dependencies at all beyond TypeScript itself.

@@ -22,6 +22,11 @@ async function violationsIn(dir: string): Promise<IViolation[]> {
 const violating: ReadonlyArray<readonly [fixture: string, rule: string, why: string]> = [
   ['domain-imports-application', 'domain-no-outer-layers', 'domain reaching outward'],
   ['domain-imports-npm', 'domain-no-npm-dependencies', 'domain importing an npm package'],
+  [
+    'domain-imports-dist-package',
+    'domain-no-npm-dependencies',
+    'npm package whose entry point lives under dist/',
+  ],
   ['shared-imports-npm', 'domain-no-npm-dependencies', 'shared kernel importing an npm package'],
   ['domain-imports-node-builtin', 'domain-no-node-builtins', 'domain importing node:crypto'],
   [
@@ -32,6 +37,14 @@ const violating: ReadonlyArray<readonly [fixture: string, rule: string, why: str
   ['interface-imports-infrastructure', 'interface-no-infrastructure', 'route newing up an adapter'],
   ['cross-module-internals', 'no-cross-module-internals', 'routing reaching past hazards/api.ts'],
   ['circular', 'no-circular', 'two files importing each other'],
+  ['shared-imports-module', 'shared-imports-only-shared', 'kernel reaching up into a module'],
+  ['platform-imports-module', 'platform-no-inward', 'a platform adapter reaching into a module'],
+  ['module-imports-platform', 'modules-no-outward', 'a module newing up a platform adapter'],
+  [
+    'test-file-exemption-is-narrow',
+    'domain-no-npm-dependencies',
+    'vitest imported from a non-test domain file',
+  ],
   ['unresolvable-import', 'no-unresolvable', 'import of a package that is not installed'],
 ];
 
