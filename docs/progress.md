@@ -148,6 +148,11 @@ inbound `x-request-id` is echoed back.
     Best-effort: it cannot see `globalThis.process.env`.
 22. **`pnpm arch` scopes to `apps/*/src`**, not whole app directories. Package-root config files
     are tooling, not architecture.
+23. **The developer task runner is pnpm, not make.** `make` is not installed on Windows and runs
+    recipes through cmd.exe by default, so Makefiles written for Linux or Mac break. Database and
+    stack tasks will be `pnpm db:up`, `db:down`, `db:migrate` and `db:reset`, wrapping
+    `docker compose`. A thin Makefile that only delegates to those scripts can be added later if
+    wanted; the README documents pnpm.
 
 ## Deviations and open items from M1.3
 
@@ -172,15 +177,39 @@ dropped fixture stubs on a fresh clone.
 
 ## Environment notes
 
-- Node 24.21, git 2.55 present. pnpm 12.5.1 via corepack (`corepack enable pnpm`).
+- Node 24.21 (`C:Program Files
+odejs`), git 2.55, pnpm 12.5.1 via corepack
+  (`corepack enable pnpm`). The pnpm store lives on E: (`E:.pnpm-store`).
 - pnpm 12 blocks install scripts by default; allowed ones are listed under `allowBuilds` in
   `pnpm-workspace.yaml` (currently esbuild). The `pnpm` field in package.json is no longer read.
-- Docker not installed yet — **needed for M1.4** (Postgres/PostGIS + Valhalla).
+- Docker Desktop is **not installed yet** — needed for M1.4 (Postgres/PostGIS + Valhalla).
+
+## Paused: Windows 11 upgrade (2026-09-21)
+
+Work is paused while the machine is upgraded to Windows 11 and tools are reinstalled.
+
+**State at pause:** M1.1–M1.3 done, all on `main`, working tree clean, all checks green
+(59 core tests, 16 architecture tests). **There is no git remote**, so the commits exist only in
+`E:projectswagonwise`. Push to a private remote before a risky upgrade if E: could be wiped.
+
+**Rebuild checklist, in order:**
+
+1. Confirm `E:projectswagonwise` survived: `git log --oneline` should list the M1.1–M1.3 commits.
+2. Reinstall Node 24 and git. On a clean install the global git identity is gone, so set it again
+   (`git config --global user.name` and `user.email`).
+3. `corepack enable pnpm`, then `pnpm install` in the repo.
+4. Install Docker Desktop: `winget install -e --id Docker.DockerDesktop` (approve the admin
+   prompt). Its installer enables WSL 2; if it complains, run `wsl --install` from an admin
+   PowerShell and reboot. Then check it: `docker run --rm hello-world`.
+5. Optional: in Docker Desktop's Resources settings, move the disk image to E: (C: is small).
+6. Verify the repo: `pnpm lint && pnpm typecheck && pnpm test && pnpm arch && pnpm format:check`.
+7. Start the next session and say Docker works.
 
 ## Next session
 
-M1.4 — database. Needs Docker Desktop installed first. Scope: docker compose with Postgres/PostGIS
-and Valhalla (Northumberland extract), a raw-SQL migration runner, the first migration (four
-schemas, `outbox.events`, `outbox.handled`), the Postgres `UnitOfWork`, a Testcontainers harness,
-and `DATABASE_URL` in config, `.env.example` and the README. If Docker isn't ready, M1.6 (BFF and
-the first `packages/contracts` schema) doesn't need it and can go first.
+**M1.4 — database**, once Docker is verified. Scope: docker compose with Postgres/PostGIS and
+Valhalla (Northumberland extract), a raw-SQL migration runner, the first migration (four schemas,
+`outbox.events`, `outbox.handled`), the Postgres `UnitOfWork`, a Testcontainers harness,
+`pnpm db:*` scripts (decision 23), and `DATABASE_URL` in config, `.env.example`, `turbo.json`
+`passThroughEnv` and the README. If Docker isn't ready, M1.6 (driver BFF and the first
+`packages/contracts` schema) doesn't need it and can go first.
