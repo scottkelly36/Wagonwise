@@ -13,6 +13,10 @@ const DEFAULT_DATABASE_URL = 'postgres://wagonwise:wagonwise@127.0.0.1:5432/wago
 // zero configuration (the cold-start promise) — override for anything that isn't this machine.
 const DEFAULT_INTERNAL_KEYS = 'local-dev-internal-key';
 
+// Matches infra/docker/compose.yml's valhalla service's published port (8002) — zero
+// configuration needed once `docker compose --profile valhalla up` is running (M2.1).
+const DEFAULT_VALHALLA_URL = 'http://127.0.0.1:8002';
+
 function isEd25519Pkcs8Pem(pem: string): boolean {
   try {
     return createPrivateKey(pem).asymmetricKeyType === 'ed25519';
@@ -59,6 +63,7 @@ const envSchema = z.object({
     .refine((keys) => keys.length > 0, {
       message: 'must contain at least one non-empty, comma-separated key',
     }),
+  VALHALLA_URL: z.url().default(DEFAULT_VALHALLA_URL),
 });
 
 export interface Config {
@@ -69,6 +74,7 @@ export interface Config {
   readonly databaseUrl: string;
   readonly identityPrivateKeyPem: string | undefined;
   readonly internalKeys: readonly string[];
+  readonly valhallaUrl: string;
 }
 
 /** Thrown at boot when the environment is invalid; the process should exit, not limp on. */
@@ -100,5 +106,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     databaseUrl: values.DATABASE_URL,
     identityPrivateKeyPem: values.IDENTITY_PRIVATE_KEY,
     internalKeys: values.INTERNAL_KEYS,
+    valhallaUrl: values.VALHALLA_URL,
   };
 }

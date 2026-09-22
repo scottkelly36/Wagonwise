@@ -92,6 +92,7 @@ half-configured.
 | `DATABASE_URL`         | `postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise` | Matches `pnpm db:up`'s compose service; `postgres://` or `postgresql://`                |
 | `IDENTITY_PRIVATE_KEY` | unset (fresh key each boot)                               | PEM, PKCS8, Ed25519 only — see Identity, below                                          |
 | `INTERNAL_KEYS`        | `local-dev-internal-key`                                  | Comma-separated; a BFF must send one in `X-Internal-Key` on everything except `/health` |
+| `VALHALLA_URL`         | `http://127.0.0.1:8002`                                   | Matches `infra/docker/compose.yml`'s `valhalla` service (see Routing, below)            |
 
 ```bash
 PORT=4000 LOG_LEVEL=debug pnpm dev
@@ -216,6 +217,12 @@ so they're only reachable by `curl` or a future client that talks to core direct
 `driverId` is a plain, trusted request field for now — there's no token-derived `driverId` yet
 (that needs the BFF/auth wiring M4 brings), so a mismatched `driverId` on get/update/delete
 returns the same 404 as a genuinely unknown id rather than a 403 (docs/progress.md, decision 49).
+
+**Truck-aware routing (M2.3):** `RoutingEngine`, behind a port, with a Valhalla adapter
+(`apps/core/src/modules/routing/infrastructure/valhalla-routing-engine.ts`) that talks to the
+`valhalla` compose service (see above) over plain HTTP — no route yet exposes it (that's M2.5's
+`PlanRoute`), so there's nothing to `curl` here today. `VALHALLA_URL` (Configuration, above)
+points at it.
 
 ## Driver BFF
 

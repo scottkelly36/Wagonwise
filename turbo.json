@@ -31,7 +31,8 @@
         "DATABASE_URL",
         "IDENTITY_PRIVATE_KEY",
         "INTERNAL_KEYS",
-        "CORE_INTERNAL_URL"
+        "CORE_INTERNAL_URL",
+        "VALHALLA_URL"
       ]
     }
   }
