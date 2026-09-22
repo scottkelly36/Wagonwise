@@ -141,9 +141,22 @@ zero-padded number (`0002_...sql`); never edit a migration that has already run 
 PostGIS container via Testcontainers — Docker must be running for `pnpm test` to pass, matching
 the CI tiering decision that PostGIS integration tests run per-PR, not nightly-only.
 
-Valhalla (self-hosted truck routing, needed from M2) is also in `infra/docker/compose.yml` but
-not started by `pnpm db:up` — see the comment in that file for bringing it up once you have a
-map extract. Not required for M1.4.
+Valhalla (self-hosted truck routing) is also in `infra/docker/compose.yml`, in its own
+`valhalla` profile so `pnpm db:up` doesn't start it. Verified end to end in M2.1 against a real
+Northumberland extract — a real truck-costed route through Hexham, and `exclude_polygons`
+genuinely rerouting around an excluded area (this is how hazard avoidance will feed into
+routing). To bring it up:
+
+```bash
+# 1. Download a county (or Great Britain) .osm.pbf extract from Geofabrik into
+#    infra/docker/custom_files/ — the image reads *.pbf from, and writes tiles/config into,
+#    this one directory (gitignored, never commit the extract):
+#    https://download.geofabrik.de/europe/united-kingdom/england/northumberland-latest.osm.pbf
+
+docker compose -f infra/docker/compose.yml --profile valhalla up -d valhalla
+# First start builds tiles (a few minutes for a county-sized extract); later starts reuse them.
+# Serves on http://localhost:8002 — GET /status confirms it's up.
+```
 
 ## Identity (sign-in)
 
