@@ -36,6 +36,11 @@ const violating: ReadonlyArray<readonly [fixture: string, rule: string, why: str
   ],
   ['interface-imports-infrastructure', 'interface-no-infrastructure', 'route newing up an adapter'],
   ['cross-module-internals', 'no-cross-module-internals', 'routing reaching past hazards/api.ts'],
+  [
+    'composition-imports-module-internals',
+    'modules-reachable-only-through-api',
+    'composition reaching past hazards/api.ts, the case no-cross-module-internals cannot see',
+  ],
   ['circular', 'no-circular', 'two files importing each other'],
   ['shared-imports-module', 'shared-imports-only-shared', 'kernel reaching up into a module'],
   ['platform-imports-module', 'platform-no-inward', 'a platform adapter reaching into a module'],

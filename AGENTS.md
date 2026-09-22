@@ -69,8 +69,9 @@ can subscribe later.
 ### Bounded contexts
 
 6. **`identity`, `routing`, `hazards` and `feedback` are separate modules.** A module may
-   only be imported through its facade (`<module>/api.ts`). Reaching into another module's
-   `domain/` or `application/` fails CI.
+   only be imported through its facade (`<module>/api.ts`) — by another module, or by anything
+   else (`composition/`, `host/`). Reaching into a module's `domain/`, `application/`,
+   `infrastructure/` or `interface/` from outside it fails CI either way.
 7. **Cross-context reads go through a read-model port owned by the _consuming_ context,**
    with its own types, translated by an adapter in that context's `infrastructure/`.
    Routing never sees a `HazardReport`; it sees its own `ReportedObstruction`.

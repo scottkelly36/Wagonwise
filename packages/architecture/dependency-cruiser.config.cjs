@@ -135,6 +135,17 @@ module.exports = {
         pathNot: 'modules/$1/',
       },
     },
+    {
+      name: 'modules-reachable-only-through-api',
+      severity: 'error',
+      comment:
+        'AGENTS.md rule 6, the other half of no-cross-module-internals: that rule only fires ' +
+        'when the importer is itself under modules/, so composition/, host/ and anything else ' +
+        "outside modules/ could reach past a module's api.ts and this ruleset would say nothing " +
+        '— found by testing a deliberately-bad composition/ fixture against the config, M1.4.',
+      from: { path: '^(?!.*modules/).*$' },
+      to: { path: 'modules/[^/]+/(domain|application|infrastructure|interface)/' },
+    },
   ],
   options: {
     // doNotFollow keeps the edge in the graph (so the npm-dependency rules can see it)

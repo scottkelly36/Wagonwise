@@ -156,15 +156,10 @@ inbound `x-request-id` is echoed back.
 - **Real `UnitOfWork` deferred to M1.4.** The task description said "real and fake"; a Postgres
   transaction adapter can't exist before the database does. The port and a contract-enforcing fake
   (commit/rollback recording, no nesting) exist now.
-- **Composition-root vs module facade: decided, not yet enforced.** Factories live in each
-  module's `api.ts` (module wires its own adapters, `composition/` just calls it) — chosen over
-  exempting `composition/` from the facade rule, since a module's own facade is the natural
-  seam and needs no new exception. But testing the current rules against a deliberately-bad
-  fixture found that `composition/` and `host/` can _already_ reach past a module's `api.ts`
-  straight into its `domain/` — `no-cross-module-internals` only matches paths under `modules/`,
-  so nothing stops it today despite the config header comment claiming otherwise. **Fix in M1.5**:
-  a new rule (anything outside a module may import only its `api.ts`) plus a violation fixture,
-  alongside the first real module that would actually exercise the facade.
+- **Composition-root vs module facade: decided and now enforced (decision 29).** Factories live
+  in each module's `api.ts` (module wires its own adapters, `composition/` just calls it) —
+  chosen over exempting `composition/` from the facade rule, since a module's own facade is the
+  natural seam and needs no new exception.
 - **Graceful shutdown is untested on this machine.** Windows does not deliver SIGTERM, so the
   handler in `main.ts` has only been exercised by reading it. It targets Linux containers.
 
@@ -221,6 +216,13 @@ db:migrate` needs zero configuration, extending the "a cold start never needs an
     only from M2, so gold-plating it now would be untestable guesswork. **Not verified against
     real tiles** — treat the service definition as a draft to check when M2 needs a working
     `RoutingEngine` adapter, not as proven.
+29. **New dependency-cruiser rule: `modules-reachable-only-through-api`.** Closes the gap found
+    while confirming the M1.3 composition-root decision: `no-cross-module-internals` only fires
+    when the _importer_ is itself under `modules/`, so `composition/`, `host/` or anything else
+    outside `modules/` could reach past a module's `api.ts` straight into its `domain/` and the
+    ruleset said nothing, despite the config's own header comment claiming otherwise. Proven by a
+    new violation fixture (`composition-imports-module-internals`) before the fix, per the
+    fail-closed convention. AGENTS.md rule 6 reworded to say so explicitly.
 
 ## Deviations and open items from M1.4
 
@@ -233,9 +235,6 @@ db:migrate` needs zero configuration, extending the "a cold start never needs an
   machine) during `pnpm approve-builds`. Harmless: Testcontainers only uses ssh2 for Docker-over-
   SSH, which this project doesn't use locally, and it falls back to pure-JS crypto. Revisit only
   if remote Docker hosts (e.g. a CI runner without a local daemon) become relevant.
-- **The architecture-rule gap found while deciding M1.3's composition-root question** (facades
-  are not enforced for `composition/`/`host/`, only for `modules/`) is confirmed but not yet
-  fixed — see the M1.3 deviations entry above. Scheduled for M1.5.
 
 ## Environment notes
 
@@ -271,9 +270,8 @@ Environment notes for what a future clean install will need to redo.
 `Device`, `InviteCode` per the design doc §3/§9. OTP-based sign-in issuing Ed25519-signed
 tokens (decision 1), sessions stored with the refresh token hashed, invite-code redemption.
 Wire it through all four layers (`domain/`, `application/`, `infrastructure/` with a real
-Postgres repository, `interface/`) plus a `composition/` factory in the module's own `api.ts`,
-per the M1.3 deviations decision above (decision 26's `asKyselyTransaction` gets its first real
-caller here, if a use case needs it). Fix the architecture-rule gap first or alongside: a new
-dependency-cruiser rule so `composition/` and `host/` can only reach a module through its
-`api.ts`, with a violation fixture proving it fires. Then **M1.6** (driver BFF + first
-`packages/contracts` schema) and **M1.7** (CI) follow in order.
+Postgres repository, `interface/`) plus a `composition/` factory in the module's own `api.ts`
+(decision 26's `asKyselyTransaction` gets its first real caller here, if a use case needs it).
+The architecture-rule gap is already fixed (decision 29) — identity is the first module that
+actually exercises it. Then **M1.6** (driver BFF + first `packages/contracts` schema) and
+**M1.7** (CI) follow in order.
