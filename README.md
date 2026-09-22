@@ -51,8 +51,13 @@ Verify everything worked (this also needs Postgres up, since the PostGIS integra
 per-PR, not nightly-only):
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm test && pnpm arch && pnpm format:check
+pnpm verify   # lint && typecheck && test && arch && format:check — the same checks CI runs
 ```
+
+`pnpm install` also sets up a `pre-push` git hook (via `simple-git-hooks`, `package.json`'s
+`"prepare"` script — no extra step) that runs `pnpm verify` before every `git push`, so a CI
+failure over lint/formatting/tests never has to happen in the first place. Skip it just once with
+`SKIP_SIMPLE_GIT_HOOKS=1 git push` if you ever need to push before fixing what it caught.
 
 Then start everything (core on 3001, the driver BFF on 3002 — `pnpm dev` runs every app's `dev`
 script at once) and check both answer:
@@ -112,6 +117,7 @@ More variables arrive with the milestones that need them. Each one must also be 
 | `pnpm arch`         | Architecture rules against `apps/` (see below)                                |
 | `pnpm format`       | Prettier write                                                                |
 | `pnpm format:check` | Prettier check — this is what CI runs                                         |
+| `pnpm verify`       | lint + typecheck + test + arch + format:check — also runs on every `git push` |
 | `pnpm db:up`        | Start Postgres/PostGIS (docker compose), wait for it to be healthy            |
 | `pnpm db:down`      | Stop it                                                                       |
 | `pnpm db:migrate`   | Apply pending migrations from `apps/core/migrations/`                         |

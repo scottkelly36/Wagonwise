@@ -488,14 +488,14 @@ failed the whole job before any check ran.
 
 ## M2 task breakdown
 
-| #    | Task                                          | Status            |
-| ---- | ---------------------------------------------- | ----------------- |
-| M2.1 | Verify Valhalla against a real extract         | Done — 2026-09-22 |
-| M2.2 | `routing` module skeleton + `VehicleProfile`   | Not started       |
-| M2.3 | `RoutingEngine` port + Valhalla adapter        | Not started       |
-| M2.4 | `applies(obstruction, dimensions)`             | Not started       |
-| M2.5 | `PlanRoute` use case + avoided-restriction explanation | Not started |
-| M2.6 | Golden-route tests                             | Not started       |
+| #    | Task                                                   | Status            |
+| ---- | ------------------------------------------------------ | ----------------- |
+| M2.1 | Verify Valhalla against a real extract                 | Done — 2026-09-22 |
+| M2.2 | `routing` module skeleton + `VehicleProfile`           | Not started       |
+| M2.3 | `RoutingEngine` port + Valhalla adapter                | Not started       |
+| M2.4 | `applies(obstruction, dimensions)`                     | Not started       |
+| M2.5 | `PlanRoute` use case + avoided-restriction explanation | Not started       |
+| M2.6 | Golden-route tests                                     | Not started       |
 
 **M2.1 delivered:** decision 28's "unverified" flag is resolved — Valhalla now runs against a
 real Northumberland extract and genuinely does truck-aware routing, not just a service that
@@ -544,6 +544,29 @@ starts.
 - **`use_tiles_ignore_pbf: 'True'`** (unchanged from the original compose file) means a changed
   `.pbf` won't trigger a rebuild on restart unless tiles are deleted first or `force_rebuild` is
   set — fine for now, worth remembering if the extract is ever refreshed.
+
+## Tooling: pre-push verification hook
+
+Added between M2.1 and M2.2, prompted by CI failing on things `pnpm verify` would have caught
+locally — a `pre-push` git hook now runs the same five checks as CI before a push is allowed to
+leave the machine.
+
+45. **`simple-git-hooks`, not husky.** One dependency, config lives directly in `package.json`
+    (no `.husky/` directory of shell scripts), and it installs itself via a `"prepare"` script
+    that `pnpm install` already runs — so a fresh clone gets the hook with zero extra steps,
+    matching the existing cold-start convention. Needed adding `simple-git-hooks: true` to
+    `pnpm-workspace.yaml`'s `allowBuilds` (decision from M1.1's environment notes: pnpm 12 blocks
+    install scripts by default).
+    - New root script `pnpm verify` — the same `lint && typecheck && test && arch && format:check`
+      chain the README and CI both already run — is the single source of truth both the hook and
+      a developer running it by hand call, rather than duplicating the check list a third place.
+    - `"pre-push": "pnpm verify"` in `package.json`'s `simple-git-hooks` block.
+    - **Verified for real, not just installed:** the first run caught a genuine formatting issue
+      in this file (a markdown table Prettier wanted reformatted) that would otherwise have
+      reached CI — exactly the failure mode this was built to prevent. Fixed with `pnpm format`,
+      re-ran `pnpm verify` clean (lint, typecheck, 245 tests, arch, format:check all green).
+    - Escape hatch: `SKIP_SIMPLE_GIT_HOOKS=1 git push` (simple-git-hooks' own built-in), for the
+      rare case a push is needed before the checks are fixed.
 
 ## Environment notes
 

@@ -15,16 +15,22 @@
     "arch": "turbo run arch",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm arch && pnpm format:check",
     "db:up": "docker compose -f infra/docker/compose.yml up -d --wait postgres",
     "db:down": "docker compose -f infra/docker/compose.yml down",
     "db:migrate": "pnpm --filter @wagonwise/core run db:migrate",
-    "db:reset": "pnpm run db:down && pnpm run db:up && pnpm run db:migrate"
+    "db:reset": "pnpm run db:down && pnpm run db:up && pnpm run db:migrate",
+    "prepare": "simple-git-hooks"
   },
   "devDependencies": {
     "@wagonwise/config": "workspace:*",
     "eslint": "^9.39.1",
     "prettier": "^3.6.2",
+    "simple-git-hooks": "^2.14.0",
     "turbo": "^2.6.1",
     "typescript": "^5.9.3"
+  },
+  "simple-git-hooks": {
+    "pre-push": "pnpm verify"
   }
 }
