@@ -3,8 +3,10 @@ import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { Dimensions } from '../domain/vehicle-profile.js';
+import type { ReportedObstruction } from '../domain/reported-obstruction.js';
 import { InMemoryRoutePlanRepository } from './testing/in-memory-route-plan-repository.js';
 import { InMemoryVehicleProfileRepository } from './testing/in-memory-vehicle-profile-repository.js';
+import { FakeHazardAvoidanceQuery } from './testing/fake-hazard-avoidance-query.js';
 import { FakeRoutingEngine } from './testing/fake-routing-engine.js';
 import { planRoute, type PlanRouteDeps } from './plan-route.js';
 
@@ -25,6 +27,7 @@ async function buildDeps(): Promise<
     vehicleProfileRepo,
     routePlanRepo: new InMemoryRoutePlanRepository(),
     routingEngine: new FakeRoutingEngine(),
+    hazardAvoidanceQuery: new FakeHazardAvoidanceQuery(),
     clock: new FakeClock(now),
     ids: new SequentialIdGenerator(),
   };
@@ -99,5 +102,89 @@ describe('planRoute', () => {
 
     const result = await planRoute(deps, { driverId, profileId, origin, destination });
     expect(result).toEqual({ ok: false, error: { tag: 'NoRouteFound' } });
+  });
+
+  it('queries hazard avoidance with the first-pass route’s geometry', async () => {
+    const deps = await buildDeps();
+    await planRoute(deps, { driverId, profileId, origin, destination });
+
+    const query = deps.hazardAvoidanceQuery as FakeHazardAvoidanceQuery;
+    expect(query.corridors).toEqual(['fake-geometry']);
+  });
+
+  it('does not re-plan when no nearby obstruction applies to the vehicle', async () => {
+    const deps = await buildDeps();
+    const query = deps.hazardAvoidanceQuery as FakeHazardAvoidanceQuery;
+    // A 3.5m height limit; the profile's own heightM is 4.2, so this *would* apply — this test
+    // instead checks a kind the vehicle isn't affected by at all.
+    const obstruction: ReportedObstruction = {
+      id: 'hazard-1',
+      kind: 'width',
+      limit: 3.5, // the profile's widthM is 2.6 — under the limit, so applies() is false
+      zone: { points: [{ lat: 54.97, lon: -2.1 }] },
+    };
+    query.obstructions = [obstruction];
+
+    const result = await planRoute(deps, { driverId, profileId, origin, destination });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.geometry).toBe('fake-geometry');
+
+    const engine = deps.routingEngine as FakeRoutingEngine;
+    expect(engine.requests).toHaveLength(1); // only the first pass — no reroute needed
+  });
+
+  it('re-plans with an avoid polygon when a nearby obstruction applies to the vehicle', async () => {
+    const deps = await buildDeps();
+    const query = deps.hazardAvoidanceQuery as FakeHazardAvoidanceQuery;
+    const obstruction: ReportedObstruction = {
+      id: 'hazard-1',
+      kind: 'height',
+      limit: 3.5, // the profile's heightM is 4.2 — over the limit, so applies() is true
+      zone: { points: [{ lat: 54.97, lon: -2.1 }] },
+    };
+    query.obstructions = [obstruction];
+
+    const engine = deps.routingEngine as FakeRoutingEngine;
+    engine.results = [
+      { ok: true, value: { geometry: 'first-pass', distanceKm: 8, durationMin: 12 } },
+      { ok: true, value: { geometry: 'rerouted', distanceKm: 9.5, durationMin: 14 } },
+    ];
+
+    const result = await planRoute(deps, { driverId, profileId, origin, destination });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toMatchObject({ geometry: 'rerouted', distanceKm: 9.5, durationMin: 14 });
+
+    expect(engine.requests).toHaveLength(2);
+    expect(engine.requests[0]?.avoid).toEqual([]);
+    expect(engine.requests[1]?.avoid).toEqual([obstruction.zone]);
+    expect(query.corridors).toEqual(['first-pass']); // asked about the *first*-pass geometry
+  });
+
+  it('propagates NoRouteFound from the second pass when avoidance makes the trip impossible', async () => {
+    const deps = await buildDeps();
+    const query = deps.hazardAvoidanceQuery as FakeHazardAvoidanceQuery;
+    query.obstructions = [
+      {
+        id: 'hazard-1',
+        kind: 'prohibition',
+        zone: { points: [{ lat: 54.97, lon: -2.1 }] },
+      },
+    ];
+
+    const engine = deps.routingEngine as FakeRoutingEngine;
+    engine.results = [
+      { ok: true, value: { geometry: 'first-pass', distanceKm: 8, durationMin: 12 } },
+      { ok: false, error: { tag: 'NoRouteFound' } },
+    ];
+
+    const result = await planRoute(deps, { driverId, profileId, origin, destination });
+    expect(result).toEqual({ ok: false, error: { tag: 'NoRouteFound' } });
+    expect(
+      await deps.routePlanRepo.findById(
+        makeId<'RoutePlanId'>('00000000-0000-4000-8000-000000000001'),
+      ),
+    ).toBeNull();
   });
 });

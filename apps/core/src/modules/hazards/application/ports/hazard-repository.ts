@@ -8,6 +8,11 @@ export interface HazardRepository {
    *  merge"). Not filtered by type here, so the same spatial query can back both the merge check
    *  and (later) a map viewport query. */
   findNearby(location: GeoPoint, radiusM: number): Promise<HazardReport[]>;
+  /** Candidates within `radiusM` of a corridor — a sequence of points along a route, most often
+   *  a decoded route polyline. The on-route detection query (design doc §5): `findAvoidanceCandidates`
+   *  (`hazards/api.ts`) is its first caller, filtering and classifying what this returns. Needs at
+   *  least two points to form a line; a single-point corridor degrades to a plain radius check. */
+  findNearbyLine(points: readonly GeoPoint[], radiusM: number): Promise<HazardReport[]>;
   /** `active` reports whose `expiresAt` has passed — what `expireHazards` acts on. */
   findExpirable(now: Date): Promise<HazardReport[]>;
   /** Upsert — report, confirm, dismiss and expire all persist through this one method; a

@@ -85,6 +85,27 @@ export class PostgresHazardRepository implements HazardRepository {
     return rows.map(toDomain);
   }
 
+  async findNearbyLine(points: readonly GeoPoint[], radiusM: number): Promise<HazardReport[]> {
+    if (points.length === 0) {
+      return [];
+    }
+    const [only, ...rest] = points;
+    if (only && rest.length === 0) {
+      return this.findNearby(only, radiusM);
+    }
+    const pointExprs = points.map((p) => sql`ST_MakePoint(${p.lon}, ${p.lat})`);
+    const { rows } = await sql<HazardReportRow>`
+      select ${sql.raw(SELECT_COLUMNS)} from hazards.reports
+      where ST_DWithin(
+        location,
+        ST_SetSRID(ST_MakeLine(ARRAY[${sql.join(pointExprs)}]), 4326)::geography,
+        ${radiusM}
+      )
+      order by created_at desc
+    `.execute(this.db);
+    return rows.map(toDomain);
+  }
+
   async findExpirable(now: Date): Promise<HazardReport[]> {
     const { rows } = await sql<HazardReportRow>`
       select ${sql.raw(SELECT_COLUMNS)} from hazards.reports

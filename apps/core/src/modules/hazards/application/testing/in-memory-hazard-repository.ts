@@ -25,6 +25,16 @@ export class InMemoryHazardRepository implements HazardRepository {
     return Promise.resolve(matches);
   }
 
+  /** Approximates "near the line" as "near any one of its points" — good enough for a densely
+   *  sampled decoded polyline in tests; the real query (PostgresHazardRepository) uses PostGIS's
+   *  actual `ST_MakeLine`/`ST_DWithin` against the line itself. */
+  findNearbyLine(points: readonly GeoPoint[], radiusM: number): Promise<HazardReport[]> {
+    const matches = [...this.#byId.values()]
+      .filter((r) => points.some((p) => metresBetween(r.location, p) <= radiusM))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return Promise.resolve(matches);
+  }
+
   findExpirable(now: Date): Promise<HazardReport[]> {
     const matches = [...this.#byId.values()].filter(
       (r) =>
