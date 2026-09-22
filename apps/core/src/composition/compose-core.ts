@@ -72,7 +72,12 @@ export function composeCore(
   // (Kysely<Record<string, unknown>>, no branding), so one instance serves both modules; unlike
   // platformDb vs identityDb, there's no Kysely<Database> variance problem here to work around.
   const routingDb: RoutingUntypedDb = identityDb;
-  const routing = createRoutingModule({ db: routingDb, ids });
+  const routing = createRoutingModule({
+    db: routingDb,
+    ids,
+    clock,
+    valhallaUrl: config.valhallaUrl,
+  });
 
   const app = buildApp({ config, clock, ids });
   identity.registerRoutes(app);

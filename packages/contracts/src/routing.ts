@@ -5,6 +5,15 @@ import { driverIdSchema } from './identity.js';
 export const vehicleProfileIdSchema = brandedId<'VehicleProfileId'>();
 export type VehicleProfileId = z.infer<typeof vehicleProfileIdSchema>;
 
+export const routePlanIdSchema = brandedId<'RoutePlanId'>();
+export type RoutePlanId = z.infer<typeof routePlanIdSchema>;
+
+export const geoPointSchema = z.object({
+  lat: z.number(),
+  lon: z.number(),
+});
+export type GeoPointDto = z.infer<typeof geoPointSchema>;
+
 export const dimensionsSchema = z.object({
   heightM: z.number().positive(),
   widthM: z.number().positive(),
@@ -58,3 +67,33 @@ export const routingErrorResponseSchema = z.object({
   requestId: z.string(),
 });
 export type RoutingErrorResponse = z.infer<typeof routingErrorResponseSchema>;
+
+export const planRouteRequestSchema = z.object({
+  driverId: driverIdSchema,
+  profileId: vehicleProfileIdSchema,
+  origin: geoPointSchema,
+  destination: geoPointSchema,
+});
+export type PlanRouteRequest = z.infer<typeof planRouteRequestSchema>;
+
+/** Always `[]` for now — see docs/progress.md's M2.5 deviations. The shape is here so nothing
+ *  about the wire contract has to change once it's populated for real. */
+export const avoidedRestrictionSchema = z.object({
+  description: z.string(),
+});
+export type AvoidedRestrictionDto = z.infer<typeof avoidedRestrictionSchema>;
+
+export const routePlanSchema = z.object({
+  id: routePlanIdSchema,
+  driverId: driverIdSchema,
+  profileId: vehicleProfileIdSchema,
+  origin: geoPointSchema,
+  destination: geoPointSchema,
+  geometry: z.string(),
+  distanceKm: z.number(),
+  durationMin: z.number(),
+  avoidedRestrictions: z.array(avoidedRestrictionSchema),
+  hazardsOnRoute: z.array(z.string()),
+  createdAt: z.iso.datetime(),
+});
+export type RoutePlanDto = z.infer<typeof routePlanSchema>;

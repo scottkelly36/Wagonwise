@@ -1,7 +1,10 @@
 import type { FastifyInstance } from 'fastify';
+import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { UntypedDb } from './infrastructure/db.js';
+import { PostgresRoutePlanRepository } from './infrastructure/postgres-route-plan-repository.js';
 import { PostgresVehicleProfileRepository } from './infrastructure/postgres-vehicle-profile-repository.js';
+import { ValhallaRoutingEngine } from './infrastructure/valhalla-routing-engine.js';
 import { registerRoutingRoutes, type RoutingRouteDeps } from './interface/routes.js';
 
 // Re-exported so composition/ can type its overrides without reaching past this facade into
@@ -11,6 +14,8 @@ export type { UntypedDb } from './infrastructure/db.js';
 export interface RoutingModuleDeps {
   readonly db: UntypedDb;
   readonly ids: IdGenerator;
+  readonly clock: Clock;
+  readonly valhallaUrl: string;
 }
 
 export interface RoutingModule {
@@ -20,17 +25,28 @@ export interface RoutingModule {
 /**
  * `routing`'s only public surface (AGENTS.md rule 6). Everything under `domain/`,
  * `application/`, `infrastructure/` and `interface/` is reachable only through here — same
- * pattern as identity/api.ts (M1.5).
+ * pattern as identity/api.ts (M1.5). Wires its own `RoutingEngine` adapter here (decision 5, the
+ * module wires its own adapters) — `ValhallaRoutingEngine`'s constructor is synchronous, unlike
+ * identity's `TokenSigner`, so there's no async-boundary reason to build it in `composition/`.
  */
 export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
-  const repo = new PostgresVehicleProfileRepository(deps.db);
+  const vehicleProfileRepo = new PostgresVehicleProfileRepository(deps.db);
+  const routePlanRepo = new PostgresRoutePlanRepository(deps.db);
+  const routingEngine = new ValhallaRoutingEngine(deps.valhallaUrl);
 
   const routeDeps: RoutingRouteDeps = {
-    createVehicleProfile: { repo, ids: deps.ids },
-    updateVehicleProfile: { repo },
-    deleteVehicleProfile: { repo },
-    getVehicleProfile: { repo },
-    listVehicleProfiles: { repo },
+    createVehicleProfile: { repo: vehicleProfileRepo, ids: deps.ids },
+    updateVehicleProfile: { repo: vehicleProfileRepo },
+    deleteVehicleProfile: { repo: vehicleProfileRepo },
+    getVehicleProfile: { repo: vehicleProfileRepo },
+    listVehicleProfiles: { repo: vehicleProfileRepo },
+    planRoute: {
+      vehicleProfileRepo,
+      routePlanRepo,
+      routingEngine,
+      clock: deps.clock,
+      ids: deps.ids,
+    },
   };
 
   return {
