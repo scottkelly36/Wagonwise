@@ -7,6 +7,11 @@ import { registerHazardsRoutes, type HazardsRouteDeps } from './routes.js';
 const location = { lat: 54.9707, lon: -2.1013 };
 const now = new Date('2026-06-15T08:00:00.000Z');
 
+// `reporterId` comes from `request.driverId` (host/driver-auth.ts's hook, M4.3), never a body
+// field. This suite isn't exercising that hook — driver-auth.test.ts already does, against real
+// verification — so it stands in for it with a trivial one keyed off a plain test header.
+const DRIVER_HEADER = 'x-test-driver-id';
+
 function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
   const repo = new InMemoryHazardRepository();
   const clock = new FakeClock(now);
@@ -16,8 +21,19 @@ function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
     dismissHazard: { repo },
   };
   const app = Fastify();
+  app.addHook('onRequest', (request, _reply, done) => {
+    const driverId = request.headers[DRIVER_HEADER];
+    if (typeof driverId === 'string') {
+      request.driverId = driverId;
+    }
+    done();
+  });
   registerHazardsRoutes(app, deps);
   return { app, deps };
+}
+
+function asDriver(driverId: string): { headers: Record<string, string> } {
+  return { headers: { [DRIVER_HEADER]: driverId } };
 }
 
 describe('POST /hazards/reports', () => {
@@ -28,11 +44,11 @@ describe('POST /hazards/reports', () => {
       url: '/hazards/reports',
       payload: {
         id: '11111111-1111-4111-8111-111111111111',
-        reporterId: 'driver-1',
         type: 'low_bridge',
         location,
         source: 'tap',
       },
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
@@ -43,17 +59,42 @@ describe('POST /hazards/reports', () => {
     });
   });
 
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports',
+      payload: {
+        id: '11111111-1111-4111-8111-111111111111',
+        type: 'low_bridge',
+        location,
+        source: 'tap',
+      },
+    });
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: 'unauthenticated' });
+  });
+
   it('is idempotent on id — resubmitting returns the same report, 200', async () => {
     const { app } = buildApp();
     const payload = {
       id: '11111111-1111-4111-8111-111111111111',
-      reporterId: 'driver-1',
       type: 'low_bridge',
       location,
       source: 'tap',
     };
-    const first = await app.inject({ method: 'POST', url: '/hazards/reports', payload });
-    const second = await app.inject({ method: 'POST', url: '/hazards/reports', payload });
+    const first = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports',
+      payload,
+      ...asDriver('driver-1'),
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports',
+      payload,
+      ...asDriver('driver-1'),
+    });
     expect(second.statusCode).toBe(200);
     expect(second.json()).toEqual(first.json());
   });
@@ -64,6 +105,7 @@ describe('POST /hazards/reports', () => {
       method: 'POST',
       url: '/hazards/reports',
       payload: { nonsense: true },
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(400);
   });
@@ -75,12 +117,12 @@ describe('POST /hazards/reports', () => {
       url: '/hazards/reports',
       payload: {
         id: '11111111-1111-4111-8111-111111111111',
-        reporterId: 'driver-1',
         type: 'low_bridge',
         location,
         measurement: { kind: 'height', value: 0, unit: 'm' },
         source: 'tap',
       },
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(400);
   });
@@ -94,11 +136,11 @@ describe('POST /hazards/reports/:id/confirm', () => {
       url: '/hazards/reports',
       payload: {
         id: '11111111-1111-4111-8111-111111111111',
-        reporterId: 'driver-1',
         type: 'low_bridge',
         location,
         source: 'tap',
       },
+      ...asDriver('driver-1'),
     });
     const { id } = created.json<{ id: string }>();
 
@@ -135,11 +177,11 @@ describe('POST /hazards/reports/:id/dismiss', () => {
       url: '/hazards/reports',
       payload: {
         id: '11111111-1111-4111-8111-111111111111',
-        reporterId: 'driver-1',
         type: 'low_bridge',
         location,
         source: 'tap',
       },
+      ...asDriver('driver-1'),
     });
     const { id } = created.json<{ id: string }>();
 

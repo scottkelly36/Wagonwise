@@ -30,7 +30,9 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     if (!parsed.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
-    const core = await deps.coreClient.post('/identity/otp/request', parsed.data, request.id);
+    const core = await deps.coreClient.request('POST', '/identity/otp/request', request.id, {
+      body: parsed.data,
+    });
     return reply.status(core.status).send(core.body);
   });
 
@@ -39,7 +41,9 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     if (!parsed.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
-    const core = await deps.coreClient.post('/identity/otp/verify', parsed.data, request.id);
+    const core = await deps.coreClient.request('POST', '/identity/otp/verify', request.id, {
+      body: parsed.data,
+    });
     return reply.status(core.status).send(core.body);
   });
 
@@ -48,7 +52,9 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     if (!parsed.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
-    const core = await deps.coreClient.post('/identity/token/refresh', parsed.data, request.id);
+    const core = await deps.coreClient.request('POST', '/identity/token/refresh', request.id, {
+      body: parsed.data,
+    });
     return reply.status(core.status).send(core.body);
   });
 
@@ -77,9 +83,9 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
       return reply.status(403).send({ error: 'session_mismatch', requestId: request.id });
     }
 
-    const core = await deps.coreClient.post(
+    const core = await deps.coreClient.request(
+      'POST',
       `/identity/sessions/${parsed.data.id}/revoke`,
-      undefined,
       request.id,
     );
     return reply.status(core.status).send(core.body);

@@ -2,10 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { loadConfig, PRODUCT_NAME } from '../config.js';
 import { FakeClock } from '../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../shared/testing/sequential-id-generator.js';
+import type { AccessTokenVerifier } from './access-token-verifier.js';
 import { buildApp } from './build-app.js';
 
 const FIRST_ID = '00000000-0000-4000-8000-000000000001';
 const INTERNAL_KEY_HEADER = { 'x-internal-key': 'local-dev-internal-key' };
+const VALID_DRIVER_TOKEN = 'valid-driver-token';
+
+const fakeAccessTokenVerifier: AccessTokenVerifier = {
+  verify(token: string) {
+    if (token !== VALID_DRIVER_TOKEN) {
+      return Promise.reject(new Error('bad token'));
+    }
+    return Promise.resolve({ driverId: 'driver-1', sessionId: 'session-1' });
+  },
+};
 
 function makeApp(overrides: Partial<Parameters<typeof loadConfig>[0]> = {}) {
   const clock = new FakeClock('2026-03-01T12:00:00.000Z');
@@ -14,6 +25,7 @@ function makeApp(overrides: Partial<Parameters<typeof loadConfig>[0]> = {}) {
     config: loadConfig({ LOG_LEVEL: 'silent', ...overrides }),
     clock,
     ids,
+    accessTokenVerifier: fakeAccessTokenVerifier,
   });
   return { app, clock, ids };
 }
@@ -96,6 +108,48 @@ describe('internal-key auth', () => {
 
     const notFound = await app.inject({ method: 'GET', url: '/anything-else' });
     expect(notFound.statusCode).toBe(401); // gated before routing even decides it's a 404
+  });
+});
+
+describe('driver auth (M4.2, M4.3)', () => {
+  it.each([['/routing/protected'], ['/hazards/protected']])(
+    'rejects a %s request with no access token, even with a valid internal key',
+    async (path) => {
+      const { app } = makeApp();
+      app.get(path, () => 'never reached');
+      const response = await app.inject({
+        method: 'GET',
+        url: path,
+        headers: INTERNAL_KEY_HEADER,
+      });
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ error: 'missing_bearer_token' });
+    },
+  );
+
+  it.each([['/routing/protected'], ['/hazards/protected']])(
+    'accepts a %s request with a valid internal key and a valid access token',
+    async (path) => {
+      const { app } = makeApp();
+      app.get(path, () => ({ ok: true }));
+      const response = await app.inject({
+        method: 'GET',
+        url: path,
+        headers: { ...INTERNAL_KEY_HEADER, authorization: `Bearer ${VALID_DRIVER_TOKEN}` },
+      });
+      expect(response.statusCode).toBe(200);
+    },
+  );
+
+  it('does not gate a route outside routing/hazards, e.g. a future module', async () => {
+    const { app } = makeApp();
+    app.get('/feedback/protected', () => ({ ok: true }));
+    const response = await app.inject({
+      method: 'GET',
+      url: '/feedback/protected',
+      headers: INTERNAL_KEY_HEADER,
+    });
+    expect(response.statusCode).toBe(200);
   });
 });
 

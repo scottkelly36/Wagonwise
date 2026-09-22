@@ -31,15 +31,16 @@ export const vehicleProfileSchema = z.object({
 });
 export type VehicleProfileDto = z.infer<typeof vehicleProfileSchema>;
 
+/** No `driverId` field (M4.2): the driver is whoever the caller's access token says they are,
+ *  never a value the caller supplies — `interface/routes.ts` takes it from the verified token
+ *  instead of parsing it out of this schema (decision 1). */
 export const createVehicleProfileRequestSchema = z.object({
-  driverId: driverIdSchema,
   name: z.string(),
   dimensions: dimensionsSchema,
 });
 export type CreateVehicleProfileRequest = z.infer<typeof createVehicleProfileRequestSchema>;
 
 export const updateVehicleProfileRequestSchema = z.object({
-  driverId: driverIdSchema,
   name: z.string(),
   dimensions: dimensionsSchema,
 });
@@ -52,13 +53,6 @@ export const vehicleProfileIdParamsSchema = z.object({
 });
 export type VehicleProfileIdParams = z.infer<typeof vehicleProfileIdParamsSchema>;
 
-/** `driverId` as a query-string parameter — used by the list/get/delete routes, which have no
- *  body to carry it in. */
-export const driverIdQuerySchema = z.object({
-  driverId: driverIdSchema,
-});
-export type DriverIdQuery = z.infer<typeof driverIdQuerySchema>;
-
 /** The shape of a domain error body every routing route can send (interface/error-mapping.ts's
  *  `statusFor()` picks the status; this describes what rides along with it) — mirrors identity's
  *  identityErrorResponseSchema. */
@@ -68,8 +62,8 @@ export const routingErrorResponseSchema = z.object({
 });
 export type RoutingErrorResponse = z.infer<typeof routingErrorResponseSchema>;
 
+/** No `driverId` field, same reasoning as `createVehicleProfileRequestSchema` above. */
 export const planRouteRequestSchema = z.object({
-  driverId: driverIdSchema,
   profileId: vehicleProfileIdSchema,
   origin: geoPointSchema,
   destination: geoPointSchema,

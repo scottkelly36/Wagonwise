@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
+import type { AccessTokenVerifier } from '../host/access-token-verifier.js';
 import { buildApp } from '../host/build-app.js';
 import { createHazardsModule, type UntypedDb as HazardsUntypedDb } from '../modules/hazards/api.js';
 import {
@@ -26,6 +27,7 @@ export interface CoreOverrides {
   readonly db?: UntypedDb;
   readonly tokenSigner?: TokenSigner;
   readonly otpSender?: OtpSender | undefined;
+  readonly accessTokenVerifier?: AccessTokenVerifier;
 }
 
 export interface Core {
@@ -39,13 +41,14 @@ export interface Core {
  * (AGENTS.md rule 5). Manual wiring, no DI container. Each bounded context adds a
  * `createXModule(deps)` call here as it lands — identity as of M1.5.
  *
- * `tokenSigner` is passed in already built rather than constructed here, because building one is
- * async (key generation/import) and this function is not — `main.ts` awaits
- * `createTokenSigner()` once at boot, `compose-core.test.ts` passes a fake.
+ * `tokenSigner` and `accessTokenVerifier` are passed in already built rather than constructed
+ * here, because building either is async (key generation/import, or `importJWK`) and this
+ * function is not — `main.ts` awaits both once at boot, `compose-core.test.ts` passes fakes.
  */
 export function composeCore(
   config: Config,
   tokenSigner: TokenSigner,
+  accessTokenVerifier: AccessTokenVerifier,
   overrides: CoreOverrides = {},
 ): Core {
   const clock = overrides.clock ?? new SystemClock();
@@ -86,7 +89,12 @@ export function composeCore(
     hazards,
   });
 
-  const app = buildApp({ config, clock, ids });
+  const app = buildApp({
+    config,
+    clock,
+    ids,
+    accessTokenVerifier: overrides.accessTokenVerifier ?? accessTokenVerifier,
+  });
   identity.registerRoutes(app);
   routing.registerRoutes(app);
   hazards.registerRoutes(app);

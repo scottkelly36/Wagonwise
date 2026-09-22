@@ -12,6 +12,12 @@ import { registerRoutingRoutes, type RoutingRouteDeps } from './routes.js';
 const dimensions = { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32 };
 const now = new Date('2026-06-15T08:00:00.000Z');
 
+// `driverId` comes from `request.driverId` (host/driver-auth.ts's hook, M4.2), never a body or
+// query field. This test suite isn't exercising that hook — driver-auth.test.ts already does,
+// against real verification — so it stands in for it with a trivial one keyed off a plain test
+// header, letting every test below say who's calling without real token machinery.
+const DRIVER_HEADER = 'x-test-driver-id';
+
 function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
   const repo = new InMemoryVehicleProfileRepository();
   const ids = new SequentialIdGenerator();
@@ -31,8 +37,19 @@ function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
     },
   };
   const app = Fastify();
+  app.addHook('onRequest', (request, _reply, done) => {
+    const driverId = request.headers[DRIVER_HEADER];
+    if (typeof driverId === 'string') {
+      request.driverId = driverId;
+    }
+    done();
+  });
   registerRoutingRoutes(app, deps);
   return { app, deps };
+}
+
+function asDriver(driverId: string): { headers: Record<string, string> } {
+  return { headers: { [DRIVER_HEADER]: driverId } };
 }
 
 describe('POST /routing/vehicle-profiles', () => {
@@ -43,10 +60,21 @@ describe('POST /routing/vehicle-profiles', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: { driverId: 'driver-1', name: 'Big Wagon', dimensions },
+      payload: { name: 'Big Wagon', dimensions },
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({ driverId: 'driver-1', name: 'Big Wagon', dimensions });
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/vehicle-profiles',
+      payload: { name: 'Big Wagon', dimensions },
+    });
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: 'unauthenticated' });
   });
 
   it('400s a malformed body', async () => {
@@ -54,6 +82,7 @@ describe('POST /routing/vehicle-profiles', () => {
       method: 'POST',
       url: '/routing/vehicle-profiles',
       payload: { nonsense: true },
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(400);
   });
@@ -62,33 +91,33 @@ describe('POST /routing/vehicle-profiles', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: {
-        driverId: 'driver-1',
-        name: 'Big Wagon',
-        dimensions: { ...dimensions, heightM: 0 },
-      },
+      payload: { name: 'Big Wagon', dimensions: { ...dimensions, heightM: 0 } },
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(400);
   });
 });
 
 describe('GET /routing/vehicle-profiles', () => {
-  it('200s the list scoped to the given driverId', async () => {
+  it('200s the list scoped to the authenticated driver', async () => {
     const { app } = buildApp();
     await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: { driverId: 'driver-1', name: 'Mine', dimensions },
+      payload: { name: 'Mine', dimensions },
+      ...asDriver('driver-1'),
     });
     await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: { driverId: 'driver-2', name: 'Someone else’s', dimensions },
+      payload: { name: 'Someone else’s', dimensions },
+      ...asDriver('driver-2'),
     });
 
     const response = await app.inject({
       method: 'GET',
-      url: '/routing/vehicle-profiles?driverId=driver-1',
+      url: '/routing/vehicle-profiles',
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(200);
     const body = response.json<{ name: string }[]>();
@@ -96,10 +125,10 @@ describe('GET /routing/vehicle-profiles', () => {
     expect(body[0]?.name).toBe('Mine');
   });
 
-  it('400s a missing driverId', async () => {
+  it('401s with no authenticated driver', async () => {
     const { app } = buildApp();
     const response = await app.inject({ method: 'GET', url: '/routing/vehicle-profiles' });
-    expect(response.statusCode).toBe(400);
+    expect(response.statusCode).toBe(401);
   });
 });
 
@@ -109,30 +138,34 @@ describe('GET /routing/vehicle-profiles/:id', () => {
     const created = await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: { driverId: 'driver-1', name: 'Big Wagon', dimensions },
+      payload: { name: 'Big Wagon', dimensions },
+      ...asDriver('driver-1'),
     });
     const { id } = created.json<{ id: string }>();
 
     const response = await app.inject({
       method: 'GET',
-      url: `/routing/vehicle-profiles/${id}?driverId=driver-1`,
+      url: `/routing/vehicle-profiles/${id}`,
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ name: 'Big Wagon' });
   });
 
-  it('404s when the driverId does not match the owner', async () => {
+  it('404s when the authenticated driver does not own it', async () => {
     const { app } = buildApp();
     const created = await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: { driverId: 'driver-1', name: 'Big Wagon', dimensions },
+      payload: { name: 'Big Wagon', dimensions },
+      ...asDriver('driver-1'),
     });
     const { id } = created.json<{ id: string }>();
 
     const response = await app.inject({
       method: 'GET',
-      url: `/routing/vehicle-profiles/${id}?driverId=driver-2`,
+      url: `/routing/vehicle-profiles/${id}`,
+      ...asDriver('driver-2'),
     });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ tag: 'VehicleProfileNotFound' });
@@ -142,7 +175,8 @@ describe('GET /routing/vehicle-profiles/:id', () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'GET',
-      url: '/routing/vehicle-profiles/not-a-uuid?driverId=driver-1',
+      url: '/routing/vehicle-profiles/not-a-uuid',
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(400);
   });
@@ -154,18 +188,16 @@ describe('PUT /routing/vehicle-profiles/:id', () => {
     const created = await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: { driverId: 'driver-1', name: 'Original', dimensions },
+      payload: { name: 'Original', dimensions },
+      ...asDriver('driver-1'),
     });
     const { id } = created.json<{ id: string }>();
 
     const response = await app.inject({
       method: 'PUT',
       url: `/routing/vehicle-profiles/${id}`,
-      payload: {
-        driverId: 'driver-1',
-        name: 'Renamed',
-        dimensions: { ...dimensions, heightM: 3.9 },
-      },
+      payload: { name: 'Renamed', dimensions: { ...dimensions, heightM: 3.9 } },
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ name: 'Renamed' });
@@ -176,14 +208,16 @@ describe('PUT /routing/vehicle-profiles/:id', () => {
     const created = await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: { driverId: 'driver-1', name: 'Original', dimensions },
+      payload: { name: 'Original', dimensions },
+      ...asDriver('driver-1'),
     });
     const { id } = created.json<{ id: string }>();
 
     const response = await app.inject({
       method: 'PUT',
       url: `/routing/vehicle-profiles/${id}`,
-      payload: { driverId: 'driver-2', name: 'Renamed', dimensions },
+      payload: { name: 'Renamed', dimensions },
+      ...asDriver('driver-2'),
     });
     expect(response.statusCode).toBe(404);
   });
@@ -195,13 +229,15 @@ describe('DELETE /routing/vehicle-profiles/:id', () => {
     const created = await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: { driverId: 'driver-1', name: 'Big Wagon', dimensions },
+      payload: { name: 'Big Wagon', dimensions },
+      ...asDriver('driver-1'),
     });
     const { id } = created.json<{ id: string }>();
 
     const response = await app.inject({
       method: 'DELETE',
-      url: `/routing/vehicle-profiles/${id}?driverId=driver-1`,
+      url: `/routing/vehicle-profiles/${id}`,
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(204);
     expect(await deps.getVehicleProfile.repo.findById(makeId<'VehicleProfileId'>(id))).toBeNull();
@@ -212,13 +248,15 @@ describe('DELETE /routing/vehicle-profiles/:id', () => {
     const created = await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: { driverId: 'driver-1', name: 'Big Wagon', dimensions },
+      payload: { name: 'Big Wagon', dimensions },
+      ...asDriver('driver-1'),
     });
     const { id } = created.json<{ id: string }>();
 
     const response = await app.inject({
       method: 'DELETE',
-      url: `/routing/vehicle-profiles/${id}?driverId=driver-2`,
+      url: `/routing/vehicle-profiles/${id}`,
+      ...asDriver('driver-2'),
     });
     expect(response.statusCode).toBe(404);
   });
@@ -233,14 +271,16 @@ describe('POST /routing/route-plans', () => {
     const created = await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: { driverId: 'driver-1', name: 'Big Wagon', dimensions },
+      payload: { name: 'Big Wagon', dimensions },
+      ...asDriver('driver-1'),
     });
     const { id: profileId } = created.json<{ id: string }>();
 
     const response = await app.inject({
       method: 'POST',
       url: '/routing/route-plans',
-      payload: { driverId: 'driver-1', profileId, origin, destination },
+      payload: { profileId, origin, destination },
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({
@@ -258,6 +298,7 @@ describe('POST /routing/route-plans', () => {
       method: 'POST',
       url: '/routing/route-plans',
       payload: { nonsense: true },
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(400);
   });
@@ -267,12 +308,8 @@ describe('POST /routing/route-plans', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/routing/route-plans',
-      payload: {
-        driverId: 'driver-1',
-        profileId: '11111111-1111-4111-8111-111111111111',
-        origin,
-        destination,
-      },
+      payload: { profileId: '11111111-1111-4111-8111-111111111111', origin, destination },
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ tag: 'VehicleProfileNotFound' });
@@ -283,14 +320,16 @@ describe('POST /routing/route-plans', () => {
     const created = await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: { driverId: 'driver-1', name: 'Big Wagon', dimensions },
+      payload: { name: 'Big Wagon', dimensions },
+      ...asDriver('driver-1'),
     });
     const { id: profileId } = created.json<{ id: string }>();
 
     const response = await app.inject({
       method: 'POST',
       url: '/routing/route-plans',
-      payload: { driverId: 'driver-2', profileId, origin, destination },
+      payload: { profileId, origin, destination },
+      ...asDriver('driver-2'),
     });
     expect(response.statusCode).toBe(404);
   });
@@ -300,7 +339,8 @@ describe('POST /routing/route-plans', () => {
     const created = await app.inject({
       method: 'POST',
       url: '/routing/vehicle-profiles',
-      payload: { driverId: 'driver-1', name: 'Big Wagon', dimensions },
+      payload: { name: 'Big Wagon', dimensions },
+      ...asDriver('driver-1'),
     });
     const { id: profileId } = created.json<{ id: string }>();
     (deps.planRoute.routingEngine as FakeRoutingEngine).result = {
@@ -311,7 +351,8 @@ describe('POST /routing/route-plans', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/routing/route-plans',
-      payload: { driverId: 'driver-1', profileId, origin, destination },
+      payload: { profileId, origin, destination },
+      ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toMatchObject({ tag: 'NoRouteFound' });

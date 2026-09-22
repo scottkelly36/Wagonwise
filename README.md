@@ -201,23 +201,30 @@ the BFF's job to add, not something an app or a curl-from-your-laptop test shoul
 ## Routing (vehicle profiles)
 
 `routing`'s first slice (M2.2) — CRUD for `VehicleProfile`, the height/width/length/weight a
-driver's routes get planned against. Internal endpoints only, same `X-Internal-Key` rule as
-identity's above; there's no BFF wiring for these yet (`apps/driver-bff` has no routing routes),
-so they're only reachable by `curl` or a future client that talks to core directly.
+driver's routes get planned against. Reachable two ways:
 
-| Route                                  | Does                                                           |
-| -------------------------------------- | -------------------------------------------------------------- |
-| `POST /routing/vehicle-profiles`       | `{ driverId, name, dimensions }` — creates a profile           |
-| `GET /routing/vehicle-profiles`        | `?driverId=` — lists that driver's profiles                    |
-| `GET /routing/vehicle-profiles/:id`    | `?driverId=` — fetches one                                     |
-| `PUT /routing/vehicle-profiles/:id`    | `{ driverId, name, dimensions }` — replaces name/dimensions    |
-| `DELETE /routing/vehicle-profiles/:id` | `?driverId=` — deletes it                                      |
-| `POST /routing/route-plans`            | `{ driverId, profileId, origin, destination }` — plans a route |
+- **Through the BFF** (`apps/driver-bff`, M4.4 — how a real client should reach these): just
+  `Authorization: Bearer <accessToken>` from the identity flow above. No `X-Internal-Key` — the
+  BFF adds that on its own call to core.
+- **Calling core directly**: the same internal-only rule as identity's (`X-Internal-Key:
+local-dev-internal-key`), **plus** (M4.2) the same `Authorization: Bearer <accessToken>` — core
+  verifies it itself and won't take a client-supplied driver id.
+
+| Route                                  | Does                                                 |
+| -------------------------------------- | ---------------------------------------------------- |
+| `POST /routing/vehicle-profiles`       | `{ name, dimensions }` — creates a profile           |
+| `GET /routing/vehicle-profiles`        | Lists the authenticated driver's profiles            |
+| `GET /routing/vehicle-profiles/:id`    | Fetches one                                          |
+| `PUT /routing/vehicle-profiles/:id`    | `{ name, dimensions }` — replaces name/dimensions    |
+| `DELETE /routing/vehicle-profiles/:id` | Deletes it                                           |
+| `POST /routing/route-plans`            | `{ profileId, origin, destination }` — plans a route |
 
 `dimensions` is `{ heightM, widthM, lengthM, grossWeightT, axleWeightT? }`, all positive numbers.
-`driverId` is a plain, trusted request field for now — there's no token-derived `driverId` yet
-(that needs the BFF/auth wiring M4 brings), so a mismatched `driverId` on get/update/delete
-returns the same 404 as a genuinely unknown id rather than a 403 (docs/progress.md, decision 49).
+There is no `driverId` field on any request — core derives it from the verified access token's
+`sub` claim (`host/driver-auth.ts`), never a value the caller supplies (decision 1). A token whose
+driver doesn't own the profile in the URL gets the same 404 as a genuinely unknown id, not a 403
+(docs/progress.md, decision 49) — unchanged by M4.2, just now enforced against the real driver
+instead of a trusted field.
 
 **Truck-aware routing (M2.3–M2.5):** `RoutingEngine`, behind a port, with a Valhalla adapter
 (`apps/core/src/modules/routing/infrastructure/valhalla-routing-engine.ts`) that talks to the
@@ -239,23 +246,46 @@ pnpm test:golden
 Runs nightly in CI (`.github/workflows/nightly-golden-routes.yml`), which downloads a fresh
 extract each time so it also tests against Geofabrik's current data.
 
+## Hazards
+
+`hazards` (M3) — driver-reported obstructions (low bridges, weight/width limits, roadworks,
+flooding…) that feed into routing's avoidance. Same reachability as routing's, above: through the
+BFF with just a bearer token, or calling core directly with `X-Internal-Key` plus the token.
+
+| Route                               | Does                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------- |
+| `POST /hazards/reports`             | `{ id, type, location, note?, measurement?, source }` — reports one  |
+| `POST /hazards/reports/:id/confirm` | "Still there" — increments confirmations                             |
+| `POST /hazards/reports/:id/dismiss` | "Not there" — increments dismissals, auto-dismisses past a threshold |
+
+`id` is client-generated (an offline-queue idempotency key — resubmitting the same `id` returns
+the existing report unchanged, or merges into it, rather than duplicating). No `reporterId` field
+(M4.3) — same reasoning as routing's `driverId`, core derives it from the access token. Confirm and
+dismiss need a valid token too, but not any particular one — any authenticated driver may act on
+any report (decision 63, no ownership check on community moderation).
+
 ## Driver BFF
 
-`apps/driver-bff` (M1.6) is the thin public-facing service a driver app actually talks to —
-"BFFs contain no business rules" (AGENTS.md rule 10): it verifies access tokens against core's
-JWKS, shapes nothing, and forwards everything else to core with `X-Internal-Key`. Same routes as
-core's identity endpoints (above), just without needing that header — the BFF adds it for you.
+`apps/driver-bff` (M1.6 identity; M4.4 routing + hazards) is the thin public-facing service a
+driver app actually talks to — "BFFs contain no business rules" (AGENTS.md rule 10): it verifies
+access tokens against core's JWKS, shapes nothing, and forwards everything else to core with
+`X-Internal-Key`. Same routes as core's identity, routing and hazards endpoints (above), just
+without ever needing `X-Internal-Key` yourself — the BFF adds it for you — and, for routing and
+hazards, forwarding your own `Authorization: Bearer <accessToken>` unchanged, since core does its
+own authoritative re-verification (design doc §9, "verify twice").
 
 ```bash
 pnpm --filter @wagonwise/driver-bff dev   # port 3002 by default
 curl http://127.0.0.1:3002/health
 ```
 
-The one route the BFF does real work on: `POST /identity/sessions/:id/revoke` requires
-`Authorization: Bearer <accessToken>`, verifies it against core's JWKS, and checks the token's own
-session (`sid` claim) matches the `:id` in the URL — 401 with no token or a bad one, 403 if it's
-someone else's session, only then forwarded to core. That is what "the BFF can verify tokens" is
-for, made concrete rather than just plumbing a header through.
+The one route the BFF does real business-adjacent work on: `POST /identity/sessions/:id/revoke`
+requires `Authorization: Bearer <accessToken>`, verifies it against core's JWKS, and checks the
+token's own session (`sid` claim) matches the `:id` in the URL — 401 with no token or a bad one,
+403 if it's someone else's session, only then forwarded to core. That is what "the BFF can verify
+tokens" is for, made concrete rather than just plumbing a header through. Every routing and
+hazards route does the same local verify-then-forward (`auth/authenticate.ts`), just without a
+second check on top — core alone decides ownership/authorization for those.
 
 | Variable            | Default                  | Notes                                    |
 | ------------------- | ------------------------ | ---------------------------------------- |
@@ -271,7 +301,7 @@ for, made concrete rather than just plumbing a header through.
 ```
 apps/
   core/           core service — Fastify host, modular monolith   ✅ identity wired end to end
-  driver-bff/     Fastify BFF for the driver app                  ✅ verifies tokens, forwards
+  driver-bff/     Fastify BFF for the driver app                  ✅ identity, routing, hazards
   driver-app/     Expo React Native app                           (M5)
 packages/
   config/         shared tsconfig / ESLint / Prettier presets     ✅

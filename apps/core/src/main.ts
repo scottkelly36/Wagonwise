@@ -1,5 +1,6 @@
 import { ConfigError, loadConfig } from './config.js';
 import { composeCore } from './composition/compose-core.js';
+import { createLocalAccessTokenVerifier } from './host/access-token-verifier.js';
 import { createTokenSigner } from './modules/identity/api.js';
 
 function bootConfig() {
@@ -16,10 +17,11 @@ function bootConfig() {
 }
 
 const config = bootConfig();
-// Built once, outside composeCore, because building one is async (key generation/import) and
-// composeCore is not (compose-core.ts's doc comment explains why).
+// Built once, outside composeCore, because building either is async (key generation/import, or
+// importJWK) and composeCore is not (compose-core.ts's doc comment explains why).
 const tokenSigner = await createTokenSigner(config.identityPrivateKeyPem);
-const core = composeCore(config, tokenSigner);
+const accessTokenVerifier = await createLocalAccessTokenVerifier(await tokenSigner.publicJwk());
+const core = composeCore(config, tokenSigner, accessTokenVerifier);
 const { app } = core;
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

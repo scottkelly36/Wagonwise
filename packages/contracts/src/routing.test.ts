@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   createVehicleProfileRequestSchema,
   dimensionsSchema,
-  driverIdQuerySchema,
   geoPointSchema,
   planRouteRequestSchema,
   routePlanSchema,
@@ -29,9 +28,8 @@ describe('dimensionsSchema', () => {
 });
 
 describe('createVehicleProfileRequestSchema', () => {
-  it('requires driverId, name and dimensions', () => {
+  it('requires name and dimensions — no driverId field (M4.2: comes from the access token)', () => {
     const result = createVehicleProfileRequestSchema.safeParse({
-      driverId: 'driver-1',
       name: 'Big Wagon',
       dimensions: validDimensions,
     });
@@ -40,17 +38,24 @@ describe('createVehicleProfileRequestSchema', () => {
 
   it('rejects a missing name', () => {
     const result = createVehicleProfileRequestSchema.safeParse({
-      driverId: 'driver-1',
       dimensions: validDimensions,
     });
     expect(result.success).toBe(false);
+  });
+
+  it('ignores an extraneous driverId field rather than requiring or rejecting it', () => {
+    const result = createVehicleProfileRequestSchema.safeParse({
+      driverId: 'driver-1',
+      name: 'Big Wagon',
+      dimensions: validDimensions,
+    });
+    expect(result.success).toBe(true);
   });
 });
 
 describe('updateVehicleProfileRequestSchema', () => {
   it('accepts the same shape as create', () => {
     const result = updateVehicleProfileRequestSchema.safeParse({
-      driverId: 'driver-1',
       name: 'Renamed',
       dimensions: validDimensions,
     });
@@ -65,13 +70,6 @@ describe('vehicleProfileIdParamsSchema', () => {
       vehicleProfileIdParamsSchema.safeParse({ id: '11111111-1111-4111-8111-111111111111' })
         .success,
     ).toBe(true);
-  });
-});
-
-describe('driverIdQuerySchema', () => {
-  it('requires a non-empty driverId', () => {
-    expect(driverIdQuerySchema.safeParse({ driverId: '' }).success).toBe(false);
-    expect(driverIdQuerySchema.safeParse({ driverId: 'driver-1' }).success).toBe(true);
   });
 });
 
@@ -98,9 +96,8 @@ describe('geoPointSchema', () => {
 });
 
 describe('planRouteRequestSchema', () => {
-  it('requires driverId, profileId, origin and destination', () => {
+  it('requires profileId, origin and destination — no driverId field', () => {
     const result = planRouteRequestSchema.safeParse({
-      driverId: 'driver-1',
       profileId: '11111111-1111-4111-8111-111111111111',
       origin: { lat: 54.9707, lon: -2.1013 },
       destination: { lat: 54.9738, lon: -2.0165 },
@@ -110,7 +107,6 @@ describe('planRouteRequestSchema', () => {
 
   it('rejects a missing destination', () => {
     const result = planRouteRequestSchema.safeParse({
-      driverId: 'driver-1',
       profileId: '11111111-1111-4111-8111-111111111111',
       origin: { lat: 54.9707, lon: -2.1013 },
     });

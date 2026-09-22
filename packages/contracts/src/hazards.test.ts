@@ -43,10 +43,9 @@ describe('measurementSchema', () => {
 });
 
 describe('reportHazardRequestSchema', () => {
-  it('requires id, reporterId, type, location and source; note/measurement are optional', () => {
+  it('requires id, type, location and source; note/measurement are optional, no reporterId field', () => {
     const result = reportHazardRequestSchema.safeParse({
       id: 'report-1',
-      reporterId: 'driver-1',
       type: 'low_bridge',
       location: { lat: 54.9707, lon: -2.1013 },
       source: 'tap',
@@ -57,7 +56,6 @@ describe('reportHazardRequestSchema', () => {
   it('accepts a note and a measurement', () => {
     const result = reportHazardRequestSchema.safeParse({
       id: 'report-1',
-      reporterId: 'driver-1',
       type: 'low_bridge',
       location: { lat: 54.9707, lon: -2.1013 },
       note: 'Looked lower than signed',
@@ -70,7 +68,6 @@ describe('reportHazardRequestSchema', () => {
   it('rejects a missing location', () => {
     const result = reportHazardRequestSchema.safeParse({
       id: 'report-1',
-      reporterId: 'driver-1',
       type: 'low_bridge',
       source: 'tap',
     });
