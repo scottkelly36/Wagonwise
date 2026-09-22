@@ -59,8 +59,8 @@ pnpm verify   # lint && typecheck && test && arch && format:check — the same c
 failure over lint/formatting/tests never has to happen in the first place. Skip it just once with
 `SKIP_SIMPLE_GIT_HOOKS=1 git push` if you ever need to push before fixing what it caught.
 
-Then start everything (core on 3001, the driver BFF on 3002 — `pnpm dev` runs every app's `dev`
-script at once) and check both answer:
+Then start everything (core on 3001, the driver BFF on 3002, the driver app's Metro bundler —
+`pnpm dev` runs every app's `dev` script at once) and check both services answer:
 
 ```bash
 pnpm dev
@@ -110,7 +110,7 @@ More variables arrive with the milestones that need them. Each one must also be 
 | Command             | Does                                                                          |
 | ------------------- | ----------------------------------------------------------------------------- |
 | `pnpm install`      | Install workspace dependencies                                                |
-| `pnpm dev`          | Run core (3001) and the driver BFF (3002) with reload on change               |
+| `pnpm dev`          | Run core (3001), the driver BFF (3002) and the driver app's Metro bundler     |
 | `pnpm lint`         | ESLint across every package, via Turborepo                                    |
 | `pnpm typecheck`    | `tsc --noEmit` across every package                                           |
 | `pnpm test`         | Vitest across every package                                                   |
@@ -296,13 +296,50 @@ second check on top — core alone decides ownership/authorization for those.
 | `CORE_INTERNAL_URL` | `http://127.0.0.1:3001`  | Where core lives                         |
 | `CORE_INTERNAL_KEY` | `local-dev-internal-key` | Must match one of core's `INTERNAL_KEYS` |
 
+## Driver app
+
+`apps/driver-app` (M5, in progress — M5.1 skeleton so far) — Expo + Expo Router, targeting both
+iOS and Android. No native Xcode/Android Studio project is checked in; Expo generates those on
+demand (`expo prebuild`, or transparently when EAS Build runs).
+
+```bash
+pnpm --filter @wagonwise/driver-app dev   # starts the Metro bundler
+```
+
+Then press `a` (Android) or `i` (iOS, macOS only) in that terminal, scan the QR code with the
+Expo Go app on a physical phone, or run `pnpm --filter @wagonwise/driver-app android` / `ios`
+directly. `pnpm dev` from the repo root now starts core, the driver BFF and the Expo dev server
+together.
+
+The app talks to the driver BFF via `src/config.ts`, the one place it reads `process.env`
+(mirroring core's own `config.ts` rule) — no `.env` needed for either simulator:
+
+| Platform         | Default BFF URL           | Why                                                         |
+| ---------------- | ------------------------- | ----------------------------------------------------------- |
+| Android emulator | `http://10.0.2.2:3002`    | The emulator's own alias for the host machine's `localhost` |
+| iOS simulator    | `http://localhost:3002`   | The simulator shares the host's network namespace           |
+| Physical device  | set `EXPO_PUBLIC_BFF_URL` | Needs the host machine's real LAN IP, e.g. `192.168.1.50`   |
+
+Copy `apps/driver-app/.env.example` to `apps/driver-app/.env` to override it. `EXPO_PUBLIC_`-
+prefixed variables are inlined into the JS bundle by Expo's own tooling; this one is also in
+`turbo.json`'s `passThroughEnv` list, or `pnpm dev` would silently drop it.
+
+**EAS Build** (`apps/driver-app/eas.json`) has `development`/`preview`/`production` profiles for
+both platforms, ready for TestFlight and Google Play internal testing (M5.10) — not yet linked to
+a real Expo account/project (`eas login` + `eas init` are one-time, interactive steps only you can
+do). **Not yet verified on a real simulator/device or Expo Go** — this machine has no Android SDK
+and no macOS, so verification so far is `expo export --platform android|ios` (a real Metro bundle,
+proves every import resolves and Hermes compiles it) plus `expo-doctor` (21/21 checks), not an
+actual running app. Worth a real run on your phone via Expo Go before trusting the BFF connectivity
+logic (`src/config.ts`) beyond what its unit tests cover.
+
 ## Repo layout
 
 ```
 apps/
   core/           core service — Fastify host, modular monolith   ✅ identity wired end to end
   driver-bff/     Fastify BFF for the driver app                  ✅ identity, routing, hazards
-  driver-app/     Expo React Native app                           (M5)
+  driver-app/     Expo React Native app, iOS + Android             🚧 M5.1 skeleton only
 packages/
   config/         shared tsconfig / ESLint / Prettier presets     ✅
   architecture/   dependency-cruiser rules + fixtures + tests     ✅
@@ -349,8 +386,9 @@ because a plain compiled `node dist/main.js` (no TypeScript-aware loader) needs 
 resolve, unlike `tsx`/Vitest during development. `turbo.json`'s existing `dependsOn: ["^build"]`
 on `build`/`lint`/`typecheck`/`test` already builds it first automatically.
 
-Everything listed above is real except `apps/driver-app` (M5) and core's `routing`/`hazards`/
-`feedback` modules (M2/M3, not started — `identity` is the only real module so far).
+Everything listed above is real. `apps/driver-app` has only the M5.1 skeleton so far (a health
+check screen, no real screens yet); core's `routing` and `hazards` modules are real from M2/M3,
+`feedback` hasn't started.
 
 ## Conventions
 

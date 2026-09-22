@@ -3,6 +3,7 @@ pnpm-lock.yaml
 dist/
 build/
 coverage/
+apps/driver-app/.expo/
 
 # Not a format Prettier has a parser for.
 .env.example

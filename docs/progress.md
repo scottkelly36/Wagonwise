@@ -8,7 +8,7 @@
 | M2 Routing core      | Done — 2026-09-22 |
 | M3 Hazards core      | Done — 2026-09-22 |
 | M4 Driver BFF + auth | Done — 2026-09-22 |
-| M5 Driver app        | Not started       |
+| M5 Driver app        | In progress       |
 | M6 Alerts            | Not started       |
 | M7 Voice             | Not started       |
 | M8 Field-ready       | Not started       |
@@ -1538,3 +1538,122 @@ The open question "how complete is OSM restriction data on testers' actual route
 didn't either (hazard reports are the long-term fix for this gap, per design doc §4, but M3 built
 the reporting mechanism, not an audit of existing data quality). Still worth deciding when to
 actually pick up rather than letting it sit indefinitely.
+
+## M5 task breakdown
+
+The user decided to design for both iOS and Android from the start (resolves the "iOS, Android or
+both?" open question, above), so there's no platform-scoping decision left to make before M5
+starts.
+
+| #     | Task                                                                                                                 | Status            |
+| ----- | -------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| M5.1  | `apps/driver-app` skeleton — Expo + Expo Router + TS, EAS config for both platforms, points at driver-bff via config | Done — 2026-09-22 |
+| M5.2  | Auth — sign-in screen, secure token storage, TanStack Query client, opportunistic refresh                            | Not started       |
+| M5.3  | Vehicle profiles screens                                                                                             | Not started       |
+| M5.4  | Plan route screen (MapLibre)                                                                                         | Not started       |
+| M5.5  | Route overview screen                                                                                                | Not started       |
+| M5.6  | Active trip screen (no voice/reroute yet — M6/M7)                                                                    | Not started       |
+| M5.7  | Report hazard (tap) + hazard detail                                                                                  | Not started       |
+| M5.8  | Offline hazard queue (expo-sqlite)                                                                                   | Not started       |
+| M5.9  | Feedback screen                                                                                                      | Not started       |
+| M5.10 | Real-device/simulator verification both platforms; EAS Build → TestFlight + Play internal                            | Not started       |
+
+**M5.1 delivered:** `apps/driver-app` exists as a real Expo project — not just a plan for one —
+scaffolded from Expo's own SDK 57 template and cut down to a genuine skeleton (one screen, no
+demo/tab/web boilerplate), matching M1.3's own "boots and answers /health" standard: the one
+screen shows the product name and a live reachability check against the driver BFF's `/health`.
+
+- **Scaffolded via `create-expo-app` (the "default"/tabs SDK-57 template), then stripped hard**:
+  deleted the demo tab screen, animated-icon/glass-effect/app-tabs components, all web support
+  (`react-native-web`, the `web` app.json key, `.web.tsx` variants — the design doc's distribution
+  story is TestFlight + Play, never web), `react-native-reanimated`/`worklets` (nothing here
+  animates yet), and the template's own `.claude/settings.json` (enabled an unrelated Expo Claude
+  plugin — this repo already has its own AGENTS.md-driven conventions). Kept only what a real
+  skeleton needs: `expo-router`'s peer deps (`gesture-handler`, `safe-area-context`, `screens`),
+  `expo-constants`/`expo-linking`/`expo-splash-screen`/`expo-status-bar`/`expo-system-ui`.
+- **`src/product.js` (deliberately `.js`, not `.ts`)** holds the one `PRODUCT_NAME` constant
+  AGENTS.md asks for ("keep the product name in one config constant"), imported by both
+  `app.config.ts` (the native app name) and in-app UI text. Found by actually running
+  `expo export`, not assumed: Expo's config loader transpiles only `app.config.ts` itself, not any
+  TypeScript file it imports — a sibling `product.ts` failed to resolve under plain `require`
+  once evaluated. A plain `.js` file needs no transpilation, so it resolves from both sides
+  (`expo/tsconfig.base`'s `allowJs` covers the TS-side import).
+- **`app.config.ts` replaces `app.json`** (dynamic config, specifically so it can import
+  `PRODUCT_NAME`), sets real `bundleIdentifier`/`package` (`com.wagonwise.driverapp`), and drops
+  the template's iOS "Icon Composer" bundle (`.icon`, bleeding-edge, adds an SVG+grid asset
+  bundle) for a plain `icon.png` shared with Android — simpler, revisit once there's real
+  branding.
+- **`src/config.ts`**: the one place this app reads `process.env` (mirrors
+  `apps/core/src/config.ts`'s rule), resolving the driver BFF's URL — `10.0.2.2` on the Android
+  emulator (its documented alias for the host's own `localhost`), plain `localhost` on the iOS
+  simulator (shares the host's network namespace), overridable via `EXPO_PUBLIC_BFF_URL` for a
+  physical device on the LAN. Actual logic worth testing, so it got a real test file
+  (`config.test.ts`, 3 cases) rather than being left as an assumption — matches AGENTS.md's "write
+  tests alongside every use case."
+- **Deliberately deferred, not forgotten**: no TanStack Query or Zustand yet (design doc's stack
+  for this app) — nothing here has real server or UI state to manage before M5.2's auth screen
+  exists; wiring either now would be the same "port before it has a caller" mistake M2.3 avoided,
+  applied to a dependency instead of a port. No `@wagonwise/contracts` dependency yet either — the
+  only network call so far is an unshaped `/health` ping, not a contract-shaped request.
+- **Tooling deviations, decided and recorded rather than forced to match core/driver-bff**:
+  `tsconfig.json` extends `expo/tsconfig.base`, not `@wagonwise/config/tsconfig.base.json` — the
+  shared base sets `module`/`moduleResolution: NodeNext` (needs `.js`-suffixed relative imports),
+  which fights Metro's bundler-style resolution; RN code here is bundled by Metro, never run by
+  plain `node`. Same reasoning for `eslint.config.js`: Expo's own `eslint-config-expo/flat`, not
+  `@wagonwise/config/eslint` — the "well-understood official preset" is the boring choice, same as
+  M4.1's reasoning for using `jose` over hand-rolling JWKS handling. `tsconfig.json` also needed an
+  explicit `"types": ["jest"]` — TS's automatic `@types` inclusion didn't pick up `@types/jest`
+  under `expo/tsconfig.base`'s settings without it, confirmed by hitting real "cannot find name
+  'describe'" errors, not guessed in advance.
+- **`eas.json`**: `development`/`preview`/`production` build profiles for both platforms. Not yet
+  linked to a real Expo account/project — `eas login`/`eas init` are one-time interactive steps
+  only the user can do (this session can't authenticate as them). Genuinely deferred to M5.10, not
+  forgotten.
+- **`turbo.json`'s `dev` task gains `EXPO_PUBLIC_BFF_URL`** in `passThroughEnv` — the exact
+  documented gotcha in AGENTS.md's Tooling section, applied before it could bite rather than after.
+- **Found and fixed a real, pre-existing bug while running `pnpm verify`, unrelated to this
+  task**: `apps/driver-bff/src/core-client.ts`'s `responseBody` was an implicit `any` from
+  `response.json()`, flagged by `@typescript-eslint/no-unsafe-assignment` — a real lint violation
+  from M4.4 that had simply never been re-linted since (Turborepo's lint cache replays a passing
+  result until something invalidates it; adding `apps/driver-app`'s dependencies changed
+  `pnpm-lock.yaml`, which did). Fixed with an explicit `unknown` annotation on the `const`, the
+  rule's own documented escape hatch — one line, no behaviour change.
+- **`pnpm-workspace.yaml`'s `allowBuilds`** gains `@parcel/watcher` (Metro's native file watcher)
+  and `unrs-resolver` (a transitive dependency of `eslint-config-expo`'s import resolution),
+  both legitimate native binaries from reputable ecosystems, approved the same way M1.1's
+  `esbuild` was.
+- **Two real dependency-version mistakes caught by actually running the tooling, not assumed
+  correct from `create-expo-app`'s scaffold**: `expo-router` needs `expo-constants` as a peer
+  dependency (missing after the trim-down; `expo-doctor` caught it as a real crash risk, not a
+  lint nicety) and the scaffold's own `jest@^30`/`@types/jest@^30` are newer than SDK 57's
+  `jest-expo` actually expects (`~29.7.0`/`29.5.14`) — `expo-doctor` flagged both as version
+  mismatches. Fixed by installing the missing peer and pinning the two test-tooling versions down
+  to what the SDK expects; `expo-doctor` now reports 21/21 checks passing.
+
+409 core tests (unchanged), 56 driver-bff, 17 architecture, 33 contracts, plus **3 new driver-app
+tests** (`config.test.ts`) — the first tests in `apps/driver-app`. `pnpm arch` clean (203 modules,
+686 dependencies — the architecture rules already scan `apps/driver-app/src` automatically, same
+`check.mjs` discovery M1.6 confirmed for driver-bff, no config change needed). `pnpm verify` clean
+end to end across all six packages.
+
+**Verified by actually running the tooling, with a real and disclosed gap**: `pnpm --filter
+@wagonwise/driver-app run typecheck/lint/test` all pass; `npx expo-doctor` reports 21/21; `npx
+expo export --platform android` and `--platform ios` both produce a real Hermes-compiled bundle
+(1250 and 1105 modules resolved respectively) — proof every import genuinely resolves and Metro
+can genuinely bundle for both platforms, the same "prove the mechanism, not just that a process
+starts" standard M2.1 set for Valhalla. **Not verified: an actual running app.** This machine has
+no Android SDK/emulator and no macOS (the design doc's own note: iOS needs a Mac or Expo Go), so
+nothing here has been driven by a real simulator, a physical device via Expo Go, or a screenshot —
+worth doing before trusting `src/config.ts`'s platform-detection logic beyond what its unit tests
+cover. `git status`/`git add -n` confirmed exactly the intended file set is tracked (no
+`node_modules`, `.expo/`, or `expo export` scratch output).
+
+## Decisions from M5.1
+
+- **`apps/driver-app` deliberately does not reuse `@wagonwise/config`'s tsconfig/eslint presets.**
+  Recorded above, in the "delivered" notes — the first time a package in this monorepo has needed
+  its own tooling base rather than the shared one, because it's the first package Metro bundles
+  instead of `tsc`/`node` running.
+- **The product's display name lives in a `.js` file, not a `.ts` one, specifically so
+  `app.config.ts` can import it.** Also recorded above — a real Expo config-loader constraint
+  found by running `expo export`, not a style preference.
