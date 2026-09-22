@@ -23,7 +23,7 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "passThroughEnv": ["NODE_ENV", "HOST", "PORT", "LOG_LEVEL"]
+      "passThroughEnv": ["NODE_ENV", "HOST", "PORT", "LOG_LEVEL", "DATABASE_URL"]
     }
   }
 }

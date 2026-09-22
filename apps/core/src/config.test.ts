@@ -8,6 +8,7 @@ describe('loadConfig', () => {
       host: '127.0.0.1',
       port: 3001,
       logLevel: 'info',
+      databaseUrl: 'postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise',
     });
   });
 
@@ -17,13 +18,39 @@ describe('loadConfig', () => {
       HOST: '0.0.0.0',
       PORT: '8080',
       LOG_LEVEL: 'warn',
+      DATABASE_URL: 'postgresql://user:pw@db.internal:5432/wagonwise',
     });
     expect(config).toEqual({
       nodeEnv: 'production',
       host: '0.0.0.0',
       port: 8080,
       logLevel: 'warn',
+      databaseUrl: 'postgresql://user:pw@db.internal:5432/wagonwise',
     });
+  });
+
+  it('defaults DATABASE_URL to match infra/docker/compose.yml, so a fresh clone just works', () => {
+    expect(loadConfig({}).databaseUrl).toBe(
+      'postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise',
+    );
+  });
+
+  it.each([
+    ['not a URL at all', 'not-a-url'],
+    ['the wrong protocol', 'mysql://user:pw@127.0.0.1:3306/wagonwise'],
+    ['http, which is not a database', 'http://127.0.0.1:5432/wagonwise'],
+    ['empty', ''],
+  ])('rejects a DATABASE_URL that is %s', (_label, databaseUrl) => {
+    expect(() => loadConfig({ DATABASE_URL: databaseUrl })).toThrow(ConfigError);
+  });
+
+  it('accepts both the postgres:// and postgresql:// schemes', () => {
+    expect(() =>
+      loadConfig({ DATABASE_URL: 'postgres://u:p@127.0.0.1:5432/wagonwise' }),
+    ).not.toThrow();
+    expect(() =>
+      loadConfig({ DATABASE_URL: 'postgresql://u:p@127.0.0.1:5432/wagonwise' }),
+    ).not.toThrow();
   });
 
   it('ignores unrelated environment variables', () => {

@@ -20,7 +20,7 @@ Phase 1 is the free driver app, in development. See
 | Node.js        | 24.x    | now         | Version pinned in `.nvmrc`                        |
 | pnpm           | 12.5.1  | now         | Comes from corepack, see below — don't `npm i -g` |
 | git            | any     | now         |                                                   |
-| Docker Desktop | any     | M1.4        | Postgres/PostGIS + Valhalla; **not yet required** |
+| Docker Desktop | any     | M1.4        | Postgres/PostGIS + Valhalla                       |
 
 pnpm is managed by corepack so everyone gets the version pinned in `package.json`'s
 `packageManager` field:
@@ -38,7 +38,15 @@ corepack enable pnpm
 pnpm install
 ```
 
-That's the whole set-up today. Verify it worked:
+Then bring up the database and apply migrations:
+
+```bash
+pnpm db:up
+pnpm db:migrate
+```
+
+Verify everything worked (this also needs Postgres up, since the PostGIS integration tests run
+per-PR, not nightly-only):
 
 ```bash
 pnpm lint && pnpm typecheck && pnpm test && pnpm arch && pnpm format:check
@@ -55,7 +63,8 @@ curl http://127.0.0.1:3001/health
 ```
 
 You should see `{"status":"ok","service":"core","product":"WagonWise","time":"…"}`. Core needs
-no environment variables to run locally — every one has a default (see below).
+no environment variables to run locally — every one has a default, and the database default
+matches `pnpm db:up`'s compose service (see below).
 
 ## Configuration
 
@@ -63,37 +72,70 @@ Core reads its environment in exactly one place, `apps/core/src/config.ts`, vali
 An invalid value stops the process with a message naming every problem, rather than starting
 half-configured.
 
-| Variable    | Default       | Notes                                                        |
-| ----------- | ------------- | ------------------------------------------------------------ |
-| `NODE_ENV`  | `development` | `development`, `test` or `production`                        |
-| `HOST`      | `127.0.0.1`   | Use `0.0.0.0` inside a container                             |
-| `PORT`      | `3001`        | 1–65535                                                      |
-| `LOG_LEVEL` | `info`        | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
+| Variable       | Default                                                   | Notes                                                                    |
+| -------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `NODE_ENV`     | `development`                                             | `development`, `test` or `production`                                    |
+| `HOST`         | `127.0.0.1`                                               | Use `0.0.0.0` inside a container                                         |
+| `PORT`         | `3001`                                                    | 1–65535                                                                  |
+| `LOG_LEVEL`    | `info`                                                    | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`             |
+| `DATABASE_URL` | `postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise` | Matches `pnpm db:up`'s compose service; `postgres://` or `postgresql://` |
 
 ```bash
 PORT=4000 LOG_LEVEL=debug pnpm dev
 ```
 
-More variables arrive with the milestones that need them (`DATABASE_URL` in M1.4). Each one
-must also be added to `passThroughEnv` on the `dev` task in `turbo.json`, or `pnpm dev`
-will ignore it.
+Or copy `apps/core/.env.example` to `apps/core/.env` and edit it — `pnpm dev`, `pnpm start` and
+`pnpm db:migrate` all load it if present (Node's `--env-file-if-exists`, no `dotenv` dependency
+needed). `.env` is gitignored.
+
+More variables arrive with the milestones that need them. Each one must also be added to
+`passThroughEnv` on the `dev` task in `turbo.json`, or `pnpm dev` will ignore it.
 
 ## Everyday commands
 
-| Command             | Does                                           |
-| ------------------- | ---------------------------------------------- |
-| `pnpm install`      | Install workspace dependencies                 |
-| `pnpm dev`          | Run core with reload on change (port 3001)     |
-| `pnpm lint`         | ESLint across every package, via Turborepo     |
-| `pnpm typecheck`    | `tsc --noEmit` across every package            |
-| `pnpm test`         | Vitest across every package                    |
-| `pnpm build`        | Build every package                            |
-| `pnpm arch`         | Architecture rules against `apps/` (see below) |
-| `pnpm format`       | Prettier write                                 |
-| `pnpm format:check` | Prettier check — this is what CI runs          |
+| Command             | Does                                                                          |
+| ------------------- | ----------------------------------------------------------------------------- |
+| `pnpm install`      | Install workspace dependencies                                                |
+| `pnpm dev`          | Run core with reload on change (port 3001)                                    |
+| `pnpm lint`         | ESLint across every package, via Turborepo                                    |
+| `pnpm typecheck`    | `tsc --noEmit` across every package                                           |
+| `pnpm test`         | Vitest across every package                                                   |
+| `pnpm build`        | Build every package                                                           |
+| `pnpm arch`         | Architecture rules against `apps/` (see below)                                |
+| `pnpm format`       | Prettier write                                                                |
+| `pnpm format:check` | Prettier check — this is what CI runs                                         |
+| `pnpm db:up`        | Start Postgres/PostGIS (docker compose), wait for it to be healthy            |
+| `pnpm db:down`      | Stop it                                                                       |
+| `pnpm db:migrate`   | Apply pending migrations from `apps/core/migrations/`                         |
+| `pnpm db:reset`     | `db:down` + `db:up` + `db:migrate`, for when local data gets into a bad state |
 
 Turborepo caches task results locally in `.turbo/`. If a task result looks stale,
 `pnpm lint --force` (or any task) re-runs it ignoring the cache.
+
+## Database
+
+Local Postgres/PostGIS runs via docker compose (`infra/docker/compose.yml`), credentials
+matching `DATABASE_URL`'s default so no `.env` is needed for local dev:
+
+```bash
+pnpm db:up       # start it, waits until healthy
+pnpm db:migrate  # apply migrations/*.sql — safe to re-run, applies only what's new
+pnpm db:down     # stop it (data persists in a named volume; `docker volume rm` to wipe it)
+```
+
+Migrations are raw SQL files in `apps/core/migrations/`, applied in filename order by
+`apps/core/scripts/migrate.ts`, tracked in a `public.schema_migrations` table. Each file runs in
+its own transaction — a failing statement rolls back that whole file and leaves it unrecorded,
+so fixing it and re-running `pnpm db:migrate` picks it back up. Add a new migration as the next
+zero-padded number (`0002_...sql`); never edit a migration that has already run anywhere.
+
+`pnpm test` covers the migration runner and the Postgres `UnitOfWork` against a real, ephemeral
+PostGIS container via Testcontainers — Docker must be running for `pnpm test` to pass, matching
+the CI tiering decision that PostGIS integration tests run per-PR, not nightly-only.
+
+Valhalla (self-hosted truck routing, needed from M2) is also in `infra/docker/compose.yml` but
+not started by `pnpm db:up` — see the comment in that file for bringing it up once you have a
+map extract. Not required for M1.4.
 
 ## Repo layout
 
@@ -107,7 +149,7 @@ packages/
   architecture/   dependency-cruiser rules + fixtures + tests     ✅
   contracts/      zod schemas + inferred types shared everywhere  (M1.6)
 infra/
-  docker/         compose for local Postgres/PostGIS + Valhalla   (M1.4)
+  docker/         compose for local Postgres/PostGIS + Valhalla   ✅
   deploy/         hosting config                                  (later)
 docs/
   phase-1-tech-design.md    the design — read before any milestone
@@ -118,14 +160,18 @@ Inside `apps/core/src` (the shape the architecture rules enforce):
 
 ```
 shared/         pure kernel: Result, branded IDs, cross-cutting ports, test fakes
-platform/       adapters for those ports: system clock, UUID generator
+platform/       adapters for those ports: system clock, UUID generator, Postgres/Kysely, migrations
 host/           Fastify app builder, health route, error handling
 composition/    the one place that wires ports to adapters
 config.ts       the one place that reads the environment
 modules/        bounded contexts — none yet, identity arrives in M1.5
 ```
 
-Only `packages/config`, `packages/architecture` and a skeleton `apps/core` exist so far. The rest arrive with the milestone shown.
+`apps/core/migrations/` holds the raw-SQL migrations (see Database, above); `apps/core/scripts/`
+holds small CLI entry points run via `tsx`, starting with `migrate.ts`.
+
+Only `packages/config`, `packages/architecture`, `infra/docker` and a skeleton `apps/core`
+(now with a real database layer) exist so far. The rest arrive with the milestone shown.
 
 ## Conventions
 
@@ -181,3 +227,16 @@ default. If a new dependency legitimately needs one (esbuild does), run
 **Windows line endings** — `.gitattributes` forces LF in every working copy, so this
 should be handled. If you still see CRLF churn, run `git config core.autocrlf false` in
 this repo and re-checkout with `git rm --cached -r . && git reset --hard`.
+
+**`pnpm test` fails with a Testcontainers/Docker connection error** — Docker Desktop must be
+running (`docker run --rm hello-world` to check). On Windows, also confirm Docker Desktop is
+actually started, not just installed — it does not auto-start after a reboot by default.
+
+**`pnpm db:migrate` can't connect** — `pnpm db:up` first, and give it a few seconds on a first
+run (pulling the `postgis/postgis` image). `pnpm db:up` waits for the healthcheck, so if it
+returned, Postgres is genuinely ready; a connection error after that usually means `DATABASE_URL`
+was overridden to point somewhere else.
+
+**A migration needs redoing** — never edit a migration file that has run anywhere real.
+Write a new one that corrects it. Locally only, `pnpm db:reset` wipes and rebuilds from
+scratch, but that drops all local data.

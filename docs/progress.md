@@ -4,7 +4,7 @@
 
 | Milestone            | Status                       |
 | -------------------- | ---------------------------- |
-| M1 Foundations       | In progress — M1.1–M1.3 done |
+| M1 Foundations       | In progress — M1.1–M1.4 done |
 | M2 Routing core      | Not started                  |
 | M3 Hazards core      | Not started                  |
 | M4 Driver BFF + auth | Not started                  |
@@ -73,23 +73,20 @@ reports visible immediately, labelled "1 report, unconfirmed".
 
 ## M1 task breakdown
 
-| #    | Task                                 | Status              |
-| ---- | ------------------------------------ | ------------------- |
-| M1.1 | Monorepo skeleton                    | Done — 2026-09-21   |
-| M1.2 | Architecture enforcement             | Done — 2026-09-21   |
-| M1.3 | Core skeleton + shared kernel        | Done — 2026-09-21   |
-| M1.4 | Database, migrations, docker compose | Next — needs Docker |
-| M1.5 | `identity` as reference module       | Not started         |
-| M1.6 | `driver-bff` + vertical slice        | Not started         |
-| M1.7 | CI (GitHub Actions per-PR tier)      | Not started         |
+| #    | Task                                 | Status            |
+| ---- | ------------------------------------ | ----------------- |
+| M1.1 | Monorepo skeleton                    | Done — 2026-09-21 |
+| M1.2 | Architecture enforcement             | Done — 2026-09-21 |
+| M1.3 | Core skeleton + shared kernel        | Done — 2026-09-21 |
+| M1.4 | Database, migrations, docker compose | Done — 2026-09-22 |
+| M1.5 | `identity` as reference module       | Next              |
+| M1.6 | `driver-bff` + vertical slice        | Not started       |
+| M1.7 | CI (GitHub Actions per-PR tier)      | Not started       |
 
 **M1.1 delivered:** pnpm workspace (`apps/*`, `packages/*`) with Turborepo, git repo,
 `packages/config` holding the shared tsconfig base, ESLint flat config and Prettier config.
 Turbo telemetry disabled. `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm format:check`
 all run clean.
-
-**M1.4 is blocked on Docker Desktop** not being installed on this machine. Nothing before
-M1.4 depends on it.
 
 **M1.2 delivered:** `packages/architecture` — a dependency-cruiser ruleset with eight rules,
 a clean reference fixture, nine deliberately-broken fixtures (at least one per rule), and a test asserting each
@@ -159,14 +156,17 @@ inbound `x-request-id` is echoed back.
 - **Real `UnitOfWork` deferred to M1.4.** The task description said "real and fake"; a Postgres
   transaction adapter can't exist before the database does. The port and a contract-enforcing fake
   (commit/rollback recording, no nesting) exist now.
-- **Composition-root vs module facade is undecided.** AGENTS.md rule 5 says `composition/` holds a
-  `createXModule(deps)` per context, but that requires composition to import a module's internals
-  (its adapters), which rule 6 forbids. Two options: the factory lives in the module's `api.ts`
-  (module wires its own adapters, composition calls it), or composition is exempted from the
-  facade rule. **Decide in M1.5** when identity is the first real module.
+- **Composition-root vs module facade: decided, not yet enforced.** Factories live in each
+  module's `api.ts` (module wires its own adapters, `composition/` just calls it) — chosen over
+  exempting `composition/` from the facade rule, since a module's own facade is the natural
+  seam and needs no new exception. But testing the current rules against a deliberately-bad
+  fixture found that `composition/` and `host/` can _already_ reach past a module's `api.ts`
+  straight into its `domain/` — `no-cross-module-internals` only matches paths under `modules/`,
+  so nothing stops it today despite the config header comment claiming otherwise. **Fix in M1.5**:
+  a new rule (anything outside a module may import only its `api.ts`) plus a violation fixture,
+  alongside the first real module that would actually exercise the facade.
 - **Graceful shutdown is untested on this machine.** Windows does not deliver SIGTERM, so the
   handler in `main.ts` has only been exercised by reading it. It targets Linux containers.
-- **No `.env` loading yet.** Nothing requires it; `DATABASE_URL` in M1.4 will.
 
 Five more defects were caught while building this, each by a test or a real run that failed
 rather than by inspection: a `dist` exclude that hid npm packages from the purity rules; a
@@ -175,70 +175,105 @@ conditions that made legitimate subpath imports (`vitest/config`) fail `no-unres
 Turborepo silently dropping `PORT` and `LOG_LEVEL`; and a gitignore ordering bug that would have
 dropped fixture stubs on a fresh clone.
 
+**M1.4 delivered:** `infra/docker/compose.yml` (Postgres 16 + PostGIS 3.4, healthchecked,
+credentials matching `DATABASE_URL`'s default so a fresh clone needs no `.env`); a raw-SQL
+migration runner (`apps/core/src/platform/migrations/run-migrations.ts`, tracked in
+`public.schema_migrations`, one transaction per file, fails closed — a bad statement rolls back
+that whole file and leaves it unrecorded) with a CLI entry point (`apps/core/scripts/migrate.ts`,
+run via `tsx`, no build step); the first migration (`0001_init.sql`: the `identity`, `routing`,
+`hazards`, `feedback` and `outbox` schemas, `outbox.events`, `outbox.handled`, the `postgis`
+extension); the real `PostgresUnitOfWork` (Kysely-backed, same commit/rollback/no-nesting
+contract `InMemoryUnitOfWork` enforces); `DATABASE_URL` wired through `config.ts`, `.env.example`,
+`turbo.json` `passThroughEnv` and the README; and `.env` loading via Node's native
+`--env-file-if-exists` (no `dotenv` dependency). `pnpm db:up` / `db:down` / `db:migrate` /
+`db:reset` at the repo root (decision 23).
+
+Verified for real, not just by unit test: `pnpm db:up` pulled and started the actual compose
+service; `pnpm db:migrate` ran against it twice (applies once, second run is a genuine no-op);
+`psql` confirms the five schemas, the two outbox tables, the `postgis` extension and the
+`schema_migrations` row all exist. `pnpm test` covers the migration runner and
+`PostgresUnitOfWork` against an ephemeral Testcontainers PostGIS instance (commit persists,
+throw rolls back, nesting is rejected, a bad migration file rolls back in full) — 74 core tests
+
+- 16 architecture tests, all green, `pnpm arch` clean (43 modules, 80 dependencies).
+
+## Decisions from M1.4
+
+24. **`DATABASE_URL` defaults to match `infra/docker/compose.yml` exactly.** `pnpm db:up && pnpm
+db:migrate` needs zero configuration, extending the "a cold start never needs an undocumented
+    step" rule to the database, the same way every other config variable already works.
+25. **Migrations are tracked in `public.schema_migrations`, not a bounded-context schema.** The
+    four context schemas and `outbox` are themselves created by the first migration, so the
+    tracking table can't live inside one of them without a chicken-and-egg problem; `public`
+    always exists.
+26. **`UnitOfWork`'s `Transaction` stays fully opaque in `shared/ports/`** — no Kysely or `pg`
+    import in the kernel, keeping rule 2 intact. `platform/postgres-unit-of-work.ts` is the only
+    place that knows it's really a Kysely `Transaction<Database>`, via two named cast functions
+    (`asTransaction` in, `asKyselyTransaction` out). A module's `infrastructure/` will call
+    `asKyselyTransaction` directly once a repository exists — a type-only cast, not an import of
+    `platform/`, so it doesn't trip `modules-no-outward`. Decided ahead of need; not yet exercised
+    by a real repository, so the ergonomics are unproven.
+27. **`.env` loading uses Node's `--env-file-if-exists`, not a `dotenv` dependency.** Zero
+    dependencies, and optional by design — every variable already has a working default, so `.env`
+    only exists to override one.
+28. **Valhalla's compose service is defined but not started by `pnpm db:up`** (compose
+    `profiles: ['valhalla']`). It needs a manually-downloaded OSM extract and has real work to do
+    only from M2, so gold-plating it now would be untestable guesswork. **Not verified against
+    real tiles** — treat the service definition as a draft to check when M2 needs a working
+    `RoutingEngine` adapter, not as proven.
+
+## Deviations and open items from M1.4
+
+- **Valhalla is unverified**, per decision 28 — no extract has been downloaded on this machine,
+  so the compose service has never actually started. Revisit at M2.
+- **`asKyselyTransaction` has no real caller yet** (decision 26) — first exercised either by
+  M1.5's identity repository or by the first genuinely multi-aggregate use case. If the cast
+  pattern turns out awkward in practice, reconsider then rather than defending it in the abstract.
+- **ssh2's optional native crypto binding failed to build** (no C++ toolchain/Python on this
+  machine) during `pnpm approve-builds`. Harmless: Testcontainers only uses ssh2 for Docker-over-
+  SSH, which this project doesn't use locally, and it falls back to pure-JS crypto. Revisit only
+  if remote Docker hosts (e.g. a CI runner without a local daemon) become relevant.
+- **The architecture-rule gap found while deciding M1.3's composition-root question** (facades
+  are not enforced for `composition/`/`host/`, only for `modules/`) is confirmed but not yet
+  fixed — see the M1.3 deviations entry above. Scheduled for M1.5.
+
 ## Environment notes
 
-- Node 24.21 (`C:\Program Files\nodejs`), git 2.55, pnpm 12.5.1 via corepack
-  (`corepack enable pnpm`). The pnpm store lives on E: (`E:\.pnpm-store`), which is pnpm's default of
-  one store per drive.
+- Node 24.21 (`C:\Program Files\nodejs`), git 2.55.0, Docker Desktop 29.8.0 with WSL2, pnpm
+  12.5.1 via corepack (`corepack enable pnpm`). The pnpm store lives on E: (`E:\.pnpm-store`),
+  pnpm's default of one store per drive.
 - pnpm 12 blocks install scripts by default; allowed ones are listed under `allowBuilds` in
-  `pnpm-workspace.yaml` (currently esbuild). The `pnpm` field in package.json is no longer read.
-- Docker Desktop is **not installed yet** — needed for M1.4 (Postgres/PostGIS + Valhalla).
+  `pnpm-workspace.yaml` (`esbuild`, and from M1.4 `cpu-features`, `protobufjs`, `ssh2` —
+  Testcontainers' transitive deps). The `pnpm` field in package.json is no longer read.
+- **`corepack enable pnpm` needs an admin terminal** — it writes into `C:\Program Files\nodejs`,
+  which a normal user account can't do. Run it once from an elevated PowerShell; until then
+  `pnpm` isn't on a normal terminal's PATH (a session working around this with a temporary shim
+  doesn't fix it for your own terminal).
+- Git needs `git config --global --add safe.directory E:/projects/wagonwise` on any freshly
+  reinstalled Windows account before it will read this repo ("dubious ownership" — the repo's
+  files are owned by the pre-reinstall account SID). Global `user.name`/`user.email` also need
+  setting again after a clean install; both are set as of 2026-09-22.
 
-## Paused: fresh Windows 11 install (2026-09-21)
+## Resolved: fresh Windows 11 install (2026-09-21 → 2026-09-22)
 
-Work is paused while the machine gets a clean Windows 11 install. Only `C:` is wiped.
-
-**Disk layout (checked 2026-09-21):** Disk 2 is a 224 GB NVMe holding `C:`, the EFI boot partition and
-the recovery partitions. Disk 1 is a 447 GB Kingston SATA SSD holding `E:`, which is where this repo
-lives. Disk 0 is a 932 GB WD hard disk holding `D:`. A USB stick is `F:`. Install Windows onto Disk 2
-only. Its boot partition is on the same disk, so `E:` and `D:` need no changes. In the setup's
-partition screen, do not delete or format anything on Disk 0 or Disk 1; unplugging the two SATA
-drives during setup is the surest way to guarantee that.
-
-**State at pause:** M1.1–M1.3 done, all on `main`, working tree clean, all checks green
-(59 core tests, 16 architecture tests). **There is no git remote**, so the commits exist only in
-`E:\projects\wagonwise`.
-
-**Before wiping `C:`, back the repo up** to a second physical disk or the USB stick, either by copying
-`E:\projects\wagonwise` (skip `node_modules`) or with a single-file git bundle:
-
-```bash
-git bundle create D:\backups\wagonwise.bundle --all
-```
-
-Restore a bundle with `git clone D:\backups\wagonwise.bundle wagonwise`.
-
-**Rebuild checklist, in order:**
-
-1. Confirm `E:\projects\wagonwise` survived: `git log --oneline` lists the M1.1–M1.3 commits.
-2. Install git and Node 24 (Windows 11 ships with winget):
-
-   ```bash
-   winget install -e --id Git.Git
-   winget install -e --id OpenJS.NodeJS.LTS
-   ```
-
-   Check `node -v` prints v24 (`.nvmrc` says 24; `engines` allows 22 and up). Git for Windows also
-   provides the Git Bash that the Claude desktop app's Bash tool uses. A clean install loses the
-   global git identity, so set it again: `git config --global user.name "scottkelly36"` and
-   `git config --global user.email "49844516+scottkelly36@users.noreply.github.com"`.
-
-3. `corepack enable pnpm`, then `pnpm install` in the repo.
-4. Install Docker Desktop: `winget install -e --id Docker.DockerDesktop` (approve the admin
-   prompt). Its installer enables WSL 2; if it complains, run `wsl --install` from an admin
-   PowerShell and reboot. Then check it: `docker run --rm hello-world`.
-5. Optional: in Docker Desktop's Resources settings, move the disk image to E: (C: is small).
-6. Reinstall the Claude desktop app, sign in, and open `E:\projects\wagonwise` as the project.
-   Session memory under `C:\Users\scott\.claude` is lost with `C:`; `AGENTS.md` and these docs
-   carry everything a new session needs.
-7. Verify the repo: `pnpm lint && pnpm typecheck && pnpm test && pnpm arch && pnpm format:check`.
-8. Start the next session and say Docker works.
+Work paused 2026-09-21 for a clean Windows 11 install (only `C:` wiped; `E:\projects\wagonwise`
+is on a separate physical disk and was never touched). The repo survived untouched, and a
+`git bundle` backup was taken before the wipe as a second copy (`D:\backups\wagonwise.bundle` —
+still there, harmless to keep). Rebuilt in order: Node 24, Docker Desktop (needed `wsl --install
+--no-distribution` from an admin PowerShell plus a reboot — Docker's own installer didn't enable
+WSL2 on its own this time), git (needed the `safe.directory` and identity fixes now in
+Environment notes, above), then `pnpm install`. All verified green before M1.4 started; see
+Environment notes for what a future clean install will need to redo.
 
 ## Next session
 
-**M1.4 — database**, once Docker is verified. Scope: docker compose with Postgres/PostGIS and
-Valhalla (Northumberland extract), a raw-SQL migration runner, the first migration (four schemas,
-`outbox.events`, `outbox.handled`), the Postgres `UnitOfWork`, a Testcontainers harness,
-`pnpm db:*` scripts (decision 23), and `DATABASE_URL` in config, `.env.example`, `turbo.json`
-`passThroughEnv` and the README. If Docker isn't ready, M1.6 (driver BFF and the first
-`packages/contracts` schema) doesn't need it and can go first.
+**M1.5 — `identity` as reference module.** First real bounded context: `Driver`, `Session`,
+`Device`, `InviteCode` per the design doc §3/§9. OTP-based sign-in issuing Ed25519-signed
+tokens (decision 1), sessions stored with the refresh token hashed, invite-code redemption.
+Wire it through all four layers (`domain/`, `application/`, `infrastructure/` with a real
+Postgres repository, `interface/`) plus a `composition/` factory in the module's own `api.ts`,
+per the M1.3 deviations decision above (decision 26's `asKyselyTransaction` gets its first real
+caller here, if a use case needs it). Fix the architecture-rule gap first or alongside: a new
+dependency-cruiser rule so `composition/` and `host/` can only reach a module through its
+`api.ts`, with a violation fixture proving it fires. Then **M1.6** (driver BFF + first
+`packages/contracts` schema) and **M1.7** (CI) follow in order.

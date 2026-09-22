@@ -14,7 +14,11 @@
     "test": "turbo run test",
     "arch": "turbo run arch",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "db:up": "docker compose -f infra/docker/compose.yml up -d --wait postgres",
+    "db:down": "docker compose -f infra/docker/compose.yml down",
+    "db:migrate": "pnpm --filter @wagonwise/core run db:migrate",
+    "db:reset": "pnpm run db:down && pnpm run db:up && pnpm run db:migrate"
   },
   "devDependencies": {
     "@wagonwise/config": "workspace:*",

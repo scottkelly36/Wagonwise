@@ -4,5 +4,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "vitest.config.ts", "eslint.config.js"]
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "vitest.config.ts", "eslint.config.js"]
 }

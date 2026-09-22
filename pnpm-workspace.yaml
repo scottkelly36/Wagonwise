@@ -5,4 +5,7 @@ packages:
 # Install scripts are blocked by default. Only packages listed here may run them.
 # esbuild is required by Vitest and links its platform binary during install.
 allowBuilds:
+  cpu-features: true
   esbuild: true
+  protobufjs: true
+  ssh2: true

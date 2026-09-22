@@ -3,3 +3,6 @@ pnpm-lock.yaml
 dist/
 build/
 coverage/
+
+# Not a format Prettier has a parser for.
+.env.example

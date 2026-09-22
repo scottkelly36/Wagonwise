@@ -1,0 +1,52 @@
+name: wagonwise
+
+services:
+  # Local Postgres + PostGIS. Credentials match config.ts's DATABASE_URL default, so
+  # `pnpm db:up && pnpm db:migrate` needs no .env at all — the README's cold-start promise.
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wagonwise
+      POSTGRES_PASSWORD: wagonwise
+      POSTGRES_DB: wagonwise
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U wagonwise -d wagonwise']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Self-hosted truck routing (decision: Valhalla behind a RoutingEngine port, design doc §4).
+  # Not started by `pnpm db:up` — it has nothing to route with until you provide an extract, and
+  # nothing needs it before M2. To bring it up:
+  #   1. Download a Northumberland (or Great Britain) .osm.pbf extract from Geofabrik into
+  #      infra/docker/ as northumberland-latest.osm.pbf (gitignored — large binary, never commit
+  #      it).
+  #   2. docker compose -f infra/docker/compose.yml --profile valhalla up -d valhalla
+  #      First start builds tiles from the extract into ./valhalla_tiles (gitignored), which
+  #      takes a while; later starts reuse them.
+  # This service definition has not been run against real tiles yet — verify it when M2 needs a
+  # working RoutingEngine adapter, don't assume it's correct as committed.
+  valhalla:
+    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    restart: unless-stopped
+    profiles: ['valhalla']
+    ports:
+      - '8002:8002'
+    volumes:
+      - ./valhalla_tiles:/custom_files
+      - ./:/pbf_data
+    environment:
+      tile_urls: ''
+      use_tiles_ignore_pbf: 'True'
+      build_elevation: 'False'
+      build_admins: 'True'
+      build_time_zones: 'True'
+      force_rebuild: 'False'
+
+volumes:
+  postgres_data:
