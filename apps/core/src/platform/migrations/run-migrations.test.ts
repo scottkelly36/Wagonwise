@@ -30,7 +30,12 @@ describe('runMigrations', () => {
 
   it('applies every migration in order: schemas, outbox tables, PostGIS, identity/routing tables', async () => {
     const result = await runMigrations(pool, migrationsDir);
-    expect(result.applied).toEqual(['0001_init.sql', '0002_identity.sql', '0003_routing.sql']);
+    expect(result.applied).toEqual([
+      '0001_init.sql',
+      '0002_identity.sql',
+      '0003_routing.sql',
+      '0004_route_plans.sql',
+    ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
       `select schema_name from information_schema.schemata
@@ -66,7 +71,7 @@ describe('runMigrations', () => {
       `select table_name from information_schema.tables
        where table_schema = 'routing' order by table_name`,
     );
-    expect(routingTables.map((row) => row.table_name)).toEqual(['vehicle_profiles']);
+    expect(routingTables.map((row) => row.table_name)).toEqual(['route_plans', 'vehicle_profiles']);
 
     const { rows: extensions } = await pool.query<{ extname: string }>(
       "select extname from pg_extension where extname = 'postgis'",
@@ -90,6 +95,7 @@ describe('runMigrations', () => {
       '0001_init.sql',
       '0002_identity.sql',
       '0003_routing.sql',
+      '0004_route_plans.sql',
     ]);
   });
 });

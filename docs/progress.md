@@ -488,14 +488,14 @@ failed the whole job before any check ran.
 
 ## M2 task breakdown
 
-| #    | Task                                                   | Status            |
-| ---- | ------------------------------------------------------ | ----------------- |
-| M2.1 | Verify Valhalla against a real extract                 | Done — 2026-09-22 |
-| M2.2 | `routing` module skeleton + `VehicleProfile`           | Done — 2026-09-22 |
-| M2.3 | `RoutingEngine` port + Valhalla adapter                | Done — 2026-09-22 |
-| M2.4 | `applies(obstruction, dimensions)`                     | Done — 2026-09-22 |
-| M2.5 | `PlanRoute` use case + avoided-restriction explanation | Not started       |
-| M2.6 | Golden-route tests                                     | Not started       |
+| #    | Task                                                            | Status            |
+| ---- | --------------------------------------------------------------- | ----------------- |
+| M2.1 | Verify Valhalla against a real extract                          | Done — 2026-09-22 |
+| M2.2 | `routing` module skeleton + `VehicleProfile`                    | Done — 2026-09-22 |
+| M2.3 | `RoutingEngine` port + Valhalla adapter                         | Done — 2026-09-22 |
+| M2.4 | `applies(obstruction, dimensions)`                              | Done — 2026-09-22 |
+| M2.5 | `PlanRoute` use case (avoided-restriction explanation deferred) | Done — 2026-09-22 |
+| M2.6 | Golden-route tests                                              | Not started       |
 
 **M2.1 delivered:** decision 28's "unverified" flag is resolved — Valhalla now runs against a
 real Northumberland extract and genuinely does truck-aware routing, not just a service that
@@ -759,6 +759,96 @@ function has this shape). The exhaustive unit tests are the verification; there 
   community hazards involved); genuine community-hazard avoidance via `applies()` most likely
   gets wired up once M3 exists. Not a gap in M2.4 itself, which was explicitly scoped to the
   function alone.
+  > **Correction from M2.5:** the "Valhalla-restriction explanation" assumption above turned out
+  > wrong — see M2.5's own notes, below. `applies()` still has no caller after M2.5.
+
+**M2.5 delivered:** `PlanRoute` — the use case that finally wires `VehicleProfile` (M2.2) and
+`RoutingEngine` (M2.3) together into a persisted `RoutePlan`, plus `RoutingEngine`'s first real
+wiring into `composeCore` (deferred from M2.3 on purpose, until there was a real caller).
+
+- **Investigated before writing any code, and it changed the task's scope**: Valhalla's `/route`
+  response never explains _why_ it routed somewhere, only where — confirmed empirically against
+  the real M2.1 instance (querying the same route with a tiny vehicle and a large HGV produced
+  byte-identical routes; no restriction was in the way to observe a difference against). Building
+  design doc §4's literal example ("Avoided Styford Bridge — 3.7m limit") needs core's own access
+  to OSM restriction tags (maxheight/maxwidth/maxweight per way) — real new infrastructure
+  (parsing the `.osm.pbf` extract into `routing.restriction_overrides`, per design doc §9), not a
+  two-query diff against Valhalla alone. Asked the user rather than either quietly shipping a
+  hollow stub or quietly absorbing a much bigger task — see decision 54, below.
+- **`domain/route-plan.ts`**: `RoutePlan` (design doc §3), `AvoidedRestriction` (shape only,
+  always empty — see decision 54). Immutable, matching decision 10 (no `RoutePlan` lifecycle in
+  Phase 1).
+- **`application/plan-route.ts`**: looks up the profile (404-equivalent `VehicleProfileNotFound`
+  if it doesn't exist or isn't the caller's, same ownership rule as M2.2's other use cases), calls
+  `RoutingEngine.route()` with the profile's real dimensions and an empty `avoid` (community-hazard
+  avoidance needs M3), persists the plan. `avoidedRestrictions` and `hazardsOnRoute` are always
+  `[]` for the reasons above and in decision 46's follow-on.
+- **`infrastructure/postgres-route-plan-repository.ts`** + migration `0004_route_plans.sql`:
+  insert-only, `geometry` stored as plain `text` (the encoded polyline) and origin/destination as
+  plain lat/lon columns rather than PostGIS types — nothing queries a `RoutePlan` spatially yet
+  (decision 55, below).
+- **`routing/api.ts`**: now builds the real `ValhallaRoutingEngine` from `config.valhallaUrl` and
+  wires it into `PlanRoute`'s deps — `RoutingEngine`'s first real consumer, so the wiring M2.3
+  deliberately deferred lands here.
+- **`packages/contracts/src/routing.ts`**: `geoPointSchema`, `planRouteRequestSchema`,
+  `routePlanSchema`, `avoidedRestrictionSchema` (mirrors the deferred, always-empty shape).
+- **New endpoint**: `POST /routing/route-plans`, same internal-only trust model as every other
+  routing route. `NoRouteFound` maps to `422 Unprocessable Entity` (new case in
+  `interface/error-mapping.ts`) — the request was well-formed and the profile real, but the
+  vehicle genuinely can't get there, which is neither a missing resource (404) nor a bad request
+  (400).
+
+350 tests, all green (278 core + 32 driver-bff + 17 architecture + 23 contracts); `pnpm arch`
+clean (153 modules, 517 dependencies).
+
+**Verified by actually running it**, matching the standard every prior M2 task with real I/O has
+used: applied `0004_route_plans.sql` against real Postgres, built and ran `dist/main.js`, created
+a real vehicle profile, then planned a real Hexham→Corbridge route through the actual HTTP
+endpoint against the live M2.1 Valhalla instance — `distanceKm: 8.038`, exactly matching every
+earlier verification of this same route (M2.1's curl test, M2.3's scratch script). Confirmed the
+row in `psql` directly. Exercised all three error paths for real: an unknown `profileId` (404), a
+genuinely out-of-tile-coverage request that came back `422` with a real `NoRouteFound` from
+Valhalla (not a fabricated test double), and a request with no `X-Internal-Key` (401, confirming
+the new route inherited the host-level guard automatically). Test data cleaned up afterwards.
+
+## Decisions from M2.5
+
+54. **The avoided-restriction explanation is deferred, not stubbed silently.** Asked the user
+    once the real scope became clear (a genuine architecture finding, not a judgment call this
+    session could make alone) rather than picking unilaterally between shipping something hollow
+    or absorbing a much bigger task without saying so. `RoutePlan.avoidedRestrictions` exists as a
+    typed, always-empty field so the wire contract and persistence shape are already right — the
+    day OSM restriction ingestion exists, populating this field is the only change needed, not a
+    schema migration. The three options considered (and why the middle one was declined): a
+    street-name-diff heuristic (weaker than the design doc's example, and still requires querying
+    Valhalla twice per plan for a benefit nobody asked to trade against extra latency) lost to
+    "ship the real thing now, correctly scoped later" once the actual cost of "correctly" became
+    clear.
+55. **`RoutePlan.geometry`/`origin`/`destination` are plain `text`/`double precision`, not
+    PostGIS types**, despite design doc §9 saying "`routing.route_plans` (geometry `LineString`)."
+    Same reasoning as decision 48 (`VehicleProfile.dimensions`): nothing queries a `RoutePlan`
+    spatially yet — on-route hazard detection (design doc §5) needs the `hazards` module (M3) to
+    exist first. Storing real PostGIS geometry now would mean decoding Valhalla's polyline and
+    re-encoding on read with no consumer to justify it. Revisit when M3 or M6 needs to run
+    `ST_DWithin` against a route's geometry.
+
+## Deviations and open items from M2.5
+
+- **No `restriction_overrides` ingestion, still.** The actual work design doc §4's explanation
+  needs — parsing the `.osm.pbf` extract for maxheight/maxwidth/maxweight tags into
+  `routing.restriction_overrides` (design doc §9) and querying it against a planned route. Not
+  scheduled against a specific milestone yet; worth revisiting alongside M2.6 (golden-route
+  tests), which already needs to investigate real restriction-data quality for the Open Questions
+  table, above.
+- **`avoidedRestrictions` and `hazardsOnRoute` are both always `[]`.** The former per decision 54;
+  the latter because it needs the same `hazards` module (M3) that `applies()` (M2.4) is also
+  waiting on — one milestone, two currently-empty fields.
+- **Community-hazard avoidance is still not wired.** `PlanRoute` always calls `RoutingEngine`
+  with `avoid: []`. Needs a `HazardAvoidanceQuery` read-model port (design doc §3) once `hazards`
+  (M3) exists to query, then `applies()` (M2.4) filters the candidates it returns.
+- **No `GET /routing/route-plans/:id` endpoint.** Nothing needs to re-fetch a plan yet — the
+  driver app gets it directly from the `POST` response (design doc §8's "Route overview" screen).
+  Add when a real caller needs one (M6's alerts subscriber will, to re-fetch a plan's geometry).
 
 ## Environment notes
 
@@ -790,25 +880,18 @@ Environment notes for what a future clean install will need to redo.
 
 ## Next session
 
-**M2.1–M2.4 are done — Valhalla is verified against real tiles, `VehicleProfile` CRUD is live,
-`RoutingEngine` genuinely routes and honours avoid areas, and `applies()` is exhaustively tested.
-M2.5 (`PlanRoute` use case + avoided-restriction explanation) is next.** This is where the pieces
-built so far finally get wired together: `VehicleProfile` (M2.2) supplies `Dimensions`,
-`RoutingEngine` (M2.3, now gets its first real caller — wire it into `composeCore` here, deferred
-from M2.3 on purpose) plans the route, and design doc §4's two-query diff (one Valhalla call with
-the vehicle's dimensions, one without) produces `avoidedRestrictions` by comparing which OSM
-restricted ways the unrestricted route crosses that the vehicle can't clear. `RoutePlan`
-persistence and a migration for `routing.route_plans` land here too. `applies()` (M2.4) itself
-most likely stays uncalled until M3 gives community hazards something to query against — not a
-gap in M2.5, since design doc §4's restriction explanation is purely a Valhalla/OSM concern, not
-a community-hazards one. After that: M2.6 (golden-route tests, run nightly per the CI tiering
-decision — decision 51 confirms the CI-per-PR test tier stays Valhalla-free, matching decision
-13's intent).
+**M2.1–M2.5 are done. `PlanRoute` genuinely plans and persists routes against real Valhalla.
+M2.6 (golden-route tests) is next** — the last M2 task on the original breakdown. Before
+starting it, worth deciding whether to fold in the `routing.restriction_overrides` ingestion
+M2.5 deferred (decision 54): M2.6 already needs to investigate real restriction-data quality for
+the Open Questions table below ("how complete is OSM restriction data on testers' actual routes
+around Hexham?"), and that investigation is most of the groundwork the avoided-restriction
+explanation needs too. Worth raising with the user before assuming either way — M2.5's own
+lesson was that this exact question benefits from a quick check-in rather than a unilateral
+scope call.
 
-Two real gaps from M2.2 still open, worth closing before drivers touch this for real: no BFF
-wiring for routing yet, and `driverId` is a trusted plain field with no token-derived
-verification (both recorded as M2.2 deviations, above; the latter is a real access-control gap,
-not just an unfinished nicety — close it before M4 exposes routing to real drivers). The open
-question "how complete is OSM restriction data on testers' actual routes around Hexham?" (Open
-questions, above) is worth revisiting once M2.4/M2.6 are testing against real restriction tags in
-this same extract.
+Real gaps still open from earlier M2 tasks, worth closing before drivers touch this for real:
+no BFF wiring for routing (M2.2), `driverId` is a trusted plain field with no token-derived
+verification (M2.2 — a real access-control gap, not just an unfinished nicety; close before M4
+exposes routing to real drivers), and no community-hazard avoidance (M2.4/M2.5 — needs the
+`hazards` module, M3, to exist first).

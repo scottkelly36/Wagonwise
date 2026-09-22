@@ -205,24 +205,28 @@ driver's routes get planned against. Internal endpoints only, same `X-Internal-K
 identity's above; there's no BFF wiring for these yet (`apps/driver-bff` has no routing routes),
 so they're only reachable by `curl` or a future client that talks to core directly.
 
-| Route                                  | Does                                                        |
-| -------------------------------------- | ----------------------------------------------------------- |
-| `POST /routing/vehicle-profiles`       | `{ driverId, name, dimensions }` — creates a profile        |
-| `GET /routing/vehicle-profiles`        | `?driverId=` — lists that driver's profiles                 |
-| `GET /routing/vehicle-profiles/:id`    | `?driverId=` — fetches one                                  |
-| `PUT /routing/vehicle-profiles/:id`    | `{ driverId, name, dimensions }` — replaces name/dimensions |
-| `DELETE /routing/vehicle-profiles/:id` | `?driverId=` — deletes it                                   |
+| Route                                  | Does                                                           |
+| -------------------------------------- | -------------------------------------------------------------- |
+| `POST /routing/vehicle-profiles`       | `{ driverId, name, dimensions }` — creates a profile           |
+| `GET /routing/vehicle-profiles`        | `?driverId=` — lists that driver's profiles                    |
+| `GET /routing/vehicle-profiles/:id`    | `?driverId=` — fetches one                                     |
+| `PUT /routing/vehicle-profiles/:id`    | `{ driverId, name, dimensions }` — replaces name/dimensions    |
+| `DELETE /routing/vehicle-profiles/:id` | `?driverId=` — deletes it                                      |
+| `POST /routing/route-plans`            | `{ driverId, profileId, origin, destination }` — plans a route |
 
 `dimensions` is `{ heightM, widthM, lengthM, grossWeightT, axleWeightT? }`, all positive numbers.
 `driverId` is a plain, trusted request field for now — there's no token-derived `driverId` yet
 (that needs the BFF/auth wiring M4 brings), so a mismatched `driverId` on get/update/delete
 returns the same 404 as a genuinely unknown id rather than a 403 (docs/progress.md, decision 49).
 
-**Truck-aware routing (M2.3):** `RoutingEngine`, behind a port, with a Valhalla adapter
+**Truck-aware routing (M2.3–M2.5):** `RoutingEngine`, behind a port, with a Valhalla adapter
 (`apps/core/src/modules/routing/infrastructure/valhalla-routing-engine.ts`) that talks to the
-`valhalla` compose service (see above) over plain HTTP — no route yet exposes it (that's M2.5's
-`PlanRoute`), so there's nothing to `curl` here today. `VALHALLA_URL` (Configuration, above)
-points at it.
+`valhalla` compose service (see above) over plain HTTP. `VALHALLA_URL` (Configuration, above)
+points at it. `POST /routing/route-plans` (`origin`/`destination` are `{ lat, lon }`) plans a
+real route for one of the driver's vehicle profiles and returns `422` (not `404`/`400`) when the
+vehicle genuinely can't get there. `avoidedRestrictions` and `hazardsOnRoute` are always `[]` for
+now — the avoided-restriction explanation needs real OSM restriction data core doesn't ingest yet
+(docs/progress.md, decision 54), and community-hazard avoidance needs the `hazards` module (M3).
 
 ## Driver BFF
 

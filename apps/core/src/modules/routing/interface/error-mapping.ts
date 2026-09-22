@@ -1,12 +1,13 @@
 import type { CreateVehicleProfileError } from '../application/create-vehicle-profile.js';
 import type { UpdateVehicleProfileError } from '../application/update-vehicle-profile.js';
 import type { VehicleProfileNotFound } from '../application/errors.js';
+import type { NoRouteFound } from '../application/ports/routing-engine.js';
 
-// DeleteVehicleProfileError and GetVehicleProfileError are both just VehicleProfileNotFound —
-// listed once here rather than unioning the (identical) named aliases in, which
-// @typescript-eslint/no-duplicate-type-constituents rejects.
+// DeleteVehicleProfileError, GetVehicleProfileError and PlanRouteError's VehicleProfileNotFound
+// case are all just VehicleProfileNotFound — listed once here rather than unioning the
+// (identical) named aliases in, which @typescript-eslint/no-duplicate-type-constituents rejects.
 export type RoutingError =
-  CreateVehicleProfileError | UpdateVehicleProfileError | VehicleProfileNotFound;
+  CreateVehicleProfileError | UpdateVehicleProfileError | VehicleProfileNotFound | NoRouteFound;
 
 /** Tag -> HTTP status, in exactly one table (AGENTS.md rule 13), mirroring identity's
  *  error-mapping.ts. `switch-exhaustiveness-check` means a new domain error tag breaks
@@ -18,5 +19,10 @@ export function statusFor(error: RoutingError): number {
       return 400;
     case 'VehicleProfileNotFound':
       return 404;
+    // The request was well-formed and the profile is real, but the vehicle genuinely cannot get
+    // there — not a missing resource (404) or a client-input error (400), so 422 Unprocessable
+    // Entity: the server understood the request and can't fulfil it for a real-world reason.
+    case 'NoRouteFound':
+      return 422;
   }
 }

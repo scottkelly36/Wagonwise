@@ -1,11 +1,15 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
+import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
+import { InMemoryRoutePlanRepository } from '../application/testing/in-memory-route-plan-repository.js';
 import { InMemoryVehicleProfileRepository } from '../application/testing/in-memory-vehicle-profile-repository.js';
+import { FakeRoutingEngine } from '../application/testing/fake-routing-engine.js';
 import { registerRoutingRoutes, type RoutingRouteDeps } from './routes.js';
 
 const dimensions = { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32 };
+const now = new Date('2026-06-15T08:00:00.000Z');
 
 function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
   const repo = new InMemoryVehicleProfileRepository();
@@ -16,6 +20,13 @@ function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
     deleteVehicleProfile: { repo },
     getVehicleProfile: { repo },
     listVehicleProfiles: { repo },
+    planRoute: {
+      vehicleProfileRepo: repo,
+      routePlanRepo: new InMemoryRoutePlanRepository(),
+      routingEngine: new FakeRoutingEngine(),
+      clock: new FakeClock(now),
+      ids,
+    },
   };
   const app = Fastify();
   registerRoutingRoutes(app, deps);
@@ -208,5 +219,99 @@ describe('DELETE /routing/vehicle-profiles/:id', () => {
       url: `/routing/vehicle-profiles/${id}?driverId=driver-2`,
     });
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe('POST /routing/route-plans', () => {
+  const origin = { lat: 54.9707, lon: -2.1013 };
+  const destination = { lat: 54.9738, lon: -2.0165 };
+
+  it('201s and returns the planned route for an existing, owned profile', async () => {
+    const { app } = buildApp();
+    const created = await app.inject({
+      method: 'POST',
+      url: '/routing/vehicle-profiles',
+      payload: { driverId: 'driver-1', name: 'Big Wagon', dimensions },
+    });
+    const { id: profileId } = created.json<{ id: string }>();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-plans',
+      payload: { driverId: 'driver-1', profileId, origin, destination },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      driverId: 'driver-1',
+      profileId,
+      geometry: 'fake-geometry',
+      avoidedRestrictions: [],
+      hazardsOnRoute: [],
+    });
+  });
+
+  it('400s a malformed body', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-plans',
+      payload: { nonsense: true },
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('404s an unknown profileId', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-plans',
+      payload: {
+        driverId: 'driver-1',
+        profileId: '11111111-1111-4111-8111-111111111111',
+        origin,
+        destination,
+      },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'VehicleProfileNotFound' });
+  });
+
+  it('404s a profile owned by a different driver', async () => {
+    const { app } = buildApp();
+    const created = await app.inject({
+      method: 'POST',
+      url: '/routing/vehicle-profiles',
+      payload: { driverId: 'driver-1', name: 'Big Wagon', dimensions },
+    });
+    const { id: profileId } = created.json<{ id: string }>();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-plans',
+      payload: { driverId: 'driver-2', profileId, origin, destination },
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('422s when the routing engine reports NoRouteFound', async () => {
+    const { app, deps } = buildApp();
+    const created = await app.inject({
+      method: 'POST',
+      url: '/routing/vehicle-profiles',
+      payload: { driverId: 'driver-1', name: 'Big Wagon', dimensions },
+    });
+    const { id: profileId } = created.json<{ id: string }>();
+    (deps.planRoute.routingEngine as FakeRoutingEngine).result = {
+      ok: false,
+      error: { tag: 'NoRouteFound' },
+    };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-plans',
+      payload: { driverId: 'driver-1', profileId, origin, destination },
+    });
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toMatchObject({ tag: 'NoRouteFound' });
   });
 });

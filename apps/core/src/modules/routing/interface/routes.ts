@@ -1,6 +1,7 @@
 import {
   createVehicleProfileRequestSchema,
   driverIdQuerySchema,
+  planRouteRequestSchema,
   updateVehicleProfileRequestSchema,
   vehicleProfileIdParamsSchema,
 } from '@wagonwise/contracts/routing';
@@ -22,6 +23,7 @@ import {
   listVehicleProfiles,
   type ListVehicleProfilesDeps,
 } from '../application/list-vehicle-profiles.js';
+import { planRoute, type PlanRouteDeps } from '../application/plan-route.js';
 import {
   updateVehicleProfile,
   type UpdateVehicleProfileDeps,
@@ -34,6 +36,7 @@ export interface RoutingRouteDeps {
   readonly deleteVehicleProfile: DeleteVehicleProfileDeps;
   readonly getVehicleProfile: GetVehicleProfileDeps;
   readonly listVehicleProfiles: ListVehicleProfilesDeps;
+  readonly planRoute: PlanRouteDeps;
 }
 
 /**
@@ -119,5 +122,22 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(204).send();
+  });
+
+  app.post('/routing/route-plans', async (request, reply) => {
+    const parsed = planRouteRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await planRoute(deps.planRoute, {
+      driverId: makeId<'DriverId'>(parsed.data.driverId),
+      profileId: makeId<'VehicleProfileId'>(parsed.data.profileId),
+      origin: parsed.data.origin,
+      destination: parsed.data.destination,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(201).send(result.value);
   });
 }
