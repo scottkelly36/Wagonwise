@@ -921,7 +921,7 @@ M2.5 by design (golden tests don't count towards this); 3 more in the separate g
 | #    | Task                                                                                        | Status            |
 | ---- | ------------------------------------------------------------------------------------------- | ----------------- |
 | M3.1 | `hazards` module skeleton + domain (report/merge/expiry/confirm/dismiss policy)             | Done — 2026-09-22 |
-| M3.2 | `application/` use cases: `reportHazard`, `confirmHazard`, `dismissHazard`, `expireHazards` | Not started       |
+| M3.2 | `application/` use cases: `reportHazard`, `confirmHazard`, `dismissHazard`, `expireHazards` | Done — 2026-09-22 |
 | M3.3 | `infrastructure/`: `PostgresHazardRepository`, PostGIS geography + GiST index, migration    | Not started       |
 | M3.4 | `interface/`: HTTP endpoints, wired into `composeCore`                                      | Not started       |
 | M3.5 | `HazardAvoidanceQuery` read-model port + on-route PostGIS query, wired into `PlanRoute`     | Not started       |
@@ -995,6 +995,73 @@ verification.
 - **`GeoPoint` has no range validation** (lat/lon aren't checked as real coordinates), matching
   routing's own `geoPointSchema` (`z.number()`, no range check) — boundary validation is the
   interface layer's job (M3.4), not the domain's, consistent with how routing itself does it.
+
+**M3.2 delivered:** `hazards`' application layer — four use cases against one
+`HazardRepository` port, with an in-memory fake, mirroring routing's own use-case shape (M2.2).
+
+- **`application/ports/hazard-repository.ts`**: `findById`, `findNearby(location, radiusM)`
+  (spatial only — no type filter, so the same query can later back a map-viewport read too; the
+  domain does every other filtering step, per decision 61 below), `findExpirable(now)`, `save`
+  (upsert, no separate insert path).
+- **`application/report-hazard.ts`**: idempotent on a client-generated `id` (design doc §5's
+  offline-queue UUID) — a retry returns the existing report unchanged rather than creating a
+  second one, checked before anything else, including validation. Then checks `findNearby` +
+  `findMergeCandidate` (M3.1) for a duplicate to `confirm()` into instead of creating a fresh
+  report. No `IdGenerator` port, unlike every routing use case — decision 62, below.
+- **`application/confirm-hazard.ts`** / **`dismiss-hazard.ts`**: thin wrappers around the M3.1
+  domain transitions — look up by id, apply `confirm()`/`dismiss()`, persist, return
+  `HazardReportNotFound` for an unknown id. No ownership check (unlike routing's vehicle
+  profiles) — community moderation is deliberately not scoped to the reporter, any driver can
+  confirm or dismiss any report.
+- **`application/expire-hazards.ts`**: batch-expires everything `findExpirable` returns. Returns
+  the expired reports as a plain array, not a `Result` (mirrors `listVehicleProfiles`) — nothing
+  to expire isn't a failure. No scheduler yet (M3 deviations, below) — this is the use case a
+  poller will call, not the poller itself.
+- **`application/testing/in-memory-hazard-repository.ts`**: `findNearby`'s flat-earth distance
+  is a test-only approximation of PostGIS's real `ST_DWithin` (M3.3) — explicitly not trying to
+  be precise, since nothing here needs sub-metre accuracy to exercise the merge policy.
+
+415 tests, all green (343 core + 32 driver-bff + 17 architecture + 23 contracts — hazards' four
+use cases add 17 to the 326 core tests M3.1 left off at); `pnpm arch` clean (169 modules, 574
+dependencies). `pnpm verify` clean end to end.
+
+**Verified by its own design, still no real run** — same as M3.1: no `api.ts`, no wiring, no
+server to run this against yet. The in-memory-repository tests are the verification.
+
+## Decisions from M3.2
+
+61. **`findNearby` takes no `type` parameter — it is a pure spatial query.** The domain
+    (`findMergeCandidate`, M3.1) already filters by type, status and recency; giving the
+    repository a type filter too would duplicate that decision across two layers for a query
+    that will likely be reused as-is for the map-viewport bounding-box read (design doc §5),
+    which has no type filter of its own.
+62. **`reportHazard` takes no `IdGenerator` — the id is caller-supplied, not server-generated.**
+    Every routing use case (M2.2) generates its own id; hazards deliberately doesn't, because the
+    id _is_ the offline-queue idempotency key (design doc §5 step 2: "App assigns a
+    client-generated UUID"). Generating a fresh id server-side would defeat the exact mechanism
+    that makes a flaky-connection retry safe.
+63. **Confirm/dismiss have no ownership or authorization check.** Unlike a `VehicleProfile`
+    (one driver's own data), a `HazardReport` is a shared community record — design doc §5's
+    "Still there?" prompt and dismiss flow are meant to be usable by any driver who passes the
+    hazard, not just its original reporter. Recorded as a deliberate choice, not an oversight,
+    since routing's precedent (decision 49) might otherwise suggest an ownership check was
+    missed.
+
+## Deviations and open items from M3.2
+
+- **No `api.ts`/wiring, still** — same reason as M3.1's; M3.4 gives this module its first
+  `composeCore` wiring, the same order M1.5→M1.6 and M2.2→M2.5 established.
+- **No expiry poller.** `expireHazards` exists and is tested, but nothing calls it on a schedule
+  yet — the outbox dispatcher (decision 5) is the only existing precedent for an in-process
+  poller in this codebase, and whether hazard expiry should follow that same shape or something
+  simpler (e.g. expire lazily inside `findNearby`/`findExpirable` itself) is worth a real decision
+  once M3.4 has an HTTP surface to observe it through, not guessed at here.
+- **`reportHazard`'s merge check does not verify the merge candidate's `reporterId` differs from
+  the new attempt's.** A driver could, in principle, "confirm" their own just-filed report by
+  resubmitting under a different client id. Not addressed here — design doc §5 doesn't mention
+  self-confirmation as a concern, and Phase 1 has no trust scoring to weigh it against (same
+  "Phase 2" deferral as decision 60's `DISMISS_MARGIN`). Worth revisiting if it turns out to
+  matter in practice.
 
 ## Environment notes
 
