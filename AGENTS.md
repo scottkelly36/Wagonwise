@@ -151,5 +151,5 @@ See [`README.md`](README.md) — it holds prerequisites, first-time set-up, the 
 table and troubleshooting, and it is kept current as milestones add steps. Day to day:
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm test && pnpm arch && pnpm format:check
+pnpm verify   # lint && typecheck && test && arch && format:check — also runs on every git push
 ```

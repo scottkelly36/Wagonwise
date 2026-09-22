@@ -8,4 +8,5 @@ allowBuilds:
   cpu-features: true
   esbuild: true
   protobufjs: true
+  simple-git-hooks: true
   ssh2: true
