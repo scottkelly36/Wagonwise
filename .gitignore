@@ -20,9 +20,8 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
-# Valhalla tiles and OSM extracts are large build artefacts, never committed
-infra/docker/valhalla_tiles/
-infra/docker/*.osm.pbf
+# Valhalla tiles, OSM extracts and generated dbs are large build artefacts, never committed
+infra/docker/custom_files/
 
 # Re-includes go LAST: gitignore uses the last matching pattern, so a negation placed
 # above the pattern it overrides (node_modules/, dist/) has no effect.

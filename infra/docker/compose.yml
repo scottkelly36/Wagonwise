@@ -24,13 +24,13 @@ services:
   # Not started by `pnpm db:up` — it has nothing to route with until you provide an extract, and
   # nothing needs it before M2. To bring it up:
   #   1. Download a Northumberland (or Great Britain) .osm.pbf extract from Geofabrik into
-  #      infra/docker/ as northumberland-latest.osm.pbf (gitignored — large binary, never commit
-  #      it).
+  #      infra/docker/custom_files/ (gitignored — large binary, never commit it). The image scans
+  #      this one directory for *.pbf input AND writes tiles/config/admin/timezone dbs into it —
+  #      it does not use a separate input mount, so both must be the same host directory.
   #   2. docker compose -f infra/docker/compose.yml --profile valhalla up -d valhalla
-  #      First start builds tiles from the extract into ./valhalla_tiles (gitignored), which
-  #      takes a while; later starts reuse them.
-  # This service definition has not been run against real tiles yet — verify it when M2 needs a
-  # working RoutingEngine adapter, don't assume it's correct as committed.
+  #      First start builds tiles from the extract (a few minutes for a county-sized extract),
+  #      which land in infra/docker/custom_files/valhalla_tiles/ (gitignored); later starts reuse
+  #      them via use_tiles_ignore_pbf.
   valhalla:
     image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
     restart: unless-stopped
@@ -38,8 +38,7 @@ services:
     ports:
       - '8002:8002'
     volumes:
-      - ./valhalla_tiles:/custom_files
-      - ./:/pbf_data
+      - ./custom_files:/custom_files
     environment:
       tile_urls: ''
       use_tiles_ignore_pbf: 'True'

@@ -5,7 +5,7 @@
 | Milestone            | Status            |
 | -------------------- | ----------------- |
 | M1 Foundations       | Done — 2026-09-22 |
-| M2 Routing core      | Not started       |
+| M2 Routing core      | In progress       |
 | M3 Hazards core      | Not started       |
 | M4 Driver BFF + auth | Not started       |
 | M5 Driver app        | Not started       |
@@ -486,6 +486,65 @@ failed the whole job before any check ran.
   the CI check to pass before merge. Worth adding once there's a second contributor or once PRs
   become the normal workflow rather than direct pushes.
 
+## M2 task breakdown
+
+| #    | Task                                          | Status            |
+| ---- | ---------------------------------------------- | ----------------- |
+| M2.1 | Verify Valhalla against a real extract         | Done — 2026-09-22 |
+| M2.2 | `routing` module skeleton + `VehicleProfile`   | Not started       |
+| M2.3 | `RoutingEngine` port + Valhalla adapter        | Not started       |
+| M2.4 | `applies(obstruction, dimensions)`             | Not started       |
+| M2.5 | `PlanRoute` use case + avoided-restriction explanation | Not started |
+| M2.6 | Golden-route tests                             | Not started       |
+
+**M2.1 delivered:** decision 28's "unverified" flag is resolved — Valhalla now runs against a
+real Northumberland extract and genuinely does truck-aware routing, not just a service that
+starts.
+
+- Downloaded `northumberland-latest.osm.pbf` (~25 MB, Geofabrik) into
+  `infra/docker/custom_files/` (gitignored).
+- **Found and fixed a real bug in `infra/docker/compose.yml`** (decision 44, below): the compose
+  file split the mount into `./valhalla_tiles:/custom_files` (output) and `./:/pbf_data` (input),
+  but the image only ever reads `.pbf` files from, and writes tiles/config/admin/timezone dbs
+  into, a single `$CUSTOM_FILES` directory (`/custom_files`) — confirmed by reading the image's
+  own `run.sh`/`configure_valhalla.sh`/`helpers.sh` rather than guessing. `/pbf_data` was never
+  read by anything; the container crash-looped with "No local PBF files... Nothing to do." Fixed
+  to a single `./custom_files:/custom_files` mount.
+- Brought up `docker compose -f infra/docker/compose.yml --profile valhalla up -d valhalla`; tile
+  build for the Northumberland extract (30 tiles) took about 3.5 minutes.
+- **Verified for real, not just "container is running":** `GET /status` returns 200; a `POST
+/route` with `costing: truck` and real dimensions (height 4.2m, width 2.6m, length 16.5m, weight
+  32t, axle load 10t) returns a genuine turn-by-turn route through real Hexham streets (St Mary's
+  Wynd, Beaumont Street, Hencotes/B6305, Priestpopple/A6079 …) with `travel_type: "truck"`.
+  Decoded the route's polyline6 shape, picked a real mid-route coordinate (near the A69/A68
+  Stagshaw Road Interchange), and re-requested the same route with `exclude_polygons` covering
+  it — the route genuinely detoured (dropped the A69/A68/Stagshaw Road Interchange leg for Ferry
+  Road, cost 763→939, time 475s→646s). This is the exact mechanism hazard avoidance will use
+  (design doc §4's `avoid: GeoPolygon[]` on `RoutingEngine`), so it was worth confirming against
+  real tiles rather than assuming the parameter works.
+- `.gitignore` and `infra/docker/compose.yml`'s comments updated to match the real layout.
+
+## Decisions from M2.1
+
+44. **Valhalla's image reads and writes everything from one `$CUSTOM_FILES` directory
+    (`/custom_files`) — there is no separate input mount.** `infra/docker/compose.yml` originally
+    split this into two mounts based on a plausible-looking but wrong assumption; confirmed the
+    real behaviour by reading the `ghcr.io/gis-ops/docker-valhalla/valhalla` image's own
+    `run.sh`, `configure_valhalla.sh` and `helpers.sh` (`CUSTOM_FILES="/custom_files"`; tile dir,
+    config, admin db, timezone db and the `*.pbf` glob all resolve under it). Extracts now live
+    in `infra/docker/custom_files/`, tiles build alongside them at
+    `infra/docker/custom_files/valhalla_tiles/`. `.gitignore` collapsed to one
+    `infra/docker/custom_files/` entry.
+
+## Deviations and open items from M2.1
+
+- **Only smoke-tested, not load-tested or golden-route-tested.** M2.1's job was "prove the
+  service genuinely does truck routing against real tiles," which it now does. Exhaustive
+  correctness (real restriction data quality, golden routes) is M2.4/M2.6's job.
+- **`use_tiles_ignore_pbf: 'True'`** (unchanged from the original compose file) means a changed
+  `.pbf` won't trigger a rebuild on restart unless tiles are deleted first or `force_rebuild` is
+  set — fine for now, worth remembering if the extract is ever refreshed.
+
 ## Environment notes
 
 - Node 24.21 (`C:\Program Files\nodejs`), git 2.55.0, Docker Desktop 29.8.0 with WSL2, pnpm
@@ -516,13 +575,14 @@ Environment notes for what a future clean install will need to redo.
 
 ## Next session
 
-**M1 Foundations is done. M2 (Routing core) starts next.** Per the design doc's milestone table:
-`VehicleProfile` + a `PlanRoute` use case, a Valhalla adapter behind the `RoutingEngine` port
-(decision: architecture review #1's list), `applies(obstruction, dimensions)` fully tested
-(decision 3 — the most safety-critical function in Phase 1, height comparison stays out of SQL),
-an avoided-restriction explanation surfaced to the caller, and golden-route tests passing.
-Estimated 2–3 weeks. Valhalla's compose service exists but is unverified against real tiles
-(decision 28) — downloading an OSM extract and actually starting it is probably M2's first real
-step, the same way M1.7 treated "get a working GitHub remote" as a real step rather than an
-implementation detail. The open question "how complete is OSM restriction data on testers'
-actual routes around Hexham?" (Open questions, above) needs answering before M2 ends.
+**M2.1 is done — Valhalla is verified against real tiles. M2.2 (`routing` module skeleton +
+`VehicleProfile`) is next.** Mirror how `identity` was built in M1.5: domain type, a repository
+port + Postgres adapter, a migration (`0003_routing.sql` or similar for
+`routing.vehicle_profiles`), CRUD use cases against `UnitOfWork`, wired into `composition/` and
+exposed through core's `interface/`. After that: M2.3 (`RoutingEngine` port + Valhalla adapter,
+now with a real running instance to build against instead of a stub), M2.4 (`applies()`, the
+safety-critical one — pure, exhaustively tested, no I/O), M2.5 (`PlanRoute` use case + the
+avoided-restriction explanation from design doc §4's two-query diff), M2.6 (golden-route tests,
+run nightly per the CI tiering decision). The open question "how complete is OSM restriction
+data on testers' actual routes around Hexham?" (Open questions, above) is worth revisiting once
+M2.4/M2.6 are testing against real restriction tags in this same extract.
