@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
+import { isExpired, type GeoPoint, type HazardType } from './domain/hazard-report.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresHazardRepository } from './infrastructure/postgres-hazard-repository.js';
 import { registerHazardsRoutes, type HazardsRouteDeps } from './interface/routes.js';
@@ -13,8 +14,54 @@ export interface HazardsModuleDeps {
   readonly clock: Clock;
 }
 
+/** Only the four hazard types design doc §5 names as blocking map to an avoidance kind; the rest
+ *  are advisory and never returned by `findAvoidanceCandidates`. A `Record` over every `HazardType`
+ *  so a ninth type added later fails to compile here until someone decides which bucket it's in,
+ *  rather than silently defaulting to "not blocking" — mirrors `isBlocking()`'s own classification
+ *  (domain/hazard-report.ts), duplicated here because this is the one place routing is allowed to
+ *  see a translated *result* of it, never the classification itself (AGENTS.md rule 7: routing
+ *  never imports HazardType). */
+const AVOIDANCE_KIND: Record<
+  HazardType,
+  'height' | 'width' | 'weight' | 'prohibition' | undefined
+> = {
+  low_bridge: 'height',
+  weight_limit: 'weight',
+  width_restriction: 'width',
+  no_hgv: 'prohibition',
+  tight_bend: undefined,
+  roadworks: undefined,
+  flooding: undefined,
+  other: undefined,
+};
+
+/**
+ * What `findAvoidanceCandidates` returns — hazards' own read-model DTO for the one cross-context
+ * read routing needs (design doc §3: "routing needs active hazards to build avoid polygons").
+ * Deliberately not `HazardReport`/`HazardType`: routing's adapter (`routing/infrastructure/
+ * hazard-avoidance-query.ts`) reads this shape and never imports anything from `hazards/domain/`
+ * (AGENTS.md rule 7). `kind` already uses routing's own vocabulary (its four values are exactly
+ * `ObstructionKind`, routing/domain/reported-obstruction.ts) purely by structural coincidence, not
+ * an import in either direction.
+ */
+export interface AvoidanceCandidate {
+  readonly id: string;
+  readonly kind: 'height' | 'width' | 'weight' | 'prohibition';
+  readonly limit?: number;
+  readonly location: GeoPoint;
+}
+
 export interface HazardsModule {
   registerRoutes(app: FastifyInstance): void;
+  /** Active, non-expired, blocking-type hazards within `radiusM` of a corridor — the on-route
+   *  detection query (design doc §5) as consumed by routing's `HazardAvoidanceQuery` adapter.
+   *  Filters out advisory types and anything not genuinely active *right now* (`isExpired()`,
+   *  not just `status`) — a temporary hazard whose 7 days passed but `expireHazards` (M3.2)
+   *  hasn't run yet must not still be routed around (docs/progress.md, M3.4 deviations). */
+  findAvoidanceCandidates(
+    corridor: readonly GeoPoint[],
+    radiusM: number,
+  ): Promise<AvoidanceCandidate[]>;
 }
 
 /**
@@ -35,6 +82,31 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
   return {
     registerRoutes(app: FastifyInstance): void {
       registerHazardsRoutes(app, routeDeps);
+    },
+
+    async findAvoidanceCandidates(
+      corridor: readonly GeoPoint[],
+      radiusM: number,
+    ): Promise<AvoidanceCandidate[]> {
+      const now = deps.clock.now();
+      const nearby = await repo.findNearbyLine(corridor, radiusM);
+      const candidates: AvoidanceCandidate[] = [];
+      for (const report of nearby) {
+        if (report.status !== 'active' || isExpired(report, now)) {
+          continue;
+        }
+        const kind = AVOIDANCE_KIND[report.type];
+        if (kind === undefined) {
+          continue;
+        }
+        candidates.push({
+          id: report.id,
+          kind,
+          ...(report.measurement === undefined ? {} : { limit: report.measurement.value }),
+          location: report.location,
+        });
+      }
+      return candidates;
     },
   };
 }

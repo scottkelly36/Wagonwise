@@ -113,6 +113,70 @@ describe('PostgresHazardRepository', () => {
     });
   });
 
+  describe('findNearbyLine', () => {
+    it('finds a report within the radius of a multi-point corridor', async () => {
+      const onCorridor = report({
+        id: makeId<'HazardReportId'>('30303030-3030-4303-8303-303030303030'),
+        location: { lat: 54.975, lon: -2.09 },
+      });
+      const farFromCorridor = report({
+        id: makeId<'HazardReportId'>('40404040-4040-4404-8404-404040404040'),
+        location: { lat: 55.5, lon: -1.5 },
+      });
+      await repo().save(onCorridor);
+      await repo().save(farFromCorridor);
+
+      const corridor = [
+        { lat: 54.97, lon: -2.1 },
+        { lat: 54.975, lon: -2.0901 },
+        { lat: 54.98, lon: -2.08 },
+      ];
+      const found = await repo().findNearbyLine(corridor, 50);
+      expect(found.map((r) => r.id)).toEqual([onCorridor.id]);
+    });
+
+    it('finds a report near a line segment even when no single vertex is close to it', async () => {
+      // Real-world corridors are dense decoded polylines, but this proves the query uses the
+      // actual line geometry (ST_DWithin against ST_MakeLine), not just distance-to-nearest-vertex
+      // — the point sits ~15m off the segment's midpoint, far from either endpoint.
+      const onSegment = report({
+        id: makeId<'HazardReportId'>('50505050-5050-4505-8505-505050505050'),
+        location: { lat: 54.9601, lon: -2.06 },
+      });
+      await repo().save(onSegment);
+
+      const corridor = [
+        { lat: 54.96, lon: -2.07 },
+        { lat: 54.96, lon: -2.05 },
+      ];
+      const found = await repo().findNearbyLine(corridor, 50);
+      expect(found.map((r) => r.id)).toContain(onSegment.id);
+    });
+
+    it('degrades to a plain radius check for a single-point corridor', async () => {
+      const near = report({
+        id: makeId<'HazardReportId'>('60606060-6060-4606-8606-606060606060'),
+        location: { lat: 54.9501, lon: -2.05 },
+      });
+      await repo().save(near);
+
+      const found = await repo().findNearbyLine([{ lat: 54.95, lon: -2.05 }], 50);
+      expect(found.map((r) => r.id)).toEqual([near.id]);
+    });
+
+    it('returns an empty array for an empty corridor', async () => {
+      expect(await repo().findNearbyLine([], 50)).toEqual([]);
+    });
+
+    it('returns an empty array when nothing is nearby the corridor', async () => {
+      const corridor = [
+        { lat: 10, lon: 10 },
+        { lat: 10.01, lon: 10.01 },
+      ];
+      expect(await repo().findNearbyLine(corridor, 50)).toEqual([]);
+    });
+  });
+
   describe('findExpirable', () => {
     it('finds an active report past its expiresAt', async () => {
       const overdue = report({

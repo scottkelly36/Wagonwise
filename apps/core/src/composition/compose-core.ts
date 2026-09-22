@@ -73,15 +73,18 @@ export function composeCore(
   // (Kysely<Record<string, unknown>>, no branding), so one instance serves both modules; unlike
   // platformDb vs identityDb, there's no Kysely<Database> variance problem here to work around.
   const routingDb: RoutingUntypedDb = identityDb;
+  const hazardsDb: HazardsUntypedDb = identityDb;
+
+  // hazards built before routing: routing's HazardAvoidanceQueryAdapter (M3.5) wraps hazards'
+  // facade, the first case of one module's composition needing another module's instance.
+  const hazards = createHazardsModule({ db: hazardsDb, clock });
   const routing = createRoutingModule({
     db: routingDb,
     ids,
     clock,
     valhallaUrl: config.valhallaUrl,
+    hazards,
   });
-
-  const hazardsDb: HazardsUntypedDb = identityDb;
-  const hazards = createHazardsModule({ db: hazardsDb, clock });
 
   const app = buildApp({ config, clock, ids });
   identity.registerRoutes(app);

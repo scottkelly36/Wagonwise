@@ -5,6 +5,7 @@ import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import { InMemoryRoutePlanRepository } from '../application/testing/in-memory-route-plan-repository.js';
 import { InMemoryVehicleProfileRepository } from '../application/testing/in-memory-vehicle-profile-repository.js';
+import { FakeHazardAvoidanceQuery } from '../application/testing/fake-hazard-avoidance-query.js';
 import { FakeRoutingEngine } from '../application/testing/fake-routing-engine.js';
 import { registerRoutingRoutes, type RoutingRouteDeps } from './routes.js';
 
@@ -24,6 +25,7 @@ function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
       vehicleProfileRepo: repo,
       routePlanRepo: new InMemoryRoutePlanRepository(),
       routingEngine: new FakeRoutingEngine(),
+      hazardAvoidanceQuery: new FakeHazardAvoidanceQuery(),
       clock: new FakeClock(now),
       ids,
     },

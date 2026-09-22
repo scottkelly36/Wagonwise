@@ -6,7 +6,7 @@
 | -------------------- | ----------------- |
 | M1 Foundations       | Done — 2026-09-22 |
 | M2 Routing core      | Done — 2026-09-22 |
-| M3 Hazards core      | In progress       |
+| M3 Hazards core      | Done — 2026-09-22 |
 | M4 Driver BFF + auth | Not started       |
 | M5 Driver app        | Not started       |
 | M6 Alerts            | Not started       |
@@ -924,7 +924,7 @@ M2.5 by design (golden tests don't count towards this); 3 more in the separate g
 | M3.2 | `application/` use cases: `reportHazard`, `confirmHazard`, `dismissHazard`, `expireHazards` | Done — 2026-09-22 |
 | M3.3 | `infrastructure/`: `PostgresHazardRepository`, PostGIS geography + GiST index, migration    | Done — 2026-09-22 |
 | M3.4 | `interface/`: HTTP endpoints, wired into `composeCore`                                      | Done — 2026-09-22 |
-| M3.5 | `HazardAvoidanceQuery` read-model port + on-route PostGIS query, wired into `PlanRoute`     | Not started       |
+| M3.5 | `HazardAvoidanceQuery` read-model port + on-route PostGIS query, wired into `PlanRoute`     | Done — 2026-09-22 |
 
 Scoped to exactly design doc §12's M3 "done when": report/confirm/dismiss/expire use cases,
 the PostGIS on-route query, and hazards feeding avoid polygons via the read-model port.
@@ -1179,6 +1179,101 @@ tripping the exact coordinates submitted. Test data cleaned up afterwards.
   doc §5) is a driver-app (M5) concern with no caller yet — `findNearby` is already the query it
   would use, just not exposed over HTTP.
 
+**M3.5 delivered:** `HazardAvoidanceQuery` — the last of M3's three cross-context reads (design
+doc §3) — and `PlanRoute` genuinely avoids blocking hazards now, not just a stub with an empty
+`avoid: []`. **M3 Hazards core is done.**
+
+- **Asked the user first**, per AGENTS.md's "before larger changes, give a short plan and wait for
+  my OK": `RoutingEngine.route()` needs `avoid` polygons _before_ a route's geometry exists to
+  check hazards against, so something has to give. Presented two options — a straight-line
+  corridor before any routing (one Valhalla call, always, but can miss hazards on a winding real
+  route or flag irrelevant ones near the straight line) vs. two-pass routing (plan once, find
+  hazards within 30m of the _real_ first-pass geometry, re-plan only if one applies) — with a
+  recommendation. **Two-pass, chosen by the user.**
+- **`routing/domain/geo.ts`**: `decodePolyline()` (the Google encoded-polyline algorithm at 1e6
+  precision, hand-rolled — decision 6/51's "small, well-understood thing" reasoning, no
+  dependency) and `bufferPoint()` (a small axis-aligned square around a point — a reported
+  hazard's _point_ becomes a small avoid _area_ for Valhalla's `exclude_polygons`, which can't
+  exclude a zero-area point). Tested against the standard Google-maps reference vector (precision 5) plus round-trips at precision 6 using a test-only encoder (not shipped — production code only
+  ever decodes Valhalla's own output).
+- **`hazards/api.ts`**: `findAvoidanceCandidates(corridor, radiusM)` — the read-model method
+  routing's adapter calls. Filters to `active`, genuinely-not-expired (`isExpired()`, live-checked
+  — decision from M3.4's deviations, since no poller marks a report `expired` yet), _blocking_-type
+  reports only, via a `Record<HazardType, ...>` lookup that fails to compile if a ninth
+  `HazardType` is ever added without deciding which bucket it's in. Returns `AvoidanceCandidate[]`
+  — hazards' own DTO, whose `kind` values happen to equal routing's `ObstructionKind` vocabulary
+  by construction, not by either side importing the other's types (AGENTS.md rule 7 satisfied
+  literally: routing never imports `HazardReport`/`HazardType`/`HazardStatus`).
+- **`hazards/application/ports/hazard-repository.ts` + `PostgresHazardRepository`**:
+  `findNearbyLine(points, radiusM)` — the actual on-route detection query design doc §5
+  describes, `ST_DWithin` against a real `ST_MakeLine` built from the corridor's points (not a
+  per-point distance loop) — proven against real PostGIS with a hazard positioned near a line
+  _segment's_ midpoint, far from either endpoint, so the test can't pass by accident via
+  distance-to-nearest-vertex.
+- **`routing/application/ports/hazard-avoidance.ts` + `infrastructure/hazard-avoidance-query.ts`**:
+  the port (owned by routing, per design doc §3) and its adapter — decodes the route polyline,
+  calls `hazards.findAvoidanceCandidates`, turns each into a `ReportedObstruction` with a buffered
+  `zone`. The one place routing reads anything hazards-shaped.
+- **`plan-route.ts`**: two-pass, exactly as decided — first pass with `avoid: []`, `activeNear()`
+  against that geometry, `applies()` (M2.4) filters to what affects _this_ vehicle, second pass
+  only when something does. A `NoRouteFound` from the second pass propagates as the overall
+  result rather than silently falling back to the un-avoided first pass — the vehicle genuinely
+  can't get there avoiding a hazard that applies to it, and quietly routing through it anyway
+  would violate AGENTS.md's "community reports can only make routing more cautious."
+  `hazardsOnRoute` stays empty (decision, below) — only `avoidedRestrictions`' OSM-explanation gap
+  remains from M2.5.
+- **`FakeRoutingEngine.results`**: an optional per-call queue (consumed in order), added
+  alongside the existing single `result` field so every test written before M3.5 keeps working
+  unchanged, while new tests can make the first and second pass of a reroute return differently.
+- **`composeCore`**: `hazards` is now built _before_ `routing` and passed into it — the first
+  time one module's composition has needed another module's built instance, not just a shared
+  `db`/`clock`.
+
+382 core tests, all green (up from 362 at M3.4 — 20 new: `decodePolyline`/`bufferPoint`,
+`HazardAvoidanceQueryAdapter`, `findNearbyLine` real-PostGIS tests, and `PlanRoute`'s reroute
+scenarios); 33 contracts unchanged; `pnpm arch` clean (183 modules, 637 dependencies) — confirming
+the `routing → hazards/api.ts` import is a legitimate facade-to-facade read, not a violation.
+
+**Verified against the real stack, not just fakes**: built `dist/`, ran `node dist/main.js`
+against real Postgres and the real M2.1 Valhalla instance, and drove the exact scenario the
+mechanism exists for — planned a baseline Hexham→Corbridge route for a 4.2m HGV (`8.038km`,
+matching every earlier verification of this route back to M2.1), reported a real `low_bridge`
+hazard with a 3.5m measurement at a point taken directly from that route's own decoded geometry
+(40% of the way along, 302 points), re-planned for the same profile and got a genuine detour
+(`12.35km` — Valhalla actually rerouted around it, a real second HTTP call, not a mocked one),
+then re-planned for a _different_ profile short enough to clear a 3.5m bridge (`2.5m` height) and
+confirmed its route was byte-identical before and after the hazard existed — `applies()` correctly
+decided the hazard doesn't affect that vehicle, so no second pass ran. This is the first time
+these two months of separately-verified pieces (Valhalla's `exclude_polygons`, `applies()`, the
+merge/expiry policy, PostGIS's spatial queries) have all been exercised together as the actual
+product mechanism. Test data cleaned up afterwards.
+
+## Decisions from M3.5
+
+67. **Two-pass routing, not a straight-line-corridor single pass — decided by the user, not
+    guessed.** A genuine architecture fork (see "delivered," above) with a real product tradeoff
+    (accuracy vs. one extra Valhalla call in the true-positive case), not something to pick
+    unilaterally. Presented as an `AskUserQuestion` with a recommendation; the user chose the
+    recommended option.
+68. **`hazardsOnRoute` stays empty, on purpose, not by oversight.** `HazardAvoidanceQuery` is
+    scoped to _avoidance candidates_ (blocking types only, per `AVOIDANCE_KIND`) — populating
+    `hazardsOnRoute` "for display" would need a broader query returning advisory hazards too,
+    which is a different read (design doc §5: "shown and flagged on the route... the driver
+    decides") that nothing consumes yet (no driver-app route-overview screen exists before M5).
+    Building that query now, with no caller to shape its actual needs, would be the same mistake
+    M2.5 avoided by asking before absorbing unscoped work.
+69. **`AVOID_ZONE_HALF_WIDTH_M = 25`** (a 50m×50m box around a reported point) is a guess, not a
+    derived number — same status as `MERGE_RADIUS_M`/`DISMISS_MARGIN`/the expiry window. Confirmed
+    _sufficient_ against one real interchange during verification (the tall HGV genuinely
+    detoured), not confirmed _right-sized_ in general — a box this size could still be too small
+    for a wide junction or too large for a tight village street. Revisit once real routes are
+    tested against it, the same note M2.1 left for `exclude_polygons` box sizing generally.
+70. **`isExpired()` is checked live inside `findAvoidanceCandidates`, not left to `status` alone**
+    — resolves the concern M3.4's deviations flagged in advance: a temporary hazard whose 7 days
+    passed but `expireHazards` hasn't run (no poller exists yet, decision pending in M3.4's
+    deviations) must not keep being routed around. This is the defense-in-depth that deviation
+    anticipated, now actually built rather than just noted.
+
 ## Environment notes
 
 - **`gh` (GitHub CLI) is installed but not on a normal terminal's PATH** — full path
@@ -1217,30 +1312,35 @@ Environment notes for what a future clean install will need to redo.
 
 ## Next session
 
-**M2 Routing core is done (M2.1–M2.6).** `VehicleProfile`, `RoutingEngine`, `applies()` and
-`PlanRoute` are all real and verified against a live Valhalla instance; golden-route tests guard
-the whole pipeline nightly. **M3 (Hazards core) is next** per the design doc's milestone table —
-read `docs/phase-1-tech-design.md`'s hazards sections (§3, §5) before starting it, the same way
-M2 started from a fresh read of §4.
+**M3 Hazards core is done (M3.1–M3.5).** `HazardReport`'s full lifecycle (report/merge/confirm/
+dismiss/expire) is real, backed by PostGIS; `PlanRoute` genuinely avoids blocking hazards now,
+verified against a live Valhalla instance rerouting around a real reported bridge. **M4 (Driver
+BFF + auth) is next** per the design doc's milestone table — read
+`docs/phase-1-tech-design.md`'s §9 (auth/privacy) before starting it, the same way M2 and M3 each
+started from a fresh read of their own design-doc sections.
 
-Real gaps carried forward from M2, worth closing before drivers touch this for real:
+Real gaps carried forward, worth closing before drivers touch this for real:
 
-- **No BFF wiring for routing** (M2.2) — `apps/driver-bff` has no routing routes yet.
-- **`driverId` is a trusted plain field, no token-derived verification** (M2.2) — a real
-  access-control gap, not just an unfinished nicety. Close before M4 exposes routing to real
-  drivers.
-- **No community-hazard avoidance** (M2.4/M2.5) — `PlanRoute` always calls `RoutingEngine` with
-  `avoid: []`. M3 building `hazards` is what unblocks this: a `HazardAvoidanceQuery` read-model
-  port in `routing/application/ports/`, an adapter in `routing/infrastructure/` calling
-  `hazards/api.ts` and translating (design doc §3 — routing never sees a `HazardReport`), then
-  `applies()` (M2.4, already built and tested) filters what it returns.
-- **No `routing.restriction_overrides` ingestion** (M2.5, confirmed still separate in M2.6) — the
-  avoided-restriction explanation's real blocker. Unscheduled; consider raising it as its own
-  task once M3 is underway, since "what does OSM restriction data actually look like around
-  Hexham" is a question M3's own hazard-reporting work may shed light on too (community reports
-  are explicitly the long-term fix for gaps in this data, per design doc §4).
+- **No BFF wiring for routing or hazards** — `apps/driver-bff` only has identity routes.
+  This is M4's actual job, not a leftover to fix incidentally.
+- **`driverId`/`reporterId` are trusted plain fields on every routing and hazards endpoint, no
+  token-derived verification** (M2.2, M3.4) — a real access-control gap: anyone who can reach
+  core (today, only the BFF, on a private network) can act as any driver by supplying their id.
+  M4 is explicitly where this closes, for every module at once, per decision 1.
+- **No expiry poller** (M3.2/M3.4 deviations) — `expireHazards` exists, tested, and unscheduled.
+  `findAvoidanceCandidates` already defends against the specific safety risk (a stale-but-still-
+  `active` hazard staying routed-around forever) by checking `isExpired()` live, so this is an
+  operational/UI-staleness gap now (an expired hazard still shows as `active` to a driver browsing
+  the map), not a routing-safety one. Worth a real decision once there's an operational answer to
+  "how often, run where," not guessed at without one.
+- **No `routing.restriction_overrides` ingestion** (M2.5/M2.6) — the avoided-restriction
+  explanation's real blocker, `RoutePlan.avoidedRestrictions` still always `[]`. Still unscheduled.
+- **`hazardsOnRoute` still always `[]`** (decision 68) — needs a broader "hazards near this route,
+  including advisory types" read that nothing consumes yet; a real candidate for whenever M5's
+  driver-app route-overview screen exists to shape what it actually needs.
 
 The open question "how complete is OSM restriction data on testers' actual routes around Hexham?"
-(Open questions, above) is still unanswered — M2.6 deliberately didn't investigate it (see the
-M2.6 decision above), so it's worth deciding when to actually pick it up rather than letting it
-sit indefinitely.
+(Open questions, above) is still unanswered — M2.6 deliberately didn't investigate it, and M3
+didn't either (hazard reports are the long-term fix for this gap, per design doc §4, but M3 built
+the reporting mechanism, not an audit of existing data quality). Still worth deciding when to
+actually pick up rather than letting it sit indefinitely.

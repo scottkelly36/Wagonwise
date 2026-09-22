@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
+import type { HazardsModule } from '../hazards/api.js';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
+import { HazardAvoidanceQueryAdapter } from './infrastructure/hazard-avoidance-query.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresRoutePlanRepository } from './infrastructure/postgres-route-plan-repository.js';
 import { PostgresVehicleProfileRepository } from './infrastructure/postgres-vehicle-profile-repository.js';
@@ -16,6 +18,9 @@ export interface RoutingModuleDeps {
   readonly ids: IdGenerator;
   readonly clock: Clock;
   readonly valhallaUrl: string;
+  /** `hazards`' facade — this module's own `HazardAvoidanceQueryAdapter` (M3.5) wraps it, the
+   *  same "the module wires its own adapters" pattern as `ValhallaRoutingEngine` below. */
+  readonly hazards: Pick<HazardsModule, 'findAvoidanceCandidates'>;
 }
 
 export interface RoutingModule {
@@ -33,6 +38,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
   const vehicleProfileRepo = new PostgresVehicleProfileRepository(deps.db);
   const routePlanRepo = new PostgresRoutePlanRepository(deps.db);
   const routingEngine = new ValhallaRoutingEngine(deps.valhallaUrl);
+  const hazardAvoidanceQuery = new HazardAvoidanceQueryAdapter(deps.hazards);
 
   const routeDeps: RoutingRouteDeps = {
     createVehicleProfile: { repo: vehicleProfileRepo, ids: deps.ids },
@@ -44,6 +50,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
       vehicleProfileRepo,
       routePlanRepo,
       routingEngine,
+      hazardAvoidanceQuery,
       clock: deps.clock,
       ids: deps.ids,
     },
