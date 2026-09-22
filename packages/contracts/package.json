@@ -11,6 +11,10 @@
     "./routing": {
       "types": "./dist/routing.d.ts",
       "import": "./dist/routing.js"
+    },
+    "./hazards": {
+      "types": "./dist/hazards.d.ts",
+      "import": "./dist/hazards.js"
     }
   },
   "scripts": {

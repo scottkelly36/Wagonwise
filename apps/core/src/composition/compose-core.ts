@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
 import { buildApp } from '../host/build-app.js';
+import { createHazardsModule, type UntypedDb as HazardsUntypedDb } from '../modules/hazards/api.js';
 import {
   createIdentityModule,
   type OtpSender,
@@ -79,9 +80,13 @@ export function composeCore(
     valhallaUrl: config.valhallaUrl,
   });
 
+  const hazardsDb: HazardsUntypedDb = identityDb;
+  const hazards = createHazardsModule({ db: hazardsDb, clock });
+
   const app = buildApp({ config, clock, ids });
   identity.registerRoutes(app);
   routing.registerRoutes(app);
+  hazards.registerRoutes(app);
 
   return {
     app,
