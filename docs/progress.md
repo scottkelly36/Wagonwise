@@ -6,7 +6,7 @@
 | -------------------- | ----------------- |
 | M1 Foundations       | Done — 2026-09-22 |
 | M2 Routing core      | Done — 2026-09-22 |
-| M3 Hazards core      | Not started       |
+| M3 Hazards core      | In progress       |
 | M4 Driver BFF + auth | Not started       |
 | M5 Driver app        | Not started       |
 | M6 Alerts            | Not started       |
@@ -916,8 +916,96 @@ M2.5 by design (golden tests don't count towards this); 3 more in the separate g
   route matters to testers, or if a real regression ever slips through with none of the existing
   three catching it.
 
+## M3 task breakdown
+
+| #    | Task                                                                                        | Status            |
+| ---- | ------------------------------------------------------------------------------------------- | ----------------- |
+| M3.1 | `hazards` module skeleton + domain (report/merge/expiry/confirm/dismiss policy)             | Done — 2026-09-22 |
+| M3.2 | `application/` use cases: `reportHazard`, `confirmHazard`, `dismissHazard`, `expireHazards` | Not started       |
+| M3.3 | `infrastructure/`: `PostgresHazardRepository`, PostGIS geography + GiST index, migration    | Not started       |
+| M3.4 | `interface/`: HTTP endpoints, wired into `composeCore`                                      | Not started       |
+| M3.5 | `HazardAvoidanceQuery` read-model port + on-route PostGIS query, wired into `PlanRoute`     | Not started       |
+
+Scoped to exactly design doc §12's M3 "done when": report/confirm/dismiss/expire use cases,
+the PostGIS on-route query, and hazards feeding avoid polygons via the read-model port.
+Domain-event publishing through the outbox (`HazardReported` etc., decision 8) is not in this
+list — M2 didn't wire `RoutePlanned`/`TripStarted`/`TripEnded` either; that's M6 (Alerts)
+territory, the first module that actually needs to react to a hazard event.
+
+**M3.1 delivered:** `hazards`' domain layer — pure, no I/O, mirroring how M2.4's `applies()`
+landed with no wiring and no caller yet, verified only by its own tests.
+
+- **`domain/hazard-report.ts`**: `HazardReport`, `HazardType` (all eight design doc §3 kinds),
+  `HazardStatus`, `Measurement` + `validateMeasurement` (same positive-value reasoning as
+  routing's `validateDimensions`, M2.2). `isBlocking(type)` — the four types design doc §5 names
+  as becoming avoid polygons; everything else, including `other`, is advisory. `isTemporary(type)`
+  / `expiryFor(type, from)` — the 7-day default (design doc §3, decided 2026-09-21) for temporary
+  types, `undefined` for permanent ones. `confirm()` and `dismiss()` each return a new
+  `HazardReport` in one call (mirrors identity's `Otp.verify()` shape, decision 32 — the state
+  change and the outcome are the same call, not two). `confirm()` reactivates an `expired` report
+  (the actual mechanism behind "Still there?") but never un-dismisses a `dismissed` one from a
+  single confirmation; `dismiss()` moves `active` to `dismissed` once dismissals exceed
+  confirmations by `DISMISS_MARGIN` (3) — "simple thresholds for now" (design doc §3).
+- **`domain/merge-policy.ts`**: `findMergeCandidate()` — design doc §5's "the repository finds
+  candidates spatially; the domain decides whether they merge." Takes spatial candidates already
+  within `MERGE_RADIUS_M` (50m, the repository's job in M3.3) and picks the one to merge a new
+  report into as an extra confirmation: same type, still `active`, reported within the last 24h.
+- **Tests**: every `HazardType` classified by both `isBlocking` and `isTemporary`, `confirm`/
+  `dismiss`'s every status transition (including the boundary cases — exactly at the dismiss
+  margin, exactly at the expiry instant), and `findMergeCandidate`'s type/recency/status filters.
+
+398 tests, all green (326 core + 32 driver-bff + 17 architecture + 23 contracts — hazards adds 48
+to the 278 core tests M2 left off at); `pnpm arch` clean (158 modules, 530 dependencies).
+`pnpm verify` clean end to end (lint, typecheck, test, arch, format).
+
+**Verified by its own design, not a real run** — same as M2.4: nothing wires this module yet
+(no `api.ts`), so there is no server to run it against. The exhaustive unit tests are the
+verification.
+
+## Decisions from M3.1
+
+57. **`hazards` declares its own `DriverId` and `GeoPoint`**, structurally identical to routing's
+    own (and, for `GeoPoint`, to `routing/domain/geo.ts`'s), rather than importing either —
+    same reasoning as decision 46: a module is reachable only through its facade, and there is no
+    shared declaration to import even if the shapes match.
+58. **`other` is advisory, not blocking.** Design doc §5 names exactly four blocking types (low
+    bridge, weight limit, width restriction, no HGV) and three advisory ones (tight bend,
+    roadworks, flooding); `other` isn't mentioned on either list. Advisory is the conservative
+    default: nothing in the system knows an unclassified report is safe to route a vehicle around,
+    unlike the four restriction types the design doc names explicitly.
+59. **Temporary/permanent classification for the four types the design doc doesn't name
+    (width_restriction, no_hgv, tight_bend as permanent; `other` as temporary) is a judgement
+    call, recorded rather than left implicit.** The three permanent ones describe a fixed
+    physical/official road feature, like the two the design doc does name (low bridge, weight
+    limit); `other` defaults to temporary on the same "safer to require reconfirmation of the
+    unknown" reasoning as decision 58. Worth revisiting with testers, same as the expiry window
+    and merge radius themselves (docs/progress.md's existing "decided 2026-09-21, revisit with
+    testers" note).
+60. **`DISMISS_MARGIN = 3`** (dismissals must exceed confirmations by 3 before a report moves to
+    `dismissed`) is a guess, not a derived number — design doc §3 says only "simple thresholds for
+    now, proper trust scoring in Phase 2" without naming one. Same status as the expiry window and
+    merge radius: cheap to guess with thirty testers and a direct line to all of them (design doc
+    §12).
+
+## Deviations and open items from M3.1
+
+- **No `api.ts` yet, so the module isn't wired into `composeCore`.** Nothing to wire — there's no
+  application layer or repository yet (M3.2/M3.3). Same gap M2.3's `RoutingEngine` had until
+  M2.5 gave it a caller.
+- **`GeoPoint` has no range validation** (lat/lon aren't checked as real coordinates), matching
+  routing's own `geoPointSchema` (`z.number()`, no range check) — boundary validation is the
+  interface layer's job (M3.4), not the domain's, consistent with how routing itself does it.
+
 ## Environment notes
 
+- **`gh` (GitHub CLI) is installed but not on a normal terminal's PATH** — full path
+  `C:\Program Files\GitHub CLI\gh.exe`. Its saved credential (a fine-grained PAT) can see this
+  account's older public repos but returns 404 for `scottkelly36/Wagonwise` — the token's repo
+  access doesn't include this private repo. PRs for this repo are opened by the user directly
+  (matches decision 43's browser-auth gap: this repo's PRs have always been created/merged by
+  `scottkelly36` per `git log --merges`, not by a prior session's tooling). Revisit if `gh pr
+create` is ever actually needed from a session — regenerate the PAT with this repo included, or
+  `gh auth login` fresh.
 - Node 24.21 (`C:\Program Files\nodejs`), git 2.55.0, Docker Desktop 29.8.0 with WSL2, pnpm
   12.5.1 via corepack (`corepack enable pnpm`). The pnpm store lives on E: (`E:\.pnpm-store`),
   pnpm's default of one store per drive.
