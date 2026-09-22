@@ -16,7 +16,9 @@ describe('createCoreClient', () => {
     const fetchFn = fakeFetch({ status: 200, body: { ok: true } });
     const client = createCoreClient('http://127.0.0.1:3001', 'the-internal-key', fetchFn);
 
-    await client.post('/identity/otp/request', { identifier: 'a@example.com' }, 'req-1');
+    await client.request('POST', '/identity/otp/request', 'req-1', {
+      body: { identifier: 'a@example.com' },
+    });
 
     expect(fetchFn).toHaveBeenCalledTimes(1);
     const [url, init] = fetchFn.mock.calls[0] as [string, RequestInit];
@@ -33,17 +35,19 @@ describe('createCoreClient', () => {
     const fetchFn = fakeFetch({ status: 401, body: { tag: 'OtpIncorrect', attemptsRemaining: 4 } });
     const client = createCoreClient('http://127.0.0.1:3001', 'key', fetchFn);
 
-    const result = await client.post('/identity/otp/verify', { code: '000000' }, 'req-2');
+    const result = await client.request('POST', '/identity/otp/verify', 'req-2', {
+      body: { code: '000000' },
+    });
 
     expect(result.status).toBe(401);
     expect(result.body).toEqual({ tag: 'OtpIncorrect', attemptsRemaining: 4 });
   });
 
-  it('sends no body or content-type when the payload is undefined', async () => {
+  it('sends no body or content-type when no body is given', async () => {
     const fetchFn = fakeFetch({ status: 204 });
     const client = createCoreClient('http://127.0.0.1:3001', 'key', fetchFn);
 
-    await client.post('/identity/sessions/s1/revoke', undefined, 'req-3');
+    await client.request('POST', '/identity/sessions/s1/revoke', 'req-3');
 
     const [, init] = fetchFn.mock.calls[0] as [string, RequestInit];
     expect(init.body).toBeUndefined();
@@ -54,7 +58,42 @@ describe('createCoreClient', () => {
     const fetchFn = fakeFetch({ status: 204 });
     const client = createCoreClient('http://127.0.0.1:3001', 'key', fetchFn);
 
-    const result = await client.post('/identity/sessions/s1/revoke', undefined, 'req-4');
+    const result = await client.request('POST', '/identity/sessions/s1/revoke', 'req-4');
     expect(result).toEqual({ status: 204, body: undefined });
+  });
+
+  it('sends GET/PUT/DELETE with the method the caller asked for', async () => {
+    for (const method of ['GET', 'PUT', 'DELETE'] as const) {
+      const fetchFn = fakeFetch({ status: 200, body: { ok: true } });
+      const client = createCoreClient('http://127.0.0.1:3001', 'key', fetchFn);
+
+      await client.request(method, '/routing/vehicle-profiles/1', 'req-5');
+
+      const [, init] = fetchFn.mock.calls[0] as [string, RequestInit];
+      expect(init.method).toBe(method);
+    }
+  });
+
+  it('forwards an Authorization header when given one, for core to verify itself', async () => {
+    const fetchFn = fakeFetch({ status: 200, body: { ok: true } });
+    const client = createCoreClient('http://127.0.0.1:3001', 'key', fetchFn);
+
+    await client.request('GET', '/routing/vehicle-profiles', 'req-6', {
+      authorization: 'Bearer a-real-token',
+    });
+
+    const [, init] = fetchFn.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers.authorization).toBe('Bearer a-real-token');
+  });
+
+  it('sends no Authorization header when none is given', async () => {
+    const fetchFn = fakeFetch({ status: 200, body: { ok: true } });
+    const client = createCoreClient('http://127.0.0.1:3001', 'key', fetchFn);
+
+    await client.request('POST', '/identity/otp/request', 'req-7', { body: {} });
+
+    const [, init] = fetchFn.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>).authorization).toBeUndefined();
   });
 });

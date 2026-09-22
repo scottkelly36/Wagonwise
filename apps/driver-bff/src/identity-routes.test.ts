@@ -1,30 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { AccessTokenClaims, AccessTokenVerifier } from './auth/access-token-verifier.js';
-import type { CoreClient, CoreResponse } from './core-client.js';
 import { registerIdentityRoutes } from './identity-routes.js';
-
-class FakeCoreClient implements CoreClient {
-  readonly calls: { path: string; body: unknown; requestId: string }[] = [];
-  nextResponse: CoreResponse = { status: 200, body: { ok: true } };
-
-  post(path: string, body: unknown, requestId: string): Promise<CoreResponse> {
-    this.calls.push({ path, body, requestId });
-    return Promise.resolve(this.nextResponse);
-  }
-}
-
-class FakeAccessTokenVerifier implements AccessTokenVerifier {
-  claimsByToken = new Map<string, AccessTokenClaims>();
-
-  verify(token: string): Promise<AccessTokenClaims> {
-    const claims = this.claimsByToken.get(token);
-    if (!claims) {
-      return Promise.reject(new Error('invalid token'));
-    }
-    return Promise.resolve(claims);
-  }
-}
+import { FakeAccessTokenVerifier, FakeCoreClient } from './testing/fakes.js';
 
 function buildApp(): {
   app: FastifyInstance;

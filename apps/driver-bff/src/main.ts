@@ -1,8 +1,10 @@
 import { createAccessTokenVerifier } from './auth/access-token-verifier.js';
 import { ConfigError, loadConfig } from './config.js';
 import { createCoreClient } from './core-client.js';
+import { registerHazardsRoutes } from './hazards-routes.js';
 import { buildApp } from './host/build-app.js';
 import { registerIdentityRoutes } from './identity-routes.js';
+import { registerRoutingRoutes } from './routing-routes.js';
 
 function bootConfig() {
   try {
@@ -19,10 +21,13 @@ function bootConfig() {
 const config = bootConfig();
 const app = buildApp(config);
 
-registerIdentityRoutes(app, {
+const routeDeps = {
   coreClient: createCoreClient(config.coreInternalUrl, config.coreInternalKey),
   accessTokenVerifier: createAccessTokenVerifier(config.coreInternalUrl, config.coreInternalKey),
-});
+};
+registerIdentityRoutes(app, routeDeps);
+registerRoutingRoutes(app, routeDeps);
+registerHazardsRoutes(app, routeDeps);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {

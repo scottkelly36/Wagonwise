@@ -49,10 +49,10 @@ export type HazardReportDto = z.infer<typeof hazardReportSchema>;
 
 /** `id` is client-generated (design doc §5) — the offline queue's idempotency key — so it rides
  *  in the request body here, unlike every routing create request, which lets the server assign
- *  one. */
+ *  one. No `reporterId` field (M4.3): the reporter is whoever the caller's access token says they
+ *  are, taken from the verified token, not this schema (decision 1). */
 export const reportHazardRequestSchema = z.object({
   id: hazardReportIdSchema,
-  reporterId: driverIdSchema,
   type: hazardTypeSchema,
   location: geoPointSchema,
   note: z.string().optional(),

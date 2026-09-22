@@ -1,12 +1,11 @@
 import {
   createVehicleProfileRequestSchema,
-  driverIdQuerySchema,
   planRouteRequestSchema,
   updateVehicleProfileRequestSchema,
   vehicleProfileIdParamsSchema,
 } from '@wagonwise/contracts/routing';
-import type { FastifyInstance } from 'fastify';
-import { makeId } from '../../../shared/brand.js';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { makeId, type Id } from '../../../shared/brand.js';
 import {
   createVehicleProfile,
   type CreateVehicleProfileDeps,
@@ -40,20 +39,32 @@ export interface RoutingRouteDeps {
 }
 
 /**
- * Internal endpoints, same trust model as identity's (design doc §9): reachable only by a
- * trusted BFF via `X-Internal-Key` (host/internal-auth.ts). `driverId` is taken as a plain
- * request field for now — there is no BFF yet that derives it from a verified access token the
- * way decision 1 eventually wants (that is M4's job, "Driver BFF + auth"); recorded as a known
- * gap in docs/progress.md rather than built ahead of need.
+ * `driverId` never comes from a body or query field a caller supplied — `request.driverId` is
+ * set by `host/driver-auth.ts`'s hook, which must run before any of these handlers (wired in
+ * `compose-core.ts`, M4.2). Reachable only by a trusted BFF via `X-Internal-Key`
+ * (host/internal-auth.ts) *and* a verified access token — closes the gap M2.2 recorded.
  */
+function requireDriverId(request: FastifyRequest, reply: FastifyReply): Id<'DriverId'> | undefined {
+  if (request.driverId === undefined) {
+    // Only reachable if this route were ever registered without host/driver-auth.ts's hook in
+    // front of it — a wiring bug, not a request shape a driver can trigger. Fails closed.
+    void reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+    return undefined;
+  }
+  return makeId<'DriverId'>(request.driverId);
+}
+
 export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDeps): void {
   app.post('/routing/vehicle-profiles', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
     const parsed = createVehicleProfileRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
     const result = await createVehicleProfile(deps.createVehicleProfile, {
-      driverId: makeId<'DriverId'>(parsed.data.driverId),
+      driverId,
       name: parsed.data.name,
       dimensions: parsed.data.dimensions,
     });
@@ -64,25 +75,24 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
   });
 
   app.get('/routing/vehicle-profiles', async (request, reply) => {
-    const parsed = driverIdQuerySchema.safeParse(request.query);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
-    }
-    const profiles = await listVehicleProfiles(deps.listVehicleProfiles, {
-      driverId: makeId<'DriverId'>(parsed.data.driverId),
-    });
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const profiles = await listVehicleProfiles(deps.listVehicleProfiles, { driverId });
     return reply.status(200).send(profiles);
   });
 
   app.get('/routing/vehicle-profiles/:id', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
     const params = vehicleProfileIdParamsSchema.safeParse(request.params);
-    const query = driverIdQuerySchema.safeParse(request.query);
-    if (!params.success || !query.success) {
+    if (!params.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
     const result = await getVehicleProfile(deps.getVehicleProfile, {
       id: makeId<'VehicleProfileId'>(params.data.id),
-      driverId: makeId<'DriverId'>(query.data.driverId),
+      driverId,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
@@ -91,6 +101,9 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
   });
 
   app.put('/routing/vehicle-profiles/:id', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
     const params = vehicleProfileIdParamsSchema.safeParse(request.params);
     const body = updateVehicleProfileRequestSchema.safeParse(request.body);
     if (!params.success || !body.success) {
@@ -98,7 +111,7 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
     }
     const result = await updateVehicleProfile(deps.updateVehicleProfile, {
       id: makeId<'VehicleProfileId'>(params.data.id),
-      driverId: makeId<'DriverId'>(body.data.driverId),
+      driverId,
       name: body.data.name,
       dimensions: body.data.dimensions,
     });
@@ -109,14 +122,16 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
   });
 
   app.delete('/routing/vehicle-profiles/:id', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
     const params = vehicleProfileIdParamsSchema.safeParse(request.params);
-    const query = driverIdQuerySchema.safeParse(request.query);
-    if (!params.success || !query.success) {
+    if (!params.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
     const result = await deleteVehicleProfile(deps.deleteVehicleProfile, {
       id: makeId<'VehicleProfileId'>(params.data.id),
-      driverId: makeId<'DriverId'>(query.data.driverId),
+      driverId,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
@@ -125,12 +140,15 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
   });
 
   app.post('/routing/route-plans', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
     const parsed = planRouteRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
     const result = await planRoute(deps.planRoute, {
-      driverId: makeId<'DriverId'>(parsed.data.driverId),
+      driverId,
       profileId: makeId<'VehicleProfileId'>(parsed.data.profileId),
       origin: parsed.data.origin,
       destination: parsed.data.destination,

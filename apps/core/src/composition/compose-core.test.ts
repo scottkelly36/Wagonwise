@@ -11,6 +11,10 @@ const fakeTokenSigner = {
   publicJwk: () => Promise.resolve({ kty: 'OKP', crv: 'Ed25519', x: 'fake' }),
 };
 
+const fakeAccessTokenVerifier = {
+  verify: () => Promise.resolve({ driverId: 'fake-driver', sessionId: 'fake-session' }),
+};
+
 // composeCore opens a real pg.Pool (lazily — no connection until first query, so this needs no
 // running Postgres), which must be closed or vitest's process hangs waiting for its socket.
 let core: Core | undefined;
@@ -21,7 +25,7 @@ afterEach(async () => {
 
 describe('composeCore', () => {
   it('wires the fakes through to the host, so the whole stack runs deterministically', async () => {
-    core = composeCore(config, fakeTokenSigner, {
+    core = composeCore(config, fakeTokenSigner, fakeAccessTokenVerifier, {
       clock: new FakeClock('2026-06-15T08:30:00.000Z'),
       ids: new SequentialIdGenerator(),
     });
@@ -32,7 +36,7 @@ describe('composeCore', () => {
   });
 
   it('falls back to the real adapters when nothing is overridden', async () => {
-    core = composeCore(config, fakeTokenSigner);
+    core = composeCore(config, fakeTokenSigner, fakeAccessTokenVerifier);
     const before = Date.now();
     const response = await core.app.inject({ method: 'GET', url: '/health' });
     const time = Date.parse(response.json<{ time: string }>().time);
