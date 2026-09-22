@@ -1,5 +1,6 @@
 import { ConfigError, loadConfig } from './config.js';
 import { composeCore } from './composition/compose-core.js';
+import { createTokenSigner } from './modules/identity/api.js';
 
 function bootConfig() {
   try {
@@ -15,12 +16,16 @@ function bootConfig() {
 }
 
 const config = bootConfig();
-const { app } = composeCore(config);
+// Built once, outside composeCore, because building one is async (key generation/import) and
+// composeCore is not (compose-core.ts's doc comment explains why).
+const tokenSigner = await createTokenSigner(config.identityPrivateKeyPem);
+const core = composeCore(config, tokenSigner);
+const { app } = core;
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
     app.log.info({ signal }, 'shutting down');
-    app.close().then(
+    core.close().then(
       () => process.exit(0),
       (error: unknown) => {
         app.log.error({ err: error }, 'error during shutdown');

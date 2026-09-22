@@ -2,13 +2,15 @@ import { Kysely, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
 
 /**
- * The application-wide Kysely schema. Empty for now — no module owns a typed table yet.
- * Each module's `infrastructure/` augments this as its tables land (identity in M1.5), so a
- * repository gets compile-time column checking against the same schema every other module sees.
- * Migrations (`../migrations/`) are raw SQL and know nothing of this type; it exists purely for
- * the query builder.
+ * `platform/`'s own Kysely schema — empty, since platform owns no tables of its own; it exists
+ * so `PostgresUnitOfWork` has a concrete type to open transactions against. Deliberately NOT
+ * shared with modules: a module's `infrastructure/` may not import `platform/` at all, even for
+ * a type (AGENTS.md rule "modules-no-outward" — found and corrected during M1.5, see decision 26
+ * in docs/progress.md), so each module's repositories use `Kysely<Record<string, unknown>>`
+ * instead of a typed `Database` and query with raw `sql` tagged templates. Migrations
+ * (`../migrations/`) are raw SQL either way and know nothing of this type.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- extended per-module, not here.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- deliberately empty, see above.
 export interface Database {}
 
 /**

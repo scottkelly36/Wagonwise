@@ -4,7 +4,7 @@
 
 | Milestone            | Status                       |
 | -------------------- | ---------------------------- |
-| M1 Foundations       | In progress — M1.1–M1.4 done |
+| M1 Foundations       | In progress — M1.1–M1.5 done |
 | M2 Routing core      | Not started                  |
 | M3 Hazards core      | Not started                  |
 | M4 Driver BFF + auth | Not started                  |
@@ -79,8 +79,8 @@ reports visible immediately, labelled "1 report, unconfirmed".
 | M1.2 | Architecture enforcement             | Done — 2026-09-21 |
 | M1.3 | Core skeleton + shared kernel        | Done — 2026-09-21 |
 | M1.4 | Database, migrations, docker compose | Done — 2026-09-22 |
-| M1.5 | `identity` as reference module       | Next              |
-| M1.6 | `driver-bff` + vertical slice        | Not started       |
+| M1.5 | `identity` as reference module       | Done — 2026-09-22 |
+| M1.6 | `driver-bff` + vertical slice        | Next              |
 | M1.7 | CI (GitHub Actions per-PR tier)      | Not started       |
 
 **M1.1 delivered:** pnpm workspace (`apps/*`, `packages/*`) with Turborepo, git repo,
@@ -228,13 +228,118 @@ db:migrate` needs zero configuration, extending the "a cold start never needs an
 
 - **Valhalla is unverified**, per decision 28 — no extract has been downloaded on this machine,
   so the compose service has never actually started. Revisit at M2.
-- **`asKyselyTransaction` has no real caller yet** (decision 26) — first exercised either by
-  M1.5's identity repository or by the first genuinely multi-aggregate use case. If the cast
-  pattern turns out awkward in practice, reconsider then rather than defending it in the abstract.
+- **Decision 26 turned out to be wrong** — see decision 30 in M1.5, which supersedes it.
 - **ssh2's optional native crypto binding failed to build** (no C++ toolchain/Python on this
   machine) during `pnpm approve-builds`. Harmless: Testcontainers only uses ssh2 for Docker-over-
   SSH, which this project doesn't use locally, and it falls back to pure-JS crypto. Revisit only
   if remote Docker hosts (e.g. a CI runner without a local daemon) become relevant.
+
+**M1.5 delivered:** the reference bounded context, all four layers, wired end to end and
+verified against a real running server, not only tests.
+
+- **`domain/`** (pure, no I/O): `Driver`, `Session` (hash rotation + a sliding 60-day refresh
+  window + revocation, one function deciding all three outcomes), `Otp` (verify + rate-limit in
+  one call, since a wrong guess is itself a state change the caller must persist either way),
+  `InviteCode` (redeem), `normalizeIdentifier` (email or a UK-ish phone number, hand-rolled regex
+  — no npm allowed here, rule 2). Style: plain data + free functions throughout, no entity
+  classes, matching `Result`/`shared/brand.ts`'s existing shape.
+- **`application/`**: `requestOtp`, `verifyOtp` (creates the Driver and redeems the invite code
+  atomically via `UnitOfWork` on first sign-in), `refreshToken`, `revokeSession` (idempotent —
+  sign-out never fails for tapping it twice). Six module-owned ports (repositories × 4,
+  `OtpSender`, `OtpCodeGenerator`, `RefreshTokenGenerator`, `TokenSigner`), each with an
+  in-memory/fake test double. `sha256Hex` is a plain function, not a port — pure and
+  deterministic, unlike `Clock`/`IdGenerator`, so it needs no fake to be testable.
+- **`infrastructure/`**: four Postgres repositories (raw `sql` tagged-template queries — see
+  decision 30); `Ed25519TokenSigner` (`node:crypto` for keys, `jose` for JWT mechanics — jose
+  accepts a Node `KeyObject` directly, confirmed by hand before committing to the design);
+  `CryptoOtpCodeGenerator` / `CryptoRefreshTokenGenerator` (`node:crypto`'s CSPRNG);
+  `ConsoleOtpSender` (dev-only — logs the code; a real SMS/email adapter needs a provider account
+  and is deferred until one is chosen).
+- **`interface/`**: `POST /identity/otp/request`, `/otp/verify`, `/token/refresh`,
+  `/sessions/:id/revoke`, `GET /identity/.well-known/jwks.json`. One `statusFor()` table mapping
+  all 13 domain error tags to an HTTP status (rule 13), exhaustiveness-checked. Request bodies
+  validated inline with zod for now — `packages/contracts` (the shared version) is M1.6.
+- **Migration `0002_identity.sql`**: `identity.drivers`, `.sessions`, `.invite_codes`,
+  `.otp_codes`, with the indexes `findByRefreshTokenHash`'s two-column lookup and
+  `findLatestFor`'s ordered-by-recency lookup both need.
+- **`config.ts`**: `IDENTITY_PRIVATE_KEY`, optional, PEM/PKCS8/Ed25519-only, validated at boot.
+  Unset means a fresh key generated at boot (fine for local dev, restarts invalidate sessions).
+- **`compose-core.ts`**: now opens the real `pg.Pool`, wires identity's Postgres repositories,
+  the real `PostgresUnitOfWork`, and the token signer; `Core` gained `close()` (closes the app
+  and the pool) since `composeCore` now owns a real resource with a lifetime. `tokenSigner` is
+  built once in `main.ts` (async — key generation/import) and passed in, since `composeCore`
+  itself stays synchronous.
+
+195 tests, all green (178 core + 17 architecture); `pnpm arch` clean (99 modules, 318
+dependencies).
+
+**Verified by actually running it**, matching M1.3's standard, not only `app.inject()`: built
+`dist/`, ran `node dist/main.js` against the real `pnpm db:up` Postgres, and drove the whole
+flow with `curl` — requested an OTP, read the code back out of the console log (confirming
+`ConsoleOtpSender` really is what's wired for local dev), got the wrong code once (401,
+`attemptsRemaining` counted down correctly), verified with the right one and a seeded invite
+code, fetched a real Ed25519-signed JWT and checked its claims by eye, hit the JWKS route,
+refreshed the token once (rotated correctly), replayed the now-rotated-away token and confirmed
+it came back `RefreshTokenReused` — then confirmed in `psql` that the replay had actually
+revoked the session, not just rejected that one request. Revoked a session directly and
+confirmed `revoked_at` was set. Test data cleaned up afterwards.
+
+## Decisions from M1.5
+
+30. **Decision 26 (M1.4) was wrong — superseded.** It claimed a module's `infrastructure/` could
+    call `platform/postgres-unit-of-work.ts`'s `asKyselyTransaction` directly because "a
+    type-only cast... doesn't trip `modules-no-outward`". It does: dependency-cruiser has no
+    type-only-import exemption on that rule, so even `import type { X } from '../../../platform/…'`
+    is a real edge in its graph and a real violation. Caught by actually writing the repository
+    code, not by review. **The actual design**: a module's `infrastructure/` never imports
+    `platform/` at all, even for a type. Repositories take a `Kysely<Record<string, unknown>>`
+    (a module-local `UntypedDb` type, defined inside `identity/infrastructure/`) built by
+    `composition/` and query with raw `sql` tagged templates, never Kysely's typed query
+    builder. `composeCore` builds two separate Kysely wrappers around the one underlying
+    `pg.Pool` — `Kysely<Database>` for `PostgresUnitOfWork`, a second, differently-typed one for
+    identity — because `Kysely<Database>` is not assignable to `Kysely<Record<string, unknown>>`
+    (its methods use the schema type both co- and contravariantly; confirmed by the compiler,
+    not assumed).
+31. **`identity/api.ts` re-exports the port types `composition/` needs** (`TokenSigner`,
+    `OtpSender`, `UntypedDb`) rather than composition importing them from `application/ports/`
+    directly — the same `modules-reachable-only-through-api` rule (decision 29) applies to
+    composition as much as to any other outside caller, and re-exporting through the facade is
+    the fix, not an exception to it.
+32. **`Otp.verify()` returns `{ outcome, next }`, not a plain `Result`.** A wrong guess is a
+    state change (attempts + 1) the caller must persist regardless of the verdict — returning
+    both from one call means the use case has exactly one thing to save either way, rather than
+    a second function to remember to call on the failure path.
+33. **Session refresh uses a two-hash design (current + previous), not a full rotation-chain
+    table.** Decision 1 asks for "a second use of a rotated token revokes the whole session" —
+    the immediately-prior use, not arbitrarily far back — so keeping one previous hash catches
+    exactly that case without a separate table or normalising to one-row-per-rotation.
+34. **OTP delivery is `ConsoleOtpSender` only; no invite-code-issuing endpoint exists.** Both are
+    genuinely out of scope for a reference module: a real SMS/email adapter needs a provider
+    account (an external decision, not an architectural one), and creating invite codes is
+    staff-portal territory (AGENTS.md: explicitly out of scope for Phase 1). Codes are seeded
+    directly via SQL for now (README, Identity section).
+35. **`sha256Hex` is a plain function in `application/`, not a port.** Unlike `Clock`/
+    `IdGenerator`, hashing is pure and deterministic — nothing about it needs to be fake for a
+    test to be deterministic, so wrapping it in a port would add a seam with nothing on the
+    other side of it.
+
+## Deviations and open items from M1.5
+
+- **`packages/contracts` doesn't exist yet** — identity's request bodies are validated with zod
+  schemas defined inline in `interface/routes.ts`, marked as core-only until M1.6 introduces the
+  shared package. Expect to delete these and import from `packages/contracts` instead.
+- **No real SMS/email `OtpSender`.** Needs a provider decision (Twilio? AWS SNS? Vonage?) and an
+  account — worth raising before M4 (Driver BFF + auth) needs testers to actually receive codes
+  on real phones with patchy Hexham signal.
+- **No invite-code-issuing endpoint or admin tooling.** Seed via SQL for now (README). Revisit
+  if manually running `psql` for every tester becomes annoying before a staff portal exists.
+- **The invite-code-redemption race is a thrown exception, not a `Result`.** If two `verifyOtp`
+  calls for the same brand-new invite code land within the same narrow window, the loser gets an
+  unstructured 500 rather than a clean domain error — accepted as vanishingly unlikely at Phase
+  1's under-30-testers scale, not engineered around.
+- **`X-Internal-Key` service-to-service auth (decision 11) is not wired.** Identity's routes are
+  reachable by anything that can reach core's port; nothing enforces "only the BFF calls this"
+  yet, because there is no BFF and no network boundary to defend. Comes with M1.6/M4.
 
 ## Environment notes
 
@@ -266,12 +371,12 @@ Environment notes for what a future clean install will need to redo.
 
 ## Next session
 
-**M1.5 — `identity` as reference module.** First real bounded context: `Driver`, `Session`,
-`Device`, `InviteCode` per the design doc §3/§9. OTP-based sign-in issuing Ed25519-signed
-tokens (decision 1), sessions stored with the refresh token hashed, invite-code redemption.
-Wire it through all four layers (`domain/`, `application/`, `infrastructure/` with a real
-Postgres repository, `interface/`) plus a `composition/` factory in the module's own `api.ts`
-(decision 26's `asKyselyTransaction` gets its first real caller here, if a use case needs it).
-The architecture-rule gap is already fixed (decision 29) — identity is the first module that
-actually exercises it. Then **M1.6** (driver BFF + first `packages/contracts` schema) and
-**M1.7** (CI) follow in order.
+**M1.6 — `driver-bff` + vertical slice.** A new app, `apps/driver-bff`: a thin Fastify service
+that verifies access tokens against identity's JWKS (decision 1 — the BFF can verify, it cannot
+mint) and forwards to core over `X-Internal-Key`-secured private networking (decision 11, not
+wired yet — this is where it gets wired). `packages/contracts`: zod schemas for identity's
+request/response shapes, replacing the inline ones in `apps/core/src/modules/identity/interface/
+routes.ts` (M1.5 deviations, above) — the first real use of "shared across app/BFF/core" rather
+than a promise about it. One vertical slice end to end (driver app or curl → BFF → core → real
+Postgres) proves the wiring before M2 adds routing behaviour. Then **M1.7** (CI) closes out M1
+Foundations.

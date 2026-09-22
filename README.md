@@ -72,13 +72,14 @@ Core reads its environment in exactly one place, `apps/core/src/config.ts`, vali
 An invalid value stops the process with a message naming every problem, rather than starting
 half-configured.
 
-| Variable       | Default                                                   | Notes                                                                    |
-| -------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `NODE_ENV`     | `development`                                             | `development`, `test` or `production`                                    |
-| `HOST`         | `127.0.0.1`                                               | Use `0.0.0.0` inside a container                                         |
-| `PORT`         | `3001`                                                    | 1–65535                                                                  |
-| `LOG_LEVEL`    | `info`                                                    | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`             |
-| `DATABASE_URL` | `postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise` | Matches `pnpm db:up`'s compose service; `postgres://` or `postgresql://` |
+| Variable               | Default                                                   | Notes                                                                    |
+| ---------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `NODE_ENV`             | `development`                                             | `development`, `test` or `production`                                    |
+| `HOST`                 | `127.0.0.1`                                               | Use `0.0.0.0` inside a container                                         |
+| `PORT`                 | `3001`                                                    | 1–65535                                                                  |
+| `LOG_LEVEL`            | `info`                                                    | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`             |
+| `DATABASE_URL`         | `postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise` | Matches `pnpm db:up`'s compose service; `postgres://` or `postgresql://` |
+| `IDENTITY_PRIVATE_KEY` | unset (fresh key each boot)                               | PEM, PKCS8, Ed25519 only — see Identity, below                           |
 
 ```bash
 PORT=4000 LOG_LEVEL=debug pnpm dev
@@ -137,11 +138,39 @@ Valhalla (self-hosted truck routing, needed from M2) is also in `infra/docker/co
 not started by `pnpm db:up` — see the comment in that file for bringing it up once you have a
 map extract. Not required for M1.4.
 
+## Identity (sign-in)
+
+`identity` is the reference bounded context (M1.5) — OTP sign-in, Ed25519-signed access tokens,
+refresh rotation with reuse detection, invite codes. Endpoints (all on core directly; there is no
+BFF yet — see `apps/core/src/modules/identity/interface/routes.ts`):
+
+| Route                                 | Does                                                  |
+| ------------------------------------- | ----------------------------------------------------- |
+| `POST /identity/otp/request`          | `{ identifier, inviteCode? }` — sends a one-time code |
+| `POST /identity/otp/verify`           | `{ identifier, code, inviteCode? }` — returns tokens  |
+| `POST /identity/token/refresh`        | `{ refreshToken }` — rotates, returns new tokens      |
+| `POST /identity/sessions/:id/revoke`  | Sign-out                                              |
+| `GET /identity/.well-known/jwks.json` | The public key, for a BFF to verify tokens with       |
+
+`identifier` is an email or a UK-ish phone number. `inviteCode` is required only the first time —
+signing in with an identifier that has no Driver yet needs one. There's no admin endpoint to
+create invite codes yet (that's staff-portal territory, out of scope — AGENTS.md); seed one
+directly for local testing:
+
+```bash
+docker exec -it $(docker compose -f infra/docker/compose.yml ps -q postgres) \
+  psql -U wagonwise -d wagonwise -c "insert into identity.invite_codes (code) values ('HEXHAM24');"
+```
+
+Locally, the one-time code is printed to the console, not sent anywhere (`ConsoleOtpSender` —
+`apps/core/src/modules/identity/infrastructure/console-otp-sender.ts`, dev-only). A real SMS/email
+adapter needs a provider account and is deferred until one is chosen.
+
 ## Repo layout
 
 ```
 apps/
-  core/           core service — Fastify host, modular monolith   ✅ skeleton
+  core/           core service — Fastify host, modular monolith   ✅ identity wired end to end
   driver-bff/     Fastify BFF for the driver app                  (M1.6)
   driver-app/     Expo React Native app                           (M5)
 packages/
@@ -164,14 +193,26 @@ platform/       adapters for those ports: system clock, UUID generator, Postgres
 host/           Fastify app builder, health route, error handling
 composition/    the one place that wires ports to adapters
 config.ts       the one place that reads the environment
-modules/        bounded contexts — none yet, identity arrives in M1.5
+modules/        bounded contexts — identity (M1.5); routing, hazards, feedback not started
+```
+
+Inside a module (`modules/identity/`, the pattern every future module follows):
+
+```
+api.ts             the module's only public surface — everything below is private to it
+domain/            pure TS: Driver, Session, InviteCode, Otp; no I/O, no npm dependencies
+application/        use cases (requestOtp, verifyOtp, refreshToken, revokeSession) and the
+                    ports they need; testing/ holds in-memory fakes for each port
+infrastructure/     real adapters: Postgres repositories, Ed25519 signing, crypto-random
+                    generators, the (dev-only) console OTP sender
+interface/          Fastify routes, request validation, the Result -> HTTP status table
 ```
 
 `apps/core/migrations/` holds the raw-SQL migrations (see Database, above); `apps/core/scripts/`
 holds small CLI entry points run via `tsx`, starting with `migrate.ts`.
 
-Only `packages/config`, `packages/architecture`, `infra/docker` and a skeleton `apps/core`
-(now with a real database layer) exist so far. The rest arrive with the milestone shown.
+Only `packages/config`, `packages/architecture`, `infra/docker` and `apps/core` (with a database
+layer and the identity module) exist so far. The rest arrive with the milestone shown.
 
 ## Conventions
 

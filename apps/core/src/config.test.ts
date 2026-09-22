@@ -1,5 +1,15 @@
+import { generateKeyPairSync } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { ConfigError, loadConfig, PRODUCT_NAME } from './config.js';
+
+const ED25519_PEM = generateKeyPairSync('ed25519')
+  .privateKey.export({ type: 'pkcs8', format: 'pem' })
+  .toString();
+// A validly-formed PEM, but the wrong key type — must be rejected specifically for that, not
+// merely for being unparseable.
+const RSA_PEM = generateKeyPairSync('rsa', { modulusLength: 2048 })
+  .privateKey.export({ type: 'pkcs8', format: 'pem' })
+  .toString();
 
 describe('loadConfig', () => {
   it('needs nothing set: every variable has a safe local default', () => {
@@ -9,6 +19,7 @@ describe('loadConfig', () => {
       port: 3001,
       logLevel: 'info',
       databaseUrl: 'postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise',
+      identityPrivateKeyPem: undefined,
     });
   });
 
@@ -19,6 +30,7 @@ describe('loadConfig', () => {
       PORT: '8080',
       LOG_LEVEL: 'warn',
       DATABASE_URL: 'postgresql://user:pw@db.internal:5432/wagonwise',
+      IDENTITY_PRIVATE_KEY: ED25519_PEM,
     });
     expect(config).toEqual({
       nodeEnv: 'production',
@@ -26,7 +38,30 @@ describe('loadConfig', () => {
       port: 8080,
       logLevel: 'warn',
       databaseUrl: 'postgresql://user:pw@db.internal:5432/wagonwise',
+      identityPrivateKeyPem: ED25519_PEM,
     });
+  });
+
+  it('leaves IDENTITY_PRIVATE_KEY undefined when unset', () => {
+    expect(loadConfig({}).identityPrivateKeyPem).toBeUndefined();
+  });
+
+  it('accepts a real Ed25519 PKCS8 PEM', () => {
+    expect(() => loadConfig({ IDENTITY_PRIVATE_KEY: ED25519_PEM })).not.toThrow();
+  });
+
+  it('accepts the same PEM with real newlines replaced by literal \\n (the env-var form)', () => {
+    const escaped = ED25519_PEM.replaceAll('\n', '\\n');
+    const config = loadConfig({ IDENTITY_PRIVATE_KEY: escaped });
+    expect(config.identityPrivateKeyPem).toBe(ED25519_PEM); // normalised back to real newlines
+  });
+
+  it.each([
+    ['garbage', 'not-a-pem-at-all'],
+    ['an RSA key, the wrong algorithm', RSA_PEM],
+    ['empty', ''],
+  ])('rejects an IDENTITY_PRIVATE_KEY that is %s', (_label, value) => {
+    expect(() => loadConfig({ IDENTITY_PRIVATE_KEY: value })).toThrow(ConfigError);
   });
 
   it('defaults DATABASE_URL to match infra/docker/compose.yml, so a fresh clone just works', () => {
