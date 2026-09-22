@@ -12,6 +12,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:golden": "pnpm --filter @wagonwise/core run test:golden",
     "arch": "turbo run arch",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

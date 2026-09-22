@@ -1,0 +1,48 @@
+name: Nightly golden routes
+
+# Valhalla golden-route tests (decision 13, docs/progress.md): real requests against a real,
+# tile-built Valhalla instance. Deliberately NOT in ci.yml's per-PR tier — building tiles takes
+# minutes, too slow to pay on every push. Runs nightly and can be triggered manually (e.g. after
+# a deliberate extract refresh, to check golden values still hold).
+on:
+  schedule:
+    # 03:00 UTC — off-hours, no particular significance beyond that.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  golden-routes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Fresh each run (not cached/committed — infra/docker/custom_files/ is gitignored, per
+      # M2.1) — this also means a nightly run tests against Geofabrik's latest data, exactly the
+      # "weekly rebuild" cadence design doc §4 describes.
+      - name: Download the Northumberland OSM extract
+        run: |
+          mkdir -p infra/docker/custom_files
+          curl -sL -o infra/docker/custom_files/northumberland-latest.osm.pbf \
+            https://download.geofabrik.de/europe/united-kingdom/england/northumberland-latest.osm.pbf
+
+      # --wait blocks on the healthcheck (infra/docker/compose.yml), which only reports healthy
+      # once Valhalla is actually serving — covers the multi-minute tile build, not a guessed sleep.
+      - name: Start Valhalla and wait for tiles to build
+        run: docker compose -f infra/docker/compose.yml --profile valhalla up -d --wait valhalla
+
+      - name: Golden-route tests
+        run: pnpm test:golden
+
+      - name: Valhalla logs (always, for debugging a failure or a slow tile build)
+        if: always()
+        run: docker compose -f infra/docker/compose.yml --profile valhalla logs valhalla

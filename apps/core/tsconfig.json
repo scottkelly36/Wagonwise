@@ -4,5 +4,11 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts", "vitest.config.ts", "eslint.config.js"]
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "vitest.config.ts",
+    "vitest.golden.config.ts",
+    "eslint.config.js"
+  ]
 }
