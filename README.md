@@ -1,5 +1,7 @@
 # WagonWise (working name)
 
+[![CI](https://github.com/scottkelly36/Wagonwise/actions/workflows/ci.yml/badge.svg)](https://github.com/scottkelly36/Wagonwise/actions/workflows/ci.yml)
+
 HGV-aware routing with a live, driver-fed hazard layer. Drivers set their vehicle
 dimensions, get routes that avoid restrictions they can't clear, and report hazards for
 other drivers — by voice while driving, tap-to-drop when parked.

@@ -1,0 +1,51 @@
+name: CI
+
+# Per-PR tier (decision 13, docs/progress.md): lint, typecheck, architecture, unit and
+# application tests, and PostGIS integration tests (via Testcontainers — needs Docker, which
+# GitHub-hosted ubuntu runners provide out of the box; nothing here needs `pnpm db:up`, since
+# every Postgres-backed test spins up its own ephemeral container). Valhalla golden routes are
+# explicitly NOT here — they run nightly and on map rebuild instead, once M2 gives them
+# something to route against.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads the pinned version from package.json's packageManager field — one source of
+      # truth, same as README's "pnpm is managed by corepack" convention.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Same five checks as the README's cold-start verification command, as separate steps so
+      # a failure is obvious at a glance rather than buried in one long `&&` chain's output.
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Architecture rules
+        run: pnpm arch
+
+      - name: Format check
+        run: pnpm format:check
