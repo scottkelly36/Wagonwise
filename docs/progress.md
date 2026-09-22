@@ -923,7 +923,7 @@ M2.5 by design (golden tests don't count towards this); 3 more in the separate g
 | M3.1 | `hazards` module skeleton + domain (report/merge/expiry/confirm/dismiss policy)             | Done — 2026-09-22 |
 | M3.2 | `application/` use cases: `reportHazard`, `confirmHazard`, `dismissHazard`, `expireHazards` | Done — 2026-09-22 |
 | M3.3 | `infrastructure/`: `PostgresHazardRepository`, PostGIS geography + GiST index, migration    | Done — 2026-09-22 |
-| M3.4 | `interface/`: HTTP endpoints, wired into `composeCore`                                      | Not started       |
+| M3.4 | `interface/`: HTTP endpoints, wired into `composeCore`                                      | Done — 2026-09-22 |
 | M3.5 | `HazardAvoidanceQuery` read-model port + on-route PostGIS query, wired into `PlanRoute`     | Not started       |
 
 Scoped to exactly design doc §12's M3 "done when": report/confirm/dismiss/expire use cases,
@@ -1111,6 +1111,73 @@ partial btree index and the `measurement_together` check constraint all exist ex
   (`hazards.reports`, not `hazards.hazard_reports`) — matches routing's own convention
   (`routing.vehicle_profiles`, not `routing.routing_vehicle_profiles`): the schema already scopes
   the table, so the table name itself doesn't need to repeat it.
+
+**M3.4 delivered:** `hazards` gets its first HTTP surface and its first `composeCore` wiring —
+`report`/`confirm`/`dismiss` are now real, internal-only endpoints, matching identity's and
+routing's own first-wiring milestones (M1.6, M2.2).
+
+- **`packages/contracts/src/hazards.ts`**: `hazardTypeSchema` (all eight kinds), `measurementSchema`
+  (`.positive()`, same belt-and-suspenders duplication as `dimensionsSchema` — decision 65, below),
+  `reportHazardRequestSchema` (`id` rides in the body, since it's caller-supplied per decision 62),
+  `hazardReportSchema`. Reuses `geoPointSchema` from `routing.ts` rather than redeclaring an
+  identical shape — contracts is deliberately flat (decision 41), so this isn't the same
+  cross-module restriction core's own modules have; `driverIdSchema` is already reused the same
+  way across `identity.ts` and `routing.ts`.
+- **`interface/routes.ts`**: `POST /hazards/reports` (200, not 201 — decision 66, below),
+  `POST /hazards/reports/:id/confirm`, `POST /hazards/reports/:id/dismiss`. Same internal-only
+  trust model as every other module (decision 38 covers this automatically); `reporterId` is a
+  plain trusted field, the same known gap routing's endpoints have (M2.2 deviations) — M4 closes
+  it for every module at once.
+- **`hazards/api.ts`**: `createHazardsModule` takes no `IdGenerator`, unlike identity's and
+  routing's factories — nothing in this module ever generates an id server-side (decision 62).
+- **`composeCore`**: hazards is the third module wired in, sharing the same underlying `pg.Pool`
+  and untyped Kysely shape as identity's and routing's (decision 30).
+
+444 tests, all green (362 core + 32 driver-bff + 17 architecture + 33 contracts — hazards routes
+add 9 core tests, up from the 353 core tests M3.3 left off at, and hazards contracts add 10, up
+from 23); `pnpm arch` clean (178 modules, 614 dependencies).
+
+**Verified by actually running it**, matching the standard every prior first-wiring task has
+used: built `dist/`, ran `node dist/main.js` against the real `pnpm db:up` Postgres with
+`0005_hazards.sql` applied, and drove the whole flow with `curl` — reported a hazard with a note
+and a measurement (real row), resubmitted the identical request and got back the identical
+response (idempotency confirmed, not just asserted by a unit test), confirmed it (confirmations
+→ 1), dismissed it (dismissals → 1), got a real 401 with no `X-Internal-Key` (confirming hazards
+inherited the host-level guard automatically, same as decision 38 promised), and a real 404 for
+an unknown id. Confirmed the row in `psql`, including `ST_AsText(location::geometry)` round-
+tripping the exact coordinates submitted. Test data cleaned up afterwards.
+
+## Decisions from M3.4
+
+65. **`measurementSchema.value` is `.positive()` in the zod schema, duplicating the domain's own
+    `validateMeasurement` check** — same pattern as `dimensionsSchema` (M2.2): the zod schema
+    catches an invalid value before the use case ever runs, so `InvalidMeasurement` is currently
+    unreachable through this internal API. Not removed from the domain — `validateMeasurement`
+    is still the actual authority (AGENTS.md rule 15, "the domain decides") and stays exercised by
+    its own unit tests; the zod duplication is only an earlier, cheaper rejection at the boundary.
+66. **`POST /hazards/reports` returns `200`, not `201`.** Unlike every routing `POST` (which
+    always creates something new), this endpoint may return an existing report unchanged (an
+    idempotent retry) or an existing report with an extra confirmation (a merge) — the caller
+    can't tell which of the three actually happened, and "201 Created" would be wrong for two of
+    them. `200 OK` describes all three honestly.
+
+## Deviations and open items from M3.4
+
+- **No expiry poller, still — and now a decision on its shape, not just a gap.** `expireHazards`
+  (M3.2) has no scheduler. Considered and deferred: an in-process poller mirroring the outbox
+  dispatcher (decision 5) is the only existing precedent, but expiry has none of the ordering or
+  at-least-once-delivery concerns that shape was built for (`expire()` is naturally idempotent —
+  re-running it on an already-expired report is a no-op). Building poller infrastructure now,
+  before a real operational answer to "how often, run where" exists, would be guessing at shape
+  without a requirement driving it. **Matters for M3.5**: until something calls `expireHazards`,
+  a temporary hazard whose 7 days have passed stays `status: 'active'` in the database, so M3.5's
+  on-route/avoidance query needs to treat `isExpired()` (M3.1) as a live, query-time check —
+  not assume `status` alone is authoritative — as defense in depth regardless of whether a poller
+  ever exists.
+- **No `GET /hazards/reports/:id` or a viewport/bounding-box read.** Nothing needs to re-fetch a
+  single report yet (mirrors routing's M2.5 deviation), and the bounding-box sync read (design
+  doc §5) is a driver-app (M5) concern with no caller yet — `findNearby` is already the query it
+  would use, just not exposed over HTTP.
 
 ## Environment notes
 
