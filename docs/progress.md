@@ -493,7 +493,7 @@ failed the whole job before any check ran.
 | M2.1 | Verify Valhalla against a real extract                 | Done — 2026-09-22 |
 | M2.2 | `routing` module skeleton + `VehicleProfile`           | Done — 2026-09-22 |
 | M2.3 | `RoutingEngine` port + Valhalla adapter                | Done — 2026-09-22 |
-| M2.4 | `applies(obstruction, dimensions)`                     | Not started       |
+| M2.4 | `applies(obstruction, dimensions)`                     | Done — 2026-09-22 |
 | M2.5 | `PlanRoute` use case + avoided-restriction explanation | Not started       |
 | M2.6 | Golden-route tests                                     | Not started       |
 
@@ -710,6 +710,56 @@ location with no tile coverage, which came back as `{ ok: false, error: { tag: '
   needs different handling (e.g., a malformed request surfacing as a 500-equivalent bug report
   rather than a routine "no route" response).
 
+**M2.4 delivered:** `applies(obstruction, dimensions)` — design doc §3's "most safety-critical
+function in Phase 1" — pure, no I/O, exhaustively tested.
+
+- **`domain/reported-obstruction.ts`**: `ReportedObstruction` (`id`, `kind`, `limit?`, `zone`) —
+  moved here from the design doc's own sketch location (`application/ports/hazard-avoidance.ts`,
+  see decision 53, below).
+- **`domain/avoidance-policy.ts`**: `applies()` — a measured restriction (height/width/weight)
+  applies only when the vehicle's dimension exceeds the limit (exactly at the limit clears it — a
+  maxheight sign is the tallest height still permitted); no measurement at all means avoid for
+  every vehicle (design doc §5's explicit rule); `prohibition` always applies, having no
+  measurement to compare.
+- **Tests**: every kind × (under the limit / exactly at the limit / over the limit / no
+  measurement at all) — 3 measured kinds × 4 cases, plus 3 `prohibition` cases, plus the design
+  doc's own worked example (a 3.5m bridge avoided by a 4.2m HGV, not by a 3.2m van) and a purity
+  check (same inputs called repeatedly, same output every time).
+
+265 core tests now (331 total across the workspace); `pnpm arch` clean (145 modules, 467
+dependencies).
+
+**Verified by its own design, not a real run** — unlike every prior M2 task, there is nothing to
+run this against: no I/O, no database, no routing engine (the design doc's own words for why this
+function has this shape). The exhaustive unit tests are the verification; there is no additional
+"actually run it" step that would prove anything the tests don't already.
+
+## Decisions from M2.4
+
+53. **`ReportedObstruction` lives in `routing/domain/`, not `routing/application/ports/` where
+    the design doc's own sketch groups it.** Caught by actually writing the code, the same way
+    decision 26 was: `domain/` may depend on nothing outward (AGENTS.md rule 1, `no-cross-layer`
+    dependency-cruiser rule, `domain-imports-application` fixture) — a domain function cannot take
+    a parameter type declared in `application/`, regardless of what the design doc's illustrative
+    code block groups it under. The design doc's sketch is illustrative of the _shape_, not a
+    literal file-placement instruction; `application/ports/hazard-avoidance.ts`'s eventual
+    `HazardAvoidanceQuery` (M3, once `hazards` exists to query) will import `ReportedObstruction`
+    from `domain/` instead of declaring it — application legitimately depends on domain, never the
+    reverse.
+
+## Deviations and open items from M2.4
+
+- **No `HazardAvoidanceQuery` port or hazards-reading adapter yet.** That's cross-context wiring
+  that needs the `hazards` module to exist (M3, not started) — out of scope for "make `applies()`
+  work and prove it," which needs only the pure function and its input shape. `activeNear()`'s
+  adapter (`routing/infrastructure/`, calling `hazards/api.ts` and translating, per design doc
+  §3) arrives once M3 gives it something real to call.
+- **`applies()` has no caller yet**, same reason M2.3's `RoutingEngine` has no caller yet — M2.5's
+  `PlanRoute` is scoped to the Valhalla-restriction explanation (an OSM two-query diff, no
+  community hazards involved); genuine community-hazard avoidance via `applies()` most likely
+  gets wired up once M3 exists. Not a gap in M2.4 itself, which was explicitly scoped to the
+  function alone.
+
 ## Environment notes
 
 - Node 24.21 (`C:\Program Files\nodejs`), git 2.55.0, Docker Desktop 29.8.0 with WSL2, pnpm
@@ -740,18 +790,20 @@ Environment notes for what a future clean install will need to redo.
 
 ## Next session
 
-**M2.1–M2.3 are done — Valhalla is verified against real tiles, `VehicleProfile` CRUD is live in
-core, and the `RoutingEngine` port + Valhalla adapter genuinely route and honour avoid areas
-against real tiles. M2.4 (`applies(obstruction, dimensions)`) is next.** Pure domain function, no
-I/O — the most safety-critical one in Phase 1 (design doc's own words), so exhaustive unit tests
-matter more here than anywhere else so far: every combination of obstruction kind (height/width/
-weight/prohibition) against a vehicle that clears it, doesn't clear it, and the "no measurement
-means avoid for all vehicles" rule from design doc §4. After that: M2.5 (`PlanRoute` use case —
-finally wires `VehicleProfile`, `RoutingEngine` and `applies()` together, plus the
-avoided-restriction explanation from design doc §4's two-query diff; this is also where
-`RoutingEngine` actually gets wired into `composeCore`, deferred from M2.3), M2.6 (golden-route
-tests, run nightly per the CI tiering decision — decision 51 confirms the CI-per-PR test tier
-stays Valhalla-free, matching decision 13's intent).
+**M2.1–M2.4 are done — Valhalla is verified against real tiles, `VehicleProfile` CRUD is live,
+`RoutingEngine` genuinely routes and honours avoid areas, and `applies()` is exhaustively tested.
+M2.5 (`PlanRoute` use case + avoided-restriction explanation) is next.** This is where the pieces
+built so far finally get wired together: `VehicleProfile` (M2.2) supplies `Dimensions`,
+`RoutingEngine` (M2.3, now gets its first real caller — wire it into `composeCore` here, deferred
+from M2.3 on purpose) plans the route, and design doc §4's two-query diff (one Valhalla call with
+the vehicle's dimensions, one without) produces `avoidedRestrictions` by comparing which OSM
+restricted ways the unrestricted route crosses that the vehicle can't clear. `RoutePlan`
+persistence and a migration for `routing.route_plans` land here too. `applies()` (M2.4) itself
+most likely stays uncalled until M3 gives community hazards something to query against — not a
+gap in M2.5, since design doc §4's restriction explanation is purely a Valhalla/OSM concern, not
+a community-hazards one. After that: M2.6 (golden-route tests, run nightly per the CI tiering
+decision — decision 51 confirms the CI-per-PR test tier stays Valhalla-free, matching decision
+13's intent).
 
 Two real gaps from M2.2 still open, worth closing before drivers touch this for real: no BFF
 wiring for routing yet, and `driverId` is a trusted plain field with no token-derived
