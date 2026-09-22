@@ -492,7 +492,7 @@ failed the whole job before any check ran.
 | ---- | ------------------------------------------------------ | ----------------- |
 | M2.1 | Verify Valhalla against a real extract                 | Done — 2026-09-22 |
 | M2.2 | `routing` module skeleton + `VehicleProfile`           | Done — 2026-09-22 |
-| M2.3 | `RoutingEngine` port + Valhalla adapter                | Not started       |
+| M2.3 | `RoutingEngine` port + Valhalla adapter                | Done — 2026-09-22 |
 | M2.4 | `applies(obstruction, dimensions)`                     | Not started       |
 | M2.5 | `PlanRoute` use case + avoided-restriction explanation | Not started       |
 | M2.6 | Golden-route tests                                     | Not started       |
@@ -639,6 +639,77 @@ confirming routing inherited the host-level guard automatically, exactly as deci
 - **No update to `RoutingEngine`, `applies()`, or `PlanRoute` yet** — this task was scoped to
   `VehicleProfile` only, per the M2 task breakdown above. Those are M2.3–M2.5.
 
+**M2.3 delivered:** the `RoutingEngine` port and its Valhalla adapter — truck-aware routing is
+now a real, tested capability in `routing`, not just a running container.
+
+- **`domain/geo.ts`**: `GeoPoint`, `GeoPolygon`, `GeoLine` (an encoded polyline string,
+  specifically polyline6 — Valhalla's own default, confirmed against a real response in M2.1 —
+  so `RouteResult.geometry` is a direct passthrough with no decode/re-encode step).
+- **`application/ports/routing-engine.ts`**: `RoutingEngine.route(req)`, taking `origin`,
+  `destination`, `dimensions` (reusing routing's own `Dimensions` from M2.2) and `avoid:
+GeoPolygon[]`. Returns `Result<RouteResult, NoRouteFound>` — "the vehicle genuinely cannot get
+  there" is an expected outcome (decision 50, below), not an infra fault.
+- **`infrastructure/valhalla-routing-engine.ts`**: hand-rolled HTTP client (decision 6 — the
+  request/response shape is small enough that a dependency would cost more than it saves), no
+  client library. Maps `Dimensions` to Valhalla's truck costing params (height/width/length/
+  weight/axle_load), `GeoPolygon[]` to `exclude_polygons` (closing an unclosed ring — a
+  Valhalla-specific requirement, handled here rather than forcing every caller to remember it),
+  and a Valhalla error response (has `error_code`) to `NoRouteFound`; anything else non-2xx
+  throws, as does a malformed success body.
+- **`config.ts`**: `VALHALLA_URL`, defaulting to `http://127.0.0.1:8002` — matches
+  `infra/docker/compose.yml`'s published port, so `docker compose --profile valhalla up` plus
+  `pnpm dev` needs no configuration (the cold-start promise, extended to Valhalla).
+- **Not wired into `composeCore`/`routing/api.ts` yet** — nothing calls `RoutingEngine` until
+  M2.5's `PlanRoute` exists. Wiring an unused dependency into the module's public factory now
+  would be untested plumbing; M2.5 wires it when it has a real caller (same reasoning M1.4 used
+  for the Valhalla compose service itself, decision 28).
+
+314 tests, all green (248 core + 32 driver-bff + 17 architecture + 17 contracts); `pnpm arch`
+clean (142 modules, 460 dependencies).
+
+**Verified by actually running it against the real M2.1 Valhalla instance**, not just the fake
+HTTP server the unit tests use: a scratch script (not committed) imported the real
+`ValhallaRoutingEngine` and called `.route()` three ways — a normal Hexham→Corbridge request
+(real geometry back), the same request with an avoid polygon over the A69/A68 interchange
+(distanceKm 7.637, exactly matching the detour M2.1's curl test found), and a request for a
+location with no tile coverage, which came back as `{ ok: false, error: { tag: 'NoRouteFound' }
+}` — a clean `Result`, not a thrown exception or a crash.
+
+## Decisions from M2.3
+
+50. **`NoRouteFound` is a `Result` error, not a thrown exception.** A truck that genuinely can't
+    reach a destination given its own dimensions and the active avoid areas is a real, expected
+    outcome a driver can hit (AGENTS.md rule 13's "expected failures are values") — not a bug or
+    an infrastructure fault. Any other non-2xx Valhalla response, or a malformed success body,
+    still throws: those really are infrastructure faults (Valhalla down, wrong contract).
+51. **The Valhalla adapter is hand-rolled HTTP (`fetch`), no client library.** Same reasoning as
+    decision 6 (hand-roll small, well-understood things): the request is a handful of fields, the
+    response is `trip.summary` plus one leg's `shape` — a dependency would be more surface area
+    than the thing it replaces. Tested against a real local HTTP server standing in for Valhalla
+    (mirroring the driver-bff's `access-token-verifier.test.ts`), not a mocked `fetch` — the
+    codebase's established preference for genuine HTTP round trips over mocks.
+52. **`GeoLine` is specifically a polyline6-encoded string, not a generic "list of points."**
+    Pinned to Valhalla's own default encoding (confirmed empirically in M2.1) so the adapter never
+    needs to decode and re-encode a route's geometry — it passes Valhalla's `shape` straight
+    through. If a second `RoutingEngine` adapter (e.g. GraphHopper, per the design doc's stated
+    fallback) ever used a different encoding, that adapter would normalise to polyline6 itself,
+    keeping the port's contract engine-agnostic.
+
+## Deviations and open items from M2.3
+
+- **No `FakeRoutingEngine` test double yet.** Nothing in the codebase consumes the `RoutingEngine`
+  port yet (M2.5's `PlanRoute` will be the first), so a fake would be speculative — added when
+  the first consuming use case actually needs one to test against, matching how M1.5's fakes each
+  arrived alongside the use case that needed them.
+- **Not wired into `composeCore`** — see the M2.3-delivered note above; genuinely deferred to
+  M2.5, not forgotten.
+- **Valhalla error-code handling is coarse: any Valhalla-shaped error response becomes
+  `NoRouteFound`,** regardless of the specific `error_code` (442 "no path found" vs. other
+  possible codes for malformed input, etc.). Fine for Phase 1 — `PlanRoute`'s job either way is
+  "tell the driver no route is available" — but worth revisiting if a specific error code ever
+  needs different handling (e.g., a malformed request surfacing as a 500-equivalent bug report
+  rather than a routine "no route" response).
+
 ## Environment notes
 
 - Node 24.21 (`C:\Program Files\nodejs`), git 2.55.0, Docker Desktop 29.8.0 with WSL2, pnpm
@@ -669,18 +740,23 @@ Environment notes for what a future clean install will need to redo.
 
 ## Next session
 
-**M2.1 and M2.2 are done — Valhalla is verified against real tiles, and `VehicleProfile` CRUD is
-live in core. M2.3 (`RoutingEngine` port + Valhalla adapter) is next.** The adapter has a real
-running Valhalla instance to build against now (M2.1), not a stub: translate `Dimensions` into
-Valhalla's truck costing params (height/width/length/weight/axle_load — already proven to work
-in M2.1's smoke test) and `GeoPolygon[]` into `exclude_polygons` (also already proven to force a
-real detour). After that: M2.4 (`applies()`, the safety-critical one — pure, exhaustively tested,
-no I/O), M2.5 (`PlanRoute` use case + the avoided-restriction explanation from design doc §4's
-two-query diff, which will finally give `VehicleProfile` a consumer beyond CRUD), M2.6
-(golden-route tests, run nightly per the CI tiering decision). Two real gaps from M2.2 worth
-closing before drivers touch this for real: no BFF wiring for routing yet, and `driverId` is a
-trusted plain field with no token-derived verification (both recorded as M2.2 deviations, above;
-the latter is a real access-control gap, not just an unfinished nicety — close it before M4
-exposes routing to real drivers). The open question "how complete is OSM restriction data on
-testers' actual routes around Hexham?" (Open questions, above) is worth revisiting once M2.4/M2.6
-are testing against real restriction tags in this same extract.
+**M2.1–M2.3 are done — Valhalla is verified against real tiles, `VehicleProfile` CRUD is live in
+core, and the `RoutingEngine` port + Valhalla adapter genuinely route and honour avoid areas
+against real tiles. M2.4 (`applies(obstruction, dimensions)`) is next.** Pure domain function, no
+I/O — the most safety-critical one in Phase 1 (design doc's own words), so exhaustive unit tests
+matter more here than anywhere else so far: every combination of obstruction kind (height/width/
+weight/prohibition) against a vehicle that clears it, doesn't clear it, and the "no measurement
+means avoid for all vehicles" rule from design doc §4. After that: M2.5 (`PlanRoute` use case —
+finally wires `VehicleProfile`, `RoutingEngine` and `applies()` together, plus the
+avoided-restriction explanation from design doc §4's two-query diff; this is also where
+`RoutingEngine` actually gets wired into `composeCore`, deferred from M2.3), M2.6 (golden-route
+tests, run nightly per the CI tiering decision — decision 51 confirms the CI-per-PR test tier
+stays Valhalla-free, matching decision 13's intent).
+
+Two real gaps from M2.2 still open, worth closing before drivers touch this for real: no BFF
+wiring for routing yet, and `driverId` is a trusted plain field with no token-derived
+verification (both recorded as M2.2 deviations, above; the latter is a real access-control gap,
+not just an unfinished nicety — close it before M4 exposes routing to real drivers). The open
+question "how complete is OSM restriction data on testers' actual routes around Hexham?" (Open
+questions, above) is worth revisiting once M2.4/M2.6 are testing against real restriction tags in
+this same extract.

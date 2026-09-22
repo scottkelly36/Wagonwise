@@ -21,6 +21,7 @@ describe('loadConfig', () => {
       databaseUrl: 'postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise',
       identityPrivateKeyPem: undefined,
       internalKeys: ['local-dev-internal-key'],
+      valhallaUrl: 'http://127.0.0.1:8002',
     });
   });
 
@@ -33,6 +34,7 @@ describe('loadConfig', () => {
       DATABASE_URL: 'postgresql://user:pw@db.internal:5432/wagonwise',
       IDENTITY_PRIVATE_KEY: ED25519_PEM,
       INTERNAL_KEYS: 'key-one, key-two',
+      VALHALLA_URL: 'http://valhalla.internal:8002',
     });
     expect(config).toEqual({
       nodeEnv: 'production',
@@ -42,6 +44,7 @@ describe('loadConfig', () => {
       databaseUrl: 'postgresql://user:pw@db.internal:5432/wagonwise',
       identityPrivateKeyPem: ED25519_PEM,
       internalKeys: ['key-one', 'key-two'],
+      valhallaUrl: 'http://valhalla.internal:8002',
     });
   });
 
@@ -105,6 +108,20 @@ describe('loadConfig', () => {
     expect(() =>
       loadConfig({ DATABASE_URL: 'postgresql://u:p@127.0.0.1:5432/wagonwise' }),
     ).not.toThrow();
+  });
+
+  it('defaults VALHALLA_URL to match infra/docker/compose.yml’s published port, so a fresh clone just works', () => {
+    expect(loadConfig({}).valhallaUrl).toBe('http://127.0.0.1:8002');
+  });
+
+  it('rejects a VALHALLA_URL that is not a URL at all', () => {
+    expect(() => loadConfig({ VALHALLA_URL: 'not-a-url' })).toThrow(ConfigError);
+  });
+
+  it('accepts a VALHALLA_URL override', () => {
+    expect(loadConfig({ VALHALLA_URL: 'http://valhalla.internal:8002' }).valhallaUrl).toBe(
+      'http://valhalla.internal:8002',
+    );
   });
 
   it('ignores unrelated environment variables', () => {
