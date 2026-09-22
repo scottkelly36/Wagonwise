@@ -228,6 +228,17 @@ vehicle genuinely can't get there. `avoidedRestrictions` and `hazardsOnRoute` ar
 now — the avoided-restriction explanation needs real OSM restriction data core doesn't ingest yet
 (docs/progress.md, decision 54), and community-hazard avoidance needs the `hazards` module (M3).
 
+**Golden-route tests (M2.6):** real requests against a real, tile-built Valhalla instance — not
+part of `pnpm test`/`pnpm verify` (building tiles takes minutes, too slow for every push per
+decision 13). Bring up `valhalla` (above) first, then:
+
+```bash
+pnpm test:golden
+```
+
+Runs nightly in CI (`.github/workflows/nightly-golden-routes.yml`), which downloads a fresh
+extract each time so it also tests against Geofabrik's current data.
+
 ## Driver BFF
 
 `apps/driver-bff` (M1.6) is the thin public-facing service a driver app actually talks to —

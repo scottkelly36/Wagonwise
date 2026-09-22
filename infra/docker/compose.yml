@@ -46,6 +46,15 @@ services:
       build_admins: 'True'
       build_time_zones: 'True'
       force_rebuild: 'False'
+    # A first-time tile build can take several minutes (M2.1: ~3.5 for the Northumberland
+    # extract), so this needs real patience, not a short default — lets `docker compose up --wait`
+    # (or CI) block until Valhalla is actually serving, rather than guessing a sleep duration.
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:8002/status']
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 10s
 
 volumes:
   postgres_data:

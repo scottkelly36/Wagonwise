@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:golden": "vitest run --config vitest.golden.config.ts",
     "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts"
   },
   "dependencies": {

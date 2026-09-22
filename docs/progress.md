@@ -5,7 +5,7 @@
 | Milestone            | Status            |
 | -------------------- | ----------------- |
 | M1 Foundations       | Done — 2026-09-22 |
-| M2 Routing core      | In progress       |
+| M2 Routing core      | Done — 2026-09-22 |
 | M3 Hazards core      | Not started       |
 | M4 Driver BFF + auth | Not started       |
 | M5 Driver app        | Not started       |
@@ -495,7 +495,7 @@ failed the whole job before any check ran.
 | M2.3 | `RoutingEngine` port + Valhalla adapter                         | Done — 2026-09-22 |
 | M2.4 | `applies(obstruction, dimensions)`                              | Done — 2026-09-22 |
 | M2.5 | `PlanRoute` use case (avoided-restriction explanation deferred) | Done — 2026-09-22 |
-| M2.6 | Golden-route tests                                              | Not started       |
+| M2.6 | Golden-route tests                                              | Done — 2026-09-22 |
 
 **M2.1 delivered:** decision 28's "unverified" flag is resolved — Valhalla now runs against a
 real Northumberland extract and genuinely does truck-aware routing, not just a service that
@@ -837,9 +837,10 @@ the new route inherited the host-level guard automatically). Test data cleaned u
 - **No `restriction_overrides` ingestion, still.** The actual work design doc §4's explanation
   needs — parsing the `.osm.pbf` extract for maxheight/maxwidth/maxweight tags into
   `routing.restriction_overrides` (design doc §9) and querying it against a planned route. Not
-  scheduled against a specific milestone yet; worth revisiting alongside M2.6 (golden-route
-  tests), which already needs to investigate real restriction-data quality for the Open Questions
-  table, above.
+  scheduled against a specific milestone yet.
+  > **Correction from M2.6:** asked the user whether to fold this into M2.6 (golden-route tests
+  > also touch real restriction-data quality) or keep them separate — kept separate, on purpose.
+  > M2.6 stayed scoped to distance/duration golden values; this is still unscheduled.
 - **`avoidedRestrictions` and `hazardsOnRoute` are both always `[]`.** The former per decision 54;
   the latter because it needs the same `hazards` module (M3) that `applies()` (M2.4) is also
   waiting on — one milestone, two currently-empty fields.
@@ -849,6 +850,71 @@ the new route inherited the host-level guard automatically). Test data cleaned u
 - **No `GET /routing/route-plans/:id` endpoint.** Nothing needs to re-fetch a plan yet — the
   driver app gets it directly from the `POST` response (design doc §8's "Route overview" screen).
   Add when a real caller needs one (M6's alerts subscriber will, to re-fetch a plan's geometry).
+
+**M2.6 delivered:** golden-route tests — real requests against a real, tile-built Valhalla
+instance, kept out of the per-PR tier and run nightly instead (decision 13). This is the last
+task on M2's original breakdown; **M2 Routing core is done**, with the deferred items above
+recorded rather than silently dropped.
+
+- **Kept scoped to golden values, not folded into restriction-data investigation** — asked the
+  user first (see the M2.5-deviations correction, above); the two are related but the
+  restriction-ingestion work stays its own, unscheduled task.
+- **`vitest.golden.config.ts`** + `*.golden-test.ts` file naming (not `*.test.ts`) — a separate
+  vitest config with its own `include` pattern, so `vitest.config.ts`'s own `include` (`src/**/
+*.test.ts`) can't accidentally sweep these into `pnpm test`. Verified for real: confirmed `pnpm
+test` still reports exactly 278 core tests (unchanged) after adding 3 golden tests, and `pnpm
+test:golden` finds and runs exactly those 3.
+- **Two golden routes** (Hexham town centre → Corbridge, Hexham → toward Newcastle on the A69),
+  plus a third test confirming `exclude_polygons` still forces a measurable detour against live
+  tiles — all three re-verified by hand against the real M2.1 instance immediately before writing
+  the test (not copied from stale earlier numbers: an earlier M2.5 investigation had used
+  different vehicle dimensions for the second route, so it was re-queried with the same profile
+  as the first for a consistent golden value).
+- **Tolerances are deliberately loose** (±10% distance, ±15% duration), not exact equality — a
+  weekly tile rebuild (design doc §4) can shift a route slightly from irrelevant OSM edits
+  elsewhere; golden tests exist to catch a _materially_ different route, not routine data churn.
+- **`infra/docker/compose.yml`'s `valhalla` service gained a real healthcheck** (`curl -f
+.../status`, 60 retries at 10s — enough for a multi-minute first-time tile build). It had none
+  before (only `postgres` did); needed so CI can `docker compose up --wait` instead of guessing a
+  sleep duration. Verified for real: recreated the container, confirmed `docker ps` reports
+  `(healthy)` only once Valhalla is actually serving.
+- **`.github/workflows/nightly-golden-routes.yml`**: downloads a fresh extract every run (not
+  cached — tests against Geofabrik's current data, matching the "weekly rebuild" cadence design
+  doc §4 describes), waits on the new healthcheck, runs `pnpm test:golden`, dumps Valhalla's logs
+  on any outcome for debugging. Cron at 03:00 UTC plus `workflow_dispatch` for a manual run (e.g.
+  after a deliberate extract refresh, to check golden values still hold). YAML syntax validated
+  with `js-yaml` before committing (no `act`/local GitHub Actions runner available on this
+  machine, so the schedule/trigger mechanics themselves are unverified until a real run happens).
+
+353 tests, all green (278 core + 32 driver-bff + 17 architecture + 23 contracts) — unchanged from
+M2.5 by design (golden tests don't count towards this); 3 more in the separate golden suite.
+`pnpm arch` clean (154 modules, 520 dependencies).
+
+## Decisions from M2.6
+
+56. **Golden tests hardcode `http://127.0.0.1:8002` rather than reading `VALHALLA_URL` from the
+    environment**, even though `config.ts` already has that variable. Caught by
+    `conventions.test.ts` (AGENTS.md rule 4 — process environment reads happen only in
+    `config.ts`, enforced with no test-file exemption) when a first attempt read it directly.
+    Golden tests always run against a fixed, CI-controlled local instance (the same published
+    port `infra/docker/compose.yml` always uses), so there's no real scenario needing a
+    configurable override — hardcoding is simpler and doesn't need a new exception to an existing
+    rule. Also caught the same rule flagging the literal string "process.env" inside an
+    explanatory _comment_ — `conventions.test.ts`'s detector is a text scan, not AST-aware, so it
+    can't tell code from prose; rephrased rather than treated as a false positive to override.
+
+## Deviations and open items from M2.6
+
+- **The nightly schedule itself is unverified.** No local GitHub Actions runner on this machine
+  to test `schedule:`/`workflow_dispatch:` triggers before pushing — the workflow's YAML syntax
+  was validated (`js-yaml`, parses cleanly) and its _steps_ mirror `ci.yml`'s already-proven
+  pattern, but the first real proof this actually fires nightly and passes is the first real
+  nightly run. Worth checking `github.com/scottkelly36/Wagonwise/actions` after it's had a day to
+  fire, the same way M1.7 asked the user to confirm CI's first real run.
+- **Golden routes cover two of countless possible Hexham-area routes.** Enough to catch "the tile
+  data or Valhalla config broke," not a claim of comprehensive coverage. Add more if a specific
+  route matters to testers, or if a real regression ever slips through with none of the existing
+  three catching it.
 
 ## Environment notes
 
@@ -880,18 +946,30 @@ Environment notes for what a future clean install will need to redo.
 
 ## Next session
 
-**M2.1–M2.5 are done. `PlanRoute` genuinely plans and persists routes against real Valhalla.
-M2.6 (golden-route tests) is next** — the last M2 task on the original breakdown. Before
-starting it, worth deciding whether to fold in the `routing.restriction_overrides` ingestion
-M2.5 deferred (decision 54): M2.6 already needs to investigate real restriction-data quality for
-the Open Questions table below ("how complete is OSM restriction data on testers' actual routes
-around Hexham?"), and that investigation is most of the groundwork the avoided-restriction
-explanation needs too. Worth raising with the user before assuming either way — M2.5's own
-lesson was that this exact question benefits from a quick check-in rather than a unilateral
-scope call.
+**M2 Routing core is done (M2.1–M2.6).** `VehicleProfile`, `RoutingEngine`, `applies()` and
+`PlanRoute` are all real and verified against a live Valhalla instance; golden-route tests guard
+the whole pipeline nightly. **M3 (Hazards core) is next** per the design doc's milestone table —
+read `docs/phase-1-tech-design.md`'s hazards sections (§3, §5) before starting it, the same way
+M2 started from a fresh read of §4.
 
-Real gaps still open from earlier M2 tasks, worth closing before drivers touch this for real:
-no BFF wiring for routing (M2.2), `driverId` is a trusted plain field with no token-derived
-verification (M2.2 — a real access-control gap, not just an unfinished nicety; close before M4
-exposes routing to real drivers), and no community-hazard avoidance (M2.4/M2.5 — needs the
-`hazards` module, M3, to exist first).
+Real gaps carried forward from M2, worth closing before drivers touch this for real:
+
+- **No BFF wiring for routing** (M2.2) — `apps/driver-bff` has no routing routes yet.
+- **`driverId` is a trusted plain field, no token-derived verification** (M2.2) — a real
+  access-control gap, not just an unfinished nicety. Close before M4 exposes routing to real
+  drivers.
+- **No community-hazard avoidance** (M2.4/M2.5) — `PlanRoute` always calls `RoutingEngine` with
+  `avoid: []`. M3 building `hazards` is what unblocks this: a `HazardAvoidanceQuery` read-model
+  port in `routing/application/ports/`, an adapter in `routing/infrastructure/` calling
+  `hazards/api.ts` and translating (design doc §3 — routing never sees a `HazardReport`), then
+  `applies()` (M2.4, already built and tested) filters what it returns.
+- **No `routing.restriction_overrides` ingestion** (M2.5, confirmed still separate in M2.6) — the
+  avoided-restriction explanation's real blocker. Unscheduled; consider raising it as its own
+  task once M3 is underway, since "what does OSM restriction data actually look like around
+  Hexham" is a question M3's own hazard-reporting work may shed light on too (community reports
+  are explicitly the long-term fix for gaps in this data, per design doc §4).
+
+The open question "how complete is OSM restriction data on testers' actual routes around Hexham?"
+(Open questions, above) is still unanswered — M2.6 deliberately didn't investigate it (see the
+M2.6 decision above), so it's worth deciding when to actually pick it up rather than letting it
+sit indefinitely.
