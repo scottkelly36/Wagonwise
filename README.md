@@ -197,6 +197,26 @@ Calling core directly (bypassing the BFF) needs `X-Internal-Key: local-dev-inter
 every request except `/health` — core is not publicly exposed (design doc §2), and this header is
 the BFF's job to add, not something an app or a curl-from-your-laptop test should normally send.
 
+## Routing (vehicle profiles)
+
+`routing`'s first slice (M2.2) — CRUD for `VehicleProfile`, the height/width/length/weight a
+driver's routes get planned against. Internal endpoints only, same `X-Internal-Key` rule as
+identity's above; there's no BFF wiring for these yet (`apps/driver-bff` has no routing routes),
+so they're only reachable by `curl` or a future client that talks to core directly.
+
+| Route                                  | Does                                                        |
+| -------------------------------------- | ----------------------------------------------------------- |
+| `POST /routing/vehicle-profiles`       | `{ driverId, name, dimensions }` — creates a profile        |
+| `GET /routing/vehicle-profiles`        | `?driverId=` — lists that driver's profiles                 |
+| `GET /routing/vehicle-profiles/:id`    | `?driverId=` — fetches one                                  |
+| `PUT /routing/vehicle-profiles/:id`    | `{ driverId, name, dimensions }` — replaces name/dimensions |
+| `DELETE /routing/vehicle-profiles/:id` | `?driverId=` — deletes it                                   |
+
+`dimensions` is `{ heightM, widthM, lengthM, grossWeightT, axleWeightT? }`, all positive numbers.
+`driverId` is a plain, trusted request field for now — there's no token-derived `driverId` yet
+(that needs the BFF/auth wiring M4 brings), so a mismatched `driverId` on get/update/delete
+returns the same 404 as a genuinely unknown id rather than a 403 (docs/progress.md, decision 49).
+
 ## Driver BFF
 
 `apps/driver-bff` (M1.6) is the thin public-facing service a driver app actually talks to —

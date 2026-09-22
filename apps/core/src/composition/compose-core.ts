@@ -8,6 +8,7 @@ import {
   type TokenSigner,
   type UntypedDb,
 } from '../modules/identity/api.js';
+import { createRoutingModule, type UntypedDb as RoutingUntypedDb } from '../modules/routing/api.js';
 import { createDb, createPool } from '../platform/db.js';
 import { PostgresUnitOfWork } from '../platform/postgres-unit-of-work.js';
 import { SystemClock } from '../platform/system-clock.js';
@@ -67,9 +68,15 @@ export function composeCore(
     tokenSigner: overrides.tokenSigner ?? tokenSigner,
     otpSender: overrides.otpSender,
   });
+  // Same underlying pool, same untyped-Kysely shape as identity's — structurally the same type
+  // (Kysely<Record<string, unknown>>, no branding), so one instance serves both modules; unlike
+  // platformDb vs identityDb, there's no Kysely<Database> variance problem here to work around.
+  const routingDb: RoutingUntypedDb = identityDb;
+  const routing = createRoutingModule({ db: routingDb, ids });
 
   const app = buildApp({ config, clock, ids });
   identity.registerRoutes(app);
+  routing.registerRoutes(app);
 
   return {
     app,

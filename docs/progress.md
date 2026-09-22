@@ -491,7 +491,7 @@ failed the whole job before any check ran.
 | #    | Task                                                   | Status            |
 | ---- | ------------------------------------------------------ | ----------------- |
 | M2.1 | Verify Valhalla against a real extract                 | Done — 2026-09-22 |
-| M2.2 | `routing` module skeleton + `VehicleProfile`           | Not started       |
+| M2.2 | `routing` module skeleton + `VehicleProfile`           | Done — 2026-09-22 |
 | M2.3 | `RoutingEngine` port + Valhalla adapter                | Not started       |
 | M2.4 | `applies(obstruction, dimensions)`                     | Not started       |
 | M2.5 | `PlanRoute` use case + avoided-restriction explanation | Not started       |
@@ -568,6 +568,77 @@ leave the machine.
     - Escape hatch: `SKIP_SIMPLE_GIT_HOOKS=1 git push` (simple-git-hooks' own built-in), for the
       rare case a push is needed before the checks are fixed.
 
+**M2.2 delivered:** the `routing` module — all four layers, wired end to end, mirroring how
+`identity` was built in M1.5.
+
+- **`domain/vehicle-profile.ts`** (pure, no I/O): `VehicleProfile`, `Dimensions`,
+  `validateDimensions` (every dimension must be a real positive number — a zero or negative
+  value would silently corrupt `applies()`, M2.4's safety-critical function, for every check
+  against that profile) and `validateName` (non-blank, trimmed).
+- **`application/`**: five use cases — `createVehicleProfile`, `updateVehicleProfile`,
+  `deleteVehicleProfile`, `getVehicleProfile`, `listVehicleProfiles` — against one
+  `VehicleProfileRepository` port, with an in-memory fake for tests. `listVehicleProfiles` returns
+  a plain array, not a `Result`: an empty list isn't a failure.
+- **`infrastructure/`**: `PostgresVehicleProfileRepository`, raw `sql` tagged-template queries
+  (decision 26), same `UntypedDb` shape as identity's own.
+- **`interface/`**: `POST/GET /routing/vehicle-profiles`, `GET/PUT/DELETE
+/routing/vehicle-profiles/:id` — internal endpoints behind the same `X-Internal-Key` host guard
+  as identity's (decision 38 covers every module automatically, confirmed by a real 401 with no
+  key). One `statusFor()` table (decision 13), exhaustiveness-checked.
+- **Migration `0003_routing.sql`**: `routing.vehicle_profiles`, dimensions as `double precision`
+  (decision 48, below) — `driver_id` is a plain column, not a foreign key, since routing does not
+  reference identity's schema (matches the module boundary in code).
+- **`packages/contracts/src/routing.ts`**: request/response zod schemas, reusing identity's
+  `driverIdSchema` for the wire shape of a `DriverId` (packages/contracts is flat — decision 41 —
+  so this isn't the same cross-module restriction core's own modules have).
+
+303 tests, all green (237 core + 32 driver-bff + 17 architecture + 17 contracts); `pnpm arch`
+clean (138 modules, 450 dependencies).
+
+**Verified by actually running it**, matching M1.5's standard: built `dist/`, ran `node
+dist/main.js` against real `pnpm db:up` Postgres with `0003_routing.sql` applied, and drove the
+whole CRUD flow with `curl` — created a profile (real row, confirmed via `psql` after deleting
+it), listed it scoped to its driver, fetched it by id, got a real 404 (not a 500 or a leaked 200) when fetching or deleting with a _different_ driverId, updated it (axleWeightT round-tripped
+correctly), got a real 400 for a zero-height request, and a real 401 with no `X-Internal-Key` —
+confirming routing inherited the host-level guard automatically, exactly as decision 38 intended.
+
+## Decisions from M2.2
+
+46. **Routing declares its own local `DriverId = Id<'DriverId'>` rather than importing
+    identity's.** The same situation rule 7 (cross-context reads use the consuming context's own
+    types) already covers for read-model ports applies here too: a `DriverId` value identity
+    produces is usable as routing's own `DriverId` via `makeId()` with no cross-module import,
+    because the brand is just the string `'DriverId'`, not a shared declaration. Sets the pattern
+    a future `hazards` module should follow for the same need.
+47. **`driverId` is a plain, trusted request field on every routing route, not derived from a
+    verified access token.** Decision 1 eventually wants core to derive `driverId` from a token
+    signature, never a BFF-supplied field — but no BFF forwards a verified `driverId` to routing
+    yet (identity's own BFF wiring in M1.6 only covers identity's routes), and building that
+    generically now would be M4's job ("Driver BFF + auth") done early and out of order. Recorded
+    here as a deliberate, scoped-down choice — not an accident — matching M1.5's own precedent of
+    shipping `identity`'s core endpoints before M1.6 wired a BFF in front of them.
+48. **`Dimensions` columns are `double precision`, not `numeric`.** These are real-world
+    measurements (metres, tonnes), not currency — float precision is fine, and it avoids
+    node-postgres returning `numeric` columns as strings (which `numeric` would need a custom
+    type parser to work around, for no accuracy benefit here).
+49. **A driverId mismatch on get/update/delete returns `VehicleProfileNotFound`, the same as a
+    genuinely unknown id** — not a separate `Forbidden`/403. Telling the two apart would let a
+    caller learn "this id exists, just not for you," leaking information about another driver's
+    data for no benefit.
+
+## Deviations and open items from M2.2
+
+- **No BFF wiring.** `apps/driver-bff` has no routing routes yet — core's endpoints have only
+  been driven by `curl`, the same gap M1.5 had for identity until M1.6. Add when a client (M5) or
+  a reason to verify the shape appears.
+- **No real driver-facing auth**, per decision 47 — `driverId` is trusted as given. This is a real
+  gap, not a nitpick: anyone who can reach core (i.e., anyone with a valid `X-Internal-Key`, today
+  only the BFF) can currently act as any driver by supplying their id. Acceptable while core is
+  only ever driven by a trusted BFF on a private network and by `curl` in dev, but must close
+  before M4 exposes routing to real drivers.
+- **No update to `RoutingEngine`, `applies()`, or `PlanRoute` yet** — this task was scoped to
+  `VehicleProfile` only, per the M2 task breakdown above. Those are M2.3–M2.5.
+
 ## Environment notes
 
 - Node 24.21 (`C:\Program Files\nodejs`), git 2.55.0, Docker Desktop 29.8.0 with WSL2, pnpm
@@ -598,14 +669,18 @@ Environment notes for what a future clean install will need to redo.
 
 ## Next session
 
-**M2.1 is done — Valhalla is verified against real tiles. M2.2 (`routing` module skeleton +
-`VehicleProfile`) is next.** Mirror how `identity` was built in M1.5: domain type, a repository
-port + Postgres adapter, a migration (`0003_routing.sql` or similar for
-`routing.vehicle_profiles`), CRUD use cases against `UnitOfWork`, wired into `composition/` and
-exposed through core's `interface/`. After that: M2.3 (`RoutingEngine` port + Valhalla adapter,
-now with a real running instance to build against instead of a stub), M2.4 (`applies()`, the
-safety-critical one — pure, exhaustively tested, no I/O), M2.5 (`PlanRoute` use case + the
-avoided-restriction explanation from design doc §4's two-query diff), M2.6 (golden-route tests,
-run nightly per the CI tiering decision). The open question "how complete is OSM restriction
-data on testers' actual routes around Hexham?" (Open questions, above) is worth revisiting once
-M2.4/M2.6 are testing against real restriction tags in this same extract.
+**M2.1 and M2.2 are done — Valhalla is verified against real tiles, and `VehicleProfile` CRUD is
+live in core. M2.3 (`RoutingEngine` port + Valhalla adapter) is next.** The adapter has a real
+running Valhalla instance to build against now (M2.1), not a stub: translate `Dimensions` into
+Valhalla's truck costing params (height/width/length/weight/axle_load — already proven to work
+in M2.1's smoke test) and `GeoPolygon[]` into `exclude_polygons` (also already proven to force a
+real detour). After that: M2.4 (`applies()`, the safety-critical one — pure, exhaustively tested,
+no I/O), M2.5 (`PlanRoute` use case + the avoided-restriction explanation from design doc §4's
+two-query diff, which will finally give `VehicleProfile` a consumer beyond CRUD), M2.6
+(golden-route tests, run nightly per the CI tiering decision). Two real gaps from M2.2 worth
+closing before drivers touch this for real: no BFF wiring for routing yet, and `driverId` is a
+trusted plain field with no token-derived verification (both recorded as M2.2 deviations, above;
+the latter is a real access-control gap, not just an unfinished nicety — close it before M4
+exposes routing to real drivers). The open question "how complete is OSM restriction data on
+testers' actual routes around Hexham?" (Open questions, above) is worth revisiting once M2.4/M2.6
+are testing against real restriction tags in this same extract.
