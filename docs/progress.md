@@ -2,16 +2,16 @@
 
 ## Status
 
-| Milestone            | Status                       |
-| -------------------- | ---------------------------- |
-| M1 Foundations       | In progress — M1.1–M1.6 done |
-| M2 Routing core      | Not started                  |
-| M3 Hazards core      | Not started                  |
-| M4 Driver BFF + auth | Not started                  |
-| M5 Driver app        | Not started                  |
-| M6 Alerts            | Not started                  |
-| M7 Voice             | Not started                  |
-| M8 Field-ready       | Not started                  |
+| Milestone            | Status            |
+| -------------------- | ----------------- |
+| M1 Foundations       | Done — 2026-09-22 |
+| M2 Routing core      | Not started       |
+| M3 Hazards core      | Not started       |
+| M4 Driver BFF + auth | Not started       |
+| M5 Driver app        | Not started       |
+| M6 Alerts            | Not started       |
+| M7 Voice             | Not started       |
+| M8 Field-ready       | Not started       |
 
 ## Decisions made before coding (from planning)
 
@@ -81,7 +81,7 @@ reports visible immediately, labelled "1 report, unconfirmed".
 | M1.4 | Database, migrations, docker compose | Done — 2026-09-22 |
 | M1.5 | `identity` as reference module       | Done — 2026-09-22 |
 | M1.6 | `driver-bff` + vertical slice        | Done — 2026-09-22 |
-| M1.7 | CI (GitHub Actions per-PR tier)      | Next              |
+| M1.7 | CI (GitHub Actions per-PR tier)      | Done — 2026-09-22 |
 
 **M1.1 delivered:** pnpm workspace (`apps/*`, `packages/*`) with Turborepo, git repo,
 `packages/config` holding the shared tsconfig base, ESLint flat config and Prettier config.
@@ -436,6 +436,56 @@ dev` plus a plain curl still needs zero config.
   app with no layering has nothing for a layering rule to check. If driver-bff ever grows real
   structure worth enforcing, add rules then.
 
+**M1.7 delivered:** the last M1 task — `.github/workflows/ci.yml` running the same five checks
+the README's cold-start command runs, as separate steps so a failure is legible at a glance
+rather than buried in one long `&&` chain: lint, typecheck, test, arch, format:check. Triggers
+on `pull_request` and on `push` to `main`; a concurrency group cancels a superseded run on the
+same ref. `pnpm/action-setup@v4` reads the pinned pnpm version from `package.json`'s
+`packageManager` field (one source of truth, same convention as the README's "pnpm is managed
+by corepack" note); `actions/setup-node@v4` reads `.nvmrc` for the Node version and caches pnpm.
+`ubuntu-latest` runners provide Docker out of the box, so the Testcontainers-backed PostGIS
+integration tests (decision 13) need no extra setup — nothing here depends on `pnpm db:up`. A
+CI status badge was added to the README.
+
+Getting a working remote needed real setup, not just `git remote add`: this machine had no SSH
+keys at all after the fresh install (Environment notes, above) — `ssh -T git@github.com` failed
+with "Host key verification failed" before any key existed. Generated a new ed25519 keypair,
+added the public key to the user's GitHub account, then seeded `known_hosts` properly via
+`ssh-keyscan -t ed25519 github.com` rather than disabling host-key checking.
+
+**Verified by actually running it, though the confirmation came from the user, not a
+Claude-driven browser session.** The built-in browser is a separate, unauthenticated browser
+context — it 404s a private repo's Actions page the same as any logged-out visitor would
+(confirmed directly: `api.github.com/repos/scottkelly36/Wagonwise`, unauthenticated, also
+404s). Rather than switch to the user's real logged-in browser for a one-off read, asked the
+user to check `github.com/scottkelly36/Wagonwise/actions` directly. They confirmed the run was
+green — which also resolves the open question of whether `cpu-features`'s native build (failed
+locally on Windows for lack of a C++ toolchain) builds cleanly on `ubuntu-latest`: it does,
+since `pnpm install --frozen-lockfile` is the first step and a build failure there would have
+failed the whole job before any check ran.
+
+## Decisions from M1.7
+
+42. **GitHub, not another host** — `scottkelly36/Wagonwise`, private by default, SSH for push
+    auth (chosen over HTTPS+PAT since the account had no existing GitHub credentials configured
+    either way, and SSH avoids storing a token in `.git-credentials`). Matches the design doc's
+    GitHub Actions assumption from decision 13.
+43. **The built-in browser can't verify a private repo's GitHub Actions runs.** It's an
+    unauthenticated browser context, so it 404s the same as any logged-out visitor — not a bug,
+    just a scope limit worth recording so a future session doesn't re-discover it by trial and
+    error. For a private repo, either the user checks directly or the session switches to the
+    user's own logged-in browser (asked each time; this session's user chose to check directly).
+
+## Deviations and open items from M1.7
+
+- **CI has only been exercised by one clean push to `main`**, not yet by a real failing PR. The
+  five steps are unverified against an actual failure (does a lint error surface clearly? does a
+  Testcontainers test time out sanely on a shared runner?) — revisit if a future PR's CI output
+  turns out to be confusing rather than assumed clean.
+- **No branch protection configured** — `main` can still be pushed to directly; nothing requires
+  the CI check to pass before merge. Worth adding once there's a second contributor or once PRs
+  become the normal workflow rather than direct pushes.
+
 ## Environment notes
 
 - Node 24.21 (`C:\Program Files\nodejs`), git 2.55.0, Docker Desktop 29.8.0 with WSL2, pnpm
@@ -466,13 +516,13 @@ Environment notes for what a future clean install will need to redo.
 
 ## Next session
 
-**M1.7 — CI (GitHub Actions per-PR tier).** The last M1 task. Per decision 13: lint, typecheck,
-architecture, unit and application tests, PostGIS integration tests (Testcontainers, so the
-runner needs Docker) on every PR — Valhalla golden routes stay nightly/on-map-rebuild, not here,
-since there's no map data yet anyway (M2). Concretely: a workflow running the same five commands
-the README's cold-start check runs (`pnpm lint && pnpm typecheck && pnpm test && pnpm arch &&
-pnpm format:check`) against a `pnpm db:up`'d Postgres, on Node 24, using the pinned pnpm via
-corepack. There is no git remote yet ("Environment notes", above) — creating one (and deciding
-where: GitHub, matching "Driver BFF" naming and the design doc's GitHub Actions assumption) is
-this milestone's first real step, not an implementation detail to skip past. After M1.7, M1
-Foundations is done and **M2 (Routing core)** starts.
+**M1 Foundations is done. M2 (Routing core) starts next.** Per the design doc's milestone table:
+`VehicleProfile` + a `PlanRoute` use case, a Valhalla adapter behind the `RoutingEngine` port
+(decision: architecture review #1's list), `applies(obstruction, dimensions)` fully tested
+(decision 3 — the most safety-critical function in Phase 1, height comparison stays out of SQL),
+an avoided-restriction explanation surfaced to the caller, and golden-route tests passing.
+Estimated 2–3 weeks. Valhalla's compose service exists but is unverified against real tiles
+(decision 28) — downloading an OSM extract and actually starting it is probably M2's first real
+step, the same way M1.7 treated "get a working GitHub remote" as a real step rather than an
+implementation detail. The open question "how complete is OSM restriction data on testers'
+actual routes around Hexham?" (Open questions, above) needs answering before M2 ends.
