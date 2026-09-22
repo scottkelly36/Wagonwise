@@ -4,6 +4,7 @@ import type { Clock } from '../shared/ports/clock.js';
 import type { IdGenerator } from '../shared/ports/id-generator.js';
 import { registerErrorHandling } from './error-handler.js';
 import { registerHealthRoute } from './health-route.js';
+import { registerInternalAuth } from './internal-auth.js';
 
 export interface AppDeps {
   readonly config: Config;
@@ -31,6 +32,7 @@ export function buildApp({ config, clock, ids }: AppDeps): FastifyInstance {
   });
 
   registerErrorHandling(app);
+  registerInternalAuth(app, config.internalKeys);
   registerHealthRoute(app, { clock });
 
   return app;

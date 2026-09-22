@@ -1,0 +1,34 @@
+import { randomUUID } from 'node:crypto';
+import Fastify, { type FastifyInstance } from 'fastify';
+import type { Config } from '../config.js';
+import { registerErrorHandling } from './error-handler.js';
+import { registerHealthRoute } from './health-route.js';
+
+const REQUEST_ID_HEADER = 'x-request-id';
+
+/**
+ * Builds the Fastify host. Thin by design (AGENTS.md rule 10: "BFFs contain no business rules")
+ * — request ID plumbing, error shaping, health. Route registration (identity forwarding) is
+ * wired separately, in main.ts, once its own dependencies (the JWKS client, the core HTTP
+ * client) are built.
+ */
+export function buildApp(config: Config): FastifyInstance {
+  const app = Fastify({
+    logger: { level: config.logLevel },
+    requestIdHeader: REQUEST_ID_HEADER,
+    // No app-level IdGenerator port here — the BFF has no entities to identify, just requests to
+    // trace, so a single direct crypto.randomUUID() call is proportionate (unlike core, which
+    // needs the port for actual domain IDs across many use cases).
+    genReqId: () => randomUUID(),
+  });
+
+  app.addHook('onSend', (request, reply, _payload, done) => {
+    void reply.header(REQUEST_ID_HEADER, request.id);
+    done();
+  });
+
+  registerErrorHandling(app);
+  registerHealthRoute(app);
+
+  return app;
+}

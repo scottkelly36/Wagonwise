@@ -9,6 +9,10 @@ export const PRODUCT_NAME = 'WagonWise';
 // promise. Override in `.env` for anything else (a remote database, different local creds).
 const DEFAULT_DATABASE_URL = 'postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise';
 
+// A well-known, obviously-not-secret default so `pnpm dev` plus a plain curl still works with
+// zero configuration (the cold-start promise) — override for anything that isn't this machine.
+const DEFAULT_INTERNAL_KEYS = 'local-dev-internal-key';
+
 function isEd25519Pkcs8Pem(pem: string): boolean {
   try {
     return createPrivateKey(pem).asymmetricKeyType === 'ed25519';
@@ -38,6 +42,23 @@ const envSchema = z.object({
     .refine((pem) => pem === undefined || isEd25519Pkcs8Pem(pem), {
       message: 'must be a PEM-encoded Ed25519 private key (PKCS8)',
     }),
+  // Every request except /health must present one of these in X-Internal-Key (decision 11) —
+  // core is not publicly exposed, so this is the second line of defence, not the only one.
+  // Comma-separated so two keys can be valid at once, for rotation without downtime: deploy the
+  // new key here first, update the BFF to send it, then remove the old one from this list.
+  INTERNAL_KEYS: z
+    .string()
+    .min(1)
+    .default(DEFAULT_INTERNAL_KEYS)
+    .transform((raw) =>
+      raw
+        .split(',')
+        .map((key) => key.trim())
+        .filter((key) => key.length > 0),
+    )
+    .refine((keys) => keys.length > 0, {
+      message: 'must contain at least one non-empty, comma-separated key',
+    }),
 });
 
 export interface Config {
@@ -47,6 +68,7 @@ export interface Config {
   readonly logLevel: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
   readonly databaseUrl: string;
   readonly identityPrivateKeyPem: string | undefined;
+  readonly internalKeys: readonly string[];
 }
 
 /** Thrown at boot when the environment is invalid; the process should exit, not limp on. */
@@ -77,5 +99,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     logLevel: values.LOG_LEVEL,
     databaseUrl: values.DATABASE_URL,
     identityPrivateKeyPem: values.IDENTITY_PRIVATE_KEY,
+    internalKeys: values.INTERNAL_KEYS,
   };
 }

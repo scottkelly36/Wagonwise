@@ -4,7 +4,7 @@
 
 | Milestone            | Status                       |
 | -------------------- | ---------------------------- |
-| M1 Foundations       | In progress — M1.1–M1.5 done |
+| M1 Foundations       | In progress — M1.1–M1.6 done |
 | M2 Routing core      | Not started                  |
 | M3 Hazards core      | Not started                  |
 | M4 Driver BFF + auth | Not started                  |
@@ -80,8 +80,8 @@ reports visible immediately, labelled "1 report, unconfirmed".
 | M1.3 | Core skeleton + shared kernel        | Done — 2026-09-21 |
 | M1.4 | Database, migrations, docker compose | Done — 2026-09-22 |
 | M1.5 | `identity` as reference module       | Done — 2026-09-22 |
-| M1.6 | `driver-bff` + vertical slice        | Next              |
-| M1.7 | CI (GitHub Actions per-PR tier)      | Not started       |
+| M1.6 | `driver-bff` + vertical slice        | Done — 2026-09-22 |
+| M1.7 | CI (GitHub Actions per-PR tier)      | Next              |
 
 **M1.1 delivered:** pnpm workspace (`apps/*`, `packages/*`) with Turborepo, git repo,
 `packages/config` holding the shared tsconfig base, ESLint flat config and Prettier config.
@@ -325,21 +325,116 @@ confirmed `revoked_at` was set. Test data cleaned up afterwards.
 
 ## Deviations and open items from M1.5
 
-- **`packages/contracts` doesn't exist yet** — identity's request bodies are validated with zod
-  schemas defined inline in `interface/routes.ts`, marked as core-only until M1.6 introduces the
-  shared package. Expect to delete these and import from `packages/contracts` instead.
+- **`packages/contracts` resolved in M1.6** — see decisions 37/41, below.
 - **No real SMS/email `OtpSender`.** Needs a provider decision (Twilio? AWS SNS? Vonage?) and an
   account — worth raising before M4 (Driver BFF + auth) needs testers to actually receive codes
-  on real phones with patchy Hexham signal.
+  on real phones with patchy Hexham signal. Still true after M1.6.
 - **No invite-code-issuing endpoint or admin tooling.** Seed via SQL for now (README). Revisit
   if manually running `psql` for every tester becomes annoying before a staff portal exists.
 - **The invite-code-redemption race is a thrown exception, not a `Result`.** If two `verifyOtp`
   calls for the same brand-new invite code land within the same narrow window, the loser gets an
   unstructured 500 rather than a clean domain error — accepted as vanishingly unlikely at Phase
   1's under-30-testers scale, not engineered around.
-- **`X-Internal-Key` service-to-service auth (decision 11) is not wired.** Identity's routes are
-  reachable by anything that can reach core's port; nothing enforces "only the BFF calls this"
-  yet, because there is no BFF and no network boundary to defend. Comes with M1.6/M4.
+- **`X-Internal-Key` service-to-service auth (decision 11) resolved in M1.6** — see decision 38.
+
+**M1.6 delivered:** the vertical slice — a real BFF sits in front of core now, not just a plan
+for one.
+
+- **`packages/contracts`** got a real `build` step (decision 37) and now holds identity's actual
+  request/response zod schemas (`src/identity.ts`) plus the wire-boundary branded-ID helper
+  (`src/brand.ts`, decision 14) — both core's routes and the BFF's routes import from here,
+  replacing the inline schemas M1.5 left as a known gap.
+- **`host/internal-auth.ts`** (core): one Fastify `onRequest` hook, `X-Internal-Key` checked at
+  constant time against `config.internalKeys`, applied to everything except `/health` (decision
+  38). New `INTERNAL_KEYS` config var.
+- **`apps/driver-bff`**: a new, deliberately flat app (no `domain/`/`application/` layering — rule
+  10 says BFFs have no business rules, so there is nothing to layer). `host/` mirrors core's
+  (health, error handling, request-id propagation); `auth/access-token-verifier.ts` wraps jose's
+  own `createRemoteJWKSet` (fetch, cache, auto-refetch — not hand-rolled, decision 39);
+  `core-client.ts` forwards to core with `X-Internal-Key` and the same request id, so one request
+  traces across both services' logs; `identity-routes.ts` validates against
+  `@wagonwise/contracts`, forwards `otp/request`, `otp/verify` and `token/refresh` untouched, and
+  does real work on `sessions/:id/revoke` — verifies the bearer token, checks its own `sid` claim
+  against the URL, 403s a mismatch (decision 40).
+- **`pnpm dev` now starts both apps** (core 3001, the BFF 3002) — turbo runs every package's `dev`
+  script that exists, which is now two. Found and fixed a real, pre-existing bug doing this
+  (decision 36): `tsx watch` needs `watch` as its literal first argument, and both `dev` scripts
+  had it after `--env-file-if-exists` since M1.4, silently broken the entire time because nothing
+  had actually run `pnpm dev` itself since that flag was added — M1.4's own verification used the
+  compiled build instead.
+
+245 tests, all green (188 core + 32 driver-bff + 17 architecture + 8 contracts); `pnpm arch`
+clean (114 modules, 353 dependencies, now scanning `apps/driver-bff/src` too — `check.mjs`
+already discovers every `apps/*/src`, no change needed there).
+
+**Verified by actually running it**, both apps together for the first time: built and ran
+`dist/main.js` for both (this is what caught decision 37's bug — plain `node` has no TypeScript-
+aware loader, so `packages/contracts`'s un-built `.ts` source with its `.js`-suffixed internal
+imports resolved fine under `tsx`/Vitest but not under plain `node`); confirmed core now rejects
+an unkeyed request and still serves `/health` unauthenticated; drove a full sign-in through the
+BFF (request → read the code from core's console log → verify → real Ed25519 JWT), refreshed
+through the BFF, then exercised all three revoke-auth outcomes for real — no token (401), a
+token for the wrong session (403, core never called), the right token and session (204,
+confirmed `revoked_at` set in `psql`) — and confirmed the same request id appears in both
+services' logs for the same request. Also fixed `pnpm dev` itself (decision 36) and verified the
+fix live. Test data cleaned up afterwards.
+
+## Decisions from M1.6
+
+36. **Fixed: `tsx watch`'s subcommand must be the first argument.** `tsx --env-file-if-exists=.env
+watch src/main.ts` silently does the wrong thing — tsx reads `watch` as the entry file
+    (since it's not in the first position) and fails with a `Cannot find module '.../watch'`
+    that has nothing to do with the real cause. Correct form: `tsx watch --env-file-if-exists=.env
+src/main.ts`. Both `apps/*/package.json` `dev` scripts fixed; README troubleshooting entry
+    added so a future new app copies the working form.
+37. **`packages/contracts` needed a real build step; `packages/config` and `packages/architecture`
+    never did.** Both of those export pre-built artefacts (plain `.js`/`.json`, or a `.cjs` config
+    file) — nothing in this monorepo had previously shipped raw, un-built `.ts` source across a
+    package boundary to be run by plain `node`. `packages/contracts`'s `exports` now point at
+    `dist/` (built via `tsc -p tsconfig.build.json`); `turbo.json`'s existing `dependsOn:
+["^build"]` on `build`/`lint`/`typecheck`/`test` already builds it first automatically for
+    every consumer, no further `turbo.json` change needed. Found only by actually running the
+    compiled output, not by any test or type-check, since TypeScript's own resolution is happy to
+    read straight from a `.ts` file regardless of what `exports` says.
+38. **`X-Internal-Key` lives in `host/`, not `identity/`** — decision 11 describes it as core-wide
+    protection, so it is registered once in `buildApp`, and every future module is covered
+    without doing anything itself. `/health` is the one exemption: an orchestrator or a human
+    needs an unauthenticated liveness check, and it leaks nothing. `INTERNAL_KEYS` defaults to
+    the same well-known local-dev value as the BFF's own `CORE_INTERNAL_KEY` default, so `pnpm
+dev` plus a plain curl still needs zero config.
+39. **The BFF's JWKS handling is jose's own `createRemoteJWKSet`, not hand-rolled.** Same
+    reasoning as M1.5's decision to use `jose` for JWT mechanics rather than hand-roll them —
+    the "hand-roll small things" convention (decision 6, `Result<T, E>`) is for genuinely small,
+    well-understood primitives, not for cache-invalidation-on-key-rotation semantics a
+    battle-tested library already gets right. `X-Internal-Key` is passed via its `headers` option
+    — core protects the JWKS route the same as everything else except `/health`.
+40. **`POST /identity/sessions/:id/revoke` is where "BFFs verify tokens" does real work, not just
+    plumbing.** The BFF checks the presented access token's own `sid` claim against the URL's
+    `:id` and 403s a mismatch before ever calling core — a driver can self-service-revoke their
+    own current session, not an arbitrary one by guessing an id. Core still has no idea who is
+    calling it beyond `X-Internal-Key`; this authorization decision belongs to the BFF because
+    only the BFF ever sees the driver's own token.
+41. **`packages/contracts` is deliberately flat** (no `domain/`/`application/` split like a core
+    module) — it is schemas, not a bounded context, and forcing clean-architecture layering onto
+    a package with no behaviour would be ceremony with nothing underneath it.
+
+## Deviations and open items from M1.6
+
+- **No real SMS/email `OtpSender`, still** (M1.5's deviation, unchanged) — needed before M4.
+- **No invite-code admin endpoint, still** (M1.5's deviation, unchanged) — seed via SQL.
+- **jose's `createRemoteJWKSet` internals (caching, cooldown, refetch-on-miss) are trusted, not
+  independently tested.** `access-token-verifier.test.ts` tests _this codebase's_ wrapper against
+  a real local JWKS server (a real network round trip, real signature verification), which is the
+  right scope boundary — re-testing a well-maintained library's own internals would be redundant,
+  not more correct.
+- **The driver-app (M5) doesn't exist, so the BFF has only ever been driven by curl.** The
+  vertical slice proves the wiring; it doesn't prove the BFF's shapes are what a real client
+  actually wants until M5 has one to ask.
+- **`apps/driver-bff` has no architecture-rule enforcement of its own** (unlike core) — `pnpm arch`
+  scans `apps/driver-bff/src` (confirmed: `packages/architecture/scripts/check.mjs` already
+  discovers every `apps/*/src` automatically), but no rules are written for it, because a flat
+  app with no layering has nothing for a layering rule to check. If driver-bff ever grows real
+  structure worth enforcing, add rules then.
 
 ## Environment notes
 
@@ -371,12 +466,13 @@ Environment notes for what a future clean install will need to redo.
 
 ## Next session
 
-**M1.6 — `driver-bff` + vertical slice.** A new app, `apps/driver-bff`: a thin Fastify service
-that verifies access tokens against identity's JWKS (decision 1 — the BFF can verify, it cannot
-mint) and forwards to core over `X-Internal-Key`-secured private networking (decision 11, not
-wired yet — this is where it gets wired). `packages/contracts`: zod schemas for identity's
-request/response shapes, replacing the inline ones in `apps/core/src/modules/identity/interface/
-routes.ts` (M1.5 deviations, above) — the first real use of "shared across app/BFF/core" rather
-than a promise about it. One vertical slice end to end (driver app or curl → BFF → core → real
-Postgres) proves the wiring before M2 adds routing behaviour. Then **M1.7** (CI) closes out M1
-Foundations.
+**M1.7 — CI (GitHub Actions per-PR tier).** The last M1 task. Per decision 13: lint, typecheck,
+architecture, unit and application tests, PostGIS integration tests (Testcontainers, so the
+runner needs Docker) on every PR — Valhalla golden routes stay nightly/on-map-rebuild, not here,
+since there's no map data yet anyway (M2). Concretely: a workflow running the same five commands
+the README's cold-start check runs (`pnpm lint && pnpm typecheck && pnpm test && pnpm arch &&
+pnpm format:check`) against a `pnpm db:up`'d Postgres, on Node 24, using the pinned pnpm via
+corepack. There is no git remote yet ("Environment notes", above) — creating one (and deciding
+where: GitHub, matching "Driver BFF" naming and the design doc's GitHub Actions assumption) is
+this milestone's first real step, not an implementation detail to skip past. After M1.7, M1
+Foundations is done and **M2 (Routing core)** starts.

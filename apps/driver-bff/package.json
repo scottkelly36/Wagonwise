@@ -1,5 +1,5 @@
 {
-  "name": "@wagonwise/core",
+  "name": "@wagonwise/driver-bff",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,23 +9,17 @@
     "start": "node --env-file-if-exists=.env dist/main.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts"
+    "test": "vitest run"
   },
   "dependencies": {
     "@wagonwise/contracts": "workspace:*",
     "fastify": "^5.12.5",
     "jose": "^6.2.12",
-    "kysely": "^0.29.6",
-    "pg": "^8.23.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@testcontainers/postgresql": "^12.1.0",
     "@types/node": "^24.13.6",
-    "@types/pg": "^8.23.1",
     "@wagonwise/config": "workspace:*",
-    "testcontainers": "^12.1.0",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"

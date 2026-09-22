@@ -1,5 +1,10 @@
+import {
+  refreshTokenRequestSchema,
+  requestOtpRequestSchema,
+  revokeSessionParamsSchema,
+  verifyOtpRequestSchema,
+} from '@wagonwise/contracts/identity';
 import type { FastifyInstance } from 'fastify';
-import { z } from 'zod';
 import { makeId } from '../../../shared/brand.js';
 import { refreshToken, type RefreshTokenDeps } from '../application/refresh-token.js';
 import { requestOtp, type RequestOtpDeps } from '../application/request-otp.js';
@@ -16,33 +21,16 @@ export interface IdentityRouteDeps {
   readonly tokenSigner: TokenSigner;
 }
 
-// Inline for now — packages/contracts (zod schemas shared across app/BFF/core, AGENTS.md rule
-// 11) arrives in M1.6. These are core-only until then, not yet the shared source of truth.
-const requestOtpBody = z.object({
-  identifier: z.string(),
-  inviteCode: z.string().optional(),
-});
-const verifyOtpBody = z.object({
-  identifier: z.string(),
-  code: z.string(),
-  inviteCode: z.string().optional(),
-});
-const refreshTokenBody = z.object({
-  refreshToken: z.string(),
-});
-const sessionIdParam = z.object({
-  id: z.uuid(),
-});
-
 /**
  * Internal endpoints (design doc §9) — core is not publicly exposed, so these are reachable only
- * by a trusted BFF (decision 11's X-Internal-Key is BFF<->core network security, not specific to
- * identity, and isn't wired yet — a driver-facing auth check on e.g. the revoke route is the
- * calling BFF's job, per "BFFs verify tokens", once one exists in M1.6).
+ * by a trusted BFF, enforced at the host level (decision 11's `X-Internal-Key`, wired in
+ * `host/internal-auth.ts`, M1.6). A driver-facing auth check on e.g. the revoke route is the
+ * calling BFF's job, per "BFFs verify tokens" — `apps/driver-bff` does that before it ever
+ * reaches here.
  */
 export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRouteDeps): void {
   app.post('/identity/otp/request', async (request, reply) => {
-    const parsed = requestOtpBody.safeParse(request.body);
+    const parsed = requestOtpRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
@@ -54,7 +42,7 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
   });
 
   app.post('/identity/otp/verify', async (request, reply) => {
-    const parsed = verifyOtpBody.safeParse(request.body);
+    const parsed = verifyOtpRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
@@ -74,7 +62,7 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
   });
 
   app.post('/identity/token/refresh', async (request, reply) => {
-    const parsed = refreshTokenBody.safeParse(request.body);
+    const parsed = refreshTokenRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
@@ -86,7 +74,7 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
   });
 
   app.post('/identity/sessions/:id/revoke', async (request, reply) => {
-    const parsed = sessionIdParam.safeParse(request.params);
+    const parsed = revokeSessionParamsSchema.safeParse(request.params);
     if (!parsed.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }

@@ -20,6 +20,7 @@ describe('loadConfig', () => {
       logLevel: 'info',
       databaseUrl: 'postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise',
       identityPrivateKeyPem: undefined,
+      internalKeys: ['local-dev-internal-key'],
     });
   });
 
@@ -31,6 +32,7 @@ describe('loadConfig', () => {
       LOG_LEVEL: 'warn',
       DATABASE_URL: 'postgresql://user:pw@db.internal:5432/wagonwise',
       IDENTITY_PRIVATE_KEY: ED25519_PEM,
+      INTERNAL_KEYS: 'key-one, key-two',
     });
     expect(config).toEqual({
       nodeEnv: 'production',
@@ -39,7 +41,24 @@ describe('loadConfig', () => {
       logLevel: 'warn',
       databaseUrl: 'postgresql://user:pw@db.internal:5432/wagonwise',
       identityPrivateKeyPem: ED25519_PEM,
+      internalKeys: ['key-one', 'key-two'],
     });
+  });
+
+  it('defaults INTERNAL_KEYS to a single well-known local-dev value', () => {
+    expect(loadConfig({}).internalKeys).toEqual(['local-dev-internal-key']);
+  });
+
+  it('splits INTERNAL_KEYS on commas and trims whitespace, dropping empty entries', () => {
+    expect(loadConfig({ INTERNAL_KEYS: ' a , b ,, c ' }).internalKeys).toEqual(['a', 'b', 'c']);
+  });
+
+  it('rejects an INTERNAL_KEYS that is only commas/whitespace (no real key survives)', () => {
+    expect(() => loadConfig({ INTERNAL_KEYS: ' , , ' })).toThrow(ConfigError);
+  });
+
+  it('rejects an empty INTERNAL_KEYS', () => {
+    expect(() => loadConfig({ INTERNAL_KEYS: '' })).toThrow(ConfigError);
   });
 
   it('leaves IDENTITY_PRIVATE_KEY undefined when unset', () => {

@@ -52,7 +52,8 @@ per-PR, not nightly-only):
 pnpm lint && pnpm typecheck && pnpm test && pnpm arch && pnpm format:check
 ```
 
-Then start the core service and check it answers:
+Then start everything (core on 3001, the driver BFF on 3002 — `pnpm dev` runs every app's `dev`
+script at once) and check both answer:
 
 ```bash
 pnpm dev
@@ -60,11 +61,14 @@ pnpm dev
 
 ```bash
 curl http://127.0.0.1:3001/health
+curl http://127.0.0.1:3002/health
 ```
 
-You should see `{"status":"ok","service":"core","product":"WagonWise","time":"…"}`. Core needs
-no environment variables to run locally — every one has a default, and the database default
-matches `pnpm db:up`'s compose service (see below).
+You should see `{"status":"ok","service":"core","product":"WagonWise","time":"…"}` and
+`{"status":"ok","service":"driver-bff","time":"…"}`. Neither needs an environment variable to
+run locally — every one has a default, the database default matches `pnpm db:up`'s compose
+service, and the BFF's default `CORE_INTERNAL_KEY` matches core's default `INTERNAL_KEYS` out of
+the box (see Configuration and Driver BFF, below).
 
 ## Configuration
 
@@ -72,14 +76,15 @@ Core reads its environment in exactly one place, `apps/core/src/config.ts`, vali
 An invalid value stops the process with a message naming every problem, rather than starting
 half-configured.
 
-| Variable               | Default                                                   | Notes                                                                    |
-| ---------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `NODE_ENV`             | `development`                                             | `development`, `test` or `production`                                    |
-| `HOST`                 | `127.0.0.1`                                               | Use `0.0.0.0` inside a container                                         |
-| `PORT`                 | `3001`                                                    | 1–65535                                                                  |
-| `LOG_LEVEL`            | `info`                                                    | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`             |
-| `DATABASE_URL`         | `postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise` | Matches `pnpm db:up`'s compose service; `postgres://` or `postgresql://` |
-| `IDENTITY_PRIVATE_KEY` | unset (fresh key each boot)                               | PEM, PKCS8, Ed25519 only — see Identity, below                           |
+| Variable               | Default                                                   | Notes                                                                                   |
+| ---------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `NODE_ENV`             | `development`                                             | `development`, `test` or `production`                                                   |
+| `HOST`                 | `127.0.0.1`                                               | Use `0.0.0.0` inside a container                                                        |
+| `PORT`                 | `3001`                                                    | 1–65535                                                                                 |
+| `LOG_LEVEL`            | `info`                                                    | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`                            |
+| `DATABASE_URL`         | `postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise` | Matches `pnpm db:up`'s compose service; `postgres://` or `postgresql://`                |
+| `IDENTITY_PRIVATE_KEY` | unset (fresh key each boot)                               | PEM, PKCS8, Ed25519 only — see Identity, below                                          |
+| `INTERNAL_KEYS`        | `local-dev-internal-key`                                  | Comma-separated; a BFF must send one in `X-Internal-Key` on everything except `/health` |
 
 ```bash
 PORT=4000 LOG_LEVEL=debug pnpm dev
@@ -97,7 +102,7 @@ More variables arrive with the milestones that need them. Each one must also be 
 | Command             | Does                                                                          |
 | ------------------- | ----------------------------------------------------------------------------- |
 | `pnpm install`      | Install workspace dependencies                                                |
-| `pnpm dev`          | Run core with reload on change (port 3001)                                    |
+| `pnpm dev`          | Run core (3001) and the driver BFF (3002) with reload on change               |
 | `pnpm lint`         | ESLint across every package, via Turborepo                                    |
 | `pnpm typecheck`    | `tsc --noEmit` across every package                                           |
 | `pnpm test`         | Vitest across every package                                                   |
@@ -141,16 +146,17 @@ map extract. Not required for M1.4.
 ## Identity (sign-in)
 
 `identity` is the reference bounded context (M1.5) — OTP sign-in, Ed25519-signed access tokens,
-refresh rotation with reuse detection, invite codes. Endpoints (all on core directly; there is no
-BFF yet — see `apps/core/src/modules/identity/interface/routes.ts`):
+refresh rotation with reuse detection, invite codes. Core exposes it as internal endpoints (see
+`apps/core/src/modules/identity/interface/routes.ts`); `apps/driver-bff` (M1.6) is the public-
+facing wrapper described below, and is how you should normally reach these:
 
-| Route                                 | Does                                                  |
-| ------------------------------------- | ----------------------------------------------------- |
-| `POST /identity/otp/request`          | `{ identifier, inviteCode? }` — sends a one-time code |
-| `POST /identity/otp/verify`           | `{ identifier, code, inviteCode? }` — returns tokens  |
-| `POST /identity/token/refresh`        | `{ refreshToken }` — rotates, returns new tokens      |
-| `POST /identity/sessions/:id/revoke`  | Sign-out                                              |
-| `GET /identity/.well-known/jwks.json` | The public key, for a BFF to verify tokens with       |
+| Route                                 | Does                                                                          |
+| ------------------------------------- | ----------------------------------------------------------------------------- |
+| `POST /identity/otp/request`          | `{ identifier, inviteCode? }` — sends a one-time code                         |
+| `POST /identity/otp/verify`           | `{ identifier, code, inviteCode? }` — returns tokens                          |
+| `POST /identity/token/refresh`        | `{ refreshToken }` — rotates, returns new tokens                              |
+| `POST /identity/sessions/:id/revoke`  | Sign-out (needs `Authorization: Bearer <accessToken>` at the BFF — see below) |
+| `GET /identity/.well-known/jwks.json` | The public key, for a BFF to verify tokens with                               |
 
 `identifier` is an email or a UK-ish phone number. `inviteCode` is required only the first time —
 signing in with an identifier that has no Driver yet needs one. There's no admin endpoint to
@@ -166,17 +172,48 @@ Locally, the one-time code is printed to the console, not sent anywhere (`Consol
 `apps/core/src/modules/identity/infrastructure/console-otp-sender.ts`, dev-only). A real SMS/email
 adapter needs a provider account and is deferred until one is chosen.
 
+Calling core directly (bypassing the BFF) needs `X-Internal-Key: local-dev-internal-key` on
+every request except `/health` — core is not publicly exposed (design doc §2), and this header is
+the BFF's job to add, not something an app or a curl-from-your-laptop test should normally send.
+
+## Driver BFF
+
+`apps/driver-bff` (M1.6) is the thin public-facing service a driver app actually talks to —
+"BFFs contain no business rules" (AGENTS.md rule 10): it verifies access tokens against core's
+JWKS, shapes nothing, and forwards everything else to core with `X-Internal-Key`. Same routes as
+core's identity endpoints (above), just without needing that header — the BFF adds it for you.
+
+```bash
+pnpm --filter @wagonwise/driver-bff dev   # port 3002 by default
+curl http://127.0.0.1:3002/health
+```
+
+The one route the BFF does real work on: `POST /identity/sessions/:id/revoke` requires
+`Authorization: Bearer <accessToken>`, verifies it against core's JWKS, and checks the token's own
+session (`sid` claim) matches the `:id` in the URL — 401 with no token or a bad one, 403 if it's
+someone else's session, only then forwarded to core. That is what "the BFF can verify tokens" is
+for, made concrete rather than just plumbing a header through.
+
+| Variable            | Default                  | Notes                                    |
+| ------------------- | ------------------------ | ---------------------------------------- |
+| `NODE_ENV`          | `development`            | Same enum as core                        |
+| `HOST`              | `127.0.0.1`              |                                          |
+| `PORT`              | `3002`                   |                                          |
+| `LOG_LEVEL`         | `info`                   |                                          |
+| `CORE_INTERNAL_URL` | `http://127.0.0.1:3001`  | Where core lives                         |
+| `CORE_INTERNAL_KEY` | `local-dev-internal-key` | Must match one of core's `INTERNAL_KEYS` |
+
 ## Repo layout
 
 ```
 apps/
   core/           core service — Fastify host, modular monolith   ✅ identity wired end to end
-  driver-bff/     Fastify BFF for the driver app                  (M1.6)
+  driver-bff/     Fastify BFF for the driver app                  ✅ verifies tokens, forwards
   driver-app/     Expo React Native app                           (M5)
 packages/
   config/         shared tsconfig / ESLint / Prettier presets     ✅
   architecture/   dependency-cruiser rules + fixtures + tests     ✅
-  contracts/      zod schemas + inferred types shared everywhere  (M1.6)
+  contracts/      zod schemas + inferred types shared everywhere  ✅ identity's shapes so far
 infra/
   docker/         compose for local Postgres/PostGIS + Valhalla   ✅
   deploy/         hosting config                                  (later)
@@ -211,8 +248,16 @@ interface/          Fastify routes, request validation, the Result -> HTTP statu
 `apps/core/migrations/` holds the raw-SQL migrations (see Database, above); `apps/core/scripts/`
 holds small CLI entry points run via `tsx`, starting with `migrate.ts`.
 
-Only `packages/config`, `packages/architecture`, `infra/docker` and `apps/core` (with a database
-layer and the identity module) exist so far. The rest arrive with the milestone shown.
+`packages/contracts` is deliberately flat (no clean-architecture layering — it's schemas, not a
+bounded context): `src/identity.ts` holds identity's request/response shapes, `src/brand.ts` the
+zod-branded-ID helper. Unlike `packages/config`/`packages/architecture`, it has a real `build`
+step (`tsc`, emitting real `.js`) — its `package.json` `exports` point at `dist/`, not `src/`,
+because a plain compiled `node dist/main.js` (no TypeScript-aware loader) needs real files to
+resolve, unlike `tsx`/Vitest during development. `turbo.json`'s existing `dependsOn: ["^build"]`
+on `build`/`lint`/`typecheck`/`test` already builds it first automatically.
+
+Everything listed above is real except `apps/driver-app` (M5) and core's `routing`/`hazards`/
+`feedback` modules (M2/M3, not started — `identity` is the only real module so far).
 
 ## Conventions
 
@@ -259,6 +304,17 @@ version. Accept it.
 
 **`PORT=… pnpm dev` is ignored** — Turborepo strips environment variables it hasn't been told
 about. Add the variable to `passThroughEnv` on the `dev` task in `turbo.json`.
+
+**`pnpm dev` fails with `Cannot find module '.../watch'`** — `tsx`'s `watch` subcommand must be
+its _first_ argument (`tsx watch --flag file.ts`), not after another flag
+(`tsx --flag watch file.ts` — tsx then reads `watch` as the entry file and `file.ts` as an
+argument to it). Both `apps/*/package.json` `dev` scripts already have this the right way round;
+if you add a new app's `dev` script, copy the existing form rather than writing it from scratch.
+
+**A stray dev server holds a port after `pnpm dev` seemed to stop** — `tsx watch` runs your code
+in a child process separate from the one `pnpm`/`turbo` started; killing the parent (e.g. closing
+a terminal window, or a script that only stops the process it launched) doesn't always stop the
+child. Find it with `Get-Process -Name node` and stop it, or free the port and try again.
 
 **`ERR_PNPM_IGNORED_BUILDS` on install** — pnpm 12 blocks dependency install scripts by
 default. If a new dependency legitimately needs one (esbuild does), run
