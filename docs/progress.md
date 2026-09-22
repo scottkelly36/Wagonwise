@@ -922,7 +922,7 @@ M2.5 by design (golden tests don't count towards this); 3 more in the separate g
 | ---- | ------------------------------------------------------------------------------------------- | ----------------- |
 | M3.1 | `hazards` module skeleton + domain (report/merge/expiry/confirm/dismiss policy)             | Done — 2026-09-22 |
 | M3.2 | `application/` use cases: `reportHazard`, `confirmHazard`, `dismissHazard`, `expireHazards` | Done — 2026-09-22 |
-| M3.3 | `infrastructure/`: `PostgresHazardRepository`, PostGIS geography + GiST index, migration    | Not started       |
+| M3.3 | `infrastructure/`: `PostgresHazardRepository`, PostGIS geography + GiST index, migration    | Done — 2026-09-22 |
 | M3.4 | `interface/`: HTTP endpoints, wired into `composeCore`                                      | Not started       |
 | M3.5 | `HazardAvoidanceQuery` read-model port + on-route PostGIS query, wired into `PlanRoute`     | Not started       |
 
@@ -1062,6 +1062,55 @@ server to run this against yet. The in-memory-repository tests are the verificat
   self-confirmation as a concern, and Phase 1 has no trust scoring to weigh it against (same
   "Phase 2" deferral as decision 60's `DISMISS_MARGIN`). Worth revisiting if it turns out to
   matter in practice.
+
+**M3.3 delivered:** `infrastructure/postgres-hazard-repository.ts` + migration
+`0005_hazards.sql` — `hazards` gets a real spatial column from day one, unlike
+`routing.route_plans` (decision 55), because `findNearby`'s merge check (M3.2) and the on-route
+query (M3.5) both need real `ST_DWithin` now, not a speculative later consumer.
+
+- **`location geography(Point, 4326)`, not `geometry`**: geography's distance functions work in
+  metres on a sphere, matching "within ~50m" and "within 30 metres" (design doc §5) directly —
+  a `geometry` column would need every query to reason in degrees instead.
+- **`measurement_kind`/`_value`/`_unit` are three nullable columns with a `measurement_together`
+  check constraint** (all null or all set), not jsonb — a fixed three-field shape, closer to
+  `Dimensions`' typed columns (decision 48) than `avoidedRestrictions`' open-shaped jsonb
+  (decision 54).
+- **`reports_location_idx`** (GiST on `location`) backs `findNearby`; **`reports_status_expires_at_idx`**
+  (partial btree, `where status = 'active'`) backs `findExpirable` without scanning
+  `dismissed`/`expired` rows.
+- **`PostgresHazardRepository`**: same raw-`sql`-tagged-template shape as every other repository
+  (decision 26). `findNearby` builds the query point with
+  `ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography` and orders by `created_at desc`, matching
+  merge-policy.ts's "most-recent-first" assumption (M3.1). Round-trips `GeoPoint` via
+  `ST_X`/`ST_Y` cast back to `geometry` (geography's own X/Y accessors need the cast).
+- **`infrastructure/testing/{db-for-tests,apply-schema}.ts`**: duplicated from routing's own
+  copies (decision 26's reasoning — modules can't import `platform/`, even in tests), same as
+  every module before it.
+
+425 tests, all green (353 core + 32 driver-bff + 17 architecture + 23 contracts — 10 new tests
+against real PostGIS via Testcontainers, up from the 343 core tests M3.2 left off at). `pnpm arch`
+clean (174 modules, 595 dependencies).
+
+**Verified by actually running it**, matching the standard every prior infrastructure task in
+this codebase has used: `pnpm db:migrate` applied `0005_hazards.sql` against the real local
+Postgres (`pnpm db:up`), and `psql \d hazards.reports` confirmed the table, the GiST index, the
+partial btree index and the `measurement_together` check constraint all exist exactly as written
+— not just "the migration ran without error."
+
+## Decisions from M3.3
+
+64. **`findNearby` orders by `created_at desc` in SQL**, not in the application layer — matches
+    merge-policy.ts's documented assumption (M3.1: "candidates are expected to already be ordered
+    most-recent-first by the repository") without the repository needing to know why; the ordering
+    lives where the query already is.
+
+## Deviations and open items from M3.3
+
+- **No `api.ts`/wiring, still** — M3.4 is next.
+- **Table and column names weren't renamed to match `HazardReport`'s field names 1:1 everywhere**
+  (`hazards.reports`, not `hazards.hazard_reports`) — matches routing's own convention
+  (`routing.vehicle_profiles`, not `routing.routing_vehicle_profiles`): the schema already scopes
+  the table, so the table name itself doesn't need to repeat it.
 
 ## Environment notes
 

@@ -35,6 +35,7 @@ describe('runMigrations', () => {
       '0002_identity.sql',
       '0003_routing.sql',
       '0004_route_plans.sql',
+      '0005_hazards.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -73,6 +74,12 @@ describe('runMigrations', () => {
     );
     expect(routingTables.map((row) => row.table_name)).toEqual(['route_plans', 'vehicle_profiles']);
 
+    const { rows: hazardsTables } = await pool.query<{ table_name: string }>(
+      `select table_name from information_schema.tables
+       where table_schema = 'hazards' order by table_name`,
+    );
+    expect(hazardsTables.map((row) => row.table_name)).toEqual(['reports']);
+
     const { rows: extensions } = await pool.query<{ extname: string }>(
       "select extname from pg_extension where extname = 'postgis'",
     );
@@ -96,6 +103,7 @@ describe('runMigrations', () => {
       '0002_identity.sql',
       '0003_routing.sql',
       '0004_route_plans.sql',
+      '0005_hazards.sql',
     ]);
   });
 });
