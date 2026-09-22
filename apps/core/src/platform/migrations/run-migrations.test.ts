@@ -28,9 +28,9 @@ describe('runMigrations', () => {
     await container.stop();
   });
 
-  it('applies every migration in order: schemas, outbox tables, PostGIS, identity tables', async () => {
+  it('applies every migration in order: schemas, outbox tables, PostGIS, identity/routing tables', async () => {
     const result = await runMigrations(pool, migrationsDir);
-    expect(result.applied).toEqual(['0001_init.sql', '0002_identity.sql']);
+    expect(result.applied).toEqual(['0001_init.sql', '0002_identity.sql', '0003_routing.sql']);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
       `select schema_name from information_schema.schemata
@@ -62,6 +62,12 @@ describe('runMigrations', () => {
       'sessions',
     ]);
 
+    const { rows: routingTables } = await pool.query<{ table_name: string }>(
+      `select table_name from information_schema.tables
+       where table_schema = 'routing' order by table_name`,
+    );
+    expect(routingTables.map((row) => row.table_name)).toEqual(['vehicle_profiles']);
+
     const { rows: extensions } = await pool.query<{ extname: string }>(
       "select extname from pg_extension where extname = 'postgis'",
     );
@@ -80,7 +86,11 @@ describe('runMigrations', () => {
     const { rows } = await pool.query<{ id: string }>(
       'select id from public.schema_migrations order by id',
     );
-    expect(rows.map((row) => row.id)).toEqual(['0001_init.sql', '0002_identity.sql']);
+    expect(rows.map((row) => row.id)).toEqual([
+      '0001_init.sql',
+      '0002_identity.sql',
+      '0003_routing.sql',
+    ]);
   });
 });
 
