@@ -998,6 +998,14 @@ verification.
 
 ## Environment notes
 
+- **`gh` (GitHub CLI) is installed but not on a normal terminal's PATH** — full path
+  `C:\Program Files\GitHub CLI\gh.exe`. Its saved credential (a fine-grained PAT) can see this
+  account's older public repos but returns 404 for `scottkelly36/Wagonwise` — the token's repo
+  access doesn't include this private repo. PRs for this repo are opened by the user directly
+  (matches decision 43's browser-auth gap: this repo's PRs have always been created/merged by
+  `scottkelly36` per `git log --merges`, not by a prior session's tooling). Revisit if `gh pr
+create` is ever actually needed from a session — regenerate the PAT with this repo included, or
+  `gh auth login` fresh.
 - Node 24.21 (`C:\Program Files\nodejs`), git 2.55.0, Docker Desktop 29.8.0 with WSL2, pnpm
   12.5.1 via corepack (`corepack enable pnpm`). The pnpm store lives on E: (`E:\.pnpm-store`),
   pnpm's default of one store per drive.
