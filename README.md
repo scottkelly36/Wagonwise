@@ -83,16 +83,17 @@ Core reads its environment in exactly one place, `apps/core/src/config.ts`, vali
 An invalid value stops the process with a message naming every problem, rather than starting
 half-configured.
 
-| Variable               | Default                                                   | Notes                                                                                   |
-| ---------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `NODE_ENV`             | `development`                                             | `development`, `test` or `production`                                                   |
-| `HOST`                 | `127.0.0.1`                                               | Use `0.0.0.0` inside a container                                                        |
-| `PORT`                 | `3001`                                                    | 1–65535                                                                                 |
-| `LOG_LEVEL`            | `info`                                                    | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`                            |
-| `DATABASE_URL`         | `postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise` | Matches `pnpm db:up`'s compose service; `postgres://` or `postgresql://`                |
-| `IDENTITY_PRIVATE_KEY` | unset (fresh key each boot)                               | PEM, PKCS8, Ed25519 only — see Identity, below                                          |
-| `INTERNAL_KEYS`        | `local-dev-internal-key`                                  | Comma-separated; a BFF must send one in `X-Internal-Key` on everything except `/health` |
-| `VALHALLA_URL`         | `http://127.0.0.1:8002`                                   | Matches `infra/docker/compose.yml`'s `valhalla` service (see Routing, below)            |
+| Variable                  | Default                                                   | Notes                                                                                   |
+| ------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `NODE_ENV`                | `development`                                             | `development`, `test` or `production`                                                   |
+| `HOST`                    | `127.0.0.1`                                               | Use `0.0.0.0` inside a container                                                        |
+| `PORT`                    | `3001`                                                    | 1–65535                                                                                 |
+| `LOG_LEVEL`               | `info`                                                    | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`                            |
+| `DATABASE_URL`            | `postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise` | Matches `pnpm db:up`'s compose service; `postgres://` or `postgresql://`                |
+| `IDENTITY_PRIVATE_KEY`    | unset (fresh key each boot)                               | PEM, PKCS8, Ed25519 only — see Identity, below                                          |
+| `INTERNAL_KEYS`           | `local-dev-internal-key`                                  | Comma-separated; a BFF must send one in `X-Internal-Key` on everything except `/health` |
+| `VALHALLA_URL`            | `http://127.0.0.1:8002`                                   | Matches `infra/docker/compose.yml`'s `valhalla` service (see Routing, below)            |
+| `OUTBOX_POLL_INTERVAL_MS` | `2000`                                                    | How often the in-process outbox poller checks for pending events (see Alerts, below)    |
 
 ```bash
 PORT=4000 LOG_LEVEL=debug pnpm dev
@@ -263,6 +264,25 @@ the existing report unchanged, or merges into it, rather than duplicating). No `
 (M4.3) — same reasoning as routing's `driverId`, core derives it from the access token. Confirm and
 dismiss need a valid token too, but not any particular one — any authenticated driver may act on
 any report (decision 63, no ownership check on community moderation).
+
+## Alerts
+
+`platform/outbox-dispatcher.ts` (M6.1) — the transactional-outbox event dispatcher design doc §11
+and decision 5 committed to before any module had an event to publish. Polls `outbox.events`
+(`processed_at is null`, oldest first, `for update skip locked`) every `OUTBOX_POLL_INTERVAL_MS`,
+runs every registered handler whose `eventType` matches, and records success per
+`(event_id, handler_name)` in `outbox.handled` — the idempotency guard at-least-once delivery
+needs (AGENTS.md rule 9: every handler must itself be idempotent, since a crash between a handler
+running and its `outbox.handled` row being written means it may run again). A handler that keeps
+throwing gets retried up to 5 attempts, then dead-lettered (marked processed without ever
+succeeding) rather than retried forever.
+
+**No module publishes or handles anything yet** — `composeCore` wires the dispatcher with an
+empty handler list (`CoreOverrides.eventHandlers`), started and stopped alongside the app, ready
+for the first real event once a module has one to raise (M6.3+: hazards publishing
+`HazardReported`/`HazardConfirmed`, routing reacting to reroute a driver around a newly-reported
+hazard on their active trip). `drainOnce()` runs one pass synchronously, for tests that don't want
+to wait on the poll interval.
 
 ## Driver BFF
 
