@@ -77,6 +77,7 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
     reportHazard: { repo, clock: deps.clock },
     confirmHazard: { repo, clock: deps.clock },
     dismissHazard: { repo },
+    getHazard: { repo },
   };
 
   return {

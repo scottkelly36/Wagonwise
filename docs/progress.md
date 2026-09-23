@@ -1553,7 +1553,7 @@ starts.
 | M5.4  | Plan route screen (MapLibre)                                                                                         | Done — 2026-09-23 |
 | M5.5  | Route overview screen                                                                                                | Done — 2026-09-23 |
 | M5.6  | Active trip screen (no voice/reroute yet — M6/M7)                                                                    | Done — 2026-09-23 |
-| M5.7  | Report hazard (tap) + hazard detail                                                                                  | Not started       |
+| M5.7  | Report hazard (tap) + hazard detail                                                                                  | Done — 2026-09-23 |
 | M5.8  | Offline hazard queue (expo-sqlite)                                                                                   | Not started       |
 | M5.9  | Feedback screen                                                                                                      | Not started       |
 | M5.10 | Real-device/simulator verification both platforms; EAS Build → TestFlight + Play internal                            | Not started       |
@@ -2086,3 +2086,88 @@ maintenance cost every future migration pays — worth knowing about, not necess
 now (asserting "the last file is `N` and everything before it still applies" would be more
 robust, but that's a test-design change with no user-facing effect and no milestone currently
 needs it).
+
+**M5.7 delivered:** report hazard (tap) + hazard detail — the write side (report/confirm/dismiss)
+already existed from M3/M4; this closed a real gap M3/M4 left (no way to _read_ a hazard back)
+and built the two driver-app screens on top.
+
+- **Gap found and closed: `GET /hazards/reports/:id`.** `HazardRepository.findById` existed in
+  the port since M3, but nothing in `interface/routes.ts` ever exposed it over HTTP — confirmed
+  by checking, not assumed, the same way M5.5 confirmed no `RoutePlan` re-fetch endpoint and M5.6
+  confirmed no `ActiveTrip` backend at all. New `getHazard` use case (mirrors `getVehicleProfile`,
+  no ownership check per decision 63), proxied through the BFF, same shape as confirm/dismiss.
+  Deliberately skips `requireDriverId` in the handler, matching confirm/dismiss's own established
+  local pattern (decision 63 — a hazard report is community data with no per-driver
+  authorization) rather than introducing a third auth-check shape in this one route.
+- **`lib/hazard-labels.ts`**: plain-word labels for all eight `HazardType`s (AGENTS.md: "Low
+  bridge", "Too heavy for this road" — not "restriction" or "prohibition") and the
+  type→measurement-kind mapping (only `low_bridge`/`weight_limit`/`width_restriction` have
+  anything to measure).
+- **`lib/hazard-report-form.ts`**: pure parse/validate, same split as `vehicle-profile-form.ts` —
+  mirrors core's own `validateMeasurement` so a driver sees the same "must be a positive number"
+  rule before a network round trip.
+- **`app/report-hazard.tsx`**: tap-to-drop on the map (reusing `RouteMap`'s existing
+  `onMapPress`/`currentPosition`), an eight-item type grid (no dropdown — nothing to scroll or
+  type while parked, per the design doc's tap-report principle), an optional measurement field
+  that only appears for a measured type, an optional note, and a real submit. `expo-crypto`
+  (`Crypto.randomUUID()`) added as a dependency for the client-generated idempotency id
+  `reportHazard` has always expected (design doc §5 step 2) — branded via
+  `hazardReportIdSchema.parse()` at the point of generation, the same brand-at-the-boundary
+  pattern `routing.test.ts` already used for test fixtures, now used for real in shipped code.
+- **`app/hazards/[id].tsx`**: the detail screen — type, measurement (height shown with
+  feet/inches via the existing `formatHeightWithFeetInches`, AGENTS.md), note, when reported,
+  confirmation/dismissal counts, and real "Still there" / "Not there" buttons wired to the
+  existing confirm/dismiss endpoints.
+- **`api/hazards.ts` + `api/use-hazards.ts`**: `reportHazard`/`getHazard`/`confirmHazard`/
+  `dismissHazard` API calls and their TanStack hooks — `useReportHazard` a mutation (an action,
+  same reasoning as `useCreateRoutePlan`/`useStartTrip`), `useHazard` a query, confirm/dismiss
+  mutations invalidate that query's cache key on success so the detail screen reflects its own
+  action immediately.
+- **New `home.tsx` entry point**: "Report hazard", the tap-report screen's reachable-for-real
+  starting point (parked use, per the design doc). Reporting navigates straight to the new
+  hazard's own detail screen on success, closing report → detail into one flow.
+- **`lib/error-messages.ts`** gained `hazardsErrorMessage` (a second per-module map, alongside
+  `routingErrorMessage` — same established pattern, not a shared one, since the tag namespaces
+  are module-specific even though `ApiError` itself is shared).
+
+98 driver-app tests (up from 77 — `hazards.test.ts`, `hazard-labels.test.ts`,
+`hazard-report-form.test.ts`, `format-date.test.ts`), 428 core tests (up from 423 —
+`get-hazard.test.ts` plus new `routes.test.ts` cases), 66 driver-bff tests (up from 62). `pnpm
+arch` clean (277 modules, up from 263; 908 dependencies, up from 871). `pnpm lint`/`typecheck`/
+`format:check` all clean across every package.
+
+**Verified by actually running it, Docker still up from the M5.6 follow-up** so this is a genuine
+run, not a disclosed gap this time: all 428 core tests (including the new `getHazard` route
+against a real Postgres-backed `routes.test.ts` harness — the harness itself is in-memory, per
+existing convention, but the suite runs in the same process alongside the real Postgres
+integration suites that did run for real), all 66 driver-bff tests, all 98 driver-app tests;
+`npx expo-doctor` 21/21; a real `expo start` run confirmed `.expo/types/router.d.ts` includes both
+`/report-hazard` and `/hazards/[id]` before `tsc --noEmit` was trusted; `npx expo export
+--platform android` produced a real Hermes bundle (1576 modules, up from M5.6's 1554). **Not
+verified**: an actual running app — same hardware gap as every driver-app milestone since M5.1
+(no native build toolchain, no Android SDK, no macOS on this machine).
+
+## Decisions from M5.7
+
+58. **Hazard detail is reachable in this app only by just having reported a hazard — not by
+    tapping an existing hazard pin on a map.** There's no hazards-on-map display anywhere in the
+    app yet (route-overview/active-trip both still just list `hazardsOnRoute` as opaque text, per
+    M5.5/M5.6), and building one was never this task's scope (the design doc's own screen table
+    lists "Report hazard (tap)" and "Hazard detail" as two screens, not "browse hazards on a
+    map"). Recorded as a deliberate scope-down, not a silently narrower feature.
+59. **`GET /hazards/reports/:id` has no ownership check**, extending decision 63's reasoning
+    (confirm/dismiss have none either) to the read side: a hazard report is community data any
+    authenticated driver can see, not scoped to its reporter.
+
+## Deviations and open items from M5.7
+
+- **No hazards-on-map display.** Neither `route-overview` nor `active-trip` shows hazard pins —
+  they still only list `hazardsOnRoute`'s opaque ids as plain text (M5.5/M5.6, and that field is
+  itself always empty per M2.5's own deviations). A future task wiring a real map display would
+  also be what makes hazard detail reachable by tapping a pin, closing decision 58's gap.
+- **No offline queue** — M5.8's job. Reporting with no connectivity currently just fails with the
+  generic "couldn't reach the server" message; the client-generated idempotency id already in
+  place (this task) is exactly what M5.8's retry-safe queue needs, so nothing here has to change
+  to add it.
+- **No voice reporting** — M7's job, per the design doc's own hands-free principle. This screen is
+  deliberately the tap-only, parked-use half.

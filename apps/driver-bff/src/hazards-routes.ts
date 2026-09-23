@@ -35,6 +35,23 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
     return reply.status(core.status).send(core.body);
   });
 
+  app.get('/hazards/reports/:id', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const params = hazardReportIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request(
+      'GET',
+      `/hazards/reports/${params.data.id}`,
+      request.id,
+      { authorization: `Bearer ${token}` },
+    );
+    return reply.status(core.status).send(core.body);
+  });
+
   app.post('/hazards/reports/:id/confirm', async (request, reply) => {
     const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
     if (token === undefined) return reply;
