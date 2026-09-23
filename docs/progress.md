@@ -1551,7 +1551,7 @@ starts.
 | M5.2  | Auth — sign-in screen, secure token storage, TanStack Query client, opportunistic refresh                            | Done — 2026-09-23 |
 | M5.3  | Vehicle profiles screens                                                                                             | Done — 2026-09-23 |
 | M5.4  | Plan route screen (MapLibre)                                                                                         | Done — 2026-09-23 |
-| M5.5  | Route overview screen                                                                                                | Not started       |
+| M5.5  | Route overview screen                                                                                                | Done — 2026-09-23 |
 | M5.6  | Active trip screen (no voice/reroute yet — M6/M7)                                                                    | Not started       |
 | M5.7  | Report hazard (tap) + hazard detail                                                                                  | Not started       |
 | M5.8  | Offline hazard queue (expo-sqlite)                                                                                   | Not started       |
@@ -1873,3 +1873,72 @@ not by a real run, until it's opened on an actual device or simulator.
   above — real product decisions the design doc left open, asked of the user rather than guessed.
 - **`use-current-location.ts` uses TanStack Query, not a raw effect.** Recorded above — a real
   lint rule caught a real anti-pattern before it shipped, not a style preference.
+
+**M5.5 delivered:** the route-overview screen — a real route line drawn on the map, distance/
+time, avoided-restrictions/hazards sections, and a deliberately disabled "Start trip" button.
+
+- **`src/lib/polyline.ts`**: a hand-rolled polyline6 decoder (AGENTS.md rule 6 — the same
+  "small, well-understood things" reasoning as `sha256Hex` and the BFF's `core-client.ts`),
+  pinned to precision 1e6 specifically because `GeoLine` was pinned to polyline6 back in M2.3
+  (decision 52) and never needs to handle any other encoding. Tested with two hand-verified
+  single-point fixtures (worked out by hand from the algorithm's own bit-packing, not copied
+  from a library) plus a round-trip test through a locally-defined encoder for realistic
+  multi-byte deltas — the encoder lives only in the test file, kept deliberately separate from
+  the shipped decoder so a shared bug between the two couldn't hide behind the round trip alone.
+- **`src/state/current-route-plan-store.ts`**: a single ephemeral "current plan" slot, not a
+  list keyed by id. Confirmed by actually checking core's `routes.ts` (via a background
+  research pass) that no `GET /routing/route-plans/:id` endpoint exists — `docs/progress.md`'s
+  own M2.5/M2.6 notes already say this is deliberate ("no RoutePlan lifecycle in Phase 1"), so
+  building a keyed cache for a resource with no way to re-fetch it would be speculative
+  plumbing. `/plan-route` and `/route-overview` are still two separate screens/files (matching
+  the design doc's own screen table), just sharing this one slot instead of passing the whole
+  `RoutePlanDto` through Expo Router's string-only navigation params.
+- **`components/route-map.tsx` gained an optional `routeLine` prop and an optional (not
+  required) `onMapPress`** — the overview screen shows a fixed, already-planned route with no
+  tap-to-edit, unlike the plan-route screen. Verified against MapLibre's real `GeoJSONSource`/
+  `Layer` API the same way M5.4 verified `Map`/`Camera`/`ViewAnnotation`: read directly from the
+  installed package's TypeScript source, not assumed.
+- **"Start trip" is a real UI element, shown per the design doc's own screen table, but
+  genuinely disabled — not wired to a route that doesn't exist.** A background research pass
+  confirmed there is no `active_trips` table, no `ActiveTrip` domain type, and no trip-start
+  endpoint anywhere in `apps/core`/`apps/driver-bff`/`packages/contracts` — active-trip tracking
+  is explicitly M6 (Alerts) territory, and the driver-facing screen for it is M5.6, next. Rather
+  than couple this commit's typecheck to a screen that doesn't exist yet (`router.push('/active-
+trip')` would fail `tsc --noEmit` once Expo Router's typed routes are actually generated — see
+  the verification note below), the button stays visibly present but disabled with a "coming
+  soon" note, matching this codebase's own precedent (decision 68) for showing a real gap
+  honestly rather than faking a working feature.
+- **A real gap in this session's own prior verification claims, found while building this
+  task**: M5.3's and M5.4's progress notes both said "confirmed by running `tsc --noEmit`" for
+  Expo Router's typed routes, but `.expo/types/router.d.ts` — the file that actually makes typed
+  routes real — is generated only by `expo start` (confirmed empirically: it does **not** appear
+  after `expo export`, and even under `expo start` it took roughly 30 seconds of Metro startup
+  before appearing, with no client ever connecting). Neither M5.3 nor M5.4 had a dangling route
+  reference, so `tsc --noEmit` happened to pass either way — but the claim that typed routes
+  were being genuinely checked was not verified at the time, only assumed. Confirmed for real
+  this time: running `expo start` long enough to generate real types, then `tsc --noEmit`,
+  genuinely caught the dangling `/active-trip` reference before it was fixed.
+
+**67 driver-app tests** (up from 60 at M5.4 — `polyline.test.ts`,
+`current-route-plan-store.test.ts`). 402 core, 56 driver-bff, 17 architecture, 33 contracts.
+`pnpm arch` clean (248 modules, 790 dependencies). `pnpm verify` clean end to end across all six
+packages.
+
+**Verified the same way as M5.1–M5.4, plus a genuine typed-routes check this time**: `pnpm
+--filter @wagonwise/driver-app run typecheck/lint/test` all pass, the latter run only after
+actually generating `.expo/types/router.d.ts` (via a real `expo start`, left running long enough
+to finish, then stopped) rather than trusting a stale or absent types file; `npx expo-doctor`
+21/21; `npx expo export --platform android` and `--platform ios` both produce a real Hermes
+bundle. **Not verified: an actual map render with a real route line drawn on it** — same
+hardware gap as M5.4 (no native build toolchain on this machine at all, not just no Android SDK).
+
+## Decisions from M5.5
+
+- **The route-overview screen reads a route plan from a small client-side store, never
+  re-fetches one.** Recorded above — core genuinely has no endpoint to re-fetch from, confirmed
+  by checking, not assumed.
+- **"Start trip" ships visible but disabled, not wired to a nonexistent screen.** Recorded above
+  — keeps this commit's typecheck honest rather than deferring a broken reference to M5.6.
+- **`docs/progress.md`'s own M5.3/M5.4 verification claims about typed routes were only
+  half-true — corrected here, not silently left wrong.** Recorded above: the mechanism is real,
+  but neither prior task had actually generated the types file it claimed to be checking against.

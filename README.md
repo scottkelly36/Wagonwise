@@ -299,8 +299,8 @@ second check on top — core alone decides ownership/authorization for those.
 ## Driver app
 
 `apps/driver-app` (M5, in progress — M5.1 skeleton, M5.2 sign-in, M5.3 vehicle profiles, M5.4 plan
-route) — Expo +
-Expo Router, targeting both iOS and Android. No native Xcode/Android Studio project is checked in;
+route, M5.5 route overview) — Expo + Expo Router, targeting both iOS and Android. No native
+Xcode/Android Studio project is checked in;
 Expo generates those on demand (`expo prebuild`, or transparently when EAS Build runs).
 
 ```bash
@@ -380,6 +380,17 @@ for both platforms produces a real Hermes bundle that includes MapLibre's JS and
 assets (proof the library resolves and bundles, not that it renders) plus `expo-doctor` (21/21).
 Treat the map screen as unverified-by-a-real-run until it's actually opened on a device or
 simulator.
+
+**Route overview (M5.5)**: `/route-overview` — the route line (decoded from Valhalla's polyline6
+geometry, `src/lib/polyline.ts`, hand-rolled per AGENTS.md rule 6), distance/time, "restrictions
+avoided" and "hazards on this route" sections (both always empty right now — `RoutePlan`'s
+`avoidedRestrictions`/`hazardsOnRoute` fields have been `[]` since M2.5/M3.5, a documented
+backend gap, not a bug here), and a **disabled** "Start trip" button — active-trip tracking is
+M5.6's screen and M6's backend, neither of which exists yet, so this points nowhere rather than
+at a route that doesn't exist. The just-planned route is held in a small in-memory store
+(`src/state/current-route-plan-store.ts`), not re-fetched — core has no `GET
+/routing/route-plans/:id` endpoint (deliberately: there's no route-plan history to browse yet),
+so `/plan-route` and `/route-overview` share this one "current plan" slot instead.
 
 ## Repo layout
 

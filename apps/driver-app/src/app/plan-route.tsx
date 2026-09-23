@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,15 +13,18 @@ import {
 import { useVehicleProfiles } from '../api/use-vehicle-profiles';
 import { useCreateRoutePlan } from '../api/use-route-plans';
 import { RouteMap, type MapPoint } from '../components/route-map';
-import { routingErrorMessage } from '../lib/error-messages';
 import { useCurrentLocation } from '../hooks/use-current-location';
+import { routingErrorMessage } from '../lib/error-messages';
+import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 
 type PointMode = 'origin' | 'destination';
 
 export default function PlanRouteScreen() {
+  const router = useRouter();
   const location = useCurrentLocation();
   const { data: profiles, isLoading: profilesLoading } = useVehicleProfiles();
   const createRoutePlan = useCreateRoutePlan();
+  const setCurrentRoutePlan = useCurrentRoutePlanStore((s) => s.setPlan);
 
   const [profileId, setProfileId] = useState<string | undefined>(undefined);
   const [origin, setOrigin] = useState<MapPoint | undefined>(undefined);
@@ -57,17 +61,15 @@ export default function PlanRouteScreen() {
     ) {
       return;
     }
-    createRoutePlan.mutate({
-      profileId: selectedProfile.id,
-      origin: effectiveOrigin,
-      destination,
-    });
-  }
-
-  function handlePlanAnother(): void {
-    createRoutePlan.reset();
-    setDestination(undefined);
-    setPointMode('destination');
+    createRoutePlan.mutate(
+      { profileId: selectedProfile.id, origin: effectiveOrigin, destination },
+      {
+        onSuccess: (plan) => {
+          setCurrentRoutePlan(plan);
+          router.push('/route-overview');
+        },
+      },
+    );
   }
 
   return (
@@ -75,84 +77,66 @@ export default function PlanRouteScreen() {
       <RouteMap origin={effectiveOrigin} destination={destination} onMapPress={handleMapPress} />
 
       <View style={styles.panel}>
-        {createRoutePlan.data ? (
-          <View style={styles.result}>
-            <Text style={styles.resultText}>
-              {createRoutePlan.data.distanceKm.toFixed(1)} km ·{' '}
-              {Math.round(createRoutePlan.data.durationMin)} min
-            </Text>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handlePlanAnother}
-              testID="plan-another-button"
-            >
-              <Text style={styles.buttonText}>Plan another route</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.profileRow}
-            >
-              {profilesLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : profiles === undefined || profiles.length === 0 ? (
-                <Text style={styles.hint}>Add a vehicle profile first.</Text>
-              ) : (
-                profiles.map((profile) => (
-                  <TouchableOpacity
-                    key={profile.id}
-                    style={[styles.chip, profile.id === profileId && styles.chipSelected]}
-                    onPress={() => setProfileId(profile.id)}
-                    testID={`profile-chip-${profile.id}`}
-                  >
-                    <Text
-                      style={[styles.chipText, profile.id === profileId && styles.chipTextSelected]}
-                    >
-                      {profile.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-
-            <View style={styles.modeRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.profileRow}
+        >
+          {profilesLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : profiles === undefined || profiles.length === 0 ? (
+            <Text style={styles.hint}>Add a vehicle profile first.</Text>
+          ) : (
+            profiles.map((profile) => (
               <TouchableOpacity
-                style={[styles.modeButton, pointMode === 'origin' && styles.modeButtonActive]}
-                onPress={() => setPointMode('origin')}
-                testID="mode-origin-button"
+                key={profile.id}
+                style={[styles.chip, profile.id === profileId && styles.chipSelected]}
+                onPress={() => setProfileId(profile.id)}
+                testID={`profile-chip-${profile.id}`}
               >
-                <Text style={styles.modeButtonText}>Tap to set start</Text>
+                <Text
+                  style={[styles.chipText, profile.id === profileId && styles.chipTextSelected]}
+                >
+                  {profile.name}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modeButton, pointMode === 'destination' && styles.modeButtonActive]}
-                onPress={() => setPointMode('destination')}
-                testID="mode-destination-button"
-              >
-                <Text style={styles.modeButtonText}>Tap to set destination</Text>
-              </TouchableOpacity>
-            </View>
+            ))
+          )}
+        </ScrollView>
 
-            {createRoutePlan.isError && (
-              <Text style={styles.error}>{routingErrorMessage(createRoutePlan.error)}</Text>
-            )}
+        <View style={styles.modeRow}>
+          <TouchableOpacity
+            style={[styles.modeButton, pointMode === 'origin' && styles.modeButtonActive]}
+            onPress={() => setPointMode('origin')}
+            testID="mode-origin-button"
+          >
+            <Text style={styles.modeButtonText}>Tap to set start</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modeButton, pointMode === 'destination' && styles.modeButtonActive]}
+            onPress={() => setPointMode('destination')}
+            testID="mode-destination-button"
+          >
+            <Text style={styles.modeButtonText}>Tap to set destination</Text>
+          </TouchableOpacity>
+        </View>
 
-            <TouchableOpacity
-              style={[styles.button, !canPlan && styles.buttonDisabled]}
-              disabled={!canPlan}
-              onPress={handlePlan}
-              testID="plan-route-button"
-            >
-              {createRoutePlan.isPending ? (
-                <ActivityIndicator color="#0B1220" />
-              ) : (
-                <Text style={styles.buttonText}>Plan route</Text>
-              )}
-            </TouchableOpacity>
-          </>
+        {createRoutePlan.isError && (
+          <Text style={styles.error}>{routingErrorMessage(createRoutePlan.error)}</Text>
         )}
+
+        <TouchableOpacity
+          style={[styles.button, !canPlan && styles.buttonDisabled]}
+          disabled={!canPlan}
+          onPress={handlePlan}
+          testID="plan-route-button"
+        >
+          {createRoutePlan.isPending ? (
+            <ActivityIndicator color="#0B1220" />
+          ) : (
+            <Text style={styles.buttonText}>Plan route</Text>
+          )}
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -235,14 +219,5 @@ const styles = StyleSheet.create({
   error: {
     fontSize: 16,
     color: '#F87171',
-  },
-  result: {
-    gap: 12,
-    alignItems: 'center',
-  },
-  resultText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
 });
