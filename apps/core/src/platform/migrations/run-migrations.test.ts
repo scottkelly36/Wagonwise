@@ -37,6 +37,7 @@ describe('runMigrations', () => {
       '0004_route_plans.sql',
       '0005_hazards.sql',
       '0006_active_trips.sql',
+      '0007_feedback.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -85,6 +86,12 @@ describe('runMigrations', () => {
     );
     expect(hazardsTables.map((row) => row.table_name)).toEqual(['reports']);
 
+    const { rows: feedbackTables } = await pool.query<{ table_name: string }>(
+      `select table_name from information_schema.tables
+       where table_schema = 'feedback' order by table_name`,
+    );
+    expect(feedbackTables.map((row) => row.table_name)).toEqual(['notes']);
+
     const { rows: extensions } = await pool.query<{ extname: string }>(
       "select extname from pg_extension where extname = 'postgis'",
     );
@@ -110,6 +117,7 @@ describe('runMigrations', () => {
       '0004_route_plans.sql',
       '0005_hazards.sql',
       '0006_active_trips.sql',
+      '0007_feedback.sql',
     ]);
   });
 });

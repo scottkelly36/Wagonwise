@@ -17,7 +17,7 @@ export interface AppDeps {
 
 // Routing gated as of M4.2, hazards as of M4.3 — both modules now read `request.driverId`
 // instead of a trusted body field.
-const DRIVER_AUTH_PREFIXES = ['/routing/', '/hazards/'];
+const DRIVER_AUTH_PREFIXES = ['/routing/', '/hazards/', '/feedback/'];
 
 const REQUEST_ID_HEADER = 'x-request-id';
 

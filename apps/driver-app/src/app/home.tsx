@@ -20,7 +20,7 @@ export default function HomeScreen() {
       <View style={styles.content}>
         <Text style={styles.title}>{PRODUCT_NAME}</Text>
         <Text style={styles.subtitle}>Signed in as {state.driver.identifier}</Text>
-        <Text style={styles.note}>Offline reporting and the rest land in M5.8+.</Text>
+        <Text style={styles.note}>Real-device verification (M5.10) is next.</Text>
 
         <TouchableOpacity
           style={styles.button}
@@ -44,6 +44,14 @@ export default function HomeScreen() {
           testID="report-hazard-button"
         >
           <Text style={styles.buttonText}>Report hazard</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => router.push('/feedback')}
+          testID="feedback-button"
+        >
+          <Text style={styles.buttonText}>Feedback</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

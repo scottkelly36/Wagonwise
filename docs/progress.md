@@ -1555,7 +1555,7 @@ starts.
 | M5.6  | Active trip screen (no voice/reroute yet — M6/M7)                                                                    | Done — 2026-09-23 |
 | M5.7  | Report hazard (tap) + hazard detail                                                                                  | Done — 2026-09-23 |
 | M5.8  | Offline hazard queue (expo-sqlite)                                                                                   | Done — 2026-09-23 |
-| M5.9  | Feedback screen                                                                                                      | Not started       |
+| M5.9  | Feedback screen                                                                                                      | Done — 2026-09-23 |
 | M5.10 | Real-device/simulator verification both platforms; EAS Build → TestFlight + Play internal                            | Not started       |
 
 **M5.1 delivered:** `apps/driver-app` exists as a real Expo project — not just a plan for one —
@@ -2252,3 +2252,93 @@ carried forward again.
   mentioning "the offline hazard queue and cached hazards" together — the M5 task breakdown names
   only "Offline hazard queue" for M5.8, and there's still no hazards-on-map display anywhere in
   the app to cache data for (M5.7 decision 58's own gap, still open).
+
+**M5.9 delivered:** the feedback screen — and, since `feedback` was the last of the four bounded
+contexts named in AGENTS.md rule 6 with genuinely nothing built (confirmed by checking, same as
+every other "doesn't exist yet" gap this session found: M5.6's `ActiveTrip`, M5.7's hazard GET),
+the whole module to go with it: domain, one use case, a migration, one endpoint, a BFF proxy, and
+the driver-app screen.
+
+- **`modules/feedback/`**: the smallest module in the repo — `FeedbackNote { id, driverId,
+message, appVersion, deviceInfo, createdAt }`, `validateMessage` (non-blank, mirrors routing's
+  `validateName`), one `submitFeedback` use case, a `FeedbackNoteRepository` port with a single
+  `save` method (insert-only, no `findById` — there is no read use case at all: design doc §8's
+  "free-text notes to you" is one-way, read later via `psql`, not back through the app).
+  `appVersion`/`deviceInfo` are trusted and stored as given, the same way a hazard report's `note`
+  field is — diagnostic context for whoever reads feedback, not data the domain acts on.
+- **Migration `0007_feedback.sql`**: `feedback.notes`, in the `feedback` schema `0001_init.sql`
+  already created back in M1.4 (a schema with no tables in it until now).
+- **`POST /feedback/notes`** (201) — same `requireDriverId`/zod-body/`statusFor()` shape as every
+  other module's routes. `/feedback/` added to `DRIVER_AUTH_PREFIXES`
+  (`host/build-app.ts`) — found and fixed the one test that specifically asserted `/feedback/`
+  was _not_ yet gated (`build-app.test.ts`, written in M4.2/M4.3 as "a future module"); now it's
+  parameterized across all three real prefixes, with a genuinely different placeholder
+  (`/admin/`) standing in for "some module that still doesn't exist."
+- **`packages/contracts/src/feedback.ts`**: `submitFeedbackRequestSchema` (no `driverId` field,
+  same reasoning as every other create-request schema), `feedbackNoteSchema`. New `./feedback`
+  subpath export added to `package.json`, matching `./routing`/`./hazards`.
+- **`apps/driver-bff/src/feedback-routes.ts`**: one proxy route, same forward-and-relay shape as
+  every other module's BFF routes.
+- **driver-app**: `api/feedback.ts` + `api/use-feedback.ts` (a mutation, same reasoning as every
+  other create-style call). `lib/app-info.ts` reads the app version back out of
+  `Constants.expoConfig.version` (`expo-constants`, already an existing dependency — no new one
+  needed) and device info from React Native's own built-in `Platform.OS`/`Platform.Version` (no
+  `expo-device` dependency added either — a plain `"ios 17.2"`-style string is enough for this
+  screen's job). New `app/feedback.tsx`: a free-text note, "Send," and a "Thanks" confirmation —
+  reachable from a new `home.tsx` entry point.
+
+70 driver-bff tests (up from 66), 114 driver-app tests (up from 106 — `feedback.test.ts`,
+`app-info.test.ts`), 437 core tests (up from 428 — the new module's own tests plus two
+`run-migrations.test.ts` fixes, see below), 41 contracts tests (up from 37). `pnpm arch` clean
+(306 modules, up from 283; 997 dependencies, up from 918). `pnpm lint`/`typecheck`/`format:check`
+all clean across every package.
+
+**Also fixed, found the same way M5.6's follow-up found it**: `run-migrations.test.ts` hardcoded
+the exact migration-file list and the `routing` schema's table list (decision 57's own prediction
+from the M5.6 follow-up — "a real, if minor, maintenance cost every future migration pays").
+Fixed the same way as that follow-up: added `'0007_feedback.sql'` to both hardcoded lists, and
+added the `feedback` schema's own table assertion (`['notes']`), which didn't exist yet for any
+prior module's first migration into a fresh schema.
+
+**Verified by actually running it, all for real this time — Docker was already up from the M5.6
+follow-up**: all 437 core tests (including the new `postgres-feedback-note-repository.test.ts`
+against a real Postgres container — inserted a real row, read it back with a raw `pool.query`,
+since there's no repository-level `findById` to round-trip through), all 70 driver-bff tests, all
+114 driver-app tests; `npx expo-doctor` 21/21; a real `expo start` run confirmed
+`.expo/types/router.d.ts` includes `/feedback` before `tsc --noEmit` was trusted; `npx expo export
+--platform android` produced a real Hermes bundle (1611 modules, up from M5.8's 1606). Also
+refreshed several more stale spots in `README.md` beyond the driver-app section M5.8 already
+fixed — the repo-layout table's `modules/` line still said "routing, hazards, feedback not
+started" (wrong since M2/M3), and the driver-bff status line was missing `feedback`. **Not
+verified**: an actual running app — same hardware gap as every driver-app milestone since M5.1.
+
+## Decisions from M5.9
+
+62. **`FeedbackNoteRepository` has only `save` — no `findById`, no list.** Matches the module's
+    own scope exactly: design doc §8 describes a one-way channel to the developer, and every
+    other module in this codebase only grows a read method once a real caller needs one (M2.3's
+    `RoutingEngine`, M5.7's `getHazard`). Revisit if an admin/staff view of feedback is ever
+    built — explicitly out of scope for Phase 1 (AGENTS.md: staff portal is Phase 2).
+63. **`appVersion`/`deviceInfo` are untyped, unvalidated strings the app builds itself** — no
+    shared "device info" contract, no enum of known OS names. They're diagnostic context for a
+    human reader, not data the domain branches on, so structuring them further would be ceremony
+    with no behaviour behind it (same reasoning as a hazard report's free-text `note`).
+64. **Device info comes from React Native's built-in `Platform` module, not a new `expo-device`
+    dependency.** `Platform.OS`/`Platform.Version` already ship with every RN app and are enough
+    for "which OS and roughly which version filed this" — the extra precision `expo-device` adds
+    (exact model name, product name) has no reader who needs it yet.
+
+## Deviations and open items from M5.9
+
+- **No admin/read UI for feedback notes** — deliberately out of scope (decision 62); read via
+  `psql` for now, matching M1.5's identical deviation for invite codes before any admin tooling
+  existed.
+- **Real device info strings are unverified** — `Platform.OS`/`Platform.Version`'s exact output on
+  a real device (e.g. whether Android's `Platform.Version` is the API level or a version string)
+  is documented behaviour, not independently confirmed against real hardware, same hardware gap
+  as the rest of this milestone.
+- That closes M5.1–M5.9. **M5.10** (real-device/simulator verification, EAS Build → TestFlight +
+  Play internal) is the only M5 task left, and it is explicitly the one task in this milestone
+  that cannot be done from this machine — it needs a real Expo account, a real device or
+  simulator, and (for the store submissions) Apple/Google developer accounts the user must set up
+  themselves.
