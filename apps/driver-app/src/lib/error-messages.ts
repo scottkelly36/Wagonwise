@@ -15,3 +15,15 @@ export function routingErrorMessage(error: unknown): string {
   }
   return "Couldn't reach the server. Check your connection.";
 }
+
+const HAZARDS_MESSAGES: Record<string, string> = {
+  InvalidMeasurement: 'The measurement must be a positive number.',
+  HazardReportNotFound: "That report isn't there any more.",
+};
+
+export function hazardsErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    return HAZARDS_MESSAGES[error.tag] ?? 'Something went wrong. Try again.';
+  }
+  return "Couldn't reach the server. Check your connection.";
+}

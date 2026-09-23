@@ -6,6 +6,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
 import { confirmHazard, type ConfirmHazardDeps } from '../application/confirm-hazard.js';
 import { dismissHazard, type DismissHazardDeps } from '../application/dismiss-hazard.js';
+import { getHazard, type GetHazardDeps } from '../application/get-hazard.js';
 import { reportHazard, type ReportHazardDeps } from '../application/report-hazard.js';
 import { statusFor } from './error-mapping.js';
 
@@ -13,6 +14,7 @@ export interface HazardsRouteDeps {
   readonly reportHazard: ReportHazardDeps;
   readonly confirmHazard: ConfirmHazardDeps;
   readonly dismissHazard: DismissHazardDeps;
+  readonly getHazard: GetHazardDeps;
 }
 
 /**
@@ -62,6 +64,23 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
     }
     // Not always a fresh creation — an idempotent retry or a merge both return 200, since the
     // caller can't tell (and shouldn't need to) which one happened (decision, M3.4).
+    return reply.status(200).send(result.value);
+  });
+
+  // No requireDriverId call — same reasoning as confirm/dismiss below (decision 63): a hazard
+  // report is community data with no ownership check, though the host's driver-auth hook still
+  // requires some verified driver behind the whole /hazards/ prefix (driver-auth.test.ts).
+  app.get('/hazards/reports/:id', async (request, reply) => {
+    const params = hazardReportIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await getHazard(deps.getHazard, {
+      id: makeId<'HazardReportId'>(params.data.id),
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
     return reply.status(200).send(result.value);
   });
 

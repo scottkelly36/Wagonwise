@@ -19,6 +19,7 @@ function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
     reportHazard: { repo, clock },
     confirmHazard: { repo, clock },
     dismissHazard: { repo },
+    getHazard: { repo },
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {
@@ -124,6 +125,44 @@ describe('POST /hazards/reports', () => {
       },
       ...asDriver('driver-1'),
     });
+    expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('GET /hazards/reports/:id', () => {
+  it('200s the report for a known id', async () => {
+    const { app } = buildApp();
+    const created = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports',
+      payload: {
+        id: '11111111-1111-4111-8111-111111111111',
+        type: 'low_bridge',
+        location,
+        source: 'tap',
+      },
+      ...asDriver('driver-1'),
+    });
+    const { id } = created.json<{ id: string }>();
+
+    const response = await app.inject({ method: 'GET', url: `/hazards/reports/${id}` });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id, type: 'low_bridge', status: 'active' });
+  });
+
+  it('404s an unknown id', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'GET',
+      url: '/hazards/reports/22222222-2222-4222-8222-222222222222',
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'HazardReportNotFound' });
+  });
+
+  it('400s a non-UUID id', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({ method: 'GET', url: '/hazards/reports/not-a-uuid' });
     expect(response.statusCode).toBe(400);
   });
 });

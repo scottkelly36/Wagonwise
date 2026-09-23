@@ -71,6 +71,56 @@ describe('POST /hazards/reports', () => {
   });
 });
 
+describe('GET /hazards/reports/:id', () => {
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({ method: 'GET', url: `/hazards/reports/${REPORT_ID}` });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards the id and token', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 200, body: { id: REPORT_ID, type: 'low_bridge' } };
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/hazards/reports/${REPORT_ID}`,
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'GET',
+      path: `/hazards/reports/${REPORT_ID}`,
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('relays a 404 from core unchanged', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 404, body: { tag: 'HazardReportNotFound' } };
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/hazards/reports/${REPORT_ID}`,
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({ tag: 'HazardReportNotFound' });
+  });
+
+  it('400s a non-UUID id before even checking for a token', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'GET',
+      url: '/hazards/reports/not-a-uuid',
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+});
+
 describe('POST /hazards/reports/:id/confirm', () => {
   it('requires a Bearer token even though the domain has no ownership check', async () => {
     const { app, coreClient } = buildApp();

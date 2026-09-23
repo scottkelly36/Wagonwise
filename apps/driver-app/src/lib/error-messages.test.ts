@@ -1,5 +1,5 @@
 import { ApiError } from '../api/errors';
-import { routingErrorMessage } from './error-messages';
+import { hazardsErrorMessage, routingErrorMessage } from './error-messages';
 
 describe('routingErrorMessage', () => {
   it('maps a known tag to plain UK-English wording', () => {
@@ -22,6 +22,29 @@ describe('routingErrorMessage', () => {
 
   it('falls back to a network message for a non-ApiError (e.g. fetch failure)', () => {
     expect(routingErrorMessage(new TypeError('Network request failed'))).toBe(
+      "Couldn't reach the server. Check your connection.",
+    );
+  });
+});
+
+describe('hazardsErrorMessage', () => {
+  it('maps a known tag to plain UK-English wording', () => {
+    expect(hazardsErrorMessage(new ApiError('InvalidMeasurement', 400))).toBe(
+      'The measurement must be a positive number.',
+    );
+    expect(hazardsErrorMessage(new ApiError('HazardReportNotFound', 404))).toBe(
+      "That report isn't there any more.",
+    );
+  });
+
+  it('falls back to a generic message for an unrecognised tag', () => {
+    expect(hazardsErrorMessage(new ApiError('SomeNewTag', 500))).toBe(
+      'Something went wrong. Try again.',
+    );
+  });
+
+  it('falls back to a network message for a non-ApiError', () => {
+    expect(hazardsErrorMessage(new TypeError('Network request failed'))).toBe(
       "Couldn't reach the server. Check your connection.",
     );
   });
