@@ -60,7 +60,7 @@ export function createCoreClient(
 
       const response = await fetchFn(`${coreInternalUrl}${path}`, init);
       const contentLength = response.headers.get('content-length');
-      const responseBody =
+      const responseBody: unknown =
         response.status === 204 || contentLength === '0' ? undefined : await response.json();
       return { status: response.status, body: responseBody };
     },

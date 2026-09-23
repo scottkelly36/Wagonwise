@@ -4,9 +4,13 @@ packages:
 
 # Install scripts are blocked by default. Only packages listed here may run them.
 # esbuild is required by Vitest and links its platform binary during install.
+# @parcel/watcher (Metro's native file watcher) and unrs-resolver (a transitive
+# dependency of eslint-config-expo's import resolution) arrived with apps/driver-app.
 allowBuilds:
+  '@parcel/watcher': true
   cpu-features: true
   esbuild: true
   protobufjs: true
   simple-git-hooks: true
   ssh2: true
+  unrs-resolver: true

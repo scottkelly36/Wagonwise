@@ -59,8 +59,8 @@ pnpm verify   # lint && typecheck && test && arch && format:check — the same c
 failure over lint/formatting/tests never has to happen in the first place. Skip it just once with
 `SKIP_SIMPLE_GIT_HOOKS=1 git push` if you ever need to push before fixing what it caught.
 
-Then start everything (core on 3001, the driver BFF on 3002 — `pnpm dev` runs every app's `dev`
-script at once) and check both answer:
+Then start everything (core on 3001, the driver BFF on 3002, the driver app's Metro bundler —
+`pnpm dev` runs every app's `dev` script at once) and check both services answer:
 
 ```bash
 pnpm dev
@@ -110,7 +110,7 @@ More variables arrive with the milestones that need them. Each one must also be 
 | Command             | Does                                                                          |
 | ------------------- | ----------------------------------------------------------------------------- |
 | `pnpm install`      | Install workspace dependencies                                                |
-| `pnpm dev`          | Run core (3001) and the driver BFF (3002) with reload on change               |
+| `pnpm dev`          | Run core (3001), the driver BFF (3002) and the driver app's Metro bundler     |
 | `pnpm lint`         | ESLint across every package, via Turborepo                                    |
 | `pnpm typecheck`    | `tsc --noEmit` across every package                                           |
 | `pnpm test`         | Vitest across every package                                                   |
@@ -296,13 +296,109 @@ second check on top — core alone decides ownership/authorization for those.
 | `CORE_INTERNAL_URL` | `http://127.0.0.1:3001`  | Where core lives                         |
 | `CORE_INTERNAL_KEY` | `local-dev-internal-key` | Must match one of core's `INTERNAL_KEYS` |
 
+## Driver app
+
+`apps/driver-app` (M5, in progress — M5.1 skeleton, M5.2 sign-in, M5.3 vehicle profiles, M5.4 plan
+route, M5.5 route overview) — Expo + Expo Router, targeting both iOS and Android. No native
+Xcode/Android Studio project is checked in;
+Expo generates those on demand (`expo prebuild`, or transparently when EAS Build runs).
+
+```bash
+pnpm --filter @wagonwise/driver-app dev   # starts the Metro bundler
+```
+
+Then press `a` (Android) or `i` (iOS, macOS only) in that terminal, scan the QR code with the
+Expo Go app on a physical phone, or run `pnpm --filter @wagonwise/driver-app android` / `ios`
+directly. `pnpm dev` from the repo root now starts core, the driver BFF and the Expo dev server
+together.
+
+The app talks to the driver BFF via `src/config.ts`, the one place it reads `process.env`
+(mirroring core's own `config.ts` rule) — no `.env` needed for either simulator:
+
+| Platform         | Default BFF URL           | Why                                                         |
+| ---------------- | ------------------------- | ----------------------------------------------------------- |
+| Android emulator | `http://10.0.2.2:3002`    | The emulator's own alias for the host machine's `localhost` |
+| iOS simulator    | `http://localhost:3002`   | The simulator shares the host's network namespace           |
+| Physical device  | set `EXPO_PUBLIC_BFF_URL` | Needs the host machine's real LAN IP, e.g. `192.168.1.50`   |
+
+Copy `apps/driver-app/.env.example` to `apps/driver-app/.env` to override it. `EXPO_PUBLIC_`-
+prefixed variables are inlined into the JS bundle by Expo's own tooling; this one is also in
+`turbo.json`'s `passThroughEnv` list, or `pnpm dev` would silently drop it.
+
+**EAS Build** (`apps/driver-app/eas.json`) has `development`/`preview`/`production` profiles for
+both platforms, ready for TestFlight and Google Play internal testing (M5.10) — not yet linked to
+a real Expo account/project (`eas login` + `eas init` are one-time, interactive steps only you can
+do). **Not yet verified on a real simulator/device or Expo Go** — this machine has no Android SDK
+and no macOS, so verification so far is `expo export --platform android|ios` (a real Metro bundle,
+proves every import resolves and Hermes compiles it) plus `expo-doctor` (21/21 checks), not an
+actual running app. Worth a real run on your phone via Expo Go before trusting the BFF connectivity
+logic (`src/config.ts`) beyond what its unit tests cover.
+
+**Sign-in (M5.2)**: OTP over email/phone plus an invite code on first sign-in, matching identity's
+own flow exactly (`/sign-in` → `/identity/otp/request` → `/identity/otp/verify`, through the BFF).
+The refresh token and driver info are persisted in `expo-secure-store` (Keychain on iOS, Keystore
+on Android); the access token itself is never persisted — a fresh one is fetched on every cold
+start via `/identity/token/refresh`. Once signed in, a proactive refresh is scheduled ahead of the
+access token's real 15-minute expiry, and re-checked whenever the app returns to the foreground
+(`src/hooks/use-opportunistic-refresh.ts`) — the design doc's "never only on a 401," so a driver in
+a dead zone on the A69 doesn't discover the expiry mid-trip. Sign out clears both stored values.
+
+**Testing note**: `apps/driver-app`'s Jest config extends jest-expo's default
+`transformIgnorePatterns` to also transpile `jose` (it ships ESM-only, no CJS build) — see the
+comment in `apps/driver-app/jest.config.js` if a future ESM-only dependency hits the same
+"Cannot use import statement outside a module" error. `packages/contracts`'s `package.json`
+`exports` also gained a `"default"` condition alongside `"import"` for the same underlying
+reason: Jest's own resolver doesn't request the `import` condition by default.
+
+**Vehicle profiles (M5.3)**: `/profiles` (list), `/profiles/new` (create), `/profiles/[id]` (edit,
+delete) — all through the BFF's `/routing/vehicle-profiles` routes with the signed-in driver's
+bearer token, matching M4.2's contract exactly (no `driverId` field anywhere; the server derives
+it from the token). Height is shown alongside its feet/inches conversion (`src/lib/units.ts`) per
+AGENTS.md's UK-signage convention — width/length/weight stay metric-only, matching UK road
+signage. Client-side validation mirrors core's own domain rule exactly (every measurement must be
+a positive number) so a driver sees the same rejection before a network round trip, not a looser
+one the server would reject anyway.
+
+**Plan route (M5.4)**: `/plan-route` — a MapLibre map (`@maplibre/maplibre-react-native`), a
+vehicle-profile picker, and tap-to-drop for origin/destination (no geocoding/text search yet — a
+deliberate scope cut, decided with the user, not a gap found later). Origin defaults to the
+device's current location (`expo-location`, foreground permission only) until a driver taps their
+own point. Calls the BFF's `POST /routing/route-plans` and shows the resulting distance/duration
+inline — the route line itself, hazards and avoided restrictions are M5.5's job (route overview
+screen), not duplicated here.
+
+Map tiles come from MapTiler (the user's choice over Stadia/self-hosting — the design doc named
+both as candidates but never picked one). `EXPO_PUBLIC_MAPTILER_API_KEY` unset falls back to
+MapLibre's own free, keyless demo style (`src/lib/map-style.ts`) so the screen renders a real map
+with zero setup; get a real key at [cloud.maptiler.com](https://cloud.maptiler.com) before relying
+on it beyond local dev. Copy `apps/driver-app/.env.example` to `.env` to set it.
+
+**Not verified on a real map render** — beyond the disclosed gap every M5 task has had so far (no
+Android SDK, no macOS on this machine), MapLibre specifically needs its own native module built
+(`expo prebuild`/EAS Build), which this machine can't do either. Verified so far: `expo export`
+for both platforms produces a real Hermes bundle that includes MapLibre's JS and its marker
+assets (proof the library resolves and bundles, not that it renders) plus `expo-doctor` (21/21).
+Treat the map screen as unverified-by-a-real-run until it's actually opened on a device or
+simulator.
+
+**Route overview (M5.5)**: `/route-overview` — the route line (decoded from Valhalla's polyline6
+geometry, `src/lib/polyline.ts`, hand-rolled per AGENTS.md rule 6), distance/time, "restrictions
+avoided" and "hazards on this route" sections (both always empty right now — `RoutePlan`'s
+`avoidedRestrictions`/`hazardsOnRoute` fields have been `[]` since M2.5/M3.5, a documented
+backend gap, not a bug here), and a **disabled** "Start trip" button — active-trip tracking is
+M5.6's screen and M6's backend, neither of which exists yet, so this points nowhere rather than
+at a route that doesn't exist. The just-planned route is held in a small in-memory store
+(`src/state/current-route-plan-store.ts`), not re-fetched — core has no `GET
+/routing/route-plans/:id` endpoint (deliberately: there's no route-plan history to browse yet),
+so `/plan-route` and `/route-overview` share this one "current plan" slot instead.
+
 ## Repo layout
 
 ```
 apps/
   core/           core service — Fastify host, modular monolith   ✅ identity wired end to end
   driver-bff/     Fastify BFF for the driver app                  ✅ identity, routing, hazards
-  driver-app/     Expo React Native app                           (M5)
+  driver-app/     Expo React Native app, iOS + Android             🚧 M5.1 skeleton only
 packages/
   config/         shared tsconfig / ESLint / Prettier presets     ✅
   architecture/   dependency-cruiser rules + fixtures + tests     ✅
@@ -349,8 +445,9 @@ because a plain compiled `node dist/main.js` (no TypeScript-aware loader) needs 
 resolve, unlike `tsx`/Vitest during development. `turbo.json`'s existing `dependsOn: ["^build"]`
 on `build`/`lint`/`typecheck`/`test` already builds it first automatically.
 
-Everything listed above is real except `apps/driver-app` (M5) and core's `routing`/`hazards`/
-`feedback` modules (M2/M3, not started — `identity` is the only real module so far).
+Everything listed above is real. `apps/driver-app` has only the M5.1 skeleton so far (a health
+check screen, no real screens yet); core's `routing` and `hazards` modules are real from M2/M3,
+`feedback` hasn't started.
 
 ## Conventions
 
