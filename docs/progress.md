@@ -2063,3 +2063,26 @@ watch, or the two new screens on a device/simulator).
   which need a position even while the driver isn't looking at the phone.
 - **The mic button and reroute prompts are placeholders, per this task's own scope note** (M6/M7),
   matching M5.5's "Start trip" precedent for a shipped-but-honestly-disabled feature.
+
+**Follow-up, same day — Docker verification gap closed, two real bugs found and fixed.** Docker
+Desktop became reachable on this machine shortly after M5.6 merged. Re-running the full core
+suite against real Postgres found two genuine, pre-existing test failures the Docker-less run
+never got a chance to catch — not flaky, not environment noise:
+
+- `src/platform/migrations/run-migrations.test.ts` hardcoded the exact list of migration files
+  (`result.applied`, `public.schema_migrations` rows) and the `routing` schema's exact table list.
+  Both assertions predate M5.6 and were always going to break the moment a sixth migration file
+  landed — they just had no chance to run and say so until Docker came back. Fixed by adding
+  `'0006_active_trips.sql'` and `'active_trips'` to the expected lists.
+- With that fixed, all 53 core test files / 423 tests pass for real, including
+  `postgres-active-trip-repository.test.ts` (the repository this milestone added) and the
+  migration's partial unique index (decision 54) — both genuinely exercised against a real
+  Postgres container for the first time, not just typechecked. This resolves the "unverified
+  against a real Postgres" deviation above; it was accurate when written, not overtaken by a
+  silent rewrite.
+
+**Decision 57.** Hardcoding a migration runner test's exact file/table list is a real, if minor,
+maintenance cost every future migration pays — worth knowing about, not necessarily worth fixing
+now (asserting "the last file is `N` and everything before it still applies" would be more
+robust, but that's a test-design change with no user-facing effect and no milestone currently
+needs it).
