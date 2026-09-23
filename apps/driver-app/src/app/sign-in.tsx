@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import * as identityApi from '../api/identity';
-import { IdentityApiError } from '../api/errors';
+import { ApiError } from '../api/errors';
 import { PRODUCT_NAME } from '../product';
 import { useAuthStore } from '../state/auth-store';
 
@@ -37,7 +37,7 @@ const VERIFY_OTP_MESSAGES: Record<string, string> = {
 };
 
 function errorMessage(error: unknown, messages: Record<string, string>): string {
-  if (error instanceof IdentityApiError) {
+  if (error instanceof ApiError) {
     if (error.tag === 'OtpIncorrect') {
       const remaining = error.attemptsRemaining;
       return remaining === undefined

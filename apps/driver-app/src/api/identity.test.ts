@@ -1,9 +1,10 @@
 import { requestOtp, verifyOtp, refreshAccessToken } from './identity';
-import { IdentityApiError } from './errors';
+import { ApiError } from './errors';
 
 function jsonResponse(status: number, body: unknown): Response {
   return {
     status,
+    headers: { get: () => null },
     json: () => Promise.resolve(body),
   } as unknown as Response;
 }
@@ -38,7 +39,7 @@ describe('requestOtp', () => {
     expect(JSON.parse(init.body as string)).toEqual({ identifier: 'driver@example.com' });
   });
 
-  it('throws an IdentityApiError carrying the tag and status on failure', async () => {
+  it('throws an ApiError carrying the tag and status on failure', async () => {
     globalThis.fetch = jest
       .fn()
       .mockResolvedValue(jsonResponse(400, { tag: 'InviteCodeRequired', requestId: 'r1' }));
@@ -47,7 +48,7 @@ describe('requestOtp', () => {
       tag: 'InviteCodeRequired',
       status: 400,
     });
-    await expect(requestOtp('driver@example.com')).rejects.toBeInstanceOf(IdentityApiError);
+    await expect(requestOtp('driver@example.com')).rejects.toBeInstanceOf(ApiError);
   });
 });
 

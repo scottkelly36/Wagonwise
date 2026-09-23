@@ -298,9 +298,9 @@ second check on top — core alone decides ownership/authorization for those.
 
 ## Driver app
 
-`apps/driver-app` (M5, in progress — M5.1 skeleton, M5.2 sign-in) — Expo + Expo Router, targeting
-both iOS and Android. No native Xcode/Android Studio project is checked in; Expo generates those
-on demand (`expo prebuild`, or transparently when EAS Build runs).
+`apps/driver-app` (M5, in progress — M5.1 skeleton, M5.2 sign-in, M5.3 vehicle profiles) — Expo +
+Expo Router, targeting both iOS and Android. No native Xcode/Android Studio project is checked in;
+Expo generates those on demand (`expo prebuild`, or transparently when EAS Build runs).
 
 ```bash
 pnpm --filter @wagonwise/driver-app dev   # starts the Metro bundler
@@ -348,6 +348,16 @@ comment in `apps/driver-app/jest.config.js` if a future ESM-only dependency hits
 "Cannot use import statement outside a module" error. `packages/contracts`'s `package.json`
 `exports` also gained a `"default"` condition alongside `"import"` for the same underlying
 reason: Jest's own resolver doesn't request the `import` condition by default.
+
+**Vehicle profiles (M5.3)**: `/profiles` (list), `/profiles/new` (create), `/profiles/[id]` (edit
+
+- delete) — all through the BFF's `/routing/vehicle-profiles` routes with the signed-in driver's
+  bearer token, matching M4.2's contract exactly (no `driverId` field anywhere; the server derives
+  it from the token). Height is shown alongside its feet/inches conversion
+  (`src/lib/units.ts`) per AGENTS.md's UK-signage convention — width/length/weight stay metric-only,
+  matching UK road signage. Client-side validation mirrors core's own domain rule exactly (every
+  measurement must be a positive number) so a driver sees the same rejection before a network round
+  trip, not a looser one the server would reject anyway.
 
 ## Repo layout
 

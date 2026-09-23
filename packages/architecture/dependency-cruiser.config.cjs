@@ -162,7 +162,11 @@ module.exports = {
     // Without exportsFields/conditionNames, package subpath imports ("vitest/config", "zod/v4")
     // resolve to nothing, fail no-unresolvable, and teach people to ignore that rule.
     enhancedResolveOptions: {
-      extensions: ['.ts', '.js', '.json'],
+      // .tsx added for apps/driver-app (M5) — the first app with JSX; every prior app/package
+      // was plain .ts, so this extension was never needed until a .tsx file imported another
+      // .tsx file (apps/driver-app/src/app/profiles/{new,[id]}.tsx importing
+      // components/vehicle-profile-form.tsx), caught for real by pnpm arch, not anticipated.
+      extensions: ['.ts', '.tsx', '.js', '.json'],
       exportsFields: ['exports'],
       conditionNames: ['import', 'require', 'node', 'default', 'types'],
     },

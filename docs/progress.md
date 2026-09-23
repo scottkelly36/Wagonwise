@@ -1549,7 +1549,7 @@ starts.
 | ----- | -------------------------------------------------------------------------------------------------------------------- | ----------------- |
 | M5.1  | `apps/driver-app` skeleton — Expo + Expo Router + TS, EAS config for both platforms, points at driver-bff via config | Done — 2026-09-22 |
 | M5.2  | Auth — sign-in screen, secure token storage, TanStack Query client, opportunistic refresh                            | Done — 2026-09-23 |
-| M5.3  | Vehicle profiles screens                                                                                             | Not started       |
+| M5.3  | Vehicle profiles screens                                                                                             | Done — 2026-09-23 |
 | M5.4  | Plan route screen (MapLibre)                                                                                         | Not started       |
 | M5.5  | Route overview screen                                                                                                | Not started       |
 | M5.6  | Active trip screen (no voice/reroute yet — M6/M7)                                                                    | Not started       |
@@ -1737,3 +1737,72 @@ beyond what the mocked-fetch unit tests cover.
 - **`packages/contracts`'s `exports` gained a `"default"` condition; `apps/driver-app`'s Jest
   config extends jest-expo's `transformIgnorePatterns` for `jose`.** Both recorded above — real
   tooling constraints found by running the test suite, not assumptions.
+
+**M5.3 delivered:** vehicle profile CRUD — list, create, edit, delete — reachable end to end
+through the BFF's `/routing/vehicle-profiles` routes, the design doc's screen table's "large
+number inputs, metres and tonnes with feet/inches shown alongside height."
+
+- **`src/api/http.ts`**: a shared `requestJson(method, path, options)` + `throwUnlessSuccess`,
+  factored out of M5.2's `identity.ts` once `routing.ts` needed the identical pattern with two
+  differences identity never had — `GET`/`PUT`/`DELETE`, and an `Authorization` header. Same
+  "one method covering every verb" reasoning as the BFF's own `core-client.ts` (M4.4).
+  `src/api/errors.ts`'s `IdentityApiError` renamed to `ApiError` in the same change — the error
+  shape (`{ tag, status, attemptsRemaining? }`) is identical across every module, and a screen
+  only ever needs `error.tag`, never which module produced it.
+- **`src/api/routing.ts`**: thin wrappers for all five vehicle-profile routes, parsing every
+  response through `@wagonwise/contracts/routing`'s own schemas (rule 11, same as identity.ts).
+  `updateVehicleProfile` reuses `createVehicleProfileRequestSchema` rather than importing
+  `updateVehicleProfileRequestSchema` — the two are structurally identical in
+  `packages/contracts/src/routing.ts`, so importing both would just parse the same shape twice.
+- **`src/lib/vehicle-profile-form.ts`**: pure parse/validate/format functions, no React — the
+  same hook/pure-function split M5.2's `use-opportunistic-refresh.ts` established.
+  `parseVehicleProfileForm` mirrors core's own `validateName`/`validateDimensions`
+  (`routing/domain/vehicle-profile.ts`) exactly — a driver sees the same "must be a positive
+  number" rejection before a network round trip, not a looser client-side rule the server would
+  reject anyway (confirmed by reading the domain function, not guessed at).
+- **`src/lib/units.ts`**: `formatHeightWithFeetInches`, height only — AGENTS.md's feet/inches
+  rule is specifically about height (UK bridge signage), not width/length/weight, matching the
+  design doc's own screen-table wording ("...with feet/inches shown alongside height"). Tested
+  against AGENTS.md's own worked example (a 3.5m bridge) rather than an arbitrary number.
+- **`src/components/vehicle-profile-form.tsx`**: one shared form for both create and edit — the
+  first component this app has needed twice, so worth de-duplicating (matches M4.4's
+  `src/testing/fakes.ts` precedent: extract on the _second_ real use, not speculatively on the
+  first). Shows the driver's own validation message inline, clearing it as soon as a field
+  changes, distinct from a server-side error from the last submit attempt (a stale "couldn't
+  reach the server" message must not linger once the driver starts correcting a typo).
+- **Vehicle profile screens use plain string route paths (`/profiles`, `/profiles/new`) and the
+  object form for the dynamic one** (`{ pathname: '/profiles/[id]', params: { id } }`) — Expo
+  Router's `experiments.typedRoutes` (already on since M5.1) generates static types for exactly
+  this shape; confirmed by running `tsc --noEmit` clean, not assumed to typecheck.
+- **A real, first-of-its-kind architecture-tooling gap, found by running `pnpm arch`, not
+  anticipated**: `packages/architecture/dependency-cruiser.config.cjs`'s
+  `enhancedResolveOptions.extensions` was `['.ts', '.js', '.json']` — no `.tsx` — because no file
+  in the repo had ever imported a `.tsx` file from another `.tsx` file before (`profiles/new.tsx`
+  and `profiles/[id].tsx` importing `components/vehicle-profile-form.tsx` are the first). Every
+  other tool (`tsc`, Jest, Metro) resolved it fine; only dependency-cruiser's own resolver needed
+  telling. Fixed by adding `.tsx` to the list — a one-line fix, but the kind AGENTS.md's "fail
+  closed" convention exists to surface rather than silently mis-resolve.
+
+51 driver-app tests (up from 27 at M5.2 — `routing.test.ts`, `units.test.ts`,
+`vehicle-profile-form.test.ts`, `error-messages.test.ts`, plus a fix to `identity.test.ts`'s own
+mock `Response` shape, which the `http.ts` refactor's `headers.get()` call exposed as incomplete).
+402 core, 56 driver-bff, 17 architecture, 33 contracts. `pnpm arch` clean (233 modules, 757
+dependencies, now genuinely resolving every `.tsx`-to-`.tsx` import). `pnpm verify` clean end to
+end across all six packages.
+
+**Verified the same way as M5.1/M5.2, with the same disclosed gap**: `pnpm --filter
+@wagonwise/driver-app run typecheck/lint/test` all pass; `npx expo-doctor` 21/21; `npx expo export
+--platform android` (1467 modules, up from M5.2's 1456 — confirming the new screens, components
+and API code genuinely resolve and bundle) and `--platform ios` both produce a real Hermes bundle.
+**Still not verified: an actual running app** — same hardware gap as M5.1/M5.2. The full create →
+list → edit → delete flow has never been driven against a real running core + BFF with a real
+signed-in driver; worth doing before trusting it beyond what the mocked-fetch unit tests cover.
+
+## Decisions from M5.3
+
+- **`ApiError` (renamed from `IdentityApiError`) and `requestJson`/`throwUnlessSuccess` are
+  shared across every API module, not duplicated per module.** Recorded above — the error shape
+  and HTTP plumbing are identical; only the schemas and endpoints differ.
+- **`packages/architecture/dependency-cruiser.config.cjs` now resolves `.tsx`.** Recorded above —
+  a real gap in shared tooling, not app-specific, so fixed at the source rather than worked around
+  in `apps/driver-app` alone.
