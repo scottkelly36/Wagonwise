@@ -36,6 +36,7 @@ describe('runMigrations', () => {
       '0003_routing.sql',
       '0004_route_plans.sql',
       '0005_hazards.sql',
+      '0006_active_trips.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -72,7 +73,11 @@ describe('runMigrations', () => {
       `select table_name from information_schema.tables
        where table_schema = 'routing' order by table_name`,
     );
-    expect(routingTables.map((row) => row.table_name)).toEqual(['route_plans', 'vehicle_profiles']);
+    expect(routingTables.map((row) => row.table_name)).toEqual([
+      'active_trips',
+      'route_plans',
+      'vehicle_profiles',
+    ]);
 
     const { rows: hazardsTables } = await pool.query<{ table_name: string }>(
       `select table_name from information_schema.tables
@@ -104,6 +109,7 @@ describe('runMigrations', () => {
       '0003_routing.sql',
       '0004_route_plans.sql',
       '0005_hazards.sql',
+      '0006_active_trips.sql',
     ]);
   });
 });
