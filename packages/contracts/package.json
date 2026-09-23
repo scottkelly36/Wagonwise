@@ -6,15 +6,18 @@
   "exports": {
     "./identity": {
       "types": "./dist/identity.d.ts",
-      "import": "./dist/identity.js"
+      "import": "./dist/identity.js",
+      "default": "./dist/identity.js"
     },
     "./routing": {
       "types": "./dist/routing.d.ts",
-      "import": "./dist/routing.js"
+      "import": "./dist/routing.js",
+      "default": "./dist/routing.js"
     },
     "./hazards": {
       "types": "./dist/hazards.d.ts",
-      "import": "./dist/hazards.js"
+      "import": "./dist/hazards.js",
+      "default": "./dist/hazards.js"
     }
   },
   "scripts": {

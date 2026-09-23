@@ -1,16 +1,29 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
-// A single stack, no tabs — there's only one screen so far. A real navigation
-// structure (tabs vs. stack) is a decision for M5.3+, once there's more than one
-// screen to actually navigate between.
+import { queryClient } from '../api/query-client';
+import { useOpportunisticRefresh } from '../hooks/use-opportunistic-refresh';
+import { useAuthStore } from '../state/auth-store';
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const restore = useAuthStore((s) => s.restore);
+
+  useEffect(() => {
+    void restore();
+  }, [restore]);
+
+  useOpportunisticRefresh();
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }} />
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack screenOptions={{ headerShown: false }} />
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

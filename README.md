@@ -298,9 +298,9 @@ second check on top — core alone decides ownership/authorization for those.
 
 ## Driver app
 
-`apps/driver-app` (M5, in progress — M5.1 skeleton so far) — Expo + Expo Router, targeting both
-iOS and Android. No native Xcode/Android Studio project is checked in; Expo generates those on
-demand (`expo prebuild`, or transparently when EAS Build runs).
+`apps/driver-app` (M5, in progress — M5.1 skeleton, M5.2 sign-in) — Expo + Expo Router, targeting
+both iOS and Android. No native Xcode/Android Studio project is checked in; Expo generates those
+on demand (`expo prebuild`, or transparently when EAS Build runs).
 
 ```bash
 pnpm --filter @wagonwise/driver-app dev   # starts the Metro bundler
@@ -332,6 +332,22 @@ and no macOS, so verification so far is `expo export --platform android|ios` (a 
 proves every import resolves and Hermes compiles it) plus `expo-doctor` (21/21 checks), not an
 actual running app. Worth a real run on your phone via Expo Go before trusting the BFF connectivity
 logic (`src/config.ts`) beyond what its unit tests cover.
+
+**Sign-in (M5.2)**: OTP over email/phone plus an invite code on first sign-in, matching identity's
+own flow exactly (`/sign-in` → `/identity/otp/request` → `/identity/otp/verify`, through the BFF).
+The refresh token and driver info are persisted in `expo-secure-store` (Keychain on iOS, Keystore
+on Android); the access token itself is never persisted — a fresh one is fetched on every cold
+start via `/identity/token/refresh`. Once signed in, a proactive refresh is scheduled ahead of the
+access token's real 15-minute expiry, and re-checked whenever the app returns to the foreground
+(`src/hooks/use-opportunistic-refresh.ts`) — the design doc's "never only on a 401," so a driver in
+a dead zone on the A69 doesn't discover the expiry mid-trip. Sign out clears both stored values.
+
+**Testing note**: `apps/driver-app`'s Jest config extends jest-expo's default
+`transformIgnorePatterns` to also transpile `jose` (it ships ESM-only, no CJS build) — see the
+comment in `apps/driver-app/jest.config.js` if a future ESM-only dependency hits the same
+"Cannot use import statement outside a module" error. `packages/contracts`'s `package.json`
+`exports` also gained a `"default"` condition alongside `"import"` for the same underlying
+reason: Jest's own resolver doesn't request the `import` condition by default.
 
 ## Repo layout
 

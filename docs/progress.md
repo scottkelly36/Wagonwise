@@ -1548,7 +1548,7 @@ starts.
 | #     | Task                                                                                                                 | Status            |
 | ----- | -------------------------------------------------------------------------------------------------------------------- | ----------------- |
 | M5.1  | `apps/driver-app` skeleton — Expo + Expo Router + TS, EAS config for both platforms, points at driver-bff via config | Done — 2026-09-22 |
-| M5.2  | Auth — sign-in screen, secure token storage, TanStack Query client, opportunistic refresh                            | Not started       |
+| M5.2  | Auth — sign-in screen, secure token storage, TanStack Query client, opportunistic refresh                            | Done — 2026-09-23 |
 | M5.3  | Vehicle profiles screens                                                                                             | Not started       |
 | M5.4  | Plan route screen (MapLibre)                                                                                         | Not started       |
 | M5.5  | Route overview screen                                                                                                | Not started       |
@@ -1657,3 +1657,83 @@ cover. `git status`/`git add -n` confirmed exactly the intended file set is trac
 - **The product's display name lives in a `.js` file, not a `.ts` one, specifically so
   `app.config.ts` can import it.** Also recorded above — a real Expo config-loader constraint
   found by running `expo export`, not a style preference.
+
+**M5.2 delivered:** a real sign-in flow — OTP over email/phone plus an invite code on first
+sign-in, a persisted session, and proactive token refresh — reachable end to end through the BFF,
+matching the design doc's own wording ("the app refreshes its access token opportunistically,
+never only on a 401").
+
+- **`src/api/identity.ts`**: thin fetch wrappers for `otp/request`, `otp/verify`,
+  `token/refresh`, parsing every response through `@wagonwise/contracts/identity`'s own zod
+  schemas (AGENTS.md rule 11 — no hand-written duplicate types) and throwing a single
+  `IdentityApiError { tag, status, attemptsRemaining? }` on any non-200, so screens have one
+  thing to catch rather than a different shape per route.
+- **`src/state/auth-store.ts`** (Zustand): a three-state union (`restoring` / `signedOut` /
+  `signedIn`), not booleans plus optional fields — a driver is never "half signed in." Persists
+  only the refresh token and driver info to `expo-secure-store`; the access token is **never**
+  persisted, deliberately — `restore()` exchanges the stored refresh token for a fresh access
+  token on every cold start rather than trusting a stale one to still be valid, and rotates the
+  persisted refresh token immediately (decision 33: reuse of a rotated-away token revokes the
+  whole session, so the persisted copy must always be the current one). A dead/reused refresh
+  token on restore clears storage and goes to `signedOut` rather than leaving the app stuck on a
+  loading spinner forever.
+- **`src/hooks/use-opportunistic-refresh.ts`** schedules a refresh ahead of the access token's
+  real expiry (read via `src/lib/jwt.ts`'s `accessTokenExpiryMs`, decode-only — this app has no
+  key to verify a signature with, only core and the BFF do, decision 1) and re-checks on every
+  `AppState` transition to `active`, covering the case where the scheduled JS timer never fired
+  because the app was suspended in the background. The actual scheduling arithmetic lives in
+  `src/lib/refresh-schedule.ts` as two pure functions (`refreshDelayMs`, `shouldRefreshOnResume`),
+  tested directly with no timers, no `AppState` mock, no rendered hook — the hook itself is thin
+  glue, verified by design over the tested pure core the same way M2.3/M2.4 verified a port/pure-
+  function pair before either had a caller to run against.
+- **`src/app/sign-in.tsx`**: two-step screen (identifier + optional invite code → code), 56px+
+  tap targets, high-contrast dark theme, plain UK-English error copy per tag (`OtpIncorrect` shows
+  the real `attemptsRemaining` count). The invite code is captured once on step one and carried
+  forward silently to `verifyOtp` on step two — both `otp/request` and `otp/verify` need it on a
+  genuinely new identifier (confirmed by reading `request-otp.ts`/`verify-otp.ts`: the code is
+  validated-but-not-redeemed at request time, redeemed atomically with creating the `Driver` at
+  verify time), so asking the driver to type it twice would be a real UX bug, not just untidy.
+- **`src/app/index.tsx` is a redirect gate, not a screen** — shows a spinner while `restore()`
+  settles, then `<Redirect>`s to `/sign-in` or `/home`. `src/app/home.tsx` is a deliberate
+  placeholder (identifier + sign-out button, nothing else) — real screens are M5.3+; its only job
+  here is proving the sign-in flow actually reaches a signed-in area.
+- **Two real Jest/ESM tooling problems, found by running the test suite, not anticipated**:
+  `@wagonwise/contracts`'s `package.json` `exports` only had `types`/`import` conditions; Jest's
+  default resolver doesn't request `import`, so `@wagonwise/contracts/identity` came back
+  "cannot find module" even though Metro resolves it fine. Fixed by adding a `"default"`
+  condition alongside `"import"` for every subpath (Node's own documented fallback condition,
+  not a workaround). Separately, `jose` (also used for JWT decode, decision 39's precedent —
+  hand-rolling a signed-token library would be the actual workaround) ships ESM-only with no CJS
+  build at all; Jest's default `transformIgnorePatterns` skips transpiling it since it isn't on
+  jest-expo's react-native/expo allow-list, so `require`-ing it hit a raw
+  `Cannot use import statement outside a module`. Fixed by extending (not replacing)
+  jest-expo's default pattern in `apps/driver-app/jest.config.js` to also transpile `jose`.
+- **No `@wagonwise/contracts` change needed for `hazards`/`routing`'s own exports** — only
+  `identity`'s subpath is consumed from `apps/driver-app` so far; the same `"default"` condition
+  was still added to all three for consistency, since the next module M5.3+ needs will hit the
+  identical Jest resolution gap otherwise.
+
+402 core tests (unchanged), 56 driver-bff (unchanged), 17 architecture, 33 contracts, and
+**27 driver-app tests** (up from 3 at M5.1 — `identity.test.ts`, `jwt.test.ts`,
+`refresh-schedule.test.ts`, `auth-store.test.ts`, plus the existing `config.test.ts`). `pnpm arch`
+clean (219 modules, 723 dependencies). `pnpm verify` clean end to end across all six packages.
+
+**Verified the same way as M5.1, with the same disclosed gap**: `pnpm --filter
+@wagonwise/driver-app run typecheck/lint/test` all pass; `npx expo-doctor` 21/21; `npx expo export
+--platform android` and `--platform ios` both produce a real Hermes bundle (1456/1105+ modules —
+up from M5.1's count, confirming the new auth/query/secure-store code and `@wagonwise/contracts`
+import genuinely resolve and bundle, not just typecheck). `packages/contracts`'s own typecheck and
+`vitest run` re-confirmed unaffected by the `exports` change. **Still not verified: an actual
+running app** — same hardware gap as M5.1 (no Android SDK, no macOS). The sign-in flow has never
+been driven against a real running core + BFF with a real OTP code; worth doing before trusting it
+beyond what the mocked-fetch unit tests cover.
+
+## Decisions from M5.2
+
+- **The access token is never persisted, only the refresh token.** Recorded above — cold start
+  always re-derives a fresh access token via `token/refresh` rather than trusting a stored one,
+  keeping exactly one code path (`restore()`) responsible for "how does this app get a valid
+  access token," instead of two (restore-from-storage and refresh-when-expired) that could drift.
+- **`packages/contracts`'s `exports` gained a `"default"` condition; `apps/driver-app`'s Jest
+  config extends jest-expo's `transformIgnorePatterns` for `jose`.** Both recorded above — real
+  tooling constraints found by running the test suite, not assumptions.
