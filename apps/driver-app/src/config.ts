@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
 
+import { mapStyleUrl } from './lib/map-style';
+
 // The one place this app reads process.env (mirrors apps/core/src/config.ts's rule).
 // EXPO_PUBLIC_-prefixed vars are inlined by Metro at bundle time; everything else here
 // is a default so a cold start needs no .env, matching the rest of the monorepo.
@@ -12,11 +14,13 @@ function defaultBffUrl(): string {
 
 export interface AppConfig {
   bffUrl: string;
+  mapStyleUrl: string;
 }
 
 export function loadConfig(): AppConfig {
   return {
     bffUrl: process.env.EXPO_PUBLIC_BFF_URL ?? defaultBffUrl(),
+    mapStyleUrl: mapStyleUrl(process.env.EXPO_PUBLIC_MAPTILER_API_KEY),
   };
 }
 

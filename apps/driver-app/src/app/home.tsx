@@ -4,8 +4,8 @@ import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-na
 import { PRODUCT_NAME } from '../product';
 import { useAuthStore } from '../state/auth-store';
 
-// A placeholder only — plan route and the rest land in M5.4+. This exists to prove the sign-in
-// flow actually reaches a signed-in area, not to be a real home screen itself.
+// A placeholder only — route overview, active trip and the rest land in M5.5+. This exists to
+// prove the sign-in flow actually reaches a signed-in area, not to be a real home screen itself.
 export default function HomeScreen() {
   const router = useRouter();
   const state = useAuthStore((s) => s.state);
@@ -20,7 +20,7 @@ export default function HomeScreen() {
       <View style={styles.content}>
         <Text style={styles.title}>{PRODUCT_NAME}</Text>
         <Text style={styles.subtitle}>Signed in as {state.driver.identifier}</Text>
-        <Text style={styles.note}>Plan route and the rest land in M5.4+.</Text>
+        <Text style={styles.note}>Route overview and the rest land in M5.5+.</Text>
 
         <TouchableOpacity
           style={styles.button}
@@ -28,6 +28,14 @@ export default function HomeScreen() {
           testID="vehicle-profiles-button"
         >
           <Text style={styles.buttonText}>Vehicle profiles</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => router.push('/plan-route')}
+          testID="plan-route-button"
+        >
+          <Text style={styles.buttonText}>Plan route</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

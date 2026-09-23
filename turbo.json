@@ -33,7 +33,8 @@
         "INTERNAL_KEYS",
         "CORE_INTERNAL_URL",
         "VALHALLA_URL",
-        "EXPO_PUBLIC_BFF_URL"
+        "EXPO_PUBLIC_BFF_URL",
+        "EXPO_PUBLIC_MAPTILER_API_KEY"
       ]
     }
   }

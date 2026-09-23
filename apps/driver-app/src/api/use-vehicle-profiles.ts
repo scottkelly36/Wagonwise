@@ -1,21 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateVehicleProfileRequest } from '@wagonwise/contracts/routing';
 
-import { useAuthStore } from '../state/auth-store';
+import { useAccessToken } from '../hooks/use-access-token';
 import * as routingApi from './routing';
 
 const VEHICLE_PROFILES_KEY = ['vehicle-profiles'] as const;
-
-/** These hooks only ever render on the signed-in side of the app (behind src/app/index.tsx's
- *  redirect gate), so a missing access token here is a real wiring bug, not a state a driver can
- *  reach — fails loudly rather than silently calling the API with no auth. */
-function useAccessToken(): string {
-  const state = useAuthStore((s) => s.state);
-  if (state.status !== 'signedIn') {
-    throw new Error('useAccessToken: called while not signed in');
-  }
-  return state.accessToken;
-}
 
 export function useVehicleProfiles() {
   const accessToken = useAccessToken();

@@ -1,7 +1,11 @@
 import {
   createVehicleProfileRequestSchema,
+  planRouteRequestSchema,
+  routePlanSchema,
   vehicleProfileSchema,
   type CreateVehicleProfileRequest,
+  type PlanRouteRequest,
+  type RoutePlanDto,
   type VehicleProfileDto,
 } from '@wagonwise/contracts/routing';
 import { z } from 'zod';
@@ -69,4 +73,17 @@ export async function deleteVehicleProfile(accessToken: string, id: string): Pro
     authorization: bearer(accessToken),
   });
   throwUnlessSuccess(status, json, [204]);
+}
+
+export async function planRoute(
+  accessToken: string,
+  input: PlanRouteRequest,
+): Promise<RoutePlanDto> {
+  const body = planRouteRequestSchema.parse(input);
+  const { status, json } = await requestJson('POST', '/routing/route-plans', {
+    body,
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [201]);
+  return routePlanSchema.parse(json);
 }

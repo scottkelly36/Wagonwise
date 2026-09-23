@@ -28,6 +28,14 @@ const config: ExpoConfig = {
   plugins: [
     'expo-router',
     'expo-secure-store',
+    '@maplibre/maplibre-react-native',
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'WagonWise uses your location to set your starting point when planning a route.',
+      },
+    ],
     [
       'expo-splash-screen',
       {

@@ -1,8 +1,11 @@
+import { vehicleProfileIdSchema } from '@wagonwise/contracts/routing';
+
 import {
   createVehicleProfile,
   deleteVehicleProfile,
   getVehicleProfile,
   listVehicleProfiles,
+  planRoute,
   updateVehicleProfile,
 } from './routing';
 import { ApiError } from './errors';
@@ -129,5 +132,55 @@ describe('deleteVehicleProfile', () => {
     await expect(deleteVehicleProfile('token-1', profile.id)).resolves.toBeUndefined();
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.method).toBe('DELETE');
+  });
+});
+
+describe('planRoute', () => {
+  const routePlan = {
+    id: '33333333-3333-3333-3333-333333333333',
+    driverId: profile.driverId,
+    profileId: vehicleProfileIdSchema.parse(profile.id),
+    origin: { lat: 54.971, lon: -2.1 },
+    destination: { lat: 54.973, lon: -2.017 },
+    geometry: 'encoded-polyline',
+    distanceKm: 8.038,
+    durationMin: 12.5,
+    avoidedRestrictions: [],
+    hazardsOnRoute: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  it('posts the profile and points, parsing the 201 response', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(201, routePlan));
+    globalThis.fetch = fetchMock;
+
+    const result = await planRoute('token-1', {
+      profileId: vehicleProfileIdSchema.parse(profile.id),
+      origin: routePlan.origin,
+      destination: routePlan.destination,
+    });
+
+    expect(result).toEqual(routePlan);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/routing\/route-plans$/);
+    expect(JSON.parse(init.body as string)).toEqual({
+      profileId: vehicleProfileIdSchema.parse(profile.id),
+      origin: routePlan.origin,
+      destination: routePlan.destination,
+    });
+  });
+
+  it('throws an ApiError with a 422 when the vehicle genuinely cannot get there', async () => {
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(422, { tag: 'NoRouteFound', requestId: 'r1' }));
+
+    await expect(
+      planRoute('token-1', {
+        profileId: vehicleProfileIdSchema.parse(profile.id),
+        origin: routePlan.origin,
+        destination: routePlan.destination,
+      }),
+    ).rejects.toMatchObject({ tag: 'NoRouteFound', status: 422 });
   });
 });

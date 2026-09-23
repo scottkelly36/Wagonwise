@@ -1550,7 +1550,7 @@ starts.
 | M5.1  | `apps/driver-app` skeleton — Expo + Expo Router + TS, EAS config for both platforms, points at driver-bff via config | Done — 2026-09-22 |
 | M5.2  | Auth — sign-in screen, secure token storage, TanStack Query client, opportunistic refresh                            | Done — 2026-09-23 |
 | M5.3  | Vehicle profiles screens                                                                                             | Done — 2026-09-23 |
-| M5.4  | Plan route screen (MapLibre)                                                                                         | Not started       |
+| M5.4  | Plan route screen (MapLibre)                                                                                         | Done — 2026-09-23 |
 | M5.5  | Route overview screen                                                                                                | Not started       |
 | M5.6  | Active trip screen (no voice/reroute yet — M6/M7)                                                                    | Not started       |
 | M5.7  | Report hazard (tap) + hazard detail                                                                                  | Not started       |
@@ -1806,3 +1806,70 @@ signed-in driver; worth doing before trusting it beyond what the mocked-fetch un
 - **`packages/architecture/dependency-cruiser.config.cjs` now resolves `.tsx`.** Recorded above —
   a real gap in shared tooling, not app-specific, so fixed at the source rather than worked around
   in `apps/driver-app` alone.
+
+**M5.4 delivered:** the plan-route screen — a real MapLibre map, tap-to-drop origin/destination,
+a vehicle-profile picker, and a genuine `POST /routing/route-plans` call through the BFF.
+
+Two real gaps the design doc left open, asked before writing any code rather than guessed at
+(matching M3.5's precedent for a genuine fork):
+
+- **Tile provider: MapTiler**, chosen by the user over Stadia or self-hosting (design doc §6
+  named both MapTiler and Stadia as candidates but never picked one). Needs a real account and
+  API key — a one-time, interactive step only the user can do (this session can't create
+  accounts). `EXPO_PUBLIC_MAPTILER_API_KEY` unset falls back to MapLibre's own free, keyless demo
+  style (`src/lib/map-style.ts`) — the same "cold start needs no undocumented step" convention
+  every other config value in this monorepo follows, so the screen renders a genuine map right
+  now while a real key is pending, not a blank one.
+- **Geocoding: deferred, not built.** The design doc's own screen table says "destination
+  search," but never mentions geocoding at all — turning typed text into coordinates needs a
+  provider (Nominatim, or bundled with MapTiler/Stadia's own API) that nobody had picked. Rather
+  than add a new external dependency unilaterally, the user chose tap-to-drop on the map instead;
+  text search is now an explicitly-scoped future task, not a silently-missing feature.
+
+- **MapLibre's real v11 API, learned by reading its actual TypeScript source, not assumed from
+  memory of the older Mapbox-lineage API** (`MapView`/`PointAnnotation`) this library forked
+  from: the current package exports `Map`, `Camera`, `ViewAnnotation`, etc., as a rewritten,
+  differently-shaped API (`onPress` gives `event.nativeEvent.lngLat: [lon, lat]`; markers are
+  `<ViewAnnotation lngLat={...}>` wrapping a plain `View`, not a `PointAnnotation`). Confirmed
+  against `node_modules/@maplibre/maplibre-react-native/src/**/*.tsx` directly before writing
+  `src/components/route-map.tsx`, since guessing at a native library's prop names would only
+  surface as a real crash on a device this session cannot test on.
+- **`src/hooks/use-current-location.ts` is a TanStack Query hook, not a raw
+  `useEffect`+`setState`** — found by actually running `pnpm lint`, not by design: a first draft
+  using `useEffect(() => { request(); }, [request])` tripped `react-hooks/set-state-in-effect`
+  (part of `eslint-config-expo`'s React Compiler rules) because the effect's call graph reached a
+  `setState`, even after restructuring so the call happened only after an `await`. Rather than
+  fight the linter, modelled it the same way every other network call in this app already is —
+  `fetchCurrentLocation()` returns a `Result`-shaped value (`{ ok: true, point } | { ok: false,
+reason }`), never throwing for an expected outcome like a permission denial (AGENTS.md rule 13,
+  applied to a client-side "failure" for the first time in this app).
+- **The plan-route screen absorbs none of M5.5's job.** A successful plan shows only
+  distance/duration inline; the route line, hazards and avoided restrictions stay M5.5's "route
+  overview" screen, matching M3.5's own restraint about not building a read nothing consumes yet.
+- **A driver's own tapped origin permanently overrides the GPS default, never the other way
+  round.** `effectiveOrigin = origin ?? location.point` — a location fix landing late (a real
+  possibility; `getCurrentPositionAsync` can take a few seconds) must never silently replace a
+  point the driver already chose by tapping the map.
+
+**60 driver-app tests** (up from 51 at M5.3 — `map-style.test.ts`,
+`use-current-location.test.ts`, plus `routing.test.ts` gaining `planRoute` coverage). 402 core, 56
+driver-bff, 17 architecture, 33 contracts. `pnpm arch` clean (243 modules, 779 dependencies).
+`pnpm verify` clean end to end across all six packages.
+
+**Verified the same way as M5.1–M5.3, with a wider disclosed gap than usual**: `pnpm --filter
+@wagonwise/driver-app run typecheck/lint/test` all pass; `npx expo-doctor` 21/21; `npx expo export
+--platform android` (1554 modules, up from M5.3's 1467 — and the asset list now includes
+MapLibre's own marker icon, confirming the library's JS genuinely resolves and bundles) and
+`--platform ios` both produce a real Hermes bundle. **Not verified: an actual map render.**
+MapLibre needs its own native module compiled (`expo prebuild` / EAS Build), which — unlike every
+prior M5 task's gap — this machine cannot do at all, Android SDK or not, since even a from-source
+native build needs Xcode or Android Studio's NDK toolchain neither of which is installed. Treat
+`src/components/route-map.tsx` as verified against MapLibre's real API surface by careful reading,
+not by a real run, until it's opened on an actual device or simulator.
+
+## Decisions from M5.4
+
+- **MapTiler for map tiles; tap-to-drop instead of geocoded destination search.** Both recorded
+  above — real product decisions the design doc left open, asked of the user rather than guessed.
+- **`use-current-location.ts` uses TanStack Query, not a raw effect.** Recorded above — a real
+  lint rule caught a real anti-pattern before it shipped, not a style preference.

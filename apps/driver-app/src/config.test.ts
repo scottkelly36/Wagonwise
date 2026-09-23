@@ -28,4 +28,16 @@ describe('loadConfig', () => {
     expect(loadWithPlatform('android').bffUrl).toBe('http://192.168.1.50:3002');
     expect(loadWithPlatform('ios').bffUrl).toBe('http://192.168.1.50:3002');
   });
+
+  it('wires EXPO_PUBLIC_MAPTILER_API_KEY through to mapStyleUrl (lib/map-style.ts owns the logic)', () => {
+    const originalKey = process.env.EXPO_PUBLIC_MAPTILER_API_KEY;
+    delete process.env.EXPO_PUBLIC_MAPTILER_API_KEY;
+    expect(loadWithPlatform('ios').mapStyleUrl).toBe('https://demotiles.maplibre.org/style.json');
+
+    process.env.EXPO_PUBLIC_MAPTILER_API_KEY = 'test-key';
+    expect(loadWithPlatform('ios').mapStyleUrl).toBe(
+      'https://api.maptiler.com/maps/streets-v2/style.json?key=test-key',
+    );
+    process.env.EXPO_PUBLIC_MAPTILER_API_KEY = originalKey;
+  });
 });

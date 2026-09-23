@@ -298,7 +298,8 @@ second check on top — core alone decides ownership/authorization for those.
 
 ## Driver app
 
-`apps/driver-app` (M5, in progress — M5.1 skeleton, M5.2 sign-in, M5.3 vehicle profiles) — Expo +
+`apps/driver-app` (M5, in progress — M5.1 skeleton, M5.2 sign-in, M5.3 vehicle profiles, M5.4 plan
+route) — Expo +
 Expo Router, targeting both iOS and Android. No native Xcode/Android Studio project is checked in;
 Expo generates those on demand (`expo prebuild`, or transparently when EAS Build runs).
 
@@ -349,15 +350,36 @@ comment in `apps/driver-app/jest.config.js` if a future ESM-only dependency hits
 `exports` also gained a `"default"` condition alongside `"import"` for the same underlying
 reason: Jest's own resolver doesn't request the `import` condition by default.
 
-**Vehicle profiles (M5.3)**: `/profiles` (list), `/profiles/new` (create), `/profiles/[id]` (edit
+**Vehicle profiles (M5.3)**: `/profiles` (list), `/profiles/new` (create), `/profiles/[id]` (edit,
+delete) — all through the BFF's `/routing/vehicle-profiles` routes with the signed-in driver's
+bearer token, matching M4.2's contract exactly (no `driverId` field anywhere; the server derives
+it from the token). Height is shown alongside its feet/inches conversion (`src/lib/units.ts`) per
+AGENTS.md's UK-signage convention — width/length/weight stay metric-only, matching UK road
+signage. Client-side validation mirrors core's own domain rule exactly (every measurement must be
+a positive number) so a driver sees the same rejection before a network round trip, not a looser
+one the server would reject anyway.
 
-- delete) — all through the BFF's `/routing/vehicle-profiles` routes with the signed-in driver's
-  bearer token, matching M4.2's contract exactly (no `driverId` field anywhere; the server derives
-  it from the token). Height is shown alongside its feet/inches conversion
-  (`src/lib/units.ts`) per AGENTS.md's UK-signage convention — width/length/weight stay metric-only,
-  matching UK road signage. Client-side validation mirrors core's own domain rule exactly (every
-  measurement must be a positive number) so a driver sees the same rejection before a network round
-  trip, not a looser one the server would reject anyway.
+**Plan route (M5.4)**: `/plan-route` — a MapLibre map (`@maplibre/maplibre-react-native`), a
+vehicle-profile picker, and tap-to-drop for origin/destination (no geocoding/text search yet — a
+deliberate scope cut, decided with the user, not a gap found later). Origin defaults to the
+device's current location (`expo-location`, foreground permission only) until a driver taps their
+own point. Calls the BFF's `POST /routing/route-plans` and shows the resulting distance/duration
+inline — the route line itself, hazards and avoided restrictions are M5.5's job (route overview
+screen), not duplicated here.
+
+Map tiles come from MapTiler (the user's choice over Stadia/self-hosting — the design doc named
+both as candidates but never picked one). `EXPO_PUBLIC_MAPTILER_API_KEY` unset falls back to
+MapLibre's own free, keyless demo style (`src/lib/map-style.ts`) so the screen renders a real map
+with zero setup; get a real key at [cloud.maptiler.com](https://cloud.maptiler.com) before relying
+on it beyond local dev. Copy `apps/driver-app/.env.example` to `.env` to set it.
+
+**Not verified on a real map render** — beyond the disclosed gap every M5 task has had so far (no
+Android SDK, no macOS on this machine), MapLibre specifically needs its own native module built
+(`expo prebuild`/EAS Build), which this machine can't do either. Verified so far: `expo export`
+for both platforms produces a real Hermes bundle that includes MapLibre's JS and its marker
+assets (proof the library resolves and bundles, not that it renders) plus `expo-doctor` (21/21).
+Treat the map screen as unverified-by-a-real-run until it's actually opened on a device or
+simulator.
 
 ## Repo layout
 
