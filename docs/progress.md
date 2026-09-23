@@ -1554,7 +1554,7 @@ starts.
 | M5.5  | Route overview screen                                                                                                | Done — 2026-09-23 |
 | M5.6  | Active trip screen (no voice/reroute yet — M6/M7)                                                                    | Done — 2026-09-23 |
 | M5.7  | Report hazard (tap) + hazard detail                                                                                  | Done — 2026-09-23 |
-| M5.8  | Offline hazard queue (expo-sqlite)                                                                                   | Not started       |
+| M5.8  | Offline hazard queue (expo-sqlite)                                                                                   | Done — 2026-09-23 |
 | M5.9  | Feedback screen                                                                                                      | Not started       |
 | M5.10 | Real-device/simulator verification both platforms; EAS Build → TestFlight + Play internal                            | Not started       |
 
@@ -2171,3 +2171,84 @@ verified**: an actual running app — same hardware gap as every driver-app mile
   to add it.
 - **No voice reporting** — M7's job, per the design doc's own hands-free principle. This screen is
   deliberately the tap-only, parked-use half.
+
+**M5.8 delivered:** the offline hazard queue — `expo-sqlite`, per the design doc's own choice
+(§8), added as a real dependency (`app.config.ts`'s `plugins` gained `expo-sqlite`, matching how
+`expo-location`/`expo-crypto` were each added on the milestone that first needed them).
+
+- **`lib/hazard-queue-flush.ts`**: the one piece of actual policy — `flushQueuedReports(queued,
+submit)`, a pure function with no SQLite and no `fetch` (`submit` is injected, same split
+  `parseHazardReportForm`/`startWatchingPosition` already use). Sends queued reports in order,
+  stopping at the first failure rather than trying every item: a failure here almost always means
+  "no connectivity," so trying the rest would only waste time for the same result. Fully unit
+  tested with fakes — no native module, no mocking needed.
+- **`db/hazard-queue.ts`**: the thin, deliberately dumb SQLite CRUD layer — `enqueueHazardReport`/
+  `listQueuedHazardReports`/`removeQueuedHazardReport` against one `hazard_queue` table. Verified
+  against `expo-sqlite`'s real installed type declarations (`openDatabaseSync`/`execSync`/
+  `runAsync`/`getAllAsync`), the same discipline M5.4/M5.5 used for MapLibre — and, unlike
+  MapLibre, tested for real too: `jest.mock('expo-sqlite', ...)` stands in a small in-memory fake
+  keyed off the actual SQL text this module sends, exercising this module's own SQL and
+  `reportHazardRequestSchema`-based re-branding logic without a real native database.
+- **`hooks/use-hazard-queue-flush.ts`**: wires the two together, opportunistically — on mount and
+  whenever the app returns to the foreground, same shape as `useOpportunisticRefresh` (M5.2) and
+  for the same reason (a scheduled/one-shot trigger can be missed while the app is suspended). No
+  NetInfo/network-listener dependency added — a failed attempt is cheap, and the next foreground/
+  mount tries again, so polling-by-opportunity is enough for Phase 1. Wired into `_layout.tsx`
+  alongside the token-refresh hook.
+- **`report-hazard.tsx` reworked**: a report is written to the local queue _before_ the network
+  is ever touched (design doc §5's "stores it locally first"), then a send is attempted
+  immediately — succeed, and the flow is unchanged from M5.7 (remove from the queue, navigate to
+  the new hazard's detail screen); fail, and the report stays queued (no error shown — a new
+  "Saved" screen explains it'll go out automatically once back online) rather than making a
+  driver retry by hand. The M5.7 mutation is reused for the immediate-attempt path; the queue
+  itself is what makes a dropped connection non-fatal.
+
+106 driver-app tests (up from 98 — `hazard-queue-flush.test.ts`, `hazard-queue.test.ts`). `pnpm
+arch` clean (283 modules, up from 277; 918 dependencies, up from 908). `pnpm lint`/`typecheck`/
+`format:check` all clean across every package. Core/BFF untouched this task — no new test counts
+there.
+
+**Verified by actually running it**: all 106 driver-app tests (including the queue's SQL logic
+against a mocked `expo-sqlite`, not left untested the way MapLibre/watchPositionAsync's native
+calls are); `npx expo-doctor` 21/21; `npx expo export --platform android` produced a real Hermes
+bundle (1606 modules, up from M5.7's 1576). **Not verified**: an actual running app — same
+hardware gap as every driver-app milestone since M5.1 (no native build toolchain, no Android SDK,
+no macOS on this machine) — so the real SQLite file I/O, the AppState foreground listener, and
+the actual offline→online transition have never been exercised on a real device.
+
+Also fixed, found while updating this milestone's docs: **`README.md`'s driver-app section had
+gone stale** — M5.6 and M5.7 never got README entries (only `docs/progress.md` did), so it still
+said "Start trip" pointed nowhere and the repo-layout table still said "M5.1 skeleton only." Not
+this task's own scope, but left broken would have kept misinforming a cold start, which AGENTS.md
+treats as the one thing this file must never do — fixed alongside M5.8's own entry rather than
+carried forward again.
+
+## Decisions from M5.8
+
+60. **A failed flush attempt stops the whole pass rather than skipping to the next queued
+    item.** Extends decision 54's precedent for scoped-down-but-honest tradeoffs: the common
+    failure mode (no connectivity) would fail every remaining item identically, so trying them
+    anyway just spends battery and time for the same outcome. The cost: a queued item that fails
+    for a genuinely permanent reason (not connectivity) would block every report _behind_ it too,
+    not just itself — accepted because the one rule that could cause a permanent failure
+    (`validateMeasurement`) is already enforced client-side before anything is ever queued, so
+    this case is expected to be unreachable, not unhandled by design (same reasoning class as
+    M1.5's invite-code race).
+61. **No network-state listener (e.g. NetInfo) — opportunistic triggers only (mount +
+    foreground).** Matches `useOpportunisticRefresh`'s own precedent and avoids a new dependency
+    for a Phase 1 testers-count scale where "try again next time the app is opened" is good
+    enough.
+
+## Deviations and open items from M5.8
+
+- **A permanently-failing queued report blocks everything behind it**, per decision 60 — no
+  adjudication UI exists to inspect, retry individually, or drop a stuck queue entry. Revisit if
+  testers ever hit this for real (expected not to, since the one known cause is already
+  client-side validated before queuing).
+- **Real SQLite persistence across an app relaunch is unverified** — same hardware gap as the rest
+  of this milestone. The schema and CRUD are verified against `expo-sqlite`'s real API surface and
+  tested against a faithful in-memory stand-in, not against the real native module.
+- **No cached-hazards-for-offline-display feature**, despite the design doc's §8 SQLite line
+  mentioning "the offline hazard queue and cached hazards" together — the M5 task breakdown names
+  only "Offline hazard queue" for M5.8, and there's still no hazards-on-map display anywhere in
+  the app to cache data for (M5.7 decision 58's own gap, still open).

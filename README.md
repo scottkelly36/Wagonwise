@@ -299,8 +299,9 @@ second check on top — core alone decides ownership/authorization for those.
 ## Driver app
 
 `apps/driver-app` (M5, in progress — M5.1 skeleton, M5.2 sign-in, M5.3 vehicle profiles, M5.4 plan
-route, M5.5 route overview) — Expo + Expo Router, targeting both iOS and Android. No native
-Xcode/Android Studio project is checked in;
+route, M5.5 route overview, M5.6 active trip, M5.7 report hazard + hazard detail, M5.8 offline
+hazard queue) — Expo + Expo Router, targeting both iOS and Android. No native Xcode/Android
+Studio project is checked in;
 Expo generates those on demand (`expo prebuild`, or transparently when EAS Build runs).
 
 ```bash
@@ -382,15 +383,41 @@ Treat the map screen as unverified-by-a-real-run until it's actually opened on a
 simulator.
 
 **Route overview (M5.5)**: `/route-overview` — the route line (decoded from Valhalla's polyline6
-geometry, `src/lib/polyline.ts`, hand-rolled per AGENTS.md rule 6), distance/time, "restrictions
-avoided" and "hazards on this route" sections (both always empty right now — `RoutePlan`'s
-`avoidedRestrictions`/`hazardsOnRoute` fields have been `[]` since M2.5/M3.5, a documented
-backend gap, not a bug here), and a **disabled** "Start trip" button — active-trip tracking is
-M5.6's screen and M6's backend, neither of which exists yet, so this points nowhere rather than
-at a route that doesn't exist. The just-planned route is held in a small in-memory store
-(`src/state/current-route-plan-store.ts`), not re-fetched — core has no `GET
+geometry, `src/lib/polyline.ts`, hand-rolled per AGENTS.md rule 6), distance/time, and
+"restrictions avoided"/"hazards on this route" sections (both always empty right now —
+`RoutePlan`'s `avoidedRestrictions`/`hazardsOnRoute` fields have been `[]` since M2.5/M3.5, a
+documented backend gap, not a bug here). The just-planned route is held in a small in-memory
+store (`src/state/current-route-plan-store.ts`), not re-fetched — core has no `GET
 /routing/route-plans/:id` endpoint (deliberately: there's no route-plan history to browse yet),
 so `/plan-route` and `/route-overview` share this one "current plan" slot instead.
+
+**Active trip (M5.6)**: "Start trip" (route overview) now really starts one —
+`POST /routing/route-plans/:id/trip` — and lands on `/active-trip`: a live-following map
+(`src/hooks/use-live-location.ts`, a continuous `expo-location` watch, foreground only), the
+planned route's hazard list, and a real "End trip" button (`POST /routing/trips/:id/end`). The
+started trip is held in another small in-memory store (`src/state/current-active-trip-store.ts`)
+— same reasoning as the route-plan store: core deliberately has no `GET` to re-fetch a trip by,
+so it doesn't survive an app relaunch mid-trip (a real, disclosed gap — see `docs/progress.md`).
+The mic button and reroute prompts the design doc also names for this screen are **disabled**
+placeholders — hands-free voice reporting is M7, reroute-on-hazard is M6.
+
+**Report hazard + hazard detail (M5.7)**: a new `/report-hazard` (tap-to-drop a pin, an
+eight-item plain-word type picker, optional note/measurement) and `/hazards/[id]` (what/when/
+confirmations, real "Still there"/"Not there" actions). Closed a real gap left since M3: core had
+a `HazardRepository.findById` but never exposed it over HTTP — `GET /hazards/reports/:id` now
+does. Reachable in this app only by just having reported a hazard — there's no hazards-on-map
+display anywhere yet to tap an existing pin from (a disclosed scope-down, not an oversight).
+
+**Offline hazard queue (M5.8)**: reporting now writes to a local SQLite queue
+(`expo-sqlite`, `src/db/hazard-queue.ts`) _before_ ever touching the network (design doc §5), then
+tries to send immediately — if that fails (no connectivity), the report stays queued and the
+screen shows "Saved — this will be sent automatically once you're back online" instead of an
+error. `src/hooks/use-hazard-queue-flush.ts` (wired into the root layout, same "opportunistic, not
+just one trigger" shape as `use-opportunistic-refresh.ts`, M5.2) retries the whole queue on
+mount and whenever the app returns to the foreground, in order, stopping at the first failure —
+trying items after a failure would only waste time on what's very likely the same offline
+condition. The client-generated idempotency id (already in place since M5.7) is exactly what
+makes this retry-safe: a report resent after a flaky connection never creates a duplicate.
 
 ## Repo layout
 
@@ -398,7 +425,7 @@ so `/plan-route` and `/route-overview` share this one "current plan" slot instea
 apps/
   core/           core service — Fastify host, modular monolith   ✅ identity wired end to end
   driver-bff/     Fastify BFF for the driver app                  ✅ identity, routing, hazards
-  driver-app/     Expo React Native app, iOS + Android             🚧 M5.1 skeleton only
+  driver-app/     Expo React Native app, iOS + Android             ✅ M5.1–M5.8 done, M5.9+ next
 packages/
   config/         shared tsconfig / ESLint / Prettier presets     ✅
   architecture/   dependency-cruiser rules + fixtures + tests     ✅
@@ -445,9 +472,9 @@ because a plain compiled `node dist/main.js` (no TypeScript-aware loader) needs 
 resolve, unlike `tsx`/Vitest during development. `turbo.json`'s existing `dependsOn: ["^build"]`
 on `build`/`lint`/`typecheck`/`test` already builds it first automatically.
 
-Everything listed above is real. `apps/driver-app` has only the M5.1 skeleton so far (a health
-check screen, no real screens yet); core's `routing` and `hazards` modules are real from M2/M3,
-`feedback` hasn't started.
+Everything listed above is real. `apps/driver-app` has sign-in, vehicle profiles, plan route,
+route overview, active trip, and report/view a hazard (M5.1–M5.8) — feedback (M5.9) hasn't
+started; core's `routing` and `hazards` modules are real from M2/M3, `feedback` hasn't started.
 
 ## Conventions
 
