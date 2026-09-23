@@ -1,5 +1,6 @@
 import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
+import type { DomainEvent } from '../../../shared/domain-event.js';
 import type { HazardRepository } from '../application/ports/hazard-repository.js';
 import type {
   GeoPoint,
@@ -114,7 +115,27 @@ export class PostgresHazardRepository implements HazardRepository {
     return rows.map(toDomain);
   }
 
-  async save(report: HazardReport): Promise<void> {
+  /** `events` (M6.3) are written to `outbox.events` in the same transaction as the row itself
+   *  (decision 4) — a crash between the two must never lose an event or record one for a write
+   *  that never happened. No transaction is opened at all when there's nothing to publish
+   *  (dismiss/expire's calls), so the common case pays no extra round trip. */
+  async save(report: HazardReport, events: readonly DomainEvent[] = []): Promise<void> {
+    if (events.length === 0) {
+      await this.#upsert(report, this.db);
+      return;
+    }
+    await this.db.transaction().execute(async (trx) => {
+      await this.#upsert(report, trx);
+      for (const event of events) {
+        await sql`
+          insert into outbox.events (event_id, aggregate_type, aggregate_id, event_type, payload)
+          values (${event.eventId}, ${event.aggregateType}, ${event.aggregateId}, ${event.eventType}, ${JSON.stringify(event.payload)})
+        `.execute(trx);
+      }
+    });
+  }
+
+  async #upsert(report: HazardReport, executor: UntypedDb): Promise<void> {
     await sql`
       insert into hazards.reports
         (id, reporter_id, type, location, note, measurement_kind, measurement_value,
@@ -140,6 +161,6 @@ export class PostgresHazardRepository implements HazardRepository {
         dismissals = excluded.dismissals,
         status = excluded.status,
         expires_at = excluded.expires_at
-    `.execute(this.db);
+    `.execute(executor);
   }
 }

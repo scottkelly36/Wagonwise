@@ -1,3 +1,4 @@
+import type { DomainEvent } from '../../../../shared/domain-event.js';
 import type { GeoPoint, HazardReport, HazardReportId } from '../../domain/hazard-report.js';
 import type { HazardRepository } from '../ports/hazard-repository.js';
 
@@ -13,6 +14,10 @@ function metresBetween(a: GeoPoint, b: GeoPoint): number {
 
 export class InMemoryHazardRepository implements HazardRepository {
   #byId = new Map<HazardReportId, HazardReport>();
+  /** Recorded, not published anywhere — lets a use-case test assert exactly which events a
+   *  given call raised, the same role `outbox.events` itself plays against a real Postgres
+   *  repository (`postgres-hazard-repository.test.ts`). */
+  readonly emittedEvents: DomainEvent[] = [];
 
   findById(id: HazardReportId): Promise<HazardReport | null> {
     return Promise.resolve(this.#byId.get(id) ?? null);
@@ -45,8 +50,9 @@ export class InMemoryHazardRepository implements HazardRepository {
     return Promise.resolve(matches);
   }
 
-  save(report: HazardReport): Promise<void> {
+  save(report: HazardReport, events: readonly DomainEvent[] = []): Promise<void> {
     this.#byId.set(report.id, report);
+    this.emittedEvents.push(...events);
     return Promise.resolve();
   }
 }

@@ -2350,7 +2350,7 @@ verified**: an actual running app — same hardware gap as every driver-app mile
 | ---- | ------------------------------------------------------------------------- | ----------------- |
 | M6.1 | Outbox event infrastructure (dispatcher, no real emitter yet)             | Done — 2026-09-23 |
 | M6.2 | Identity: device push tokens                                              | Not started       |
-| M6.3 | Hazards publishes `HazardReported`/`HazardConfirmed`                      | Not started       |
+| M6.3 | Hazards publishes `HazardReported`/`HazardConfirmed`                      | Done — 2026-09-23 |
 | M6.4 | Routing: reroute detection (on-hazard-event subscriber)                   | Not started       |
 | M6.5 | Push notifications (`PushNotifier` port + Expo adapter)                   | Not started       |
 | M6.6 | Driver app: register push token, receive notification, reroute prompt     | Not started       |
@@ -2448,3 +2448,78 @@ outbox.events` inline, once it has a real event to write (M6.3+).** `shared/` ca
 - **No visibility into a dead-lettered event beyond querying Postgres directly** — no log line,
   no metric, no admin view. Fine at Phase 1's scale (a human can `psql` in), revisit if that
   becomes the actual way an incident gets noticed.
+
+**M6.3 delivered:** hazards' first real domain events — `reportHazard` and `confirmHazard` now
+raise `HazardReported`/`HazardConfirmed` through the outbox M6.1 built with no caller yet.
+Developed on its own branch off `main`, independent of M6.2 (identity device tokens) — the two
+touch entirely different modules and neither needs the other's code, unlike M6.4, which will need
+both.
+
+- **`domain/events.ts`**: `hazardReportedEvent`/`hazardConfirmedEvent`, each building a
+  `DomainEvent<Payload>` with its own payload shape (per `shared/domain-event.ts`'s own doc
+  comment: "each event type defines its own payload shape where it's raised"). Emitted for every
+  hazard type, not just blocking ones — filtering to what's worth alerting on is a _handler's_
+  job (M6.4), not something the publisher decides on its behalf. `HazardDismissed`/
+  `HazardExpired` (also in the design doc's own event list) stay unemitted: nothing in M6's
+  alerting flow reacts to either, matching the same "don't wire an unused dependency" precedent
+  as everything else this session has deferred until a real consumer exists.
+- **`report-hazard.ts`/`confirm-hazard.ts`** gained an `ids: IdGenerator` dependency — narrower
+  than it looks: decision 62 ("no IdGenerator, every hazards use case takes a caller-supplied
+  id") was about the _aggregate's_ id (the offline-queue idempotency key), never touched here; an
+  event's own id is a different, genuinely-generated need. Three cases, three outcomes: an
+  idempotent retry of an already-filed report raises nothing (matches the existing "no new
+  side effect" contract); a nearby-duplicate merge raises `HazardConfirmed` (a merge _is_ an
+  implicit confirmation, from an alerting subscriber's point of view); a genuinely new report
+  raises `HazardReported`.
+- **`HazardRepository.save()`** gained an optional third argument, `events`. `PostgresHazardRepository`
+  only opens a transaction when `events.length > 0` — `dismissHazard`/`expireHazards`'s calls
+  (which never pass any) still pay no extra round trip, and the row + every event write together
+  or not at all when there is one (decision 4).
+- **`InMemoryHazardRepository`** gained a public `emittedEvents` array — recorded, never
+  published, giving use-case tests a way to assert exactly which events a call raised without
+  touching Postgres, the in-memory equivalent of what `postgres-hazard-repository.test.ts`
+  proves against `outbox.events` for real.
+
+9 new/changed hazards tests (3 domain, 2 report-hazard, 1 confirm-hazard, plus routes.test.ts's
+deps update) plus 2 new Postgres tests proving a real transactional write (row + event together,
+and confirming a no-events call writes no outbox row at all). 103 hazards-module tests total, 454
+core tests overall on this branch (independent of, and not stacked on, M6.2 — each merges
+cleanly against `main` on its own). `pnpm arch` clean (311 modules, 1028 dependencies — lower
+than M6.2's own count, since this branch doesn't include M6.2's identity changes). `pnpm lint`/
+`typecheck`/`format:check` all clean.
+
+**Verified by actually running it, all for real — Docker stayed up**: all 454 core tests,
+including two new Postgres-backed tests that insert an event via `save()` and then read
+`outbox.events` back directly with a raw `pool.query`, proving the transaction genuinely writes
+both rows together (and that a no-events call writes no outbox row at all).
+
+## Decisions from M6.3
+
+73. **A merge (nearby-duplicate reports collapsing into one extra confirmation) raises
+    `HazardConfirmed`, not `HazardReported`.** The _reporter_ of the would-be duplicate never
+    gets their own report row — `reportHazard`'s existing merge path returns the _existing_
+    report — so from anything downstream (an alerting subscriber, decision 6's own guardrail
+    "don't notify the driver who made the report"), this is indistinguishable from an explicit
+    "still there" confirmation, and should be treated as one.
+74. **Events are emitted for every hazard type, not filtered to blocking ones at the publishing
+    site.** `isBlocking()` already exists in `hazard-report.ts` and could have filtered here, but
+    doing so would bake one specific consumer's relevance rule (M6.4's reroute alerts) into the
+    publisher itself — a future consumer with a different rule (e.g. an advisory-hazard digest)
+    would need the event to exist at all. Filtering is cheap for a handler to do on receipt;
+    baking it into the publish site is not reversible without republishing history.
+75. **`HazardDismissed`/`HazardExpired` are not emitted, despite being in the design doc's own
+    domain-events list.** Scoped out because nothing in M6 reacts to either — matches this
+    session's repeated precedent for shipping infrastructure with no premature consumer (M2.3's
+    `RoutingEngine`, M6.1's dispatcher itself, M6.2's `getPushTokensForDriver`).
+
+## Deviations and open items from M6.3
+
+- **No test proves the two rows (`hazards.reports` and `outbox.events`) actually roll back
+  together on a mid-transaction failure** — `PostgresHazardRepository.save()`'s transaction
+  wrapping is structurally the same pattern `PostgresUnitOfWork` already proves rolls back
+  correctly (`postgres-unit-of-work.test.ts`, M1.4), so this wasn't independently re-verified by
+  a dedicated failure-injection test here. Worth adding if this exact code path is ever suspected
+  during an incident.
+- **This branch was developed independently of M6.2** (deliberately — see the delivered note
+  above) rather than stacked on top of it. M6.4 will need both; expect that branch to either
+  merge both branches' commits in or be created only once both have landed on `main`.

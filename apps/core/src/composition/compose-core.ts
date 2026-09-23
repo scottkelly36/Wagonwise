@@ -90,7 +90,7 @@ export function composeCore(
 
   // hazards built before routing: routing's HazardAvoidanceQueryAdapter (M3.5) wraps hazards'
   // facade, the first case of one module's composition needing another module's instance.
-  const hazards = createHazardsModule({ db: hazardsDb, clock });
+  const hazards = createHazardsModule({ db: hazardsDb, clock, ids });
   const routing = createRoutingModule({
     db: routingDb,
     ids,

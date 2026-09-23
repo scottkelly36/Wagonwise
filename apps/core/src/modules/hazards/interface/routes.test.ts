@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
+import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import { InMemoryHazardRepository } from '../application/testing/in-memory-hazard-repository.js';
 import { registerHazardsRoutes, type HazardsRouteDeps } from './routes.js';
 
@@ -15,9 +16,10 @@ const DRIVER_HEADER = 'x-test-driver-id';
 function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
   const repo = new InMemoryHazardRepository();
   const clock = new FakeClock(now);
+  const ids = new SequentialIdGenerator();
   const deps: HazardsRouteDeps = {
-    reportHazard: { repo, clock },
-    confirmHazard: { repo, clock },
+    reportHazard: { repo, clock, ids },
+    confirmHazard: { repo, clock, ids },
     dismissHazard: { repo },
     getHazard: { repo },
   };

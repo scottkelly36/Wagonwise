@@ -277,12 +277,21 @@ running and its `outbox.handled` row being written means it may run again). A ha
 throwing gets retried up to 5 attempts, then dead-lettered (marked processed without ever
 succeeding) rather than retried forever.
 
-**No module publishes or handles anything yet** — `composeCore` wires the dispatcher with an
-empty handler list (`CoreOverrides.eventHandlers`), started and stopped alongside the app, ready
-for the first real event once a module has one to raise (M6.3+: hazards publishing
-`HazardReported`/`HazardConfirmed`, routing reacting to reroute a driver around a newly-reported
-hazard on their active trip). `drainOnce()` runs one pass synchronously, for tests that don't want
-to wait on the poll interval.
+**`composeCore` still wires the dispatcher with an empty handler list** (`CoreOverrides.eventHandlers`)
+— nothing subscribes yet, only publishes (M6.4 gives routing's reroute subscriber a reason to
+register one). `drainOnce()` runs one pass synchronously, for tests that don't want to wait on
+the poll interval.
+
+**Hazards publishes events (M6.3)**: `reportHazard` and `confirmHazard` now raise
+`HazardReported`/`HazardConfirmed` (`hazards/domain/events.ts`) through the outbox, in the same
+transaction as the row itself (decision 4) — `PostgresHazardRepository.save()` takes an optional
+third argument, `events`, and only opens a transaction at all when there's something to publish
+alongside the row. An idempotent retry of an already-filed report raises nothing (the report
+didn't change), and a nearby-duplicate merge raises `HazardConfirmed`, not `HazardReported` — from
+an alerting subscriber's point of view, a merge and an explicit "still there" confirmation are the
+same fact. Emitted for every hazard type, blocking or not — filtering to what's worth alerting on
+is the future subscriber's job, not something hazards decides on its behalf. `HazardDismissed`/
+`HazardExpired` (also in the design doc's event list) have no consumer yet and aren't emitted.
 
 ## Driver BFF
 

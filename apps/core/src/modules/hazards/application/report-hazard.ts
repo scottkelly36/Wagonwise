@@ -1,5 +1,7 @@
 import type { Clock } from '../../../shared/ports/clock.js';
+import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import { ok, type Result } from '../../../shared/result.js';
+import { hazardConfirmedEvent, hazardReportedEvent } from '../domain/events.js';
 import {
   confirm,
   expiryFor,
@@ -19,6 +21,10 @@ import type { HazardRepository } from './ports/hazard-repository.js';
 export interface ReportHazardDeps {
   readonly repo: HazardRepository;
   readonly clock: Clock;
+  /** Only for the outbox event's own id (M6.3) — the report's own id is still caller-supplied
+   *  (decision 62 still holds for the aggregate itself; an event id is a different, narrower
+   *  need). */
+  readonly ids: IdGenerator;
 }
 
 export interface ReportHazardInput {
@@ -61,7 +67,7 @@ export async function reportHazard(
   const mergeCandidate = findMergeCandidate(nearby, { type: input.type, at: now });
   if (mergeCandidate) {
     const merged = confirm(mergeCandidate, now);
-    await deps.repo.save(merged);
+    await deps.repo.save(merged, [hazardConfirmedEvent(deps.ids.newId(), merged)]);
     return ok(merged);
   }
 
@@ -79,6 +85,6 @@ export async function reportHazard(
     expiresAt: expiryFor(input.type, now),
     createdAt: now,
   };
-  await deps.repo.save(report);
+  await deps.repo.save(report, [hazardReportedEvent(deps.ids.newId(), report)]);
   return ok(report);
 }

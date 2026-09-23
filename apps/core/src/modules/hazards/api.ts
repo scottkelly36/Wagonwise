@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
+import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import { isExpired, type GeoPoint, type HazardType } from './domain/hazard-report.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresHazardRepository } from './infrastructure/postgres-hazard-repository.js';
@@ -12,6 +13,9 @@ export type { UntypedDb } from './infrastructure/db.js';
 export interface HazardsModuleDeps {
   readonly db: UntypedDb;
   readonly clock: Clock;
+  /** Only for outbox event ids (M6.3) — decision 62's "no IdGenerator, every use case takes a
+   *  caller-supplied id" was about the aggregate itself, not an event raised alongside it. */
+  readonly ids: IdGenerator;
 }
 
 /** Only the four hazard types design doc §5 names as blocking map to an avoidance kind; the rest
@@ -67,15 +71,16 @@ export interface HazardsModule {
 /**
  * `hazards`'s only public surface (AGENTS.md rule 6). Everything under `domain/`, `application/`,
  * `infrastructure/` and `interface/` is reachable only through here — same pattern as
- * identity/api.ts and routing/api.ts. No `IdGenerator` dependency, unlike those two modules:
- * every hazards use case takes a caller-supplied id (decision 62, docs/progress.md).
+ * identity/api.ts and routing/api.ts. Every hazard *report* still takes a caller-supplied id
+ * (decision 62) — `IdGenerator` (M6.3) is only ever used for an outbox event's own id, a
+ * different and narrower need decision 62 was never about.
  */
 export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
   const repo = new PostgresHazardRepository(deps.db);
 
   const routeDeps: HazardsRouteDeps = {
-    reportHazard: { repo, clock: deps.clock },
-    confirmHazard: { repo, clock: deps.clock },
+    reportHazard: { repo, clock: deps.clock, ids: deps.ids },
+    confirmHazard: { repo, clock: deps.clock, ids: deps.ids },
     dismissHazard: { repo },
     getHazard: { repo },
   };
