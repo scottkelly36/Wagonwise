@@ -16,6 +16,7 @@ import {
 } from '../modules/identity/api.js';
 import { createRoutingModule, type UntypedDb as RoutingUntypedDb } from '../modules/routing/api.js';
 import { createDb, createPool } from '../platform/db.js';
+import { OutboxDispatcher, type OutboxEventHandler } from '../platform/outbox-dispatcher.js';
 import { PostgresUnitOfWork } from '../platform/postgres-unit-of-work.js';
 import { SystemClock } from '../platform/system-clock.js';
 import { UuidIdGenerator } from '../platform/uuid-id-generator.js';
@@ -32,6 +33,10 @@ export interface CoreOverrides {
   readonly tokenSigner?: TokenSigner;
   readonly otpSender?: OtpSender | undefined;
   readonly accessTokenVerifier?: AccessTokenVerifier;
+  /** No module has one yet (M6.1 — the dispatcher itself, wired unused, same "don't wire a
+   *  dependency before it has a real caller" precedent as M2.3's `RoutingEngine`); a future
+   *  module's composition adds handlers here once it has an event to react to. */
+  readonly eventHandlers?: readonly OutboxEventHandler[];
 }
 
 export interface Core {
@@ -95,6 +100,9 @@ export function composeCore(
   });
   const feedback = createFeedbackModule({ db: feedbackDb, clock, ids });
 
+  const outboxDispatcher = new OutboxDispatcher(platformDb, overrides.eventHandlers ?? [], clock);
+  outboxDispatcher.start(config.outboxPollIntervalMs);
+
   const app = buildApp({
     config,
     clock,
@@ -109,6 +117,7 @@ export function composeCore(
   return {
     app,
     async close(): Promise<void> {
+      outboxDispatcher.stop();
       await app.close();
       await pool.end();
     },

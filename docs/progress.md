@@ -9,7 +9,7 @@
 | M3 Hazards core      | Done — 2026-09-22 |
 | M4 Driver BFF + auth | Done — 2026-09-22 |
 | M5 Driver app        | In progress       |
-| M6 Alerts            | Not started       |
+| M6 Alerts            | In progress       |
 | M7 Voice             | Not started       |
 | M8 Field-ready       | Not started       |
 
@@ -2341,4 +2341,110 @@ verified**: an actual running app — same hardware gap as every driver-app mile
   Play internal) is the only M5 task left, and it is explicitly the one task in this milestone
   that cannot be done from this machine — it needs a real Expo account, a real device or
   simulator, and (for the store submissions) Apple/Google developer accounts the user must set up
-  themselves.
+  themselves. **Deliberately deferred by the user (2026-09-23), not forgotten** — skipped ahead
+  to M6 instead, with an explicit ask to come back to M5.10 later.
+
+## M6 task breakdown
+
+| #    | Task                                                                      | Status            |
+| ---- | ------------------------------------------------------------------------- | ----------------- |
+| M6.1 | Outbox event infrastructure (dispatcher, no real emitter yet)             | Done — 2026-09-23 |
+| M6.2 | Identity: device push tokens                                              | Not started       |
+| M6.3 | Hazards publishes `HazardReported`/`HazardConfirmed`                      | Not started       |
+| M6.4 | Routing: reroute detection (on-hazard-event subscriber)                   | Not started       |
+| M6.5 | Push notifications (`PushNotifier` port + Expo adapter)                   | Not started       |
+| M6.6 | Driver app: register push token, receive notification, reroute prompt     | Not started       |
+| M6.7 | End-to-end verification (idempotency, rate limits, don't-notify-reporter) | Not started       |
+
+Broken out this way (mirroring M1–M5's own per-milestone task tables, this milestone's first)
+because M6 is the first task since M1 that needed genuinely new cross-cutting infrastructure
+before any product behaviour — decided with the user rather than assumed, 2026-09-23.
+
+**M6.1 delivered:** the transactional-outbox event dispatcher decision 5 (M1) committed to
+before any module had an event to publish — genuinely working, tested infrastructure with no
+real caller yet, same "don't wire an unused dependency" precedent M2.3's `RoutingEngine` and
+M5.5's disabled "Start trip" both already set.
+
+- **`shared/domain-event.ts`**: `DomainEvent<Payload>` — plain data (`eventId`, `aggregateType`,
+  `aggregateId`, `eventType`, `payload`), matching every aggregate's own no-class style. Lives in
+  `shared/` since any module can construct one, once it has something to publish.
+- **A real mistake caught before it shipped, not after**: the first draft also added a
+  `shared/outbox.ts` helper (`appendOutboxEvents(db, events)`) for a module's repository to call
+  when writing an event alongside its aggregate row. `pnpm arch` would have failed it —
+  `shared/` has the _same_ npm-purity rule `domain/` does (confirmed via
+  `packages/architecture`'s own `shared-imports-npm` violation fixture, which exists specifically
+  to catch this), and the helper needed to import `kysely`. Removed before ever running the
+  check for real; **decision 65** (below) records the corrected design.
+- **`platform/outbox-dispatcher.ts`**: `OutboxDispatcher` — claims a batch of pending events
+  (`processed_at is null`, oldest first, `for update skip locked`, released once the claiming
+  transaction commits rather than held across handler execution — see decision 66), runs every
+  handler whose `eventType` matches, records success per `(event_id, handler_name)` in
+  `outbox.handled`, and marks an event `processed_at` once every matching handler has either
+  succeeded or already been recorded, or once `attempts` (bumped on claim, not completion —
+  decision 67) reaches 5 (dead-letter). `drainOnce()` for tests, `start(intervalMs)`/`stop()` for
+  production, matching decision 5's own naming.
+- **Wired into `composeCore`**: builds an `OutboxDispatcher` against `platformDb` with
+  `overrides.eventHandlers ?? []` (empty for now), starts it at `config.outboxPollIntervalMs`
+  (new `OUTBOX_POLL_INTERVAL_MS`, default 2000ms), stops it in `close()`.
+- **`config.ts`**: `OUTBOX_POLL_INTERVAL_MS`, coerced, minimum 100ms, default 2000ms. Added to
+  `turbo.json`'s `passThroughEnv` and `apps/core/.env.example`, per the cold-start rule.
+
+6 new dispatcher tests (real Postgres — claims/runs/idempotency/dead-letter/ordering/interval
+polling, all first-try passes) plus 3 new config tests. 446 core tests (up from 437). `pnpm arch`
+clean (309 modules, up from 306; 1011 dependencies, up from 997). `pnpm lint`/`typecheck`/
+`format:check` all clean across every package.
+
+**Verified by actually running it, all for real — Docker was already up**: all 446 core tests,
+including `outbox-dispatcher.test.ts`'s six scenarios against a real Postgres container (not an
+in-memory fake — the SQL itself, `for update skip locked` included, is what's being proven).
+`compose-core.test.ts`'s existing two tests still pass with a real dispatcher now starting and
+stopping alongside the app on every test run, confirming the wiring doesn't break anything even
+though nothing calls it yet.
+
+## Decisions from M6.1
+
+65. **No shared outbox-writing helper — each module's repository writes its own `insert into
+outbox.events` inline, once it has a real event to write (M6.3+).** `shared/` cannot import
+    `kysely` (confirmed via the architecture ruleset's own `shared-imports-npm` violation
+    fixture, which exists specifically to catch this) and modules cannot import `platform/`, so
+    there is no legal home for a _shared_ writer — every module already duplicates this class of
+    tiny SQL-adjacent infra (`UntypedDb`, `apply-schema.ts`, `db-for-tests.ts`), and an outbox
+    insert is a two-line addition to that existing pattern, not a new abstraction.
+66. **`OutboxDispatcher` does not hold a database transaction open across handler execution.**
+    `for update skip locked` claims a batch inside a short transaction that commits immediately
+    (bumping `attempts` as part of that same claim); handlers then run outside any open
+    transaction. Chosen over holding the claim transaction open for the whole pass: a future
+    handler may make an external HTTP call (M6.5's push notification), and holding a pooled DB
+    connection open for the duration of an arbitrary network call is worse than the alternative.
+    Correctness doesn't depend on the lock being held throughout anyway — `outbox.handled`'s own
+    uniqueness is what actually stops a handler running twice (rule 9), matching decision 54's
+    identical reasoning for `ActiveTrip`'s race.
+67. **`attempts` is bumped when an event is claimed, not when processing finishes.** A process
+    crash mid-handler must still count as an attempt, or a handler that reliably crashes the
+    whole process (not just throws) would retry forever instead of eventually dead-lettering.
+68. **A dead-lettered event is `processed_at`-set with no separate "dead" column.** The schema
+    (`migrations/0001_init.sql`, written back in M1.4 before any dispatcher existed to need one)
+    only has `processed_at`/`attempts` — adding a new column for this would mean revising a
+    migration that's already shipped and been applied in every environment. `processed_at` set
+    with fewer `outbox.handled` rows than matching handlers is how "dead-lettered, not
+    successfully processed" is distinguished after the fact, if that's ever needed (nothing reads
+    it that way yet).
+69. **An event with no registered handler is marked processed immediately, on its first claim.**
+    There's nothing to wait for — vacuously, every (zero) matching handler has "succeeded." The
+    real consequence: an event published before its first handler exists will never reach that
+    handler once it's added later, since composeCore registers the full handler set at boot and
+    an already-processed event is never reclaimed. Acceptable for Phase 1 (a handler and its
+    event type are always added in the same deploy, per this milestone's own task breakdown), but
+    worth remembering if that ever stops being true.
+
+## Deviations and open items from M6.1
+
+- **`attempts` is one counter per event row, not per handler** (the schema's own shape — see
+  decision 68) — if an event ever has two handlers and one dead-letters while the other keeps
+  succeeding-on-retry, both share the same attempt budget. Not reachable yet (no event has more
+  than zero handlers), so untested against a real multi-handler dead-letter scenario.
+- **No real emitter or handler yet** — `composeCore`'s `eventHandlers` override is `[]` in
+  production. M6.2–M6.4 give this dispatcher its first real work.
+- **No visibility into a dead-lettered event beyond querying Postgres directly** — no log line,
+  no metric, no admin view. Fine at Phase 1's scale (a human can `psql` in), revisit if that
+  becomes the actual way an incident gets noticed.

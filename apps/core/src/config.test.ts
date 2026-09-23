@@ -22,6 +22,7 @@ describe('loadConfig', () => {
       identityPrivateKeyPem: undefined,
       internalKeys: ['local-dev-internal-key'],
       valhallaUrl: 'http://127.0.0.1:8002',
+      outboxPollIntervalMs: 2000,
     });
   });
 
@@ -35,6 +36,7 @@ describe('loadConfig', () => {
       IDENTITY_PRIVATE_KEY: ED25519_PEM,
       INTERNAL_KEYS: 'key-one, key-two',
       VALHALLA_URL: 'http://valhalla.internal:8002',
+      OUTBOX_POLL_INTERVAL_MS: '500',
     });
     expect(config).toEqual({
       nodeEnv: 'production',
@@ -45,6 +47,7 @@ describe('loadConfig', () => {
       identityPrivateKeyPem: ED25519_PEM,
       internalKeys: ['key-one', 'key-two'],
       valhallaUrl: 'http://valhalla.internal:8002',
+      outboxPollIntervalMs: 500,
     });
   });
 
@@ -122,6 +125,18 @@ describe('loadConfig', () => {
     expect(loadConfig({ VALHALLA_URL: 'http://valhalla.internal:8002' }).valhallaUrl).toBe(
       'http://valhalla.internal:8002',
     );
+  });
+
+  it('defaults OUTBOX_POLL_INTERVAL_MS to 2000', () => {
+    expect(loadConfig({}).outboxPollIntervalMs).toBe(2000);
+  });
+
+  it('coerces and accepts an OUTBOX_POLL_INTERVAL_MS override', () => {
+    expect(loadConfig({ OUTBOX_POLL_INTERVAL_MS: '5000' }).outboxPollIntervalMs).toBe(5000);
+  });
+
+  it('rejects an OUTBOX_POLL_INTERVAL_MS below the 100ms floor', () => {
+    expect(() => loadConfig({ OUTBOX_POLL_INTERVAL_MS: '10' })).toThrow(ConfigError);
   });
 
   it('ignores unrelated environment variables', () => {

@@ -64,6 +64,10 @@ const envSchema = z.object({
       message: 'must contain at least one non-empty, comma-separated key',
     }),
   VALHALLA_URL: z.url().default(DEFAULT_VALHALLA_URL),
+  // How often the in-process outbox poller checks for pending events (decision 5, M1). 2s is
+  // fast enough that a Phase 1 tester never notices the delay, without hammering the database
+  // between polls.
+  OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(100).default(2000),
 });
 
 export interface Config {
@@ -75,6 +79,7 @@ export interface Config {
   readonly identityPrivateKeyPem: string | undefined;
   readonly internalKeys: readonly string[];
   readonly valhallaUrl: string;
+  readonly outboxPollIntervalMs: number;
 }
 
 /** Thrown at boot when the environment is invalid; the process should exit, not limp on. */
@@ -107,5 +112,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     identityPrivateKeyPem: values.IDENTITY_PRIVATE_KEY,
     internalKeys: values.INTERNAL_KEYS,
     valhallaUrl: values.VALHALLA_URL,
+    outboxPollIntervalMs: values.OUTBOX_POLL_INTERVAL_MS,
   };
 }
