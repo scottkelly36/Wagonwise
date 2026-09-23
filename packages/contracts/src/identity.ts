@@ -51,6 +51,25 @@ export const revokeSessionParamsSchema = z.object({
 });
 export type RevokeSessionParams = z.infer<typeof revokeSessionParamsSchema>;
 
+export const deviceIdSchema = brandedId<'DeviceId'>();
+export type DeviceId = z.infer<typeof deviceIdSchema>;
+
+/** No `driverId` field, same reasoning as every other create-request schema in this package —
+ *  the caller is whoever the access token says they are. */
+export const registerDeviceRequestSchema = z.object({
+  pushToken: z.string().min(1),
+});
+export type RegisterDeviceRequest = z.infer<typeof registerDeviceRequestSchema>;
+
+export const deviceSchema = z.object({
+  id: deviceIdSchema,
+  driverId: driverIdSchema,
+  pushToken: z.string(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+export type DeviceDto = z.infer<typeof deviceSchema>;
+
 /** The shape of a domain error body every identity route can send (interface/error-mapping.ts's
  *  `statusFor()` picks the status; this describes what rides along with it). */
 export const identityErrorResponseSchema = z.object({

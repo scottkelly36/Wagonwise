@@ -4,11 +4,13 @@ import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { UnitOfWork } from '../../shared/ports/unit-of-work.js';
 import type { OtpSender } from './application/ports/otp-sender.js';
 import type { TokenSigner } from './application/ports/token-signer.js';
+import type { DriverId } from './domain/driver.js';
 import { ConsoleOtpSender } from './infrastructure/console-otp-sender.js';
 import { CryptoOtpCodeGenerator } from './infrastructure/crypto-otp-code-generator.js';
 import { CryptoRefreshTokenGenerator } from './infrastructure/crypto-refresh-token-generator.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { Ed25519TokenSigner } from './infrastructure/ed25519-token-signer.js';
+import { PostgresDeviceRepository } from './infrastructure/postgres-device-repository.js';
 import { PostgresDriverRepository } from './infrastructure/postgres-driver-repository.js';
 import { PostgresInviteCodeRepository } from './infrastructure/postgres-invite-code-repository.js';
 import { PostgresOtpRepository } from './infrastructure/postgres-otp-repository.js';
@@ -50,6 +52,13 @@ export interface IdentityModuleDeps {
 
 export interface IdentityModule {
   registerRoutes(app: FastifyInstance): void;
+  /** Every push token currently registered to a driver — the read-model routing's future
+   *  reroute subscriber wraps (design doc §6: "device tokens come from a read-model port onto
+   *  Identity"; that adapter, in routing's own `infrastructure/`, translates this into
+   *  routing's own types, per rule 7 — identity never sees what routing does with it). Plain
+   *  strings, not `Device`s: nothing outside identity needs a device's id or timestamps, only
+   *  what a `PushNotifier` actually sends to. Unconsumed until M6.4 gives it a real caller. */
+  getPushTokensForDriver(driverId: DriverId): Promise<string[]>;
 }
 
 /**
@@ -62,6 +71,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
   const inviteCodeRepo = new PostgresInviteCodeRepository(deps.db);
   const sessionRepo = new PostgresSessionRepository(deps.db);
   const otpRepo = new PostgresOtpRepository(deps.db);
+  const deviceRepo = new PostgresDeviceRepository(deps.db);
   const otpSender = deps.otpSender ?? new ConsoleOtpSender();
   const otpCodeGenerator = new CryptoOtpCodeGenerator();
   const refreshTokenGenerator = new CryptoRefreshTokenGenerator();
@@ -94,12 +104,17 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
       clock: deps.clock,
     },
     revokeSession: { sessionRepo, clock: deps.clock },
+    registerDevice: { repo: deviceRepo, clock: deps.clock, ids: deps.ids },
     tokenSigner: deps.tokenSigner,
   };
 
   return {
     registerRoutes(app: FastifyInstance): void {
       registerIdentityRoutes(app, routeDeps);
+    },
+    async getPushTokensForDriver(driverId: DriverId): Promise<string[]> {
+      const devices = await deviceRepo.findByDriverId(driverId);
+      return devices.map((device) => device.pushToken);
     },
   };
 }

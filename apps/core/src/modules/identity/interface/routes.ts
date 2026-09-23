@@ -1,12 +1,14 @@
 import {
   refreshTokenRequestSchema,
+  registerDeviceRequestSchema,
   requestOtpRequestSchema,
   revokeSessionParamsSchema,
   verifyOtpRequestSchema,
 } from '@wagonwise/contracts/identity';
-import type { FastifyInstance } from 'fastify';
-import { makeId } from '../../../shared/brand.js';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { makeId, type Id } from '../../../shared/brand.js';
 import { refreshToken, type RefreshTokenDeps } from '../application/refresh-token.js';
+import { registerDevice, type RegisterDeviceDeps } from '../application/register-device.js';
 import { requestOtp, type RequestOtpDeps } from '../application/request-otp.js';
 import { revokeSession, type RevokeSessionDeps } from '../application/revoke-session.js';
 import { verifyOtp, type VerifyOtpDeps } from '../application/verify-otp.js';
@@ -18,7 +20,23 @@ export interface IdentityRouteDeps {
   readonly verifyOtp: VerifyOtpDeps;
   readonly refreshToken: RefreshTokenDeps;
   readonly revokeSession: RevokeSessionDeps;
+  readonly registerDevice: RegisterDeviceDeps;
   readonly tokenSigner: TokenSigner;
+}
+
+/**
+ * `driverId` never comes from a body field a caller supplied — `request.driverId` is set by
+ * `host/driver-auth.ts`'s hook, gated on the `/identity/devices/` prefix specifically (not all
+ * of `/identity/`, which also serves the pre-token sign-in flow that can't require a token it
+ * doesn't have yet). Duplicated from routing's/hazards'/feedback's own `requireDriverId` per
+ * AGENTS.md rule 6, not shared.
+ */
+function requireDriverId(request: FastifyRequest, reply: FastifyReply): Id<'DriverId'> | undefined {
+  if (request.driverId === undefined) {
+    void reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+    return undefined;
+  }
+  return makeId<'DriverId'>(request.driverId);
 }
 
 /**
@@ -85,6 +103,24 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(204).send();
+  });
+
+  app.post('/identity/devices', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const parsed = registerDeviceRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await registerDevice(deps.registerDevice, {
+      driverId,
+      pushToken: parsed.data.pushToken,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(201).send(result.value);
   });
 
   // A BFF caches this and verifies tokens locally (decision 1) — core is the only thing that can

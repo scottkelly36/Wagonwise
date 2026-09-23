@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deviceSchema,
   refreshTokenRequestSchema,
+  registerDeviceRequestSchema,
   requestOtpRequestSchema,
   revokeSessionParamsSchema,
   verifyOtpRequestSchema,
@@ -71,5 +73,36 @@ describe('revokeSessionParamsSchema', () => {
     expect(
       revokeSessionParamsSchema.safeParse({ id: '11111111-1111-4111-8111-111111111111' }).success,
     ).toBe(true);
+  });
+});
+
+describe('registerDeviceRequestSchema', () => {
+  it('requires a non-empty pushToken — no driverId field', () => {
+    expect(registerDeviceRequestSchema.safeParse({}).success).toBe(false);
+    expect(registerDeviceRequestSchema.safeParse({ pushToken: '' }).success).toBe(false);
+    expect(
+      registerDeviceRequestSchema.safeParse({ pushToken: 'ExponentPushToken[abc]' }).success,
+    ).toBe(true);
+  });
+
+  it('ignores an extraneous driverId field rather than requiring or rejecting it', () => {
+    const result = registerDeviceRequestSchema.safeParse({
+      driverId: 'driver-1',
+      pushToken: 'ExponentPushToken[abc]',
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('deviceSchema', () => {
+  it('parses a real response shape', () => {
+    const result = deviceSchema.safeParse({
+      id: '11111111-1111-4111-8111-111111111111',
+      driverId: 'driver-1',
+      pushToken: 'ExponentPushToken[abc]',
+      createdAt: '2026-06-15T08:00:00.000Z',
+      updatedAt: '2026-06-15T08:00:00.000Z',
+    });
+    expect(result.success).toBe(true);
   });
 });

@@ -1,11 +1,13 @@
 import {
   refreshTokenRequestSchema,
+  registerDeviceRequestSchema,
   requestOtpRequestSchema,
   revokeSessionParamsSchema,
   verifyOtpRequestSchema,
 } from '@wagonwise/contracts/identity';
 import type { FastifyInstance } from 'fastify';
 import type { AccessTokenVerifier } from './auth/access-token-verifier.js';
+import { authenticateOrReject } from './auth/authenticate.js';
 import type { CoreClient } from './core-client.js';
 
 export interface IdentityRouteDeps {
@@ -88,6 +90,21 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
       `/identity/sessions/${parsed.data.id}/revoke`,
       request.id,
     );
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.post('/identity/devices', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const parsed = registerDeviceRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request('POST', '/identity/devices', request.id, {
+      body: parsed.data,
+      authorization: `Bearer ${token}`,
+    });
     return reply.status(core.status).send(core.body);
   });
 }

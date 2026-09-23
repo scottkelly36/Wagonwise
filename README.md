@@ -180,6 +180,7 @@ facing wrapper described below, and is how you should normally reach these:
 | `POST /identity/token/refresh`        | `{ refreshToken }` — rotates, returns new tokens                              |
 | `POST /identity/sessions/:id/revoke`  | Sign-out (needs `Authorization: Bearer <accessToken>` at the BFF — see below) |
 | `GET /identity/.well-known/jwks.json` | The public key, for a BFF to verify tokens with                               |
+| `POST /identity/devices`              | `{ pushToken }` — registers a driver's Expo push token (M6.2, see Alerts)     |
 
 `identifier` is an email or a UK-ish phone number. `inviteCode` is required only the first time —
 signing in with an identifier that has no Driver yet needs one. There's no admin endpoint to
@@ -283,6 +284,18 @@ for the first real event once a module has one to raise (M6.3+: hazards publishi
 `HazardReported`/`HazardConfirmed`, routing reacting to reroute a driver around a newly-reported
 hazard on their active trip). `drainOnce()` runs one pass synchronously, for tests that don't want
 to wait on the poll interval.
+
+**Device push tokens (M6.2)**: `POST /identity/devices` (`{ pushToken }`, no `driverId` field —
+the caller is whoever the access token says) registers or re-registers a driver's Expo push
+token, upsert-keyed on `pushToken` itself rather than one-row-per-driver: reopening the app with
+an unchanged token just refreshes `updated_at`, and the same physical device signing in as a
+different driver reassigns the token rather than leaving it pointing at whoever registered it
+first. Gated by the driver-auth hook on `/identity/devices/` specifically, not all of
+`/identity/` — identity's other routes (OTP request/verify, token refresh, JWKS) are the
+pre-token sign-in flow itself and can't require a token they don't have yet. `identity/api.ts`'s
+facade also exposes `getPushTokensForDriver(driverId)` — the read-model port design doc §6 asks
+for ("device tokens come from a read-model port onto Identity"), unconsumed until M6.4 gives
+routing's reroute subscriber a reason to call it.
 
 ## Driver BFF
 

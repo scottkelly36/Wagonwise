@@ -111,42 +111,57 @@ describe('internal-key auth', () => {
   });
 });
 
-describe('driver auth (M4.2, M4.3)', () => {
-  it.each([['/routing/protected'], ['/hazards/protected'], ['/feedback/protected']])(
-    'rejects a %s request with no access token, even with a valid internal key',
-    async (path) => {
-      const { app } = makeApp();
-      app.get(path, () => 'never reached');
-      const response = await app.inject({
-        method: 'GET',
-        url: path,
-        headers: INTERNAL_KEY_HEADER,
-      });
-      expect(response.statusCode).toBe(401);
-      expect(response.json()).toMatchObject({ error: 'missing_bearer_token' });
-    },
-  );
+describe('driver auth (M4.2, M4.3, M6.2)', () => {
+  it.each([
+    ['/routing/protected'],
+    ['/hazards/protected'],
+    ['/feedback/protected'],
+    ['/identity/devices/protected'],
+  ])('rejects a %s request with no access token, even with a valid internal key', async (path) => {
+    const { app } = makeApp();
+    app.get(path, () => 'never reached');
+    const response = await app.inject({
+      method: 'GET',
+      url: path,
+      headers: INTERNAL_KEY_HEADER,
+    });
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: 'missing_bearer_token' });
+  });
 
-  it.each([['/routing/protected'], ['/hazards/protected'], ['/feedback/protected']])(
-    'accepts a %s request with a valid internal key and a valid access token',
-    async (path) => {
-      const { app } = makeApp();
-      app.get(path, () => ({ ok: true }));
-      const response = await app.inject({
-        method: 'GET',
-        url: path,
-        headers: { ...INTERNAL_KEY_HEADER, authorization: `Bearer ${VALID_DRIVER_TOKEN}` },
-      });
-      expect(response.statusCode).toBe(200);
-    },
-  );
+  it.each([
+    ['/routing/protected'],
+    ['/hazards/protected'],
+    ['/feedback/protected'],
+    ['/identity/devices/protected'],
+  ])('accepts a %s request with a valid internal key and a valid access token', async (path) => {
+    const { app } = makeApp();
+    app.get(path, () => ({ ok: true }));
+    const response = await app.inject({
+      method: 'GET',
+      url: path,
+      headers: { ...INTERNAL_KEY_HEADER, authorization: `Bearer ${VALID_DRIVER_TOKEN}` },
+    });
+    expect(response.statusCode).toBe(200);
+  });
 
-  it('does not gate a route outside routing/hazards/feedback, e.g. a future module', async () => {
+  it('does not gate a route outside routing/hazards/feedback/identity-devices, e.g. a future module', async () => {
     const { app } = makeApp();
     app.get('/admin/protected', () => ({ ok: true }));
     const response = await app.inject({
       method: 'GET',
       url: '/admin/protected',
+      headers: INTERNAL_KEY_HEADER,
+    });
+    expect(response.statusCode).toBe(200);
+  });
+
+  it('does not gate identity’s own pre-token routes — they issue the token, so cannot require one', async () => {
+    const { app } = makeApp();
+    app.get('/identity/otp/request', () => ({ ok: true }));
+    const response = await app.inject({
+      method: 'GET',
+      url: '/identity/otp/request',
       headers: INTERNAL_KEY_HEADER,
     });
     expect(response.statusCode).toBe(200);

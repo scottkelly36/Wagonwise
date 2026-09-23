@@ -2349,7 +2349,7 @@ verified**: an actual running app — same hardware gap as every driver-app mile
 | #    | Task                                                                      | Status            |
 | ---- | ------------------------------------------------------------------------- | ----------------- |
 | M6.1 | Outbox event infrastructure (dispatcher, no real emitter yet)             | Done — 2026-09-23 |
-| M6.2 | Identity: device push tokens                                              | Not started       |
+| M6.2 | Identity: device push tokens                                              | Done — 2026-09-23 |
 | M6.3 | Hazards publishes `HazardReported`/`HazardConfirmed`                      | Not started       |
 | M6.4 | Routing: reroute detection (on-hazard-event subscriber)                   | Not started       |
 | M6.5 | Push notifications (`PushNotifier` port + Expo adapter)                   | Not started       |
@@ -2448,3 +2448,91 @@ outbox.events` inline, once it has a real event to write (M6.3+).** `shared/` ca
 - **No visibility into a dead-lettered event beyond querying Postgres directly** — no log line,
   no metric, no admin view. Fine at Phase 1's scale (a human can `psql` in), revisit if that
   becomes the actual way an incident gets noticed.
+
+**M6.2 delivered:** identity's `Device` aggregate — the third and last "genuinely nothing built
+yet" gap this session found in a named-but-unbuilt design-doc aggregate (after M5.6's
+`ActiveTrip` and M5.9's `feedback` module), closing it the same way: domain, one use case, a
+migration, one endpoint, a BFF proxy — plus the read-model facade method design doc §6 asks for,
+built now but left uncalled until M6.4.
+
+- **`domain/device.ts`**: `Device { id, driverId, pushToken, createdAt, updatedAt }`, keyed by
+  `pushToken` rather than one-row-per-driver — a device's Expo push token is already a stable
+  per-install identifier, so re-registering an unchanged token or reassigning one to a different
+  driver (same physical device, a new sign-in) are both just an upsert, never a duplicate row.
+  `validatePushToken` mirrors every other free-text-identifier validator in this codebase
+  (routing's `validateName`, feedback's `validateMessage`).
+- **`application/register-device.ts`**: looks up any existing row by `pushToken` first — if
+  found, reassigns `driverId` and bumps `updatedAt` (keeping the same id); if not, creates one.
+  A driver signing out and a different driver signing in on the same phone must never leave the
+  old driver receiving the new one's alerts, which a naive one-row-per-driver design would risk
+  if the app just re-registered without ever clearing the old row.
+- **Migration `0008_identity_devices.sql`**: `identity.devices`, `push_token` unique (the upsert
+  target), `driver_id` a real foreign key to `identity.drivers` (matching `sessions`' own FK).
+- **`POST /identity/devices`** (201) — the first identity route to read `request.driverId` at
+  all; every other identity route either predates a token existing (OTP/refresh/JWKS) or derives
+  its subject a different way (`sessions/:id/revoke`'s URL param). Needed a new, narrower driver-
+  auth prefix: `/identity/devices/`, not all of `/identity/` (decision 70, below) — added to
+  `host/build-app.ts`'s `DRIVER_AUTH_PREFIXES` and to `build-app.test.ts`'s own parameterized
+  gate tests, plus a new test proving identity's pre-token routes are still _not_ gated (a
+  regression that widening the prefix carelessly would cause silently).
+- **`identity/api.ts` facade**: gained `getPushTokensForDriver(driverId): Promise<string[]>` —
+  the read-model port design doc §6 names ("device tokens come from a read-model port onto
+  Identity"). Built now, alongside the aggregate it reads, rather than waiting for M6.4's
+  consumer — the _producer_ half of a read-model port is reasonably part of "device push tokens"
+  shipping as a complete capability, even though the _consumer_ (routing's reroute adapter,
+  translating this into routing's own types per rule 7) is genuinely M6.4's job, not this one's.
+- **`packages/contracts/src/identity.ts`**: `registerDeviceRequestSchema` (no `driverId` field,
+  matching every other create-request schema), `deviceSchema`.
+- **`apps/driver-bff/src/identity-routes.ts`**: one proxy route, reusing the shared
+  `authenticateOrReject` helper (`routing-routes.ts`/`hazards-routes.ts`/`feedback-routes.ts`
+  already use it) rather than the file's own inline bearer-parsing — that inline copy exists
+  specifically for `sessions/:id/revoke`'s extra job of checking the token's claims against the
+  URL, which this route doesn't need.
+
+10 new identity tests (domain use case + routes), 17 new Postgres repository tests added to the
+existing combined `postgres-repositories.test.ts` (seeded via a nested `beforeAll` rather than
+per-test, since `PostgresDriverRepository.save()` is insert-only and three tests share the same
+two seeded driver ids — reassigning a device between them). 460 core tests (up from 446 — plus
+the now-familiar `run-migrations.test.ts` fix for the 8th migration file/table, decision 57's own
+prediction from the M5.6 follow-up, right again). 44 contracts tests (up from 41). 73 driver-bff
+tests (up from 70). `pnpm arch` clean (315 modules, up from 309; 1045 dependencies, up from
+1011). `pnpm lint`/`typecheck`/`format:check` all clean across every package.
+
+**Verified by actually running it, all for real — Docker stayed up across this whole session**:
+all 460 core tests, including the new device-repository suite against a real Postgres foreign-key
+relationship (not faked); all 73 driver-bff tests; all 44 contracts tests.
+
+## Decisions from M6.2
+
+70. **`/identity/devices/` gets its own driver-auth prefix, not folded into a blanket
+    `/identity/`.** Every other identity route is either part of the pre-token sign-in flow
+    itself (OTP request/verify, token refresh, JWKS) — which cannot require an access token it
+    doesn't have yet — or derives its subject a different way (`sessions/:id/revoke` from the
+    token's own `sid` claim against the URL, not `request.driverId`). Gating all of `/identity/`
+    would have broken sign-in entirely; a new, narrower prefix was the correct fix, not a
+    workaround.
+71. **`Device` is keyed by `pushToken`, not `(driverId)` or `(driverId, platform)`.** A driver
+    could plausibly own more than one device (a driver and a dispatcher's tablet, say), so
+    one-row-per-driver was never right; keying by the token itself is also what makes
+    re-registration and reassignment both a plain upsert with no separate "does this exist"
+    branch needed anywhere except inside `registerDevice` itself.
+72. **The read-model facade method (`getPushTokensForDriver`) ships in the same task as the
+    aggregate it reads, ahead of its real consumer.** A deliberate exception to "don't wire an
+    unused dependency" (M2.3, M5.5's own precedent) — that precedent is about not wiring a
+    _consumer_ to a producer that doesn't exist yet; here the producer and its own read method are
+    the same unit of work (both live in `identity/api.ts`, both are "device push tokens" as a
+    feature), and the actually-deferred part (M6.4's routing-side adapter) is untouched.
+
+## Deviations and open items from M6.2
+
+- **No way to unregister a device.** Signing out doesn't clear a driver's registered push
+  tokens — a device stays registered (and would keep receiving that driver's alerts, once M6.5
+  sends any) until a different driver's sign-in on the same physical device reassigns it, or the
+  token itself goes stale on Expo's side. Not coupled to `revokeSession` deliberately: a push
+  token's lifecycle is a property of the _device_, not the _session_, and Phase 1 has no product
+  reason yet to force them together. Revisit if a tester reports alerts arriving after signing
+  out.
+- **No test yet exercises `getPushTokensForDriver` end-to-end against a real Postgres FK** beyond
+  what `postgres-repositories.test.ts`'s `findByDriverId` coverage already proves — the facade
+  method itself is a one-line wrapper with nothing more to verify until M6.4 gives it a real
+  caller to test against.
