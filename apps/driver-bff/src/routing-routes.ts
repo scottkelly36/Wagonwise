@@ -1,6 +1,8 @@
 import {
+  activeTripIdParamsSchema,
   createVehicleProfileRequestSchema,
   planRouteRequestSchema,
+  routePlanIdParamsSchema,
   updateVehicleProfileRequestSchema,
   vehicleProfileIdParamsSchema,
 } from '@wagonwise/contracts/routing';
@@ -112,6 +114,40 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       body: parsed.data,
       authorization: `Bearer ${token}`,
     });
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.post('/routing/route-plans/:id/trip', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const params = routePlanIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request(
+      'POST',
+      `/routing/route-plans/${params.data.id}/trip`,
+      request.id,
+      { authorization: `Bearer ${token}` },
+    );
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.post('/routing/trips/:id/end', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const params = activeTripIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request(
+      'POST',
+      `/routing/trips/${params.data.id}/end`,
+      request.id,
+      { authorization: `Bearer ${token}` },
+    );
     return reply.status(core.status).send(core.body);
   });
 }

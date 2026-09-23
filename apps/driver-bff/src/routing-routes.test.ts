@@ -207,3 +207,94 @@ describe('POST /routing/route-plans', () => {
     expect(response.json()).toEqual({ tag: 'NoRouteFound' });
   });
 });
+
+describe('POST /routing/route-plans/:id/trip', () => {
+  const ID = '11111111-1111-4111-8111-111111111111';
+
+  it('forwards the plan id and token, no body', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 201, body: { id: 'trip-1', routePlanId: ID } };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${ID}/trip`,
+      headers: AUTH_HEADER,
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: `/routing/route-plans/${ID}/trip`,
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('relays a 409 from core unchanged', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 409, body: { tag: 'TripAlreadyActive' } };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${ID}/trip`,
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({ tag: 'TripAlreadyActive' });
+  });
+
+  it('400s a non-UUID id before even checking for a token', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-plans/not-a-uuid/trip',
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({ method: 'POST', url: `/routing/route-plans/${ID}/trip` });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+});
+
+describe('POST /routing/trips/:id/end', () => {
+  const ID = '22222222-2222-4222-8222-222222222222';
+
+  it('forwards the trip id and token, no body', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = {
+      status: 200,
+      body: { id: ID, endedAt: '2026-06-15T09:00:00.000Z' },
+    };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${ID}/end`,
+      headers: AUTH_HEADER,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: `/routing/trips/${ID}/end`,
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('relays a 404 from core unchanged', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 404, body: { tag: 'ActiveTripNotFound' } };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${ID}/end`,
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({ tag: 'ActiveTripNotFound' });
+  });
+});

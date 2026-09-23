@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
+import { InMemoryActiveTripRepository } from '../application/testing/in-memory-active-trip-repository.js';
 import { InMemoryRoutePlanRepository } from '../application/testing/in-memory-route-plan-repository.js';
 import { InMemoryVehicleProfileRepository } from '../application/testing/in-memory-vehicle-profile-repository.js';
 import { FakeHazardAvoidanceQuery } from '../application/testing/fake-hazard-avoidance-query.js';
@@ -21,6 +22,9 @@ const DRIVER_HEADER = 'x-test-driver-id';
 function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
   const repo = new InMemoryVehicleProfileRepository();
   const ids = new SequentialIdGenerator();
+  const routePlanRepo = new InMemoryRoutePlanRepository();
+  const activeTripRepo = new InMemoryActiveTripRepository();
+  const clock = new FakeClock(now);
   const deps: RoutingRouteDeps = {
     createVehicleProfile: { repo, ids },
     updateVehicleProfile: { repo },
@@ -29,12 +33,14 @@ function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
     listVehicleProfiles: { repo },
     planRoute: {
       vehicleProfileRepo: repo,
-      routePlanRepo: new InMemoryRoutePlanRepository(),
+      routePlanRepo,
       routingEngine: new FakeRoutingEngine(),
       hazardAvoidanceQuery: new FakeHazardAvoidanceQuery(),
-      clock: new FakeClock(now),
+      clock,
       ids,
     },
+    startTrip: { routePlanRepo, activeTripRepo, clock, ids },
+    endTrip: { repo: activeTripRepo, clock },
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {
@@ -356,5 +362,144 @@ describe('POST /routing/route-plans', () => {
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toMatchObject({ tag: 'NoRouteFound' });
+  });
+});
+
+const origin = { lat: 54.9707, lon: -2.1013 };
+const destination = { lat: 54.9738, lon: -2.0165 };
+
+async function planned(app: FastifyInstance, driverId = 'driver-1'): Promise<string> {
+  const created = await app.inject({
+    method: 'POST',
+    url: '/routing/vehicle-profiles',
+    payload: { name: 'Big Wagon', dimensions },
+    ...asDriver(driverId),
+  });
+  const { id: profileId } = created.json<{ id: string }>();
+
+  const response = await app.inject({
+    method: 'POST',
+    url: '/routing/route-plans',
+    payload: { profileId, origin, destination },
+    ...asDriver(driverId),
+  });
+  return response.json<{ id: string }>().id;
+}
+
+describe('POST /routing/route-plans/:id/trip', () => {
+  it('201s and returns the started trip for an owned plan', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${routePlanId}/trip`,
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ routePlanId, driverId: 'driver-1' });
+  });
+
+  it('404s an unknown route plan id', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-plans/11111111-1111-4111-8111-111111111111/trip',
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'RoutePlanNotFound' });
+  });
+
+  it('404s a plan owned by a different driver', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app, 'driver-1');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${routePlanId}/trip`,
+      ...asDriver('driver-2'),
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('409s a second trip while one is already active for the driver', async () => {
+    const { app } = buildApp();
+    const firstPlanId = await planned(app);
+    await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${firstPlanId}/trip`,
+      ...asDriver('driver-1'),
+    });
+
+    const secondPlanId = await planned(app);
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${secondPlanId}/trip`,
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ tag: 'TripAlreadyActive' });
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${routePlanId}/trip`,
+    });
+    expect(response.statusCode).toBe(401);
+  });
+});
+
+describe('POST /routing/trips/:id/end', () => {
+  it('200s and returns the ended trip', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+    const started = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${routePlanId}/trip`,
+      ...asDriver('driver-1'),
+    });
+    const { id: tripId } = started.json<{ id: string }>();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${tripId}/end`,
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: tripId });
+    expect(response.json<{ endedAt?: string }>().endedAt).toBeDefined();
+  });
+
+  it('404s an unknown trip id', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/trips/11111111-1111-4111-8111-111111111111/end',
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'ActiveTripNotFound' });
+  });
+
+  it('404s a trip owned by a different driver', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app, 'driver-1');
+    const started = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${routePlanId}/trip`,
+      ...asDriver('driver-1'),
+    });
+    const { id: tripId } = started.json<{ id: string }>();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${tripId}/end`,
+      ...asDriver('driver-2'),
+    });
+    expect(response.statusCode).toBe(404);
   });
 });

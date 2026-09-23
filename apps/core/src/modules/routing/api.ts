@@ -4,6 +4,7 @@ import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import { HazardAvoidanceQueryAdapter } from './infrastructure/hazard-avoidance-query.js';
 import type { UntypedDb } from './infrastructure/db.js';
+import { PostgresActiveTripRepository } from './infrastructure/postgres-active-trip-repository.js';
 import { PostgresRoutePlanRepository } from './infrastructure/postgres-route-plan-repository.js';
 import { PostgresVehicleProfileRepository } from './infrastructure/postgres-vehicle-profile-repository.js';
 import { ValhallaRoutingEngine } from './infrastructure/valhalla-routing-engine.js';
@@ -37,6 +38,7 @@ export interface RoutingModule {
 export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
   const vehicleProfileRepo = new PostgresVehicleProfileRepository(deps.db);
   const routePlanRepo = new PostgresRoutePlanRepository(deps.db);
+  const activeTripRepo = new PostgresActiveTripRepository(deps.db);
   const routingEngine = new ValhallaRoutingEngine(deps.valhallaUrl);
   const hazardAvoidanceQuery = new HazardAvoidanceQueryAdapter(deps.hazards);
 
@@ -54,6 +56,8 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
       clock: deps.clock,
       ids: deps.ids,
     },
+    startTrip: { routePlanRepo, activeTripRepo, clock: deps.clock, ids: deps.ids },
+    endTrip: { repo: activeTripRepo, clock: deps.clock },
   };
 
   return {

@@ -1,8 +1,10 @@
 import {
+  activeTripSchema,
   createVehicleProfileRequestSchema,
   planRouteRequestSchema,
   routePlanSchema,
   vehicleProfileSchema,
+  type ActiveTripDto,
   type CreateVehicleProfileRequest,
   type PlanRouteRequest,
   type RoutePlanDto,
@@ -86,4 +88,20 @@ export async function planRoute(
   });
   throwUnlessSuccess(status, json, [201]);
   return routePlanSchema.parse(json);
+}
+
+export async function startTrip(accessToken: string, routePlanId: string): Promise<ActiveTripDto> {
+  const { status, json } = await requestJson('POST', `/routing/route-plans/${routePlanId}/trip`, {
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [201]);
+  return activeTripSchema.parse(json);
+}
+
+export async function endTrip(accessToken: string, tripId: string): Promise<ActiveTripDto> {
+  const { status, json } = await requestJson('POST', `/routing/trips/${tripId}/end`, {
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return activeTripSchema.parse(json);
 }

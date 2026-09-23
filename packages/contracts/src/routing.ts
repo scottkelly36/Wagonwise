@@ -8,6 +8,9 @@ export type VehicleProfileId = z.infer<typeof vehicleProfileIdSchema>;
 export const routePlanIdSchema = brandedId<'RoutePlanId'>();
 export type RoutePlanId = z.infer<typeof routePlanIdSchema>;
 
+export const activeTripIdSchema = brandedId<'ActiveTripId'>();
+export type ActiveTripId = z.infer<typeof activeTripIdSchema>;
+
 export const geoPointSchema = z.object({
   lat: z.number(),
   lon: z.number(),
@@ -91,3 +94,28 @@ export const routePlanSchema = z.object({
   createdAt: z.iso.datetime(),
 });
 export type RoutePlanDto = z.infer<typeof routePlanSchema>;
+
+/** The URL `:id` for `POST /routing/route-plans/:id/trip` — mirrors
+ *  `vehicleProfileIdParamsSchema`. */
+export const routePlanIdParamsSchema = z.object({
+  id: z.uuid(),
+});
+export type RoutePlanIdParams = z.infer<typeof routePlanIdParamsSchema>;
+
+/** The URL `:id` for `POST /routing/trips/:id/end`. */
+export const activeTripIdParamsSchema = z.object({
+  id: z.uuid(),
+});
+export type ActiveTripIdParams = z.infer<typeof activeTripIdParamsSchema>;
+
+/** `lastPosition`/`endedAt` are always absent for the whole of M5.6 (docs/progress.md) — the
+ *  shape is here so nothing about the wire contract has to change once M6 populates them. */
+export const activeTripSchema = z.object({
+  id: activeTripIdSchema,
+  routePlanId: routePlanIdSchema,
+  driverId: driverIdSchema,
+  startedAt: z.iso.datetime(),
+  lastPosition: geoPointSchema.optional(),
+  endedAt: z.iso.datetime().optional(),
+});
+export type ActiveTripDto = z.infer<typeof activeTripSchema>;

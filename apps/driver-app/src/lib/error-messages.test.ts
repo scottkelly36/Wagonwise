@@ -9,6 +9,9 @@ describe('routingErrorMessage', () => {
     expect(routingErrorMessage(new ApiError('VehicleProfileNotFound', 404))).toBe(
       "That vehicle isn't there any more.",
     );
+    expect(routingErrorMessage(new ApiError('TripAlreadyActive', 409))).toBe(
+      'You already have a trip in progress.',
+    );
   });
 
   it('falls back to a generic message for an unrecognised tag', () => {

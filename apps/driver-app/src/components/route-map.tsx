@@ -26,6 +26,11 @@ interface Props {
   /** Absent on the route-overview screen — a planned route's origin/destination are fixed
    *  outcomes of `POST /routing/route-plans`, not editable by tapping the map afterwards. */
   readonly onMapPress?: (point: MapPoint) => void;
+  /** The active-trip screen's live GPS fix (M5.6) — when present, the camera follows it instead
+   *  of the static origin/destination the route was planned with, and it's drawn as its own
+   *  marker rather than reusing the origin pin (a driver's live position drifts off the planned
+   *  origin as soon as the trip starts). */
+  readonly currentPosition?: MapPoint;
 }
 
 function toLngLat(point: MapPoint): LngLat {
@@ -40,8 +45,11 @@ function toLngLat(point: MapPoint): LngLat {
  * RN/TS, fully unit-testable; this component is the one piece verified by design (against
  * MapLibre's own real source, not guessed) rather than by a real run.
  */
-export function RouteMap({ origin, destination, routeLine, onMapPress }: Props) {
-  const center = destination ?? origin;
+export function RouteMap({ origin, destination, routeLine, onMapPress, currentPosition }: Props) {
+  const center = currentPosition ?? destination ?? origin;
+  // A closer, street-level zoom while following a live position — the whole planned route
+  // doesn't need to stay in frame the way it does on the plan-route/route-overview screens.
+  const zoom = currentPosition ? 16 : 12;
 
   function handlePress(event: NativeSyntheticEvent<PressEvent>): void {
     if (!onMapPress) return;
@@ -51,7 +59,7 @@ export function RouteMap({ origin, destination, routeLine, onMapPress }: Props) 
 
   return (
     <MapLibreMap style={styles.map} mapStyle={config.mapStyleUrl} onPress={handlePress}>
-      <Camera center={center ? toLngLat(center) : undefined} zoom={12} />
+      <Camera center={center ? toLngLat(center) : undefined} zoom={zoom} />
       {routeLine && routeLine.length > 1 && (
         <GeoJSONSource id="route-line-source" data={{ type: 'LineString', coordinates: routeLine }}>
           <Layer
@@ -70,6 +78,11 @@ export function RouteMap({ origin, destination, routeLine, onMapPress }: Props) 
       {destination && (
         <ViewAnnotation id="destination" lngLat={toLngLat(destination)}>
           <View style={[styles.pin, styles.destinationPin]} testID="destination-pin" />
+        </ViewAnnotation>
+      )}
+      {currentPosition && (
+        <ViewAnnotation id="current-position" lngLat={toLngLat(currentPosition)}>
+          <View style={[styles.pin, styles.currentPositionPin]} testID="current-position-pin" />
         </ViewAnnotation>
       )}
     </MapLibreMap>
@@ -92,5 +105,8 @@ const styles = StyleSheet.create({
   },
   destinationPin: {
     backgroundColor: '#F5A623',
+  },
+  currentPositionPin: {
+    backgroundColor: '#34D399',
   },
 });
