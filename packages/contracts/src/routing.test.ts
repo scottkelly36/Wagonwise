@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  activeTripIdParamsSchema,
+  activeTripSchema,
   createVehicleProfileRequestSchema,
   dimensionsSchema,
   geoPointSchema,
   planRouteRequestSchema,
+  routePlanIdParamsSchema,
   routePlanSchema,
   updateVehicleProfileRequestSchema,
   vehicleProfileIdParamsSchema,
@@ -145,6 +148,48 @@ describe('routePlanSchema', () => {
       avoidedRestrictions: [{ description: 'Avoided Styford Bridge — 3.7m limit' }],
       hazardsOnRoute: ['hazard-1'],
       createdAt: '2026-06-15T08:00:00.000Z',
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('routePlanIdParamsSchema', () => {
+  it('requires a well-formed UUID', () => {
+    expect(routePlanIdParamsSchema.safeParse({ id: 'not-a-uuid' }).success).toBe(false);
+    expect(
+      routePlanIdParamsSchema.safeParse({ id: '11111111-1111-4111-8111-111111111111' }).success,
+    ).toBe(true);
+  });
+});
+
+describe('activeTripIdParamsSchema', () => {
+  it('requires a well-formed UUID', () => {
+    expect(activeTripIdParamsSchema.safeParse({ id: 'not-a-uuid' }).success).toBe(false);
+    expect(
+      activeTripIdParamsSchema.safeParse({ id: '11111111-1111-4111-8111-111111111111' }).success,
+    ).toBe(true);
+  });
+});
+
+describe('activeTripSchema', () => {
+  it('parses a freshly started trip, with lastPosition/endedAt absent', () => {
+    const result = activeTripSchema.safeParse({
+      id: '11111111-1111-4111-8111-111111111111',
+      routePlanId: '22222222-2222-4222-8222-222222222222',
+      driverId: 'driver-1',
+      startedAt: '2026-06-15T08:00:00.000Z',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('parses an ended trip with lastPosition/endedAt present', () => {
+    const result = activeTripSchema.safeParse({
+      id: '11111111-1111-4111-8111-111111111111',
+      routePlanId: '22222222-2222-4222-8222-222222222222',
+      driverId: 'driver-1',
+      startedAt: '2026-06-15T08:00:00.000Z',
+      lastPosition: { lat: 54.9707, lon: -2.1013 },
+      endedAt: '2026-06-15T09:00:00.000Z',
     });
     expect(result.success).toBe(true);
   });

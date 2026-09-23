@@ -1552,7 +1552,7 @@ starts.
 | M5.3  | Vehicle profiles screens                                                                                             | Done — 2026-09-23 |
 | M5.4  | Plan route screen (MapLibre)                                                                                         | Done — 2026-09-23 |
 | M5.5  | Route overview screen                                                                                                | Done — 2026-09-23 |
-| M5.6  | Active trip screen (no voice/reroute yet — M6/M7)                                                                    | Not started       |
+| M5.6  | Active trip screen (no voice/reroute yet — M6/M7)                                                                    | Done — 2026-09-23 |
 | M5.7  | Report hazard (tap) + hazard detail                                                                                  | Not started       |
 | M5.8  | Offline hazard queue (expo-sqlite)                                                                                   | Not started       |
 | M5.9  | Feedback screen                                                                                                      | Not started       |
@@ -1942,3 +1942,124 @@ hardware gap as M5.4 (no native build toolchain on this machine at all, not just
 - **`docs/progress.md`'s own M5.3/M5.4 verification claims about typed routes were only
   half-true — corrected here, not silently left wrong.** Recorded above: the mechanism is real,
   but neither prior task had actually generated the types file it claimed to be checking against.
+
+**M5.6 delivered:** the active-trip screen — and, since M5.5 confirmed no `ActiveTrip` backend
+existed anywhere, the backend to go with it: core domain, a migration, two endpoints, a BFF
+proxy, and the driver-app screen, mirroring how `RoutePlan` was built end to end.
+
+- **`routing/domain/active-trip.ts`**: `ActiveTrip { id, routePlanId, driverId, startedAt,
+lastPosition?, endedAt? }` — `driverId` duplicated off the `RoutePlan` it started from, same
+  reasoning `RoutePlan` itself uses for duplicating `driverId` off `VehicleProfile` (decision 49):
+  a direct ownership check with no join. `lastPosition` stays unset for the whole of this task —
+  writing it for real needs a position-update endpoint only M6's reroute alerts actually need
+  (design doc §6), so it isn't built until it has a real caller (same "don't wire an unused
+  dependency" precedent as M2.3's `RoutingEngine`).
+- **`application/`**: `startTrip` (looks up the driver's own `RoutePlan`, rejects a second
+  concurrent trip via `TripAlreadyActive`) and `endTrip` (sets `endedAt`; ending an already-ended
+  trip re-succeeds rather than erroring, same "sign-out never fails for tapping it twice"
+  reasoning as identity's `revokeSession`, M1.5). New error tags `RoutePlanNotFound`,
+  `ActiveTripNotFound`, `TripAlreadyActive` (409) added to routing's one `statusFor()` table.
+  `ActiveTripRepository` port + in-memory fake, matching `RoutePlanRepository`'s shape.
+- **No domain-event emission** (`TripStarted`/`TripEnded` from the design doc's own event list) —
+  matches existing precedent: `RoutePlanned` isn't wired either, since nothing subscribes to
+  either until M6 has a real handler. Not an oversight; the same "wire it when it has a caller"
+  rule M2.3 and M5.5 both already apply.
+- **`infrastructure/postgres-active-trip-repository.ts`** + **migration `0006_active_trips.sql`**:
+  raw `sql` tagged templates (decision 26), same shape as `PostgresRoutePlanRepository`. The
+  application layer's own `TripAlreadyActive` check is check-then-insert and therefore racy under
+  two concurrent start requests — the same kind of gap M1.5's invite-code redemption race left
+  open as a thrown exception (M1.5 deviations). Closed for real here instead, since it was nearly
+  free: a partial unique index (`driver_id where ended_at is null`) makes a concurrent second
+  insert violate a constraint and 500 rather than silently creating two active trips.
+- **Two new routes**: `POST /routing/route-plans/:id/trip` (start, 201), `POST
+/routing/trips/:id/end` (end, 200) — same `requireDriverId`/zod-param/`statusFor()` shape as
+  every other routing route. Wired into `routing/api.ts`.
+- **`packages/contracts/src/routing.ts`**: `activeTripSchema`, `routePlanIdParamsSchema`,
+  `activeTripIdParamsSchema` — `lastPosition`/`endedAt` both `.optional()`, matching the domain.
+- **`apps/driver-bff/src/routing-routes.ts`**: two proxy routes, same forward-and-relay shape as
+  every other routing route (AGENTS.md rule 10 — no body to validate, since both take their id
+  from the URL and their driver from the token).
+- **driver-app**: `api/routing.ts` gained `startTrip`/`endTrip`; `api/use-active-trip.ts` wraps
+  them as TanStack mutations (actions, not fetches — same reasoning as `useCreateRoutePlan`,
+  M5.4). `state/current-active-trip-store.ts` is an ephemeral single-trip slot, the same shape and
+  the same reason as `current-route-plan-store.ts` (M5.5): core has no `GET
+/routing/trips/:id` to re-fetch from, and M5.6 deliberately doesn't add one (see deviations,
+  below). `hooks/use-live-location.ts` wraps `expo-location`'s `watchPositionAsync` for the
+  screen's live-following map — a continuous subscription, unlike `useCurrentLocation`'s one-shot
+  `queryFn` (M5.4), so it stays a plain `useEffect` rather than forcing TanStack Query's
+  one-shot-fetch shape onto an open-ended stream; the async, testable half is split out as
+  `startWatchingPosition`, same split `fetchCurrentLocation` used. `components/route-map.tsx`
+  gained an optional `currentPosition` prop (a distinct "you are here" marker and a closer
+  street-level follow zoom, since a driver's live position drifts off the planned origin the
+  moment a trip starts) — `route-overview`/`plan-route` are unaffected, since neither passes it.
+  `route-overview.tsx`'s "Start trip" button goes live (was shipped visibly disabled in M5.5,
+  decision recorded there) and now stores the started trip and navigates to the new
+  `app/active-trip.tsx` screen: live-following map, an upcoming-hazards list reusing the
+  already-planned route's `hazardsOnRoute` (no new hazards fetch — M5.7/M5.8 territory), a real
+  "End trip" button, and a disabled "Report hazard" mic button shown per the design doc's own
+  screen table but honestly disabled (M7 territory), matching the same shipped-but-disabled
+  pattern M5.5 used for "Start trip" itself. New `lib/error-messages.ts` entries for the three new
+  error tags.
+
+37 contracts tests (up from 33), 423 core tests (370 passing — see verification note below), 62
+driver-bff tests (up from 56), 77 driver-app tests (up from 67), 17 architecture tests. `pnpm arch`
+clean (263 modules, up from 248; 871 dependencies, up from 790). `pnpm lint`/`typecheck`/
+`format:check` all clean across every package.
+
+**Verified by actually running it, with one real gap this time — Docker Desktop's daemon isn't
+reachable on this machine in this session** (`docker info` connects as a client but the server
+section fails: "failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine
+... The system cannot find the file specified"; no `Docker Desktop.exe` found at the usual
+install path either). This is a session/environment gap, not a code problem — every other
+Testcontainers-backed Postgres suite in this repo (identity, hazards, routing's other two
+repositories) fails identically and for the same reason, not just the new
+`postgres-active-trip-repository.test.ts`. So: the full non-Docker surface was verified for
+real — `pnpm typecheck`/`lint`/`format:check`/`arch` clean across every package, all 370 passing
+core tests (46 of 53 test files; the 7 failing files are exactly the seven Postgres-backed
+repository suites, identical failure for all of them), all 62 driver-bff tests (route proxying
+verified against a fake `CoreClient`, including a 409 relay), all 77 driver-app tests,
+and a real `expo start` run confirmed `.expo/types/router.d.ts` now includes `/active-trip`
+before `tsc --noEmit` was trusted (same discipline M5.5 established). **Not verified**: the new
+`PostgresActiveTripRepository` and the partial unique index against a real Postgres — it's
+written to the same pattern `PostgresRoutePlanRepository` already proved works, and a real test
+for it exists and passes typecheck/lint, but it has never actually run. Also not verified, same
+hardware gap as every driver-app milestone since M5.1: an actual running app (map render, GPS
+watch, or the two new screens on a device/simulator).
+
+## Decisions from M5.6
+
+53. **`ActiveTrip` duplicates `driverId` off the `RoutePlan` it started from**, extending decision
+    49's reasoning (`RoutePlan` duplicating `driverId` off `VehicleProfile`) one level further —
+    every ownership check in `routing` now follows the same no-join pattern.
+54. **One active trip per driver at a time, enforced twice**: `startTrip`'s own
+    `findActiveForDriver` check (clear error, `TripAlreadyActive`), backed by a database-level
+    partial unique index for the race the application check alone can't close. Chosen over
+    leaving the race open the way M1.5's invite-code redemption race was left open, because a
+    partial unique index here was nearly free — no new table, no new column, just a `where`
+    clause on the index this table needed anyway.
+55. **No `GET /routing/trips/:id` (or `/trips/active`) endpoint — a driver relaunching mid-trip
+    loses the app's own record of it.** Deliberately scoped down the same way M5.5 scoped down
+    the "no `RoutePlan` re-fetch" gap: core has nowhere near enough of a trip-history feature to
+    justify one yet, and the ephemeral client-side store this task adds is the same shape M5.5
+    already established. If testers actually hit this (backgrounding the app mid-trip on real
+    Android/iOS, not just this machine's hardware gap), it's the first thing to add.
+56. **No `TripStarted`/`TripEnded` domain events wired**, despite the design doc listing both —
+    matches `RoutePlanned`'s own precedent (unwired since M2.5): an event with no subscriber is
+    untested plumbing, and M6 is what gives either event a real handler.
+
+## Deviations and open items from M5.6
+
+- **`PostgresActiveTripRepository` and the migration's partial unique index are unverified against
+  a real Postgres** — Docker Desktop's daemon isn't reachable on this machine this session (see
+  the verification note above). Every other Postgres-backed repository in this repo is equally
+  unverified in this same session, for the same reason — not a gap specific to this task. Revisit
+  the next time Docker is available; nothing here is expected to fail, but "expected to work" and
+  "verified" are different claims, and M1.4/M1.5's own standard is not to blur them.
+- **No position-update endpoint.** `lastPosition` exists on the domain and in the schema but is
+  never written — the live GPS point only ever exists client-side (the active-trip screen's map),
+  never reaches core. Needed before M6's reroute alerts can use a driver's last known position.
+- **No background location.** `useLiveLocation` only tracks while the app is foregrounded and the
+  screen is mounted — correct for "map following position" but not enough for M6's reroute alerts,
+  which need a position even while the driver isn't looking at the phone.
+- **The mic button and reroute prompts are placeholders, per this task's own scope note** (M6/M7),
+  matching M5.5's "Start trip" precedent for a shipped-but-honestly-disabled feature.

@@ -3,9 +3,11 @@ import { vehicleProfileIdSchema } from '@wagonwise/contracts/routing';
 import {
   createVehicleProfile,
   deleteVehicleProfile,
+  endTrip,
   getVehicleProfile,
   listVehicleProfiles,
   planRoute,
+  startTrip,
   updateVehicleProfile,
 } from './routing';
 import { ApiError } from './errors';
@@ -182,5 +184,69 @@ describe('planRoute', () => {
         destination: routePlan.destination,
       }),
     ).rejects.toMatchObject({ tag: 'NoRouteFound', status: 422 });
+  });
+});
+
+describe('startTrip', () => {
+  const activeTrip = {
+    id: '44444444-4444-4444-4444-444444444444',
+    routePlanId: '33333333-3333-3333-3333-333333333333',
+    driverId: profile.driverId,
+    startedAt: '2026-06-15T08:00:00.000Z',
+  };
+
+  it('posts to the route plan’s trip endpoint with no body, parsing the 201 response', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(201, activeTrip));
+    globalThis.fetch = fetchMock;
+
+    const result = await startTrip('token-1', activeTrip.routePlanId);
+
+    expect(result).toEqual(activeTrip);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(new RegExp(`/routing/route-plans/${activeTrip.routePlanId}/trip$`));
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer token-1');
+  });
+
+  it('throws an ApiError with a 409 when a trip is already active', async () => {
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(409, { tag: 'TripAlreadyActive', requestId: 'r1' }));
+
+    await expect(startTrip('token-1', activeTrip.routePlanId)).rejects.toMatchObject({
+      tag: 'TripAlreadyActive',
+      status: 409,
+    });
+  });
+});
+
+describe('endTrip', () => {
+  const endedTrip = {
+    id: '44444444-4444-4444-4444-444444444444',
+    routePlanId: '33333333-3333-3333-3333-333333333333',
+    driverId: profile.driverId,
+    startedAt: '2026-06-15T08:00:00.000Z',
+    endedAt: '2026-06-15T09:00:00.000Z',
+  };
+
+  it('posts to the trip’s end endpoint with no body, parsing the 200 response', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, endedTrip));
+    globalThis.fetch = fetchMock;
+
+    const result = await endTrip('token-1', endedTrip.id);
+
+    expect(result).toEqual(endedTrip);
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toMatch(new RegExp(`/routing/trips/${endedTrip.id}/end$`));
+  });
+
+  it("throws an ApiError on a 404 (someone else's trip, or an unknown id)", async () => {
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(404, { tag: 'ActiveTripNotFound', requestId: 'r1' }));
+
+    await expect(endTrip('token-1', endedTrip.id)).rejects.toMatchObject({
+      tag: 'ActiveTripNotFound',
+      status: 404,
+    });
   });
 });

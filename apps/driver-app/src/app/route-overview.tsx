@@ -1,15 +1,27 @@
 import { Redirect, useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
+import { useStartTrip } from '../api/use-active-trip';
 import { RouteMap } from '../components/route-map';
+import { routingErrorMessage } from '../lib/error-messages';
 import { decodePolyline6 } from '../lib/polyline';
+import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 
 export default function RouteOverviewScreen() {
   const router = useRouter();
   const plan = useCurrentRoutePlanStore((s) => s.plan);
   const clearPlan = useCurrentRoutePlanStore((s) => s.clear);
+  const setCurrentTrip = useCurrentActiveTripStore((s) => s.setTrip);
+  const startTrip = useStartTrip();
 
   // decodePolyline6 is a pure function of plan.geometry — no need to redo it on every
   // unrelated re-render (e.g. a tap elsewhere on this screen).
@@ -25,6 +37,16 @@ export default function RouteOverviewScreen() {
   function handlePlanAnother(): void {
     clearPlan();
     router.replace('/plan-route');
+  }
+
+  function handleStartTrip(): void {
+    if (!plan || startTrip.isPending) return;
+    startTrip.mutate(plan.id, {
+      onSuccess: (trip) => {
+        setCurrentTrip(trip);
+        router.replace('/active-trip');
+      },
+    });
   }
 
   return (
@@ -66,18 +88,22 @@ export default function RouteOverviewScreen() {
           This is a planning aid — road signs and your own judgement always come first.
         </Text>
 
-        {/* Disabled, not wired: active-trip tracking is M5.6's screen and M6's backend
-            (docs/progress.md — no active_trips table or trip-start endpoint exists yet).
-            Shown per the design doc's own screen table rather than omitted, but honestly
-            disabled rather than pointing at a screen that doesn't exist. */}
+        {startTrip.isError && (
+          <Text style={styles.error}>{routingErrorMessage(startTrip.error)}</Text>
+        )}
+
         <TouchableOpacity
-          style={[styles.button, styles.buttonDisabled]}
-          disabled
+          style={[styles.button, startTrip.isPending && styles.buttonDisabled]}
+          disabled={startTrip.isPending}
+          onPress={handleStartTrip}
           testID="start-trip-button"
         >
-          <Text style={styles.buttonText}>Start trip</Text>
+          {startTrip.isPending ? (
+            <ActivityIndicator color="#0B1220" />
+          ) : (
+            <Text style={styles.buttonText}>Start trip</Text>
+          )}
         </TouchableOpacity>
-        <Text style={styles.footnote}>Active trip tracking is coming soon.</Text>
 
         <TouchableOpacity
           style={styles.linkButton}
@@ -153,5 +179,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#9CA3AF',
     textDecorationLine: 'underline',
+  },
+  error: {
+    fontSize: 16,
+    color: '#F87171',
+    textAlign: 'center',
   },
 });

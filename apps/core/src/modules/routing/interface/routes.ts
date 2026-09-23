@@ -1,6 +1,8 @@
 import {
+  activeTripIdParamsSchema,
   createVehicleProfileRequestSchema,
   planRouteRequestSchema,
+  routePlanIdParamsSchema,
   updateVehicleProfileRequestSchema,
   vehicleProfileIdParamsSchema,
 } from '@wagonwise/contracts/routing';
@@ -14,6 +16,7 @@ import {
   deleteVehicleProfile,
   type DeleteVehicleProfileDeps,
 } from '../application/delete-vehicle-profile.js';
+import { endTrip, type EndTripDeps } from '../application/end-trip.js';
 import {
   getVehicleProfile,
   type GetVehicleProfileDeps,
@@ -23,6 +26,7 @@ import {
   type ListVehicleProfilesDeps,
 } from '../application/list-vehicle-profiles.js';
 import { planRoute, type PlanRouteDeps } from '../application/plan-route.js';
+import { startTrip, type StartTripDeps } from '../application/start-trip.js';
 import {
   updateVehicleProfile,
   type UpdateVehicleProfileDeps,
@@ -36,6 +40,8 @@ export interface RoutingRouteDeps {
   readonly getVehicleProfile: GetVehicleProfileDeps;
   readonly listVehicleProfiles: ListVehicleProfilesDeps;
   readonly planRoute: PlanRouteDeps;
+  readonly startTrip: StartTripDeps;
+  readonly endTrip: EndTripDeps;
 }
 
 /**
@@ -157,5 +163,41 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(201).send(result.value);
+  });
+
+  app.post('/routing/route-plans/:id/trip', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const params = routePlanIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await startTrip(deps.startTrip, {
+      driverId,
+      routePlanId: makeId<'RoutePlanId'>(params.data.id),
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(201).send(result.value);
+  });
+
+  app.post('/routing/trips/:id/end', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const params = activeTripIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await endTrip(deps.endTrip, {
+      id: makeId<'ActiveTripId'>(params.data.id),
+      driverId,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send(result.value);
   });
 }
