@@ -15,8 +15,8 @@ import {
 
 import { useReportHazard } from '../api/use-hazards';
 import { RouteMap, type MapPoint } from '../components/route-map';
+import { enqueueHazardReport, removeQueuedHazardReport } from '../db/hazard-queue';
 import { useCurrentLocation } from '../hooks/use-current-location';
-import { hazardsErrorMessage } from '../lib/error-messages';
 import { HAZARD_TYPE_LABELS, measurementKindFor, measurementLabelFor } from '../lib/hazard-labels';
 import { parseHazardReportForm } from '../lib/hazard-report-form';
 
@@ -37,6 +37,7 @@ export default function ReportHazardScreen() {
   const [note, setNote] = useState('');
   const [measurementValue, setMeasurementValue] = useState('');
   const [validationError, setValidationError] = useState<string | undefined>(undefined);
+  const [queued, setQueued] = useState(false);
 
   // Defaults to current location (same "default until overridden" pattern as plan-route's
   // origin, M5.4) — the hazard is very likely right where the driver is, but a tap still moves
@@ -44,7 +45,7 @@ export default function ReportHazardScreen() {
   const effectivePin = pin ?? location.point;
   const measurementKind = type === undefined ? undefined : measurementKindFor(type);
 
-  function handleSubmit(): void {
+  async function handleSubmit(): Promise<void> {
     setValidationError(undefined);
     const result = parseHazardReportForm({
       type,
@@ -56,14 +57,52 @@ export default function ReportHazardScreen() {
       setValidationError(result.message);
       return;
     }
-    reportHazard.mutate(
-      { id: hazardReportIdSchema.parse(Crypto.randomUUID()), source: 'tap', ...result.value },
-      { onSuccess: (report) => router.replace(`/hazards/${report.id}`) },
-    );
+
+    // Stored locally first, before ever touching the network (design doc §5) — a report a
+    // driver just made is never lost to a dropped connection, even if the immediate send below
+    // fails.
+    const request = {
+      id: hazardReportIdSchema.parse(Crypto.randomUUID()),
+      source: 'tap' as const,
+      ...result.value,
+    };
+    try {
+      await enqueueHazardReport(request);
+    } catch {
+      setValidationError("Couldn't save this report. Try again.");
+      return;
+    }
+
+    reportHazard.mutate(request, {
+      onSuccess: async (report) => {
+        await removeQueuedHazardReport(request.id);
+        router.replace(`/hazards/${report.id}`);
+      },
+      // Left in the local queue — useHazardQueueFlush (wired into _layout.tsx) retries
+      // automatically once the app's next online, so this isn't an error state.
+      onError: () => setQueued(true),
+    });
   }
 
-  const displayedError =
-    validationError ?? (reportHazard.isError ? hazardsErrorMessage(reportHazard.error) : undefined);
+  if (queued) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.queuedContent}>
+          <Text style={styles.title}>Saved</Text>
+          <Text style={[styles.hint, styles.queuedHint]}>
+            You’re offline right now — this will be sent automatically once you’re back online.
+          </Text>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => router.back()}
+            testID="queued-done-button"
+          >
+            <Text style={styles.buttonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -119,12 +158,12 @@ export default function ReportHazardScreen() {
           testID="hazard-note-input"
         />
 
-        {displayedError !== undefined && <Text style={styles.error}>{displayedError}</Text>}
+        {validationError !== undefined && <Text style={styles.error}>{validationError}</Text>}
 
         <TouchableOpacity
           style={[styles.button, reportHazard.isPending && styles.buttonDisabled]}
           disabled={reportHazard.isPending}
-          onPress={handleSubmit}
+          onPress={() => void handleSubmit()}
           testID="report-hazard-submit-button"
         >
           {reportHazard.isPending ? (
@@ -143,6 +182,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0B1220',
   },
+  queuedContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 12,
+  },
   panel: {
     maxHeight: '55%',
   },
@@ -159,6 +205,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9CA3AF',
     marginBottom: 8,
+  },
+  queuedHint: {
+    textAlign: 'center',
   },
   typeGrid: {
     flexDirection: 'row',

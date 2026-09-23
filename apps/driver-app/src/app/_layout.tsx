@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { queryClient } from '../api/query-client';
+import { useHazardQueueFlush } from '../hooks/use-hazard-queue-flush';
 import { useOpportunisticRefresh } from '../hooks/use-opportunistic-refresh';
 import { useAuthStore } from '../state/auth-store';
 
@@ -17,6 +18,7 @@ export default function RootLayout() {
   }, [restore]);
 
   useOpportunisticRefresh();
+  useHazardQueueFlush();
 
   return (
     <QueryClientProvider client={queryClient}>
