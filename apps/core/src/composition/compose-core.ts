@@ -3,6 +3,10 @@ import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
 import type { AccessTokenVerifier } from '../host/access-token-verifier.js';
 import { buildApp } from '../host/build-app.js';
+import {
+  createFeedbackModule,
+  type UntypedDb as FeedbackUntypedDb,
+} from '../modules/feedback/api.js';
 import { createHazardsModule, type UntypedDb as HazardsUntypedDb } from '../modules/hazards/api.js';
 import {
   createIdentityModule,
@@ -77,6 +81,7 @@ export function composeCore(
   // platformDb vs identityDb, there's no Kysely<Database> variance problem here to work around.
   const routingDb: RoutingUntypedDb = identityDb;
   const hazardsDb: HazardsUntypedDb = identityDb;
+  const feedbackDb: FeedbackUntypedDb = identityDb;
 
   // hazards built before routing: routing's HazardAvoidanceQueryAdapter (M3.5) wraps hazards'
   // facade, the first case of one module's composition needing another module's instance.
@@ -88,6 +93,7 @@ export function composeCore(
     valhallaUrl: config.valhallaUrl,
     hazards,
   });
+  const feedback = createFeedbackModule({ db: feedbackDb, clock, ids });
 
   const app = buildApp({
     config,
@@ -98,6 +104,7 @@ export function composeCore(
   identity.registerRoutes(app);
   routing.registerRoutes(app);
   hazards.registerRoutes(app);
+  feedback.registerRoutes(app);
 
   return {
     app,

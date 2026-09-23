@@ -1,5 +1,5 @@
 import { ApiError } from '../api/errors';
-import { hazardsErrorMessage, routingErrorMessage } from './error-messages';
+import { feedbackErrorMessage, hazardsErrorMessage, routingErrorMessage } from './error-messages';
 
 describe('routingErrorMessage', () => {
   it('maps a known tag to plain UK-English wording', () => {
@@ -45,6 +45,26 @@ describe('hazardsErrorMessage', () => {
 
   it('falls back to a network message for a non-ApiError', () => {
     expect(hazardsErrorMessage(new TypeError('Network request failed'))).toBe(
+      "Couldn't reach the server. Check your connection.",
+    );
+  });
+});
+
+describe('feedbackErrorMessage', () => {
+  it('maps a known tag to plain UK-English wording', () => {
+    expect(feedbackErrorMessage(new ApiError('InvalidMessage', 400))).toBe(
+      'Write a note before sending.',
+    );
+  });
+
+  it('falls back to a generic message for an unrecognised tag', () => {
+    expect(feedbackErrorMessage(new ApiError('SomeNewTag', 500))).toBe(
+      'Something went wrong. Try again.',
+    );
+  });
+
+  it('falls back to a network message for a non-ApiError', () => {
+    expect(feedbackErrorMessage(new TypeError('Network request failed'))).toBe(
       "Couldn't reach the server. Check your connection.",
     );
   });

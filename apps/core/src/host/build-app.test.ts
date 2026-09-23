@@ -112,7 +112,7 @@ describe('internal-key auth', () => {
 });
 
 describe('driver auth (M4.2, M4.3)', () => {
-  it.each([['/routing/protected'], ['/hazards/protected']])(
+  it.each([['/routing/protected'], ['/hazards/protected'], ['/feedback/protected']])(
     'rejects a %s request with no access token, even with a valid internal key',
     async (path) => {
       const { app } = makeApp();
@@ -127,7 +127,7 @@ describe('driver auth (M4.2, M4.3)', () => {
     },
   );
 
-  it.each([['/routing/protected'], ['/hazards/protected']])(
+  it.each([['/routing/protected'], ['/hazards/protected'], ['/feedback/protected']])(
     'accepts a %s request with a valid internal key and a valid access token',
     async (path) => {
       const { app } = makeApp();
@@ -141,12 +141,12 @@ describe('driver auth (M4.2, M4.3)', () => {
     },
   );
 
-  it('does not gate a route outside routing/hazards, e.g. a future module', async () => {
+  it('does not gate a route outside routing/hazards/feedback, e.g. a future module', async () => {
     const { app } = makeApp();
-    app.get('/feedback/protected', () => ({ ok: true }));
+    app.get('/admin/protected', () => ({ ok: true }));
     const response = await app.inject({
       method: 'GET',
-      url: '/feedback/protected',
+      url: '/admin/protected',
       headers: INTERNAL_KEY_HEADER,
     });
     expect(response.statusCode).toBe(200);

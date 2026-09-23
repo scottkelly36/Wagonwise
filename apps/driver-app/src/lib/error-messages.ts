@@ -27,3 +27,14 @@ export function hazardsErrorMessage(error: unknown): string {
   }
   return "Couldn't reach the server. Check your connection.";
 }
+
+const FEEDBACK_MESSAGES: Record<string, string> = {
+  InvalidMessage: 'Write a note before sending.',
+};
+
+export function feedbackErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    return FEEDBACK_MESSAGES[error.tag] ?? 'Something went wrong. Try again.';
+  }
+  return "Couldn't reach the server. Check your connection.";
+}

@@ -18,6 +18,11 @@
       "types": "./dist/hazards.d.ts",
       "import": "./dist/hazards.js",
       "default": "./dist/hazards.js"
+    },
+    "./feedback": {
+      "types": "./dist/feedback.d.ts",
+      "import": "./dist/feedback.js",
+      "default": "./dist/feedback.js"
     }
   },
   "scripts": {

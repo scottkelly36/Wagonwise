@@ -300,8 +300,8 @@ second check on top — core alone decides ownership/authorization for those.
 
 `apps/driver-app` (M5, in progress — M5.1 skeleton, M5.2 sign-in, M5.3 vehicle profiles, M5.4 plan
 route, M5.5 route overview, M5.6 active trip, M5.7 report hazard + hazard detail, M5.8 offline
-hazard queue) — Expo + Expo Router, targeting both iOS and Android. No native Xcode/Android
-Studio project is checked in;
+hazard queue, M5.9 feedback) — Expo + Expo Router, targeting both iOS and Android. No native
+Xcode/Android Studio project is checked in;
 Expo generates those on demand (`expo prebuild`, or transparently when EAS Build runs).
 
 ```bash
@@ -419,13 +419,22 @@ trying items after a failure would only waste time on what's very likely the sam
 condition. The client-generated idempotency id (already in place since M5.7) is exactly what
 makes this retry-safe: a report resent after a flaky connection never creates a duplicate.
 
+**Feedback (M5.9)**: `/feedback` — a free-text note plus "Send", with app version
+(`Constants.expoConfig.version`) and device info (RN's built-in `Platform.OS`/`Platform.Version`,
+no new native dependency) attached automatically (`src/lib/app-info.ts`). Closed the last
+"module doesn't exist yet" gap in this codebase: `feedback` had no domain/application/
+infrastructure/interface layer, no migration and no BFF route until this task — the smallest
+module in the repo (one aggregate, one use case, no cross-context reads or events), mirroring
+`identity`'s own reference-module shape. Insert-only, no read endpoint — a one-way channel to the
+developer, read via `psql` rather than back through the app.
+
 ## Repo layout
 
 ```
 apps/
   core/           core service — Fastify host, modular monolith   ✅ identity wired end to end
-  driver-bff/     Fastify BFF for the driver app                  ✅ identity, routing, hazards
-  driver-app/     Expo React Native app, iOS + Android             ✅ M5.1–M5.8 done, M5.9+ next
+  driver-bff/     Fastify BFF for the driver app                  ✅ identity, routing, hazards, feedback
+  driver-app/     Expo React Native app, iOS + Android             ✅ M5.1–M5.9 done, M5.10 next
 packages/
   config/         shared tsconfig / ESLint / Prettier presets     ✅
   architecture/   dependency-cruiser rules + fixtures + tests     ✅
@@ -446,7 +455,7 @@ platform/       adapters for those ports: system clock, UUID generator, Postgres
 host/           Fastify app builder, health route, error handling
 composition/    the one place that wires ports to adapters
 config.ts       the one place that reads the environment
-modules/        bounded contexts — identity (M1.5); routing, hazards, feedback not started
+modules/        bounded contexts — identity (M1.5), routing (M2.2), hazards (M3.1), feedback (M5.9)
 ```
 
 Inside a module (`modules/identity/`, the pattern every future module follows):
@@ -473,8 +482,9 @@ resolve, unlike `tsx`/Vitest during development. `turbo.json`'s existing `depend
 on `build`/`lint`/`typecheck`/`test` already builds it first automatically.
 
 Everything listed above is real. `apps/driver-app` has sign-in, vehicle profiles, plan route,
-route overview, active trip, and report/view a hazard (M5.1–M5.8) — feedback (M5.9) hasn't
-started; core's `routing` and `hazards` modules are real from M2/M3, `feedback` hasn't started.
+route overview, active trip, report/view a hazard, and send feedback (M5.1–M5.9) — real-device
+verification (M5.10) hasn't happened yet. Core's `routing`, `hazards` and `feedback` modules are
+all real now (M2/M3/M5.9).
 
 ## Conventions
 
