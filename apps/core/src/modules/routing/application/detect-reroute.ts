@@ -228,7 +228,10 @@ export async function detectReroute(
       newRoutePlanId: newPlan.id,
       sentAt: deps.clock.now(),
     };
-    await deps.rerouteAlertRepo.save(alert);
+    const won = await deps.rerouteAlertRepo.save(alert);
+    if (!won) continue; // lost a race against another concurrent delivery of the same event —
+    // that execution already sent (or is about to send) this subject's push; sending it again
+    // here would wake the driver twice about the same bridge (AGENTS.md rule 9).
 
     const tokens = await deps.identity.getPushTokensForDriver(subject.driverId);
     const notification = buildNotification(candidate.kind, newPlan.id);

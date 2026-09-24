@@ -19,5 +19,12 @@ export interface RerouteAlertRepository {
     subjectId: ActiveTripId | RoutePlanId,
     since: Date,
   ): Promise<number>;
-  save(alert: RerouteAlert): Promise<void>;
+  /** Returns `true` if this call actually inserted a new row, `false` if it lost a race against
+   *  another concurrent save for the same `(hazardId, subjectType, subjectId)` triple (a no-op).
+   *  The caller must treat `false` exactly like `exists()` having already returned `true` —
+   *  skipping the push too, not just the write — since at-least-once delivery (AGENTS.md rule 9)
+   *  means the same event can genuinely be dispatched twice with overlapping, not sequential,
+   *  handler executions (the claim transaction's row lock is released once claimed, not held for
+   *  the handler's own duration — `platform/outbox-dispatcher.ts`'s own doc comment). */
+  save(alert: RerouteAlert): Promise<boolean>;
 }

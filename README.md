@@ -338,6 +338,16 @@ so throwing here would only abort the rest of that subject's token loop for no b
 `ConsolePushNotifier` (logs instead of sending) is still available as an explicit `pushNotifier`
 override for tests or a local manual run that shouldn't reach Expo's real endpoint.
 
+**End-to-end verification (M6.7)**: `apps/core/src/composition/reroute-end-to-end.test.ts` — a
+real HTTP hazard report through the real outbox, dispatched by the real `OutboxDispatcher` into
+routing's real reroute-detection handlers, across hazards, routing and identity together, wired
+exactly as `composeCore` wires them in production (only Valhalla and `PushNotifier` are faked).
+Found and fixed two real concurrency bugs in `platform/outbox-dispatcher.ts` that every prior unit
+test had missed: `start()`'s `setInterval` had no guard against overlapping ticks, so a slow
+handler could get claimed and run _concurrently_ with itself, and `stop()` didn't wait for an
+in-flight drain before a caller (`compose-core.ts`'s `close()`) closed the database pool out from
+under it. Both fixed; see `docs/progress.md`'s M6.7 decisions (88–90) for the full story.
+
 ## Driver BFF
 
 `apps/driver-bff` (M1.6 identity; M4.4 routing + hazards) is the thin public-facing service a

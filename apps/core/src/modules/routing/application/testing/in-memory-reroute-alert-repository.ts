@@ -34,8 +34,17 @@ export class InMemoryRerouteAlertRepository implements RerouteAlertRepository {
     );
   }
 
-  save(alert: RerouteAlert): Promise<void> {
+  /** Mirrors the Postgres adapter's `returning id`-derived boolean — `false` on a duplicate
+   *  `(hazardId, subjectType, subjectId)` triple, same as its real unique-index conflict. */
+  save(alert: RerouteAlert): Promise<boolean> {
+    const isDuplicate = this.#alerts.some(
+      (a) =>
+        a.hazardId === alert.hazardId &&
+        a.subjectType === alert.subjectType &&
+        a.subjectId === alert.subjectId,
+    );
+    if (isDuplicate) return Promise.resolve(false);
     this.#alerts.push(alert);
-    return Promise.resolve();
+    return Promise.resolve(true);
   }
 }

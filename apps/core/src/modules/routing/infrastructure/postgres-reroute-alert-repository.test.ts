@@ -93,17 +93,19 @@ describe('PostgresRerouteAlertRepository', () => {
       subjectId,
       newRoutePlanId: makeId<'RoutePlanId'>('99999999-9999-4999-8999-999999999999'),
     });
-    await repo().save(first);
+    await expect(repo().save(first)).resolves.toBe(true);
 
     // Redelivery of the same event, or a second subject match on retry — same triple, different
-    // alert id/newRoutePlanId. Must not overwrite the first alert's own new-route reference.
+    // alert id/newRoutePlanId. Must not overwrite the first alert's own new-route reference, and
+    // must tell the caller it lost (M6.7's own real bug: the caller uses this to decide whether
+    // to send a push — a plain `undefined` here can't distinguish "I won" from "I lost").
     const second = alert({
       id: makeId<'RerouteAlertId'>('10101010-1010-4101-8101-101010101010'),
       hazardId: 'hazard-3',
       subjectId,
       newRoutePlanId: makeId<'RoutePlanId'>('12121212-1212-4121-8121-121212121212'),
     });
-    await expect(repo().save(second)).resolves.toBeUndefined();
+    await expect(repo().save(second)).resolves.toBe(false);
 
     const { rows } = await pool.query<{ new_route_plan_id: string }>(
       'select new_route_plan_id from routing.reroute_alerts where hazard_id = $1',

@@ -22,7 +22,7 @@ import { registerRoutingRoutes, type RoutingRouteDeps } from './interface/routes
 // Re-exported for the same reason as the others below — composition/ types its overrides without
 // reaching into application/ directly.
 export type { RoutingEventHandler } from './application/reroute-event-handlers.js';
-export type { PushNotifier } from './application/ports/push-notifier.js';
+export type { PushNotification, PushNotifier } from './application/ports/push-notifier.js';
 
 // Re-exported so composition/ can type its overrides without reaching past this facade into
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).

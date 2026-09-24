@@ -14,7 +14,11 @@ import {
   type TokenSigner,
   type UntypedDb,
 } from '../modules/identity/api.js';
-import { createRoutingModule, type UntypedDb as RoutingUntypedDb } from '../modules/routing/api.js';
+import {
+  createRoutingModule,
+  type PushNotifier,
+  type UntypedDb as RoutingUntypedDb,
+} from '../modules/routing/api.js';
 import { createDb, createPool } from '../platform/db.js';
 import { OutboxDispatcher, type OutboxEventHandler } from '../platform/outbox-dispatcher.js';
 import { PostgresUnitOfWork } from '../platform/postgres-unit-of-work.js';
@@ -37,6 +41,10 @@ export interface CoreOverrides {
    *  their own list here the same way they substitute every other override, entirely replacing
    *  the real handlers rather than adding to them. */
   readonly eventHandlers?: readonly OutboxEventHandler[];
+  /** Defaults to `ExpoPushNotifier` (M6.5) inside `createRoutingModule` itself — same reasoning
+   *  as `otpSender` above: a test substitutes a fake here rather than letting a real push reach
+   *  Expo's actual endpoint (M6.7's end-to-end reroute test). */
+  readonly pushNotifier?: PushNotifier | undefined;
 }
 
 export interface Core {
@@ -100,6 +108,7 @@ export function composeCore(
     expoAccessToken: config.expoAccessToken,
     hazards,
     identity,
+    pushNotifier: overrides.pushNotifier,
   });
   const feedback = createFeedbackModule({ db: feedbackDb, clock, ids });
 
@@ -124,7 +133,7 @@ export function composeCore(
   return {
     app,
     async close(): Promise<void> {
-      outboxDispatcher.stop();
+      await outboxDispatcher.stop();
       await app.close();
       await pool.end();
     },
