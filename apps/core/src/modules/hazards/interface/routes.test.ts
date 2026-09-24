@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import { InMemoryHazardRepository } from '../application/testing/in-memory-hazard-repository.js';
+import { StubHazardParser } from '../application/testing/stub-hazard-parser.js';
 import { registerHazardsRoutes, type HazardsRouteDeps } from './routes.js';
 
 const location = { lat: 54.9707, lon: -2.1013 };
@@ -22,6 +23,7 @@ function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
     confirmHazard: { repo, clock, ids },
     dismissHazard: { repo },
     getHazard: { repo },
+    parseVoiceReport: { parser: new StubHazardParser() },
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {
@@ -126,6 +128,43 @@ describe('POST /hazards/reports', () => {
         source: 'tap',
       },
       ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('POST /hazards/voice-reports/parse', () => {
+  it('200s with the parser output for a well-formed transcript', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/voice-reports/parse',
+      payload: { transcript: 'low bridge just past the roundabout' },
+    });
+    expect(response.statusCode).toBe(200);
+    // StubHazardParser's default: whatever the real `type: 'other'` fallback returns.
+    expect(response.json()).toEqual({
+      type: 'other',
+      note: 'low bridge just past the roundabout',
+    });
+  });
+
+  it('400s a missing transcript', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/voice-reports/parse',
+      payload: {},
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('400s an empty transcript', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/voice-reports/parse',
+      payload: { transcript: '' },
     });
     expect(response.statusCode).toBe(400);
   });

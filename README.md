@@ -94,6 +94,7 @@ half-configured.
 | `INTERNAL_KEYS`           | `local-dev-internal-key`                                  | Comma-separated; a BFF must send one in `X-Internal-Key` on everything except `/health` |
 | `VALHALLA_URL`            | `http://127.0.0.1:8002`                                   | Matches `infra/docker/compose.yml`'s `valhalla` service (see Routing, below)            |
 | `EXPO_ACCESS_TOKEN`       | unset                                                     | Only needed if Expo's "enhanced push security" is turned on (see Alerts, below)         |
+| `ANTHROPIC_API_KEY`       | unset (falls back to `NullHazardParser`)                  | Needed for real voice-report parsing (see Voice reporting, below)                       |
 | `OUTBOX_POLL_INTERVAL_MS` | `2000`                                                    | How often the in-process outbox poller checks for pending events (see Alerts, below)    |
 
 ```bash
@@ -255,17 +256,41 @@ extract each time so it also tests against Geofabrik's current data.
 flooding…) that feed into routing's avoidance. Same reachability as routing's, above: through the
 BFF with just a bearer token, or calling core directly with `X-Internal-Key` plus the token.
 
-| Route                               | Does                                                                 |
-| ----------------------------------- | -------------------------------------------------------------------- |
-| `POST /hazards/reports`             | `{ id, type, location, note?, measurement?, source }` — reports one  |
-| `POST /hazards/reports/:id/confirm` | "Still there" — increments confirmations                             |
-| `POST /hazards/reports/:id/dismiss` | "Not there" — increments dismissals, auto-dismisses past a threshold |
+| Route                               | Does                                                                                                                          |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `POST /hazards/reports`             | `{ id, type, location, note?, measurement?, source }` — reports one                                                           |
+| `POST /hazards/reports/:id/confirm` | "Still there" — increments confirmations                                                                                      |
+| `POST /hazards/reports/:id/dismiss` | "Not there" — increments dismissals, auto-dismisses past a threshold                                                          |
+| `POST /hazards/voice-reports/parse` | `{ transcript }` → `{ type, note?, measurement?, positionHint? }` — parses a spoken report (M7.1, see Voice reporting, below) |
 
 `id` is client-generated (an offline-queue idempotency key — resubmitting the same `id` returns
 the existing report unchanged, or merges into it, rather than duplicating). No `reporterId` field
 (M4.3) — same reasoning as routing's `driverId`, core derives it from the access token. Confirm and
 dismiss need a valid token too, but not any particular one — any authenticated driver may act on
 any report (decision 63, no ownership check on community moderation).
+
+## Voice reporting
+
+`hazards` (M7.1) — the `HazardParser` port (design doc §7 step 3) turns a driver's spoken
+transcript into a structured report. `POST /hazards/voice-reports/parse` is the first half only:
+it classifies what was said, it doesn't file anything — the driver app still owns speaking the
+summary back, listening for a yes/no, and only then calling `POST /hazards/reports` (above) with
+`source: 'voice'`. Nothing resolves a spoken `positionHint` ("just past the roundabout") to a real
+location in Phase 1; it's kept as free text, and the pin still uses the GPS position the app
+captured when recording started.
+
+**`AnthropicHazardParser`** (`infrastructure/anthropic-hazard-parser.ts`) is the real adapter —
+hand-rolled HTTP to Anthropic's Messages API (no SDK, same precedent as `ValhallaRoutingEngine`/
+`ExpoPushNotifier`), forcing a single tool call so the model's output is structured JSON rather
+than prose to re-parse. The tool's `input` is still zod-validated before being trusted — a model
+producing something that doesn't fit the schema is retried once, then falls back to
+`{ type: 'other', note: <the raw transcript> }` (design doc §7 step 3, verbatim). A non-2xx
+response or an unparseable body is a genuine infra fault and throws.
+
+**`ANTHROPIC_API_KEY`** (Configuration, above) is unlike `EXPO_ACCESS_TOKEN` — Anthropic's API
+genuinely requires a key. Unset wires `NullHazardParser` instead (always the `type: 'other'`
+fallback, no network call), so `pnpm dev` keeps working with zero configuration; add the key to
+get real parsing. Get one from [console.anthropic.com](https://console.anthropic.com/).
 
 ## Alerts
 
@@ -483,8 +508,8 @@ planned route's hazard list, and a real "End trip" button (`POST /routing/trips/
 started trip is held in another small in-memory store (`src/state/current-active-trip-store.ts`)
 — same reasoning as the route-plan store: core deliberately has no `GET` to re-fetch a trip by,
 so it doesn't survive an app relaunch mid-trip (a real, disclosed gap — see `docs/progress.md`).
-The mic button and reroute prompts the design doc also names for this screen are **disabled**
-placeholders — hands-free voice reporting is M7, reroute-on-hazard is M6.
+The mic button is real speech capture as of M7.2 (see below); reroute prompts are wired since
+M6.6.
 
 **Report hazard + hazard detail (M5.7)**: a new `/report-hazard` (tap-to-drop a pin, an
 eight-item plain-word type picker, optional note/measurement) and `/hazards/[id]` (what/when/
@@ -545,13 +570,29 @@ navigating to the prompt, fetching the new plan, the accept/keep swap — is cov
 and a live typecheck/lint/build, not a real device receiving a real push. Revisit once M5.10's
 EAS project setup unblocks it.
 
+**Voice capture (M7.2)**: the active-trip screen's mic button now does real on-device speech
+recognition (`expo-speech-recognition`, a new dependency with its own config plugin —
+`microphonePermission`/`speechRecognitionPermission` strings in `app.config.ts`), not yet the
+parse-and-file flow design doc §7 describes end to end (M7.3). `src/lib/voice-capture-reducer.ts`
+is a pure state machine (`idle → starting → listening → transcribed/no-speech/error`, plus
+`permission-denied`) driven by `src/hooks/use-voice-report-capture.ts`, which wires the native
+module's `start`/`result`/`end`/`error` events into it — same "pure logic, effects injected at the
+edge" split as `push-registration.ts`, shaped as a reducer rather than one async function since a
+capture session is a sequence of native events over time, not a single call-and-response.
+`src/lib/voice-report-permission.ts`'s `obtainVoiceCapturePermission` mirrors `obtainPushToken`
+almost exactly (check existing permission, request if needed, a denial is a value not a thrown
+error). GPS position is captured at the moment recording starts (design doc §7 step 1, via the
+existing `fetchCurrentLocation`) and carried alongside the transcript for M7.3 to use; a
+transcript is shown on screen once captured, but nothing is parsed or filed yet — tapping the mic
+again while listening cancels the in-flight capture rather than leaving no way out.
+
 ## Repo layout
 
 ```
 apps/
   core/           core service — Fastify host, modular monolith   ✅ identity wired end to end
   driver-bff/     Fastify BFF for the driver app                  ✅ identity, routing, hazards, feedback
-  driver-app/     Expo React Native app, iOS + Android             ✅ M5.1–M5.9, M6.6 done; M5.10 next
+  driver-app/     Expo React Native app, iOS + Android             ✅ M5.1–M5.9, M6.6, M7.2 done; M5.10 next
 packages/
   config/         shared tsconfig / ESLint / Prettier presets     ✅
   architecture/   dependency-cruiser rules + fixtures + tests     ✅

@@ -23,6 +23,7 @@ describe('loadConfig', () => {
       internalKeys: ['local-dev-internal-key'],
       valhallaUrl: 'http://127.0.0.1:8002',
       expoAccessToken: undefined,
+      anthropicApiKey: undefined,
       outboxPollIntervalMs: 2000,
     });
   });
@@ -38,6 +39,7 @@ describe('loadConfig', () => {
       INTERNAL_KEYS: 'key-one, key-two',
       VALHALLA_URL: 'http://valhalla.internal:8002',
       EXPO_ACCESS_TOKEN: 'expo-secret-token',
+      ANTHROPIC_API_KEY: 'anthropic-secret-key',
       OUTBOX_POLL_INTERVAL_MS: '500',
     });
     expect(config).toEqual({
@@ -50,6 +52,7 @@ describe('loadConfig', () => {
       internalKeys: ['key-one', 'key-two'],
       valhallaUrl: 'http://valhalla.internal:8002',
       expoAccessToken: 'expo-secret-token',
+      anthropicApiKey: 'anthropic-secret-key',
       outboxPollIntervalMs: 500,
     });
   });
@@ -142,6 +145,20 @@ describe('loadConfig', () => {
 
   it('rejects an empty-string EXPO_ACCESS_TOKEN', () => {
     expect(() => loadConfig({ EXPO_ACCESS_TOKEN: '' })).toThrow(ConfigError);
+  });
+
+  it('defaults ANTHROPIC_API_KEY to undefined — voice reports fall back to NullHazardParser', () => {
+    expect(loadConfig({}).anthropicApiKey).toBeUndefined();
+  });
+
+  it('accepts an ANTHROPIC_API_KEY override', () => {
+    expect(loadConfig({ ANTHROPIC_API_KEY: 'anthropic-secret-key' }).anthropicApiKey).toBe(
+      'anthropic-secret-key',
+    );
+  });
+
+  it('rejects an empty-string ANTHROPIC_API_KEY', () => {
+    expect(() => loadConfig({ ANTHROPIC_API_KEY: '' })).toThrow(ConfigError);
   });
 
   it('defaults OUTBOX_POLL_INTERVAL_MS to 2000', () => {

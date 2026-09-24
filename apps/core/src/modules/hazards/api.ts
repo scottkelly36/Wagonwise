@@ -1,14 +1,18 @@
 import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
+import type { HazardParser } from './application/ports/hazard-parser.js';
 import { isExpired, type GeoPoint, type HazardType } from './domain/hazard-report.js';
+import { AnthropicHazardParser } from './infrastructure/anthropic-hazard-parser.js';
 import type { UntypedDb } from './infrastructure/db.js';
+import { NullHazardParser } from './infrastructure/null-hazard-parser.js';
 import { PostgresHazardRepository } from './infrastructure/postgres-hazard-repository.js';
 import { registerHazardsRoutes, type HazardsRouteDeps } from './interface/routes.js';
 
 // Re-exported so composition/ can type its overrides without reaching past this facade into
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
 export type { UntypedDb } from './infrastructure/db.js';
+export type { HazardParser, ParsedVoiceReport } from './application/ports/hazard-parser.js';
 
 export interface HazardsModuleDeps {
   readonly db: UntypedDb;
@@ -16,6 +20,16 @@ export interface HazardsModuleDeps {
   /** Only for outbox event ids (M6.3) — decision 62's "no IdGenerator, every use case takes a
    *  caller-supplied id" was about the aggregate itself, not an event raised alongside it. */
   readonly ids: IdGenerator;
+  /** Optional — unlike `expoAccessToken`, Anthropic's API genuinely requires a key. Unset wires
+   *  `NullHazardParser` instead of `AnthropicHazardParser` (M7.1), so `pnpm dev` keeps working
+   *  with zero configuration; every voice transcript just lands as `type: 'other'` until a key is
+   *  added. */
+  readonly anthropicApiKey?: string | undefined;
+  /** Defaults to `AnthropicHazardParser`/`NullHazardParser` per `anthropicApiKey` above — same
+   *  "module wires its own adapter, override for tests" precedent as `pushNotifier`
+   *  (`routing/api.ts`). Override (e.g. with a stub) for tests or a local run that shouldn't
+   *  reach Anthropic's real endpoint. */
+  readonly hazardParser?: HazardParser | undefined;
 }
 
 /** Only the four hazard types design doc §5 names as blocking map to an avoidance kind; the rest
@@ -77,12 +91,18 @@ export interface HazardsModule {
  */
 export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
   const repo = new PostgresHazardRepository(deps.db);
+  const hazardParser =
+    deps.hazardParser ??
+    (deps.anthropicApiKey === undefined
+      ? new NullHazardParser()
+      : new AnthropicHazardParser(deps.anthropicApiKey));
 
   const routeDeps: HazardsRouteDeps = {
     reportHazard: { repo, clock: deps.clock, ids: deps.ids },
     confirmHazard: { repo, clock: deps.clock, ids: deps.ids },
     dismissHazard: { repo },
     getHazard: { repo },
+    parseVoiceReport: { parser: hazardParser },
   };
 
   return {

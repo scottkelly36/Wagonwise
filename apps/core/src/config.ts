@@ -67,6 +67,11 @@ const envSchema = z.object({
   // Optional: Expo's push API works without one (M6.5) — only needed if a project ever turns on
   // Expo's "enhanced push security" setting, which then requires every request to carry it.
   EXPO_ACCESS_TOKEN: z.string().min(1).optional(),
+  // Optional: unlike EXPO_ACCESS_TOKEN, Anthropic's API genuinely requires a key — unset means
+  // voice reports fall back to NullHazardParser (M7.1: every transcript lands as `type: 'other'`
+  // with itself as the note) rather than the process failing to boot, keeping the cold-start
+  // promise for a dev machine with no key yet.
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
   // How often the in-process outbox poller checks for pending events (decision 5, M1). 2s is
   // fast enough that a Phase 1 tester never notices the delay, without hammering the database
   // between polls.
@@ -83,6 +88,7 @@ export interface Config {
   readonly internalKeys: readonly string[];
   readonly valhallaUrl: string;
   readonly expoAccessToken: string | undefined;
+  readonly anthropicApiKey: string | undefined;
   readonly outboxPollIntervalMs: number;
 }
 
@@ -117,6 +123,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     internalKeys: values.INTERNAL_KEYS,
     valhallaUrl: values.VALHALLA_URL,
     expoAccessToken: values.EXPO_ACCESS_TOKEN,
+    anthropicApiKey: values.ANTHROPIC_API_KEY,
     outboxPollIntervalMs: values.OUTBOX_POLL_INTERVAL_MS,
   };
 }
