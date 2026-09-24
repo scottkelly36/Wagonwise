@@ -1,6 +1,12 @@
 import { hazardReportIdSchema } from '@wagonwise/contracts/hazards';
 
-import { confirmHazard, dismissHazard, getHazard, reportHazard } from './hazards';
+import {
+  confirmHazard,
+  dismissHazard,
+  getHazard,
+  parseVoiceHazardReport,
+  reportHazard,
+} from './hazards';
 import { ApiError } from './errors';
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -109,6 +115,28 @@ describe('confirmHazard', () => {
     expect(result.confirmations).toBe(1);
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toMatch(new RegExp(`/hazards/reports/${report.id}/confirm$`));
+  });
+});
+
+describe('parseVoiceHazardReport', () => {
+  it('posts the transcript, parsing the response', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, { type: 'low_bridge' }));
+    globalThis.fetch = fetchMock;
+
+    const result = await parseVoiceHazardReport('token-1', 'low bridge ahead');
+
+    expect(result).toEqual({ type: 'low_bridge' });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/hazards\/voice-reports\/parse$/);
+    expect(JSON.parse(init.body as string)).toEqual({ transcript: 'low bridge ahead' });
+  });
+
+  it('throws an ApiError on a non-200 response', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue(jsonResponse(401, { error: 'unauthenticated' }));
+
+    await expect(parseVoiceHazardReport('token-1', 'low bridge ahead')).rejects.toBeInstanceOf(
+      ApiError,
+    );
   });
 });
 

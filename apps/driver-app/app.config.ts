@@ -12,6 +12,14 @@ const config: ExpoConfig = {
   icon: './assets/images/icon.png',
   scheme: 'wagonwise',
   userInterfaceStyle: 'automatic',
+  owner: 'scottkelly36',
+  extra: {
+    eas: {
+      // M5.10: the EAS project this app builds under (`eas init --account scottkelly36`).
+      // Needed for real Expo push tokens (M6.6's `obtainPushToken`) and for EAS builds/updates.
+      projectId: '5b6314ae-4cb1-4b28-aa7c-fad17e503c14',
+    },
+  },
   ios: {
     bundleIdentifier: 'com.wagonwise.driverapp',
     supportsTablet: false,

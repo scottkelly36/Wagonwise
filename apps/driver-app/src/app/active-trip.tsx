@@ -12,28 +12,36 @@ import {
 import { useEndTrip } from '../api/use-active-trip';
 import { RouteMap } from '../components/route-map';
 import { useLiveLocation } from '../hooks/use-live-location';
-import { useVoiceReportCapture } from '../hooks/use-voice-report-capture';
+import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
 import { routingErrorMessage } from '../lib/error-messages';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 
-const VOICE_CAPTURE_LABEL: Record<string, string> = {
+const VOICE_FLOW_LABEL: Record<string, string> = {
   idle: 'Report hazard',
-  starting: 'Starting…',
-  listening: 'Listening… tap to cancel',
-  transcribed: 'Report hazard',
-  'no-speech': "Didn't catch that — tap to try again",
-  error: "Couldn't hear that — tap to try again",
-  'permission-denied': 'Microphone access is off — tap to try again',
+  'capturing-report': 'Listening… tap to cancel',
+  'report-no-speech': "Didn't catch that — tap to try again",
+  parsing: 'Working out what you said…',
+  'speaking-summary': 'Confirm out loud…',
+  'capturing-confirmation': 'Listening for yes or no… tap to cancel',
+  filing: 'Saving…',
+  filed: 'Report hazard',
+  queued: 'Report hazard',
+  'draft-saved': 'Report hazard',
+  error: 'Tap to try again',
 };
+
+// A phase the driver can tap out of before it reaches its own natural end — every other phase
+// either runs to completion on its own or is a resting state where tapping starts a fresh report.
+const CANCELLABLE_PHASES = new Set(['capturing-report', 'capturing-confirmation']);
 
 /**
  * The active-trip screen (design doc §8, M5.6): a map following the driver's live position, an
  * upcoming-hazards list, and a real "End trip" button. Reroute prompts arrive as M6.6's own
- * screen (`app/reroute/[id].tsx`), reached via notification, not from here. The mic button is now
- * real capture (M7.2) — parsing what was said and filing the report are still M7.3's job, so a
- * transcript is shown but nothing is submitted yet.
+ * screen (`app/reroute/[id].tsx`), reached via notification, not from here. The mic button now
+ * drives the full voice-report flow (M7.3): capture, parse, speak a confirmation back, listen for
+ * yes/no, then file or save an unconfirmed draft — design doc §7 steps 1-4 end to end.
  */
 export default function ActiveTripScreen() {
   const router = useRouter();
@@ -43,7 +51,7 @@ export default function ActiveTripScreen() {
   const clearPlan = useCurrentRoutePlanStore((s) => s.clear);
   const location = useLiveLocation();
   const endTrip = useEndTrip();
-  const voiceCapture = useVoiceReportCapture();
+  const voiceFlow = useVoiceHazardReportFlow(location.point);
 
   // decodePolyline6 is a pure function of plan.geometry — no need to redo it on every
   // unrelated re-render (e.g. a location update).
@@ -101,27 +109,47 @@ export default function ActiveTripScreen() {
         <TouchableOpacity
           style={[
             styles.micButton,
-            (voiceCapture.state.status === 'starting' ||
-              voiceCapture.state.status === 'listening') &&
-              styles.micButtonListening,
+            CANCELLABLE_PHASES.has(voiceFlow.state.phase) && styles.micButtonListening,
+            (voiceFlow.state.phase === 'parsing' ||
+              voiceFlow.state.phase === 'speaking-summary' ||
+              voiceFlow.state.phase === 'filing') &&
+              styles.buttonDisabled,
           ]}
+          disabled={
+            voiceFlow.state.phase === 'parsing' ||
+            voiceFlow.state.phase === 'speaking-summary' ||
+            voiceFlow.state.phase === 'filing'
+          }
           onPress={
-            voiceCapture.state.status === 'starting' || voiceCapture.state.status === 'listening'
-              ? voiceCapture.cancel
-              : voiceCapture.start
+            CANCELLABLE_PHASES.has(voiceFlow.state.phase) ? voiceFlow.reset : voiceFlow.start
           }
           testID="voice-report-button"
         >
-          <Text style={styles.micButtonText}>{VOICE_CAPTURE_LABEL[voiceCapture.state.status]}</Text>
+          <Text style={styles.micButtonText}>{VOICE_FLOW_LABEL[voiceFlow.state.phase]}</Text>
         </TouchableOpacity>
 
-        {voiceCapture.state.status === 'transcribed' && (
-          <Text style={styles.footnote} testID="voice-report-transcript">
-            Heard: “{voiceCapture.state.transcript}” — filing this report is coming soon.
+        {voiceFlow.state.phase === 'speaking-summary' && (
+          <Text style={styles.footnote} testID="voice-report-summary">
+            “{voiceFlow.state.summary}”
           </Text>
         )}
-        {voiceCapture.state.status === 'error' && voiceCapture.state.errorMessage !== undefined && (
-          <Text style={styles.footnote}>{voiceCapture.state.errorMessage}</Text>
+        {voiceFlow.state.phase === 'filed' && (
+          <Text style={styles.footnote} testID="voice-report-status">
+            Saved.
+          </Text>
+        )}
+        {voiceFlow.state.phase === 'queued' && (
+          <Text style={styles.footnote} testID="voice-report-status">
+            Saved — this will be sent automatically once you’re back online.
+          </Text>
+        )}
+        {voiceFlow.state.phase === 'draft-saved' && (
+          <Text style={styles.footnote} testID="voice-report-status">
+            Not filed — saved as a draft to review when you’re parked.
+          </Text>
+        )}
+        {voiceFlow.state.phase === 'error' && (
+          <Text style={styles.footnote}>{voiceFlow.state.message}</Text>
         )}
 
         {endTrip.isError && <Text style={styles.error}>{routingErrorMessage(endTrip.error)}</Text>}
