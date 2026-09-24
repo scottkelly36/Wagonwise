@@ -463,7 +463,7 @@ geometry, `src/lib/polyline.ts`, hand-rolled per AGENTS.md rule 6), distance/tim
 documented backend gap, not a bug here). The just-planned route is held in a small in-memory
 store (`src/state/current-route-plan-store.ts`), not re-fetched on this screen — `/plan-route`
 and `/route-overview` share this one "current plan" slot instead. `GET /routing/route-plans/:id`
-does exist now (M6.6), but only for the reroute prompt to fetch a *different*, brand-new plan by
+does exist now (M6.6), but only for the reroute prompt to fetch a _different_, brand-new plan by
 the id a push notification carries — this store still isn't a cache keyed by id.
 
 **Active trip (M5.6)**: "Start trip" (route overview) now really starts one —

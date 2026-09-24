@@ -2908,13 +2908,13 @@ uses.
 84. **`GET /routing/route-plans/:id` exists now, superseding M5.5's own documented reason for not
     having one.** M5.5 said core deliberately had no such endpoint because "there's no route-plan
     history to browse" — still true for browsing, but a reroute push only ever carries an id, not
-    a plan, so the driver app needs *some* way to turn that id into something displayable. Added
+    a plan, so the driver app needs _some_ way to turn that id into something displayable. Added
     narrowly for that one caller, not as a general route-plan-lookup feature; `current-route-plan-
-    store` still isn't a cache keyed by id, and there's still no list-of-past-plans endpoint.
+store` still isn't a cache keyed by id, and there's still no list-of-past-plans endpoint.
 85. **Accepting a reroute is purely client-side — no core call.** A reroute's `RoutePlan` is
     already a complete, independent, persisted row by the time the push arrives (`detect-
-    reroute.ts` creates and saves it before sending anything, M6.4) — the driver's device holds
-    the *only* notion of "which plan is currently being followed," and switching that is nothing
+reroute.ts` creates and saves it before sending anything, M6.4) — the driver's device holds
+    the _only_ notion of "which plan is currently being followed," and switching that is nothing
     more than which one the app happens to be showing. There is no server-side "current plan for
     this trip" concept to update (decision 10: no `RoutePlan` lifecycle in Phase 1).
 86. **`useRegisterPushToken` re-runs on every sign-in, not once per app install.** Considered
@@ -2925,7 +2925,7 @@ uses.
     setting the flag but before the network call completed).
 87. **A missing EAS project id is treated exactly like a driver declining the permission prompt** —
     both are `obtainPushToken` outcomes, not errors, and both mean the same thing downstream
-    ("no token to register today"). Splitting them into different code paths in the *caller*
+    ("no token to register today"). Splitting them into different code paths in the _caller_
     (`use-register-push-token.ts`) would buy nothing: there's nothing actionable for the app to do
     differently in either case until a human (this session's user) sets up an EAS project.
 
@@ -2943,6 +2943,6 @@ uses.
   task introduced.
 - **M6.7 (end-to-end verification) is still the one remaining M6 task** — idempotency, rate limits,
   and "don't notify the reporter" are each covered by their own unit tests already
-  (`detect-reroute.test.ts`), but nothing yet drives the *whole* path (a real HTTP hazard report →
+  (`detect-reroute.test.ts`), but nothing yet drives the _whole_ path (a real HTTP hazard report →
   outbox → routing's handler → a real push → the app) in one test, which is exactly what M6.7 is
   scoped to be.
