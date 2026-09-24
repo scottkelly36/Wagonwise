@@ -56,6 +56,20 @@ export function decodePolyline(line: GeoLine, precision = 6): GeoPoint[] {
   return points;
 }
 
+/** "Within 30 metres" — design doc §5's on-route detection radius, reused by design doc §6's
+ *  reroute detection ("same PostGIS query as section 5, reversed") — living here, rather than in
+ *  either `infrastructure/hazard-avoidance-query.ts` or `application/detect-reroute.ts`, is what
+ *  lets both share it without `application/` importing from `infrastructure/` (AGENTS.md rule 3).
+ *  Distinct from hazards' own ~50m merge-duplicate radius (a different concern, owned by hazards
+ *  itself). */
+export const ON_ROUTE_RADIUS_M = 30;
+
+/** How far a reported hazard's avoid-zone box extends in each direction — a guess, not a derived
+ *  number, same status as hazards' own `MERGE_RADIUS_M`/`DISMISS_MARGIN`. Big enough to plausibly
+ *  cover the road segment a hazard sits on, small enough not to force an unnecessarily wide
+ *  detour. Worth revisiting once real routes are tested against it. */
+export const AVOID_ZONE_HALF_WIDTH_M = 25;
+
 /** Metres per degree of latitude is near-constant; longitude shrinks with `cos(latitude)`. A
  *  flat-earth approximation, not a geodesic one — fine for a small avoid-zone box (tens of
  *  metres), the same scale of approximation the hazards module's in-memory test fake already
@@ -65,9 +79,8 @@ const METRES_PER_DEGREE_LAT = 111_320;
 /**
  * A small axis-aligned square around a point, `halfWidthM` in each direction — how a single
  * reported hazard becomes an avoid *area* for Valhalla's `exclude_polygons` (design doc §5:
- * "small avoid polygons"), since a zero-area point can't be excluded. `AVOID_ZONE_HALF_WIDTH_M`
- * (routing/infrastructure/hazard-avoidance-query.ts) is a guess, not a derived number, same
- * status as the hazards module's own guessed radii.
+ * "small avoid polygons"), since a zero-area point can't be excluded. Callers pass
+ * `AVOID_ZONE_HALF_WIDTH_M` (above).
  */
 export function bufferPoint(point: GeoPoint, halfWidthM: number): GeoPolygon {
   const dLat = halfWidthM / METRES_PER_DEGREE_LAT;

@@ -1,14 +1,28 @@
 import type { FastifyInstance } from 'fastify';
 import type { HazardsModule } from '../hazards/api.js';
+import type { IdentityModule } from '../identity/api.js';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
+import type { PushNotifier } from './application/ports/push-notifier.js';
+import {
+  createHazardConfirmedRerouteHandler,
+  createHazardReportedRerouteHandler,
+  type RoutingEventHandler,
+} from './application/reroute-event-handlers.js';
+import { ConsolePushNotifier } from './infrastructure/console-push-notifier.js';
 import { HazardAvoidanceQueryAdapter } from './infrastructure/hazard-avoidance-query.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresActiveTripRepository } from './infrastructure/postgres-active-trip-repository.js';
+import { PostgresRerouteAlertRepository } from './infrastructure/postgres-reroute-alert-repository.js';
 import { PostgresRoutePlanRepository } from './infrastructure/postgres-route-plan-repository.js';
 import { PostgresVehicleProfileRepository } from './infrastructure/postgres-vehicle-profile-repository.js';
 import { ValhallaRoutingEngine } from './infrastructure/valhalla-routing-engine.js';
 import { registerRoutingRoutes, type RoutingRouteDeps } from './interface/routes.js';
+
+// Re-exported for the same reason as the others below — composition/ types its overrides without
+// reaching into application/ directly.
+export type { RoutingEventHandler } from './application/reroute-event-handlers.js';
+export type { PushNotifier } from './application/ports/push-notifier.js';
 
 // Re-exported so composition/ can type its overrides without reaching past this facade into
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
@@ -20,12 +34,23 @@ export interface RoutingModuleDeps {
   readonly clock: Clock;
   readonly valhallaUrl: string;
   /** `hazards`' facade — this module's own `HazardAvoidanceQueryAdapter` (M3.5) wraps it, the
-   *  same "the module wires its own adapters" pattern as `ValhallaRoutingEngine` below. */
+   *  same "the module wires its own adapters" pattern as `ValhallaRoutingEngine` below. Also read
+   *  directly by the reroute-detection handlers (M6.4) to re-check a hazard is still active. */
   readonly hazards: Pick<HazardsModule, 'findAvoidanceCandidates'>;
+  /** `identity`'s facade — the reroute-detection handlers' only source of a driver's push
+   *  tokens (design doc §6: "device tokens come from a read-model port onto Identity"). */
+  readonly identity: Pick<IdentityModule, 'getPushTokensForDriver'>;
+  /** Defaults to `ConsolePushNotifier` (M6.4) — same "module wires its own adapter, real one
+   *  comes later" precedent as identity's `OtpSender`; a real Expo Push HTTP adapter is M6.5. */
+  readonly pushNotifier?: PushNotifier | undefined;
 }
 
 export interface RoutingModule {
   registerRoutes(app: FastifyInstance): void;
+  /** For `composition/`'s `OutboxDispatcher` (design doc §6's alert trigger) — one handler per
+   *  event type this module reacts to. Empty in Phase 1 for every module except this one (M6.1's
+   *  "no module has one yet" is no longer true as of M6.4). */
+  readonly eventHandlers: readonly RoutingEventHandler[];
 }
 
 /**
@@ -39,8 +64,27 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
   const vehicleProfileRepo = new PostgresVehicleProfileRepository(deps.db);
   const routePlanRepo = new PostgresRoutePlanRepository(deps.db);
   const activeTripRepo = new PostgresActiveTripRepository(deps.db);
+  const rerouteAlertRepo = new PostgresRerouteAlertRepository(deps.db);
   const routingEngine = new ValhallaRoutingEngine(deps.valhallaUrl);
   const hazardAvoidanceQuery = new HazardAvoidanceQueryAdapter(deps.hazards);
+  const pushNotifier = deps.pushNotifier ?? new ConsolePushNotifier();
+
+  const detectRerouteDeps = {
+    activeTripRepo,
+    routePlanRepo,
+    vehicleProfileRepo,
+    rerouteAlertRepo,
+    routingEngine,
+    pushNotifier,
+    hazards: deps.hazards,
+    identity: deps.identity,
+    clock: deps.clock,
+    ids: deps.ids,
+  };
+  const eventHandlers: readonly RoutingEventHandler[] = [
+    createHazardReportedRerouteHandler(detectRerouteDeps),
+    createHazardConfirmedRerouteHandler(detectRerouteDeps),
+  ];
 
   const routeDeps: RoutingRouteDeps = {
     createVehicleProfile: { repo: vehicleProfileRepo, ids: deps.ids },
@@ -64,5 +108,6 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
     registerRoutes(app: FastifyInstance): void {
       registerRoutingRoutes(app, routeDeps);
     },
+    eventHandlers,
   };
 }

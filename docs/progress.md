@@ -2351,7 +2351,7 @@ verified**: an actual running app — same hardware gap as every driver-app mile
 | M6.1 | Outbox event infrastructure (dispatcher, no real emitter yet)             | Done — 2026-09-23 |
 | M6.2 | Identity: device push tokens                                              | Done — 2026-09-23 |
 | M6.3 | Hazards publishes `HazardReported`/`HazardConfirmed`                      | Done — 2026-09-23 |
-| M6.4 | Routing: reroute detection (on-hazard-event subscriber)                   | Not started       |
+| M6.4 | Routing: reroute detection (on-hazard-event subscriber)                   | Done — 2026-09-24 |
 | M6.5 | Push notifications (`PushNotifier` port + Expo adapter)                   | Not started       |
 | M6.6 | Driver app: register push token, receive notification, reroute prompt     | Not started       |
 | M6.7 | End-to-end verification (idempotency, rate limits, don't-notify-reporter) | Not started       |
@@ -2611,3 +2611,132 @@ both rows together (and that a no-events call writes no outbox row at all).
 - **This branch was developed independently of M6.2** (deliberately — see the delivered note
   above) rather than stacked on top of it. M6.4 will need both; expect that branch to either
   merge both branches' commits in or be created only once both have landed on `main`.
+
+**M6.4 delivered:** routing's reroute-detection subscriber — design doc §6, steps 1–5 — the first
+real consumer of M6.1's outbox dispatcher and M6.3's two hazard events. Built on a branch that
+merges M6.2 and M6.3's commits in directly (both were still unmerged when this started; the
+`docs/progress.md` merge conflict that produced dropped M6.2's whole delivered/decisions section,
+recovered by hand — see the merge commit).
+
+- **`migrations/0009_route_plans_geography.sql`**: adds a PostGIS `geometry_geog geography
+(LineString, 4326)` column + GiST index to `routing.route_plans` (design doc §6 step 1's "same
+  PostGIS query as section 5, reversed" needs a route's geometry queryable spatially, the same way
+  hazards' own `findNearbyLine` already is), and a new `routing.reroute_alerts` table — the
+  guardrail/dedupe state, `unique (hazard_id, subject_type, subject_id)` plus an index on
+  `(subject_type, subject_id, sent_at desc)` for the per-hour rate-limit count.
+- **`RoutePlanRepository.findRecentUnstartedNear(location, radiusM, since)`** and
+  **`ActiveTripRepository.findActiveNear(location, radiusM)`**: design doc §6 step 1's two halves
+  — plans created in the window that never got a trip, and trips still in progress — both
+  implemented for real against Postgres (`ST_DWithin` against `geometry_geog`, the trip query
+  joining to its plan since `active_trips` has no geometry of its own) and against both in-memory
+  fakes (flat-earth proximity against `decodePolyline()`'s output, same approximation the existing
+  fakes already use). `InMemoryActiveTripRepository` now takes an optional `InMemoryRoutePlanRepository`
+  reference (one-directional — the reverse would be an import cycle between two test doubles) so
+  its fake can resolve a trip's plan geometry the same way the real join does.
+- **`domain/reroute-alert.ts` + `RerouteAlertRepository`**: `exists(hazardId, subjectType,
+subjectId)` is "one alert per hazard per trip" (design doc §6) and also what makes the whole
+  handler idempotent under at-least-once delivery (AGENTS.md rule 9) — `save()`'s own unique
+  index is the actual guarantee; `exists()` is just the pre-check that skips the work.
+  `countSince(subjectType, subjectId, since)` is "a cap per trip per hour" (a guessed cap of 3,
+  same status as the existing guessed radii).
+- **`application/detect-reroute.ts`**: the use case. Never trusts a hazard event's own `type`/
+  `measurement` payload fields — instead re-queries `hazards.findAvoidanceCandidates([location],
+30)`, the same read-model call `HazardAvoidanceQueryAdapter` already uses for route planning, so
+  a hazard that's been dismissed or expired between publish and handling is correctly treated as
+  nothing-to-reroute-around. Finds affected subjects, filters through `applies()` (the
+  safety-critical function, unchanged), applies both guardrails, requests a fresh route with a
+  `bufferPoint` avoid-zone around the hazard, persists it as a new `RoutePlan`, saves the alert,
+  and sends a push per device token. No per-subject try/catch — every write here is idempotent by
+  construction, so a mid-loop throw just means the outbox dispatcher retries and `exists()` skips
+  what already succeeded.
+- **`ON_ROUTE_RADIUS_M`/`AVOID_ZONE_HALF_WIDTH_M` moved from `infrastructure/hazard-avoidance-
+query.ts` into `domain/geo.ts`** (both exported now) — `detect-reroute.ts` needed the exact same
+  radius design doc §6 asks for ("same query as section 5, reversed"), but `application/` can
+  never import `infrastructure/` (AGENTS.md rule 1); the domain layer is the one place both can
+  legally import from.
+- **`application/ports/push-notifier.ts` + `infrastructure/console-push-notifier.ts`**: `PushNotifier`
+  was already named as a precedent in AGENTS.md rule 3's own example list. `ConsolePushNotifier`
+  logs instead of sending — same "module wires its own adapter, real one comes later" shape as
+  identity's `ConsoleOtpSender`; the real Expo Push HTTP adapter is M6.5.
+- **`application/reroute-event-handlers.ts`**: two thin `OutboxEventHandler`-shaped wrappers
+  (`routing.detect-reroute-on-hazard-reported` / `-on-hazard-confirmed`) parsing the outbox row's
+  raw JSON payload and calling `detectReroute`. Defines its own minimal `RoutingEventHandler`
+  type rather than importing `platform/outbox-dispatcher.ts`'s `OutboxEventHandler`/
+  `StoredDomainEvent` (modules may never import `platform/`) — structurally identical, so
+  `compose-core.ts` (which can import both) assigns one into the other with no cast. A malformed
+  payload throws rather than silently no-op'ing, so a genuine bug in hazards' own publishing code
+  surfaces as a retried-then-dead-lettered event instead of a silent no-op.
+- **`RoutingModuleDeps` gained `identity` and an optional `pushNotifier`; `RoutingModule` gained
+  `eventHandlers`.** `compose-core.ts` now builds `identity` before `routing` (routing's handlers
+  read it directly for `getPushTokensForDriver`) and passes `overrides.eventHandlers ??
+routing.eventHandlers` into the `OutboxDispatcher` — M6.1's "no module has one yet" default is
+  gone; routing is the first real caller.
+
+20 new tests: 8 for `detectReroute` (in-memory fakes — reroutes an unstarted plan, reroutes an
+in-progress trip from its plan's origin, no-op when the hazard is no longer active, `applies()`
+false skips, reporter exclusion, idempotent redelivery, rate-limit cap, no-route-found skip), 4
+for `PostgresRerouteAlertRepository` (real Postgres — exists/scoping, dedupe-on-conflict,
+`countSince` windowing), 5 for `PostgresRoutePlanRepository.findRecentUnstartedNear`, 3 for
+`PostgresActiveTripRepository.findActiveNear` — all against a real Postgres container with a
+hand-verified polyline6 encoder (test-only, mirroring `driver-app`'s own `polyline.test.ts` split)
+building realistic Hexham-area geometry, since the in-memory fakes' and the real repositories'
+proximity checks both run against actually-decoded points, not a placeholder string. 488 core
+tests total (up from 454 going into this branch). `pnpm arch` clean (327 modules, 1140
+dependencies). `pnpm lint`/`typecheck`/`format:check` all clean.
+
+**Verified by actually running it, all for real — Docker stayed up**: all 488 core tests,
+including every new Postgres-backed spatial query and the reroute-alert repository's own
+dedupe-on-conflict test (asserts the _first_ alert's `new_route_plan_id` survives a same-triple
+second insert, not just that the second insert doesn't throw).
+
+## Decisions from M6.4
+
+76. **The reroute handler re-queries hazards' `findAvoidanceCandidates` rather than trusting the
+    event payload's `type`/`measurement` fields.** The event only needs to carry enough to
+    re-look-up the hazard (`hazardId`, `location`) and exclude its reporter — everything about
+    whether it's still a genuinely active, blocking restriction is re-derived from the same
+    read-model call `HazardAvoidanceQueryAdapter` already uses. This also means a hazard dismissed
+    or expired between publish and processing is handled correctly with no extra code: the
+    candidate list just comes back not containing it.
+77. **A mid-trip reroute is planned from the trip's original origin, not the vehicle's real
+    current position.** `ActiveTrip.lastPosition` stays unset for all of Phase 1 (decision, M5.6
+    — no position-update endpoint exists yet), so `trip.lastPosition ?? plan.origin` always falls
+    through to the plan's origin today. Documented as a known gap below rather than worked around,
+    since fixing it needs a real position-tracking endpoint M6 doesn't otherwise require.
+78. **`ON_ROUTE_RADIUS_M` and `AVOID_ZONE_HALF_WIDTH_M` moved into `domain/geo.ts`, out of
+    `infrastructure/hazard-avoidance-query.ts`.** Both are plain numeric constants, so the domain
+    layer can legally hold them; `application/detect-reroute.ts` needed the exact same values
+    design doc §6 calls for, and `application/` importing from `infrastructure/` would violate
+    AGENTS.md rule 1. Moving the constant, rather than duplicating its value a second time, keeps
+    a single source of truth for something the design doc explicitly says must match.
+79. **The new-route-plan `RoutePlan.hazardsOnRoute` is seeded with `[trigger.hazardId]`**, unlike
+    every other `RoutePlan` this codebase creates (`planRoute`'s own plans always leave it `[]` —
+    M2.5's still-undelivered "what was avoided" explanation). A reroute's whole reason for
+    existing is one specific hazard, so recording it costs nothing and is strictly more useful
+    than leaving the field empty by rote consistency with `planRoute`.
+80. **Rate limit is a flat 3 alerts per subject per rolling hour, and the 6-hour unstarted-plan
+    window and 30m on-route radius are unchanged from design doc §5/§6's own numbers.** The rate
+    cap has no design-doc-given number — a guess, same status as `AVOID_ZONE_HALF_WIDTH_M` — worth
+    revisiting once real driver feedback exists on how often reroute pushes actually fire.
+
+## Deviations and open items from M6.4
+
+- **Mid-trip reroutes use the trip's plan origin, not a live position** (decision 77) — every
+  `ActiveTrip` reroute in Phase 1 is really "replan from where the trip started," which is
+  increasingly wrong the further into a trip the hazard is reported. Revisit once a position-
+  update endpoint exists (M6.6 or later); until then this is a known, accepted gap, not a bug.
+- **No test proves the outbox dispatcher actually routes a real `HazardReported`/`HazardConfirmed`
+  row through to `detectReroute` end-to-end** — `reroute-event-handlers.ts`'s payload parsing and
+  `detectReroute`'s own logic are each tested directly, but nothing publishes a real hazard event
+  and lets the real `OutboxDispatcher` pick it up and dispatch into routing's handler in the same
+  test. `outbox-dispatcher.test.ts` (M6.1) already proves the dispatcher mechanism generically;
+  this would be an integration test of the full path across three modules, which M6.7 (explicitly
+  "end-to-end verification") is scoped to cover.
+- **No real push notification exists yet** — `ConsolePushNotifier` just logs. M6.5 is the real
+  Expo Push HTTP adapter; nothing about this milestone's own code should need to change when it
+  lands, since `PushNotifier` is already the seam.
+- **A hazard whose event fires while no vehicle is nearby, or where `routingEngine.route()`
+  genuinely finds no way around it, produces no user-visible trace at all** (silently `continue`s
+  in both cases). Acceptable for now — there's nothing to show a driver who isn't affected, and
+  "no route exists" has no new route id to put in a notification — but if this needs observability
+  later (e.g. counting how often rerouting fails), that's a deliberate gap to fill then, not now.

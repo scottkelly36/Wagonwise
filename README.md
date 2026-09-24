@@ -278,10 +278,10 @@ running and its `outbox.handled` row being written means it may run again). A ha
 throwing gets retried up to 5 attempts, then dead-lettered (marked processed without ever
 succeeding) rather than retried forever.
 
-**`composeCore` still wires the dispatcher with an empty handler list** (`CoreOverrides.eventHandlers`)
-— nothing subscribes yet, only publishes (M6.4 gives routing's reroute subscriber a reason to
-register one). `drainOnce()` runs one pass synchronously, for tests that don't want to wait on
-the poll interval.
+**`composeCore` now wires the dispatcher with routing's real handlers** (`overrides.eventHandlers ??
+routing.eventHandlers`, M6.4) — the empty-list default (M6.1) lasted until routing's reroute
+subscriber below became the first real registrant. `drainOnce()` runs one pass synchronously, for
+tests that don't want to wait on the poll interval.
 
 **Hazards publishes events (M6.3)**: `reportHazard` and `confirmHazard` now raise
 `HazardReported`/`HazardConfirmed` (`hazards/domain/events.ts`) through the outbox, in the same
@@ -303,8 +303,27 @@ first. Gated by the driver-auth hook on `/identity/devices/` specifically, not a
 `/identity/` — identity's other routes (OTP request/verify, token refresh, JWKS) are the
 pre-token sign-in flow itself and can't require a token they don't have yet. `identity/api.ts`'s
 facade also exposes `getPushTokensForDriver(driverId)` — the read-model port design doc §6 asks
-for ("device tokens come from a read-model port onto Identity"), unconsumed until M6.4 gives
-routing's reroute subscriber a reason to call it.
+for ("device tokens come from a read-model port onto Identity"), called directly by routing's
+reroute subscriber below (M6.4).
+
+**Routing's reroute subscriber (M6.4)**: `application/detect-reroute.ts`, registered against the
+outbox dispatcher as two handlers — `routing.detect-reroute-on-hazard-reported` and
+`-on-hazard-confirmed` — design doc §6's whole flow. On either event, it re-queries hazards'
+`findAvoidanceCandidates([location], 30)` (never trusts the event payload's own `type`/
+`measurement` fields — the same read-model call route planning already uses, so a hazard
+dismissed or expired between publish and processing is naturally excluded). If it's still an
+active blocking candidate, it finds affected trips/plans (`ActiveTripRepository.findActiveNear` +
+`RoutePlanRepository.findRecentUnstartedNear`, both backed by a new PostGIS `geometry_geog`
+column on `routing.route_plans`, migration 0009), filters through `applies()` (unchanged), skips
+the reporter (`HazardReported` only — a merge-triggered `HazardConfirmed` has no single reporter
+to exclude), checks the two guardrails (`routing.reroute_alerts`'s own `(hazard_id, subject_type,
+subject_id)` unique index for "one alert per hazard per trip," a rolling-hour count for the
+per-subject cap), requests a fresh route around a `bufferPoint` avoid-zone, persists it as a new
+`RoutePlan`, and sends a push via `PushNotifier` (`ConsolePushNotifier` for now — a real Expo Push
+adapter is M6.5) to every token `getPushTokensForDriver` returns. A mid-trip reroute plans from
+the trip's _plan_ origin, not a live position — `ActiveTrip.lastPosition` stays unset for all of
+Phase 1 (no position-tracking endpoint exists yet), a known, documented gap (`docs/progress.md`,
+M6.4 deviations).
 
 ## Driver BFF
 
