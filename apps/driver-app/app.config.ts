@@ -45,6 +45,7 @@ const config: ExpoConfig = {
         imageWidth: 76,
       },
     ],
+    'expo-notifications',
   ],
   experiments: {
     typedRoutes: true,

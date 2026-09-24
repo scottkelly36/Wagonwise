@@ -1,4 +1,4 @@
-import { requestOtp, verifyOtp, refreshAccessToken } from './identity';
+import { registerDevice, requestOtp, verifyOtp, refreshAccessToken } from './identity';
 import { ApiError } from './errors';
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -109,5 +109,31 @@ describe('refreshAccessToken', () => {
       tag: 'RefreshTokenReused',
       status: 401,
     });
+  });
+});
+
+describe('registerDevice', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('sends the push token with a bearer token, parsing the 201 response', async () => {
+    const body = {
+      id: 'device-1',
+      driverId: 'driver-1',
+      pushToken: 'ExponentPushToken[xxx]',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(201, body));
+    globalThis.fetch = fetchMock;
+
+    const result = await registerDevice('token-1', 'ExponentPushToken[xxx]');
+
+    expect(result).toEqual(body);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/identity\/devices$/);
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer token-1');
+    expect(JSON.parse(init.body as string)).toEqual({ pushToken: 'ExponentPushToken[xxx]' });
   });
 });

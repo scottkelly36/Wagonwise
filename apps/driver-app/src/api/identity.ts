@@ -1,9 +1,12 @@
 import {
+  deviceSchema,
   refreshTokenRequestSchema,
   refreshTokenResponseSchema,
+  registerDeviceRequestSchema,
   requestOtpRequestSchema,
   verifyOtpRequestSchema,
   verifyOtpResponseSchema,
+  type DeviceDto,
   type RefreshTokenResponse,
   type VerifyOtpResponse,
 } from '@wagonwise/contracts/identity';
@@ -34,4 +37,14 @@ export async function refreshAccessToken(refreshToken: string): Promise<RefreshT
   const { status, json } = await requestJson('POST', '/identity/token/refresh', { body });
   throwUnlessSuccess(status, json, [200]);
   return refreshTokenResponseSchema.parse(json);
+}
+
+export async function registerDevice(accessToken: string, pushToken: string): Promise<DeviceDto> {
+  const body = registerDeviceRequestSchema.parse({ pushToken });
+  const { status, json } = await requestJson('POST', '/identity/devices', {
+    body,
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [201]);
+  return deviceSchema.parse(json);
 }
