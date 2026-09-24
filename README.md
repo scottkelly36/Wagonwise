@@ -93,6 +93,7 @@ half-configured.
 | `IDENTITY_PRIVATE_KEY`    | unset (fresh key each boot)                               | PEM, PKCS8, Ed25519 only — see Identity, below                                          |
 | `INTERNAL_KEYS`           | `local-dev-internal-key`                                  | Comma-separated; a BFF must send one in `X-Internal-Key` on everything except `/health` |
 | `VALHALLA_URL`            | `http://127.0.0.1:8002`                                   | Matches `infra/docker/compose.yml`'s `valhalla` service (see Routing, below)            |
+| `EXPO_ACCESS_TOKEN`       | unset                                                     | Only needed if Expo's "enhanced push security" is turned on (see Alerts, below)         |
 | `OUTBOX_POLL_INTERVAL_MS` | `2000`                                                    | How often the in-process outbox poller checks for pending events (see Alerts, below)    |
 
 ```bash
@@ -319,11 +320,23 @@ the reporter (`HazardReported` only — a merge-triggered `HazardConfirmed` has 
 to exclude), checks the two guardrails (`routing.reroute_alerts`'s own `(hazard_id, subject_type,
 subject_id)` unique index for "one alert per hazard per trip," a rolling-hour count for the
 per-subject cap), requests a fresh route around a `bufferPoint` avoid-zone, persists it as a new
-`RoutePlan`, and sends a push via `PushNotifier` (`ConsolePushNotifier` for now — a real Expo Push
-adapter is M6.5) to every token `getPushTokensForDriver` returns. A mid-trip reroute plans from
-the trip's _plan_ origin, not a live position — `ActiveTrip.lastPosition` stays unset for all of
-Phase 1 (no position-tracking endpoint exists yet), a known, documented gap (`docs/progress.md`,
-M6.4 deviations).
+`RoutePlan`, and sends a push via `PushNotifier` to every token `getPushTokensForDriver` returns. A
+mid-trip reroute plans from the trip's _plan_ origin, not a live position —
+`ActiveTrip.lastPosition` stays unset for all of Phase 1 (no position-tracking endpoint exists
+yet), a known, documented gap (`docs/progress.md`, M6.4 deviations).
+
+**Real push delivery (M6.5)**: `infrastructure/expo-push-notifier.ts`'s `ExpoPushNotifier` is now
+the wired `PushNotifier` default — hand-rolled HTTP against Expo's fixed `exp.host` push endpoint
+(no client library, same precedent as `ValhallaRoutingEngine`), sending one `{ to, title, body,
+data }` message per call and reading back Expo's ticket response. `EXPO_ACCESS_TOKEN`
+(Configuration, above) is optional — Expo's push API works without one unless a project turns on
+its "enhanced push security" setting. A per-ticket `status: 'error'` (most commonly a stale or
+revoked token — `DeviceNotRegistered`) is logged and swallowed, not thrown: by the time a push is
+sent, `detect-reroute.ts` has already persisted the `RerouteAlert`, and the idempotency guard means
+a retried event would just skip that already-alerted subject rather than genuinely resend the push,
+so throwing here would only abort the rest of that subject's token loop for no benefit.
+`ConsolePushNotifier` (logs instead of sending) is still available as an explicit `pushNotifier`
+override for tests or a local manual run that shouldn't reach Expo's real endpoint.
 
 ## Driver BFF
 

@@ -22,6 +22,7 @@ describe('loadConfig', () => {
       identityPrivateKeyPem: undefined,
       internalKeys: ['local-dev-internal-key'],
       valhallaUrl: 'http://127.0.0.1:8002',
+      expoAccessToken: undefined,
       outboxPollIntervalMs: 2000,
     });
   });
@@ -36,6 +37,7 @@ describe('loadConfig', () => {
       IDENTITY_PRIVATE_KEY: ED25519_PEM,
       INTERNAL_KEYS: 'key-one, key-two',
       VALHALLA_URL: 'http://valhalla.internal:8002',
+      EXPO_ACCESS_TOKEN: 'expo-secret-token',
       OUTBOX_POLL_INTERVAL_MS: '500',
     });
     expect(config).toEqual({
@@ -47,6 +49,7 @@ describe('loadConfig', () => {
       identityPrivateKeyPem: ED25519_PEM,
       internalKeys: ['key-one', 'key-two'],
       valhallaUrl: 'http://valhalla.internal:8002',
+      expoAccessToken: 'expo-secret-token',
       outboxPollIntervalMs: 500,
     });
   });
@@ -125,6 +128,20 @@ describe('loadConfig', () => {
     expect(loadConfig({ VALHALLA_URL: 'http://valhalla.internal:8002' }).valhallaUrl).toBe(
       'http://valhalla.internal:8002',
     );
+  });
+
+  it('defaults EXPO_ACCESS_TOKEN to undefined — Expo’s push API works without one', () => {
+    expect(loadConfig({}).expoAccessToken).toBeUndefined();
+  });
+
+  it('accepts an EXPO_ACCESS_TOKEN override', () => {
+    expect(loadConfig({ EXPO_ACCESS_TOKEN: 'expo-secret-token' }).expoAccessToken).toBe(
+      'expo-secret-token',
+    );
+  });
+
+  it('rejects an empty-string EXPO_ACCESS_TOKEN', () => {
+    expect(() => loadConfig({ EXPO_ACCESS_TOKEN: '' })).toThrow(ConfigError);
   });
 
   it('defaults OUTBOX_POLL_INTERVAL_MS to 2000', () => {

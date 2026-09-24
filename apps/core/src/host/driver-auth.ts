@@ -39,7 +39,16 @@ export function registerDriverAuth(
   app.decorateRequest('sessionId', undefined);
 
   app.addHook('onRequest', async (request, reply) => {
-    if (!prefixes.some((prefix) => request.url.startsWith(prefix))) {
+    // A prefix ending in `/` (every entry here) must also match the bare path with that trailing
+    // slash stripped — `request.url.startsWith('/identity/devices/')` alone is false for the real
+    // route's own URL, `/identity/devices`, which has no trailing slash to start with. Found by
+    // actually driving `POST /identity/devices` end to end (M6.5) rather than only through
+    // `build-app.test.ts`'s own `/identity/devices/protected` fixture, which always had the extra
+    // path segment this bug needed to hide behind.
+    const matches = prefixes.some(
+      (prefix) => request.url === prefix.slice(0, -1) || request.url.startsWith(prefix),
+    );
+    if (!matches) {
       return;
     }
 
