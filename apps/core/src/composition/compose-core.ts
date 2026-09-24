@@ -7,7 +7,11 @@ import {
   createFeedbackModule,
   type UntypedDb as FeedbackUntypedDb,
 } from '../modules/feedback/api.js';
-import { createHazardsModule, type UntypedDb as HazardsUntypedDb } from '../modules/hazards/api.js';
+import {
+  createHazardsModule,
+  type HazardParser,
+  type UntypedDb as HazardsUntypedDb,
+} from '../modules/hazards/api.js';
 import {
   createIdentityModule,
   type OtpSender,
@@ -45,6 +49,10 @@ export interface CoreOverrides {
    *  as `otpSender` above: a test substitutes a fake here rather than letting a real push reach
    *  Expo's actual endpoint (M6.7's end-to-end reroute test). */
   readonly pushNotifier?: PushNotifier | undefined;
+  /** Defaults to `AnthropicHazardParser`/`NullHazardParser` (per `config.anthropicApiKey`) inside
+   *  `createHazardsModule` itself — same reasoning as `pushNotifier` above: a test substitutes a
+   *  fake here rather than letting a real call reach Anthropic's actual endpoint (M7.1). */
+  readonly hazardParser?: HazardParser | undefined;
 }
 
 export interface Core {
@@ -99,7 +107,13 @@ export function composeCore(
   // hazards and identity both built before routing: routing's HazardAvoidanceQueryAdapter (M3.5)
   // and its reroute-detection handlers (M6.4) both wrap the other modules' facades — the same
   // "one module's composition needing another module's instance" case.
-  const hazards = createHazardsModule({ db: hazardsDb, clock, ids });
+  const hazards = createHazardsModule({
+    db: hazardsDb,
+    clock,
+    ids,
+    anthropicApiKey: config.anthropicApiKey,
+    hazardParser: overrides.hazardParser,
+  });
   const routing = createRoutingModule({
     db: routingDb,
     ids,

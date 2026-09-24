@@ -46,6 +46,14 @@ const config: ExpoConfig = {
       },
     ],
     'expo-notifications',
+    [
+      'expo-speech-recognition',
+      {
+        microphonePermission: 'WagonWise uses the microphone to hear your spoken hazard reports.',
+        speechRecognitionPermission:
+          'WagonWise uses speech recognition to turn what you say into a hazard report.',
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

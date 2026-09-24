@@ -1,5 +1,6 @@
 import {
   hazardReportIdParamsSchema,
+  parseVoiceHazardReportRequestSchema,
   reportHazardRequestSchema,
 } from '@wagonwise/contracts/hazards';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -7,6 +8,7 @@ import { makeId, type Id } from '../../../shared/brand.js';
 import { confirmHazard, type ConfirmHazardDeps } from '../application/confirm-hazard.js';
 import { dismissHazard, type DismissHazardDeps } from '../application/dismiss-hazard.js';
 import { getHazard, type GetHazardDeps } from '../application/get-hazard.js';
+import { parseVoiceReport, type ParseVoiceReportDeps } from '../application/parse-voice-report.js';
 import { reportHazard, type ReportHazardDeps } from '../application/report-hazard.js';
 import { statusFor } from './error-mapping.js';
 
@@ -15,6 +17,7 @@ export interface HazardsRouteDeps {
   readonly confirmHazard: ConfirmHazardDeps;
   readonly dismissHazard: DismissHazardDeps;
   readonly getHazard: GetHazardDeps;
+  readonly parseVoiceReport: ParseVoiceReportDeps;
 }
 
 /**
@@ -65,6 +68,20 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
     // Not always a fresh creation — an idempotent retry or a merge both return 200, since the
     // caller can't tell (and shouldn't need to) which one happened (decision, M3.4).
     return reply.status(200).send(result.value);
+  });
+
+  // No requireDriverId call — parsing a transcript isn't scoped to a reporter at all, and (like
+  // confirm/dismiss below) the host's driver-auth hook already requires some verified driver
+  // behind the whole /hazards/ prefix regardless.
+  app.post('/hazards/voice-reports/parse', async (request, reply) => {
+    const parsed = parseVoiceHazardReportRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await parseVoiceReport(deps.parseVoiceReport, {
+      transcript: parsed.data.transcript,
+    });
+    return reply.status(200).send(result);
   });
 
   // No requireDriverId call — same reasoning as confirm/dismiss below (decision 63): a hazard

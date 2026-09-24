@@ -4,6 +4,8 @@ import {
   hazardReportSchema,
   hazardTypeSchema,
   measurementSchema,
+  parseVoiceHazardReportRequestSchema,
+  parsedVoiceHazardReportSchema,
   reportHazardRequestSchema,
 } from './hazards.js';
 
@@ -72,6 +74,32 @@ describe('reportHazardRequestSchema', () => {
       source: 'tap',
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('parseVoiceHazardReportRequestSchema', () => {
+  it('requires a non-empty transcript', () => {
+    expect(
+      parseVoiceHazardReportRequestSchema.safeParse({ transcript: 'low bridge ahead' }).success,
+    ).toBe(true);
+    expect(parseVoiceHazardReportRequestSchema.safeParse({ transcript: '' }).success).toBe(false);
+    expect(parseVoiceHazardReportRequestSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('parsedVoiceHazardReportSchema', () => {
+  it('requires only type; note, measurement and positionHint are optional', () => {
+    expect(parsedVoiceHazardReportSchema.safeParse({ type: 'other' }).success).toBe(true);
+  });
+
+  it('accepts note, measurement and positionHint together', () => {
+    const result = parsedVoiceHazardReportSchema.safeParse({
+      type: 'low_bridge',
+      note: 'Low bridge reported',
+      measurement: { kind: 'height', value: 3.5, unit: 'm' },
+      positionHint: 'just past the roundabout',
+    });
+    expect(result.success).toBe(true);
   });
 });
 

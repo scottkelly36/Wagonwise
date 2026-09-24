@@ -1,5 +1,6 @@
 import {
   hazardReportIdParamsSchema,
+  parseVoiceHazardReportRequestSchema,
   reportHazardRequestSchema,
 } from '@wagonwise/contracts/hazards';
 import type { FastifyInstance } from 'fastify';
@@ -29,6 +30,21 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
     const core = await deps.coreClient.request('POST', '/hazards/reports', request.id, {
+      body: parsed.data,
+      authorization: `Bearer ${token}`,
+    });
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.post('/hazards/voice-reports/parse', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const parsed = parseVoiceHazardReportRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request('POST', '/hazards/voice-reports/parse', request.id, {
       body: parsed.data,
       authorization: `Bearer ${token}`,
     });

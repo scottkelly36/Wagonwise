@@ -68,6 +68,25 @@ export const hazardReportIdParamsSchema = z.object({
 });
 export type HazardReportIdParams = z.infer<typeof hazardReportIdParamsSchema>;
 
+/** Design doc §7 step 3: the app sends a raw transcript, no location — the `HazardParser` port
+ *  only classifies what was said; the pin still uses the GPS position the app captured when
+ *  recording started (step 5), which never leaves the device until the driver actually confirms
+ *  and files the report via `reportHazardRequestSchema` above. */
+export const parseVoiceHazardReportRequestSchema = z.object({
+  transcript: z.string().min(1),
+});
+export type ParseVoiceHazardReportRequest = z.infer<typeof parseVoiceHazardReportRequestSchema>;
+
+/** `positionHint` is free text in Phase 1 (design doc §7 step 5) — nothing resolves it to a
+ *  location, so it has no counterpart on `hazardReportSchema` above. */
+export const parsedVoiceHazardReportSchema = z.object({
+  type: hazardTypeSchema,
+  note: z.string().optional(),
+  measurement: measurementSchema.optional(),
+  positionHint: z.string().optional(),
+});
+export type ParsedVoiceHazardReportDto = z.infer<typeof parsedVoiceHazardReportSchema>;
+
 /** The shape of a domain error body every hazards route can send (interface/error-mapping.ts's
  *  `statusFor()` picks the status; this describes what rides along with it) — mirrors identity's
  *  and routing's own error response schemas. */

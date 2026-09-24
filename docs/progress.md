@@ -10,7 +10,7 @@
 | M4 Driver BFF + auth | Done — 2026-09-22 |
 | M5 Driver app        | In progress       |
 | M6 Alerts            | Done — 2026-09-24 |
-| M7 Voice             | Not started       |
+| M7 Voice             | In progress       |
 | M8 Field-ready       | Not started       |
 
 ## Decisions made before coding (from planning)
@@ -3065,3 +3065,214 @@ ts`'s `close()` does on every shutdown. The one production call site was updated
   changed it; a real Valhalla given a real avoid zone does not have this property. Not fixed
   because there is nothing to fix here — recorded so a future session doesn't mistake the
   now-realistic fake for a narrowed test.
+
+## M7 task breakdown
+
+| #    | Task                                                               | Status            |
+| ---- | ------------------------------------------------------------------ | ----------------- |
+| M7.1 | `HazardParser` port + Anthropic LLM adapter                        | Done — 2026-09-24 |
+| M7.2 | Driver-app: on-device speech capture, mic button wiring            | Done — 2026-09-24 |
+| M7.3 | Driver-app: parse + spoken confirm flow                            | Not started       |
+| M7.4 | Unconfirmed-drafts review screen (parked use)                      | Not started       |
+| M7.5 | End-to-end verification (as far as possible without a real device) | Not started       |
+
+Real-world speech-recognition accuracy against testers' actual accents and cab noise is
+deliberately not tested cheaply now (design doc's own open question) — deferred to real-device
+testing alongside M5.10, per this session's decision when M7 planning started.
+
+**M7.1 delivered:** the `HazardParser` port (design doc §7 step 3) — the LLM half of voice
+reporting — with a real adapter, not a stub. Core-only: no driver-app changes yet, since nothing
+speaks a transcript to it until M7.2/M7.3.
+
+- **`application/ports/hazard-parser.ts`**: `HazardParser.parse(transcript): Promise<ParsedVoiceReport>`
+  (`{ type, note?, measurement?, positionHint? }`). Never rejects a transcript outright — the
+  design doc's own fallback ("invalid output... falls back to type `other` with the raw transcript
+  as the note") is part of the port's contract, not something a caller has to handle separately.
+  Only a genuine infra fault (the LLM API unreachable, non-2xx) throws — the same "expected
+  outcome is a value" shape as `RoutingEngine`'s `NoRouteFound` and `PushNotifier`'s swallowed
+  error tickets.
+- **`infrastructure/anthropic-hazard-parser.ts`**: hand-rolled HTTP to Anthropic's Messages API
+  (decision 6/51's "hand-roll small, well-understood things," no SDK) — `claude-haiku-4-5-20251001`
+  (cheapest/fastest tier, matching design doc §7's own "pennies at Phase 1 volumes" cost note), one
+  forced tool call (`tool_choice: { type: 'tool', name: 'file_hazard_report' }`) so the model
+  returns structured JSON directly rather than prose to re-parse. The tool's `input` is still
+  zod-validated before being trusted — a forced tool call constrains the _shape_ the API will
+  accept, not that a given call's content actually satisfies every rule (e.g. a positive
+  measurement value) — invalid output is retried once, then falls back to
+  `{ type: 'other', note: transcript }` exactly as designed. A non-2xx response or an unparseable
+  body throws, same convention as `ValhallaRoutingEngine`/`ExpoPushNotifier`.
+- **`infrastructure/null-hazard-parser.ts`**: always returns the `type: 'other'` fallback with no
+  network call — wired as the default when `ANTHROPIC_API_KEY` is unset (decision 92, below).
+- **`application/parse-voice-report.ts`**: a thin use case wrapping the port — no `Result`, since
+  the port's own contract already never fails.
+- **`POST /hazards/voice-reports/parse`** (core + BFF proxy): `{ transcript }` →
+  `{ type, note?, measurement?, positionHint? }`. Gated by the existing `/hazards/` driver-auth
+  prefix (no new prefix needed); no ownership check, same as confirm/dismiss/get — parsing isn't
+  scoped to a reporter.
+- **`packages/contracts/src/hazards.ts`**: `parseVoiceHazardReportRequestSchema`,
+  `parsedVoiceHazardReportSchema` — `positionHint` has no counterpart on `hazardReportSchema`
+  (design doc §7 step 5: kept as free text, never resolved to a location in Phase 1).
+- **`config.ts`**: `ANTHROPIC_API_KEY`, optional — unlike `EXPO_ACCESS_TOKEN`, Anthropic's API
+  genuinely requires a key, so unset wires `NullHazardParser` instead of failing to boot (decision
+  92).
+- **`hazards/api.ts`**: `createHazardsModule` wires `AnthropicHazardParser`/`NullHazardParser`
+  itself from `anthropicApiKey`, same "module wires its own adapter" pattern as
+  `ValhallaRoutingEngine`/`ExpoPushNotifier` — `composeCore` just passes the config value through
+  plus an optional `hazardParser` override for tests, mirroring `pushNotifier`'s own shape exactly.
+
+14 new core tests (`anthropic-hazard-parser.test.ts`'s 7, `parse-voice-report.test.ts`'s 1, 3 new
+route tests, plus `config.test.ts` gaining 3 `ANTHROPIC_API_KEY` cases), 3 new contracts tests, 3
+new driver-bff tests. 526 core tests total (up from 512), 47 contracts tests (up from 44), 80
+driver-bff tests (up from 77). `pnpm arch` clean (349 modules, 1215 dependencies). `pnpm verify`
+green end to end (lint, typecheck, test, arch, format:check).
+
+**A real, if small, wiring bug was caught while verifying this, not by a test**: the new route's
+handler threw a `TypeError` on every request (500, even for a missing/empty transcript that should 400) because `packages/contracts`'s `dist/` hadn't been rebuilt after adding the two new schemas —
+`apps/core` resolves `@wagonwise/contracts` through its built output (decision 37), so the new
+exports were simply `undefined` until `pnpm --filter @wagonwise/contracts build` ran. Not a code
+bug, but a reminder that a schema change needs a contracts rebuild before its consumer can see it,
+same lesson decision 37 already recorded for `node dist/main.js` vs `tsx`.
+
+## Decisions from M7.1
+
+91. **`HazardParser`'s retry-once-then-fallback lives inside the adapter, not the use case.**
+    `parseVoiceReport` (`application/`) is a one-line passthrough; `AnthropicHazardParser` owns
+    deciding what counts as "invalid output" and when to give up, because that's specific to how
+    _this_ adapter's output can fail (no tool_use block, or a tool_use block that fails schema
+    validation) — a hypothetical second LLM adapter would have its own failure shapes to reason
+    about, not necessarily the same ones.
+92. **`ANTHROPIC_API_KEY` unset wires `NullHazardParser`, not a boot failure — and this is a
+    different situation from `OtpSender`'s still-unresolved SMS/email provider (M1.5 deviations).**
+    The provider _is_ chosen here (Anthropic); what's missing is just a key in a given dev
+    environment. Falling back to the same `type: 'other'` outcome the real adapter itself falls
+    back to on bad output keeps `pnpm dev` working with zero configuration (the cold-start promise)
+    without inventing a second, different "no parser configured" behaviour.
+93. **A forced tool call (`tool_choice`), not free-text-then-parse — but the tool's `input` is
+    still zod-validated, never trusted just because the API accepted the request.** Forcing a tool
+    call constrains what shape the model _can_ return; it says nothing about whether a specific
+    response actually satisfies every rule in that shape (e.g. `value` positive, per
+    `validateMeasurement`'s own domain rule) — a model can call a tool with a schema-shaped but
+    substantively wrong payload, and only re-validating catches that.
+94. **New rule discovered, not created: a `HazardParser` test double for interface-layer tests must
+    live in `application/testing/`, not be a real `infrastructure/` adapter (even a harmless one
+    like `NullHazardParser`).** `interface-no-infrastructure` (packages/architecture) already
+    enforced this generally — caught for real when `routes.test.ts` first imported
+    `NullHazardParser` directly and `pnpm arch` failed. Fixed by adding
+    `application/testing/stub-hazard-parser.ts`, the same role `InMemoryHazardRepository` already
+    plays for `HazardRepository`.
+95. **Fixed in passing: `turbo.json`'s `dev` task was missing `EXPO_ACCESS_TOKEN` from
+    `passThroughEnv`, since M6.5.** Noticed while adding `ANTHROPIC_API_KEY` to the same list —
+    Turborepo silently strips any env var not listed there (the exact failure mode AGENTS.md's own
+    "Tooling gotchas" section already names), so a real `EXPO_ACCESS_TOKEN` set for local `pnpm dev`
+    would have been silently dropped this whole time. Both variables now listed.
+
+## Deviations and open items from M7.1
+
+- **Not verified against the real Anthropic API — no `ANTHROPIC_API_KEY` exists in this dev
+  environment.** `AnthropicHazardParser` is tested against a real local HTTP server standing in
+  for Anthropic's Messages API (same philosophy as `ValhallaRoutingEngine`/`ExpoPushNotifier`), not
+  the live endpoint. The request/response shapes are taken from Anthropic's own published API
+  docs, not confirmed against a real call — get a key from console.anthropic.com and try a real
+  transcript before trusting the model actually calls the tool reliably and picks sensible types.
+- **`positionHint` is round-tripped by the parse endpoint but goes nowhere yet.** Nothing calls
+  `POST /hazards/voice-reports/parse` and nothing threads its result into `POST /hazards/reports`
+  — that's M7.3's job (the app-side confirm-then-file flow). `reportHazardRequestSchema`/
+  `HazardReport` don't have a `positionHint` field at all yet; whether one's worth adding, or
+  whether it just gets folded into `note` at submit time, is an open call for whoever builds M7.3.
+- **No voice hazard report has ever actually been filed** — `source: 'voice'` has existed in the
+  domain/contracts since before M7 (it was already there for M6's own tests), but nothing in this
+  codebase has ever driven the real path from a transcript to a filed report. M7.2/M7.3 close this.
+- **The system prompt and tool description are untested against real speech-to-text output** —
+  they were written against clean, written-out example transcripts, not the kind of disfluent,
+  half-sentence output on-device speech recognition actually produces from a driver talking while
+  driving. Worth revisiting once M7.2 exists and real transcripts are available to test against.
+
+**M7.2 delivered:** the driver-app half of design doc §7 steps 1–2 — the active-trip screen's mic
+button is now real on-device speech capture, not a disabled placeholder. Deliberately stops at a
+transcript: parsing it (M7.1's endpoint) and filing a report are M7.3's job, kept separate so this
+task stays reviewable in one sitting and the capture mechanics get proven on their own first.
+
+- **`expo-speech-recognition`** (new dependency, `57.1.0`, matching the installed Expo SDK) wraps
+  iOS's `SFSpeechRecognizer` and Android's `SpeechRecognizer` — exactly the "iOS/Android native
+  recognisers via an Expo module" the design doc names. Config plugin added to `app.config.ts`
+  with `microphonePermission`/`speechRecognitionPermission` strings, matching `expo-location`'s
+  own existing plugin-config shape.
+- **`lib/voice-capture-reducer.ts`**: a pure state machine —
+  `idle → starting → listening → transcribed | no-speech | error`, plus `permission-denied` — over
+  events the hook below translates from native ones. Unit-tested directly with plain event
+  objects, no native mocking needed, the same value a pure function always has in this codebase.
+- **`lib/voice-report-permission.ts`**: `obtainVoiceCapturePermission`, structurally almost
+  identical to `obtainPushToken` (M6.6) — check the existing permission, request if not granted, a
+  denial is a value (`{ ok: false, reason: 'denied' }`), not a thrown error.
+- **`hooks/use-voice-report-capture.ts`**: the thin glue — wires `ExpoSpeechRecognitionModule`'s
+  real `start`/`result`/`end`/`error` events (via `useSpeechRecognitionEvent`) and
+  `fetchCurrentLocation` (already built, M5.4) into the reducer through `useReducer`. `start()`
+  requests permission and the current GPS position concurrently, then calls the native module's
+  own `start()` with `continuous: false, interimResults: false` (hands-free — nothing partial to
+  read on screen while driving); `cancel()` calls `abort()` then resets, so `starting`/`listening`
+  is never a dead end for a driver who changes their mind.
+- **`app/active-trip.tsx`**: the mic button is wired for real — tapping while idle/transcribed/
+  no-speech/error/permission-denied starts a new capture, tapping while starting/listening cancels
+  it. A transcribed result shows "Heard: '…' — filing this report is coming soon" rather than
+  doing anything with it yet.
+
+17 new driver-app tests (`voice-capture-reducer.test.ts`'s 13, `voice-report-permission.test.ts`'s
+4). 144 driver-app tests total (up from 127). `pnpm arch` clean (355 modules, 1225 dependencies).
+`pnpm verify` green end to end. No component-level test for `active-trip.tsx` itself, matching
+this app's existing convention (no screen has ever had one).
+
+**Verified as far as it can be without a real device or dev build** — same boundary every prior
+driver-app milestone touching a native module has hit (M6.6's push registration, M5.10's own
+pending item). `expo-speech-recognition`'s native module has never actually run: covered by the
+reducer's and permission helper's unit tests plus a clean typecheck/lint/`pnpm arch` run, not a
+real microphone. Revisit once M5.10 unblocks a real device — that's also when the design doc's own
+open question (real-world accent/cab-noise accuracy) finally gets a real answer, per this
+session's decision when M7 planning started.
+
+## Decisions from M7.2
+
+96. **M7.2 stops at a transcript — no parse call, no filing.** The reducer's terminal
+    `transcribed` state carries the transcript and the GPS origin captured at recording start, and
+    nothing else happens to it. Splitting capture from parse-and-file (M7.3) keeps each task
+    independently reviewable and lets the capture mechanics (permissions, native event handling)
+    get proven before building UI on top of a result that might not be reliably shaped yet.
+97. **Voice capture is modelled as a pure reducer over injected native events, not a single async
+    function like `obtainPushToken`.** A capture session is inherently a sequence of events
+    (start/result/error/end) arriving over time from the native module, not one call-and-response
+    — `voiceCaptureReducer` is the "pure logic" half of the same split `push-registration.ts`
+    established, just shaped to fit what this port actually looks like.
+98. **A trailing `no-speech`/`end` signal only applies while `starting`/`listening`; every other
+    state (`transcribed`, `error`, `permission-denied`) ignores it.** Caught while writing the
+    reducer's own tests, not from a real device: the native module's `end` event fires after
+    _every_ session, including ones that already got a final result or already errored, and a
+    naive reducer would let that trailing signal silently clobber whichever real outcome arrived
+    first.
+99. **`cancel()` calls `ExpoSpeechRecognitionModule.abort()` then resets, and is reachable by
+    tapping the mic button again while `starting`/`listening`.** Without it, a driver who taps the
+    mic and changes their mind — or a recognizer that never reaches a natural end — would have no
+    way back to `idle` until the native module decided to fire its own `end`/`error` event on its
+    own schedule.
+100.  **GPS origin capture is best-effort, not blocking.** A denied location permission or a failed
+      fix doesn't stop voice capture from proceeding — `origin` just stays `undefined`, mirroring
+      `report-hazard.tsx`'s own `effectivePin ?? location.point` fallback for the tap flow. M7.3's
+      filing step will need the same fallback for whichever transcript arrives with no origin.
+
+## Deviations and open items from M7.2
+
+- **Not verified on a real device — no dev build or EAS project exists yet (M5.10).** Everything
+  native-module-shaped here (permission prompts, the recognizer actually hearing speech, platform
+  differences between iOS's `SFSpeechRecognizer` and Android's `SpeechRecognizer`) is unverified
+  beyond a clean typecheck/lint and the pure logic's own unit tests. This is also what blocks the
+  design doc's own "test real accents/cab noise cheaply" open question from getting a real answer.
+- **No mid-capture "stop and use what you've got so far" action** — only start and full cancel.
+  `continuous: false` + `interimResults: false` means the module itself has no partial result to
+  finalize early, so this isn't a missing feature so much as a property of the chosen recognition
+  mode; revisit if `interimResults: true` ever becomes worth the added complexity of streaming
+  partial text.
+- **The transcript is shown but never used** — M7.3 is where it gets sent to M7.1's parse endpoint,
+  spoken back for confirmation, and (only on a yes) filed as a real `source: 'voice'` report.
+- **No Bluetooth/steering-wheel media-button trigger.** Assessed and deliberately skipped for this
+  task: `expo-speech-recognition` has no hook into hardware media-button events, and wiring one up
+  would mean a second native integration (likely `react-native-track-player`-style media-session
+  hooks, or a custom native module) — genuinely complicated, not "easy," so per this session's own
+  M7-planning decision it's deferred rather than trialled now.

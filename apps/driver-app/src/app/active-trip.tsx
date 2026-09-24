@@ -12,16 +12,28 @@ import {
 import { useEndTrip } from '../api/use-active-trip';
 import { RouteMap } from '../components/route-map';
 import { useLiveLocation } from '../hooks/use-live-location';
+import { useVoiceReportCapture } from '../hooks/use-voice-report-capture';
 import { routingErrorMessage } from '../lib/error-messages';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 
+const VOICE_CAPTURE_LABEL: Record<string, string> = {
+  idle: 'Report hazard',
+  starting: 'Starting…',
+  listening: 'Listening… tap to cancel',
+  transcribed: 'Report hazard',
+  'no-speech': "Didn't catch that — tap to try again",
+  error: "Couldn't hear that — tap to try again",
+  'permission-denied': 'Microphone access is off — tap to try again',
+};
+
 /**
  * The active-trip screen (design doc §8, M5.6): a map following the driver's live position, an
- * upcoming-hazards list, and a real "End trip" button. The mic button and reroute prompts the
- * design doc also lists for this screen stay disabled placeholders — M6 (reroute) and M7 (voice)
- * territory, per the M5 task breakdown's own note on this task.
+ * upcoming-hazards list, and a real "End trip" button. Reroute prompts arrive as M6.6's own
+ * screen (`app/reroute/[id].tsx`), reached via notification, not from here. The mic button is now
+ * real capture (M7.2) — parsing what was said and filing the report are still M7.3's job, so a
+ * transcript is shown but nothing is submitted yet.
  */
 export default function ActiveTripScreen() {
   const router = useRouter();
@@ -31,6 +43,7 @@ export default function ActiveTripScreen() {
   const clearPlan = useCurrentRoutePlanStore((s) => s.clear);
   const location = useLiveLocation();
   const endTrip = useEndTrip();
+  const voiceCapture = useVoiceReportCapture();
 
   // decodePolyline6 is a pure function of plan.geometry — no need to redo it on every
   // unrelated re-render (e.g. a location update).
@@ -85,17 +98,31 @@ export default function ActiveTripScreen() {
           )}
         </View>
 
-        {/* Disabled, not wired: hands-free voice reporting is M7 (docs/progress.md, M5.6). Shown
-            per the design doc's own screen table rather than omitted, but honestly disabled
-            rather than pointing at a feature that doesn't exist. */}
         <TouchableOpacity
-          style={[styles.micButton, styles.buttonDisabled]}
-          disabled
+          style={[
+            styles.micButton,
+            (voiceCapture.state.status === 'starting' ||
+              voiceCapture.state.status === 'listening') &&
+              styles.micButtonListening,
+          ]}
+          onPress={
+            voiceCapture.state.status === 'starting' || voiceCapture.state.status === 'listening'
+              ? voiceCapture.cancel
+              : voiceCapture.start
+          }
           testID="voice-report-button"
         >
-          <Text style={styles.micButtonText}>Report hazard</Text>
+          <Text style={styles.micButtonText}>{VOICE_CAPTURE_LABEL[voiceCapture.state.status]}</Text>
         </TouchableOpacity>
-        <Text style={styles.footnote}>Hands-free voice reporting is coming soon.</Text>
+
+        {voiceCapture.state.status === 'transcribed' && (
+          <Text style={styles.footnote} testID="voice-report-transcript">
+            Heard: “{voiceCapture.state.transcript}” — filing this report is coming soon.
+          </Text>
+        )}
+        {voiceCapture.state.status === 'error' && voiceCapture.state.errorMessage !== undefined && (
+          <Text style={styles.footnote}>{voiceCapture.state.errorMessage}</Text>
+        )}
 
         {endTrip.isError && <Text style={styles.error}>{routingErrorMessage(endTrip.error)}</Text>}
 
@@ -159,6 +186,9 @@ const styles = StyleSheet.create({
     borderRadius: 44,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  micButtonListening: {
+    backgroundColor: '#F87171',
   },
   micButtonText: {
     fontSize: 18,
