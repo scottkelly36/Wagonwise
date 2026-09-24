@@ -23,6 +23,10 @@ interface Props {
   /** Present only on the route-overview screen (M5.5) — the plan-route screen (M5.4) has no
    *  route yet, since planning one is the whole point of that screen. */
   readonly routeLine?: [lon: number, lat: number][];
+  /** The reroute-prompt screen's (M6.6) "old vs new" comparison (design doc §6: "Opening the
+   *  notification shows old vs new route") — drawn in a second colour alongside `routeLine`,
+   *  which stands for the *current* route in that comparison. Absent everywhere else. */
+  readonly alternateRouteLine?: [lon: number, lat: number][];
   /** Absent on the route-overview screen — a planned route's origin/destination are fixed
    *  outcomes of `POST /routing/route-plans`, not editable by tapping the map afterwards. */
   readonly onMapPress?: (point: MapPoint) => void;
@@ -45,7 +49,14 @@ function toLngLat(point: MapPoint): LngLat {
  * RN/TS, fully unit-testable; this component is the one piece verified by design (against
  * MapLibre's own real source, not guessed) rather than by a real run.
  */
-export function RouteMap({ origin, destination, routeLine, onMapPress, currentPosition }: Props) {
+export function RouteMap({
+  origin,
+  destination,
+  routeLine,
+  alternateRouteLine,
+  onMapPress,
+  currentPosition,
+}: Props) {
   const center = currentPosition ?? destination ?? origin;
   // A closer, street-level zoom while following a live position — the whole planned route
   // doesn't need to stay in frame the way it does on the plan-route/route-overview screens.
@@ -67,6 +78,19 @@ export function RouteMap({ origin, destination, routeLine, onMapPress, currentPo
             id="route-line-layer"
             source="route-line-source"
             paint={{ 'line-color': '#38BDF8', 'line-width': 4 }}
+          />
+        </GeoJSONSource>
+      )}
+      {alternateRouteLine && alternateRouteLine.length > 1 && (
+        <GeoJSONSource
+          id="alternate-route-line-source"
+          data={{ type: 'LineString', coordinates: alternateRouteLine }}
+        >
+          <Layer
+            type="line"
+            id="alternate-route-line-layer"
+            source="alternate-route-line-source"
+            paint={{ 'line-color': '#34D399', 'line-width': 4 }}
           />
         </GeoJSONSource>
       )}

@@ -461,9 +461,10 @@ geometry, `src/lib/polyline.ts`, hand-rolled per AGENTS.md rule 6), distance/tim
 "restrictions avoided"/"hazards on this route" sections (both always empty right now —
 `RoutePlan`'s `avoidedRestrictions`/`hazardsOnRoute` fields have been `[]` since M2.5/M3.5, a
 documented backend gap, not a bug here). The just-planned route is held in a small in-memory
-store (`src/state/current-route-plan-store.ts`), not re-fetched — core has no `GET
-/routing/route-plans/:id` endpoint (deliberately: there's no route-plan history to browse yet),
-so `/plan-route` and `/route-overview` share this one "current plan" slot instead.
+store (`src/state/current-route-plan-store.ts`), not re-fetched on this screen — `/plan-route`
+and `/route-overview` share this one "current plan" slot instead. `GET /routing/route-plans/:id`
+does exist now (M6.6), but only for the reroute prompt to fetch a *different*, brand-new plan by
+the id a push notification carries — this store still isn't a cache keyed by id.
 
 **Active trip (M5.6)**: "Start trip" (route overview) now really starts one —
 `POST /routing/route-plans/:id/trip` — and lands on `/active-trip`: a live-following map
@@ -502,13 +503,45 @@ module in the repo (one aggregate, one use case, no cross-context reads or event
 `identity`'s own reference-module shape. Insert-only, no read endpoint — a one-way channel to the
 developer, read via `psql` rather than back through the app.
 
+**Push registration + reroute prompt (M6.6)**: the app side of M6.2's device-token registration
+and M6.5's real Expo push delivery. `src/hooks/use-register-push-token.ts` requests notification
+permission and an Expo push token (`expo-notifications` + `expo-device`, both new dependencies)
+whenever a driver is signed in, and upserts it via `POST /identity/devices`
+(`src/api/identity.ts`'s `registerDevice`) — same "opportunistic, re-run costs nothing" shape as
+`use-opportunistic-refresh.ts`/`use-hazard-queue-flush.ts`, since the server-side upsert is keyed
+on the token itself (decision 71). Getting a real token needs an EAS project id
+(`Constants.expoConfig.extra.eas.projectId`), which doesn't exist yet (M5.10's own pending EAS
+setup) — this is an expected, silently-skipped outcome
+(`src/lib/push-registration.ts`'s `obtainPushToken`, unit-tested directly), not an error, same as
+a driver declining the permission prompt.
+
+`src/hooks/use-reroute-notifications.ts` listens for both ways a driver can encounter a reroute
+push (tapped from the tray, or arriving while the app's already open) and routes to
+`/reroute/[id]` with the `newRoutePlanId` the push carries (`src/lib/reroute-notification.ts`
+pulls it out of the payload). That screen is design doc §6's own instruction made real: "Opening
+the notification shows old vs new route; driver accepts or keeps the original. Never switch
+silently." It fetches the new plan with the new `GET /routing/route-plans/:id` (core + BFF,
+driver-scoped like vehicle profiles — a driverId mismatch is `RoutePlanNotFound`, not a separate
+403, same reasoning as decision 49), shows both routes on the map at once
+(`RouteMap`'s new `alternateRouteLine` prop, a second coloured line) plus a distance/time
+comparison, and two large buttons. Accepting just swaps the plan into
+`current-route-plan-store` — no core call needed, since a reroute is always a brand-new,
+independent `RoutePlan` (decision 79), not an edit to the one already in play.
+
+**Not verified against a real push notification.** Same underlying gap as M6.5's own deviation:
+no EAS project exists yet, so `obtainPushToken` has only ever exercised its `no-project-id`
+branch for real. Everything downstream of a token existing — parsing the notification payload,
+navigating to the prompt, fetching the new plan, the accept/keep swap — is covered by unit tests
+and a live typecheck/lint/build, not a real device receiving a real push. Revisit once M5.10's
+EAS project setup unblocks it.
+
 ## Repo layout
 
 ```
 apps/
   core/           core service — Fastify host, modular monolith   ✅ identity wired end to end
   driver-bff/     Fastify BFF for the driver app                  ✅ identity, routing, hazards, feedback
-  driver-app/     Expo React Native app, iOS + Android             ✅ M5.1–M5.9 done, M5.10 next
+  driver-app/     Expo React Native app, iOS + Android             ✅ M5.1–M5.9, M6.6 done; M5.10 next
 packages/
   config/         shared tsconfig / ESLint / Prettier presets     ✅
   architecture/   dependency-cruiser rules + fixtures + tests     ✅
@@ -556,9 +589,10 @@ resolve, unlike `tsx`/Vitest during development. `turbo.json`'s existing `depend
 on `build`/`lint`/`typecheck`/`test` already builds it first automatically.
 
 Everything listed above is real. `apps/driver-app` has sign-in, vehicle profiles, plan route,
-route overview, active trip, report/view a hazard, and send feedback (M5.1–M5.9) — real-device
-verification (M5.10) hasn't happened yet. Core's `routing`, `hazards` and `feedback` modules are
-all real now (M2/M3/M5.9).
+route overview, active trip, report/view a hazard, send feedback, and push registration/reroute
+prompting (M5.1–M5.9, M6.6) — real-device verification (M5.10), including a real device actually
+receiving a push, hasn't happened yet. Core's `routing`, `hazards` and `feedback` modules are all
+real now (M2/M3/M5.9).
 
 ## Conventions
 

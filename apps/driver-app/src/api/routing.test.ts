@@ -4,6 +4,7 @@ import {
   createVehicleProfile,
   deleteVehicleProfile,
   endTrip,
+  getRoutePlan,
   getVehicleProfile,
   listVehicleProfiles,
   planRoute,
@@ -184,6 +185,44 @@ describe('planRoute', () => {
         destination: routePlan.destination,
       }),
     ).rejects.toMatchObject({ tag: 'NoRouteFound', status: 422 });
+  });
+});
+
+describe('getRoutePlan', () => {
+  const routePlan = {
+    id: '33333333-3333-3333-3333-333333333333',
+    driverId: profile.driverId,
+    profileId: vehicleProfileIdSchema.parse(profile.id),
+    origin: { lat: 54.971, lon: -2.1 },
+    destination: { lat: 54.973, lon: -2.017 },
+    geometry: 'encoded-polyline',
+    distanceKm: 6.2,
+    durationMin: 9,
+    avoidedRestrictions: [],
+    hazardsOnRoute: ['hazard-1'],
+    createdAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  it('requests the specific id and parses the plan', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, routePlan));
+    globalThis.fetch = fetchMock;
+
+    const result = await getRoutePlan('token-1', routePlan.id);
+
+    expect(result).toEqual(routePlan);
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toMatch(new RegExp(`/routing/route-plans/${routePlan.id}$`));
+  });
+
+  it("throws an ApiError on a 404 (someone else's plan, or a stale one)", async () => {
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(404, { tag: 'RoutePlanNotFound', requestId: 'r1' }));
+
+    await expect(getRoutePlan('token-1', routePlan.id)).rejects.toMatchObject({
+      tag: 'RoutePlanNotFound',
+      status: 404,
+    });
   });
 });
 

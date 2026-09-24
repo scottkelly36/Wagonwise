@@ -117,6 +117,23 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
     return reply.status(core.status).send(core.body);
   });
 
+  app.get('/routing/route-plans/:id', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const params = routePlanIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request(
+      'GET',
+      `/routing/route-plans/${params.data.id}`,
+      request.id,
+      { authorization: `Bearer ${token}` },
+    );
+    return reply.status(core.status).send(core.body);
+  });
+
   app.post('/routing/route-plans/:id/trip', async (request, reply) => {
     const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
     if (token === undefined) return reply;

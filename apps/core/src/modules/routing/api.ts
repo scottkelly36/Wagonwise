@@ -104,6 +104,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
       clock: deps.clock,
       ids: deps.ids,
     },
+    getRoutePlan: { routePlanRepo },
     startTrip: { routePlanRepo, activeTripRepo, clock: deps.clock, ids: deps.ids },
     endTrip: { repo: activeTripRepo, clock: deps.clock },
   };

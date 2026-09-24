@@ -17,6 +17,7 @@ import {
   type DeleteVehicleProfileDeps,
 } from '../application/delete-vehicle-profile.js';
 import { endTrip, type EndTripDeps } from '../application/end-trip.js';
+import { getRoutePlan, type GetRoutePlanDeps } from '../application/get-route-plan.js';
 import {
   getVehicleProfile,
   type GetVehicleProfileDeps,
@@ -40,6 +41,7 @@ export interface RoutingRouteDeps {
   readonly getVehicleProfile: GetVehicleProfileDeps;
   readonly listVehicleProfiles: ListVehicleProfilesDeps;
   readonly planRoute: PlanRouteDeps;
+  readonly getRoutePlan: GetRoutePlanDeps;
   readonly startTrip: StartTripDeps;
   readonly endTrip: EndTripDeps;
 }
@@ -163,6 +165,24 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(201).send(result.value);
+  });
+
+  app.get('/routing/route-plans/:id', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const params = routePlanIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await getRoutePlan(deps.getRoutePlan, {
+      id: makeId<'RoutePlanId'>(params.data.id),
+      driverId,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send(result.value);
   });
 
   app.post('/routing/route-plans/:id/trip', async (request, reply) => {

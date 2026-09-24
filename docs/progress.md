@@ -2353,7 +2353,7 @@ verified**: an actual running app — same hardware gap as every driver-app mile
 | M6.3 | Hazards publishes `HazardReported`/`HazardConfirmed`                      | Done — 2026-09-23 |
 | M6.4 | Routing: reroute detection (on-hazard-event subscriber)                   | Done — 2026-09-24 |
 | M6.5 | Push notifications (`PushNotifier` port + Expo adapter)                   | Done — 2026-09-24 |
-| M6.6 | Driver app: register push token, receive notification, reroute prompt     | Not started       |
+| M6.6 | Driver app: register push token, receive notification, reroute prompt     | Done — 2026-09-24 |
 | M6.7 | End-to-end verification (idempotency, rate limits, don't-notify-reporter) | Not started       |
 
 Broken out this way (mirroring M1–M5's own per-milestone task tables, this milestone's first)
@@ -2835,3 +2835,114 @@ extra path segment this bug needed to hide behind.
   `pushNotifier.send()` once per token in a loop, one HTTP request each. Fine at Phase 1's scale
   (a handful of testers, rarely more than one device each) — worth revisiting only if a single
   hazard event ever needs to alert enough devices at once for request count to matter.
+
+**M6.6 delivered:** the driver-app side of M6.2/M6.5 — registering a push token, receiving a
+reroute push, and the reroute-prompt screen design doc §6 names ("Opening the notification shows
+old vs new route; driver accepts or keeps the original. Never switch silently."). Needed one new
+backend capability first: nothing let the app fetch a route plan by id, and a reroute push only
+ever carries `newRoutePlanId` (M6.4), not the plan itself.
+
+- **`GET /routing/route-plans/:id`** (core + BFF): `application/get-route-plan.ts`, mirroring
+  `getVehicleProfile` exactly — a driverId mismatch returns the same `RoutePlanNotFound` as a
+  genuinely unknown id (decision 49's precedent, extended to plans). `RoutePlanRepository.findById`
+  already existed (`startTrip` already used it); this is the first route to expose it over HTTP.
+  The BFF route is a plain forward, same shape as every other `GET .../:id` route in
+  `routing-routes.ts`.
+- **`expo-notifications` + `expo-device`** (new dependencies, both `expo install`-resolved against
+  SDK 57) and an `expo-notifications` config plugin entry in `app.config.ts`.
+- **`lib/push-registration.ts`'s `obtainPushToken`**: pure orchestration over injected
+  permission/token calls (same "effectful deps injected, pure logic tested directly" split as
+  `flushQueuedReports`/`fetchCurrentLocation`) — checks for an EAS project id first (`no-project-id`
+  outcome, since `getExpoPushTokenAsync` throws without one and no EAS project exists yet, M5.10),
+  then permission (existing-or-request, `denied` outcome), then the token itself (`error` outcome on
+  a genuine failure). A denial or missing project id is an expected value, never a thrown error.
+- **`hooks/use-register-push-token.ts`**: thin glue wiring the above to real `expo-notifications`/
+  `expo-device`/`expo-constants` calls plus `api/identity.ts`'s new `registerDevice`. Runs whenever
+  a driver is signed in (`useAuthStore`), not only once at sign-in — `registerDevice` is a plain
+  upsert keyed by the token itself (decision 71), so re-running is free and also covers the "a
+  different driver signs in on the same phone" reassignment case M6.2 built for. Skips entirely on
+  a simulator (`Device.isDevice`).
+- **`lib/reroute-notification.ts`'s `newRoutePlanIdFrom`** + **`hooks/use-reroute-notifications.ts`**:
+  the latter sets a foreground notification handler (module scope, same reasoning as
+  `api/query-client.ts`'s module-scope `QueryClient` — a driver mid-trip needs to see/hear an alert
+  immediately, not only after later pulling down the tray) and registers both
+  `addNotificationReceivedListener` (arrives while the app's open) and
+  `addNotificationResponseReceivedListener` (tapped from the tray), routing to `/reroute/[id]` for
+  either. Reads `useAuthStore.getState()` at event time rather than depending on a render's own
+  `state`, since these listeners are registered once and must survive a sign-in that happens later.
+- **`app/reroute/[id].tsx`**: fetches the new plan (`api/use-route-plan.ts`'s `useRoutePlan`), reads
+  the current one straight from `current-route-plan-store` (never re-fetched — it's already in
+  memory), shows both on the map at once (`RouteMap`'s new `alternateRouteLine` prop, a second
+  coloured `GeoJSONSource`/`Layer` pair) plus a distance/time comparison, and two large buttons.
+  Accepting calls `current-route-plan-store`'s existing `setPlan` with the new plan and navigates
+  back to wherever the trip actually is (`/active-trip` if one's running, `/route-overview`
+  otherwise) — no core call, since a reroute's `RoutePlan` is already fully independent and
+  persisted (decision 79); "accept" is purely a client-side swap of which one the app is showing. A
+  missing current plan (app relaunched — both trip and plan stores are ephemeral, M5.5/M5.6's own
+  accepted gap) redirects to `/plan-route`, the same fallback `active-trip.tsx`/`route-overview.tsx`
+  already use for the equivalent case, rather than guessing.
+- Wired both new hooks into `_layout.tsx`, alongside `useOpportunisticRefresh`/
+  `useHazardQueueFlush`.
+
+6 new core tests (`get-route-plan.test.ts`'s 3 + `GET /routing/route-plans/:id` in `routes.test.ts`'s
+3), 4 new driver-bff tests (same route, proxy-side). 507 core tests total (up from 501), 77
+driver-bff tests total (up from 73). On the driver-app side: 13 new tests
+(`push-registration.test.ts`, `reroute-notification.test.ts`, plus `registerDevice`/`getRoutePlan`
+cases added to the existing `identity.test.ts`/`routing.test.ts`) — 127 driver-app tests total. No
+test for `app/reroute/[id].tsx` itself or either new hook's thin glue, matching this codebase's
+existing convention: no screen has ever had a component-level test (native map dependencies make
+that impractical, per `route-map.tsx`'s own docstring), and a thin hook's job is fully covered once
+the pure function underneath it is. `pnpm arch` clean (341 modules, up from 329; 1185 dependencies,
+up from 1145). `pnpm verify` green end to end (lint, typecheck, test, arch, format:check).
+
+**Verified as far as it can be without a real EAS project or device** — the same boundary M6.5 hit.
+`obtainPushToken` has only ever exercised its `no-project-id` branch for real (no EAS project
+exists yet, M5.10's own pending item); registering a token, receiving a push, and the reroute
+prompt's fetch/compare/accept flow are covered by unit tests plus a clean typecheck/lint/`pnpm
+arch` run, not a real device. `GET /routing/route-plans/:id` itself was exercised for real: full
+`pnpm verify` run against the real Testcontainers Postgres the rest of the routing suite already
+uses.
+
+## Decisions from M6.6
+
+84. **`GET /routing/route-plans/:id` exists now, superseding M5.5's own documented reason for not
+    having one.** M5.5 said core deliberately had no such endpoint because "there's no route-plan
+    history to browse" — still true for browsing, but a reroute push only ever carries an id, not
+    a plan, so the driver app needs *some* way to turn that id into something displayable. Added
+    narrowly for that one caller, not as a general route-plan-lookup feature; `current-route-plan-
+    store` still isn't a cache keyed by id, and there's still no list-of-past-plans endpoint.
+85. **Accepting a reroute is purely client-side — no core call.** A reroute's `RoutePlan` is
+    already a complete, independent, persisted row by the time the push arrives (`detect-
+    reroute.ts` creates and saves it before sending anything, M6.4) — the driver's device holds
+    the *only* notion of "which plan is currently being followed," and switching that is nothing
+    more than which one the app happens to be showing. There is no server-side "current plan for
+    this trip" concept to update (decision 10: no `RoutePlan` lifecycle in Phase 1).
+86. **`useRegisterPushToken` re-runs on every sign-in, not once per app install.** Considered
+    registering only the first time a token is obtained, gated by some persisted "already
+    registered" flag — rejected because the server-side upsert (decision 71) already makes
+    re-registration free and idempotent, and a flag would only add a new way for the client and
+    server to disagree about whether registration actually succeeded (e.g. the app crashed after
+    setting the flag but before the network call completed).
+87. **A missing EAS project id is treated exactly like a driver declining the permission prompt** —
+    both are `obtainPushToken` outcomes, not errors, and both mean the same thing downstream
+    ("no token to register today"). Splitting them into different code paths in the *caller*
+    (`use-register-push-token.ts`) would buy nothing: there's nothing actionable for the app to do
+    differently in either case until a human (this session's user) sets up an EAS project.
+
+## Deviations and open items from M6.6
+
+- **No real device has ever received a reroute push.** The full chain from hazard report through
+  to a driver tapping a notification and seeing the reroute prompt is unverified end to end — the
+  same gap M6.5 disclosed, now one milestone closer to closed but still blocked on the same
+  external dependency (an EAS project, M5.10).
+- **No way to unregister a device from the app side either** (M6.2's own deviation, unchanged) —
+  signing out doesn't stop a phone receiving a signed-out driver's alerts until a different driver
+  signs in on the same device and reassigns the token, or Expo itself reports it as stale.
+- **The reroute prompt has no test of its own** — same accepted gap as every other screen in this
+  app (no component-level tests exist anywhere in `apps/driver-app/src/app/`), not a new one this
+  task introduced.
+- **M6.7 (end-to-end verification) is still the one remaining M6 task** — idempotency, rate limits,
+  and "don't notify the reporter" are each covered by their own unit tests already
+  (`detect-reroute.test.ts`), but nothing yet drives the *whole* path (a real HTTP hazard report →
+  outbox → routing's handler → a real push → the app) in one test, which is exactly what M6.7 is
+  scoped to be.

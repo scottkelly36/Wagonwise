@@ -39,6 +39,7 @@ function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
       clock,
       ids,
     },
+    getRoutePlan: { routePlanRepo },
     startTrip: { routePlanRepo, activeTripRepo, clock, ids },
     endTrip: { repo: activeTripRepo, clock },
   };
@@ -385,6 +386,44 @@ async function planned(app: FastifyInstance, driverId = 'driver-1'): Promise<str
   });
   return response.json<{ id: string }>().id;
 }
+
+describe('GET /routing/route-plans/:id', () => {
+  it('200s and returns the plan for its owner', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${routePlanId}`,
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: routePlanId, driverId: 'driver-1' });
+  });
+
+  it('404s an unknown id', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'GET',
+      url: '/routing/route-plans/11111111-1111-4111-8111-111111111111',
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'RoutePlanNotFound' });
+  });
+
+  it('404s a plan owned by a different driver', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app, 'driver-1');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${routePlanId}`,
+      ...asDriver('driver-2'),
+    });
+    expect(response.statusCode).toBe(404);
+  });
+});
 
 describe('POST /routing/route-plans/:id/trip', () => {
   it('201s and returns the started trip for an owned plan', async () => {

@@ -7,6 +7,8 @@ import { useColorScheme } from 'react-native';
 import { queryClient } from '../api/query-client';
 import { useHazardQueueFlush } from '../hooks/use-hazard-queue-flush';
 import { useOpportunisticRefresh } from '../hooks/use-opportunistic-refresh';
+import { useRegisterPushToken } from '../hooks/use-register-push-token';
+import { useRerouteNotifications } from '../hooks/use-reroute-notifications';
 import { useAuthStore } from '../state/auth-store';
 
 export default function RootLayout() {
@@ -19,6 +21,8 @@ export default function RootLayout() {
 
   useOpportunisticRefresh();
   useHazardQueueFlush();
+  useRegisterPushToken();
+  useRerouteNotifications();
 
   return (
     <QueryClientProvider client={queryClient}>

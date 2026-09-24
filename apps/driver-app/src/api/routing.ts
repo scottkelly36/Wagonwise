@@ -90,6 +90,14 @@ export async function planRoute(
   return routePlanSchema.parse(json);
 }
 
+export async function getRoutePlan(accessToken: string, id: string): Promise<RoutePlanDto> {
+  const { status, json } = await requestJson('GET', `/routing/route-plans/${id}`, {
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return routePlanSchema.parse(json);
+}
+
 export async function startTrip(accessToken: string, routePlanId: string): Promise<ActiveTripDto> {
   const { status, json } = await requestJson('POST', `/routing/route-plans/${routePlanId}/trip`, {
     authorization: bearer(accessToken),
