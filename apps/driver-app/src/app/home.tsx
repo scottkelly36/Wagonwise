@@ -48,6 +48,14 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.button}
+          onPress={() => router.push('/voice-drafts')}
+          testID="voice-drafts-button"
+        >
+          <Text style={styles.buttonText}>Saved reports</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.button}
           onPress={() => router.push('/feedback')}
           testID="feedback-button"
         >

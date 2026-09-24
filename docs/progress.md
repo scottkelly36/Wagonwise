@@ -10,7 +10,7 @@
 | M4 Driver BFF + auth | Done — 2026-09-22 |
 | M5 Driver app        | In progress       |
 | M6 Alerts            | Done — 2026-09-24 |
-| M7 Voice             | In progress       |
+| M7 Voice             | Done — 2026-09-24 |
 | M8 Field-ready       | Not started       |
 
 ## Decisions made before coding (from planning)
@@ -3072,8 +3072,8 @@ ts`'s `close()` does on every shutdown. The one production call site was updated
 | ---- | ------------------------------------------------------------------ | ----------------- |
 | M7.1 | `HazardParser` port + Anthropic LLM adapter                        | Done — 2026-09-24 |
 | M7.2 | Driver-app: on-device speech capture, mic button wiring            | Done — 2026-09-24 |
-| M7.3 | Driver-app: parse + spoken confirm flow                            | Not started       |
-| M7.4 | Unconfirmed-drafts review screen (parked use)                      | Not started       |
+| M7.3 | Driver-app: parse + spoken confirm flow                            | Done — 2026-09-24 |
+| M7.4 | Unconfirmed-drafts review screen (parked use)                      | Done — 2026-09-24 |
 | M7.5 | End-to-end verification (as far as possible without a real device) | Not started       |
 
 Real-world speech-recognition accuracy against testers' actual accents and cab noise is
@@ -3276,3 +3276,167 @@ session's decision when M7 planning started.
   would mean a second native integration (likely `react-native-track-player`-style media-session
   hooks, or a custom native module) — genuinely complicated, not "easy," so per this session's own
   M7-planning decision it's deferred rather than trialled now.
+
+**M7.3 delivered:** design doc §7 steps 3-4 end to end — the driver-app half of voice reporting is
+now a complete flow, not just capture. Tapping the mic captures a transcript (M7.2), sends it to
+M7.1's parse endpoint, speaks a summary back, listens for a yes/no reply, then either files a real
+`source: 'voice'` hazard report or saves an unconfirmed draft — never both, never neither.
+
+- **`lib/voice-report-flow-reducer.ts`**: a pure state machine —
+  `idle → capturing-report → parsing → speaking-summary → capturing-confirmation → filing → filed
+| queued`, with `report-no-speech`, `draft-saved` and `error` as the other resting states. Fully
+  unit-tested (18 cases) with no native mocking. `confirmation-yes`'s event carries an already-
+  resolved `origin: MapPoint` (not optional) — the hook decides whether there's anywhere to put
+  the pin _before_ dispatching, so the reducer itself never has to reason about "yes, but no
+  location," keeping it simpler than the first draft of this file (see decision 102, below).
+- **`lib/voice-report-summary.ts`**: builds the exact spoken summary design doc §7 step 4 gives as
+  an example ("Low bridge, about 3.5 metres, here — save it?"), reusing `HAZARD_TYPE_LABELS` so
+  voice and tap reporting always describe hazard types in the same plain words.
+- **`lib/yes-no-parser.ts`**: a short, hard-coded word list (no second LLM round trip needed for a
+  binary decision), word-boundary matched — a naive substring check would have read "I **know**
+  where that is" as a "no" (caught by the tests, not by inspection: `know` contains `no`).
+- **`hooks/use-voice-hazard-report-flow.ts`**: the orchestration — wraps `useVoiceReportCapture`
+  (M7.2) and runs it a _second_ time for the confirmation reply, reusing its `no-speech` outcome
+  as design doc §7 step 4's own "no answer within a few seconds" timeout, with no separate timer
+  needed. `expo-speech`'s `Speech.speak()` drives the spoken summary; `onError` still dispatches
+  `speech-done` (fails open — a broken TTS voice shouldn't also block listening for a reply).
+  Filing reuses `report-hazard.tsx`'s exact offline-first path (`enqueueHazardReport` before ever
+  touching the network, `useReportHazard`, left queued on failure for `useHazardQueueFlush` to
+  retry) — voice and tap reports share the same durability guarantee.
+- **`db/voice-draft-queue.ts`**: a new, separate local sqlite table (`voice_hazard_drafts`) for
+  unconfirmed reports — deliberately not the same table `hazard-queue.ts` already auto-retries,
+  since a draft has never been confirmed and must never be sent automatically. Stores the
+  transcript, the parsed result and the origin captured (if any); M7.4 is the screen that will
+  read, edit/discard or file these.
+- **`app/active-trip.tsx`**: the mic button now drives the whole flow — tap to start, tap to
+  cancel while listening (either capture session), disabled while working (parsing/speaking/
+  filing), with the summary spoken back also shown on screen and a final status line ("Saved." /
+  "Saved — this will be sent automatically once you're back online." / "Not filed — saved as a
+  draft to review when you're parked.").
+
+46 new driver-app tests (`voice-report-flow-reducer.test.ts`'s 18, `voice-report-summary.test.ts`'s
+4, `yes-no-parser.test.ts`'s 3, `db/voice-draft-queue.test.ts`'s 5, plus `api/hazards.test.ts`
+gaining 2 for `parseVoiceHazardReport`). 190 driver-app tests total (up from 144). `pnpm arch`
+clean (365 modules, 1245 dependencies). `pnpm verify` green end to end. The orchestration hook
+itself has no test of its own, matching this codebase's established convention (M6.6 decision 87's
+own reasoning, restated by M7.2): a thin hook's job is fully covered once the pure functions
+underneath it are, and no screen/hook in this app has ever had a component-level test.
+
+## Decisions from M7.3
+
+101. **An explicit "no", an unclear reply, a confirmation-capture failure, a timed-out silence,
+     and a clear "yes" with nowhere to resolve a location are all the same outcome: an unconfirmed
+     draft, never a lost report.** AGENTS.md's own safety rule ("Voice reports are never filed
+     publicly without driver confirmation") only names the _positive_ case explicitly; this
+     extends the same care to every negative one — a misheard "no" costs the driver nothing (the
+     draft is still there to review when parked), where silently discarding a report they tried to
+     make would.
+102. **The reducer never sees `undefined` as a location — the hook resolves `origin ?? fallbackOrigin`
+     before dispatching `confirmation-yes`, and dispatches `confirmation-declined` instead if
+     neither exists.** An earlier draft had the reducer itself branch on "yes, but no origin" and
+     route to `draft-saved` — moved into the hook once it became clear the _fallback_ (the live
+     position `active-trip.tsx` already tracks) is itself a hook-level concern the reducer has no
+     business knowing about; the reducer is simpler for treating "yes" as always having somewhere
+     to file.
+103. **The confirmation reply reuses `useVoiceReportCapture` a second time, rather than a separate,
+     simpler "just listen for one word" mechanism.** The capture hook's own `no-speech`/`error`/
+     `permission-denied` states already mean exactly what's needed here (a timeout, a mic fault, a
+     revoked permission) — building a second, parallel listening mechanism would duplicate that
+     for no benefit; the orchestration hook just has to track _which_ semantic phase a given
+     capture session belongs to (report vs. confirmation), which it already needs regardless.
+104. **Unconfirmed drafts live in their own sqlite table (`voice_hazard_drafts`), never
+     `hazard_queue`.** The two tables look similar (id/payload/created_at) but mean opposite
+     things: a `hazard_queue` row is _confirmed_, waiting only on connectivity, and
+     `useHazardQueueFlush` sends it automatically the moment it can; a `voice_hazard_drafts` row
+     has never been confirmed and must never be auto-sent — reusing one table for both would risk
+     a drafts-review feature (M7.4) accidentally filing something a driver said "no" to, or the
+     auto-flush accidentally sending an unconfirmed draft.
+105. **`Speech.speak()`'s `onError` still advances the flow to listening for a reply, rather than
+     surfacing an error.** A broken or missing TTS voice on some device is a real possibility this
+     codebase has no way to test for locally; failing open (proceed to listening, just without the
+     spoken confirmation actually being heard) keeps the flow usable — worse than a silent
+     confirmation is a flow that gets stuck because narration itself failed.
+
+## Deviations and open items from M7.3
+
+- **Not verified on a real device, same gap as M7.2** — everything here is covered by the pure
+  reducer/parser/summary unit tests plus a clean typecheck/lint/`pnpm arch` run, not a real
+  microphone, a real TTS voice, or a real yes/no spoken back to a phone. This PR also carries the
+  first real EAS development build + Android project setup (M5.10) attempted alongside it — see
+  the README/M5.10 update once that build's outcome (and, ideally, a real device confirming this
+  flow) is known.
+- **The yes/no word list is English-only and untuned against real speech-to-text output** — same
+  caveat M7.1's system prompt and M7.2's own capture code already carry: written against clean,
+  typed-out phrasing, not the disfluent output a real recognizer produces from a driver's actual
+  voice.
+- **No test proves the two-table split (decision 104) end to end** — `db/voice-draft-queue.test.ts`
+  and `db/hazard-queue.test.ts` each prove their own table works in isolation; nothing yet asserts
+  that a declined voice report never appears in `hazard_queue`, or that `useHazardQueueFlush`
+  never touches `voice_hazard_drafts`. Low risk (the code paths are entirely separate, never
+  sharing a table name), but worth a dedicated test if M7.4 ever finds the two interacting
+  unexpectedly.
+- **M7.4 (the drafts review screen) landed the same session** — see below; this deviation is
+  resolved.
+
+**M7.4 delivered:** `app/voice-drafts.tsx` — the screen M7.3 built the storage layer for but left
+unread. Reachable from `home.tsx` ("Saved reports"), it lists every `voice_hazard_drafts` row and
+lets a driver, now parked, either file it for real or discard it.
+
+- **`lib/voice-draft-to-report.ts`**: `reportRequestForDraft(draft, id, origin)` — a pure mapping
+  from a saved draft to a real `ReportHazardRequest`, taking `id` and `origin` as arguments rather
+  than generating them internally (a fresh UUID is an effectful `expo-crypto` call; `origin` may
+  need the driver's current position as a fallback) so the mapping itself stays directly testable.
+- **`api/use-voice-drafts.ts`**: `useVoiceDrafts` (a `useQuery` over `listVoiceHazardDrafts` — same
+  shape as every remote list in this app, even though this one reads local SQLite, so the screen
+  doesn't need a different pattern just because the data happens to be on-device),
+  `useDiscardVoiceDraft`, and `useFileVoiceDraft`. Filing reuses the exact offline-first sequence
+  every other report in this app follows — `enqueueHazardReport` before the network call — and
+  removes the draft row once _enqueued_, not once _sent_: from that point the report is confirmed,
+  and `useHazardQueueFlush` (decision 104's separate table) owns getting it there if the immediate
+  send fails.
+- **`app/voice-drafts.tsx`**: each row shows the hazard type, measurement, spoken position hint,
+  the raw transcript (so a driver can judge whether the parse looked right before trusting it) and
+  when it was captured, with "Report it" / "Discard" actions. A draft with no captured origin (GPS
+  unavailable when recording started) falls back to the driver's current position
+  (`useCurrentLocation`, reasonable here since this is explicitly a parked-use screen) — if that's
+  also unavailable, "Report it" is disabled with a hint rather than silently failing.
+
+7 new driver-app tests (`voice-draft-to-report.test.ts`). 193 driver-app tests total (up from 190).
+`pnpm arch` clean (369 modules, 1264 dependencies). `pnpm verify` green end to end across the whole
+monorepo.
+
+**Verified as far as it can be without a real device** — same boundary every driver-app milestone
+touching native storage/location has hit. `voice-draft-to-report.ts`'s mapping is unit-tested
+directly; `use-voice-drafts.ts`'s hooks and the screen itself follow this app's existing
+convention of no component-level test, covered instead by a clean typecheck/lint/`pnpm arch` run.
+
+## Decisions from M7.4
+
+106. **A draft's own captured origin is preferred over the driver's live position, but the live
+     position is a real fallback, not just a UI hint.** `reportRequestForDraft` always takes
+     whatever origin the caller resolves and never reaches for `useCurrentLocation` itself — the
+     screen resolves `draft.origin ?? location.point` before calling it, keeping the pure function
+     ignorant of where a location ultimately came from, the same separation of concerns M7.3's
+     decision 102 established for the live confirm flow.
+107. **Filing from the drafts screen removes the draft row as soon as the report is _enqueued_,
+     not once it's confirmed _sent_.** Waiting for a successful network response before removing
+     the draft would mean a driver who reports from a draft while still offline sees it vanish
+     from "saved reports" only to silently reappear if they refresh before connectivity returns
+     — worse, it would leave the _same_ report sitting in both `voice_hazard_drafts` and
+     `hazard_queue` at once, which decision 104 specifically exists to prevent. Once enqueued, the
+     report is confirmed and belongs entirely to `hazard_queue`'s own retry story.
+
+## Deviations and open items from M7.4
+
+- **No editing.** A driver can file a draft as-is or discard it, but can't correct a misheard type
+  or measurement before filing — design doc §7 doesn't ask for this explicitly ("review later when
+  parked" implies looking it over, not necessarily editing it), and the tap-to-drop screen already
+  exists as the fallback for "the voice parse got this wrong, let me just redo it properly." Worth
+  revisiting if testers find themselves discarding-then-re-reporting by hand often.
+- **Not verified on a real device** — same gap as M7.1-M7.3. `voice-drafts.tsx` has never actually
+  displayed a real saved draft on a real phone, filed one for real, or exercised the "no location
+  available, button disabled" branch against a real GPS-off phone.
+- **This closes M7's own task breakdown** (M7.1-M7.4 all done) — voice reporting is now a complete
+  feature end to end in code, pending the same real-device verification every M7 task has deferred.
+  Real-world accent/cab-noise testing (the design doc's own open question) remains the single
+  biggest unknown, unaddressed by anything unit tests can cover.

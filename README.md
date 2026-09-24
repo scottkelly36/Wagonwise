@@ -570,21 +570,46 @@ navigating to the prompt, fetching the new plan, the accept/keep swap — is cov
 and a live typecheck/lint/build, not a real device receiving a real push. Revisit once M5.10's
 EAS project setup unblocks it.
 
-**Voice capture (M7.2)**: the active-trip screen's mic button now does real on-device speech
+**Voice capture (M7.2)**: the active-trip screen's mic button does real on-device speech
 recognition (`expo-speech-recognition`, a new dependency with its own config plugin —
-`microphonePermission`/`speechRecognitionPermission` strings in `app.config.ts`), not yet the
-parse-and-file flow design doc §7 describes end to end (M7.3). `src/lib/voice-capture-reducer.ts`
-is a pure state machine (`idle → starting → listening → transcribed/no-speech/error`, plus
-`permission-denied`) driven by `src/hooks/use-voice-report-capture.ts`, which wires the native
-module's `start`/`result`/`end`/`error` events into it — same "pure logic, effects injected at the
-edge" split as `push-registration.ts`, shaped as a reducer rather than one async function since a
-capture session is a sequence of native events over time, not a single call-and-response.
+`microphonePermission`/`speechRecognitionPermission` strings in `app.config.ts`).
+`src/lib/voice-capture-reducer.ts` is a pure state machine (`idle → starting → listening →
+transcribed/no-speech/error`, plus `permission-denied`) driven by
+`src/hooks/use-voice-report-capture.ts`, which wires the native module's `start`/`result`/`end`/
+`error` events into it — same "pure logic, effects injected at the edge" split as
+`push-registration.ts`, shaped as a reducer rather than one async function since a capture session
+is a sequence of native events over time, not a single call-and-response.
 `src/lib/voice-report-permission.ts`'s `obtainVoiceCapturePermission` mirrors `obtainPushToken`
 almost exactly (check existing permission, request if needed, a denial is a value not a thrown
 error). GPS position is captured at the moment recording starts (design doc §7 step 1, via the
-existing `fetchCurrentLocation`) and carried alongside the transcript for M7.3 to use; a
-transcript is shown on screen once captured, but nothing is parsed or filed yet — tapping the mic
-again while listening cancels the in-flight capture rather than leaving no way out.
+existing `fetchCurrentLocation`) and carried alongside the transcript for M7.3.
+
+**Voice report flow: parse, confirm, file (M7.3)**: `src/hooks/use-voice-hazard-report-flow.ts`
+takes it the rest of the way — sends the transcript to M7.1's `POST /hazards/voice-reports/parse`,
+speaks a summary back with `expo-speech` ("Low bridge, about 3.5 metres, here — save it?",
+`src/lib/voice-report-summary.ts`), runs `useVoiceReportCapture` a _second_ time to listen for the
+reply (`src/lib/yes-no-parser.ts` reads it as yes/no/unclear, word-boundary matched so "I **know**
+where that is" is never misread as a "no"), then either files a real `source: 'voice'` report
+through the exact same offline-first path the tap flow uses, or — on anything but a clear yes —
+saves an unconfirmed draft to a new, separate local table (`src/db/voice-draft-queue.ts`'s
+`voice_hazard_drafts`, deliberately not `hazard_queue`, since a draft must never be auto-sent the
+way a confirmed queued report is). `src/lib/voice-report-flow-reducer.ts` is the pure state
+machine driving the whole sequence (`idle → capturing-report → parsing → speaking-summary →
+capturing-confirmation → filing → filed | queued`, plus `report-no-speech`/`draft-saved`/`error`),
+unit-tested directly with no native mocking. A timed-out confirmation reuses the capture hook's
+own `no-speech` outcome as design doc §7 step 4's "no answer within a few seconds," with no
+separate timer needed.
+
+**Saved-reports review (M7.4)**: `src/app/voice-drafts.tsx`, reachable from the home screen —
+lists every unconfirmed draft (type, measurement, spoken position hint, the raw transcript, when
+it was captured) with "Report it" / "Discard" actions. Filing reuses the exact offline-first path
+every other report in this app follows and removes the draft as soon as it's _enqueued_, not once
+it's actually sent — from that point it belongs to `hazard_queue`'s own retry story, not the
+drafts table. A draft captured with no GPS fix falls back to the driver's current position
+(reasonable here — this is explicitly a parked-use screen); if that's unavailable too, "Report it"
+is disabled with a hint rather than failing silently. This closes M7's own task list
+(M7.1-M7.4) — voice reporting is a complete feature in code, still pending real-device
+verification.
 
 ## Repo layout
 
@@ -592,7 +617,7 @@ again while listening cancels the in-flight capture rather than leaving no way o
 apps/
   core/           core service — Fastify host, modular monolith   ✅ identity wired end to end
   driver-bff/     Fastify BFF for the driver app                  ✅ identity, routing, hazards, feedback
-  driver-app/     Expo React Native app, iOS + Android             ✅ M5.1–M5.9, M6.6, M7.2 done; M5.10 next
+  driver-app/     Expo React Native app, iOS + Android             ✅ M5.1–M5.9, M6.6, M7.2–M7.4 done; M5.10 next
 packages/
   config/         shared tsconfig / ESLint / Prettier presets     ✅
   architecture/   dependency-cruiser rules + fixtures + tests     ✅

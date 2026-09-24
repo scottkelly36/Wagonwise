@@ -15,6 +15,15 @@ export function useReportHazard() {
   });
 }
 
+/** A mutation, not a query — parsing a transcript is a one-off action taken as part of the voice
+ *  report flow (M7.3), not data to cache/refetch. */
+export function useParseVoiceHazardReport() {
+  const accessToken = useAccessToken();
+  return useMutation({
+    mutationFn: (transcript: string) => hazardsApi.parseVoiceHazardReport(accessToken, transcript),
+  });
+}
+
 export function useHazard(id: string) {
   const accessToken = useAccessToken();
   return useQuery({
