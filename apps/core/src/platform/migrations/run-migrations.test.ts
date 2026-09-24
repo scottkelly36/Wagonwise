@@ -100,7 +100,9 @@ describe('runMigrations', () => {
       "select extname from pg_extension where extname = 'postgis'",
     );
     expect(extensions).toHaveLength(1);
-  });
+  }, 20_000); // Applying nine real migrations can outlast vitest's 5s default under a heavily
+  // loaded machine — this suite now runs a dozen-plus Testcontainers Postgres instances
+  // concurrently (M6.7 added another), and this is genuine DB work, not a hung test.
 
   it('is idempotent: re-running once everything is applied does nothing', async () => {
     const first = await runMigrations(pool, migrationsDir);

@@ -9,7 +9,7 @@
 | M3 Hazards core      | Done — 2026-09-22 |
 | M4 Driver BFF + auth | Done — 2026-09-22 |
 | M5 Driver app        | In progress       |
-| M6 Alerts            | In progress       |
+| M6 Alerts            | Done — 2026-09-24 |
 | M7 Voice             | Not started       |
 | M8 Field-ready       | Not started       |
 
@@ -2354,7 +2354,7 @@ verified**: an actual running app — same hardware gap as every driver-app mile
 | M6.4 | Routing: reroute detection (on-hazard-event subscriber)                   | Done — 2026-09-24 |
 | M6.5 | Push notifications (`PushNotifier` port + Expo adapter)                   | Done — 2026-09-24 |
 | M6.6 | Driver app: register push token, receive notification, reroute prompt     | Done — 2026-09-24 |
-| M6.7 | End-to-end verification (idempotency, rate limits, don't-notify-reporter) | Not started       |
+| M6.7 | End-to-end verification (idempotency, rate limits, don't-notify-reporter) | Done — 2026-09-24 |
 
 Broken out this way (mirroring M1–M5's own per-milestone task tables, this milestone's first)
 because M6 is the first task since M1 that needed genuinely new cross-cutting infrastructure
@@ -2941,8 +2941,127 @@ reroute.ts` creates and saves it before sending anything, M6.4) — the driver's
 - **The reroute prompt has no test of its own** — same accepted gap as every other screen in this
   app (no component-level tests exist anywhere in `apps/driver-app/src/app/`), not a new one this
   task introduced.
-- **M6.7 (end-to-end verification) is still the one remaining M6 task** — idempotency, rate limits,
-  and "don't notify the reporter" are each covered by their own unit tests already
-  (`detect-reroute.test.ts`), but nothing yet drives the _whole_ path (a real HTTP hazard report →
-  outbox → routing's handler → a real push → the app) in one test, which is exactly what M6.7 is
-  scoped to be.
+- **M6.7 (end-to-end verification) closes this** — see below. It found two real bugs in the
+  outbox dispatcher itself, not just gaps in test coverage.
+
+**M6.7 delivered:** the one remaining M6 task — a real, full-stack integration test
+(`apps/core/src/composition/reroute-end-to-end.test.ts`) driving the exact path M6.4's own
+deviations flagged as unproven: a real HTTP hazard report, through the real outbox, dispatched by
+the real `OutboxDispatcher`, into routing's real reroute-detection handlers, ending in a real
+`RerouteAlert` + `RoutePlan` row and a real `PushNotifier.send()` call — across hazards, routing
+and identity together, wired exactly as `composeCore` wires them in production. Only Valhalla (a
+local HTTP stand-in, same technique as `valhalla-routing-engine.test.ts` — decision 13 keeps a
+real Valhalla out of the per-PR tier) and `PushNotifier` are faked; sign-in is bypassed with a
+token-to-claims map rather than a real OTP round trip (M1.5/M1.6 already cover that flow
+exhaustively — this test's job is the wiring between the other three).
+
+Three scenarios, matching the task's own name exactly: (1) a hazard reroutes the one nearby driver
+and never notifies the reporter, even though the reporter has their own nearby plan that would
+otherwise qualify — the exclusion is asserted as a real absence in `routing.reroute_alerts`, not
+just "we never called `send()` for them," so a bug that skipped the push but still rerouted/
+persisted an alert for the reporter would still be caught; (2) idempotency — a genuine redelivery
+of the same already-processed event (`outbox.events.processed_at` reset to null, precisely what
+"a crash between handling and marking processed" looks like, per AGENTS.md rule 9) creates no
+second alert or push; (3) the rate cap — four distinct, genuinely non-merging hazards (>1km apart,
+so hazards' own ~50m merge radius never collapses them) all near the same route within one rolling
+hour cap the alerts at 3, per decision 80's `RATE_LIMIT_PER_SUBJECT_PER_HOUR`.
+
+**Two real, latent concurrency bugs were found and fixed by actually running this, not by
+inspection** — both in `platform/outbox-dispatcher.ts`, code every other M6 task had already
+shipped and unit-tested, but never run against a realistically fast poll loop under real handler
+latency:
+
+- **Decision 88**: `OutboxDispatcher.start()`'s `setInterval` had no guard against overlapping
+  ticks. A handler's own work (an HTTP call to a routing engine, several Postgres round trips per
+  affected subject) can genuinely outlast the poll interval under real load; without a guard, a
+  second tick could re-claim the _same still-unprocessed_ row (the claim transaction's row lock
+  releases once claimed, not held for the handler's own duration — a deliberate choice from M6.1)
+  and run its handler a second time _concurrently_ with the first, not sequentially after it. This
+  surfaced as real, reproducible duplicate pushes once this test's 100ms poll interval made the
+  race easy to hit — first suspected from watching `outbox.events.attempts` climb to 3 and 5 for a
+  single event that should only ever have been claimed once. Fixed with a `#draining` flag: a tick
+  that finds one already in flight simply skips itself, exactly as if it had been a no-op poll.
+- **Decision 89**: `RerouteAlertRepository.save()`'s own doc comment claimed the unique index made
+  "a concurrent double-send impossible" — false. The index does make a concurrent double-_insert_
+  impossible (`on conflict do nothing`), but `detectReroute` sent the push _unconditionally_ after
+  calling `save()`, never checking whether its own call actually won or silently lost the
+  conflict. `save()` now returns a boolean (`returning id`, checked for a row) so the loser can
+  tell it lost and skip the push — the exact AGENTS.md rule 9 failure mode named as the whole
+  point of exhaustive at-least-once handling: "a push notification sent twice is a driver woken
+  twice about the same bridge." Both the Postgres adapter and `InMemoryRerouteAlertRepository`
+  were updated to the same contract; a new `detect-reroute.test.ts` case forces a simulated
+  "lost the race" `save()` and asserts no push is sent.
+- **Decision 90**: `OutboxDispatcher.stop()` only cleared the interval — it didn't wait for a
+  tick that was already in flight when `stop()` was called. `compose-core.ts`'s `close()` calls
+  `stop()` then immediately ends the database pool, so a still-running `drainOnce()` could throw a
+  real "Cannot use a pool after calling end on the pool" unhandled rejection moments later —
+  observed for real in this test's own `afterEach`, not hypothesised. `stop()` is now `async` and
+  awaits whichever drain is currently running before returning; `close()` awaits it in turn.
+
+A smaller, test-only lesson, not a product bug: the first draft of the rate-limit scenario used a
+fake Valhalla that always returned the _same_ geometry regardless of the requested avoid zone —
+meaning every "rerouted" plan looked geometrically identical to the original, so it was itself
+picked up as a fresh "nearby unstarted plan" by the _next_ hazard report on the same corridor,
+snowballing into far more alerts than the cap should allow. Fixed by making the fake avoid-zone-
+aware (returns a genuinely different, far-away line whenever the request carries
+`exclude_polygons`), matching what a real routing engine actually does — not a workaround, a
+correction to an unrealistic fake.
+
+3 new tests in `reroute-end-to-end.test.ts`, 1 new test in `detect-reroute.test.ts` (the lost-race
+case), 1 new test in `outbox-dispatcher.test.ts` (no overlapping drains under a slow handler), and
+the existing `postgres-reroute-alert-repository.test.ts` dedupe test updated to assert the new
+`true`/`false` return values instead of `undefined`. 512 core tests total (up from 507 going into
+this task). `pnpm arch` clean (342 modules, 1198 dependencies). `pnpm verify` green end to end, run
+three times in a row (including two full, unmodified re-runs) to confirm the concurrency fixes
+hold under real load, not just once by luck.
+
+**Verified by actually running it, repeatedly, under real load** — this is the whole point of the
+task. The full monorepo `pnpm verify` was run multiple times back to back specifically to catch
+timing-sensitive flakes the way the two real bugs above were originally found, not just once for a
+green checkmark. One unrelated flake surfaced in the process (`run-migrations.test.ts`'s single
+`it` hit vitest's 5s default timeout once, under a machine now running a dozen-plus concurrent
+Testcontainers Postgres instances instead of eleven) — bumped to 20s rather than papered over,
+since applying nine real migrations is genuine DB work that can legitimately take longer under
+contention, not a hang.
+
+## Decisions from M6.7
+
+88. **`OutboxDispatcher.start()` now guards against overlapping poll ticks.** A `#draining` flag
+    makes a tick that finds a previous one still running skip itself entirely, rather than firing
+    another `drainOnce()` concurrently. Production's default 2-second poll interval made this rare
+    in practice, but not impossible — a slow Valhalla response or a loaded Postgres could still
+    trigger it, and "rare" is exactly the kind of bug this end-to-end test exists to catch before
+    a real driver hits it. AGENTS.md rule 9 already assumed sequential redelivery, not concurrent;
+    this makes the code actually match that assumption.
+89. **`RerouteAlertRepository.save()` returns whether it actually inserted a new row, not
+    `void`.** The unique index alone only protects the database row; the caller (`detectReroute`)
+    still needs to know whether _it_ was the one that won, since only the winner should notify a
+    driver. Both `PostgresRerouteAlertRepository` (`on conflict do nothing returning id`) and
+    `InMemoryRerouteAlertRepository` (an explicit duplicate check) implement the same contract.
+90. **`OutboxDispatcher.stop()` is now `async` and awaits any in-flight `drainOnce()`.** A
+    fire-and-forget `stop()` that only clears the timer left a real window for a caller to close
+    a database pool out from under a drain that was still using it — exactly what `compose-core.
+ts`'s `close()` does on every shutdown. The one production call site was updated to `await`
+    it; nothing else in the codebase called `stop()` directly.
+
+## Deviations and open items from M6.7
+
+- **No real push notification has ever reached a real device** — this remains true (M6.5/M6.6's
+  own disclosed gap), and M6.7 doesn't change it: this milestone proves the _server-side_ pipeline
+  end to end against a real Postgres and a real (if faked-downstream) outbox/dispatcher/handler
+  chain, not a real phone. That still needs an EAS project (M5.10).
+- **The overlapping-poll race (decision 88) was only ever observed at a 100ms poll interval**,
+  chosen to make this test fast and reliable rather than to mirror production's real 2-second
+  default. Nothing about the fix is interval-specific — it removes the race at any interval — but
+  the bug itself was never actually seen occurring at the production default in this session, only
+  reasoned about and then deliberately reproduced at an accelerated rate to confirm the fix.
+- **The cascading-candidate risk this task's own test-only lesson describes (a rerouted plan
+  looking like a fresh candidate to a _different_, later hazard on the same corridor) is real, not
+  just a test artifact, in one narrower form the fake-Valhalla fix doesn't touch**: a genuinely
+  different hazard reported near a just-created reroute plan's _actual_ new path (not the original,
+  avoided corridor) would legitimately, and correctly, reroute it again — that's working as
+  intended, not a bug. What the test's first draft accidentally exercised was the degenerate case
+  where the "rerouted" path was geometrically identical to the original because the fake never
+  changed it; a real Valhalla given a real avoid zone does not have this property. Not fixed
+  because there is nothing to fix here — recorded so a future session doesn't mistake the
+  now-realistic fake for a narrowed test.

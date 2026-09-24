@@ -318,6 +318,43 @@ describe('detectReroute', () => {
     expect(b.pushNotifier.sent).toHaveLength(1);
   });
 
+  it('sends no push when it loses a concurrent race to save the alert (M6.7)', async () => {
+    // At-least-once delivery means two overlapping dispatcher passes can both pass exists()
+    // before either has saved (platform/outbox-dispatcher.ts's own doc comment) — a real race
+    // M6.7's end-to-end test caught. rerouteAlertRepo.save() reporting `false` is how the loser
+    // finds out; this proves detectReroute actually acts on that, not just that the repository
+    // itself can report it.
+    const b = build();
+    const realSave = b.rerouteAlertRepo.save.bind(b.rerouteAlertRepo);
+    b.rerouteAlertRepo.save = async (alert) => {
+      await realSave(alert);
+      return false; // pretend another concurrent execution already won this exact insert
+    };
+    await b.vehicleProfileRepo.save({
+      id: profileId,
+      driverId,
+      name: 'Big Wagon',
+      dimensions: tallVehicle,
+    });
+    await b.routePlanRepo.save({
+      id: makeId<'RoutePlanId'>('plan-race'),
+      driverId,
+      profileId,
+      origin,
+      destination,
+      geometry: REAL_GEOMETRY,
+      distanceKm: 8,
+      durationMin: 10,
+      avoidedRestrictions: [],
+      hazardsOnRoute: [],
+      createdAt: b.clock.now(),
+    });
+
+    await detectReroute(b.deps, trigger);
+
+    expect(b.pushNotifier.sent).toHaveLength(0);
+  });
+
   it('rate-limits: stops alerting a subject once the per-hour cap is reached', async () => {
     const b = build();
     await b.vehicleProfileRepo.save({

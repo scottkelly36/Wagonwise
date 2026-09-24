@@ -65,6 +65,23 @@ function toStoredDomainEvent(row: OutboxEventRow): StoredDomainEvent {
  */
 export class OutboxDispatcher {
   #timer: ReturnType<typeof setInterval> | undefined;
+  /** Guards against overlapping ticks (M6.7 found this the hard way): `setInterval` fires on a
+   *  fixed schedule regardless of how long the previous `drainOnce()` is still taking, and a
+   *  handler's own work — an HTTP call to a routing engine, several Postgres round trips per
+   *  subject — can genuinely outlast the interval under real load. Without this guard, a second,
+   *  fully overlapping `drainOnce()` can re-claim the *same still-unprocessed* row (the claim
+   *  transaction's row lock is released once claimed, not held for the handler's duration, per
+   *  the class doc comment below) and run its handler a second time *concurrently* with the
+   *  first, not sequentially after it — a stronger, scarier form of "at-least-once" than a later
+   *  retry, and one `RerouteAlertRepository.save()`'s own dedupe (decision, M6.7) had to be
+   *  hardened against separately. This flag turns every production poll back into what the
+   *  design always assumed: one `drainOnce()` in flight at a time, redelivery only ever
+   *  sequential. */
+  #draining = false;
+  /** The current in-flight `drainOnce()` call, if any — `stop()` awaits it so a caller that
+   *  closes its database pool right after `stop()` (`compose-core.ts`'s `close()`) never races an
+   *  already-running drain still trying to use it. */
+  #inFlight: Promise<void> | undefined;
 
   constructor(
     private readonly db: Kysely<Database>,
@@ -147,16 +164,32 @@ export class OutboxDispatcher {
     `.execute(this.db);
   }
 
-  /** Production scheduling. `composeCore`'s `close()` calls `stop()`. */
+  /** Production scheduling. `composeCore`'s `close()` calls `stop()`. Skips a tick entirely
+   *  (rather than queuing it) if the previous one is still running — the next tick after that
+   *  will simply find the same pending rows still there, same as a skipped tick always would. */
   start(intervalMs: number): void {
     if (this.#timer !== undefined) return;
-    this.#timer = setInterval(() => void this.drainOnce(), intervalMs);
+    this.#timer = setInterval(() => {
+      if (this.#draining) return;
+      this.#draining = true;
+      this.#inFlight = this.drainOnce().finally(() => {
+        this.#draining = false;
+        this.#inFlight = undefined;
+      });
+    }, intervalMs);
   }
 
-  stop(): void {
+  /** Stops scheduling future ticks and waits for whichever one is currently running, if any, to
+   *  finish — a caller that closes the database pool right after `stop()` resolves (`compose-
+   *  core.ts`'s `close()`) would otherwise race an in-flight `drainOnce()` still using it,
+   *  producing a real "Cannot use a pool after calling end on the pool" rejection (M6.7's own
+   *  end-to-end test hit this for real, not hypothetically, once its poll interval was fast
+   *  enough for a drain to still be running when a test's `afterEach` closed everything). */
+  async stop(): Promise<void> {
     if (this.#timer !== undefined) {
       clearInterval(this.#timer);
       this.#timer = undefined;
     }
+    await this.#inFlight;
   }
 }

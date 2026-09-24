@@ -181,9 +181,39 @@ describe('OutboxDispatcher', () => {
 
     dispatcher.start(10);
     await new Promise((resolve) => setTimeout(resolve, 100));
-    dispatcher.stop();
+    await dispatcher.stop();
 
     expect(handler.calls.length).toBeGreaterThanOrEqual(1);
+    expect(await isProcessed(pool, eventId)).toBe(true);
+  });
+
+  it('never runs two overlapping drains, even when a handler outlasts the poll interval (M6.7)', async () => {
+    // A real bug caught by M6.7's own end-to-end test: setInterval fires on schedule regardless
+    // of whether the previous drainOnce() finished, so a slow handler (a routing-engine HTTP
+    // call, several Postgres round trips per subject) could get re-claimed and re-run
+    // *concurrently*, not just retried later — cascading into duplicate pushes downstream.
+    const eventId = await insertEvent(pool, { eventType: 'TestEvent' });
+    let concurrentCalls = 0;
+    let maxConcurrentCalls = 0;
+    const handler: OutboxEventHandler = {
+      handlerName: 'slow-handler',
+      eventType: 'TestEvent',
+      async handle() {
+        concurrentCalls += 1;
+        maxConcurrentCalls = Math.max(maxConcurrentCalls, concurrentCalls);
+        await new Promise((resolve) => setTimeout(resolve, 60));
+        concurrentCalls -= 1;
+      },
+    };
+    const dispatcher = new OutboxDispatcher(db, [handler], new FakeClock());
+
+    dispatcher.start(10); // fires far more often than the 60ms the handler takes to run
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    // stop() itself now waits for whichever drain is still in flight (M6.7's own fix, below) —
+    // no separate manual wait needed before asserting.
+    await dispatcher.stop();
+
+    expect(maxConcurrentCalls).toBe(1);
     expect(await isProcessed(pool, eventId)).toBe(true);
   });
 });
