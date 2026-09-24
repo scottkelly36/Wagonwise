@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
+import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { GeoPoint } from '../domain/hazard-report.js';
 import { InMemoryHazardRepository } from './testing/in-memory-hazard-repository.js';
 import { reportHazard, type ReportHazardDeps, type ReportHazardInput } from './report-hazard.js';
@@ -9,7 +10,12 @@ const reporterId = makeId<'DriverId'>('driver-1');
 const location: GeoPoint = { lat: 54.97, lon: -2.1 };
 
 function buildDeps(overrides: Partial<ReportHazardDeps> = {}): ReportHazardDeps {
-  return { repo: new InMemoryHazardRepository(), clock: new FakeClock(), ...overrides };
+  return {
+    repo: new InMemoryHazardRepository(),
+    clock: new FakeClock(),
+    ids: new SequentialIdGenerator(),
+    ...overrides,
+  };
 }
 
 function input(overrides: Partial<ReportHazardInput> = {}): ReportHazardInput {
@@ -42,6 +48,35 @@ describe('reportHazard', () => {
       createdAt: deps.clock.now(),
     });
     expect(await deps.repo.findById(input().id)).toEqual(result.value);
+  });
+
+  it('emits a HazardReported event for a fresh report (M6.3)', async () => {
+    const deps = buildDeps();
+    await reportHazard(deps, input());
+    const repo = deps.repo as InMemoryHazardRepository;
+    expect(repo.emittedEvents).toEqual([
+      {
+        eventId: '00000000-0000-4000-8000-000000000001',
+        aggregateType: 'HazardReport',
+        aggregateId: input().id,
+        eventType: 'HazardReported',
+        payload: {
+          hazardId: input().id,
+          reporterId,
+          type: 'low_bridge',
+          location,
+          measurement: undefined,
+        },
+      },
+    ]);
+  });
+
+  it('emits nothing on an idempotent retry — no new event for a report that already existed', async () => {
+    const deps = buildDeps();
+    await reportHazard(deps, input());
+    await reportHazard(deps, input());
+    const repo = deps.repo as InMemoryHazardRepository;
+    expect(repo.emittedEvents).toHaveLength(1);
   });
 
   it('sets a 7-day expiresAt for a temporary type', async () => {
@@ -91,6 +126,13 @@ describe('reportHazard', () => {
     expect(result.value.confirmations).toBe(1);
     // The would-be duplicate itself was never created.
     expect(await deps.repo.findById(makeId<'HazardReportId'>('report-2'))).toBeNull();
+
+    // A merge is an implicit confirmation from an alerting subscriber's point of view (M6.3).
+    const repo = deps.repo as InMemoryHazardRepository;
+    expect(repo.emittedEvents.map((e) => e.eventType)).toEqual([
+      'HazardReported',
+      'HazardConfirmed',
+    ]);
   });
 
   it('does not merge into a report of a different type, however close', async () => {

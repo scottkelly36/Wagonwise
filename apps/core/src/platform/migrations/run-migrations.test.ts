@@ -38,6 +38,8 @@ describe('runMigrations', () => {
       '0005_hazards.sql',
       '0006_active_trips.sql',
       '0007_feedback.sql',
+      '0008_identity_devices.sql',
+      '0009_route_plans_geography.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -64,6 +66,7 @@ describe('runMigrations', () => {
        where table_schema = 'identity' order by table_name`,
     );
     expect(identityTables.map((row) => row.table_name)).toEqual([
+      'devices',
       'drivers',
       'invite_codes',
       'otp_codes',
@@ -76,6 +79,7 @@ describe('runMigrations', () => {
     );
     expect(routingTables.map((row) => row.table_name)).toEqual([
       'active_trips',
+      'reroute_alerts',
       'route_plans',
       'vehicle_profiles',
     ]);
@@ -118,6 +122,8 @@ describe('runMigrations', () => {
       '0005_hazards.sql',
       '0006_active_trips.sql',
       '0007_feedback.sql',
+      '0008_identity_devices.sql',
+      '0009_route_plans_geography.sql',
     ]);
   });
 });

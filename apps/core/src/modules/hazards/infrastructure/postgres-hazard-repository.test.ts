@@ -215,4 +215,53 @@ describe('PostgresHazardRepository', () => {
       expect(found.map((r) => r.id)).not.toContain(dismissed.id);
     });
   });
+
+  describe('save with events (M6.3)', () => {
+    it('writes the row and the outbox event in one call, both visible afterwards', async () => {
+      const r = report({ id: makeId<'HazardReportId'>('30303030-3030-4303-8303-303030303030') });
+      const event = {
+        eventId: '40404040-4040-4404-8404-404040404040',
+        aggregateType: 'HazardReport',
+        aggregateId: r.id,
+        eventType: 'HazardReported',
+        payload: { hazardId: r.id, reporterId: r.reporterId, type: r.type, location: r.location },
+      };
+
+      await repo().save(r, [event]);
+
+      expect(await repo().findById(r.id)).toEqual(r);
+
+      const { rows } = await pool.query<{
+        event_id: string;
+        aggregate_type: string;
+        aggregate_id: string;
+        event_type: string;
+        payload: unknown;
+        processed_at: Date | null;
+      }>('select * from outbox.events where event_id = $1', [event.eventId]);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        aggregate_type: 'HazardReport',
+        aggregate_id: r.id,
+        event_type: 'HazardReported',
+        payload: {
+          hazardId: r.id,
+          reporterId: r.reporterId,
+          type: r.type,
+          location: r.location,
+        },
+      });
+      expect(rows[0]?.processed_at).toBeNull(); // not yet picked up by the dispatcher
+    });
+
+    it('calling save with no events writes no outbox row at all', async () => {
+      const r = report({ id: makeId<'HazardReportId'>('50505050-5050-4505-8505-505050505050') });
+      await repo().save(r);
+
+      const { rows } = await pool.query('select 1 from outbox.events where aggregate_id = $1', [
+        r.id,
+      ]);
+      expect(rows).toEqual([]);
+    });
+  });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
+import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { HazardReport } from '../domain/hazard-report.js';
 import { confirmHazard, type ConfirmHazardDeps } from './confirm-hazard.js';
 import { InMemoryHazardRepository } from './testing/in-memory-hazard-repository.js';
@@ -25,7 +26,11 @@ function freshReport(overrides: Partial<HazardReport> = {}): HazardReport {
 async function seeded(report: HazardReport): Promise<ConfirmHazardDeps> {
   const repo = new InMemoryHazardRepository();
   await repo.save(report);
-  return { repo, clock: new FakeClock('2026-06-15T08:00:00.000Z') };
+  return {
+    repo,
+    clock: new FakeClock('2026-06-15T08:00:00.000Z'),
+    ids: new SequentialIdGenerator(),
+  };
 }
 
 describe('confirmHazard', () => {
@@ -34,6 +39,26 @@ describe('confirmHazard', () => {
     const result = await confirmHazard(deps, { id: reportId });
     expect(result).toEqual({ ok: true, value: freshReport({ confirmations: 1 }) });
     expect(await deps.repo.findById(reportId)).toEqual(freshReport({ confirmations: 1 }));
+  });
+
+  it('emits a HazardConfirmed event alongside the save (M6.3)', async () => {
+    const deps = await seeded(freshReport());
+    await confirmHazard(deps, { id: reportId });
+    const repo = deps.repo as InMemoryHazardRepository;
+    expect(repo.emittedEvents).toEqual([
+      {
+        eventId: '00000000-0000-4000-8000-000000000001',
+        aggregateType: 'HazardReport',
+        aggregateId: reportId,
+        eventType: 'HazardConfirmed',
+        payload: {
+          hazardId: reportId,
+          type: 'low_bridge',
+          location: { lat: 54.97, lon: -2.1 },
+          measurement: undefined,
+        },
+      },
+    ]);
   });
 
   it('reactivates an expired report', async () => {

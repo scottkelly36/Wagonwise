@@ -33,9 +33,9 @@ export interface CoreOverrides {
   readonly tokenSigner?: TokenSigner;
   readonly otpSender?: OtpSender | undefined;
   readonly accessTokenVerifier?: AccessTokenVerifier;
-  /** No module has one yet (M6.1 — the dispatcher itself, wired unused, same "don't wire a
-   *  dependency before it has a real caller" precedent as M2.3's `RoutingEngine`); a future
-   *  module's composition adds handlers here once it has an event to react to. */
+  /** Defaults to `routing.eventHandlers` (M6.4's reroute-detection handlers) — tests substitute
+   *  their own list here the same way they substitute every other override, entirely replacing
+   *  the real handlers rather than adding to them. */
   readonly eventHandlers?: readonly OutboxEventHandler[];
 }
 
@@ -88,19 +88,25 @@ export function composeCore(
   const hazardsDb: HazardsUntypedDb = identityDb;
   const feedbackDb: FeedbackUntypedDb = identityDb;
 
-  // hazards built before routing: routing's HazardAvoidanceQueryAdapter (M3.5) wraps hazards'
-  // facade, the first case of one module's composition needing another module's instance.
-  const hazards = createHazardsModule({ db: hazardsDb, clock });
+  // hazards and identity both built before routing: routing's HazardAvoidanceQueryAdapter (M3.5)
+  // and its reroute-detection handlers (M6.4) both wrap the other modules' facades — the same
+  // "one module's composition needing another module's instance" case.
+  const hazards = createHazardsModule({ db: hazardsDb, clock, ids });
   const routing = createRoutingModule({
     db: routingDb,
     ids,
     clock,
     valhallaUrl: config.valhallaUrl,
     hazards,
+    identity,
   });
   const feedback = createFeedbackModule({ db: feedbackDb, clock, ids });
 
-  const outboxDispatcher = new OutboxDispatcher(platformDb, overrides.eventHandlers ?? [], clock);
+  const outboxDispatcher = new OutboxDispatcher(
+    platformDb,
+    overrides.eventHandlers ?? routing.eventHandlers,
+    clock,
+  );
   outboxDispatcher.start(config.outboxPollIntervalMs);
 
   const app = buildApp({

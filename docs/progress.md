@@ -2349,9 +2349,9 @@ verified**: an actual running app — same hardware gap as every driver-app mile
 | #    | Task                                                                      | Status            |
 | ---- | ------------------------------------------------------------------------- | ----------------- |
 | M6.1 | Outbox event infrastructure (dispatcher, no real emitter yet)             | Done — 2026-09-23 |
-| M6.2 | Identity: device push tokens                                              | Not started       |
-| M6.3 | Hazards publishes `HazardReported`/`HazardConfirmed`                      | Not started       |
-| M6.4 | Routing: reroute detection (on-hazard-event subscriber)                   | Not started       |
+| M6.2 | Identity: device push tokens                                              | Done — 2026-09-23 |
+| M6.3 | Hazards publishes `HazardReported`/`HazardConfirmed`                      | Done — 2026-09-23 |
+| M6.4 | Routing: reroute detection (on-hazard-event subscriber)                   | Done — 2026-09-24 |
 | M6.5 | Push notifications (`PushNotifier` port + Expo adapter)                   | Not started       |
 | M6.6 | Driver app: register push token, receive notification, reroute prompt     | Not started       |
 | M6.7 | End-to-end verification (idempotency, rate limits, don't-notify-reporter) | Not started       |
@@ -2448,3 +2448,295 @@ outbox.events` inline, once it has a real event to write (M6.3+).** `shared/` ca
 - **No visibility into a dead-lettered event beyond querying Postgres directly** — no log line,
   no metric, no admin view. Fine at Phase 1's scale (a human can `psql` in), revisit if that
   becomes the actual way an incident gets noticed.
+
+**M6.2 delivered:** identity's `Device` aggregate — the third and last "genuinely nothing built
+yet" gap this session found in a named-but-unbuilt design-doc aggregate (after M5.6's
+`ActiveTrip` and M5.9's `feedback` module), closing it the same way: domain, one use case, a
+migration, one endpoint, a BFF proxy — plus the read-model facade method design doc §6 asks for,
+built now but left uncalled until M6.4.
+
+- **`domain/device.ts`**: `Device { id, driverId, pushToken, createdAt, updatedAt }`, keyed by
+  `pushToken` rather than one-row-per-driver — a device's Expo push token is already a stable
+  per-install identifier, so re-registering an unchanged token or reassigning one to a different
+  driver (same physical device, a new sign-in) are both just an upsert, never a duplicate row.
+  `validatePushToken` mirrors every other free-text-identifier validator in this codebase
+  (routing's `validateName`, feedback's `validateMessage`).
+- **`application/register-device.ts`**: looks up any existing row by `pushToken` first — if
+  found, reassigns `driverId` and bumps `updatedAt` (keeping the same id); if not, creates one.
+  A driver signing out and a different driver signing in on the same phone must never leave the
+  old driver receiving the new one's alerts, which a naive one-row-per-driver design would risk
+  if the app just re-registered without ever clearing the old row.
+- **Migration `0008_identity_devices.sql`**: `identity.devices`, `push_token` unique (the upsert
+  target), `driver_id` a real foreign key to `identity.drivers` (matching `sessions`' own FK).
+- **`POST /identity/devices`** (201) — the first identity route to read `request.driverId` at
+  all; every other identity route either predates a token existing (OTP/refresh/JWKS) or derives
+  its subject a different way (`sessions/:id/revoke`'s URL param). Needed a new, narrower driver-
+  auth prefix: `/identity/devices/`, not all of `/identity/` (decision 70, below) — added to
+  `host/build-app.ts`'s `DRIVER_AUTH_PREFIXES` and to `build-app.test.ts`'s own parameterized
+  gate tests, plus a new test proving identity's pre-token routes are still _not_ gated (a
+  regression that widening the prefix carelessly would cause silently).
+- **`identity/api.ts` facade**: gained `getPushTokensForDriver(driverId): Promise<string[]>` —
+  the read-model port design doc §6 names ("device tokens come from a read-model port onto
+  Identity"). Built now, alongside the aggregate it reads, rather than waiting for M6.4's
+  consumer — the _producer_ half of a read-model port is reasonably part of "device push tokens"
+  shipping as a complete capability, even though the _consumer_ (routing's reroute adapter,
+  translating this into routing's own types per rule 7) is genuinely M6.4's job, not this one's.
+- **`packages/contracts/src/identity.ts`**: `registerDeviceRequestSchema` (no `driverId` field,
+  matching every other create-request schema), `deviceSchema`.
+- **`apps/driver-bff/src/identity-routes.ts`**: one proxy route, reusing the shared
+  `authenticateOrReject` helper (`routing-routes.ts`/`hazards-routes.ts`/`feedback-routes.ts`
+  already use it) rather than the file's own inline bearer-parsing — that inline copy exists
+  specifically for `sessions/:id/revoke`'s extra job of checking the token's claims against the
+  URL, which this route doesn't need.
+
+10 new identity tests (domain use case + routes), 17 new Postgres repository tests added to the
+existing combined `postgres-repositories.test.ts` (seeded via a nested `beforeAll` rather than
+per-test, since `PostgresDriverRepository.save()` is insert-only and three tests share the same
+two seeded driver ids — reassigning a device between them). 460 core tests (up from 446 — plus
+the now-familiar `run-migrations.test.ts` fix for the 8th migration file/table, decision 57's own
+prediction from the M5.6 follow-up, right again). 44 contracts tests (up from 41). 73 driver-bff
+tests (up from 70). `pnpm arch` clean (315 modules, up from 309; 1045 dependencies, up from
+1011). `pnpm lint`/`typecheck`/`format:check` all clean across every package.
+
+**Verified by actually running it, all for real — Docker stayed up across this whole session**:
+all 460 core tests, including the new device-repository suite against a real Postgres foreign-key
+relationship (not faked); all 73 driver-bff tests; all 44 contracts tests.
+
+## Decisions from M6.2
+
+70. **`/identity/devices/` gets its own driver-auth prefix, not folded into a blanket
+    `/identity/`.** Every other identity route is either part of the pre-token sign-in flow
+    itself (OTP request/verify, token refresh, JWKS) — which cannot require an access token it
+    doesn't have yet — or derives its subject a different way (`sessions/:id/revoke` from the
+    token's own `sid` claim against the URL, not `request.driverId`). Gating all of `/identity/`
+    would have broken sign-in entirely; a new, narrower prefix was the correct fix, not a
+    workaround.
+71. **`Device` is keyed by `pushToken`, not `(driverId)` or `(driverId, platform)`.** A driver
+    could plausibly own more than one device (a driver and a dispatcher's tablet, say), so
+    one-row-per-driver was never right; keying by the token itself is also what makes
+    re-registration and reassignment both a plain upsert with no separate "does this exist"
+    branch needed anywhere except inside `registerDevice` itself.
+72. **The read-model facade method (`getPushTokensForDriver`) ships in the same task as the
+    aggregate it reads, ahead of its real consumer.** A deliberate exception to "don't wire an
+    unused dependency" (M2.3, M5.5's own precedent) — that precedent is about not wiring a
+    _consumer_ to a producer that doesn't exist yet; here the producer and its own read method are
+    the same unit of work (both live in `identity/api.ts`, both are "device push tokens" as a
+    feature), and the actually-deferred part (M6.4's routing-side adapter) is untouched.
+
+## Deviations and open items from M6.2
+
+- **No way to unregister a device.** Signing out doesn't clear a driver's registered push
+  tokens — a device stays registered (and would keep receiving that driver's alerts, once M6.5
+  sends any) until a different driver's sign-in on the same physical device reassigns it, or the
+  token itself goes stale on Expo's side. Not coupled to `revokeSession` deliberately: a push
+  token's lifecycle is a property of the _device_, not the _session_, and Phase 1 has no product
+  reason yet to force them together. Revisit if a tester reports alerts arriving after signing
+  out.
+- **No test yet exercises `getPushTokensForDriver` end-to-end against a real Postgres FK** beyond
+  what `postgres-repositories.test.ts`'s `findByDriverId` coverage already proves — the facade
+  method itself is a one-line wrapper with nothing more to verify until M6.4 gives it a real
+  caller to test against.
+
+**M6.3 delivered:** hazards' first real domain events — `reportHazard` and `confirmHazard` now
+raise `HazardReported`/`HazardConfirmed` through the outbox M6.1 built with no caller yet.
+Developed on its own branch off `main`, independent of M6.2 (identity device tokens) — the two
+touch entirely different modules and neither needs the other's code, unlike M6.4, which will need
+both.
+
+- **`domain/events.ts`**: `hazardReportedEvent`/`hazardConfirmedEvent`, each building a
+  `DomainEvent<Payload>` with its own payload shape (per `shared/domain-event.ts`'s own doc
+  comment: "each event type defines its own payload shape where it's raised"). Emitted for every
+  hazard type, not just blocking ones — filtering to what's worth alerting on is a _handler's_
+  job (M6.4), not something the publisher decides on its behalf. `HazardDismissed`/
+  `HazardExpired` (also in the design doc's own event list) stay unemitted: nothing in M6's
+  alerting flow reacts to either, matching the same "don't wire an unused dependency" precedent
+  as everything else this session has deferred until a real consumer exists.
+- **`report-hazard.ts`/`confirm-hazard.ts`** gained an `ids: IdGenerator` dependency — narrower
+  than it looks: decision 62 ("no IdGenerator, every hazards use case takes a caller-supplied
+  id") was about the _aggregate's_ id (the offline-queue idempotency key), never touched here; an
+  event's own id is a different, genuinely-generated need. Three cases, three outcomes: an
+  idempotent retry of an already-filed report raises nothing (matches the existing "no new
+  side effect" contract); a nearby-duplicate merge raises `HazardConfirmed` (a merge _is_ an
+  implicit confirmation, from an alerting subscriber's point of view); a genuinely new report
+  raises `HazardReported`.
+- **`HazardRepository.save()`** gained an optional third argument, `events`. `PostgresHazardRepository`
+  only opens a transaction when `events.length > 0` — `dismissHazard`/`expireHazards`'s calls
+  (which never pass any) still pay no extra round trip, and the row + every event write together
+  or not at all when there is one (decision 4).
+- **`InMemoryHazardRepository`** gained a public `emittedEvents` array — recorded, never
+  published, giving use-case tests a way to assert exactly which events a call raised without
+  touching Postgres, the in-memory equivalent of what `postgres-hazard-repository.test.ts`
+  proves against `outbox.events` for real.
+
+9 new/changed hazards tests (3 domain, 2 report-hazard, 1 confirm-hazard, plus routes.test.ts's
+deps update) plus 2 new Postgres tests proving a real transactional write (row + event together,
+and confirming a no-events call writes no outbox row at all). 103 hazards-module tests total, 454
+core tests overall on this branch (independent of, and not stacked on, M6.2 — each merges
+cleanly against `main` on its own). `pnpm arch` clean (311 modules, 1028 dependencies — lower
+than M6.2's own count, since this branch doesn't include M6.2's identity changes). `pnpm lint`/
+`typecheck`/`format:check` all clean.
+
+**Verified by actually running it, all for real — Docker stayed up**: all 454 core tests,
+including two new Postgres-backed tests that insert an event via `save()` and then read
+`outbox.events` back directly with a raw `pool.query`, proving the transaction genuinely writes
+both rows together (and that a no-events call writes no outbox row at all).
+
+## Decisions from M6.3
+
+73. **A merge (nearby-duplicate reports collapsing into one extra confirmation) raises
+    `HazardConfirmed`, not `HazardReported`.** The _reporter_ of the would-be duplicate never
+    gets their own report row — `reportHazard`'s existing merge path returns the _existing_
+    report — so from anything downstream (an alerting subscriber, decision 6's own guardrail
+    "don't notify the driver who made the report"), this is indistinguishable from an explicit
+    "still there" confirmation, and should be treated as one.
+74. **Events are emitted for every hazard type, not filtered to blocking ones at the publishing
+    site.** `isBlocking()` already exists in `hazard-report.ts` and could have filtered here, but
+    doing so would bake one specific consumer's relevance rule (M6.4's reroute alerts) into the
+    publisher itself — a future consumer with a different rule (e.g. an advisory-hazard digest)
+    would need the event to exist at all. Filtering is cheap for a handler to do on receipt;
+    baking it into the publish site is not reversible without republishing history.
+75. **`HazardDismissed`/`HazardExpired` are not emitted, despite being in the design doc's own
+    domain-events list.** Scoped out because nothing in M6 reacts to either — matches this
+    session's repeated precedent for shipping infrastructure with no premature consumer (M2.3's
+    `RoutingEngine`, M6.1's dispatcher itself, M6.2's `getPushTokensForDriver`).
+
+## Deviations and open items from M6.3
+
+- **No test proves the two rows (`hazards.reports` and `outbox.events`) actually roll back
+  together on a mid-transaction failure** — `PostgresHazardRepository.save()`'s transaction
+  wrapping is structurally the same pattern `PostgresUnitOfWork` already proves rolls back
+  correctly (`postgres-unit-of-work.test.ts`, M1.4), so this wasn't independently re-verified by
+  a dedicated failure-injection test here. Worth adding if this exact code path is ever suspected
+  during an incident.
+- **This branch was developed independently of M6.2** (deliberately — see the delivered note
+  above) rather than stacked on top of it. M6.4 will need both; expect that branch to either
+  merge both branches' commits in or be created only once both have landed on `main`.
+
+**M6.4 delivered:** routing's reroute-detection subscriber — design doc §6, steps 1–5 — the first
+real consumer of M6.1's outbox dispatcher and M6.3's two hazard events. Built on a branch that
+merges M6.2 and M6.3's commits in directly (both were still unmerged when this started; the
+`docs/progress.md` merge conflict that produced dropped M6.2's whole delivered/decisions section,
+recovered by hand — see the merge commit).
+
+- **`migrations/0009_route_plans_geography.sql`**: adds a PostGIS `geometry_geog geography
+(LineString, 4326)` column + GiST index to `routing.route_plans` (design doc §6 step 1's "same
+  PostGIS query as section 5, reversed" needs a route's geometry queryable spatially, the same way
+  hazards' own `findNearbyLine` already is), and a new `routing.reroute_alerts` table — the
+  guardrail/dedupe state, `unique (hazard_id, subject_type, subject_id)` plus an index on
+  `(subject_type, subject_id, sent_at desc)` for the per-hour rate-limit count.
+- **`RoutePlanRepository.findRecentUnstartedNear(location, radiusM, since)`** and
+  **`ActiveTripRepository.findActiveNear(location, radiusM)`**: design doc §6 step 1's two halves
+  — plans created in the window that never got a trip, and trips still in progress — both
+  implemented for real against Postgres (`ST_DWithin` against `geometry_geog`, the trip query
+  joining to its plan since `active_trips` has no geometry of its own) and against both in-memory
+  fakes (flat-earth proximity against `decodePolyline()`'s output, same approximation the existing
+  fakes already use). `InMemoryActiveTripRepository` now takes an optional `InMemoryRoutePlanRepository`
+  reference (one-directional — the reverse would be an import cycle between two test doubles) so
+  its fake can resolve a trip's plan geometry the same way the real join does.
+- **`domain/reroute-alert.ts` + `RerouteAlertRepository`**: `exists(hazardId, subjectType,
+subjectId)` is "one alert per hazard per trip" (design doc §6) and also what makes the whole
+  handler idempotent under at-least-once delivery (AGENTS.md rule 9) — `save()`'s own unique
+  index is the actual guarantee; `exists()` is just the pre-check that skips the work.
+  `countSince(subjectType, subjectId, since)` is "a cap per trip per hour" (a guessed cap of 3,
+  same status as the existing guessed radii).
+- **`application/detect-reroute.ts`**: the use case. Never trusts a hazard event's own `type`/
+  `measurement` payload fields — instead re-queries `hazards.findAvoidanceCandidates([location],
+30)`, the same read-model call `HazardAvoidanceQueryAdapter` already uses for route planning, so
+  a hazard that's been dismissed or expired between publish and handling is correctly treated as
+  nothing-to-reroute-around. Finds affected subjects, filters through `applies()` (the
+  safety-critical function, unchanged), applies both guardrails, requests a fresh route with a
+  `bufferPoint` avoid-zone around the hazard, persists it as a new `RoutePlan`, saves the alert,
+  and sends a push per device token. No per-subject try/catch — every write here is idempotent by
+  construction, so a mid-loop throw just means the outbox dispatcher retries and `exists()` skips
+  what already succeeded.
+- **`ON_ROUTE_RADIUS_M`/`AVOID_ZONE_HALF_WIDTH_M` moved from `infrastructure/hazard-avoidance-
+query.ts` into `domain/geo.ts`** (both exported now) — `detect-reroute.ts` needed the exact same
+  radius design doc §6 asks for ("same query as section 5, reversed"), but `application/` can
+  never import `infrastructure/` (AGENTS.md rule 1); the domain layer is the one place both can
+  legally import from.
+- **`application/ports/push-notifier.ts` + `infrastructure/console-push-notifier.ts`**: `PushNotifier`
+  was already named as a precedent in AGENTS.md rule 3's own example list. `ConsolePushNotifier`
+  logs instead of sending — same "module wires its own adapter, real one comes later" shape as
+  identity's `ConsoleOtpSender`; the real Expo Push HTTP adapter is M6.5.
+- **`application/reroute-event-handlers.ts`**: two thin `OutboxEventHandler`-shaped wrappers
+  (`routing.detect-reroute-on-hazard-reported` / `-on-hazard-confirmed`) parsing the outbox row's
+  raw JSON payload and calling `detectReroute`. Defines its own minimal `RoutingEventHandler`
+  type rather than importing `platform/outbox-dispatcher.ts`'s `OutboxEventHandler`/
+  `StoredDomainEvent` (modules may never import `platform/`) — structurally identical, so
+  `compose-core.ts` (which can import both) assigns one into the other with no cast. A malformed
+  payload throws rather than silently no-op'ing, so a genuine bug in hazards' own publishing code
+  surfaces as a retried-then-dead-lettered event instead of a silent no-op.
+- **`RoutingModuleDeps` gained `identity` and an optional `pushNotifier`; `RoutingModule` gained
+  `eventHandlers`.** `compose-core.ts` now builds `identity` before `routing` (routing's handlers
+  read it directly for `getPushTokensForDriver`) and passes `overrides.eventHandlers ??
+routing.eventHandlers` into the `OutboxDispatcher` — M6.1's "no module has one yet" default is
+  gone; routing is the first real caller.
+
+20 new tests: 8 for `detectReroute` (in-memory fakes — reroutes an unstarted plan, reroutes an
+in-progress trip from its plan's origin, no-op when the hazard is no longer active, `applies()`
+false skips, reporter exclusion, idempotent redelivery, rate-limit cap, no-route-found skip), 4
+for `PostgresRerouteAlertRepository` (real Postgres — exists/scoping, dedupe-on-conflict,
+`countSince` windowing), 5 for `PostgresRoutePlanRepository.findRecentUnstartedNear`, 3 for
+`PostgresActiveTripRepository.findActiveNear` — all against a real Postgres container with a
+hand-verified polyline6 encoder (test-only, mirroring `driver-app`'s own `polyline.test.ts` split)
+building realistic Hexham-area geometry, since the in-memory fakes' and the real repositories'
+proximity checks both run against actually-decoded points, not a placeholder string. 488 core
+tests total (up from 454 going into this branch). `pnpm arch` clean (327 modules, 1140
+dependencies). `pnpm lint`/`typecheck`/`format:check` all clean.
+
+**Verified by actually running it, all for real — Docker stayed up**: all 488 core tests,
+including every new Postgres-backed spatial query and the reroute-alert repository's own
+dedupe-on-conflict test (asserts the _first_ alert's `new_route_plan_id` survives a same-triple
+second insert, not just that the second insert doesn't throw).
+
+## Decisions from M6.4
+
+76. **The reroute handler re-queries hazards' `findAvoidanceCandidates` rather than trusting the
+    event payload's `type`/`measurement` fields.** The event only needs to carry enough to
+    re-look-up the hazard (`hazardId`, `location`) and exclude its reporter — everything about
+    whether it's still a genuinely active, blocking restriction is re-derived from the same
+    read-model call `HazardAvoidanceQueryAdapter` already uses. This also means a hazard dismissed
+    or expired between publish and processing is handled correctly with no extra code: the
+    candidate list just comes back not containing it.
+77. **A mid-trip reroute is planned from the trip's original origin, not the vehicle's real
+    current position.** `ActiveTrip.lastPosition` stays unset for all of Phase 1 (decision, M5.6
+    — no position-update endpoint exists yet), so `trip.lastPosition ?? plan.origin` always falls
+    through to the plan's origin today. Documented as a known gap below rather than worked around,
+    since fixing it needs a real position-tracking endpoint M6 doesn't otherwise require.
+78. **`ON_ROUTE_RADIUS_M` and `AVOID_ZONE_HALF_WIDTH_M` moved into `domain/geo.ts`, out of
+    `infrastructure/hazard-avoidance-query.ts`.** Both are plain numeric constants, so the domain
+    layer can legally hold them; `application/detect-reroute.ts` needed the exact same values
+    design doc §6 calls for, and `application/` importing from `infrastructure/` would violate
+    AGENTS.md rule 1. Moving the constant, rather than duplicating its value a second time, keeps
+    a single source of truth for something the design doc explicitly says must match.
+79. **The new-route-plan `RoutePlan.hazardsOnRoute` is seeded with `[trigger.hazardId]`**, unlike
+    every other `RoutePlan` this codebase creates (`planRoute`'s own plans always leave it `[]` —
+    M2.5's still-undelivered "what was avoided" explanation). A reroute's whole reason for
+    existing is one specific hazard, so recording it costs nothing and is strictly more useful
+    than leaving the field empty by rote consistency with `planRoute`.
+80. **Rate limit is a flat 3 alerts per subject per rolling hour, and the 6-hour unstarted-plan
+    window and 30m on-route radius are unchanged from design doc §5/§6's own numbers.** The rate
+    cap has no design-doc-given number — a guess, same status as `AVOID_ZONE_HALF_WIDTH_M` — worth
+    revisiting once real driver feedback exists on how often reroute pushes actually fire.
+
+## Deviations and open items from M6.4
+
+- **Mid-trip reroutes use the trip's plan origin, not a live position** (decision 77) — every
+  `ActiveTrip` reroute in Phase 1 is really "replan from where the trip started," which is
+  increasingly wrong the further into a trip the hazard is reported. Revisit once a position-
+  update endpoint exists (M6.6 or later); until then this is a known, accepted gap, not a bug.
+- **No test proves the outbox dispatcher actually routes a real `HazardReported`/`HazardConfirmed`
+  row through to `detectReroute` end-to-end** — `reroute-event-handlers.ts`'s payload parsing and
+  `detectReroute`'s own logic are each tested directly, but nothing publishes a real hazard event
+  and lets the real `OutboxDispatcher` pick it up and dispatch into routing's handler in the same
+  test. `outbox-dispatcher.test.ts` (M6.1) already proves the dispatcher mechanism generically;
+  this would be an integration test of the full path across three modules, which M6.7 (explicitly
+  "end-to-end verification") is scoped to cover.
+- **No real push notification exists yet** — `ConsolePushNotifier` just logs. M6.5 is the real
+  Expo Push HTTP adapter; nothing about this milestone's own code should need to change when it
+  lands, since `PushNotifier` is already the seam.
+- **A hazard whose event fires while no vehicle is nearby, or where `routingEngine.route()`
+  genuinely finds no way around it, produces no user-visible trace at all** (silently `continue`s
+  in both cases). Acceptable for now — there's nothing to show a driver who isn't affected, and
+  "no route exists" has no new route id to put in a notification — but if this needs observability
+  later (e.g. counting how often rerouting fails), that's a deliberate gap to fill then, not now.

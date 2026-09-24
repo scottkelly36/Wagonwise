@@ -5,6 +5,7 @@ import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { InMemoryUnitOfWork } from '../../../shared/testing/in-memory-unit-of-work.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { InviteCode } from '../domain/invite-code.js';
+import { InMemoryDeviceRepository } from '../application/testing/in-memory-device-repository.js';
 import { InMemoryDriverRepository } from '../application/testing/in-memory-driver-repository.js';
 import { InMemoryInviteCodeRepository } from '../application/testing/in-memory-invite-code-repository.js';
 import { InMemoryOtpRepository } from '../application/testing/in-memory-otp-repository.js';
@@ -17,11 +18,22 @@ import { registerIdentityRoutes, type IdentityRouteDeps } from './routes.js';
 
 const now = new Date('2026-06-15T08:00:00.000Z');
 
+// `driverId` for POST /identity/devices comes from `request.driverId` (host/driver-auth.ts's
+// hook, M6.2), never a body field. This suite isn't exercising that hook — driver-auth.test.ts
+// already does, against real verification — so it stands in for it with a trivial one keyed off
+// a plain test header, matching routing's/hazards'/feedback's own routes.test.ts convention.
+const DRIVER_HEADER = 'x-test-driver-id';
+
+function asDriver(driverId: string): { headers: Record<string, string> } {
+  return { headers: { [DRIVER_HEADER]: driverId } };
+}
+
 function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
   const driverRepo = new InMemoryDriverRepository();
   const inviteCodeRepo = new InMemoryInviteCodeRepository();
   const otpRepo = new InMemoryOtpRepository();
   const sessionRepo = new InMemorySessionRepository();
+  const deviceRepo = new InMemoryDeviceRepository();
   const clock = new FakeClock(now);
   const ids = new SequentialIdGenerator();
   const tokenSigner = new FakeTokenSigner();
@@ -50,10 +62,18 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
     },
     refreshToken: { sessionRepo, tokenSigner, refreshTokenGenerator, clock },
     revokeSession: { sessionRepo, clock },
+    registerDevice: { repo: deviceRepo, clock, ids },
     tokenSigner,
   };
 
   const app = Fastify();
+  app.addHook('onRequest', (request, _reply, done) => {
+    const driverId = request.headers[DRIVER_HEADER];
+    if (typeof driverId === 'string') {
+      request.driverId = driverId;
+    }
+    done();
+  });
   registerIdentityRoutes(app, deps);
   return { app, deps };
 }
@@ -282,5 +302,64 @@ describe('GET /identity/.well-known/jwks.json', () => {
     const body = response.json<{ keys: Record<string, unknown>[] }>();
     expect(body.keys).toHaveLength(1);
     expect(body.keys[0]).not.toHaveProperty('d');
+  });
+});
+
+describe('POST /identity/devices', () => {
+  it('201s and returns the registered device', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/devices',
+      payload: { pushToken: 'ExponentPushToken[abc123]' },
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      driverId: 'driver-1',
+      pushToken: 'ExponentPushToken[abc123]',
+    });
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/devices',
+      payload: { pushToken: 'ExponentPushToken[abc123]' },
+    });
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: 'unauthenticated' });
+  });
+
+  it('400s a malformed body', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/devices',
+      payload: { nonsense: true },
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('reassigns an already-registered token to the new caller rather than duplicating it', async () => {
+    const { app } = buildApp();
+    const first = await app.inject({
+      method: 'POST',
+      url: '/identity/devices',
+      payload: { pushToken: 'shared-token' },
+      ...asDriver('driver-1'),
+    });
+    const { id: firstId } = first.json<{ id: string }>();
+
+    const second = await app.inject({
+      method: 'POST',
+      url: '/identity/devices',
+      payload: { pushToken: 'shared-token' },
+      ...asDriver('driver-2'),
+    });
+    expect(second.statusCode).toBe(201);
+    expect(second.json()).toMatchObject({ id: firstId, driverId: 'driver-2' });
   });
 });

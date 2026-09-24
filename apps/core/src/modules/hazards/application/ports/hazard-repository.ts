@@ -1,3 +1,4 @@
+import type { DomainEvent } from '../../../../shared/domain-event.js';
 import type { GeoPoint, HazardReport, HazardReportId } from '../../domain/hazard-report.js';
 
 export interface HazardRepository {
@@ -17,6 +18,8 @@ export interface HazardRepository {
   findExpirable(now: Date): Promise<HazardReport[]>;
   /** Upsert — report, confirm, dismiss and expire all persist through this one method; a
    *  HazardReport has no separate insert-only path (mirrors routing's VehicleProfileRepository,
-   *  M2.2). */
-  save(report: HazardReport): Promise<void>;
+   *  M2.2). `events` (M6.3) are written to the outbox in the same transaction as the row, per
+   *  decision 4 — `reportHazard`/`confirmHazard` are the only callers that ever pass any;
+   *  dismiss/expire pass none, since nothing consumes those events yet. */
+  save(report: HazardReport, events?: readonly DomainEvent[]): Promise<void>;
 }

@@ -2,6 +2,7 @@ import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
 import type { ActiveTripRepository } from '../application/ports/active-trip-repository.js';
 import type { ActiveTrip, ActiveTripId } from '../domain/active-trip.js';
+import type { GeoPoint } from '../domain/geo.js';
 import type { DriverId } from '../domain/vehicle-profile.js';
 import type { UntypedDb } from './db.js';
 
@@ -67,5 +68,25 @@ export class PostgresActiveTripRepository implements ActiveTripRepository {
         last_position_lon = excluded.last_position_lon,
         ended_at = excluded.ended_at
     `.execute(this.db);
+  }
+
+  /** In-progress trips whose *plan's* geometry (no live position exists to query against yet —
+   *  decision, M5.6) passes within `radiusM` of `location`. Joins to `routing.route_plans` for
+   *  the geography column this table doesn't have its own copy of. */
+  async findActiveNear(location: GeoPoint, radiusM: number): Promise<ActiveTrip[]> {
+    const { rows } = await sql<ActiveTripRow>`
+      select at.id, at.route_plan_id, at.driver_id, at.started_at,
+             at.last_position_lat, at.last_position_lon, at.ended_at
+      from routing.active_trips at
+      join routing.route_plans rp on rp.id = at.route_plan_id
+      where at.ended_at is null
+        and rp.geometry_geog is not null
+        and ST_DWithin(
+          rp.geometry_geog,
+          ST_SetSRID(ST_MakePoint(${location.lon}, ${location.lat}), 4326)::geography,
+          ${radiusM}
+        )
+    `.execute(this.db);
+    return rows.map(toDomain);
   }
 }
