@@ -164,3 +164,53 @@ describe('POST /identity/sessions/:id/revoke', () => {
     expect(response.statusCode).toBe(400);
   });
 });
+
+describe('POST /identity/devices', () => {
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/devices',
+      payload: { pushToken: 'ExponentPushToken[abc]' },
+    });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards the body and the original token, no driverId anywhere', async () => {
+    const { app, coreClient, verifier } = buildApp();
+    verifier.claimsByToken.set('a-real-token', { driverId: 'driver-1', sessionId: 'session-1' });
+    coreClient.nextResponse = {
+      status: 201,
+      body: { id: 'device-1', driverId: 'driver-1', pushToken: 'ExponentPushToken[abc]' },
+    };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/devices',
+      payload: { pushToken: 'ExponentPushToken[abc]' },
+      headers: { authorization: 'Bearer a-real-token' },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: '/identity/devices',
+      body: { pushToken: 'ExponentPushToken[abc]' },
+      authorization: 'Bearer a-real-token',
+    });
+  });
+
+  it('400s locally on a malformed body, without calling core', async () => {
+    const { app, coreClient, verifier } = buildApp();
+    verifier.claimsByToken.set('a-real-token', { driverId: 'driver-1', sessionId: 'session-1' });
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/devices',
+      payload: { nonsense: true },
+      headers: { authorization: 'Bearer a-real-token' },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+});

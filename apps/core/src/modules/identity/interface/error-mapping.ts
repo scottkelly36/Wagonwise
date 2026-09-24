@@ -1,9 +1,11 @@
+import type { RegisterDeviceError } from '../application/register-device.js';
 import type { RequestOtpError } from '../application/request-otp.js';
 import type { RefreshTokenError } from '../application/refresh-token.js';
 import type { SessionNotFound } from '../application/revoke-session.js';
 import type { VerifyOtpError } from '../application/verify-otp.js';
 
-export type IdentityError = RequestOtpError | VerifyOtpError | RefreshTokenError | SessionNotFound;
+export type IdentityError =
+  RequestOtpError | VerifyOtpError | RefreshTokenError | SessionNotFound | RegisterDeviceError;
 
 /**
  * Tag -> HTTP status, in exactly one table (AGENTS.md rule 13). `switch-exhaustiveness-check`
@@ -14,6 +16,7 @@ export function statusFor(error: IdentityError): number {
     case 'InvalidIdentifier':
     case 'InviteCodeRequired':
     case 'InvalidInviteCode':
+    case 'InvalidPushToken':
       return 400;
     case 'OtpNotFound':
     case 'SessionNotFound':

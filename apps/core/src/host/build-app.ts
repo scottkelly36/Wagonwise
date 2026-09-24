@@ -15,9 +15,12 @@ export interface AppDeps {
   readonly accessTokenVerifier: AccessTokenVerifier;
 }
 
-// Routing gated as of M4.2, hazards as of M4.3 — both modules now read `request.driverId`
-// instead of a trusted body field.
-const DRIVER_AUTH_PREFIXES = ['/routing/', '/hazards/', '/feedback/'];
+// Routing gated as of M4.2, hazards as of M4.3, feedback as of M5.9 — each reads
+// `request.driverId` instead of a trusted body field. `/identity/devices/` specifically, not all
+// of `/identity/` (M6.2) — identity's other routes are the pre-token sign-in flow itself
+// (OTP request/verify, token refresh, JWKS) and can't require an access token they don't have
+// yet.
+const DRIVER_AUTH_PREFIXES = ['/routing/', '/hazards/', '/feedback/', '/identity/devices/'];
 
 const REQUEST_ID_HEADER = 'x-request-id';
 

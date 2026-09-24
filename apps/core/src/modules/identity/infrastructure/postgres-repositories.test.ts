@@ -1,10 +1,12 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
+import type { Device } from '../domain/device.js';
 import type { Driver } from '../domain/driver.js';
 import type { InviteCode } from '../domain/invite-code.js';
 import type { Otp } from '../domain/otp.js';
 import type { Session } from '../domain/session.js';
+import { PostgresDeviceRepository } from './postgres-device-repository.js';
 import { PostgresDriverRepository } from './postgres-driver-repository.js';
 import { PostgresInviteCodeRepository } from './postgres-invite-code-repository.js';
 import { PostgresOtpRepository } from './postgres-otp-repository.js';
@@ -245,6 +247,78 @@ describe('identity Postgres repositories', () => {
 
     it('returns null for an identifier with no OTP requested', async () => {
       expect(await repo().findLatestFor('never-requested@example.com')).toBeNull();
+    });
+  });
+
+  describe('PostgresDeviceRepository', () => {
+    const repo = () => new PostgresDeviceRepository(db);
+    const driverId = makeId<'DriverId'>('99999999-9999-4999-8999-999999999999');
+    const otherDriverId = makeId<'DriverId'>('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+
+    function device(overrides: Partial<Device> = {}): Device {
+      return {
+        id: makeId<'DeviceId'>('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
+        driverId,
+        pushToken: 'ExponentPushToken[round-trip]',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        ...overrides,
+      };
+    }
+
+    // Devices reference identity.drivers by foreign key — seeded once, here, rather than inline
+    // per test the way PostgresSessionRepository's tests do, since these tests share the same
+    // two driver ids across several `it`s (reassigning a device between them) and
+    // PostgresDriverRepository.save() is insert-only (a second save of the same id throws).
+    beforeAll(async () => {
+      const driverRepo = new PostgresDriverRepository(db);
+      await driverRepo.save({
+        id: driverId,
+        identifier: 'device-driver-a@example.com',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      });
+      await driverRepo.save({
+        id: otherDriverId,
+        identifier: 'device-driver-b@example.com',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      });
+    });
+
+    it('round-trips a device through save/findByPushToken/findByDriverId', async () => {
+      const d = device();
+      await repo().save(d);
+
+      expect(await repo().findByPushToken(d.pushToken)).toEqual(d);
+      expect(await repo().findByDriverId(driverId)).toEqual([d]);
+    });
+
+    it('returns null/empty for an unknown token or driver', async () => {
+      expect(await repo().findByPushToken('never-registered')).toBeNull();
+      expect(
+        await repo().findByDriverId(makeId<'DriverId'>('00000000-0000-4000-8000-000000000001')),
+      ).toEqual([]);
+    });
+
+    it('re-saving the same push token updates the row rather than inserting a new one', async () => {
+      const d = device({
+        id: makeId<'DeviceId'>('cccccccc-cccc-4ccc-8ccc-cccccccccccc'),
+        pushToken: 'ExponentPushToken[upsert]',
+      });
+      await repo().save(d);
+
+      const reassigned: Device = {
+        ...d,
+        driverId: otherDriverId,
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+      };
+      await repo().save(reassigned);
+
+      const found = await repo().findByPushToken(d.pushToken);
+      expect(found).toEqual(reassigned);
+      expect(await repo().findByDriverId(driverId)).not.toContainEqual(
+        expect.objectContaining({ pushToken: 'ExponentPushToken[upsert]' }),
+      );
+      expect(await repo().findByDriverId(otherDriverId)).toEqual([reassigned]);
     });
   });
 });
