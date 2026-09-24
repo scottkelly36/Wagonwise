@@ -9,7 +9,7 @@ import {
   createHazardReportedRerouteHandler,
   type RoutingEventHandler,
 } from './application/reroute-event-handlers.js';
-import { ConsolePushNotifier } from './infrastructure/console-push-notifier.js';
+import { ExpoPushNotifier } from './infrastructure/expo-push-notifier.js';
 import { HazardAvoidanceQueryAdapter } from './infrastructure/hazard-avoidance-query.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresActiveTripRepository } from './infrastructure/postgres-active-trip-repository.js';
@@ -40,8 +40,12 @@ export interface RoutingModuleDeps {
   /** `identity`'s facade — the reroute-detection handlers' only source of a driver's push
    *  tokens (design doc §6: "device tokens come from a read-model port onto Identity"). */
   readonly identity: Pick<IdentityModule, 'getPushTokensForDriver'>;
-  /** Defaults to `ConsolePushNotifier` (M6.4) — same "module wires its own adapter, real one
-   *  comes later" precedent as identity's `OtpSender`; a real Expo Push HTTP adapter is M6.5. */
+  /** Optional bearer token for Expo's enhanced push security (M6.5) — unset is fine, Expo's push
+   *  API works without one; only matters if that project setting is ever turned on. */
+  readonly expoAccessToken?: string | undefined;
+  /** Defaults to `ExpoPushNotifier` (M6.5) — same "module wires its own adapter" precedent as
+   *  `ValhallaRoutingEngine`. Override (e.g. with `ConsolePushNotifier`) for tests or local
+   *  manual runs that shouldn't reach Expo's real endpoint. */
   readonly pushNotifier?: PushNotifier | undefined;
 }
 
@@ -67,7 +71,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
   const rerouteAlertRepo = new PostgresRerouteAlertRepository(deps.db);
   const routingEngine = new ValhallaRoutingEngine(deps.valhallaUrl);
   const hazardAvoidanceQuery = new HazardAvoidanceQueryAdapter(deps.hazards);
-  const pushNotifier = deps.pushNotifier ?? new ConsolePushNotifier();
+  const pushNotifier = deps.pushNotifier ?? new ExpoPushNotifier(deps.expoAccessToken);
 
   const detectRerouteDeps = {
     activeTripRepo,

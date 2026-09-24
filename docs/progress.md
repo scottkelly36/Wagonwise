@@ -2352,7 +2352,7 @@ verified**: an actual running app — same hardware gap as every driver-app mile
 | M6.2 | Identity: device push tokens                                              | Done — 2026-09-23 |
 | M6.3 | Hazards publishes `HazardReported`/`HazardConfirmed`                      | Done — 2026-09-23 |
 | M6.4 | Routing: reroute detection (on-hazard-event subscriber)                   | Done — 2026-09-24 |
-| M6.5 | Push notifications (`PushNotifier` port + Expo adapter)                   | Not started       |
+| M6.5 | Push notifications (`PushNotifier` port + Expo adapter)                   | Done — 2026-09-24 |
 | M6.6 | Driver app: register push token, receive notification, reroute prompt     | Not started       |
 | M6.7 | End-to-end verification (idempotency, rate limits, don't-notify-reporter) | Not started       |
 
@@ -2740,3 +2740,98 @@ second insert, not just that the second insert doesn't throw).
   in both cases). Acceptable for now — there's nothing to show a driver who isn't affected, and
   "no route exists" has no new route id to put in a notification — but if this needs observability
   later (e.g. counting how often rerouting fails), that's a deliberate gap to fill then, not now.
+
+**M6.5 delivered:** `infrastructure/expo-push-notifier.ts`'s `ExpoPushNotifier` — the real Expo
+Push HTTP adapter `PushNotifier`'s docstring has been naming as "M6.5" since M6.4. Now the wired
+default in `createRoutingModule`, replacing `ConsolePushNotifier`.
+
+- **Hand-rolled HTTP (decision 6/51's precedent), no client library**: one POST to Expo's fixed
+  `https://exp.host/--/api/v2/push/send`, body `[{ to, title, body, data }]` (Expo's own array
+  shape, one element per call — `PushNotifier.send` is already per-token), reading back one
+  ticket from `{ data: [...] }`. `accessToken` is optional and unconfigured by default —
+  confirmed against Expo's own docs (`docs.expo.dev`) that it's opt-in per project ("enhanced
+  push security"), not a blanket requirement — sent as `Authorization: Bearer <token>` when set,
+  via a new optional `EXPO_ACCESS_TOKEN` config var.
+- **A per-ticket `status: 'error'` (most commonly `DeviceNotRegistered` — a stale/revoked token)
+  is logged via `console.warn` and swallowed, not thrown.** By the time a push is sent,
+  `detect-reroute.ts` has already persisted the `RerouteAlert` and has no per-token retry path —
+  the idempotency guard (rule 9) means a retried event would just skip that already-alerted
+  subject, so throwing here would silently drop the alert rather than genuinely retry it. A
+  non-2xx HTTP response or an unrecognised body still throws (a genuine infra fault), same
+  Valhalla-adapter convention as decision 50.
+- **`ConsolePushNotifier` stays in the codebase**, no longer the default, available as an
+  explicit `pushNotifier` override for tests or a local manual run that shouldn't reach Expo's
+  real endpoint — its own docstring updated to say so.
+- Tested against a real local HTTP server standing in for Expo (same philosophy as
+  `valhalla-routing-engine.test.ts`), not a mocked `fetch`: the request shape, the optional
+  bearer header, a successful ticket, an error ticket (logged, not thrown), a non-2xx response,
+  a malformed body, and an empty `data` array.
+
+8 new tests (`expo-push-notifier.test.ts`), plus `config.test.ts` gained `EXPO_ACCESS_TOKEN`
+coverage (defaults to `undefined`, accepts an override, rejects an empty string). 501 core tests
+total (up from 488 going into this branch, plus the driver-auth regression tests below).
+`pnpm arch` clean (329 modules, 1145 dependencies). `pnpm lint`/`typecheck`/`format:check` all
+clean.
+
+**A real, production-blocking bug was found and fixed while verifying this live, not by a
+test.** Driving `POST /identity/devices` end to end for the first time ever (M6.2 shipped it,
+M6.4 built its only real caller — `getPushTokensForDriver` — but nothing had ever driven the HTTP
+route itself against a real running host) returned `{"error":"unauthenticated"}` for a
+perfectly valid access token. Cause: `host/build-app.ts`'s `DRIVER_AUTH_PREFIXES` gates
+`/identity/devices/` with a trailing slash, matching every existing test
+(`/identity/devices/protected` in both `build-app.test.ts` and, implicitly, nothing in
+`driver-auth.test.ts` at all) — but the real route's URL is the bare `/identity/devices`, with no
+trailing slash, which `request.url.startsWith('/identity/devices/')` never matches. The hook
+silently skipped the route entirely, `request.driverId` stayed `undefined`, and the route
+handler's own `requireDriverId` 401'd every real call with a generic `unauthenticated` — device
+registration has been completely broken in production since M6.2 shipped it, invisible to every
+prior test because each one used a `/…/protected` sub-path fixture that happened to have the
+extra path segment this bug needed to hide behind.
+
+## Decisions from M6.5
+
+81. **Fixed: `registerDriverAuth`'s prefix match now also matches the bare path a trailing-slash
+    prefix implies** (`request.url === prefix.slice(0, -1) || request.url.startsWith(prefix)`),
+    not just `host/driver-auth.ts`'s `DRIVER_AUTH_PREFIXES` list itself — fixing it in the
+    matcher, not by dropping the trailing slash from one entry, protects every future prefix
+    from the identical mistake, not just this one. Two new regression tests added at both the
+    unit level (`driver-auth.test.ts`, registering the real bare route against the real hook)
+    and the integration level (`build-app.test.ts`, the actual `/identity/devices` path, not a
+    `/protected` sub-path fixture) — the second is the one that would have caught this originally,
+    since the first only proves the hook's own logic, not that every real route was ever
+    exercised through it.
+82. **`ExpoPushNotifier` becomes the unconditional default**, not gated behind `EXPO_ACCESS_TOKEN`
+    being set — same reasoning as `ValhallaRoutingEngine` (M2.3) being the only, always-real
+    `RoutingEngine`: once a real adapter exists, "real by default, override to fake for tests" is
+    the pattern, not "fake by default until some extra config appears." Unlike identity's
+    `OtpSender` (still `ConsoleOtpSender`-only — no SMS/email provider chosen), a real provider
+    account was never needed here: Expo's push API accepts requests with no account or token at
+    all unless a project opts into stricter security.
+83. **An error ticket (`status: 'error'`) is logged and swallowed, not translated into a thrown
+    error or a `Result`.** Considered making `PushNotifier.send` return a `Result` the way
+    domain-layer expected failures do (rule 13) — rejected because nothing downstream of
+    `detect-reroute.ts`'s per-token `pushNotifier.send()` calls would do anything with it: the
+    `RerouteAlert` is already persisted, there's no second token to fall back to for the same
+    device, and the loop's only options on failure are "stop early" (worse — other tokens for
+    the same driver, or other subjects entirely, wrongly never get their push) or "ignore and
+    continue" (what logging already achieves, with a visible trace).
+
+## Deviations and open items from M6.5
+
+- **No production Expo project is configured** — `EXPO_ACCESS_TOKEN` is unset, and no real
+  device has ever received a push (M6.6, the driver app's own registration UI, doesn't exist
+  yet). Verified as far as it can be without one: a real HTTPS round trip to Expo's actual
+  `exp.host` endpoint, through the whole real pipeline (hazard report → outbox → `detectReroute` →
+  `RerouteAlert` persisted → `ExpoPushNotifier.send()`), which correctly came back a real
+  `DeviceNotRegistered` ticket for the fabricated token used to test it — the adapter's plumbing
+  is proven; only "a real phone actually buzzes" remains, which needs M6.6.
+- **Expo's push-receipt step (`/getReceipts`) is not implemented.** Expo's own model is two-phase:
+  a ticket (this milestone) confirms Expo _accepted_ the message; a receipt, fetched later,
+  confirms whether it was actually _delivered_. Design doc §6 doesn't ask for delivery
+  confirmation, and nothing in Phase 1 reads a receipt today — ticket-level accept/reject is the
+  whole of what `PushNotifier`'s `Promise<void>` contract needs. Revisit if silent delivery
+  failures (accepted by Expo, never actually delivered) become something worth detecting.
+- **No batching.** Expo's API accepts up to 100 messages per request; `detect-reroute.ts` calls
+  `pushNotifier.send()` once per token in a loop, one HTTP request each. Fine at Phase 1's scale
+  (a handful of testers, rarely more than one device each) — worth revisiting only if a single
+  hazard event ever needs to alert enough devices at once for request count to matter.

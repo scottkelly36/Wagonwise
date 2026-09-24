@@ -9,10 +9,9 @@ export interface PushNotification {
 }
 
 /**
- * Delivers a push notification to one device token (design doc §6). Phase 1 has only a console
- * adapter for local dev (infrastructure/console-push-notifier.ts) — a real Expo Push HTTP
- * adapter is M6.5, deferred until then, same "module wires its own adapters, real one comes
- * later" precedent as identity's `OtpSender`.
+ * Delivers a push notification to one device token (design doc §6). `ExpoPushNotifier`
+ * (infrastructure/expo-push-notifier.ts) is the real, wired adapter (M6.5); `ConsolePushNotifier`
+ * remains available as an explicit override for tests or a local manual run.
  */
 export interface PushNotifier {
   send(pushToken: string, notification: PushNotification): Promise<void>;

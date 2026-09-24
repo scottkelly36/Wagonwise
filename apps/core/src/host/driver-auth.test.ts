@@ -103,4 +103,29 @@ describe('registerDriverAuth', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ driverId: null });
   });
+
+  it('gates the bare path itself for a trailing-slash prefix, not only a sub-path under it (regression, M6.5)', async () => {
+    // `POST /identity/devices` is registered under the prefix `/identity/devices/` — with a
+    // trailing slash, since that's this codebase's own convention for gating a whole module
+    // (`/routing/`, `/hazards/`, `/feedback/`). But the real route's URL is the bare path with no
+    // trailing slash at all, which `startsWith('/identity/devices/')` alone never matches — the
+    // route ran completely unauthenticated in production until this was caught by actually
+    // driving it end to end (M6.5), not by a test, since every prior test used a `/…/protected`
+    // sub-path fixture that always had the extra segment this bug needed to hide behind.
+    const app = Fastify();
+    registerDriverAuth(app, fakeVerifier(), ['/identity/devices/']);
+    app.post('/identity/devices', (request) => ({ driverId: request.driverId ?? null }));
+
+    const withoutToken = await app.inject({ method: 'POST', url: '/identity/devices' });
+    expect(withoutToken.statusCode).toBe(401);
+    expect(withoutToken.json()).toMatchObject({ error: 'missing_bearer_token' });
+
+    const withToken = await app.inject({
+      method: 'POST',
+      url: '/identity/devices',
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    });
+    expect(withToken.statusCode).toBe(200);
+    expect(withToken.json()).toEqual({ driverId: CLAIMS.driverId });
+  });
 });

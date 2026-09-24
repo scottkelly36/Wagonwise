@@ -97,6 +97,7 @@ export function composeCore(
     ids,
     clock,
     valhallaUrl: config.valhallaUrl,
+    expoAccessToken: config.expoAccessToken,
     hazards,
     identity,
   });

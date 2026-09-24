@@ -64,6 +64,9 @@ const envSchema = z.object({
       message: 'must contain at least one non-empty, comma-separated key',
     }),
   VALHALLA_URL: z.url().default(DEFAULT_VALHALLA_URL),
+  // Optional: Expo's push API works without one (M6.5) — only needed if a project ever turns on
+  // Expo's "enhanced push security" setting, which then requires every request to carry it.
+  EXPO_ACCESS_TOKEN: z.string().min(1).optional(),
   // How often the in-process outbox poller checks for pending events (decision 5, M1). 2s is
   // fast enough that a Phase 1 tester never notices the delay, without hammering the database
   // between polls.
@@ -79,6 +82,7 @@ export interface Config {
   readonly identityPrivateKeyPem: string | undefined;
   readonly internalKeys: readonly string[];
   readonly valhallaUrl: string;
+  readonly expoAccessToken: string | undefined;
   readonly outboxPollIntervalMs: number;
 }
 
@@ -112,6 +116,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     identityPrivateKeyPem: values.IDENTITY_PRIVATE_KEY,
     internalKeys: values.INTERNAL_KEYS,
     valhallaUrl: values.VALHALLA_URL,
+    expoAccessToken: values.EXPO_ACCESS_TOKEN,
     outboxPollIntervalMs: values.OUTBOX_POLL_INTERVAL_MS,
   };
 }

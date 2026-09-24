@@ -145,6 +145,26 @@ describe('driver auth (M4.2, M4.3, M6.2)', () => {
     expect(response.statusCode).toBe(200);
   });
 
+  it('gates the bare /identity/devices path itself, not just a sub-path under it (regression, M6.5)', async () => {
+    const { app } = makeApp();
+    app.post('/identity/devices', () => ({ ok: true }));
+
+    const withoutToken = await app.inject({
+      method: 'POST',
+      url: '/identity/devices',
+      headers: INTERNAL_KEY_HEADER,
+    });
+    expect(withoutToken.statusCode).toBe(401);
+    expect(withoutToken.json()).toMatchObject({ error: 'missing_bearer_token' });
+
+    const withToken = await app.inject({
+      method: 'POST',
+      url: '/identity/devices',
+      headers: { ...INTERNAL_KEY_HEADER, authorization: `Bearer ${VALID_DRIVER_TOKEN}` },
+    });
+    expect(withToken.statusCode).toBe(200);
+  });
+
   it('does not gate a route outside routing/hazards/feedback/identity-devices, e.g. a future module', async () => {
     const { app } = makeApp();
     app.get('/admin/protected', () => ({ ok: true }));
