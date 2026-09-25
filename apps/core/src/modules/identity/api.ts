@@ -5,6 +5,7 @@ import type { UnitOfWork } from '../../shared/ports/unit-of-work.js';
 import type { OtpSender } from './application/ports/otp-sender.js';
 import type { TokenSigner } from './application/ports/token-signer.js';
 import type { DriverId } from './domain/driver.js';
+import { ClickSendOtpSender } from './infrastructure/clicksend-otp-sender.js';
 import { ConsoleOtpSender } from './infrastructure/console-otp-sender.js';
 import { CryptoOtpCodeGenerator } from './infrastructure/crypto-otp-code-generator.js';
 import { CryptoRefreshTokenGenerator } from './infrastructure/crypto-refresh-token-generator.js';
@@ -46,7 +47,14 @@ export interface IdentityModuleDeps {
   readonly ids: IdGenerator;
   readonly unitOfWork: UnitOfWork;
   readonly tokenSigner: TokenSigner;
-  /** Defaults to the local-dev console adapter — see application/ports/otp-sender.ts. */
+  /** Both set wires `ClickSendOtpSender`; either unset falls back to the local-dev
+   *  `ConsoleOtpSender` — same "real adapter behind a config toggle" precedent as hazards'
+   *  `anthropicApiKey` (hazards/api.ts). ClickSend is SMS-only, so this only delivers OTPs to a
+   *  phone-number identifier; see clicksend-otp-sender.ts for the email-identifier gap. */
+  readonly clickSendUsername?: string | undefined;
+  readonly clickSendApiKey?: string | undefined;
+  /** Defaults per `clickSendUsername`/`clickSendApiKey` above — override (e.g. with a fake) for
+   *  tests or a local run that shouldn't reach ClickSend's real endpoint. */
   readonly otpSender?: OtpSender | undefined;
 }
 
@@ -72,7 +80,11 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
   const sessionRepo = new PostgresSessionRepository(deps.db);
   const otpRepo = new PostgresOtpRepository(deps.db);
   const deviceRepo = new PostgresDeviceRepository(deps.db);
-  const otpSender = deps.otpSender ?? new ConsoleOtpSender();
+  const otpSender =
+    deps.otpSender ??
+    (deps.clickSendUsername !== undefined && deps.clickSendApiKey !== undefined
+      ? new ClickSendOtpSender(deps.clickSendUsername, deps.clickSendApiKey)
+      : new ConsoleOtpSender());
   const otpCodeGenerator = new CryptoOtpCodeGenerator();
   const refreshTokenGenerator = new CryptoRefreshTokenGenerator();
 
@@ -105,6 +117,8 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     },
     revokeSession: { sessionRepo, clock: deps.clock },
     registerDevice: { repo: deviceRepo, clock: deps.clock, ids: deps.ids },
+    giveConsent: { driverRepo, clock: deps.clock },
+    deleteAccount: { driverRepo, sessionRepo, deviceRepo, clock: deps.clock },
     tokenSigner: deps.tokenSigner,
   };
 

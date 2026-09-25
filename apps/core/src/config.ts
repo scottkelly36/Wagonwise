@@ -72,6 +72,12 @@ const envSchema = z.object({
   // with itself as the note) rather than the process failing to boot, keeping the cold-start
   // promise for a dev machine with no key yet.
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  // Optional pair: unset means OTP codes fall back to ConsoleOtpSender (logs the code, never
+  // sends it) — fine for local dev, useless for a driver who isn't watching this process's
+  // stdout. Both set wires ClickSendOtpSender instead. ClickSend's own auth uses the account
+  // email as the "username" half of HTTP Basic auth, not a separate username field.
+  CLICKSEND_USERNAME: z.string().min(1).optional(),
+  CLICKSEND_API_KEY: z.string().min(1).optional(),
   // How often the in-process outbox poller checks for pending events (decision 5, M1). 2s is
   // fast enough that a Phase 1 tester never notices the delay, without hammering the database
   // between polls.
@@ -89,6 +95,8 @@ export interface Config {
   readonly valhallaUrl: string;
   readonly expoAccessToken: string | undefined;
   readonly anthropicApiKey: string | undefined;
+  readonly clickSendUsername: string | undefined;
+  readonly clickSendApiKey: string | undefined;
   readonly outboxPollIntervalMs: number;
 }
 
@@ -124,6 +132,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     valhallaUrl: values.VALHALLA_URL,
     expoAccessToken: values.EXPO_ACCESS_TOKEN,
     anthropicApiKey: values.ANTHROPIC_API_KEY,
+    clickSendUsername: values.CLICKSEND_USERNAME,
+    clickSendApiKey: values.CLICKSEND_API_KEY,
     outboxPollIntervalMs: values.OUTBOX_POLL_INTERVAL_MS,
   };
 }

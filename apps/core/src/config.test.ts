@@ -24,6 +24,8 @@ describe('loadConfig', () => {
       valhallaUrl: 'http://127.0.0.1:8002',
       expoAccessToken: undefined,
       anthropicApiKey: undefined,
+      clickSendUsername: undefined,
+      clickSendApiKey: undefined,
       outboxPollIntervalMs: 2000,
     });
   });
@@ -40,6 +42,8 @@ describe('loadConfig', () => {
       VALHALLA_URL: 'http://valhalla.internal:8002',
       EXPO_ACCESS_TOKEN: 'expo-secret-token',
       ANTHROPIC_API_KEY: 'anthropic-secret-key',
+      CLICKSEND_USERNAME: 'driver@example.com',
+      CLICKSEND_API_KEY: 'clicksend-secret-key',
       OUTBOX_POLL_INTERVAL_MS: '500',
     });
     expect(config).toEqual({
@@ -53,6 +57,8 @@ describe('loadConfig', () => {
       valhallaUrl: 'http://valhalla.internal:8002',
       expoAccessToken: 'expo-secret-token',
       anthropicApiKey: 'anthropic-secret-key',
+      clickSendUsername: 'driver@example.com',
+      clickSendApiKey: 'clicksend-secret-key',
       outboxPollIntervalMs: 500,
     });
   });
@@ -159,6 +165,26 @@ describe('loadConfig', () => {
 
   it('rejects an empty-string ANTHROPIC_API_KEY', () => {
     expect(() => loadConfig({ ANTHROPIC_API_KEY: '' })).toThrow(ConfigError);
+  });
+
+  it('defaults CLICKSEND_USERNAME and CLICKSEND_API_KEY to undefined — OTPs fall back to ConsoleOtpSender', () => {
+    const config = loadConfig({});
+    expect(config.clickSendUsername).toBeUndefined();
+    expect(config.clickSendApiKey).toBeUndefined();
+  });
+
+  it('accepts CLICKSEND_USERNAME and CLICKSEND_API_KEY overrides', () => {
+    const config = loadConfig({
+      CLICKSEND_USERNAME: 'driver@example.com',
+      CLICKSEND_API_KEY: 'clicksend-secret-key',
+    });
+    expect(config.clickSendUsername).toBe('driver@example.com');
+    expect(config.clickSendApiKey).toBe('clicksend-secret-key');
+  });
+
+  it('rejects an empty-string CLICKSEND_USERNAME or CLICKSEND_API_KEY', () => {
+    expect(() => loadConfig({ CLICKSEND_USERNAME: '' })).toThrow(ConfigError);
+    expect(() => loadConfig({ CLICKSEND_API_KEY: '' })).toThrow(ConfigError);
   });
 
   it('defaults OUTBOX_POLL_INTERVAL_MS to 2000', () => {
