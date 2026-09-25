@@ -1,6 +1,7 @@
 import {
   activeTripSchema,
   createVehicleProfileRequestSchema,
+  findActiveTripResponseSchema,
   planRouteRequestSchema,
   routePlanSchema,
   vehicleProfileSchema,
@@ -112,4 +113,15 @@ export async function endTrip(accessToken: string, tripId: string): Promise<Acti
   });
   throwUnlessSuccess(status, json, [200]);
   return activeTripSchema.parse(json);
+}
+
+/** `null` when nothing's in progress — never a 404, so no error handling needed here (design
+ *  decision, 2026-09-24). Lets the app resume a trip the local, ephemeral trip store lost track
+ *  of after a relaunch. */
+export async function getActiveTrip(accessToken: string): Promise<ActiveTripDto | null> {
+  const { status, json } = await requestJson('GET', '/routing/trips/active', {
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return findActiveTripResponseSchema.parse(json).trip;
 }

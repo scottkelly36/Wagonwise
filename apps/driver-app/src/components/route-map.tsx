@@ -7,15 +7,28 @@ import {
   type LngLat,
   type PressEvent,
 } from '@maplibre/maplibre-react-native';
+import type { HazardTypeDto } from '@wagonwise/contracts/hazards';
 import type { NativeSyntheticEvent } from 'react-native';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { config } from '../config';
+import { hazardSeverityFor } from '../lib/hazard-labels';
 
 export interface MapPoint {
   readonly lat: number;
   readonly lon: number;
 }
+
+export interface HazardMarker {
+  readonly id: string;
+  readonly type: HazardTypeDto;
+  readonly location: MapPoint;
+}
+
+const HAZARD_MARKER_COLOR: Record<'high' | 'caution', string> = {
+  high: '#F87171',
+  caution: '#F59E0B',
+};
 
 interface Props {
   readonly origin: MapPoint | undefined;
@@ -35,6 +48,18 @@ interface Props {
    *  marker rather than reusing the origin pin (a driver's live position drifts off the planned
    *  origin as soon as the trip starts). */
   readonly currentPosition?: MapPoint;
+  /** Reported hazards to show as warning icons (design decision, 2026-09-24: "within x amount of
+   *  distance from you or on your route", not every hazard in the country) — the caller decides
+   *  the query (near the driver, near a route corridor) via `useNearbyHazards`; this component
+   *  just draws whatever it's given. */
+  readonly hazards?: readonly HazardMarker[];
+  /** Fired when a hazard marker is tapped — the caller owns what happens next (design decision,
+   *  2026-09-24: a full-details drawer, `components/hazard-detail-drawer.tsx`, rendered as its own
+   *  `Modal` outside this component entirely). Deliberately not handled inside `RouteMap` itself:
+   *  on Android, `ViewAnnotation` draws its children onto a static bitmap, so anything richer than
+   *  an always-static marker icon inside it fights the platform rather than working with it —
+   *  tried an in-map callout first (2026-09-24) and it never rendered reliably. */
+  readonly onHazardPress?: (hazardId: string) => void;
 }
 
 function toLngLat(point: MapPoint): LngLat {
@@ -56,6 +81,8 @@ export function RouteMap({
   alternateRouteLine,
   onMapPress,
   currentPosition,
+  hazards,
+  onHazardPress,
 }: Props) {
   const center = currentPosition ?? destination ?? origin;
   // A closer, street-level zoom while following a live position — the whole planned route
@@ -77,7 +104,9 @@ export function RouteMap({
             type="line"
             id="route-line-layer"
             source="route-line-source"
-            paint={{ 'line-color': '#38BDF8', 'line-width': 4 }}
+            // Violet, not blue — blue read as a river against the base map's own water colour
+            // (design decision, 2026-09-24).
+            paint={{ 'line-color': '#A78BFA', 'line-width': 4 }}
           />
         </GeoJSONSource>
       )}
@@ -109,6 +138,24 @@ export function RouteMap({
           <View style={[styles.pin, styles.currentPositionPin]} testID="current-position-pin" />
         </ViewAnnotation>
       )}
+      {hazards?.map((hazard) => (
+        <ViewAnnotation
+          key={hazard.id}
+          id={`hazard-${hazard.id}`}
+          lngLat={toLngLat(hazard.location)}
+          onPress={() => onHazardPress?.(hazard.id)}
+        >
+          <View
+            style={[
+              styles.hazardMarker,
+              { backgroundColor: HAZARD_MARKER_COLOR[hazardSeverityFor(hazard.type)] },
+            ]}
+            testID={`hazard-pin-${hazard.id}`}
+          >
+            <Text style={styles.hazardMarkerText}>!</Text>
+          </View>
+        </ViewAnnotation>
+      ))}
     </MapLibreMap>
   );
 }
@@ -132,5 +179,19 @@ const styles = StyleSheet.create({
   },
   currentPositionPin: {
     backgroundColor: '#34D399',
+  },
+  hazardMarker: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  hazardMarkerText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0B1220',
   },
 });

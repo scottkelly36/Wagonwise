@@ -72,6 +72,39 @@ Taken before M1 so they don't have to be retrofitted. Full detail in
 Decided 2026-09-21, revisit with testers: temporary hazard expiry 7 days; single unconfirmed
 reports visible immediately, labelled "1 report, unconfirmed".
 
+## Ideas from field testing (not scheduled)
+
+Things worth building later, raised while actually using the app rather than planning it —
+not attached to a milestone yet.
+
+- **2026-09-25: text-to-speech for navigation** — spoken turn-by-turn directions and, more
+  specifically for this app, a spoken warning as an upcoming hazard on the route approaches
+  (rather than only a silent on-map icon/push notification). Complements M7's voice _input_
+  (speech-to-text for reporting) with voice _output_; no design or scoping done yet.
+- **2026-09-25: break suggestions** — UK HGV drivers have a statutory break requirement (45
+  minutes after 4.5 hours' driving, tachograph rules), so a spoken nudge ("your break's due in
+  15 minutes, there's a layby 5 minutes ahead") could genuinely help, not just be a nice-to-have.
+  The user's own read: **this is a big feature**, not a quick add — it needs real drive-time
+  tracking against the actual regulation (not just elapsed trip time), and a layby/food-stop POI
+  data source the app doesn't have at all yet (OSM has some coverage — `highway=rest_area`,
+  `amenity=parking`, `amenity=restaurant`/`cafe`/`fast_food` — but nothing's been checked for
+  completeness around the test area). Would likely reuse whatever voice-output mechanism the
+  text-to-speech idea above ends up using.
+- **2026-09-25: congestion tracking** — the user's own framing: country roads in the test area
+  rarely see real traffic, but a congested motorway can add a lot to a journey, so this matters
+  more for the A1-type corridors than the rural roads M2's routing already focuses on. Two
+  options discussed:
+  - Crowd-sourced via the existing hazard-report system (a "traffic" report type) — zero new
+    cost, reuses everything already built, but only as good as driver density, which is thin
+    with a handful of testers (same cold-start problem every crowd-sourced traffic app has).
+  - **National Highways' WebTRIS API** — confirmed genuinely free, no API key or registration
+    (`webtris.nationalhighways.co.uk/api/v1.0/...`, JSON), covers England's strategic road
+    network (motorways + major A-roads, including the A1 corridor near the test area). It's
+    point-based sensor data (speed/flow at fixed monitoring sites), not a route overlay, so
+    using it would mean translating "sensor X reads slow" into "this stretch of the driver's
+    planned route is congested" — real work, but on a real, free, already-confirmed data source
+    rather than a guess.
+
 ## M1 task breakdown
 
 | #    | Task                                 | Status            |

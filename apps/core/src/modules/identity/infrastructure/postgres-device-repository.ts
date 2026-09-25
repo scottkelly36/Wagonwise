@@ -54,4 +54,8 @@ export class PostgresDeviceRepository implements DeviceRepository {
         updated_at = excluded.updated_at
     `.execute(this.db);
   }
+
+  async deleteAllForDriver(driverId: DriverId): Promise<void> {
+    await sql`delete from identity.devices where driver_id = ${driverId}`.execute(this.db);
+  }
 }

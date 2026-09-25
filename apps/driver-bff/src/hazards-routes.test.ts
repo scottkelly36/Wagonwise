@@ -71,6 +71,51 @@ describe('POST /hazards/reports', () => {
   });
 });
 
+describe('POST /hazards/reports/nearby', () => {
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports/nearby',
+      payload: { corridor: [location], radiusM: 1000 },
+    });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards the corridor, radius and token', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 200, body: { hazards: [] } };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports/nearby',
+      payload: { corridor: [location], radiusM: 1000 },
+      headers: AUTH_HEADER,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: '/hazards/reports/nearby',
+      body: { corridor: [location], radiusM: 1000 },
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('400s locally on an empty corridor, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports/nearby',
+      payload: { corridor: [], radiusM: 1000 },
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+});
+
 describe('POST /hazards/voice-reports/parse', () => {
   it('requires a Bearer token, without calling core', async () => {
     const { app, coreClient } = buildApp();

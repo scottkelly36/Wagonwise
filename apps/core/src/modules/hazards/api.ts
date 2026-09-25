@@ -103,6 +103,7 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
     dismissHazard: { repo },
     getHazard: { repo },
     parseVoiceReport: { parser: hazardParser },
+    findNearbyHazards: { repo, clock: deps.clock },
   };
 
   return {

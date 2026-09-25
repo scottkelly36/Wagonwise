@@ -63,6 +63,8 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
     refreshToken: { sessionRepo, tokenSigner, refreshTokenGenerator, clock },
     revokeSession: { sessionRepo, clock },
     registerDevice: { repo: deviceRepo, clock, ids },
+    giveConsent: { driverRepo, clock },
+    deleteAccount: { driverRepo, sessionRepo, deviceRepo, clock },
     tokenSigner,
   };
 
@@ -361,5 +363,112 @@ describe('POST /identity/devices', () => {
     });
     expect(second.statusCode).toBe(201);
     expect(second.json()).toMatchObject({ id: firstId, driverId: 'driver-2' });
+  });
+});
+
+describe('POST /identity/consent', () => {
+  it('200s and returns the driver with consentedAt set', async () => {
+    const { app, deps } = buildApp();
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>('driver-1'),
+      identifier: 'driver@example.com',
+      createdAt: now,
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/consent',
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      id: 'driver-1',
+      consentedAt: now.toISOString(),
+    });
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({ method: 'POST', url: '/identity/consent' });
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: 'unauthenticated' });
+  });
+
+  it('404s an unknown driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/consent',
+      ...asDriver('nope'),
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'DriverNotFound' });
+  });
+});
+
+describe('DELETE /identity/account', () => {
+  it('204s and anonymizes the driver, revoking sessions and devices', async () => {
+    const { app, deps } = buildApp();
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>('driver-1'),
+      identifier: 'driver@example.com',
+      createdAt: now,
+    });
+    await deps.registerDevice.repo.save({
+      id: makeId<'DeviceId'>('device-1'),
+      driverId: makeId<'DriverId'>('driver-1'),
+      pushToken: 'ExponentPushToken[abc123]',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/identity/account',
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(204);
+
+    const driver = await deps.requestOtp.driverRepo.findById(makeId<'DriverId'>('driver-1'));
+    expect(driver?.identifier).toBe('deleted:driver-1');
+    expect(driver?.deletedAt).toEqual(now);
+    expect(await deps.registerDevice.repo.findByDriverId(makeId<'DriverId'>('driver-1'))).toEqual(
+      [],
+    );
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({ method: 'DELETE', url: '/identity/account' });
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: 'unauthenticated' });
+  });
+
+  it('404s an unknown driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/identity/account',
+      ...asDriver('nope'),
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'DriverNotFound' });
+  });
+
+  it('is idempotent: a second delete still 204s', async () => {
+    const { app, deps } = buildApp();
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>('driver-1'),
+      identifier: 'driver@example.com',
+      createdAt: now,
+    });
+
+    await app.inject({ method: 'DELETE', url: '/identity/account', ...asDriver('driver-1') });
+    const second = await app.inject({
+      method: 'DELETE',
+      url: '/identity/account',
+      ...asDriver('driver-1'),
+    });
+    expect(second.statusCode).toBe(204);
   });
 });

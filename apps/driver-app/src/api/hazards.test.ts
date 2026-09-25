@@ -3,6 +3,7 @@ import { hazardReportIdSchema } from '@wagonwise/contracts/hazards';
 import {
   confirmHazard,
   dismissHazard,
+  findNearbyHazards,
   getHazard,
   parseVoiceHazardReport,
   reportHazard,
@@ -150,5 +151,34 @@ describe('dismissHazard', () => {
     expect(result.dismissals).toBe(1);
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toMatch(new RegExp(`/hazards/reports/${report.id}/dismiss$`));
+  });
+});
+
+describe('findNearbyHazards', () => {
+  it('posts the corridor and radius, parsing the hazards array out of the response', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, { hazards: [report] }));
+    globalThis.fetch = fetchMock;
+
+    const result = await findNearbyHazards('token-1', {
+      corridor: [report.location],
+      radiusM: 5000,
+    });
+
+    expect(result).toEqual([report]);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/hazards\/reports\/nearby$/);
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer token-1');
+    expect(JSON.parse(init.body as string)).toEqual({
+      corridor: [report.location],
+      radiusM: 5000,
+    });
+  });
+
+  it('throws an ApiError on a non-200 response', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue(jsonResponse(400, { error: 'invalid_request' }));
+
+    await expect(
+      findNearbyHazards('token-1', { corridor: [report.location], radiusM: 5000 }),
+    ).rejects.toBeInstanceOf(ApiError);
   });
 });

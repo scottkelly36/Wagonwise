@@ -2,6 +2,8 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -53,45 +55,50 @@ export default function FeedbackScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Feedback</Text>
-        <Text style={styles.hint}>Tell us what’s working, what’s not, or what’s missing.</Text>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>Feedback</Text>
+          <Text style={styles.hint}>Tell us what’s working, what’s not, or what’s missing.</Text>
 
-        <TextInput
-          style={styles.input}
-          value={message}
-          onChangeText={setMessage}
-          placeholder="Write your note here"
-          placeholderTextColor="#6B7280"
-          multiline
-          autoFocus
-          testID="feedback-message-input"
-        />
+          <TextInput
+            style={styles.input}
+            value={message}
+            onChangeText={setMessage}
+            placeholder="Write your note here"
+            placeholderTextColor="#6B7280"
+            multiline
+            autoFocus
+            testID="feedback-message-input"
+          />
 
-        {submitFeedback.isError && (
-          <Text style={styles.error}>{feedbackErrorMessage(submitFeedback.error)}</Text>
-        )}
-
-        <TouchableOpacity
-          style={[
-            styles.button,
-            (message.trim() === '' || submitFeedback.isPending) && styles.buttonDisabled,
-          ]}
-          disabled={message.trim() === '' || submitFeedback.isPending}
-          onPress={handleSubmit}
-          testID="feedback-submit-button"
-        >
-          {submitFeedback.isPending ? (
-            <ActivityIndicator color="#0B1220" />
-          ) : (
-            <Text style={styles.buttonText}>Send</Text>
+          {submitFeedback.isError && (
+            <Text style={styles.error}>{feedbackErrorMessage(submitFeedback.error)}</Text>
           )}
-        </TouchableOpacity>
 
-        <Text style={styles.footnote}>
-          Sent with app version {getAppVersion()} · {getDeviceInfo()}
-        </Text>
-      </ScrollView>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              (message.trim() === '' || submitFeedback.isPending) && styles.buttonDisabled,
+            ]}
+            disabled={message.trim() === '' || submitFeedback.isPending}
+            onPress={handleSubmit}
+            testID="feedback-submit-button"
+          >
+            {submitFeedback.isPending ? (
+              <ActivityIndicator color="#0B1220" />
+            ) : (
+              <Text style={styles.buttonText}>Send</Text>
+            )}
+          </TouchableOpacity>
+
+          <Text style={styles.footnote}>
+            Sent with app version {getAppVersion()} · {getDeviceInfo()}
+          </Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -100,6 +107,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0B1220',
+  },
+  flex: {
+    flex: 1,
   },
   content: {
     padding: 24,

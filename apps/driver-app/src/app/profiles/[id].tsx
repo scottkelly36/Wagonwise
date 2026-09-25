@@ -3,6 +3,8 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -61,34 +63,39 @@ export default function EditVehicleProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>{profile.name}</Text>
-        <VehicleProfileForm
-          initialValues={vehicleProfileFormValuesFrom(profile)}
-          submitLabel="Save changes"
-          pending={updateMutation.isPending}
-          errorMessage={
-            updateMutation.isError ? routingErrorMessage(updateMutation.error) : undefined
-          }
-          onSubmit={(input) =>
-            updateMutation.mutate({ id, input }, { onSuccess: () => router.back() })
-          }
-        />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>{profile.name}</Text>
+          <VehicleProfileForm
+            initialValues={vehicleProfileFormValuesFrom(profile)}
+            submitLabel="Save changes"
+            pending={updateMutation.isPending}
+            errorMessage={
+              updateMutation.isError ? routingErrorMessage(updateMutation.error) : undefined
+            }
+            onSubmit={(input) =>
+              updateMutation.mutate({ id, input }, { onSuccess: () => router.back() })
+            }
+          />
 
-        {deleteError !== undefined && <Text style={styles.error}>{deleteError}</Text>}
-        <TouchableOpacity
-          style={[styles.deleteButton, deleteMutation.isPending && styles.buttonDisabled]}
-          disabled={deleteMutation.isPending}
-          onPress={confirmDelete}
-          testID="delete-profile-button"
-        >
-          {deleteMutation.isPending ? (
-            <ActivityIndicator color="#F87171" />
-          ) : (
-            <Text style={styles.deleteButtonText}>Delete vehicle</Text>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
+          {deleteError !== undefined && <Text style={styles.error}>{deleteError}</Text>}
+          <TouchableOpacity
+            style={[styles.deleteButton, deleteMutation.isPending && styles.buttonDisabled]}
+            disabled={deleteMutation.isPending}
+            onPress={confirmDelete}
+            testID="delete-profile-button"
+          >
+            {deleteMutation.isPending ? (
+              <ActivityIndicator color="#F87171" />
+            ) : (
+              <Text style={styles.deleteButtonText}>Delete vehicle</Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -97,6 +104,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0B1220',
+  },
+  flex: {
+    flex: 1,
   },
   content: {
     padding: 24,

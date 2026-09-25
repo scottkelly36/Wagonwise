@@ -24,6 +24,7 @@ function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
     dismissHazard: { repo },
     getHazard: { repo },
     parseVoiceReport: { parser: new StubHazardParser() },
+    findNearbyHazards: { repo, clock },
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {
@@ -128,6 +129,132 @@ describe('POST /hazards/reports', () => {
         source: 'tap',
       },
       ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('POST /hazards/reports/nearby', () => {
+  it('200s with hazards near a single point', async () => {
+    const { app } = buildApp();
+    await app.inject({
+      method: 'POST',
+      url: '/hazards/reports',
+      payload: {
+        id: '11111111-1111-4111-8111-111111111111',
+        type: 'low_bridge',
+        location,
+        source: 'tap',
+      },
+      ...asDriver('driver-1'),
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports/nearby',
+      payload: { corridor: [location], radiusM: 1000 },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ hazards: [{ type: 'low_bridge' }] });
+  });
+
+  it('omits a hazard outside the radius', async () => {
+    const { app } = buildApp();
+    await app.inject({
+      method: 'POST',
+      url: '/hazards/reports',
+      payload: {
+        id: '11111111-1111-4111-8111-111111111111',
+        type: 'low_bridge',
+        location,
+        source: 'tap',
+      },
+      ...asDriver('driver-1'),
+    });
+
+    const farAway = { lat: location.lat + 5, lon: location.lon + 5 };
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports/nearby',
+      payload: { corridor: [farAway], radiusM: 1000 },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ hazards: [] });
+  });
+
+  it('omits a dismissed hazard', async () => {
+    const { app } = buildApp();
+    const created = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports',
+      payload: {
+        id: '11111111-1111-4111-8111-111111111111',
+        type: 'low_bridge',
+        location,
+        source: 'tap',
+      },
+      ...asDriver('driver-1'),
+    });
+    const { id } = created.json<{ id: string }>();
+    for (let i = 0; i < 3; i += 1) {
+      await app.inject({ method: 'POST', url: `/hazards/reports/${id}/dismiss` });
+    }
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports/nearby',
+      payload: { corridor: [location], radiusM: 1000 },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ hazards: [] });
+  });
+
+  it('accepts several points, as a route corridor', async () => {
+    const { app } = buildApp();
+    await app.inject({
+      method: 'POST',
+      url: '/hazards/reports',
+      payload: {
+        id: '11111111-1111-4111-8111-111111111111',
+        type: 'flooding',
+        location,
+        source: 'tap',
+      },
+      ...asDriver('driver-1'),
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports/nearby',
+      payload: {
+        corridor: [
+          { lat: location.lat - 0.01, lon: location.lon - 0.01 },
+          location,
+          { lat: location.lat + 0.01, lon: location.lon + 0.01 },
+        ],
+        radiusM: 500,
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ hazards: [{ type: 'flooding' }] });
+  });
+
+  it('400s an empty corridor', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports/nearby',
+      payload: { corridor: [], radiusM: 1000 },
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('400s a non-positive radius', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports/nearby',
+      payload: { corridor: [location], radiusM: 0 },
     });
     expect(response.statusCode).toBe(400);
   });

@@ -40,6 +40,8 @@ describe('runMigrations', () => {
       '0007_feedback.sql',
       '0008_identity_devices.sql',
       '0009_route_plans_geography.sql',
+      '0010_routing_restriction_overrides.sql',
+      '0011_identity_driver_lifecycle.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -80,6 +82,7 @@ describe('runMigrations', () => {
     expect(routingTables.map((row) => row.table_name)).toEqual([
       'active_trips',
       'reroute_alerts',
+      'restriction_overrides',
       'route_plans',
       'vehicle_profiles',
     ]);
@@ -126,6 +129,8 @@ describe('runMigrations', () => {
       '0007_feedback.sql',
       '0008_identity_devices.sql',
       '0009_route_plans_geography.sql',
+      '0010_routing_restriction_overrides.sql',
+      '0011_identity_driver_lifecycle.sql',
     ]);
   });
 });

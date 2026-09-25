@@ -40,4 +40,14 @@ describe('loadConfig', () => {
     );
     process.env.EXPO_PUBLIC_MAPTILER_API_KEY = originalKey;
   });
+
+  it('exposes the raw EXPO_PUBLIC_MAPTILER_API_KEY too, for address search (lib/geocoding.ts)', () => {
+    const originalKey = process.env.EXPO_PUBLIC_MAPTILER_API_KEY;
+    delete process.env.EXPO_PUBLIC_MAPTILER_API_KEY;
+    expect(loadWithPlatform('ios').maptilerApiKey).toBeUndefined();
+
+    process.env.EXPO_PUBLIC_MAPTILER_API_KEY = 'test-key';
+    expect(loadWithPlatform('ios').maptilerApiKey).toBe('test-key');
+    process.env.EXPO_PUBLIC_MAPTILER_API_KEY = originalKey;
+  });
 });

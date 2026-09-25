@@ -8,11 +8,11 @@ interface CurrentActiveTripStore {
 }
 
 /**
- * Ephemeral, in-memory only — same shape as `current-route-plan-store.ts` (M5.5) and the same
- * reason: core has no `GET /routing/trips/:id` to re-fetch from (M5.6 deliberately doesn't add
- * one, docs/progress.md — the alternative, a driver relaunching mid-trip, is a known and
- * explicitly accepted gap). Holds exactly one trip, matching the "one active trip per driver"
- * rule `startTrip` already enforces server-side (decision, M5.6).
+ * Ephemeral, in-memory only — same shape as `current-route-plan-store.ts` (M5.5). A relaunch no
+ * longer loses track of an in-progress trip, though: `index.tsx`'s gate calls
+ * `GET /routing/trips/active` (design decision, 2026-09-24) and repopulates this store before
+ * routing anywhere, rather than this store itself persisting. Holds exactly one trip, matching
+ * the "one active trip per driver" rule `startTrip` already enforces server-side (decision, M5.6).
  */
 export const useCurrentActiveTripStore = create<CurrentActiveTripStore>((set) => ({
   trip: undefined,

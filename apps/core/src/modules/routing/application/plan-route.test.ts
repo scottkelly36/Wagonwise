@@ -7,6 +7,7 @@ import type { ReportedObstruction } from '../domain/reported-obstruction.js';
 import { InMemoryRoutePlanRepository } from './testing/in-memory-route-plan-repository.js';
 import { InMemoryVehicleProfileRepository } from './testing/in-memory-vehicle-profile-repository.js';
 import { FakeHazardAvoidanceQuery } from './testing/fake-hazard-avoidance-query.js';
+import { FakeRestrictionOverrideRepository } from './testing/fake-restriction-override-repository.js';
 import { FakeRoutingEngine } from './testing/fake-routing-engine.js';
 import { planRoute, type PlanRouteDeps } from './plan-route.js';
 
@@ -28,6 +29,7 @@ async function buildDeps(): Promise<
     routePlanRepo: new InMemoryRoutePlanRepository(),
     routingEngine: new FakeRoutingEngine(),
     hazardAvoidanceQuery: new FakeHazardAvoidanceQuery(),
+    restrictionOverrideRepo: new FakeRestrictionOverrideRepository(),
     clock: new FakeClock(now),
     ids: new SequentialIdGenerator(),
   };
@@ -160,6 +162,57 @@ describe('planRoute', () => {
     expect(engine.requests[0]?.avoid).toEqual([]);
     expect(engine.requests[1]?.avoid).toEqual([obstruction.zone]);
     expect(query.corridors).toEqual(['first-pass']); // asked about the *first*-pass geometry
+  });
+
+  it('re-plans around and explains an applying restriction override', async () => {
+    const deps = await buildDeps();
+    const overrideRepo = deps.restrictionOverrideRepo as FakeRestrictionOverrideRepository;
+    overrideRepo.overrides = [
+      {
+        id: makeId<'RestrictionOverrideId'>('override-1'),
+        kind: 'height',
+        limit: 3.8, // the profile's heightM is 4.2 — over the limit, so applies() is true
+        location: { lat: 54.972, lon: -2.101 },
+        note: 'Styford Bridge',
+        createdAt: now,
+      },
+    ];
+
+    const engine = deps.routingEngine as FakeRoutingEngine;
+    engine.results = [
+      { ok: true, value: { geometry: 'first-pass', distanceKm: 8, durationMin: 12 } },
+      { ok: true, value: { geometry: 'rerouted', distanceKm: 9.5, durationMin: 14 } },
+    ];
+
+    const result = await planRoute(deps, { driverId, profileId, origin, destination });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.avoidedRestrictions).toEqual([
+      { description: 'Avoided Styford Bridge — 3.8m limit' },
+    ]);
+    expect(engine.requests).toHaveLength(2);
+  });
+
+  it('does not re-plan or explain a restriction override that doesn’t apply to the vehicle', async () => {
+    const deps = await buildDeps();
+    const overrideRepo = deps.restrictionOverrideRepo as FakeRestrictionOverrideRepository;
+    overrideRepo.overrides = [
+      {
+        id: makeId<'RestrictionOverrideId'>('override-1'),
+        kind: 'width',
+        limit: 3.5, // the profile's widthM is 2.6 — under the limit, so applies() is false
+        location: { lat: 54.972, lon: -2.101 },
+        createdAt: now,
+      },
+    ];
+
+    const result = await planRoute(deps, { driverId, profileId, origin, destination });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.avoidedRestrictions).toEqual([]);
+
+    const engine = deps.routingEngine as FakeRoutingEngine;
+    expect(engine.requests).toHaveLength(1);
   });
 
   it('propagates NoRouteFound from the second pass when avoidance makes the trip impossible', async () => {

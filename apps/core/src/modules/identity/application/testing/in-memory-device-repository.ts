@@ -23,4 +23,13 @@ export class InMemoryDeviceRepository implements DeviceRepository {
     this.#byId.set(device.id, device);
     return Promise.resolve();
   }
+
+  deleteAllForDriver(driverId: DriverId): Promise<void> {
+    for (const [id, device] of this.#byId) {
+      if (device.driverId === driverId) {
+        this.#byId.delete(id);
+      }
+    }
+    return Promise.resolve();
+  }
 }

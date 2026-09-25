@@ -14,6 +14,7 @@ import { HazardAvoidanceQueryAdapter } from './infrastructure/hazard-avoidance-q
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresActiveTripRepository } from './infrastructure/postgres-active-trip-repository.js';
 import { PostgresRerouteAlertRepository } from './infrastructure/postgres-reroute-alert-repository.js';
+import { PostgresRestrictionOverrideRepository } from './infrastructure/postgres-restriction-override-repository.js';
 import { PostgresRoutePlanRepository } from './infrastructure/postgres-route-plan-repository.js';
 import { PostgresVehicleProfileRepository } from './infrastructure/postgres-vehicle-profile-repository.js';
 import { ValhallaRoutingEngine } from './infrastructure/valhalla-routing-engine.js';
@@ -69,6 +70,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
   const routePlanRepo = new PostgresRoutePlanRepository(deps.db);
   const activeTripRepo = new PostgresActiveTripRepository(deps.db);
   const rerouteAlertRepo = new PostgresRerouteAlertRepository(deps.db);
+  const restrictionOverrideRepo = new PostgresRestrictionOverrideRepository(deps.db);
   const routingEngine = new ValhallaRoutingEngine(deps.valhallaUrl);
   const hazardAvoidanceQuery = new HazardAvoidanceQueryAdapter(deps.hazards);
   const pushNotifier = deps.pushNotifier ?? new ExpoPushNotifier(deps.expoAccessToken);
@@ -101,12 +103,14 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
       routePlanRepo,
       routingEngine,
       hazardAvoidanceQuery,
+      restrictionOverrideRepo,
       clock: deps.clock,
       ids: deps.ids,
     },
     getRoutePlan: { routePlanRepo },
     startTrip: { routePlanRepo, activeTripRepo, clock: deps.clock, ids: deps.ids },
     endTrip: { repo: activeTripRepo, clock: deps.clock },
+    getActiveTrip: { activeTripRepo },
   };
 
   return {

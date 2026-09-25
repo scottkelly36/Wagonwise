@@ -1,0 +1,34 @@
+# DigitalOcean App Platform spec for `core` + `driver-bff`, created via:
+#   doctl apps create --spec infra/digitalocean/app-spec.yaml
+#
+# No secrets in this file on purpose — env vars (DATABASE_URL, IDENTITY_PRIVATE_KEY,
+# INTERNAL_KEYS/CORE_INTERNAL_KEY, VALHALLA_URL, ANTHROPIC_API_KEY, CLICKSEND_USERNAME,
+# CLICKSEND_API_KEY) get added after creation, via the DO console's per-component
+# "Environment variables" panel or `doctl apps update`, never written here or committed.
+# See docs/deployment-guide.md for the full checklist.
+name: wagonwise-backend
+region: lon1
+services:
+  - name: core
+    github:
+      repo: scottkelly36/Wagonwise
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: apps/core/Dockerfile
+    source_dir: /
+    internal_ports:
+      - 3001
+    instance_size_slug: basic-xxs
+    instance_count: 1
+  - name: driver-bff
+    github:
+      repo: scottkelly36/Wagonwise
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: apps/driver-bff/Dockerfile
+    source_dir: /
+    http_port: 3002
+    routes:
+      - path: /
+    instance_size_slug: basic-xxs
+    instance_count: 1

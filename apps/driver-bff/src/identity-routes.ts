@@ -107,4 +107,24 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     });
     return reply.status(core.status).send(core.body);
   });
+
+  app.post('/identity/consent', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const core = await deps.coreClient.request('POST', '/identity/consent', request.id, {
+      authorization: `Bearer ${token}`,
+    });
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.delete('/identity/account', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const core = await deps.coreClient.request('DELETE', '/identity/account', request.id, {
+      authorization: `Bearer ${token}`,
+    });
+    return reply.status(core.status).send(core.body);
+  });
 }

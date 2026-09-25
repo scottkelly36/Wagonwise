@@ -17,6 +17,7 @@ import {
   type DeleteVehicleProfileDeps,
 } from '../application/delete-vehicle-profile.js';
 import { endTrip, type EndTripDeps } from '../application/end-trip.js';
+import { getActiveTrip, type GetActiveTripDeps } from '../application/get-active-trip.js';
 import { getRoutePlan, type GetRoutePlanDeps } from '../application/get-route-plan.js';
 import {
   getVehicleProfile,
@@ -44,6 +45,7 @@ export interface RoutingRouteDeps {
   readonly getRoutePlan: GetRoutePlanDeps;
   readonly startTrip: StartTripDeps;
   readonly endTrip: EndTripDeps;
+  readonly getActiveTrip: GetActiveTripDeps;
 }
 
 /**
@@ -219,5 +221,16 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(200).send(result.value);
+  });
+
+  // Always 200, `trip: null` when there isn't one — lets the driver app resume a trip its
+  // ephemeral local store lost track of after a relaunch (M5.6's known deviation), and lets
+  // plan-route offer to end an orphaned trip when `startTrip` rejects with `TripAlreadyActive`.
+  app.get('/routing/trips/active', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const trip = await getActiveTrip(deps.getActiveTrip, { driverId });
+    return reply.status(200).send({ trip });
   });
 }

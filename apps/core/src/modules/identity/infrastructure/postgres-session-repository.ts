@@ -1,6 +1,7 @@
 import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
 import type { SessionRepository } from '../application/ports/session-repository.js';
+import type { DriverId } from '../domain/driver.js';
 import type { Session, SessionId } from '../domain/session.js';
 import type { UntypedDb } from './db.js';
 
@@ -66,6 +67,13 @@ export class PostgresSessionRepository implements SessionRepository {
         last_used_at = excluded.last_used_at,
         refresh_expires_at = excluded.refresh_expires_at,
         revoked_at = excluded.revoked_at
+    `.execute(this.db);
+  }
+
+  async revokeAllForDriver(driverId: DriverId, now: Date): Promise<void> {
+    await sql`
+      update identity.sessions set revoked_at = ${now}
+      where driver_id = ${driverId} and revoked_at is null
     `.execute(this.db);
   }
 }

@@ -7,6 +7,8 @@ import {
 } from '@wagonwise/contracts/identity';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
+import { deleteAccount, type DeleteAccountDeps } from '../application/delete-account.js';
+import { giveConsent, type GiveConsentDeps } from '../application/give-consent.js';
 import { refreshToken, type RefreshTokenDeps } from '../application/refresh-token.js';
 import { registerDevice, type RegisterDeviceDeps } from '../application/register-device.js';
 import { requestOtp, type RequestOtpDeps } from '../application/request-otp.js';
@@ -21,7 +23,23 @@ export interface IdentityRouteDeps {
   readonly refreshToken: RefreshTokenDeps;
   readonly revokeSession: RevokeSessionDeps;
   readonly registerDevice: RegisterDeviceDeps;
+  readonly giveConsent: GiveConsentDeps;
+  readonly deleteAccount: DeleteAccountDeps;
   readonly tokenSigner: TokenSigner;
+}
+
+function driverDto(driver: {
+  readonly id: string;
+  readonly identifier: string;
+  readonly createdAt: Date;
+  readonly consentedAt?: Date | undefined;
+}) {
+  return {
+    id: driver.id,
+    identifier: driver.identifier,
+    createdAt: driver.createdAt,
+    ...(driver.consentedAt === undefined ? {} : { consentedAt: driver.consentedAt }),
+  };
 }
 
 /**
@@ -71,11 +89,7 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     return reply.status(200).send({
       accessToken: result.value.accessToken,
       refreshToken: result.value.refreshToken,
-      driver: {
-        id: result.value.driver.id,
-        identifier: result.value.driver.identifier,
-        createdAt: result.value.driver.createdAt,
-      },
+      driver: driverDto(result.value.driver),
     });
   });
 
@@ -121,6 +135,34 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(201).send(result.value);
+  });
+
+  // M8, design doc §9: "privacy notice and consent screen at first launch." One tap, idempotent
+  // (giveConsent itself doesn't error on a repeat call) — returns the updated Driver so the app
+  // can stop showing the gate without a separate refetch.
+  app.post('/identity/consent', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const result = await giveConsent(deps.giveConsent, { driverId });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send(driverDto(result.value));
+  });
+
+  // M8, design doc §9: "a way for a tester to delete their account and data." 204 even on the
+  // idempotent "already deleted" path — the caller asked for the account to be gone, and it is,
+  // whether this call or an earlier one is what actually did it.
+  app.delete('/identity/account', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const result = await deleteAccount(deps.deleteAccount, { driverId });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(204).send();
   });
 
   // A BFF caches this and verifies tokens locally (decision 1) — core is the only thing that can

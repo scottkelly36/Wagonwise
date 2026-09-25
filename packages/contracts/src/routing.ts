@@ -119,3 +119,12 @@ export const activeTripSchema = z.object({
   endedAt: z.iso.datetime().optional(),
 });
 export type ActiveTripDto = z.infer<typeof activeTripSchema>;
+
+/** `GET /routing/trips/active` — `trip: null` is the ordinary "nothing in progress" case, not an
+ *  error, so this is always a 200 rather than a 404 (design decision, 2026-09-24: the driver app
+ *  polls this on launch to resume an in-progress trip the local, ephemeral trip store lost track
+ *  of after a relaunch — see M5.6's deviations log). */
+export const findActiveTripResponseSchema = z.object({
+  trip: activeTripSchema.nullable(),
+});
+export type FindActiveTripResponse = z.infer<typeof findActiveTripResponseSchema>;

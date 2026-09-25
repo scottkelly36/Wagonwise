@@ -11,31 +11,17 @@ import {
 import { useConfirmHazard, useDismissHazard, useHazard } from '../../api/use-hazards';
 import { formatDateTime } from '../../lib/format-date';
 import { hazardsErrorMessage } from '../../lib/error-messages';
-import { HAZARD_TYPE_LABELS } from '../../lib/hazard-labels';
-import { formatHeightWithFeetInches } from '../../lib/units';
-
-const STATUS_LABELS: Record<string, string> = {
-  active: 'Active',
-  expired: 'Expired',
-  dismissed: 'Marked not there',
-};
-
-function formatMeasurement(measurement: {
-  kind: 'height' | 'width' | 'weight';
-  value: number;
-  unit: string;
-}): string {
-  if (measurement.kind === 'height') {
-    return formatHeightWithFeetInches(measurement.value);
-  }
-  return `${measurement.value}${measurement.unit}`;
-}
+import {
+  formatMeasurement,
+  HAZARD_STATUS_LABELS,
+  HAZARD_TYPE_LABELS,
+} from '../../lib/hazard-labels';
 
 /**
- * Hazard detail (design doc §8): "What, when, confirmations; Confirm / Not there". Reachable in
- * this app only by just having reported a hazard (report-hazard.tsx navigates here on success) —
- * there's no hazards-on-map display yet to tap an existing pin from, a disclosed scope-down
- * recorded in docs/progress.md rather than faked with a browse screen that doesn't exist.
+ * Hazard detail (design doc §8): "What, when, confirmations; Confirm / Not there". Reached after
+ * filing a report (report-hazard.tsx navigates here on success). Tapping an existing pin on the
+ * map instead opens the same content as a drawer (`components/hazard-detail-drawer.tsx`), not
+ * this screen — a full navigation away from the map didn't fit "map is the app."
  */
 export default function HazardDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -70,7 +56,7 @@ export default function HazardDetailScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>{HAZARD_TYPE_LABELS[hazard.type]}</Text>
-        <Text style={styles.status}>{STATUS_LABELS[hazard.status] ?? hazard.status}</Text>
+        <Text style={styles.status}>{HAZARD_STATUS_LABELS[hazard.status] ?? hazard.status}</Text>
 
         {hazard.measurement !== undefined && (
           <Text style={styles.detail}>{formatMeasurement(hazard.measurement)}</Text>
