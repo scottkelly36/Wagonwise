@@ -13,6 +13,17 @@ const config: ExpoConfig = {
   scheme: 'wagonwise',
   userInterfaceStyle: 'automatic',
   owner: 'scottkelly36',
+  // EAS Update (OTA): JS-only changes push straight to installed builds without a new
+  // native build/reinstall — added 2026-09-25 so the post-weekend bug-fix pass doesn't have
+  // to go through EAS Build's slow free-tier queue for every fix. "appVersion" ties runtime
+  // compatibility to `version` above, not to every individual native change, matching the
+  // free-tier MAU limits (1,000/month) comfortably covering Phase 1's test group.
+  updates: {
+    url: 'https://u.expo.dev/5b6314ae-4cb1-4b28-aa7c-fad17e503c14',
+  },
+  runtimeVersion: {
+    policy: 'appVersion',
+  },
   extra: {
     eas: {
       // M5.10: the EAS project this app builds under (`eas init --account scottkelly36`).
