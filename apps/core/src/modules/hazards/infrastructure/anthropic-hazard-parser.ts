@@ -15,7 +15,7 @@ Always call ${TOOL_NAME} exactly once with your best interpretation — never as
 "type" must be the single closest match from the fixed list, even if imperfect; use "other" only when nothing fits.
 "measurement" is only for a stated height, width or weight limit (e.g. "three and a half metres", "seven and a half tonnes") — omit it if the driver didn't give a number.
 "positionHint" is a short phrase for where the hazard is, in the driver's own words (e.g. "just past the roundabout"), if they said one — omit it otherwise.
-"note" is a short, plain-English summary of what the driver reported, suitable for another driver to read at a glance.`;
+"note" is a short, plain-English rewrite of what the driver reported, suitable for another driver to read at a glance — not a verbatim transcript. Drop filler words, false starts and repetition; keep only the facts a driver needs (what, roughly where). Never include swearing, insults or other offensive language, however the driver phrased it — rephrase around it neutrally rather than quoting or censoring it (e.g. "traffic's a nightmare here" rather than repeating an expletive).`;
 
 // Mirrors ParsedVoiceReport structurally (hazards/domain/hazard-report.ts has no npm deps, so it
 // can't export a zod schema itself — same reasoning as decision 46/52's "structurally identical,
