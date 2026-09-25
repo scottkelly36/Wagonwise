@@ -5,8 +5,10 @@ import type { UnitOfWork } from '../../shared/ports/unit-of-work.js';
 import type { OtpSender } from './application/ports/otp-sender.js';
 import type { TokenSigner } from './application/ports/token-signer.js';
 import type { DriverId } from './domain/driver.js';
+import { ChannelRoutingOtpSender } from './infrastructure/channel-routing-otp-sender.js';
 import { ClickSendOtpSender } from './infrastructure/clicksend-otp-sender.js';
 import { ConsoleOtpSender } from './infrastructure/console-otp-sender.js';
+import { ResendOtpSender } from './infrastructure/resend-otp-sender.js';
 import { CryptoOtpCodeGenerator } from './infrastructure/crypto-otp-code-generator.js';
 import { CryptoRefreshTokenGenerator } from './infrastructure/crypto-refresh-token-generator.js';
 import type { UntypedDb } from './infrastructure/db.js';
@@ -47,14 +49,20 @@ export interface IdentityModuleDeps {
   readonly ids: IdGenerator;
   readonly unitOfWork: UnitOfWork;
   readonly tokenSigner: TokenSigner;
-  /** Both set wires `ClickSendOtpSender`; either unset falls back to the local-dev
-   *  `ConsoleOtpSender` — same "real adapter behind a config toggle" precedent as hazards'
-   *  `anthropicApiKey` (hazards/api.ts). ClickSend is SMS-only, so this only delivers OTPs to a
-   *  phone-number identifier; see clicksend-otp-sender.ts for the email-identifier gap. */
+  /** Both set wires `ClickSendOtpSender` for phone-identifier OTPs; either unset falls back to
+   *  the local-dev `ConsoleOtpSender` for that channel — same "real adapter behind a config
+   *  toggle" precedent as hazards' `anthropicApiKey` (hazards/api.ts). */
   readonly clickSendUsername?: string | undefined;
   readonly clickSendApiKey?: string | undefined;
-  /** Defaults per `clickSendUsername`/`clickSendApiKey` above — override (e.g. with a fake) for
-   *  tests or a local run that shouldn't reach ClickSend's real endpoint. */
+  /** Set wires `ResendOtpSender` for email-identifier OTPs; unset falls back to
+   *  `ConsoleOtpSender` for that channel. `resendFromEmail` defaults to Resend's own sandbox
+   *  sender (resend-otp-sender.ts) if unset. The two channels are independent — SMS can be real
+   *  while email still falls back to console, or vice versa. */
+  readonly resendApiKey?: string | undefined;
+  readonly resendFromEmail?: string | undefined;
+  /** Defaults to a `ChannelRoutingOtpSender` built from the four fields above — override (e.g.
+   *  with a fake) for tests or a local run that shouldn't reach ClickSend's/Resend's real
+   *  endpoints. */
   readonly otpSender?: OtpSender | undefined;
 }
 
@@ -80,11 +88,15 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
   const sessionRepo = new PostgresSessionRepository(deps.db);
   const otpRepo = new PostgresOtpRepository(deps.db);
   const deviceRepo = new PostgresDeviceRepository(deps.db);
-  const otpSender =
-    deps.otpSender ??
-    (deps.clickSendUsername !== undefined && deps.clickSendApiKey !== undefined
+  const smsSender =
+    deps.clickSendUsername !== undefined && deps.clickSendApiKey !== undefined
       ? new ClickSendOtpSender(deps.clickSendUsername, deps.clickSendApiKey)
-      : new ConsoleOtpSender());
+      : new ConsoleOtpSender();
+  const emailSender =
+    deps.resendApiKey !== undefined
+      ? new ResendOtpSender(deps.resendApiKey, deps.resendFromEmail)
+      : new ConsoleOtpSender();
+  const otpSender = deps.otpSender ?? new ChannelRoutingOtpSender(smsSender, emailSender);
   const otpCodeGenerator = new CryptoOtpCodeGenerator();
   const refreshTokenGenerator = new CryptoRefreshTokenGenerator();
 

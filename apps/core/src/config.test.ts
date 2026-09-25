@@ -26,6 +26,8 @@ describe('loadConfig', () => {
       anthropicApiKey: undefined,
       clickSendUsername: undefined,
       clickSendApiKey: undefined,
+      resendApiKey: undefined,
+      resendFromEmail: undefined,
       outboxPollIntervalMs: 2000,
     });
   });
@@ -44,6 +46,8 @@ describe('loadConfig', () => {
       ANTHROPIC_API_KEY: 'anthropic-secret-key',
       CLICKSEND_USERNAME: 'driver@example.com',
       CLICKSEND_API_KEY: 'clicksend-secret-key',
+      RESEND_API_KEY: 'resend-secret-key',
+      RESEND_FROM_EMAIL: 'WagonWise <noreply@wagon-wise.co.uk>',
       OUTBOX_POLL_INTERVAL_MS: '500',
     });
     expect(config).toEqual({
@@ -59,6 +63,8 @@ describe('loadConfig', () => {
       anthropicApiKey: 'anthropic-secret-key',
       clickSendUsername: 'driver@example.com',
       clickSendApiKey: 'clicksend-secret-key',
+      resendApiKey: 'resend-secret-key',
+      resendFromEmail: 'WagonWise <noreply@wagon-wise.co.uk>',
       outboxPollIntervalMs: 500,
     });
   });
@@ -185,6 +191,26 @@ describe('loadConfig', () => {
   it('rejects an empty-string CLICKSEND_USERNAME or CLICKSEND_API_KEY', () => {
     expect(() => loadConfig({ CLICKSEND_USERNAME: '' })).toThrow(ConfigError);
     expect(() => loadConfig({ CLICKSEND_API_KEY: '' })).toThrow(ConfigError);
+  });
+
+  it('defaults RESEND_API_KEY and RESEND_FROM_EMAIL to undefined — email OTPs fall back to ConsoleOtpSender', () => {
+    const config = loadConfig({});
+    expect(config.resendApiKey).toBeUndefined();
+    expect(config.resendFromEmail).toBeUndefined();
+  });
+
+  it('accepts RESEND_API_KEY and RESEND_FROM_EMAIL overrides', () => {
+    const config = loadConfig({
+      RESEND_API_KEY: 'resend-secret-key',
+      RESEND_FROM_EMAIL: 'WagonWise <noreply@wagon-wise.co.uk>',
+    });
+    expect(config.resendApiKey).toBe('resend-secret-key');
+    expect(config.resendFromEmail).toBe('WagonWise <noreply@wagon-wise.co.uk>');
+  });
+
+  it('rejects an empty-string RESEND_API_KEY or RESEND_FROM_EMAIL', () => {
+    expect(() => loadConfig({ RESEND_API_KEY: '' })).toThrow(ConfigError);
+    expect(() => loadConfig({ RESEND_FROM_EMAIL: '' })).toThrow(ConfigError);
   });
 
   it('defaults OUTBOX_POLL_INTERVAL_MS to 2000', () => {
