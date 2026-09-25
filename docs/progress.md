@@ -104,6 +104,10 @@ not attached to a milestone yet.
     using it would mean translating "sensor X reads slow" into "this stretch of the driver's
     planned route is congested" — real work, but on a real, free, already-confirmed data source
     rather than a guess.
+- **2026-09-25: light and dark mode** — the driver app is currently dark-only (every screen's
+  colours are hardcoded, e.g. `home.tsx`/`consent.tsx`'s `#0B1220` background). A real toggle
+  (or following the OS's `useColorScheme()`) would mean pulling every hardcoded hex value out
+  into a theme, screen by screen — no design or scoping done yet.
 
 ## M1 task breakdown
 
