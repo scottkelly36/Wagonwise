@@ -39,6 +39,12 @@ export interface CoreOverrides {
   readonly unitOfWork?: UnitOfWork;
   readonly db?: UntypedDb;
   readonly tokenSigner?: TokenSigner;
+  /** Defaults to a `ChannelRoutingOtpSender` splitting phone identifiers to
+   *  `ClickSendOtpSender`/`ConsoleOtpSender` and email identifiers to
+   *  `ResendOtpSender`/`ConsoleOtpSender` (per `config.clickSendUsername`/`clickSendApiKey`/
+   *  `resendApiKey`) inside `createIdentityModule` itself — same reasoning as `pushNotifier`
+   *  below: a test substitutes a fake here rather than letting a real SMS/email reach
+   *  ClickSend's/Resend's actual endpoint. */
   readonly otpSender?: OtpSender | undefined;
   readonly accessTokenVerifier?: AccessTokenVerifier;
   /** Defaults to `routing.eventHandlers` (M6.4's reroute-detection handlers) — tests substitute
@@ -95,6 +101,10 @@ export function composeCore(
     ids,
     unitOfWork,
     tokenSigner: overrides.tokenSigner ?? tokenSigner,
+    clickSendUsername: config.clickSendUsername,
+    clickSendApiKey: config.clickSendApiKey,
+    resendApiKey: config.resendApiKey,
+    resendFromEmail: config.resendFromEmail,
     otpSender: overrides.otpSender,
   });
   // Same underlying pool, same untyped-Kysely shape as identity's — structurally the same type

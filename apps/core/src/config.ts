@@ -72,6 +72,20 @@ const envSchema = z.object({
   // with itself as the note) rather than the process failing to boot, keeping the cold-start
   // promise for a dev machine with no key yet.
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  // Optional pair: unset means OTP codes fall back to ConsoleOtpSender (logs the code, never
+  // sends it) — fine for local dev, useless for a driver who isn't watching this process's
+  // stdout. Both set wires ClickSendOtpSender instead. ClickSend's own auth uses the account
+  // email as the "username" half of HTTP Basic auth, not a separate username field.
+  CLICKSEND_USERNAME: z.string().min(1).optional(),
+  CLICKSEND_API_KEY: z.string().min(1).optional(),
+  // Optional: unset means the email half of OTP delivery also falls back to ConsoleOtpSender.
+  // Set means ResendOtpSender handles email identifiers (ClickSend still handles phone ones —
+  // ChannelRoutingOtpSender in identity/api.ts picks between them per identifier).
+  RESEND_API_KEY: z.string().min(1).optional(),
+  // Optional: Resend's own sandbox sender (works with zero setup, but only delivers to the
+  // account owner's own address) is the default in resend-otp-sender.ts — only needed here to
+  // override once a real sending domain is verified with Resend.
+  RESEND_FROM_EMAIL: z.string().min(1).optional(),
   // How often the in-process outbox poller checks for pending events (decision 5, M1). 2s is
   // fast enough that a Phase 1 tester never notices the delay, without hammering the database
   // between polls.
@@ -89,6 +103,10 @@ export interface Config {
   readonly valhallaUrl: string;
   readonly expoAccessToken: string | undefined;
   readonly anthropicApiKey: string | undefined;
+  readonly clickSendUsername: string | undefined;
+  readonly clickSendApiKey: string | undefined;
+  readonly resendApiKey: string | undefined;
+  readonly resendFromEmail: string | undefined;
   readonly outboxPollIntervalMs: number;
 }
 
@@ -124,6 +142,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     valhallaUrl: values.VALHALLA_URL,
     expoAccessToken: values.EXPO_ACCESS_TOKEN,
     anthropicApiKey: values.ANTHROPIC_API_KEY,
+    clickSendUsername: values.CLICKSEND_USERNAME,
+    clickSendApiKey: values.CLICKSEND_API_KEY,
+    resendApiKey: values.RESEND_API_KEY,
+    resendFromEmail: values.RESEND_FROM_EMAIL,
     outboxPollIntervalMs: values.OUTBOX_POLL_INTERVAL_MS,
   };
 }

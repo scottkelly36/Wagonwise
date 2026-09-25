@@ -21,7 +21,8 @@
 - Hands-free voice reporting is essential (primary way to report while driving), with
   confirm-before-filing. Tap-to-drop stays for parked use.
 - Phase 0 (sample-network prototype) is done; skipping straight to real maps.
-- Working name WagonWise (not final — trademark/domain checks pending).
+- Name WagonWise — finalised 2026-09-25: UK IPO trademark search came back clear, and
+  `wagon-wise.com`/`.co.uk`/`.app` are bought (registrar: Spaceship).
 
 ## Decisions from architecture review (2026-09-21)
 
@@ -421,6 +422,15 @@ dev` plus a plain curl still needs zero config.
 ## Deviations and open items from M1.6
 
 - **No real SMS/email `OtpSender`, still** (M1.5's deviation, unchanged) — needed before M4.
+  **Resolved 2026-09-25:** `ClickSendOtpSender` sends real SMS via ClickSend, `ResendOtpSender`
+  sends real email via Resend (both `identity/infrastructure/`), and `ChannelRoutingOtpSender`
+  picks between them per identifier (phone vs email — `identity/domain/identifier.ts`). Each
+  channel is independently configured (`CLICKSEND_USERNAME`/`CLICKSEND_API_KEY`,
+  `RESEND_API_KEY`/`RESEND_FROM_EMAIL`) and falls back to `ConsoleOtpSender` on its own if
+  unset — same toggle pattern as `ANTHROPIC_API_KEY`/`NullHazardParser`. First deploy of the
+  SMS half went out without actually being committed (caught when a real sign-in attempt with
+  an email identifier produced no error and no SMS — should have been impossible); both are
+  now genuinely shipped and verified against their real APIs, not just tested locally.
 - **No invite-code admin endpoint, still** (M1.5's deviation, unchanged) — seed via SQL.
 - **jose's `createRemoteJWKSet` internals (caching, cooldown, refetch-on-miss) are trusted, not
   independently tested.** `access-token-verifier.test.ts` tests _this codebase's_ wrapper against
