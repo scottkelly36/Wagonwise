@@ -11,6 +11,7 @@ import {
 } from './application/reroute-event-handlers.js';
 import { ExpoPushNotifier } from './infrastructure/expo-push-notifier.js';
 import { HazardAvoidanceQueryAdapter } from './infrastructure/hazard-avoidance-query.js';
+import { HazardsOnRouteQueryAdapter } from './infrastructure/hazards-on-route-query.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresActiveTripRepository } from './infrastructure/postgres-active-trip-repository.js';
 import { PostgresRerouteAlertRepository } from './infrastructure/postgres-reroute-alert-repository.js';
@@ -34,10 +35,11 @@ export interface RoutingModuleDeps {
   readonly ids: IdGenerator;
   readonly clock: Clock;
   readonly valhallaUrl: string;
-  /** `hazards`' facade — this module's own `HazardAvoidanceQueryAdapter` (M3.5) wraps it, the
-   *  same "the module wires its own adapters" pattern as `ValhallaRoutingEngine` below. Also read
-   *  directly by the reroute-detection handlers (M6.4) to re-check a hazard is still active. */
-  readonly hazards: Pick<HazardsModule, 'findAvoidanceCandidates'>;
+  /** `hazards`' facade — this module's own `HazardAvoidanceQueryAdapter` (M3.5) and
+   *  `HazardsOnRouteQueryAdapter` both wrap it, the same "the module wires its own adapters"
+   *  pattern as `ValhallaRoutingEngine` below. Also read directly by the reroute-detection
+   *  handlers (M6.4) to re-check a hazard is still active. */
+  readonly hazards: Pick<HazardsModule, 'findAvoidanceCandidates' | 'findHazardIdsNear'>;
   /** `identity`'s facade — the reroute-detection handlers' only source of a driver's push
    *  tokens (design doc §6: "device tokens come from a read-model port onto Identity"). */
   readonly identity: Pick<IdentityModule, 'getPushTokensForDriver'>;
@@ -73,6 +75,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
   const restrictionOverrideRepo = new PostgresRestrictionOverrideRepository(deps.db);
   const routingEngine = new ValhallaRoutingEngine(deps.valhallaUrl);
   const hazardAvoidanceQuery = new HazardAvoidanceQueryAdapter(deps.hazards);
+  const hazardsOnRouteQuery = new HazardsOnRouteQueryAdapter(deps.hazards);
   const pushNotifier = deps.pushNotifier ?? new ExpoPushNotifier(deps.expoAccessToken);
 
   const detectRerouteDeps = {
@@ -103,6 +106,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
       routePlanRepo,
       routingEngine,
       hazardAvoidanceQuery,
+      hazardsOnRouteQuery,
       restrictionOverrideRepo,
       clock: deps.clock,
       ids: deps.ids,

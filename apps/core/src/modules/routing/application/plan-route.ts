@@ -9,6 +9,7 @@ import type { RoutePlan } from '../domain/route-plan.js';
 import type { DriverId, VehicleProfileId } from '../domain/vehicle-profile.js';
 import type { VehicleProfileNotFound } from './errors.js';
 import type { HazardAvoidanceQuery } from './ports/hazard-avoidance.js';
+import type { HazardsOnRouteQuery } from './ports/hazards-on-route.js';
 import type { RestrictionOverrideRepository } from './ports/restriction-override-repository.js';
 import type { NoRouteFound, RoutingEngine } from './ports/routing-engine.js';
 import type { RoutePlanRepository } from './ports/route-plan-repository.js';
@@ -19,6 +20,7 @@ export interface PlanRouteDeps {
   readonly routePlanRepo: RoutePlanRepository;
   readonly routingEngine: RoutingEngine;
   readonly hazardAvoidanceQuery: HazardAvoidanceQuery;
+  readonly hazardsOnRouteQuery: HazardsOnRouteQuery;
   readonly restrictionOverrideRepo: RestrictionOverrideRepository;
   readonly clock: Clock;
   readonly ids: IdGenerator;
@@ -46,9 +48,10 @@ export type PlanRouteError = VehicleProfileNotFound | NoRouteFound;
  * deviations — real OSM restriction data isn't available to core), but a restriction override
  * (M8's test-area audit, `restriction-override.ts`) *is* a known, described fact, so an avoided
  * override now populates `avoidedRestrictions` for real; an avoided hazard still doesn't (there's
- * no human-written description to build one from). `hazardsOnRoute` stays empty for now —
- * `HazardAvoidanceQuery` is scoped to blocking-type avoidance candidates only (decision, M3.5),
- * not the broader "every hazard near this route" a display feature would need.
+ * no human-written description to build one from). `hazardsOnRoute` is a separate, broader query
+ * (`HazardsOnRouteQuery`, every hazard type near the *final* routed line) — `HazardAvoidanceQuery`
+ * above stays scoped to blocking-type candidates only (decision, M3.5), since re-planning around
+ * a hazard and telling a driver one is nearby are different questions with different answers.
  */
 export async function planRoute(
   deps: PlanRouteDeps,
@@ -98,6 +101,11 @@ export async function planRoute(
     .filter((override) => blockingIds.has(override.id))
     .map(describeAvoidedOverride);
 
+  // Against `routed`, not `firstPass` — a driver reading "hazards on this route" means the route
+  // they're actually about to take, which after a second pass may no longer pass near a hazard
+  // the first pass did (or may pass near a different one it didn't).
+  const hazardsOnRoute = await deps.hazardsOnRouteQuery.idsNear(routed.geometry);
+
   const plan: RoutePlan = {
     id: makeId<'RoutePlanId'>(deps.ids.newId()),
     driverId: input.driverId,
@@ -108,7 +116,7 @@ export async function planRoute(
     distanceKm: routed.distanceKm,
     durationMin: routed.durationMin,
     avoidedRestrictions,
-    hazardsOnRoute: [],
+    hazardsOnRoute,
     createdAt: deps.clock.now(),
   };
   await deps.routePlanRepo.save(plan);
