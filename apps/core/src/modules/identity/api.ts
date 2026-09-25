@@ -129,8 +129,6 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     },
     revokeSession: { sessionRepo, clock: deps.clock },
     registerDevice: { repo: deviceRepo, clock: deps.clock, ids: deps.ids },
-    giveConsent: { driverRepo, clock: deps.clock },
-    deleteAccount: { driverRepo, sessionRepo, deviceRepo, clock: deps.clock },
     tokenSigner: deps.tokenSigner,
   };
 
