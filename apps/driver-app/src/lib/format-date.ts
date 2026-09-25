@@ -8,3 +8,12 @@ export function formatDateTime(iso: string): string {
     minute: '2-digit',
   });
 }
+
+/** Clock time only (24-hour, 'en-GB') — for an ETA shown alongside "today", where the date
+ *  itself adds nothing a driver needs. */
+export function formatTime(date: Date): string {
+  return date.toLocaleString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}

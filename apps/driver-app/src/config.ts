@@ -15,12 +15,16 @@ function defaultBffUrl(): string {
 export interface AppConfig {
   bffUrl: string;
   mapStyleUrl: string;
+  /** Undefined means no address search (design doc has no keyless geocoding fallback the way
+   *  `mapStyleUrl` does with MapLibre's demo style — a genuine MapTiler key is required). */
+  maptilerApiKey: string | undefined;
 }
 
 export function loadConfig(): AppConfig {
   return {
     bffUrl: process.env.EXPO_PUBLIC_BFF_URL ?? defaultBffUrl(),
     mapStyleUrl: mapStyleUrl(process.env.EXPO_PUBLIC_MAPTILER_API_KEY),
+    maptilerApiKey: process.env.EXPO_PUBLIC_MAPTILER_API_KEY,
   };
 }
 

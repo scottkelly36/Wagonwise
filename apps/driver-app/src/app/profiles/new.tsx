@@ -1,5 +1,12 @@
 import { useRouter } from 'expo-router';
-import { SafeAreaView, ScrollView, StyleSheet, Text } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+} from 'react-native';
 
 import { useCreateVehicleProfile } from '../../api/use-vehicle-profiles';
 import { VehicleProfileForm } from '../../components/vehicle-profile-form';
@@ -12,18 +19,23 @@ export default function NewVehicleProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Add a vehicle</Text>
-        <VehicleProfileForm
-          initialValues={EMPTY_VEHICLE_PROFILE_FORM}
-          submitLabel="Add vehicle"
-          pending={createMutation.isPending}
-          errorMessage={
-            createMutation.isError ? routingErrorMessage(createMutation.error) : undefined
-          }
-          onSubmit={(input) => createMutation.mutate(input, { onSuccess: () => router.back() })}
-        />
-      </ScrollView>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>Add a vehicle</Text>
+          <VehicleProfileForm
+            initialValues={EMPTY_VEHICLE_PROFILE_FORM}
+            submitLabel="Add vehicle"
+            pending={createMutation.isPending}
+            errorMessage={
+              createMutation.isError ? routingErrorMessage(createMutation.error) : undefined
+            }
+            onSubmit={(input) => createMutation.mutate(input, { onSuccess: () => router.back() })}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -32,6 +44,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0B1220',
+  },
+  flex: {
+    flex: 1,
   },
   content: {
     padding: 24,

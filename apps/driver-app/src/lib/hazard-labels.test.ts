@@ -1,4 +1,4 @@
-import { measurementKindFor, measurementUnitFor } from './hazard-labels';
+import { hazardSeverityFor, measurementKindFor, measurementUnitFor } from './hazard-labels';
 
 describe('measurementKindFor', () => {
   it('maps the three measured restriction types to their kind', () => {
@@ -21,5 +21,21 @@ describe('measurementUnitFor', () => {
     expect(measurementUnitFor('height')).toBe('m');
     expect(measurementUnitFor('width')).toBe('m');
     expect(measurementUnitFor('weight')).toBe('t');
+  });
+});
+
+describe('hazardSeverityFor', () => {
+  it("rates a vehicle genuinely can't-pass restriction as high", () => {
+    expect(hazardSeverityFor('low_bridge')).toBe('high');
+    expect(hazardSeverityFor('weight_limit')).toBe('high');
+    expect(hazardSeverityFor('width_restriction')).toBe('high');
+    expect(hazardSeverityFor('no_hgv')).toBe('high');
+  });
+
+  it('rates a take-care hazard as caution', () => {
+    expect(hazardSeverityFor('tight_bend')).toBe('caution');
+    expect(hazardSeverityFor('roadworks')).toBe('caution');
+    expect(hazardSeverityFor('flooding')).toBe('caution');
+    expect(hazardSeverityFor('other')).toBe('caution');
   });
 });

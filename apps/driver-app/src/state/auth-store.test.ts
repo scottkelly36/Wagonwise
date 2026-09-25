@@ -131,3 +131,31 @@ describe('setTokens', () => {
     expect(useAuthStore.getState().state).toEqual({ status: 'signedOut' });
   });
 });
+
+describe('setDriver', () => {
+  it('persists and updates the cached driver, leaving tokens untouched', async () => {
+    useAuthStore.setState({
+      state: { status: 'signedIn', accessToken: 'a', refreshToken: 'r', driver },
+    });
+    const consented = { ...driver, consentedAt: '2026-06-15T08:00:00.000Z' };
+
+    await useAuthStore.getState().setDriver(consented);
+
+    expect(setItemAsync).toHaveBeenCalledWith('wagonwise.driver', JSON.stringify(consented));
+    expect(useAuthStore.getState().state).toEqual({
+      status: 'signedIn',
+      accessToken: 'a',
+      refreshToken: 'r',
+      driver: consented,
+    });
+  });
+
+  it('is a no-op when not signed in', async () => {
+    useAuthStore.setState({ state: { status: 'signedOut' } });
+
+    await useAuthStore.getState().setDriver({ ...driver, consentedAt: 'x' });
+
+    expect(setItemAsync).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().state).toEqual({ status: 'signedOut' });
+  });
+});

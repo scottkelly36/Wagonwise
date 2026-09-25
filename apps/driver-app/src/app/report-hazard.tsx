@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -106,73 +108,81 @@ export default function ReportHazardScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <RouteMap
-        origin={pin}
-        destination={undefined}
-        onMapPress={setPin}
-        currentPosition={location.point}
-      />
-
-      <ScrollView style={styles.panel} contentContainerStyle={styles.panelContent}>
-        <Text style={styles.title}>Report a hazard</Text>
-        <Text style={styles.hint}>Tap the map to drop a pin where it is.</Text>
-
-        <View style={styles.typeGrid}>
-          {HAZARD_TYPES.map((value) => (
-            <TouchableOpacity
-              key={value}
-              style={[styles.chip, type === value && styles.chipSelected]}
-              onPress={() => setType(value)}
-              testID={`hazard-type-${value}`}
-            >
-              <Text style={[styles.chipText, type === value && styles.chipTextSelected]}>
-                {HAZARD_TYPE_LABELS[value]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {measurementKind !== undefined && (
-          <>
-            <Text style={styles.label}>{measurementLabelFor(measurementKind)}</Text>
-            <TextInput
-              style={styles.input}
-              value={measurementValue}
-              onChangeText={setMeasurementValue}
-              placeholder="e.g. 3.5"
-              placeholderTextColor="#6B7280"
-              keyboardType="decimal-pad"
-              testID="hazard-measurement-input"
-            />
-          </>
-        )}
-
-        <Text style={styles.label}>Note (optional)</Text>
-        <TextInput
-          style={[styles.input, styles.noteInput]}
-          value={note}
-          onChangeText={setNote}
-          placeholder="Anything else worth knowing"
-          placeholderTextColor="#6B7280"
-          multiline
-          testID="hazard-note-input"
+      <KeyboardAvoidingView
+        style={styles.flex}
+        // The map (flex: 1, above the panel) shrinks when the keyboard appears rather than the
+        // panel getting covered (design decision, 2026-09-24: "the keypad covers the form") —
+        // same reasoning and same fix as plan-route.tsx.
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <RouteMap
+          origin={pin}
+          destination={undefined}
+          onMapPress={setPin}
+          currentPosition={location.point}
         />
 
-        {validationError !== undefined && <Text style={styles.error}>{validationError}</Text>}
+        <ScrollView style={styles.panel} contentContainerStyle={styles.panelContent}>
+          <Text style={styles.title}>Report a hazard</Text>
+          <Text style={styles.hint}>Tap the map to drop a pin where it is.</Text>
 
-        <TouchableOpacity
-          style={[styles.button, reportHazard.isPending && styles.buttonDisabled]}
-          disabled={reportHazard.isPending}
-          onPress={() => void handleSubmit()}
-          testID="report-hazard-submit-button"
-        >
-          {reportHazard.isPending ? (
-            <ActivityIndicator color="#0B1220" />
-          ) : (
-            <Text style={styles.buttonText}>Report hazard</Text>
+          <View style={styles.typeGrid}>
+            {HAZARD_TYPES.map((value) => (
+              <TouchableOpacity
+                key={value}
+                style={[styles.chip, type === value && styles.chipSelected]}
+                onPress={() => setType(value)}
+                testID={`hazard-type-${value}`}
+              >
+                <Text style={[styles.chipText, type === value && styles.chipTextSelected]}>
+                  {HAZARD_TYPE_LABELS[value]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {measurementKind !== undefined && (
+            <>
+              <Text style={styles.label}>{measurementLabelFor(measurementKind)}</Text>
+              <TextInput
+                style={styles.input}
+                value={measurementValue}
+                onChangeText={setMeasurementValue}
+                placeholder="e.g. 3.5"
+                placeholderTextColor="#6B7280"
+                keyboardType="decimal-pad"
+                testID="hazard-measurement-input"
+              />
+            </>
           )}
-        </TouchableOpacity>
-      </ScrollView>
+
+          <Text style={styles.label}>Note (optional)</Text>
+          <TextInput
+            style={[styles.input, styles.noteInput]}
+            value={note}
+            onChangeText={setNote}
+            placeholder="Anything else worth knowing"
+            placeholderTextColor="#6B7280"
+            multiline
+            testID="hazard-note-input"
+          />
+
+          {validationError !== undefined && <Text style={styles.error}>{validationError}</Text>}
+
+          <TouchableOpacity
+            style={[styles.button, reportHazard.isPending && styles.buttonDisabled]}
+            disabled={reportHazard.isPending}
+            onPress={() => void handleSubmit()}
+            testID="report-hazard-submit-button"
+          >
+            {reportHazard.isPending ? (
+              <ActivityIndicator color="#0B1220" />
+            ) : (
+              <Text style={styles.buttonText}>Report hazard</Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -181,6 +191,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0B1220',
+  },
+  flex: {
+    flex: 1,
   },
   queuedContent: {
     flex: 1,

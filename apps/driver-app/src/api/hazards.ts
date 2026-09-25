@@ -1,8 +1,10 @@
 import {
+  findNearbyHazardsResponseSchema,
   hazardReportSchema,
   parseVoiceHazardReportRequestSchema,
   parsedVoiceHazardReportSchema,
   reportHazardRequestSchema,
+  type FindNearbyHazardsRequest,
   type HazardReportDto,
   type ParsedVoiceHazardReportDto,
   type ReportHazardRequest,
@@ -65,4 +67,19 @@ export async function dismissHazard(accessToken: string, id: string): Promise<Ha
   });
   throwUnlessSuccess(status, json, [200]);
   return hazardReportSchema.parse(json);
+}
+
+/** Powers the map markers (design decision, 2026-09-24: "would be nice to see them on the map...
+ *  within x amount of distance from you or on your route") — `input.corridor` is one point for
+ *  "near me", the decoded route line for "near my route". */
+export async function findNearbyHazards(
+  accessToken: string,
+  input: FindNearbyHazardsRequest,
+): Promise<HazardReportDto[]> {
+  const { status, json } = await requestJson('POST', '/hazards/reports/nearby', {
+    body: input,
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return findNearbyHazardsResponseSchema.parse(json).hazards;
 }

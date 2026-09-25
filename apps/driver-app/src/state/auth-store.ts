@@ -10,6 +10,9 @@ export interface DriverInfo {
   readonly id: string;
   readonly identifier: string;
   readonly createdAt: string;
+  /** Design doc §9's privacy notice/consent screen (M8) — absent until the driver accepts it;
+   *  `index.tsx`'s gate uses this to decide whether to show it. */
+  readonly consentedAt?: string;
 }
 
 export type AuthState =
@@ -34,6 +37,9 @@ export interface AuthStore {
    *  (decision 33), so the persisted copy must move with it or the next refresh replays a
    *  stale token and gets treated as reuse, revoking the whole session. */
   setTokens(accessToken: string, refreshToken: string): Promise<void>;
+  /** Called after `POST /identity/consent` succeeds — updates the cached driver (persisted, so a
+   *  relaunch doesn't show the consent screen again) without touching either token. */
+  setDriver(driver: DriverInfo): Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -100,5 +106,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     if (current.status !== 'signedIn') return;
     await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
     set({ state: { ...current, accessToken, refreshToken } });
+  },
+
+  async setDriver(driver) {
+    const current = get().state;
+    if (current.status !== 'signedIn') return;
+    await SecureStore.setItemAsync(DRIVER_KEY, JSON.stringify(driver));
+    set({ state: { ...current, driver } });
   },
 }));

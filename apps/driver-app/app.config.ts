@@ -38,7 +38,7 @@ const config: ExpoConfig = {
   android: {
     package: 'com.wagonwise.driverapp',
     adaptiveIcon: {
-      backgroundColor: '#E6F4FE',
+      backgroundColor: '#111A27',
       foregroundImage: './assets/images/android-icon-foreground.png',
       backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
@@ -49,6 +49,7 @@ const config: ExpoConfig = {
     'expo-secure-store',
     'expo-sqlite',
     '@maplibre/maplibre-react-native',
+    '@react-native-community/datetimepicker',
     [
       'expo-location',
       {

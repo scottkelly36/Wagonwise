@@ -1,75 +1,72 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { PRODUCT_NAME } from '../product';
-import { useAuthStore } from '../state/auth-store';
+import { useNearbyHazards } from '../api/use-hazards';
+import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
+import { RouteMap } from '../components/route-map';
+import { useCurrentLocation } from '../hooks/use-current-location';
 
-// A placeholder only — route overview, active trip and the rest land in M5.5+. This exists to
-// prove the sign-in flow actually reaches a signed-in area, not to be a real home screen itself.
+// "Within x amount of distance from you" (design decision, 2026-09-24) — a driver stood still or
+// walking to the cab doesn't need a country-wide hazard feed, just what's actually around them.
+const NEARBY_RADIUS_M = 5_000;
+
+/**
+ * The map is the app (design decision, 2026-09-24): a driver signs in and lands straight on a
+ * full-screen map, the way a navigation app works, rather than a menu of buttons. Everything a
+ * driver doesn't need constantly on screen — vehicle profiles, saved reports, feedback, signing
+ * out — moves behind the small corner icon into `/settings`; the two things they *do* need
+ * constantly (plan a route, report a hazard) are overlaid directly on the map itself.
+ */
 export default function HomeScreen() {
   const router = useRouter();
-  const state = useAuthStore((s) => s.state);
-  const signOut = useAuthStore((s) => s.signOut);
-
-  if (state.status !== 'signedIn') {
-    return null;
-  }
+  const location = useCurrentLocation();
+  const nearbyHazards = useNearbyHazards(location.point ? [location.point] : [], NEARBY_RADIUS_M);
+  const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>{PRODUCT_NAME}</Text>
-        <Text style={styles.subtitle}>Signed in as {state.driver.identifier}</Text>
-        <Text style={styles.note}>Real-device verification (M5.10) is next.</Text>
+      <RouteMap
+        origin={location.point}
+        destination={undefined}
+        hazards={nearbyHazards.data?.map((h) => ({ id: h.id, type: h.type, location: h.location }))}
+        onHazardPress={setSelectedHazardId}
+      />
+
+      <HazardDetailDrawer
+        hazardId={selectedHazardId}
+        onClose={() => setSelectedHazardId(undefined)}
+      />
+
+      <TouchableOpacity
+        style={styles.menuButton}
+        onPress={() => router.push('/settings')}
+        testID="menu-button"
+      >
+        <Text style={styles.menuButtonText}>Menu</Text>
+      </TouchableOpacity>
+
+      <View style={styles.overlay} pointerEvents="box-none">
+        {location.status === 'denied' && (
+          <Text style={styles.hint}>
+            Location access is off — you can still plan a route, but the map won’t centre on you.
+          </Text>
+        )}
 
         <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.push('/profiles')}
-          testID="vehicle-profiles-button"
-        >
-          <Text style={styles.buttonText}>Vehicle profiles</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.push('/plan-route')}
-          testID="plan-route-button"
-        >
-          <Text style={styles.buttonText}>Plan route</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.button}
+          style={styles.hazardButton}
           onPress={() => router.push('/report-hazard')}
           testID="report-hazard-button"
         >
-          <Text style={styles.buttonText}>Report hazard</Text>
+          <Text style={styles.hazardButtonText}>Report hazard</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.push('/voice-drafts')}
-          testID="voice-drafts-button"
+          style={styles.planButton}
+          onPress={() => router.push('/plan-route')}
+          testID="plan-route-button"
         >
-          <Text style={styles.buttonText}>Saved reports</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.push('/feedback')}
-          testID="feedback-button"
-        >
-          <Text style={styles.buttonText}>Feedback</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => {
-            void signOut().then(() => router.replace('/sign-in'));
-          }}
-          testID="sign-out-button"
-        >
-          <Text style={styles.buttonText}>Sign out</Text>
+          <Text style={styles.planButtonText}>Where to?</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -81,39 +78,71 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0B1220',
   },
-  content: {
-    flex: 1,
+  menuButton: {
+    position: 'absolute',
+    top: 56,
+    right: 16,
+    minHeight: 48,
+    minWidth: 48,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    backgroundColor: 'rgba(11, 18, 32, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
-    gap: 12,
   },
-  title: {
-    fontSize: 32,
+  menuButtonText: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  subtitle: {
-    fontSize: 18,
+  overlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 16,
+    paddingBottom: 32,
+    gap: 12,
+  },
+  hint: {
+    fontSize: 13,
     color: '#E5E7EB',
-  },
-  note: {
-    fontSize: 14,
-    color: '#9CA3AF',
     textAlign: 'center',
-    marginBottom: 24,
-  },
-  button: {
-    minHeight: 56,
-    minWidth: 200,
-    backgroundColor: '#1F2937',
+    backgroundColor: 'rgba(11, 18, 32, 0.85)',
     borderRadius: 12,
+    padding: 12,
+  },
+  hazardButton: {
+    alignSelf: 'flex-end',
+    minHeight: 48,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    backgroundColor: 'rgba(31, 41, 55, 0.92)',
+    borderWidth: 1,
+    borderColor: '#6B7280',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  buttonText: {
-    fontSize: 18,
+  hazardButtonText: {
+    fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  planButton: {
+    minHeight: 64,
+    borderRadius: 32,
+    backgroundColor: '#F5A623',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  planButtonText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0B1220',
   },
 });

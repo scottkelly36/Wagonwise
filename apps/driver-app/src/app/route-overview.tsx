@@ -1,7 +1,9 @@
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Redirect, useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -11,7 +13,9 @@ import {
 
 import { useStartTrip } from '../api/use-active-trip';
 import { RouteMap } from '../components/route-map';
+import { computeEta } from '../lib/eta';
 import { routingErrorMessage } from '../lib/error-messages';
+import { formatTime } from '../lib/format-date';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
@@ -23,9 +27,28 @@ export default function RouteOverviewScreen() {
   const setCurrentTrip = useCurrentActiveTripStore((s) => s.setTrip);
   const startTrip = useStartTrip();
 
+  // undefined means "leaving now" — recomputed against the current time on every render,
+  // rather than frozen at mount, so the ETA stays right if a driver lingers on this screen.
+  // A driver who picks a specific time gets that instead, until they reset back to "now".
+  const [leaveAt, setLeaveAt] = useState<Date | undefined>(undefined);
+  const [showPicker, setShowPicker] = useState(false);
+
   // decodePolyline6 is a pure function of plan.geometry — no need to redo it on every
   // unrelated re-render (e.g. a tap elsewhere on this screen).
   const routeLine = useMemo(() => (plan ? decodePolyline6(plan.geometry) : undefined), [plan]);
+
+  const eta = plan ? computeEta(leaveAt ?? new Date(), plan.durationMin) : undefined;
+
+  function handleTimeChange(event: DateTimePickerEvent, selected?: Date): void {
+    // Android's picker is a self-dismissing dialog; iOS's spinner stays open until the
+    // driver taps "Done" below, since it fires onChange continuously while scrolling.
+    if (Platform.OS === 'android') {
+      setShowPicker(false);
+    }
+    if (event.type === 'set' && selected) {
+      setLeaveAt(selected);
+    }
+  }
 
   // Reachable with no current plan only by navigating here directly (e.g. a stale deep link) —
   // there's nothing to show, so send the driver back to plan one rather than rendering a blank
@@ -57,6 +80,38 @@ export default function RouteOverviewScreen() {
         <Text style={styles.distance}>
           {plan.distanceKm.toFixed(1)} km · {Math.round(plan.durationMin)} min
         </Text>
+
+        <View style={styles.etaRow}>
+          <Text style={styles.eta}>ETA {eta ? formatTime(eta) : '—'}</Text>
+          <TouchableOpacity onPress={() => setShowPicker(true)} testID="change-departure-button">
+            <Text style={styles.etaChangeLink}>
+              {leaveAt ? `Leaving ${formatTime(leaveAt)} · change` : 'Leaving now · change'}
+            </Text>
+          </TouchableOpacity>
+          {leaveAt && (
+            <TouchableOpacity onPress={() => setLeaveAt(undefined)} testID="leave-now-button">
+              <Text style={styles.etaChangeLink}>Reset to now</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {showPicker && (
+          <View style={styles.pickerWrap}>
+            <DateTimePicker
+              value={leaveAt ?? new Date()}
+              mode="time"
+              is24Hour
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleTimeChange}
+              testID="departure-time-picker"
+            />
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity onPress={() => setShowPicker(false)} testID="departure-time-done">
+                <Text style={styles.etaChangeLink}>Done</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Restrictions avoided</Text>
@@ -132,6 +187,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
+  },
+  etaRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  eta: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#38BDF8',
+  },
+  etaChangeLink: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textDecorationLine: 'underline',
+  },
+  pickerWrap: {
+    alignItems: 'center',
+    backgroundColor: '#1F2937',
+    borderRadius: 12,
+    padding: 8,
   },
   section: {
     gap: 4,

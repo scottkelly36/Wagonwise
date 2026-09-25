@@ -1,5 +1,10 @@
 import { ApiError } from '../api/errors';
-import { feedbackErrorMessage, hazardsErrorMessage, routingErrorMessage } from './error-messages';
+import {
+  feedbackErrorMessage,
+  hazardsErrorMessage,
+  identityErrorMessage,
+  routingErrorMessage,
+} from './error-messages';
 
 describe('routingErrorMessage', () => {
   it('maps a known tag to plain UK-English wording', () => {
@@ -65,6 +70,26 @@ describe('feedbackErrorMessage', () => {
 
   it('falls back to a network message for a non-ApiError', () => {
     expect(feedbackErrorMessage(new TypeError('Network request failed'))).toBe(
+      "Couldn't reach the server. Check your connection.",
+    );
+  });
+});
+
+describe('identityErrorMessage', () => {
+  it('maps a known tag to plain UK-English wording', () => {
+    expect(identityErrorMessage(new ApiError('DriverNotFound', 404))).toBe(
+      "Your account isn't there any more.",
+    );
+  });
+
+  it('falls back to a generic message for an unrecognised tag', () => {
+    expect(identityErrorMessage(new ApiError('SomeNewTag', 500))).toBe(
+      'Something went wrong. Try again.',
+    );
+  });
+
+  it('falls back to a network message for a non-ApiError', () => {
+    expect(identityErrorMessage(new TypeError('Network request failed'))).toBe(
       "Couldn't reach the server. Check your connection.",
     );
   });
