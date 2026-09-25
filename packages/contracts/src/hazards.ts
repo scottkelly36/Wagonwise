@@ -87,6 +87,20 @@ export const parsedVoiceHazardReportSchema = z.object({
 });
 export type ParsedVoiceHazardReportDto = z.infer<typeof parsedVoiceHazardReportSchema>;
 
+/** Powers the driver app's map markers — `corridor` is one point for "near me", several (a route
+ *  polyline) for "near my route". Bounded generously rather than tightly: a real HGV route's
+ *  decoded polyline can run to hundreds of vertices, and this is a read query, not a write. */
+export const findNearbyHazardsRequestSchema = z.object({
+  corridor: z.array(geoPointSchema).min(1).max(2000),
+  radiusM: z.number().positive().max(50_000),
+});
+export type FindNearbyHazardsRequest = z.infer<typeof findNearbyHazardsRequestSchema>;
+
+export const findNearbyHazardsResponseSchema = z.object({
+  hazards: z.array(hazardReportSchema),
+});
+export type FindNearbyHazardsResponse = z.infer<typeof findNearbyHazardsResponseSchema>;
+
 /** The shape of a domain error body every hazards route can send (interface/error-mapping.ts's
  *  `statusFor()` picks the status; this describes what rides along with it) — mirrors identity's
  *  and routing's own error response schemas. */

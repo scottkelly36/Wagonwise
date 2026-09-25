@@ -25,6 +25,8 @@ export const driverSchema = z.object({
   id: driverIdSchema,
   identifier: z.string(),
   createdAt: z.iso.datetime(),
+  /** Design doc §9's privacy notice/consent screen (M8) — absent until the driver accepts it. */
+  consentedAt: z.iso.datetime().optional(),
 });
 export type DriverDto = z.infer<typeof driverSchema>;
 

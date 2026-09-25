@@ -214,3 +214,67 @@ describe('POST /identity/devices', () => {
     expect(coreClient.calls).toEqual([]);
   });
 });
+
+describe('POST /identity/consent', () => {
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({ method: 'POST', url: '/identity/consent' });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards the token, no body', async () => {
+    const { app, coreClient, verifier } = buildApp();
+    verifier.claimsByToken.set('a-real-token', { driverId: 'driver-1', sessionId: 'session-1' });
+    coreClient.nextResponse = {
+      status: 200,
+      body: {
+        id: 'driver-1',
+        identifier: 'driver@example.com',
+        createdAt: '2026-06-15T08:00:00.000Z',
+        consentedAt: '2026-06-15T08:00:00.000Z',
+      },
+    };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/consent',
+      headers: { authorization: 'Bearer a-real-token' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: '/identity/consent',
+      authorization: 'Bearer a-real-token',
+    });
+  });
+});
+
+describe('DELETE /identity/account', () => {
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({ method: 'DELETE', url: '/identity/account' });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards the token, no body', async () => {
+    const { app, coreClient, verifier } = buildApp();
+    verifier.claimsByToken.set('a-real-token', { driverId: 'driver-1', sessionId: 'session-1' });
+    coreClient.nextResponse = { status: 204, body: undefined };
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/identity/account',
+      headers: { authorization: 'Bearer a-real-token' },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'DELETE',
+      path: '/identity/account',
+      authorization: 'Bearer a-real-token',
+    });
+  });
+});

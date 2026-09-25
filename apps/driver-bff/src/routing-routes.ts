@@ -167,4 +167,14 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
     );
     return reply.status(core.status).send(core.body);
   });
+
+  app.get('/routing/trips/active', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const core = await deps.coreClient.request('GET', '/routing/trips/active', request.id, {
+      authorization: `Bearer ${token}`,
+    });
+    return reply.status(core.status).send(core.body);
+  });
 }

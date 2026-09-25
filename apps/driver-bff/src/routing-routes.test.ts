@@ -351,3 +351,31 @@ describe('POST /routing/trips/:id/end', () => {
     expect(response.json()).toEqual({ tag: 'ActiveTripNotFound' });
   });
 });
+
+describe('GET /routing/trips/active', () => {
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({ method: 'GET', url: '/routing/trips/active' });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards the token, relaying whatever core returns', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 200, body: { trip: null } };
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/routing/trips/active',
+      headers: AUTH_HEADER,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ trip: null });
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'GET',
+      path: '/routing/trips/active',
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+});
