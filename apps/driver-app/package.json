@@ -9,10 +9,12 @@
     "ios": "expo start --ios",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "postinstall": "pnpm --filter @wagonwise/contracts build"
   },
   "dependencies": {
     "@maplibre/maplibre-react-native": "^11.4.0",
+    "@react-native-community/datetimepicker": "9.1.0",
     "@tanstack/react-query": "^5.103.2",
     "@wagonwise/contracts": "workspace:*",
     "expo": "~57.0.25",
