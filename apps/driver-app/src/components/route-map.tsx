@@ -5,6 +5,7 @@ import {
   Map as MapLibreMap,
   ViewAnnotation,
   type LngLat,
+  type LngLatBounds,
   type PressEvent,
 } from '@maplibre/maplibre-react-native';
 import type { HazardTypeDto } from '@wagonwise/contracts/hazards';
@@ -66,6 +67,26 @@ function toLngLat(point: MapPoint): LngLat {
   return [point.lon, point.lat];
 }
 
+// A camera stop that fits a bounding box needs at least two points on two different corners —
+// one point (or several identical ones, e.g. a route that's a single tap) has zero area and
+// nothing to fit around, so those cases fall back to a plain center+zoom instead.
+function boundsFor(points: readonly MapPoint[]): LngLatBounds | undefined {
+  if (points.length < 2) return undefined;
+  const lons = points.map((p) => p.lon);
+  const lats = points.map((p) => p.lat);
+  const west = Math.min(...lons);
+  const east = Math.max(...lons);
+  const south = Math.min(...lats);
+  const north = Math.max(...lats);
+  if (west === east && south === north) return undefined;
+  return [west, south, east, north];
+}
+
+// Breathing room around the fitted box so a pin or the route line itself never sits flush
+// against the map's edge — the panel below the map is a separate flex sibling (plan-route.tsx/
+// route-overview.tsx), not an overlay, so this doesn't need to account for it.
+const BOUNDS_PADDING = { top: 60, right: 60, bottom: 60, left: 60 };
+
 /**
  * The riskiest, least-verifiable part of M5.4/M5.5 — a native map library with no Android SDK
  * or macOS on this machine to actually run it on (see docs/progress.md's verification notes).
@@ -84,9 +105,23 @@ export function RouteMap({
   hazards,
   onHazardPress,
 }: Props) {
+  // Priority: a live position always wins (active-trip following) over any bounds fit; then a
+  // planned route's own line — small route zooms in, big route zooms out, rather than a fixed
+  // zoom that leaves a short route too distant or clips a long one (design feedback, 2026-09-25);
+  // then both ends of a route still being planned, so setting the second point never leaves the
+  // first one off-screen; then whichever single point exists, same as before.
+  const routePoints: MapPoint[] = [
+    ...(routeLine?.map(([lon, lat]) => ({ lon, lat })) ?? []),
+    ...(alternateRouteLine?.map(([lon, lat]) => ({ lon, lat })) ?? []),
+  ];
+  const planningPoints: MapPoint[] = origin && destination ? [origin, destination] : [];
+  const bounds = currentPosition
+    ? undefined
+    : (boundsFor(routePoints) ?? boundsFor(planningPoints));
+
   const center = currentPosition ?? destination ?? origin;
-  // A closer, street-level zoom while following a live position — the whole planned route
-  // doesn't need to stay in frame the way it does on the plan-route/route-overview screens.
+  // A closer, street-level zoom while following a live position or a single point — a bounds fit
+  // (above) picks its own zoom, so this only applies when there's no box to fit around yet.
   const zoom = currentPosition ? 16 : 12;
 
   function handlePress(event: NativeSyntheticEvent<PressEvent>): void {
@@ -97,7 +132,11 @@ export function RouteMap({
 
   return (
     <MapLibreMap style={styles.map} mapStyle={config.mapStyleUrl} onPress={handlePress}>
-      <Camera center={center ? toLngLat(center) : undefined} zoom={zoom} />
+      {bounds ? (
+        <Camera bounds={bounds} padding={BOUNDS_PADDING} />
+      ) : (
+        <Camera center={center ? toLngLat(center) : undefined} zoom={zoom} />
+      )}
       {routeLine && routeLine.length > 1 && (
         <GeoJSONSource id="route-line-source" data={{ type: 'LineString', coordinates: routeLine }}>
           <Layer
