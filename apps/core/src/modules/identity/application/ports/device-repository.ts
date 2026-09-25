@@ -9,4 +9,7 @@ export interface DeviceRepository {
   findByDriverId(driverId: DriverId): Promise<Device[]>;
   /** Upsert, keyed by `pushToken` — `registerDevice` decides whether a row already exists. */
   save(device: Device): Promise<void>;
+  /** M8's `deleteAccount` — a push token is itself somewhat identifying, so it goes with the rest
+   *  of a deleted account's data rather than being left pointing at an anonymized driver. */
+  deleteAllForDriver(driverId: DriverId): Promise<void>;
 }

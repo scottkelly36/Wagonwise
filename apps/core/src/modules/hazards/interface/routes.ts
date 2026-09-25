@@ -1,4 +1,5 @@
 import {
+  findNearbyHazardsRequestSchema,
   hazardReportIdParamsSchema,
   parseVoiceHazardReportRequestSchema,
   reportHazardRequestSchema,
@@ -7,6 +8,10 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
 import { confirmHazard, type ConfirmHazardDeps } from '../application/confirm-hazard.js';
 import { dismissHazard, type DismissHazardDeps } from '../application/dismiss-hazard.js';
+import {
+  findNearbyHazards,
+  type FindNearbyHazardsDeps,
+} from '../application/find-nearby-hazards.js';
 import { getHazard, type GetHazardDeps } from '../application/get-hazard.js';
 import { parseVoiceReport, type ParseVoiceReportDeps } from '../application/parse-voice-report.js';
 import { reportHazard, type ReportHazardDeps } from '../application/report-hazard.js';
@@ -18,6 +23,7 @@ export interface HazardsRouteDeps {
   readonly dismissHazard: DismissHazardDeps;
   readonly getHazard: GetHazardDeps;
   readonly parseVoiceReport: ParseVoiceReportDeps;
+  readonly findNearbyHazards: FindNearbyHazardsDeps;
 }
 
 /**
@@ -68,6 +74,23 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
     // Not always a fresh creation — an idempotent retry or a merge both return 200, since the
     // caller can't tell (and shouldn't need to) which one happened (decision, M3.4).
     return reply.status(200).send(result.value);
+  });
+
+  // No requireDriverId call — same reasoning as confirm/dismiss below (decision 63): reading
+  // hazards for the map isn't scoped to a reporter, though the host's driver-auth hook still
+  // requires some verified driver behind the whole /hazards/ prefix. POST rather than GET since
+  // a route-corridor query needs a points array in the body, not a query string (mirrors the
+  // read-with-a-body shape of a "search" endpoint more than a plain resource fetch).
+  app.post('/hazards/reports/nearby', async (request, reply) => {
+    const parsed = findNearbyHazardsRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const hazards = await findNearbyHazards(deps.findNearbyHazards, {
+      corridor: parsed.data.corridor,
+      radiusM: parsed.data.radiusM,
+    });
+    return reply.status(200).send({ hazards });
   });
 
   // No requireDriverId call — parsing a transcript isn't scoped to a reporter at all, and (like

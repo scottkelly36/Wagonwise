@@ -9,10 +9,18 @@ interface DriverRow {
   readonly id: string;
   readonly identifier: string;
   readonly created_at: Date;
+  readonly consented_at: Date | null;
+  readonly deleted_at: Date | null;
 }
 
 function toDomain(row: DriverRow): Driver {
-  return { id: makeId<'DriverId'>(row.id), identifier: row.identifier, createdAt: row.created_at };
+  return {
+    id: makeId<'DriverId'>(row.id),
+    identifier: row.identifier,
+    createdAt: row.created_at,
+    consentedAt: row.consented_at ?? undefined,
+    deletedAt: row.deleted_at ?? undefined,
+  };
 }
 
 /**
@@ -27,25 +35,33 @@ export class PostgresDriverRepository implements DriverRepository {
 
   async findByIdentifier(identifier: string): Promise<Driver | null> {
     const { rows } = await sql<DriverRow>`
-      select id, identifier, created_at from identity.drivers where identifier = ${identifier}
+      select id, identifier, created_at, consented_at, deleted_at
+      from identity.drivers where identifier = ${identifier}
     `.execute(this.db);
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
   async findById(id: DriverId): Promise<Driver | null> {
     const { rows } = await sql<DriverRow>`
-      select id, identifier, created_at from identity.drivers where id = ${id}
+      select id, identifier, created_at, consented_at, deleted_at
+      from identity.drivers where id = ${id}
     `.execute(this.db);
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
-  /** Insert-only (the port's contract) — a duplicate id or identifier throws rather than
-   *  silently upserting, since a Driver is never re-saved in Phase 1 and a second save is a bug. */
+  /** Upsert (the port's contract, M8) — `consent()`/`anonymize()` re-save an existing row. */
   async save(driver: Driver, tx?: Transaction): Promise<void> {
     const executor = tx ? (tx as unknown as UntypedDb) : this.db;
     await sql`
-      insert into identity.drivers (id, identifier, created_at)
-      values (${driver.id}, ${driver.identifier}, ${driver.createdAt})
+      insert into identity.drivers (id, identifier, created_at, consented_at, deleted_at)
+      values (
+        ${driver.id}, ${driver.identifier}, ${driver.createdAt},
+        ${driver.consentedAt ?? null}, ${driver.deletedAt ?? null}
+      )
+      on conflict (id) do update set
+        identifier = excluded.identifier,
+        consented_at = excluded.consented_at,
+        deleted_at = excluded.deleted_at
     `.execute(executor);
   }
 }

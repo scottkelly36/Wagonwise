@@ -7,6 +7,7 @@ import { InMemoryActiveTripRepository } from '../application/testing/in-memory-a
 import { InMemoryRoutePlanRepository } from '../application/testing/in-memory-route-plan-repository.js';
 import { InMemoryVehicleProfileRepository } from '../application/testing/in-memory-vehicle-profile-repository.js';
 import { FakeHazardAvoidanceQuery } from '../application/testing/fake-hazard-avoidance-query.js';
+import { FakeRestrictionOverrideRepository } from '../application/testing/fake-restriction-override-repository.js';
 import { FakeRoutingEngine } from '../application/testing/fake-routing-engine.js';
 import { registerRoutingRoutes, type RoutingRouteDeps } from './routes.js';
 
@@ -36,12 +37,14 @@ function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
       routePlanRepo,
       routingEngine: new FakeRoutingEngine(),
       hazardAvoidanceQuery: new FakeHazardAvoidanceQuery(),
+      restrictionOverrideRepo: new FakeRestrictionOverrideRepository(),
       clock,
       ids,
     },
     getRoutePlan: { routePlanRepo },
     startTrip: { routePlanRepo, activeTripRepo, clock, ids },
     endTrip: { repo: activeTripRepo, clock },
+    getActiveTrip: { activeTripRepo },
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {
@@ -540,5 +543,85 @@ describe('POST /routing/trips/:id/end', () => {
       ...asDriver('driver-2'),
     });
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe('GET /routing/trips/active', () => {
+  it('200s with the trip when one is in progress', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+    const started = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${routePlanId}/trip`,
+      ...asDriver('driver-1'),
+    });
+    const { id: tripId } = started.json<{ id: string }>();
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/routing/trips/active',
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ trip: { id: tripId, routePlanId } });
+  });
+
+  it('200s with trip: null when nothing is in progress', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'GET',
+      url: '/routing/trips/active',
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ trip: null });
+  });
+
+  it("never returns another driver's active trip", async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app, 'driver-1');
+    await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${routePlanId}/trip`,
+      ...asDriver('driver-1'),
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/routing/trips/active',
+      ...asDriver('driver-2'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ trip: null });
+  });
+
+  it('200s with trip: null again once the trip has ended', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+    const started = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${routePlanId}/trip`,
+      ...asDriver('driver-1'),
+    });
+    const { id: tripId } = started.json<{ id: string }>();
+    await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${tripId}/end`,
+      ...asDriver('driver-1'),
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/routing/trips/active',
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ trip: null });
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({ method: 'GET', url: '/routing/trips/active' });
+    expect(response.statusCode).toBe(401);
   });
 });

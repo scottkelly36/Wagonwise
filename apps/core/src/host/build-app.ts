@@ -20,7 +20,14 @@ export interface AppDeps {
 // of `/identity/` (M6.2) — identity's other routes are the pre-token sign-in flow itself
 // (OTP request/verify, token refresh, JWKS) and can't require an access token they don't have
 // yet.
-const DRIVER_AUTH_PREFIXES = ['/routing/', '/hazards/', '/feedback/', '/identity/devices/'];
+const DRIVER_AUTH_PREFIXES = [
+  '/routing/',
+  '/hazards/',
+  '/feedback/',
+  '/identity/devices/',
+  '/identity/consent/',
+  '/identity/account/',
+];
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
