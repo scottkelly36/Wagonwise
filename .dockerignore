@@ -1,0 +1,22 @@
+# Unprefixed patterns only match the repo root — every workspace package has its own
+# node_modules/dist, which needs the same exclusion or a locally-built (host OS/arch) one
+# leaks into the image and shadows what the container's own `pnpm install`/`tsc` just built.
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+**/.turbo/
+**/*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+*.log
+
+.git/
+.github/
+.vscode/
+.idea/
+
+infra/docker/custom_files/
