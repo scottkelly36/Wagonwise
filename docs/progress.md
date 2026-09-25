@@ -105,9 +105,13 @@ not attached to a milestone yet.
     planned route is congested" — real work, but on a real, free, already-confirmed data source
     rather than a guess.
 - **2026-09-25: light and dark mode** — the driver app is currently dark-only (every screen's
-  colours are hardcoded, e.g. `home.tsx`/`consent.tsx`'s `#0B1220` background). A real toggle
-  (or following the OS's `useColorScheme()`) would mean pulling every hardcoded hex value out
-  into a theme, screen by screen — no design or scoping done yet.
+  colours are hardcoded, e.g. `home.tsx`/`consent.tsx`'s `#0B1220` background). The user's own
+  framing: either the driver sets it manually, or it switches automatically at sunrise/sunset —
+  not just following the OS's own light/dark setting (`useColorScheme()`), since a trucker's
+  phone might already be locked to one OS-level mode for other reasons. Sunrise/sunset needs the
+  driver's location (already available via `useCurrentLocation()`) and a sun-times calculation —
+  either a small library (e.g. `suncalc`) or a call to a free sunrise-sunset API — recomputed as
+  the driver moves and as days pass, not fixed once at app start. No design or scoping done yet.
 
 ## M1 task breakdown
 
