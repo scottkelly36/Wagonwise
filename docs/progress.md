@@ -1556,7 +1556,13 @@ starts.
 | M5.7  | Report hazard (tap) + hazard detail                                                                                  | Done — 2026-09-23 |
 | M5.8  | Offline hazard queue (expo-sqlite)                                                                                   | Done — 2026-09-23 |
 | M5.9  | Feedback screen                                                                                                      | Done — 2026-09-23 |
-| M5.10 | Real-device/simulator verification both platforms; EAS Build → TestFlight + Play internal                            | Not started       |
+| M5.10 | Real-device/simulator verification both platforms; EAS Build → TestFlight + Play internal                            | In progress       |
+
+**M5.10 in progress:** real-device verification on Android done — the app (including the M7
+voice flow) was run on a physical Android phone via Expo Go/dev client on 2026-09-25 and works.
+iOS real-device verification and the EAS Build → TestFlight + Play internal step are both still
+open; the latter is blocked on the Apple/Google Play developer accounts (Expo's own EAS account
+is already set up).
 
 **M5.1 delivered:** `apps/driver-app` exists as a real Expo project — not just a plan for one —
 scaffolded from Expo's own SDK 57 template and cut down to a genuine skeleton (one screen, no
@@ -3074,11 +3080,16 @@ ts`'s `close()` does on every shutdown. The one production call site was updated
 | M7.2 | Driver-app: on-device speech capture, mic button wiring            | Done — 2026-09-24 |
 | M7.3 | Driver-app: parse + spoken confirm flow                            | Done — 2026-09-24 |
 | M7.4 | Unconfirmed-drafts review screen (parked use)                      | Done — 2026-09-24 |
-| M7.5 | End-to-end verification (as far as possible without a real device) | Not started       |
+| M7.5 | End-to-end verification (as far as possible without a real device) | Done — 2026-09-25 |
 
 Real-world speech-recognition accuracy against testers' actual accents and cab noise is
 deliberately not tested cheaply now (design doc's own open question) — deferred to real-device
 testing alongside M5.10, per this session's decision when M7 planning started.
+
+**M7.5 delivered:** the deferred open question closed — the app and the voice hazard-reporting
+flow were run on a real Android device (Expo Go/dev client, not an EAS build) on 2026-09-25, with
+the driver's own accent and cab-style background noise. No accuracy problems found. The
+TestFlight/Play EAS-build half of real-device verification is still open; tracked under M5.10.
 
 **M7.1 delivered:** the `HazardParser` port (design doc §7 step 3) — the LLM half of voice
 reporting — with a real adapter, not a stub. Core-only: no driver-app changes yet, since nothing
