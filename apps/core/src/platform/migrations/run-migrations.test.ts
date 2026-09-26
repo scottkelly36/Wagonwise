@@ -43,14 +43,16 @@ describe('runMigrations', () => {
       '0010_routing_restriction_overrides.sql',
       '0011_identity_driver_lifecycle.sql',
       '0012_identity_admin_flag.sql',
+      '0013_congestion.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
       `select schema_name from information_schema.schemata
-       where schema_name in ('identity', 'routing', 'hazards', 'feedback', 'outbox')
+       where schema_name in ('identity', 'routing', 'hazards', 'feedback', 'outbox', 'congestion')
        order by schema_name`,
     );
     expect(schemas.map((row) => row.schema_name)).toEqual([
+      'congestion',
       'feedback',
       'hazards',
       'identity',
@@ -100,6 +102,12 @@ describe('runMigrations', () => {
     );
     expect(feedbackTables.map((row) => row.table_name)).toEqual(['notes']);
 
+    const { rows: congestionTables } = await pool.query<{ table_name: string }>(
+      `select table_name from information_schema.tables
+       where table_schema = 'congestion' order by table_name`,
+    );
+    expect(congestionTables.map((row) => row.table_name)).toEqual(['reports']);
+
     const { rows: extensions } = await pool.query<{ extname: string }>(
       "select extname from pg_extension where extname = 'postgis'",
     );
@@ -133,6 +141,7 @@ describe('runMigrations', () => {
       '0010_routing_restriction_overrides.sql',
       '0011_identity_driver_lifecycle.sql',
       '0012_identity_admin_flag.sql',
+      '0013_congestion.sql',
     ]);
   });
 });

@@ -28,6 +28,15 @@ export interface HazardMarker {
   readonly location: MapPoint;
 }
 
+/** A crowd-sourced congestion report (Phase 1, docs/progress.md) — distinct in shape and colour
+ *  from a `HazardMarker` (a round teal pin vs. a square red/amber one) so a driver can tell "slow
+ *  traffic reported here" apart from "an obstruction here" at a glance. */
+export interface CongestionMarker {
+  readonly id: string;
+  readonly location: MapPoint;
+  readonly estimatedWaitMinutes: number;
+}
+
 const HAZARD_MARKER_COLOR: Record<'high' | 'caution', string> = {
   high: '#F87171',
   caution: '#F59E0B',
@@ -65,6 +74,14 @@ interface Props {
    *  an always-static marker icon inside it fights the platform rather than working with it —
    *  tried an in-map callout first (2026-09-24) and it never rendered reliably. */
   readonly onHazardPress?: (hazardId: string) => void;
+  /** Crowd-sourced congestion reports (Phase 1) — same "caller decides the query, this component
+   *  just draws what it's given" split as `hazards` above. Undefined everywhere until home.tsx
+   *  wires it up; the plan-route/route-overview/active-trip screens don't get this yet (scoping,
+   *  docs/progress.md: home screen only for this pass). */
+  readonly congestion?: readonly CongestionMarker[];
+  /** Fired when a congestion marker is tapped — no drawer yet (Phase 1 has nothing more to show
+   *  than the wait estimate already on the marker itself), so undefined is a valid, common case. */
+  readonly onCongestionPress?: (congestionId: string) => void;
 }
 
 function toLngLat(point: MapPoint): LngLat {
@@ -108,6 +125,8 @@ export function RouteMap({
   currentPosition,
   hazards,
   onHazardPress,
+  congestion,
+  onCongestionPress,
 }: Props) {
   // Whether the camera is actively tracking `currentPosition` — true until the driver manually
   // pans/zooms (see `handleRegionWillChange`), at which point it stays false (their view stays
@@ -233,6 +252,18 @@ export function RouteMap({
             </View>
           </ViewAnnotation>
         ))}
+        {congestion?.map((report) => (
+          <ViewAnnotation
+            key={report.id}
+            id={`congestion-${report.id}`}
+            lngLat={toLngLat(report.location)}
+            onPress={() => onCongestionPress?.(report.id)}
+          >
+            <View style={styles.congestionMarker} testID={`congestion-pin-${report.id}`}>
+              <Text style={styles.congestionMarkerText}>{report.estimatedWaitMinutes}m</Text>
+            </View>
+          </ViewAnnotation>
+        ))}
       </MapLibreMap>
       {isFreeLooking && (
         <TouchableOpacity
@@ -300,6 +331,25 @@ const styles = StyleSheet.create({
   },
   hazardMarkerText: {
     fontSize: 15,
+    fontWeight: '800',
+    color: '#0B1220',
+  },
+  // Round and teal, deliberately unlike the square red/amber hazardMarker above — a different
+  // shape reads as "a different kind of thing" at a glance, not just a different colour of the
+  // same warning icon.
+  congestionMarker: {
+    minWidth: 36,
+    height: 26,
+    borderRadius: 13,
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#2DD4BF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  congestionMarkerText: {
+    fontSize: 12,
     fontWeight: '800',
     color: '#0B1220',
   },

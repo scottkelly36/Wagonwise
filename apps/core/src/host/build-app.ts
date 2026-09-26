@@ -24,6 +24,7 @@ const DRIVER_AUTH_PREFIXES = [
   '/routing/',
   '/hazards/',
   '/feedback/',
+  '/congestion/',
   '/identity/devices/',
   '/identity/consent/',
   '/identity/account/',

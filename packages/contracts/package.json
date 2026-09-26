@@ -23,6 +23,11 @@
       "types": "./dist/feedback.d.ts",
       "import": "./dist/feedback.js",
       "default": "./dist/feedback.js"
+    },
+    "./congestion": {
+      "types": "./dist/congestion.d.ts",
+      "import": "./dist/congestion.js",
+      "default": "./dist/congestion.js"
     }
   },
   "scripts": {
