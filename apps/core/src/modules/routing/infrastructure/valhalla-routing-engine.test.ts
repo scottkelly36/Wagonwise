@@ -86,6 +86,18 @@ describe('ValhallaRoutingEngine', () => {
     expect(received.body.exclude_polygons).toBeUndefined();
   });
 
+  it('caps top_speed at 55mph (88kph) — a UK HGV limit isn’t always tagged on the road itself', async () => {
+    const engine = new ValhallaRoutingEngine(baseUrl);
+    const resultPromise = engine.route({ origin, destination, dimensions, avoid: [] });
+    const received = await nextRequest;
+    received.respond(successBody, 200);
+    await resultPromise;
+
+    expect(
+      (received.body.costing_options as { truck: Record<string, unknown> }).truck.top_speed,
+    ).toBe(88);
+  });
+
   it('sends axle_load only when axleWeightT is present', async () => {
     const engine = new ValhallaRoutingEngine(baseUrl);
     const resultPromise = engine.route({
