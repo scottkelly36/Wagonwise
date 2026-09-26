@@ -15,6 +15,31 @@ vpc:
 domains:
   - domain: api.wagon-wise.co.uk
     type: PRIMARY
+jobs:
+  # Runs once before core/driver-bff's new deployment goes live (DO App Platform's PRE_DEPLOY
+  # job kind) — if this fails, the deploy aborts and the old version stays up, so a bad migration
+  # never reaches running code. Same image as `core` (needs the same migrations/ directory and
+  # workspace install), just a different entrypoint. Automates the step that used to be a manual
+  # `pnpm db:migrate` run against the managed DB after every deploy that added a migration
+  # (docs/deployment-guide.md §4 step 2/§7's "0012"/"0013" migrations, done by hand each time).
+  - name: migrate
+    github:
+      repo: scottkelly36/Wagonwise
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: apps/core/Dockerfile
+    source_dir: /
+    kind: PRE_DEPLOY
+    run_command: pnpm --filter @wagonwise/core run db:migrate
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    envs:
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: production
+      # DATABASE_URL is set as an encrypted env var on this job specifically (DO console or
+      # `doctl apps update`), same as on `core` — job components don't inherit another
+      # component's env vars automatically, even within the same app.
 services:
   - name: core
     github:

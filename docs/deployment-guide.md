@@ -34,7 +34,9 @@ Checklist, in order — **all done as of 2026-09-25** except the last step:
    `CLICKSEND_USERNAME`/`CLICKSEND_API_KEY` all set as encrypted App Platform env vars — none
    written here or committed anywhere.
 3. ✅ `pnpm db:migrate` run against the managed database — all 11 migrations applied, PostGIS
-   3.6 enabled.
+   3.6 enabled. **Superseded 2026-09-26** by a `migrate` `PRE_DEPLOY` job in the app spec (§4)
+   — migrations now run automatically on every deploy, no more manual `pnpm db:migrate` after
+   each one that adds a migration file.
 4. ⬜ **Next:** update the EAS `preview` build profile's `EXPO_PUBLIC_BFF_URL` to
    `https://wagonwise-backend-o2baa.ondigitalocean.app`, rebuild (`eas build --profile preview
 --platform android`), reinstall on your phone.
@@ -175,6 +177,17 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
    - `driver-bff`: public route on your domain. Env: `CORE_INTERNAL_URL=http://core:3001`,
      `CORE_INTERNAL_KEY` (must match one of `core`'s `INTERNAL_KEYS`), `NODE_ENV=production`.
    - Basic containers, $5/mo each, to start.
+   - **`migrate` job (`kind: PRE_DEPLOY`), added 2026-09-26.** Same image as `core`, entrypoint
+     overridden to `pnpm --filter @wagonwise/core run db:migrate`. DO runs this once before
+     swapping in a new `core`/`driver-bff` deploy; if it fails (a bad migration), the deploy
+     aborts and the previous version keeps serving traffic — migrations no longer need a manual
+     `pnpm db:migrate` run after every deploy that adds one. One manual step the first time: give
+     this job its own `DATABASE_URL` env var (DO console → the `migrate` job's "Environment
+     variables" panel, or `doctl apps update`) — job components don't inherit another
+     component's env vars, even within the same app, so `core`'s existing `DATABASE_URL` doesn't
+     carry over automatically. Everything else `config.ts` reads is optional/defaulted, so this
+     job needs nothing beyond that one value. Applying the updated spec itself (`doctl apps
+update <app-id> --spec infra/digitalocean/app-spec.yaml`) is also a one-time step.
 5. **Domain — not needed for this week's goal** (§0, §6). App Platform's own
    `*.ondigitalocean.app` URL already has a managed TLS cert and works fine to start; point a
    real domain at it later once one's bought and the trademark check (§6) is done.
