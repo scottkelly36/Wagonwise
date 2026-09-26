@@ -20,6 +20,7 @@ import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow'
 import { computeEta } from '../lib/eta';
 import { routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
+import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import { decodePolyline6 } from '../lib/polyline';
 import { routeProgress } from '../lib/route-progress';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
@@ -75,9 +76,29 @@ export default function ActiveTripScreen() {
   const routeLine = useMemo(() => (plan ? decodePolyline6(plan.geometry) : undefined), [plan]);
   const corridor = useMemo(() => routeLine?.map(([lon, lat]) => ({ lat, lon })) ?? [], [routeLine]);
   const nearbyHazards = useNearbyHazards(corridor, ON_ROUTE_HAZARD_RADIUS_M);
+  const nearbyHazardsData = nearbyHazards.data;
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // `plan.hazardsOnRoute` is the authoritative "on this route" list (a real, ~30m-of-the-final-
+  // route server query) but it's bare ids, nothing a driver can read. Cross-referencing against
+  // `nearbyHazards`' fuller objects (already fetched for the map markers and the voice-warning
+  // hook, a broader ~750m corridor check) gets a readable label without a second request — an id
+  // that's since been dismissed/expired just doesn't render, which is correct for something no
+  // longer actually there.
+  const hazardsOnRoute = useMemo(() => {
+    if (!plan || !nearbyHazardsData) return [];
+    // Keyed by plain `string`, not the branded `HazardReportId` `hazard.id` actually is — the
+    // ids traveling through `plan.hazardsOnRoute` are plain strings on the wire (`z.string()`,
+    // not the branded schema), so the lookup below needs a plain-string key to match against.
+    const byId = new Map<string, NonNullable<typeof nearbyHazardsData>[number]>(
+      nearbyHazardsData.map((hazard) => [hazard.id, hazard]),
+    );
+    return plan.hazardsOnRoute
+      .map((id) => byId.get(id))
+      .filter((hazard): hazard is NonNullable<typeof hazard> => hazard !== undefined);
+  }, [plan, nearbyHazardsData]);
 
   // Live-updating ETA (part 2 of the planning-time one on route-overview.tsx): re-derived from
   // the driver's live position every time it updates (useLiveLocation, every ~3s/10m), by
@@ -99,7 +120,7 @@ export default function ActiveTripScreen() {
   const micActive = CANCELLABLE_PHASES.has(voiceFlow.state.phase);
   // Muted while the voice hazard-report flow is itself listening or speaking — talking over that
   // would be worse than a missed warning.
-  useHazardVoiceWarnings(routeLine, location.point, nearbyHazards.data, !micBusy && !micActive);
+  useHazardVoiceWarnings(routeLine, location.point, nearbyHazardsData, !micBusy && !micActive);
 
   // Reachable with no current trip/plan only by navigating here directly, or after an app
   // relaunch mid-trip — the trip store is ephemeral (docs/progress.md, M5.6 deviations) and
@@ -128,7 +149,7 @@ export default function ActiveTripScreen() {
           destination={plan.destination}
           routeLine={routeLine}
           currentPosition={location.point}
-          hazards={nearbyHazards.data?.map((h) => ({
+          hazards={nearbyHazardsData?.map((h) => ({
             id: h.id,
             type: h.type,
             location: h.location,
@@ -200,13 +221,20 @@ export default function ActiveTripScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hazards on this route</Text>
-          {plan.hazardsOnRoute.length === 0 ? (
+          {hazardsOnRoute.length === 0 ? (
             <Text style={styles.sectionEmpty}>None reported.</Text>
           ) : (
-            plan.hazardsOnRoute.map((hazardId) => (
-              <Text key={hazardId} style={styles.sectionItem}>
-                {hazardId}
-              </Text>
+            hazardsOnRoute.map((hazard) => (
+              <TouchableOpacity
+                key={hazard.id}
+                onPress={() => setSelectedHazardId(hazard.id)}
+                testID={`hazard-list-item-${hazard.id}`}
+              >
+                <Text style={styles.sectionItem}>
+                  {HAZARD_TYPE_LABELS[hazard.type]}
+                  {hazard.measurement ? ` · ${formatMeasurement(hazard.measurement)}` : ''}
+                </Text>
+              </TouchableOpacity>
             ))
           )}
         </View>

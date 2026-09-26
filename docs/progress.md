@@ -117,20 +117,34 @@ not attached to a milestone yet.
   `amenity=parking`, `amenity=restaurant`/`cafe`/`fast_food` — but nothing's been checked for
   completeness around the test area). Would likely reuse whatever voice-output mechanism the
   text-to-speech idea above ends up using.
-- **2026-09-25: congestion tracking** — the user's own framing: country roads in the test area
-  rarely see real traffic, but a congested motorway can add a lot to a journey, so this matters
-  more for the A1-type corridors than the rural roads M2's routing already focuses on. Two
-  options discussed:
-  - Crowd-sourced via the existing hazard-report system (a "traffic" report type) — zero new
-    cost, reuses everything already built, but only as good as driver density, which is thin
-    with a handful of testers (same cold-start problem every crowd-sourced traffic app has).
-  - **National Highways' WebTRIS API** — confirmed genuinely free, no API key or registration
-    (`webtris.nationalhighways.co.uk/api/v1.0/...`, JSON), covers England's strategic road
-    network (motorways + major A-roads, including the A1 corridor near the test area). It's
-    point-based sensor data (speed/flow at fixed monitoring sites), not a route overlay, so
-    using it would mean translating "sensor X reads slow" into "this stretch of the driver's
-    planned route is congested" — real work, but on a real, free, already-confirmed data source
-    rather than a guess.
+- **2026-09-25: congestion tracking — refined 2026-09-26 (twice).** The user's own framing:
+  country roads in the test area rarely see real traffic, but a congested motorway can add a lot
+  to a journey, so this matters more for the A1-type corridors than the rural roads M2's routing
+  already focuses on. Two options discussed, and the user's own sequencing for them:
+  - **Crowd-sourced first** (the near-term plan) — marked with an estimated wait time, that
+    times out on its own. **Second refinement, same day**: the user's own question — should
+    this be its own thing, separate from hazards, to keep hazards clean? Yes. It's a genuinely
+    different _kind_ of thing from a `HazardReport` — a decaying road condition with its own
+    wait-time/short-expiry lifecycle, not a persistent point obstruction a vehicle's dimensions
+    get checked against (`applies()`/`isBlocking()`, the safety-critical domain function, has
+    nothing to do with congestion at all). Folding it into `HazardReport` as a fourth
+    `MeasurementKind` plus a type-specific expiry would loosen that domain model with fields only
+    one type ever uses. Recommendation: a separate bounded context (own domain/application/
+    infrastructure/interface, own migration, own map-marker style and list, consumed by routing
+    and the driver-app the same read-model-port way hazards already is) — real new plumbing
+    rather than reusing hazards' pipeline wholesale, but it keeps hazards' restriction logic
+    untouched and gives congestion room to grow its own rules (WebTRIS ingestion, a different
+    lifecycle) without hazards code having to care. No design or scoping done on the new module
+    itself yet — this only settled _whether_ it's separate, not its shape.
+  - **National Highways' WebTRIS API second** — confirmed genuinely free, no API key or
+    registration (`webtris.nationalhighways.co.uk/api/v1.0/...`, JSON), covers England's
+    strategic road network (motorways + major A-roads, including the A1 corridor near the test
+    area). The user's own framing this session: couple it in _after_ the crowd-sourced half
+    exists, as a second source feeding the same warnings rather than a replacement — it's
+    point-based sensor data (speed/flow at fixed monitoring sites), not a route overlay, so using
+    it means translating "sensor X reads slow" into "this stretch of the driver's planned route
+    is congested," real work but on an already-confirmed real data source rather than a guess.
+    No design or scoping done yet on either half — still just sequenced.
 - **2026-09-25: light and dark mode — manual half shipped 2026-09-26.** The driver app was
   dark-only (every screen's colours hardcoded, e.g. `home.tsx`/`consent.tsx`'s `#0B1220`
   background). Scoped down to a manual toggle first (user's choice when asked): `theme/colors.ts`
