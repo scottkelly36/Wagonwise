@@ -27,6 +27,11 @@ export const driverSchema = z.object({
   createdAt: z.iso.datetime(),
   /** Design doc §9's privacy notice/consent screen (M8) — absent until the driver accepts it. */
   consentedAt: z.iso.datetime().optional(),
+  /** Lets the app hide admin-only actions (e.g. a true hazard delete, 2026-09-26) for anyone who
+   *  isn't one, rather than showing the control to every driver and relying on the server's 403
+   *  alone. Always present — the domain's own `Driver.isAdmin` is a required boolean, never
+   *  unset. */
+  isAdmin: z.boolean(),
 });
 export type DriverDto = z.infer<typeof driverSchema>;
 

@@ -88,10 +88,11 @@ not attached to a milestone yet.
   rule 7 — hazards never imports identity's `Driver` type). `DELETE /hazards/reports/:id` (core,
   proxied unchanged through the BFF) is gated to admins only, unlike confirm/dismiss's decision
   63 ("no ownership check at all") — a true delete is a different, unrecoverable kind of action.
-  The driver-app's "Delete report" button shows for every driver (simpler than teaching the app
-  "am I an admin") and just surfaces the server's 403 with a real message for anyone else. No
-  self-service way to grant admin — it's set directly in the database, once, for whichever
-  account needs it.
+  The driver-app's "Delete report" button initially just showed for every driver — shipped that
+  way same day, then hidden client-side later the same day (`isAdmin` added to `driverSchema`/
+  the sign-in response, checked at each call site) once the user asked for it, on top of the
+  server enforcing the same thing regardless. No self-service way to grant admin — it's set
+  directly in the database, once, for whichever account needs it.
 
 - **2026-09-25: text-to-speech for navigation — hazard-ahead half shipped 2026-09-26.** Split in
   two when scoped: spoken turn-by-turn directions, and a spoken warning as a hazard on the route

@@ -33,12 +33,14 @@ function driverDto(driver: {
   readonly identifier: string;
   readonly createdAt: Date;
   readonly consentedAt?: Date | undefined;
+  readonly isAdmin: boolean;
 }) {
   return {
     id: driver.id,
     identifier: driver.identifier,
     createdAt: driver.createdAt,
     ...(driver.consentedAt === undefined ? {} : { consentedAt: driver.consentedAt }),
+    isAdmin: driver.isAdmin,
   };
 }
 
