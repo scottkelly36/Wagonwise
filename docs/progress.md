@@ -117,21 +117,25 @@ not attached to a milestone yet.
   `amenity=parking`, `amenity=restaurant`/`cafe`/`fast_food` — but nothing's been checked for
   completeness around the test area). Would likely reuse whatever voice-output mechanism the
   text-to-speech idea above ends up using.
-- **2026-09-25: congestion tracking — refined 2026-09-26.** The user's own framing: country
-  roads in the test area rarely see real traffic, but a congested motorway can add a lot to a
-  journey, so this matters more for the A1-type corridors than the rural roads M2's routing
+- **2026-09-25: congestion tracking — refined 2026-09-26 (twice).** The user's own framing:
+  country roads in the test area rarely see real traffic, but a congested motorway can add a lot
+  to a journey, so this matters more for the A1-type corridors than the rural roads M2's routing
   already focuses on. Two options discussed, and the user's own sequencing for them:
-  - **Crowd-sourced first** (the near-term plan) — a "traffic"/congestion hazard type through
-    the existing report system, marked with an estimated wait time, that times out on its own.
-    Two real design gaps this needs, neither of which the current hazard model has: (1) a wait
-    time isn't a `Measurement` in today's sense (height/width/weight are vehicle-clearance
-    numbers checked against a restriction; a wait time is just informational) — probably wants
-    its own field, not a fourth `MeasurementKind`; (2) every hazard type currently shares one
-    7-day expiry (decision, 2026-09-21) — traffic needs a much shorter, type-specific one (likely
-    tied to the reported wait time itself, or a short fixed default), which means expiry becomes
-    per-type, not a single constant. Zero new external dependency, reuses everything already
-    built, but only as good as driver density, which is thin with a handful of testers (same
-    cold-start problem every crowd-sourced traffic app has).
+  - **Crowd-sourced first** (the near-term plan) — marked with an estimated wait time, that
+    times out on its own. **Second refinement, same day**: the user's own question — should
+    this be its own thing, separate from hazards, to keep hazards clean? Yes. It's a genuinely
+    different _kind_ of thing from a `HazardReport` — a decaying road condition with its own
+    wait-time/short-expiry lifecycle, not a persistent point obstruction a vehicle's dimensions
+    get checked against (`applies()`/`isBlocking()`, the safety-critical domain function, has
+    nothing to do with congestion at all). Folding it into `HazardReport` as a fourth
+    `MeasurementKind` plus a type-specific expiry would loosen that domain model with fields only
+    one type ever uses. Recommendation: a separate bounded context (own domain/application/
+    infrastructure/interface, own migration, own map-marker style and list, consumed by routing
+    and the driver-app the same read-model-port way hazards already is) — real new plumbing
+    rather than reusing hazards' pipeline wholesale, but it keeps hazards' restriction logic
+    untouched and gives congestion room to grow its own rules (WebTRIS ingestion, a different
+    lifecycle) without hazards code having to care. No design or scoping done on the new module
+    itself yet — this only settled _whether_ it's separate, not its shape.
   - **National Highways' WebTRIS API second** — confirmed genuinely free, no API key or
     registration (`webtris.nationalhighways.co.uk/api/v1.0/...`, JSON), covers England's
     strategic road network (motorways + major A-roads, including the A1 corridor near the test

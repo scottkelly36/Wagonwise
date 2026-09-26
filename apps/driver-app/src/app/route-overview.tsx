@@ -18,6 +18,7 @@ import { RouteMap } from '../components/route-map';
 import { computeEta } from '../lib/eta';
 import { routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
+import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
@@ -49,6 +50,25 @@ export default function RouteOverviewScreen() {
   const routeLine = useMemo(() => (plan ? decodePolyline6(plan.geometry) : undefined), [plan]);
   const corridor = useMemo(() => routeLine?.map(([lon, lat]) => ({ lat, lon })) ?? [], [routeLine]);
   const nearbyHazards = useNearbyHazards(corridor, ON_ROUTE_HAZARD_RADIUS_M);
+  const nearbyHazardsData = nearbyHazards.data;
+  // `plan.hazardsOnRoute` is the authoritative "on this route" list (a real, ~30m-of-the-final-
+  // route server query as of the plan/hazardsOnRoute-populate change) but it's bare ids, nothing
+  // a driver can read. Cross-referencing against `nearbyHazards`' fuller objects (already fetched
+  // for the map markers, a broader ~750m corridor check) gets a readable label without a second
+  // request — an id that's since been dismissed/expired (so it's dropped out of the live query)
+  // just doesn't render, which is the right call for something no longer actually there.
+  const hazardsOnRoute = useMemo(() => {
+    if (!plan || !nearbyHazardsData) return [];
+    // Keyed by plain `string`, not the branded `HazardReportId` `hazard.id` actually is — the
+    // ids traveling through `plan.hazardsOnRoute` are plain strings on the wire (`z.string()`,
+    // not the branded schema), so the lookup below needs a plain-string key to match against.
+    const byId = new Map<string, NonNullable<typeof nearbyHazardsData>[number]>(
+      nearbyHazardsData.map((hazard) => [hazard.id, hazard]),
+    );
+    return plan.hazardsOnRoute
+      .map((id) => byId.get(id))
+      .filter((hazard): hazard is NonNullable<typeof hazard> => hazard !== undefined);
+  }, [plan, nearbyHazardsData]);
 
   const eta = plan ? computeEta(leaveAt ?? new Date(), plan.durationMin) : undefined;
 
@@ -91,7 +111,7 @@ export default function RouteOverviewScreen() {
         origin={plan.origin}
         destination={plan.destination}
         routeLine={routeLine}
-        hazards={nearbyHazards.data?.map((h) => ({
+        hazards={nearbyHazardsData?.map((h) => ({
           id: h.id,
           type: h.type,
           location: h.location,
@@ -156,13 +176,20 @@ export default function RouteOverviewScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hazards on this route</Text>
-          {plan.hazardsOnRoute.length === 0 ? (
+          {hazardsOnRoute.length === 0 ? (
             <Text style={styles.sectionEmpty}>None reported.</Text>
           ) : (
-            plan.hazardsOnRoute.map((hazardId) => (
-              <Text key={hazardId} style={styles.sectionItem}>
-                {hazardId}
-              </Text>
+            hazardsOnRoute.map((hazard) => (
+              <TouchableOpacity
+                key={hazard.id}
+                onPress={() => setSelectedHazardId(hazard.id)}
+                testID={`hazard-list-item-${hazard.id}`}
+              >
+                <Text style={styles.sectionItem}>
+                  {HAZARD_TYPE_LABELS[hazard.type]}
+                  {hazard.measurement ? ` · ${formatMeasurement(hazard.measurement)}` : ''}
+                </Text>
+              </TouchableOpacity>
             ))
           )}
         </View>
