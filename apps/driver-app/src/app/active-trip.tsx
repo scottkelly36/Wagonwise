@@ -1,3 +1,4 @@
+import { useKeepAwake } from 'expo-keep-awake';
 import { Redirect, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -55,6 +56,11 @@ const ON_ROUTE_HAZARD_RADIUS_M = 750;
  * yes/no, then file or save an unconfirmed draft — design doc §7 steps 1-4 end to end.
  */
 export default function ActiveTripScreen() {
+  // For as long as this screen is mounted, i.e. for the life of the trip — a driver glancing at
+  // the map every few minutes shouldn't have to unlock their phone each time (field feedback,
+  // 2026-09-26). Released automatically on unmount (ending the trip, or navigating away).
+  useKeepAwake();
+
   const router = useRouter();
   const trip = useCurrentActiveTripStore((s) => s.trip);
   const clearTrip = useCurrentActiveTripStore((s) => s.clear);

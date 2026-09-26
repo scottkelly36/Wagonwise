@@ -5,7 +5,7 @@ import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-na
 import { useNearbyHazards } from '../api/use-hazards';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
-import { useCurrentLocation } from '../hooks/use-current-location';
+import { useLiveLocation } from '../hooks/use-live-location';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 // "Within x amount of distance from you" (design decision, 2026-09-24) — a driver stood still or
@@ -21,7 +21,13 @@ const NEARBY_RADIUS_M = 5_000;
  */
 export default function HomeScreen() {
   const router = useRouter();
-  const location = useCurrentLocation();
+  // A continuous watch, not `useCurrentLocation`'s one-shot fix — this screen's dot is meant to
+  // track where the driver actually is right now (design decision, "map is the app"), not a
+  // snapshot cached from whenever this screen first happened to mount. A one-shot fix here read
+  // as the dot "sticking" at wherever a trip started, since `useCurrentLocation`'s query never
+  // refetches on its own (bug found 2026-09-26: dot stayed at the trip's start point after
+  // ending the trip and moving away from it).
+  const location = useLiveLocation();
   const nearbyHazards = useNearbyHazards(location.point ? [location.point] : [], NEARBY_RADIUS_M);
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const colors = useThemeColors();
