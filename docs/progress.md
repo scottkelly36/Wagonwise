@@ -104,14 +104,24 @@ not attached to a milestone yet.
     using it would mean translating "sensor X reads slow" into "this stretch of the driver's
     planned route is congested" — real work, but on a real, free, already-confirmed data source
     rather than a guess.
-- **2026-09-25: light and dark mode** — the driver app is currently dark-only (every screen's
-  colours are hardcoded, e.g. `home.tsx`/`consent.tsx`'s `#0B1220` background). The user's own
-  framing: either the driver sets it manually, or it switches automatically at sunrise/sunset —
-  not just following the OS's own light/dark setting (`useColorScheme()`), since a trucker's
-  phone might already be locked to one OS-level mode for other reasons. Sunrise/sunset needs the
-  driver's location (already available via `useCurrentLocation()`) and a sun-times calculation —
-  either a small library (e.g. `suncalc`) or a call to a free sunrise-sunset API — recomputed as
-  the driver moves and as days pass, not fixed once at app start. No design or scoping done yet.
+- **2026-09-25: light and dark mode — manual half shipped 2026-09-26.** The driver app was
+  dark-only (every screen's colours hardcoded, e.g. `home.tsx`/`consent.tsx`'s `#0B1220`
+  background). Scoped down to a manual toggle first (user's choice when asked): `theme/colors.ts`
+  holds a `ThemeColors` token set with `darkColors`/`lightColors` palettes (`darkColors` is
+  exactly the old hardcoded values, so switching to "dark" changes nothing anyone's seen);
+  `state/theme-store.ts` is a zustand store persisted via SecureStore (same mechanism as
+  `auth-store.ts`'s cached `DriverInfo` — no new dependency for one string), restored at boot in
+  `_layout.tsx` alongside auth, and feeds both the app's own screens and expo-router's
+  `ThemeProvider`/`StatusBar`. A "Dark"/"Light" toggle lives in `settings.tsx`. Every screen and
+  shared component migrated from a static `StyleSheet.create` to a `createStyles(colors)`
+  function called through `useMemo`. Deliberately left unthemed: `components/route-map.tsx`
+  (MapLibre tiles and pin/hazard-marker colours don't repaint for an app-chrome switch) and a
+  handful of floating map-overlay buttons (`home.tsx`'s menu/hazard buttons, `active-trip.tsx`'s
+  mic overlay) that need to stay legible against the map's own imagery regardless of theme.
+  **Still open, not attempted**: automatic sunrise/sunset switching — needs the driver's location
+  (already available via `useCurrentLocation()`) and a sun-times calculation (a small library like
+  `suncalc`, or a free sunrise-sunset API), recomputed as the driver moves and as days pass, not
+  fixed once at app start. No design or scoping done on that half yet.
 
 ## M1 task breakdown
 

@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,10 +13,13 @@ import { useCreateVehicleProfile } from '../../api/use-vehicle-profiles';
 import { VehicleProfileForm } from '../../components/vehicle-profile-form';
 import { routingErrorMessage } from '../../lib/error-messages';
 import { EMPTY_VEHICLE_PROFILE_FORM } from '../../lib/vehicle-profile-form';
+import { useThemeColors, type ThemeColors } from '../../theme/colors';
 
 export default function NewVehicleProfileScreen() {
   const router = useRouter();
   const createMutation = useCreateVehicleProfile();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -40,21 +44,23 @@ export default function NewVehicleProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    padding: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    flex: {
+      flex: 1,
+    },
+    content: {
+      padding: 24,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 8,
+    },
+  });
+}

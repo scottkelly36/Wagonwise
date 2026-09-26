@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import {
 import { useSubmitFeedback } from '../api/use-feedback';
 import { feedbackErrorMessage } from '../lib/error-messages';
 import { getAppVersion, getDeviceInfo } from '../lib/app-info';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 /**
  * Feedback (design doc §8): "Free-text notes to you, with app version and device info
@@ -26,6 +27,8 @@ export default function FeedbackScreen() {
   const submitFeedback = useSubmitFeedback();
   const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   function handleSubmit(): void {
     if (message.trim() === '' || submitFeedback.isPending) return;
@@ -68,7 +71,7 @@ export default function FeedbackScreen() {
             value={message}
             onChangeText={setMessage}
             placeholder="Write your note here"
-            placeholderTextColor="#6B7280"
+            placeholderTextColor={colors.textDim}
             multiline
             autoFocus
             testID="feedback-message-input"
@@ -88,7 +91,7 @@ export default function FeedbackScreen() {
             testID="feedback-submit-button"
           >
             {submitFeedback.isPending ? (
-              <ActivityIndicator color="#0B1220" />
+              <ActivityIndicator color={colors.textOnAccent} />
             ) : (
               <Text style={styles.buttonText}>Send</Text>
             )}
@@ -103,70 +106,72 @@ export default function FeedbackScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    padding: 24,
-    gap: 8,
-  },
-  sentContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    gap: 12,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  hint: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginBottom: 8,
-  },
-  input: {
-    minHeight: 160,
-    fontSize: 18,
-    color: '#FFFFFF',
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    textAlignVertical: 'top',
-  },
-  error: {
-    fontSize: 16,
-    color: '#F87171',
-    marginTop: 16,
-  },
-  button: {
-    minHeight: 56,
-    backgroundColor: '#F5A623',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  footnote: {
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 16,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    flex: {
+      flex: 1,
+    },
+    content: {
+      padding: 24,
+      gap: 8,
+    },
+    sentContent: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+      gap: 12,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    hint: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: 8,
+    },
+    input: {
+      minHeight: 160,
+      fontSize: 18,
+      color: colors.text,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      textAlignVertical: 'top',
+    },
+    error: {
+      fontSize: 16,
+      color: colors.danger,
+      marginTop: 16,
+    },
+    button: {
+      minHeight: 56,
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 24,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    footnote: {
+      fontSize: 13,
+      color: colors.textDim,
+      textAlign: 'center',
+      marginTop: 16,
+    },
+  });
+}

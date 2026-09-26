@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,6 +15,7 @@ import { useCurrentLocation } from '../hooks/use-current-location';
 import { formatDateTime } from '../lib/format-date';
 import { HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import { formatHeightWithFeetInches } from '../lib/units';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 function formatMeasurement(measurement: {
   readonly kind: 'height' | 'width' | 'weight';
@@ -36,6 +38,8 @@ function DraftRow({ draft, fallbackOrigin }: DraftRowProps) {
   const discardMutation = useDiscardVoiceDraft();
   const origin = draft.origin ?? fallbackOrigin;
   const pending = fileMutation.isPending || discardMutation.isPending;
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.row} testID={`voice-draft-row-${draft.id}`}>
@@ -66,7 +70,7 @@ function DraftRow({ draft, fallbackOrigin }: DraftRowProps) {
           testID={`voice-draft-report-${draft.id}`}
         >
           {fileMutation.isPending ? (
-            <ActivityIndicator color="#0B1220" />
+            <ActivityIndicator color={colors.textOnAccent} />
           ) : (
             <Text style={styles.buttonText}>Report it</Text>
           )}
@@ -79,7 +83,7 @@ function DraftRow({ draft, fallbackOrigin }: DraftRowProps) {
           testID={`voice-draft-discard-${draft.id}`}
         >
           {discardMutation.isPending ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={colors.text} />
           ) : (
             <Text style={[styles.buttonText, styles.discardButtonText]}>Discard</Text>
           )}
@@ -99,6 +103,8 @@ function DraftRow({ draft, fallbackOrigin }: DraftRowProps) {
 export default function VoiceDraftsScreen() {
   const { data, isLoading, isError, isRefetching, refetch } = useVoiceDrafts();
   const location = useCurrentLocation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -107,7 +113,7 @@ export default function VoiceDraftsScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator style={styles.loading} size="large" color="#FFFFFF" />
+        <ActivityIndicator style={styles.loading} size="large" color={colors.text} />
       ) : isError ? (
         <Text style={styles.message}>Couldn’t load saved reports. Pull down to try again.</Text>
       ) : data === undefined || data.length === 0 ? (
@@ -127,90 +133,92 @@ export default function VoiceDraftsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  header: {
-    padding: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  loading: {
-    marginTop: 48,
-  },
-  message: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginTop: 48,
-    paddingHorizontal: 24,
-  },
-  row: {
-    gap: 4,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1F2937',
-  },
-  rowType: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  rowDetail: {
-    fontSize: 15,
-    color: '#E5E7EB',
-  },
-  rowTranscript: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    fontStyle: 'italic',
-    marginTop: 4,
-  },
-  rowMeta: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  rowHint: {
-    fontSize: 13,
-    color: '#F87171',
-    marginTop: 4,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
-  },
-  button: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reportButton: {
-    backgroundColor: '#F5A623',
-  },
-  discardButton: {
-    backgroundColor: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#6B7280',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  discardButtonText: {
-    color: '#FFFFFF',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      padding: 24,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    loading: {
+      marginTop: 48,
+    },
+    message: {
+      fontSize: 16,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 48,
+      paddingHorizontal: 24,
+    },
+    row: {
+      gap: 4,
+      paddingHorizontal: 24,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    rowType: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    rowDetail: {
+      fontSize: 15,
+      color: colors.textSecondary,
+    },
+    rowTranscript: {
+      fontSize: 14,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      marginTop: 4,
+    },
+    rowMeta: {
+      fontSize: 13,
+      color: colors.textDim,
+      marginTop: 4,
+    },
+    rowHint: {
+      fontSize: 13,
+      color: colors.danger,
+      marginTop: 4,
+    },
+    actionRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 12,
+    },
+    button: {
+      flex: 1,
+      minHeight: 48,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    reportButton: {
+      backgroundColor: colors.accent,
+    },
+    discardButton: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.textDim,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    discardButtonText: {
+      color: colors.text,
+    },
+  });
+}

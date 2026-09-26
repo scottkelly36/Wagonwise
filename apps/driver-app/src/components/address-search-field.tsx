@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { searchAddress, type GeocodingResult } from '../lib/geocoding';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
 import type { MapPoint } from './route-map';
 
 const SEARCH_DEBOUNCE_MS = 400;
@@ -41,6 +42,8 @@ export function AddressSearchField({ label, placeholder, apiKey, near, onSelect,
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const requestIdRef = useRef(0);
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     return () => {
@@ -90,10 +93,10 @@ export function AddressSearchField({ label, placeholder, apiKey, near, onSelect,
           value={text}
           onChangeText={handleChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#6B7280"
+          placeholderTextColor={colors.textDim}
           testID={`${testID}-input`}
         />
-        {loading && <ActivityIndicator style={styles.spinner} color="#9CA3AF" />}
+        {loading && <ActivityIndicator style={styles.spinner} color={colors.textMuted} />}
       </View>
 
       {results.length > 0 && (
@@ -116,45 +119,47 @@ export function AddressSearchField({ label, placeholder, apiKey, near, onSelect,
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: 4,
-  },
-  label: {
-    fontSize: 14,
-    color: '#9CA3AF',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  input: {
-    flex: 1,
-    minHeight: 48,
-    fontSize: 16,
-    color: '#FFFFFF',
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-  },
-  spinner: {
-    position: 'absolute',
-    right: 16,
-  },
-  suggestions: {
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  suggestion: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-  },
-  suggestionText: {
-    fontSize: 15,
-    color: '#E5E7EB',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      gap: 4,
+    },
+    label: {
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    input: {
+      flex: 1,
+      minHeight: 48,
+      fontSize: 16,
+      color: colors.text,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+    },
+    spinner: {
+      position: 'absolute',
+      right: 16,
+    },
+    suggestions: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    suggestion: {
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: 16,
+      borderTopWidth: 1,
+      borderTopColor: colors.surfaceStrong,
+    },
+    suggestionText: {
+      fontSize: 15,
+      color: colors.textSecondary,
+    },
+  });
+}

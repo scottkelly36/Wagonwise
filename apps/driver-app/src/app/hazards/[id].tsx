@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -16,6 +17,7 @@ import {
   HAZARD_STATUS_LABELS,
   HAZARD_TYPE_LABELS,
 } from '../../lib/hazard-labels';
+import { useThemeColors, type ThemeColors } from '../../theme/colors';
 
 /**
  * Hazard detail (design doc §8): "What, when, confirmations; Confirm / Not there". Reached after
@@ -28,11 +30,13 @@ export default function HazardDetailScreen() {
   const { data: hazard, isLoading, isError } = useHazard(id);
   const confirmMutation = useConfirmHazard();
   const dismissMutation = useDismissHazard();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator style={styles.loading} size="large" color="#FFFFFF" />
+        <ActivityIndicator style={styles.loading} size="large" color={colors.text} />
       </SafeAreaView>
     );
   }
@@ -79,7 +83,7 @@ export default function HazardDetailScreen() {
             testID="confirm-hazard-button"
           >
             {confirmMutation.isPending ? (
-              <ActivityIndicator color="#0B1220" />
+              <ActivityIndicator color={colors.textOnAccent} />
             ) : (
               <Text style={styles.buttonText}>Still there</Text>
             )}
@@ -92,7 +96,7 @@ export default function HazardDetailScreen() {
             testID="dismiss-hazard-button"
           >
             {dismissMutation.isPending ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={colors.text} />
             ) : (
               <Text style={[styles.buttonText, styles.dismissButtonText]}>Not there</Text>
             )}
@@ -103,79 +107,81 @@ export default function HazardDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  content: {
-    padding: 24,
-    gap: 8,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  status: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    textTransform: 'uppercase',
-  },
-  detail: {
-    fontSize: 18,
-    color: '#E5E7EB',
-    marginTop: 8,
-  },
-  meta: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 8,
-  },
-  loading: {
-    marginTop: 48,
-  },
-  message: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginTop: 48,
-    paddingHorizontal: 24,
-  },
-  error: {
-    fontSize: 16,
-    color: '#F87171',
-    marginTop: 16,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
-  },
-  button: {
-    flex: 1,
-    minHeight: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  confirmButton: {
-    backgroundColor: '#F5A623',
-  },
-  dismissButton: {
-    backgroundColor: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#6B7280',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  dismissButtonText: {
-    color: '#FFFFFF',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: 24,
+      gap: 8,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    status: {
+      fontSize: 16,
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+    },
+    detail: {
+      fontSize: 18,
+      color: colors.textSecondary,
+      marginTop: 8,
+    },
+    meta: {
+      fontSize: 14,
+      color: colors.textDim,
+      marginTop: 8,
+    },
+    loading: {
+      marginTop: 48,
+    },
+    message: {
+      fontSize: 16,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 48,
+      paddingHorizontal: 24,
+    },
+    error: {
+      fontSize: 16,
+      color: colors.danger,
+      marginTop: 16,
+    },
+    actionRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 24,
+    },
+    button: {
+      flex: 1,
+      minHeight: 56,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    confirmButton: {
+      backgroundColor: colors.accent,
+    },
+    dismissButton: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.textDim,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    dismissButtonText: {
+      color: colors.text,
+    },
+  });
+}

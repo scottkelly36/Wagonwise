@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -12,6 +13,7 @@ import { useConfirmHazard, useDismissHazard, useHazard } from '../api/use-hazard
 import { hazardsErrorMessage } from '../lib/error-messages';
 import { formatDateTime } from '../lib/format-date';
 import { formatMeasurement, HAZARD_STATUS_LABELS, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 interface Props {
   readonly hazardId: string | undefined;
@@ -38,6 +40,8 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
       ? hazardsErrorMessage(dismissMutation.error)
       : undefined;
   const actionPending = confirmMutation.isPending || dismissMutation.isPending;
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <Modal
@@ -52,7 +56,7 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
 
       <View style={styles.sheet}>
         {isLoading ? (
-          <ActivityIndicator style={styles.loading} size="large" color="#FFFFFF" />
+          <ActivityIndicator style={styles.loading} size="large" color={colors.text} />
         ) : isError || hazard === undefined ? (
           <Text style={styles.message}>That report isn’t there any more.</Text>
         ) : (
@@ -88,7 +92,7 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
                 testID="confirm-hazard-button"
               >
                 {confirmMutation.isPending ? (
-                  <ActivityIndicator color="#0B1220" />
+                  <ActivityIndicator color={colors.textOnAccent} />
                 ) : (
                   <Text style={styles.buttonText}>Still there</Text>
                 )}
@@ -105,7 +109,7 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
                 testID="dismiss-hazard-button"
               >
                 {dismissMutation.isPending ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={colors.text} />
                 ) : (
                   <Text style={[styles.buttonText, styles.dismissButtonText]}>Not there</Text>
                 )}
@@ -118,90 +122,94 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  sheet: {
-    backgroundColor: '#0B1220',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: 40,
-    gap: 4,
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#334155',
-    marginBottom: 16,
-  },
-  loading: {
-    marginVertical: 48,
-  },
-  message: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginVertical: 48,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  status: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textTransform: 'uppercase',
-  },
-  detail: {
-    fontSize: 17,
-    color: '#E5E7EB',
-    marginTop: 8,
-  },
-  meta: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 8,
-  },
-  error: {
-    fontSize: 15,
-    color: '#F87171',
-    marginTop: 12,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
-  },
-  button: {
-    flex: 1,
-    minHeight: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  confirmButton: {
-    backgroundColor: '#F5A623',
-  },
-  dismissButton: {
-    backgroundColor: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#6B7280',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  dismissButtonText: {
-    color: '#FFFFFF',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    // A modal dimming backdrop — kept a fixed black regardless of theme, the same everywhere
+    // this pattern shows up (standard UX, not part of the light/dark app chrome).
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    sheet: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 24,
+      paddingBottom: 40,
+      gap: 4,
+    },
+    handle: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.surfaceStrong,
+      marginBottom: 16,
+    },
+    loading: {
+      marginVertical: 48,
+    },
+    message: {
+      fontSize: 16,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginVertical: 48,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    status: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+    },
+    detail: {
+      fontSize: 17,
+      color: colors.textSecondary,
+      marginTop: 8,
+    },
+    meta: {
+      fontSize: 14,
+      color: colors.textDim,
+      marginTop: 8,
+    },
+    error: {
+      fontSize: 15,
+      color: colors.danger,
+      marginTop: 12,
+    },
+    actionRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 20,
+    },
+    button: {
+      flex: 1,
+      minHeight: 56,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    confirmButton: {
+      backgroundColor: colors.accent,
+    },
+    dismissButton: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.textDim,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    dismissButtonText: {
+      color: colors.text,
+    },
+  });
+}
