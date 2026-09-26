@@ -7,10 +7,12 @@ import {
   type LngLat,
   type LngLatBounds,
   type PressEvent,
+  type ViewStateChangeEvent,
 } from '@maplibre/maplibre-react-native';
 import type { HazardTypeDto } from '@wagonwise/contracts/hazards';
+import { useState } from 'react';
 import type { NativeSyntheticEvent } from 'react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { config } from '../config';
 import { hazardSeverityFor } from '../lib/hazard-labels';
@@ -47,7 +49,9 @@ interface Props {
   /** The active-trip screen's live GPS fix (M5.6) — when present, the camera follows it instead
    *  of the static origin/destination the route was planned with, and it's drawn as its own
    *  marker rather than reusing the origin pin (a driver's live position drifts off the planned
-   *  origin as soon as the trip starts). */
+   *  origin as soon as the trip starts). Panning or zooming manually while this is set drops out
+   *  of following (design feedback, 2026-09-26: recentring on every fix fought a driver trying
+   *  to look ahead) — a "Recenter" button reappears to opt back in; see `following` state below. */
   readonly currentPosition?: MapPoint;
   /** Reported hazards to show as warning icons (design decision, 2026-09-24: "within x amount of
    *  distance from you or on your route", not every hazard in the country) — the caller decides
@@ -105,6 +109,12 @@ export function RouteMap({
   hazards,
   onHazardPress,
 }: Props) {
+  // Whether the camera is actively tracking `currentPosition` — true until the driver manually
+  // pans/zooms (see `handleRegionWillChange`), at which point it stays false (their view stays
+  // put) until they tap "Recenter". Meaningless when there's no `currentPosition` at all, but
+  // harmless to keep around either way — nothing reads it in that case.
+  const [following, setFollowing] = useState(true);
+
   // Priority: a live position always wins (active-trip following) over any bounds fit; then a
   // planned route's own line — small route zooms in, big route zooms out, rather than a fixed
   // zoom that leaves a short route too distant or clips a long one (design feedback, 2026-09-25);
@@ -128,6 +138,10 @@ export function RouteMap({
   // A closer, street-level zoom while following a live position or a single point — a bounds fit
   // (above) picks its own zoom, so this only applies when there's no box to fit around yet.
   const zoom = currentPosition ? 16 : 12;
+  // Once out of following, this component simply stops issuing camera stops at all — passing no
+  // `center`/`zoom` leaves the map exactly where the driver's own gesture left it, rather than
+  // fighting it every time `currentPosition` ticks (every ~3s/10m, `useLiveLocation`).
+  const isFreeLooking = currentPosition !== undefined && !following;
 
   function handlePress(event: NativeSyntheticEvent<PressEvent>): void {
     if (!onMapPress) return;
@@ -135,78 +149,129 @@ export function RouteMap({
     onMapPress({ lat, lon });
   }
 
+  // `userInteraction` is only true for an actual touch-driven gesture, never for this
+  // component's own programmatic camera moves — exactly the signal needed to tell "the driver
+  // just grabbed the map" apart from "the camera just followed a new fix".
+  function handleRegionWillChange(event: NativeSyntheticEvent<ViewStateChangeEvent>): void {
+    if (event.nativeEvent.userInteraction) setFollowing(false);
+  }
+
   return (
-    <MapLibreMap style={styles.map} mapStyle={config.mapStyleUrl} onPress={handlePress}>
-      {bounds ? (
-        <Camera bounds={bounds} padding={BOUNDS_PADDING} />
-      ) : (
-        <Camera center={center ? toLngLat(center) : undefined} zoom={zoom} />
-      )}
-      {routeLine && routeLine.length > 1 && (
-        <GeoJSONSource id="route-line-source" data={{ type: 'LineString', coordinates: routeLine }}>
-          <Layer
-            type="line"
-            id="route-line-layer"
-            source="route-line-source"
-            // Violet, not blue — blue read as a river against the base map's own water colour
-            // (design decision, 2026-09-24).
-            paint={{ 'line-color': '#A78BFA', 'line-width': 4 }}
+    <View style={styles.container}>
+      <MapLibreMap
+        style={styles.map}
+        mapStyle={config.mapStyleUrl}
+        onPress={handlePress}
+        onRegionWillChange={handleRegionWillChange}
+      >
+        {bounds ? (
+          <Camera bounds={bounds} padding={BOUNDS_PADDING} />
+        ) : (
+          <Camera
+            center={isFreeLooking || !center ? undefined : toLngLat(center)}
+            zoom={isFreeLooking ? undefined : zoom}
           />
-        </GeoJSONSource>
-      )}
-      {alternateRouteLine && alternateRouteLine.length > 1 && (
-        <GeoJSONSource
-          id="alternate-route-line-source"
-          data={{ type: 'LineString', coordinates: alternateRouteLine }}
-        >
-          <Layer
-            type="line"
-            id="alternate-route-line-layer"
-            source="alternate-route-line-source"
-            paint={{ 'line-color': '#34D399', 'line-width': 4 }}
-          />
-        </GeoJSONSource>
-      )}
-      {origin && (
-        <ViewAnnotation id="origin" lngLat={toLngLat(origin)}>
-          <View style={[styles.pin, styles.originPin]} testID="origin-pin" />
-        </ViewAnnotation>
-      )}
-      {destination && (
-        <ViewAnnotation id="destination" lngLat={toLngLat(destination)}>
-          <View style={[styles.pin, styles.destinationPin]} testID="destination-pin" />
-        </ViewAnnotation>
-      )}
-      {currentPosition && (
-        <ViewAnnotation id="current-position" lngLat={toLngLat(currentPosition)}>
-          <View style={[styles.pin, styles.currentPositionPin]} testID="current-position-pin" />
-        </ViewAnnotation>
-      )}
-      {hazards?.map((hazard) => (
-        <ViewAnnotation
-          key={hazard.id}
-          id={`hazard-${hazard.id}`}
-          lngLat={toLngLat(hazard.location)}
-          onPress={() => onHazardPress?.(hazard.id)}
-        >
-          <View
-            style={[
-              styles.hazardMarker,
-              { backgroundColor: HAZARD_MARKER_COLOR[hazardSeverityFor(hazard.type)] },
-            ]}
-            testID={`hazard-pin-${hazard.id}`}
+        )}
+        {routeLine && routeLine.length > 1 && (
+          <GeoJSONSource
+            id="route-line-source"
+            data={{ type: 'LineString', coordinates: routeLine }}
           >
-            <Text style={styles.hazardMarkerText}>!</Text>
-          </View>
-        </ViewAnnotation>
-      ))}
-    </MapLibreMap>
+            <Layer
+              type="line"
+              id="route-line-layer"
+              source="route-line-source"
+              // Violet, not blue — blue read as a river against the base map's own water colour
+              // (design decision, 2026-09-24).
+              paint={{ 'line-color': '#A78BFA', 'line-width': 4 }}
+            />
+          </GeoJSONSource>
+        )}
+        {alternateRouteLine && alternateRouteLine.length > 1 && (
+          <GeoJSONSource
+            id="alternate-route-line-source"
+            data={{ type: 'LineString', coordinates: alternateRouteLine }}
+          >
+            <Layer
+              type="line"
+              id="alternate-route-line-layer"
+              source="alternate-route-line-source"
+              paint={{ 'line-color': '#34D399', 'line-width': 4 }}
+            />
+          </GeoJSONSource>
+        )}
+        {origin && (
+          <ViewAnnotation id="origin" lngLat={toLngLat(origin)}>
+            <View style={[styles.pin, styles.originPin]} testID="origin-pin" />
+          </ViewAnnotation>
+        )}
+        {destination && (
+          <ViewAnnotation id="destination" lngLat={toLngLat(destination)}>
+            <View style={[styles.pin, styles.destinationPin]} testID="destination-pin" />
+          </ViewAnnotation>
+        )}
+        {currentPosition && (
+          <ViewAnnotation id="current-position" lngLat={toLngLat(currentPosition)}>
+            <View style={[styles.pin, styles.currentPositionPin]} testID="current-position-pin" />
+          </ViewAnnotation>
+        )}
+        {hazards?.map((hazard) => (
+          <ViewAnnotation
+            key={hazard.id}
+            id={`hazard-${hazard.id}`}
+            lngLat={toLngLat(hazard.location)}
+            onPress={() => onHazardPress?.(hazard.id)}
+          >
+            <View
+              style={[
+                styles.hazardMarker,
+                { backgroundColor: HAZARD_MARKER_COLOR[hazardSeverityFor(hazard.type)] },
+              ]}
+              testID={`hazard-pin-${hazard.id}`}
+            >
+              <Text style={styles.hazardMarkerText}>!</Text>
+            </View>
+          </ViewAnnotation>
+        ))}
+      </MapLibreMap>
+      {isFreeLooking && (
+        <TouchableOpacity
+          style={styles.recenterButton}
+          onPress={() => setFollowing(true)}
+          testID="recenter-button"
+        >
+          <Text style={styles.recenterButtonText}>Recenter</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   map: {
     flex: 1,
+  },
+  // Floats over the (unthemed) map, same reasoning as the other map-overlay buttons elsewhere
+  // in the app (e.g. home.tsx's menu button) — a fixed dark pill regardless of the app's own
+  // light/dark theme, legible against the map's own imagery either way.
+  recenterButton: {
+    position: 'absolute',
+    top: 56,
+    right: 16,
+    minHeight: 40,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(11, 18, 32, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recenterButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   pin: {
     width: 24,
