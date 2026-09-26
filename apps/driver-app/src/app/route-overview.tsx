@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 
 import { useStartTrip } from '../api/use-active-trip';
+import { useNearbyHazards } from '../api/use-hazards';
+import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
 import { computeEta } from '../lib/eta';
 import { routingErrorMessage } from '../lib/error-messages';
@@ -19,6 +21,11 @@ import { formatTime } from '../lib/format-date';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+
+// "On your route" (design decision, 2026-09-24), same radius and reasoning as active-trip.tsx's
+// own on-route hazard query — wider than a routing-avoidance check (30m, design doc §5), since
+// this is just an on-map warning icon, not a decision to reroute around.
+const ON_ROUTE_HAZARD_RADIUS_M = 750;
 
 export default function RouteOverviewScreen() {
   const router = useRouter();
@@ -32,10 +39,13 @@ export default function RouteOverviewScreen() {
   // A driver who picks a specific time gets that instead, until they reset back to "now".
   const [leaveAt, setLeaveAt] = useState<Date | undefined>(undefined);
   const [showPicker, setShowPicker] = useState(false);
+  const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
 
   // decodePolyline6 is a pure function of plan.geometry — no need to redo it on every
   // unrelated re-render (e.g. a tap elsewhere on this screen).
   const routeLine = useMemo(() => (plan ? decodePolyline6(plan.geometry) : undefined), [plan]);
+  const corridor = useMemo(() => routeLine?.map(([lon, lat]) => ({ lat, lon })) ?? [], [routeLine]);
+  const nearbyHazards = useNearbyHazards(corridor, ON_ROUTE_HAZARD_RADIUS_M);
 
   const eta = plan ? computeEta(leaveAt ?? new Date(), plan.durationMin) : undefined;
 
@@ -74,7 +84,22 @@ export default function RouteOverviewScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <RouteMap origin={plan.origin} destination={plan.destination} routeLine={routeLine} />
+      <RouteMap
+        origin={plan.origin}
+        destination={plan.destination}
+        routeLine={routeLine}
+        hazards={nearbyHazards.data?.map((h) => ({
+          id: h.id,
+          type: h.type,
+          location: h.location,
+        }))}
+        onHazardPress={setSelectedHazardId}
+      />
+
+      <HazardDetailDrawer
+        hazardId={selectedHazardId}
+        onClose={() => setSelectedHazardId(undefined)}
+      />
 
       <View style={styles.panel}>
         <Text style={styles.distance}>

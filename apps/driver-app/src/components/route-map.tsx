@@ -108,18 +108,23 @@ export function RouteMap({
   // Priority: a live position always wins (active-trip following) over any bounds fit; then a
   // planned route's own line — small route zooms in, big route zooms out, rather than a fixed
   // zoom that leaves a short route too distant or clips a long one (design feedback, 2026-09-25);
-  // then both ends of a route still being planned, so setting the second point never leaves the
-  // first one off-screen; then whichever single point exists, same as before.
+  // then whichever single point exists.
+  //
+  // Deliberately *not* fitting origin+destination in a box while a route is still being planned
+  // (tried that, design feedback 2026-09-25) — on the plan-route screen a driver picking a
+  // destination has usually just panned/zoomed the map to find it, and re-fitting bounds the
+  // moment they tap moves the camera out from under them, reading as an unwanted zoom-out
+  // (design feedback, 2026-09-26). The camera just stays where it is until a real route exists.
   const routePoints: MapPoint[] = [
     ...(routeLine?.map(([lon, lat]) => ({ lon, lat })) ?? []),
     ...(alternateRouteLine?.map(([lon, lat]) => ({ lon, lat })) ?? []),
   ];
-  const planningPoints: MapPoint[] = origin && destination ? [origin, destination] : [];
-  const bounds = currentPosition
-    ? undefined
-    : (boundsFor(routePoints) ?? boundsFor(planningPoints));
+  const bounds = currentPosition ? undefined : boundsFor(routePoints);
 
-  const center = currentPosition ?? destination ?? origin;
+  // Origin rather than destination, so setting/changing the destination doesn't recenter the map
+  // (see above) — origin is usually already fixed (current location, or set first) by the time a
+  // destination is picked, so this mostly only moves the camera once, early.
+  const center = currentPosition ?? origin ?? destination;
   // A closer, street-level zoom while following a live position or a single point — a bounds fit
   // (above) picks its own zoom, so this only applies when there's no box to fit around yet.
   const zoom = currentPosition ? 16 : 12;
