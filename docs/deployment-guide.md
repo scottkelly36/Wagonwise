@@ -8,7 +8,7 @@ This is the missing piece behind M5.10's "EAS Build → TestFlight + Play intern
 `https://wagonwise-backend-o2baa.ondigitalocean.app` answers `/health`, and a real
 `POST /identity/otp/request` round-tripped driver-app-shape request → `driver-bff` (public) →
 `core` (private VPC) → Postgres → a real ClickSend SMS, delivered. See §4 for what's actually
-provisioned and §7 for three real bugs found getting here.
+provisioned and §7 for four real bugs found getting here.
 
 ## 0. This week's plan
 
@@ -22,6 +22,8 @@ down to exactly that — no more, no less:
   stable address for nothing extra. The domain purchase is a separate track (§6), blocked on
   a proper trademark check, not on this week's goal.
 - **Northumberland Valhalla extract only** — not UK-wide (a separate, later decision).
+  **Superseded 2026-09-26**: expanded to Northumberland + Tyne and Wear + Cumbria, still not
+  UK-wide — see §7's provisioned list.
 
 Checklist, in order — **all done as of 2026-09-25** except the last step:
 
@@ -78,8 +80,9 @@ knowing about now rather than discovering them after the infra is up.
    `local-dev-internal-key` default both sides fall back to.
 4. **`ANTHROPIC_API_KEY` must be set**, or voice reports silently degrade to
    `NullHazardParser` (every transcript filed as type `other` with itself as the note).
-5. Valhalla only has the **Northumberland extract** — correct for the Hexham test area, but a
-   reminder this isn't a UK-wide deployment.
+5. Valhalla covers **Northumberland, Tyne and Wear and Cumbria** (expanded 2026-09-26 from
+   Northumberland alone) — correct for the Hexham test area and its surrounding counties, but a
+   reminder this isn't a UK-wide deployment yet.
 
 ## 3. Recommended architecture (DigitalOcean)
 
@@ -181,13 +184,10 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
      overridden to `pnpm --filter @wagonwise/core run db:migrate`. DO runs this once before
      swapping in a new `core`/`driver-bff` deploy; if it fails (a bad migration), the deploy
      aborts and the previous version keeps serving traffic — migrations no longer need a manual
-     `pnpm db:migrate` run after every deploy that adds one. One manual step the first time: give
-     this job its own `DATABASE_URL` env var (DO console → the `migrate` job's "Environment
-     variables" panel, or `doctl apps update`) — job components don't inherit another
-     component's env vars, even within the same app, so `core`'s existing `DATABASE_URL` doesn't
-     carry over automatically. Everything else `config.ts` reads is optional/defaulted, so this
-     job needs nothing beyond that one value. Applying the updated spec itself (`doctl apps
-update <app-id> --spec infra/digitalocean/app-spec.yaml`) is also a one-time step.
+     `pnpm db:migrate` run after every deploy that adds one. `DATABASE_URL` turned out to live as
+     an **App-Level Environment Variable** (shared across every component, set once in the app's
+     own Settings rather than any single component's panel) — see §7 bug #4 for why applying
+     this job via `doctl apps update --spec` briefly took production down.
 5. **Domain — not needed for this week's goal** (§0, §6). App Platform's own
    `*.ondigitalocean.app` URL already has a managed TLS cert and works fine to start; point a
    real domain at it later once one's bought and the trademark check (§6) is done.
@@ -242,25 +242,31 @@ came back clear.
 
 </details>
 
-## 7. What's actually deployed, and three real bugs found getting there
+## 7. What's actually deployed, and four real bugs found getting there
 
 **Provisioned (2026-09-25):**
 
 - Managed PostgreSQL `db-pgsql-lon1-09118`, PostgreSQL 17, PostGIS 3.6 enabled, all 11
   migrations applied.
 - Droplet `wagonwise-valhalla-lon1` (2 GiB), Docker + the same `valhalla` service definition
-  as `infra/docker/compose.yml`, Northumberland extract, tiles built and healthy. Port 8002 is
-  bound to the droplet's **private** IP only (`10.131.30.167:8002` in the compose file, not
-  `0.0.0.0`) — publishing on `0.0.0.0` and relying on `ufw` to block the public IP does **not**
-  work, because Docker writes its own iptables rules that bypass `ufw` entirely for published
-  ports. Verified both ways: public IP times out, private IP responds.
+  as `infra/docker/compose.yml`. **Expanded 2026-09-26** from Northumberland alone to
+  Northumberland + Tyne and Wear + Cumbria — Valhalla's `docker-valhalla` image builds tiles
+  from every `.osm.pbf` in `/custom_files` together (its own tooling discourages this over
+  merging into one file first via `osmium merge`, but three adjacent-county extracts stitched
+  correctly at every tested boundary: Tyne and Wear↔Northumberland, Cumbria↔Northumberland, and
+  a route crossing both borders at once — worth revisiting with a real merge if a future route
+  near a boundary looks wrong). Tiles built and healthy. Port 8002 is bound to the droplet's
+  **private** IP only (`10.131.30.167:8002` in the compose file, not `0.0.0.0`) — publishing on
+  `0.0.0.0` and relying on `ufw` to block the public IP does **not** work, because Docker writes
+  its own iptables rules that bypass `ufw` entirely for published ports. Verified both ways:
+  public IP times out, private IP responds.
 - App Platform app `wagonwise-backend` (ID `dcbd23e5-6de6-44b8-90b8-32e162e99016`), created via
   `doctl apps create --spec infra/digitalocean/app-spec.yaml` (`doctl`, not the web console —
   the visual builder couldn't be made to use a Dockerfile instead of Buildpack detection, and
   this DO account's UI has no "edit as YAML" option to work around it). Live at
   `https://wagonwise-backend-o2baa.ondigitalocean.app`.
 
-**Three real bugs found only by actually deploying, not by local testing:**
+**Four real bugs found only by actually deploying, not by local testing:**
 
 1. **`DeployContainerHealthChecksFailed` on both components.** DO's default health check
    probes `/`; neither `core` nor `driver-bff` has a route there, only `/health`. Fixed with
@@ -286,6 +292,31 @@ Error`, `10.131.30.167:8002`), even though Valhalla itself was healthy and reach
    spec and reapplying via `doctl apps update --spec`. Verified for real, not just by status
    code: watched `core`'s live logs while retrying "Plan route" in the app and confirmed
    `POST /routing/route-plans` went from a 10.5s timeout/500 to a 292ms **201**.
+4. **`doctl apps update --spec infra/digitalocean/app-spec.yaml` wiped `core`'s working
+   `DATABASE_URL` and briefly took `core` down (2026-09-26), while adding the `migrate` job.**
+   `DATABASE_URL` had been set as an **App-Level Environment Variable** — shared across every
+   component, in its own section in the app's Settings, separate from any component's own env
+   panel (which is also why it never showed up when looking under `core` specifically while
+   troubleshooting this). This repo's checked-in `app-spec.yaml` has no top-level `envs:`
+   section at all, by design (no secrets committed, per the file's own header comment) — but
+   `doctl apps update --spec` treats the submitted file as the **complete, authoritative** spec,
+   not a diff to merge. Applying it wiped the app-level `DATABASE_URL` entirely. `core`'s
+   _already-running_ container kept working (it had the value loaded in memory from before), so
+   there was no actual outage — but the next deploy's fresh `core` container crash-looped on
+   `ECONNREFUSED 127.0.0.1:5432` (Kysely/`pg` falling back to `config.ts`'s local-dev default)
+   until the deploy failed and DO kept the old container serving instead. Per-component secrets
+   (`driver-bff`'s `CORE_INTERNAL_KEY`, confirmed by testing that internal-auth between a fresh
+   `driver-bff` and the old `core` still matched) survived the same `doctl apps update` call —
+   only the app-level ones were lost. **Never run `doctl apps update --spec
+infra/digitalocean/app-spec.yaml` directly** — it will re-wipe any App-Level environment
+   variables that aren't in that file (which is all of them, on purpose). Fetch the live spec
+   first (`doctl apps spec get <app-id>`), diff it to find what the checked-in file is missing,
+   and apply a merged version instead — or make the change through the console's own spec
+   editor, which merges rather than replaces. Once secrets are lost, they need regenerating
+   (`IDENTITY_PRIVATE_KEY`/`INTERNAL_KEYS` are just random values with no external dependency —
+   losing them only forces every signed-in driver to re-authenticate) or recovering from
+   wherever else they might be cached (`apps/core/.env`, in this case, had working copies of
+   `CLICKSEND_USERNAME`/`CLICKSEND_API_KEY`/`RESEND_API_KEY` from earlier local testing).
 
 **Verified end to end**, not just "deployed and hoped": `GET /health` on the public URL, then a
 real `POST /identity/otp/request` (driver-app request shape, a temporary test invite code
