@@ -45,6 +45,16 @@ function toValhallaPolygon(polygon: GeoPolygon): [number, number][] {
   return ring;
 }
 
+/** 55mph in km/h, Valhalla's own unit for `top_speed` regardless of the request's `units` field
+ *  — a flat ceiling roughly midway between a UK HGV's legal 60mph on a motorway/dual carriageway
+ *  and 50mph on a single carriageway (2026-09-26). Valhalla only ever prefers a road's own
+ *  `maxspeed:hgv` OSM tag over this when that tag exists on a given way; most roads in our
+ *  current coverage don't have one, so without this cap a truck was timed as if it could travel
+ *  at a car's full posted speed limit everywhere. Imperfect in both directions (still overstates
+ *  a single carriageway, understates a motorway) — the real fix is `maxspeed:hgv` tagging in
+ *  OpenStreetMap itself, out of scope for now. */
+const TOP_SPEED_KPH = 88;
+
 /**
  * Truck-aware routing via a self-hosted Valhalla instance (design doc §4), behind the
  * `RoutingEngine` port. Talks to Valhalla's `/route` action directly over HTTP — no client
@@ -64,6 +74,7 @@ export class ValhallaRoutingEngine implements RoutingEngine {
           width: req.dimensions.widthM,
           length: req.dimensions.lengthM,
           weight: req.dimensions.grossWeightT,
+          top_speed: TOP_SPEED_KPH,
           ...(req.dimensions.axleWeightT === undefined
             ? {}
             : { axle_load: req.dimensions.axleWeightT }),
