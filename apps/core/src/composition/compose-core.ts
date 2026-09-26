@@ -4,6 +4,10 @@ import type { Config } from '../config.js';
 import type { AccessTokenVerifier } from '../host/access-token-verifier.js';
 import { buildApp } from '../host/build-app.js';
 import {
+  createCongestionModule,
+  type UntypedDb as CongestionUntypedDb,
+} from '../modules/congestion/api.js';
+import {
   createFeedbackModule,
   type UntypedDb as FeedbackUntypedDb,
 } from '../modules/feedback/api.js';
@@ -113,6 +117,7 @@ export function composeCore(
   const routingDb: RoutingUntypedDb = identityDb;
   const hazardsDb: HazardsUntypedDb = identityDb;
   const feedbackDb: FeedbackUntypedDb = identityDb;
+  const congestionDb: CongestionUntypedDb = identityDb;
 
   // hazards and identity both built before routing: routing's HazardAvoidanceQueryAdapter (M3.5)
   // and its reroute-detection handlers (M6.4) both wrap the other modules' facades — the same
@@ -136,6 +141,7 @@ export function composeCore(
     pushNotifier: overrides.pushNotifier,
   });
   const feedback = createFeedbackModule({ db: feedbackDb, clock, ids });
+  const congestion = createCongestionModule({ db: congestionDb, clock });
 
   const outboxDispatcher = new OutboxDispatcher(
     platformDb,
@@ -154,6 +160,7 @@ export function composeCore(
   routing.registerRoutes(app);
   hazards.registerRoutes(app);
   feedback.registerRoutes(app);
+  congestion.registerRoutes(app);
 
   return {
     app,

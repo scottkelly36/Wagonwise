@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { useNearbyCongestion } from '../api/use-congestion';
 import { useNearbyHazards } from '../api/use-hazards';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
@@ -29,6 +30,10 @@ export default function HomeScreen() {
   // ending the trip and moving away from it).
   const location = useLiveLocation();
   const nearbyHazards = useNearbyHazards(location.point ? [location.point] : [], NEARBY_RADIUS_M);
+  const nearbyCongestion = useNearbyCongestion(
+    location.point ? [location.point] : [],
+    NEARBY_RADIUS_M,
+  );
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -40,6 +45,11 @@ export default function HomeScreen() {
         destination={undefined}
         hazards={nearbyHazards.data?.map((h) => ({ id: h.id, type: h.type, location: h.location }))}
         onHazardPress={setSelectedHazardId}
+        congestion={nearbyCongestion.data?.map((c) => ({
+          id: c.id,
+          location: c.location,
+          estimatedWaitMinutes: c.estimatedWaitMinutes,
+        }))}
       />
 
       <HazardDetailDrawer
@@ -62,13 +72,23 @@ export default function HomeScreen() {
           </Text>
         )}
 
-        <TouchableOpacity
-          style={styles.hazardButton}
-          onPress={() => router.push('/report-hazard')}
-          testID="report-hazard-button"
-        >
-          <Text style={styles.hazardButtonText}>Report hazard</Text>
-        </TouchableOpacity>
+        <View style={styles.reportButtonRow}>
+          <TouchableOpacity
+            style={styles.hazardButton}
+            onPress={() => router.push('/report-congestion')}
+            testID="report-congestion-button"
+          >
+            <Text style={styles.hazardButtonText}>Report traffic</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.hazardButton}
+            onPress={() => router.push('/report-hazard')}
+            testID="report-hazard-button"
+          >
+            <Text style={styles.hazardButtonText}>Report hazard</Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={styles.planButton}
@@ -125,8 +145,12 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 12,
       padding: 12,
     },
+    reportButtonRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 12,
+    },
     hazardButton: {
-      alignSelf: 'flex-end',
       minHeight: 48,
       paddingHorizontal: 20,
       borderRadius: 24,
