@@ -117,20 +117,30 @@ not attached to a milestone yet.
   `amenity=parking`, `amenity=restaurant`/`cafe`/`fast_food` — but nothing's been checked for
   completeness around the test area). Would likely reuse whatever voice-output mechanism the
   text-to-speech idea above ends up using.
-- **2026-09-25: congestion tracking** — the user's own framing: country roads in the test area
-  rarely see real traffic, but a congested motorway can add a lot to a journey, so this matters
-  more for the A1-type corridors than the rural roads M2's routing already focuses on. Two
-  options discussed:
-  - Crowd-sourced via the existing hazard-report system (a "traffic" report type) — zero new
-    cost, reuses everything already built, but only as good as driver density, which is thin
-    with a handful of testers (same cold-start problem every crowd-sourced traffic app has).
-  - **National Highways' WebTRIS API** — confirmed genuinely free, no API key or registration
-    (`webtris.nationalhighways.co.uk/api/v1.0/...`, JSON), covers England's strategic road
-    network (motorways + major A-roads, including the A1 corridor near the test area). It's
-    point-based sensor data (speed/flow at fixed monitoring sites), not a route overlay, so
-    using it would mean translating "sensor X reads slow" into "this stretch of the driver's
-    planned route is congested" — real work, but on a real, free, already-confirmed data source
-    rather than a guess.
+- **2026-09-25: congestion tracking — refined 2026-09-26.** The user's own framing: country
+  roads in the test area rarely see real traffic, but a congested motorway can add a lot to a
+  journey, so this matters more for the A1-type corridors than the rural roads M2's routing
+  already focuses on. Two options discussed, and the user's own sequencing for them:
+  - **Crowd-sourced first** (the near-term plan) — a "traffic"/congestion hazard type through
+    the existing report system, marked with an estimated wait time, that times out on its own.
+    Two real design gaps this needs, neither of which the current hazard model has: (1) a wait
+    time isn't a `Measurement` in today's sense (height/width/weight are vehicle-clearance
+    numbers checked against a restriction; a wait time is just informational) — probably wants
+    its own field, not a fourth `MeasurementKind`; (2) every hazard type currently shares one
+    7-day expiry (decision, 2026-09-21) — traffic needs a much shorter, type-specific one (likely
+    tied to the reported wait time itself, or a short fixed default), which means expiry becomes
+    per-type, not a single constant. Zero new external dependency, reuses everything already
+    built, but only as good as driver density, which is thin with a handful of testers (same
+    cold-start problem every crowd-sourced traffic app has).
+  - **National Highways' WebTRIS API second** — confirmed genuinely free, no API key or
+    registration (`webtris.nationalhighways.co.uk/api/v1.0/...`, JSON), covers England's
+    strategic road network (motorways + major A-roads, including the A1 corridor near the test
+    area). The user's own framing this session: couple it in _after_ the crowd-sourced half
+    exists, as a second source feeding the same warnings rather than a replacement — it's
+    point-based sensor data (speed/flow at fixed monitoring sites), not a route overlay, so using
+    it means translating "sensor X reads slow" into "this stretch of the driver's planned route
+    is congested," real work but on an already-confirmed real data source rather than a guess.
+    No design or scoping done yet on either half — still just sequenced.
 - **2026-09-25: light and dark mode — manual half shipped 2026-09-26.** The driver app was
   dark-only (every screen's colours hardcoded, e.g. `home.tsx`/`consent.tsx`'s `#0B1220`
   background). Scoped down to a manual toggle first (user's choice when asked): `theme/colors.ts`
