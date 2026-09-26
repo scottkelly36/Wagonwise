@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -17,6 +17,7 @@ import * as identityApi from '../api/identity';
 import { ApiError } from '../api/errors';
 import { PRODUCT_NAME } from '../product';
 import { useAuthStore } from '../state/auth-store';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 type Step =
   | { readonly kind: 'identifier' }
@@ -57,6 +58,8 @@ export default function SignInScreen() {
   const [identifier, setIdentifier] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [code, setCode] = useState('');
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const requestOtpMutation = useMutation({
     mutationFn: () => identityApi.requestOtp(identifier.trim(), inviteCode.trim() || undefined),
@@ -103,7 +106,7 @@ export default function SignInScreen() {
                 value={identifier}
                 onChangeText={setIdentifier}
                 placeholder="you@example.com"
-                placeholderTextColor="#6B7280"
+                placeholderTextColor={colors.textDim}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="email-address"
@@ -116,7 +119,7 @@ export default function SignInScreen() {
                 value={inviteCode}
                 onChangeText={setInviteCode}
                 placeholder="Leave blank if you've signed in before"
-                placeholderTextColor="#6B7280"
+                placeholderTextColor={colors.textDim}
                 autoCapitalize="none"
                 autoCorrect={false}
                 testID="invite-code-input"
@@ -135,7 +138,7 @@ export default function SignInScreen() {
                 testID="request-code-button"
               >
                 {requestOtpMutation.isPending ? (
-                  <ActivityIndicator color="#0B1220" />
+                  <ActivityIndicator color={colors.textOnAccent} />
                 ) : (
                   <Text style={styles.buttonText}>Send me a code</Text>
                 )}
@@ -151,7 +154,7 @@ export default function SignInScreen() {
                 value={code}
                 onChangeText={setCode}
                 placeholder="123456"
-                placeholderTextColor="#6B7280"
+                placeholderTextColor={colors.textDim}
                 keyboardType="number-pad"
                 testID="code-input"
               />
@@ -169,7 +172,7 @@ export default function SignInScreen() {
                 testID="verify-code-button"
               >
                 {verifyOtpMutation.isPending ? (
-                  <ActivityIndicator color="#0B1220" />
+                  <ActivityIndicator color={colors.textOnAccent} />
                 ) : (
                   <Text style={styles.buttonText}>Continue</Text>
                 )}
@@ -194,81 +197,83 @@ export default function SignInScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-    gap: 8,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#E5E7EB',
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    marginTop: 16,
-  },
-  input: {
-    minHeight: 56,
-    fontSize: 20,
-    color: '#FFFFFF',
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginTop: 8,
-  },
-  button: {
-    minHeight: 56,
-    backgroundColor: '#F5A623',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  linkButton: {
-    minHeight: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  linkText: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    textDecorationLine: 'underline',
-  },
-  error: {
-    fontSize: 16,
-    color: '#F87171',
-    marginTop: 12,
-  },
-  footnote: {
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 32,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    flex: {
+      flex: 1,
+    },
+    content: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      padding: 24,
+      gap: 8,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 24,
+      textAlign: 'center',
+    },
+    subtitle: {
+      fontSize: 18,
+      color: colors.textSecondary,
+      marginBottom: 16,
+    },
+    label: {
+      fontSize: 16,
+      color: colors.textMuted,
+      marginTop: 16,
+    },
+    input: {
+      minHeight: 56,
+      fontSize: 20,
+      color: colors.text,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      marginTop: 8,
+    },
+    button: {
+      minHeight: 56,
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 24,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    linkButton: {
+      minHeight: 56,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    linkText: {
+      fontSize: 16,
+      color: colors.textMuted,
+      textDecorationLine: 'underline',
+    },
+    error: {
+      fontSize: 16,
+      color: colors.danger,
+      marginTop: 12,
+    },
+    footnote: {
+      fontSize: 13,
+      color: colors.textDim,
+      textAlign: 'center',
+      marginTop: 32,
+    },
+  });
+}

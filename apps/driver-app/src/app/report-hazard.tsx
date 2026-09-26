@@ -1,7 +1,7 @@
 import { hazardReportIdSchema } from '@wagonwise/contracts/hazards';
 import * as Crypto from 'expo-crypto';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -21,6 +21,7 @@ import { enqueueHazardReport, removeQueuedHazardReport } from '../db/hazard-queu
 import { useCurrentLocation } from '../hooks/use-current-location';
 import { HAZARD_TYPE_LABELS, measurementKindFor, measurementLabelFor } from '../lib/hazard-labels';
 import { parseHazardReportForm } from '../lib/hazard-report-form';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 const HAZARD_TYPES = Object.keys(HAZARD_TYPE_LABELS) as (keyof typeof HAZARD_TYPE_LABELS)[];
 
@@ -40,6 +41,8 @@ export default function ReportHazardScreen() {
   const [measurementValue, setMeasurementValue] = useState('');
   const [validationError, setValidationError] = useState<string | undefined>(undefined);
   const [queued, setQueued] = useState(false);
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Defaults to current location (same "default until overridden" pattern as plan-route's
   // origin, M5.4) — the hazard is very likely right where the driver is, but a tap still moves
@@ -149,7 +152,7 @@ export default function ReportHazardScreen() {
                 value={measurementValue}
                 onChangeText={setMeasurementValue}
                 placeholder="e.g. 3.5"
-                placeholderTextColor="#6B7280"
+                placeholderTextColor={colors.textDim}
                 keyboardType="decimal-pad"
                 testID="hazard-measurement-input"
               />
@@ -162,7 +165,7 @@ export default function ReportHazardScreen() {
             value={note}
             onChangeText={setNote}
             placeholder="Anything else worth knowing"
-            placeholderTextColor="#6B7280"
+            placeholderTextColor={colors.textDim}
             multiline
             testID="hazard-note-input"
           />
@@ -176,7 +179,7 @@ export default function ReportHazardScreen() {
             testID="report-hazard-submit-button"
           >
             {reportHazard.isPending ? (
-              <ActivityIndicator color="#0B1220" />
+              <ActivityIndicator color={colors.textOnAccent} />
             ) : (
               <Text style={styles.buttonText}>Report hazard</Text>
             )}
@@ -187,102 +190,104 @@ export default function ReportHazardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  flex: {
-    flex: 1,
-  },
-  queuedContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    gap: 12,
-  },
-  panel: {
-    maxHeight: '55%',
-  },
-  panelContent: {
-    padding: 16,
-    gap: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  hint: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginBottom: 8,
-  },
-  queuedHint: {
-    textAlign: 'center',
-  },
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    minHeight: 56,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    borderRadius: 12,
-    backgroundColor: '#1F2937',
-  },
-  chipSelected: {
-    backgroundColor: '#F5A623',
-  },
-  chipText: {
-    fontSize: 16,
-    color: '#E5E7EB',
-  },
-  chipTextSelected: {
-    color: '#0B1220',
-    fontWeight: '700',
-  },
-  label: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    marginTop: 16,
-  },
-  input: {
-    minHeight: 56,
-    fontSize: 18,
-    color: '#FFFFFF',
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginTop: 8,
-  },
-  noteInput: {
-    minHeight: 80,
-    paddingTop: 16,
-    textAlignVertical: 'top',
-  },
-  error: {
-    fontSize: 16,
-    color: '#F87171',
-    marginTop: 16,
-  },
-  button: {
-    minHeight: 56,
-    backgroundColor: '#F5A623',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    flex: {
+      flex: 1,
+    },
+    queuedContent: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+      gap: 12,
+    },
+    panel: {
+      maxHeight: '55%',
+    },
+    panelContent: {
+      padding: 16,
+      gap: 8,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    hint: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: 8,
+    },
+    queuedHint: {
+      textAlign: 'center',
+    },
+    typeGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      minHeight: 56,
+      paddingHorizontal: 16,
+      justifyContent: 'center',
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+    },
+    chipSelected: {
+      backgroundColor: colors.accent,
+    },
+    chipText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    chipTextSelected: {
+      color: colors.textOnAccent,
+      fontWeight: '700',
+    },
+    label: {
+      fontSize: 16,
+      color: colors.textMuted,
+      marginTop: 16,
+    },
+    input: {
+      minHeight: 56,
+      fontSize: 18,
+      color: colors.text,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      marginTop: 8,
+    },
+    noteInput: {
+      minHeight: 80,
+      paddingTop: 16,
+      textAlignVertical: 'top',
+    },
+    error: {
+      fontSize: 16,
+      color: colors.danger,
+      marginTop: 16,
+    },
+    button: {
+      minHeight: 56,
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 24,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+  });
+}

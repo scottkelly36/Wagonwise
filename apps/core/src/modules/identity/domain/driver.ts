@@ -16,6 +16,11 @@ export interface Driver {
    *  hold this id too), but `identifier` is overwritten with an opaque placeholder by
    *  `anonymize()`, so the only real PII on a Driver no longer exists anywhere. */
   readonly deletedAt?: Date | undefined;
+  /** Grants access to admin-only actions elsewhere (e.g. hazards' true-delete, `AdminDirectory`,
+   *  2026-09-26) — never true for a newly-created driver, no self-service way to become one, set
+   *  directly in the database. Required (not optional like the two fields above) since it always
+   *  has a real value once a row exists — the DB column defaults `false`, not null. */
+  readonly isAdmin: boolean;
 }
 
 export function consent(driver: Driver, now: Date): Driver {

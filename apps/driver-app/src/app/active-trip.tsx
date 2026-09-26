@@ -1,3 +1,4 @@
+import { useKeepAwake } from 'expo-keep-awake';
 import { Redirect, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -13,6 +14,7 @@ import { useEndTrip } from '../api/use-active-trip';
 import { useNearbyHazards } from '../api/use-hazards';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
+import { useHazardVoiceWarnings } from '../hooks/use-hazard-voice-warnings';
 import { useLiveLocation } from '../hooks/use-live-location';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
 import { computeEta } from '../lib/eta';
@@ -22,6 +24,7 @@ import { decodePolyline6 } from '../lib/polyline';
 import { routeProgress } from '../lib/route-progress';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 const VOICE_FLOW_LABEL: Record<string, string> = {
   idle: 'Report hazard',
@@ -53,6 +56,11 @@ const ON_ROUTE_HAZARD_RADIUS_M = 750;
  * yes/no, then file or save an unconfirmed draft — design doc §7 steps 1-4 end to end.
  */
 export default function ActiveTripScreen() {
+  // For as long as this screen is mounted, i.e. for the life of the trip — a driver glancing at
+  // the map every few minutes shouldn't have to unlock their phone each time (field feedback,
+  // 2026-09-26). Released automatically on unmount (ending the trip, or navigating away).
+  useKeepAwake();
+
   const router = useRouter();
   const trip = useCurrentActiveTripStore((s) => s.trip);
   const clearTrip = useCurrentActiveTripStore((s) => s.clear);
@@ -68,6 +76,8 @@ export default function ActiveTripScreen() {
   const corridor = useMemo(() => routeLine?.map(([lon, lat]) => ({ lat, lon })) ?? [], [routeLine]);
   const nearbyHazards = useNearbyHazards(corridor, ON_ROUTE_HAZARD_RADIUS_M);
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Live-updating ETA (part 2 of the planning-time one on route-overview.tsx): re-derived from
   // the driver's live position every time it updates (useLiveLocation, every ~3s/10m), by
@@ -81,6 +91,15 @@ export default function ActiveTripScreen() {
   const remainingDurationMin = plan ? plan.durationMin * (progress?.remainingFraction ?? 1) : 0;
   const eta = plan ? computeEta(new Date(), remainingDurationMin) : undefined;
   const remainingKm = progress ? progress.remainingMetres / 1000 : plan?.distanceKm;
+
+  const micBusy =
+    voiceFlow.state.phase === 'parsing' ||
+    voiceFlow.state.phase === 'speaking-summary' ||
+    voiceFlow.state.phase === 'filing';
+  const micActive = CANCELLABLE_PHASES.has(voiceFlow.state.phase);
+  // Muted while the voice hazard-report flow is itself listening or speaking — talking over that
+  // would be worse than a missed warning.
+  useHazardVoiceWarnings(routeLine, location.point, nearbyHazards.data, !micBusy && !micActive);
 
   // Reachable with no current trip/plan only by navigating here directly, or after an app
   // relaunch mid-trip — the trip store is ephemeral (docs/progress.md, M5.6 deviations) and
@@ -100,12 +119,6 @@ export default function ActiveTripScreen() {
       },
     });
   }
-
-  const micBusy =
-    voiceFlow.state.phase === 'parsing' ||
-    voiceFlow.state.phase === 'speaking-summary' ||
-    voiceFlow.state.phase === 'filing';
-  const micActive = CANCELLABLE_PHASES.has(voiceFlow.state.phase);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -207,7 +220,7 @@ export default function ActiveTripScreen() {
           testID="end-trip-button"
         >
           {endTrip.isPending ? (
-            <ActivityIndicator color="#0B1220" />
+            <ActivityIndicator color={colors.textOnAccent} />
           ) : (
             <Text style={styles.buttonText}>End trip</Text>
           )}
@@ -217,99 +230,104 @@ export default function ActiveTripScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  mapArea: {
-    flex: 1,
-    position: 'relative',
-  },
-  micOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 24,
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-  },
-  overlayFootnote: {
-    fontSize: 13,
-    color: '#E5E7EB',
-    textAlign: 'center',
-    backgroundColor: 'rgba(11, 18, 32, 0.85)',
-    borderRadius: 12,
-    padding: 10,
-  },
-  panel: {
-    padding: 16,
-    gap: 12,
-    backgroundColor: '#0B1220',
-  },
-  hint: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-  },
-  eta: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#38BDF8',
-    textAlign: 'center',
-  },
-  section: {
-    gap: 4,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    textTransform: 'uppercase',
-  },
-  sectionEmpty: {
-    fontSize: 16,
-    color: '#E5E7EB',
-  },
-  sectionItem: {
-    fontSize: 16,
-    color: '#E5E7EB',
-  },
-  micButton: {
-    minHeight: 56,
-    paddingHorizontal: 24,
-    backgroundColor: 'rgba(56, 189, 248, 0.55)',
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  micButtonListening: {
-    backgroundColor: 'rgba(248, 113, 113, 0.8)',
-  },
-  micButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  button: {
-    minHeight: 56,
-    backgroundColor: '#F5A623',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  error: {
-    fontSize: 16,
-    color: '#F87171',
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    mapArea: {
+      flex: 1,
+      position: 'relative',
+    },
+    micOverlay: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 24,
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+    },
+    // The mic overlay floats on top of the map itself, not the themed chrome around it — kept as
+    // fixed dark/translucent values in both themes so it stays legible against the map's own
+    // (unthemed) imagery rather than washing out against a light background.
+    overlayFootnote: {
+      fontSize: 13,
+      color: '#E5E7EB',
+      textAlign: 'center',
+      backgroundColor: 'rgba(11, 18, 32, 0.85)',
+      borderRadius: 12,
+      padding: 10,
+    },
+    panel: {
+      padding: 16,
+      gap: 12,
+      backgroundColor: colors.background,
+    },
+    hint: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    eta: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.accentBlue,
+      textAlign: 'center',
+    },
+    section: {
+      gap: 4,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+    },
+    sectionEmpty: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    sectionItem: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    micButton: {
+      minHeight: 56,
+      paddingHorizontal: 24,
+      backgroundColor: 'rgba(56, 189, 248, 0.55)',
+      borderRadius: 28,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    micButtonListening: {
+      backgroundColor: 'rgba(248, 113, 113, 0.8)',
+    },
+    micButtonText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: '#0B1220',
+    },
+    button: {
+      minHeight: 56,
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    error: {
+      fontSize: 16,
+      color: colors.danger,
+      textAlign: 'center',
+    },
+  });
+}

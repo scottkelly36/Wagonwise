@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -14,6 +14,7 @@ import {
   type ParsedVehicleProfile,
   type VehicleProfileFormValues,
 } from '../lib/vehicle-profile-form';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 interface Props {
   readonly initialValues: VehicleProfileFormValues;
@@ -35,6 +36,8 @@ export function VehicleProfileForm({
 }: Props) {
   const [values, setValues] = useState(initialValues);
   const [validationError, setValidationError] = useState<string | undefined>(undefined);
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   function setField(field: keyof VehicleProfileFormValues) {
     return (text: string) => {
@@ -63,7 +66,7 @@ export function VehicleProfileForm({
         value={values.name}
         onChangeText={setField('name')}
         placeholder="e.g. The big wagon"
-        placeholderTextColor="#6B7280"
+        placeholderTextColor={colors.textDim}
         testID="profile-name-input"
       />
 
@@ -73,7 +76,7 @@ export function VehicleProfileForm({
         value={values.heightM}
         onChangeText={setField('heightM')}
         placeholder="4.2"
-        placeholderTextColor="#6B7280"
+        placeholderTextColor={colors.textDim}
         keyboardType="decimal-pad"
         testID="profile-height-input"
       />
@@ -85,7 +88,7 @@ export function VehicleProfileForm({
         value={values.widthM}
         onChangeText={setField('widthM')}
         placeholder="2.6"
-        placeholderTextColor="#6B7280"
+        placeholderTextColor={colors.textDim}
         keyboardType="decimal-pad"
         testID="profile-width-input"
       />
@@ -96,7 +99,7 @@ export function VehicleProfileForm({
         value={values.lengthM}
         onChangeText={setField('lengthM')}
         placeholder="16.5"
-        placeholderTextColor="#6B7280"
+        placeholderTextColor={colors.textDim}
         keyboardType="decimal-pad"
         testID="profile-length-input"
       />
@@ -107,7 +110,7 @@ export function VehicleProfileForm({
         value={values.grossWeightT}
         onChangeText={setField('grossWeightT')}
         placeholder="32"
-        placeholderTextColor="#6B7280"
+        placeholderTextColor={colors.textDim}
         keyboardType="decimal-pad"
         testID="profile-weight-input"
       />
@@ -118,7 +121,7 @@ export function VehicleProfileForm({
         value={values.axleWeightT}
         onChangeText={setField('axleWeightT')}
         placeholder="10"
-        placeholderTextColor="#6B7280"
+        placeholderTextColor={colors.textDim}
         keyboardType="decimal-pad"
         testID="profile-axle-weight-input"
       />
@@ -132,7 +135,7 @@ export function VehicleProfileForm({
         testID="profile-submit-button"
       >
         {pending ? (
-          <ActivityIndicator color="#0B1220" />
+          <ActivityIndicator color={colors.textOnAccent} />
         ) : (
           <Text style={styles.buttonText}>{submitLabel}</Text>
         )}
@@ -141,48 +144,50 @@ export function VehicleProfileForm({
   );
 }
 
-const styles = StyleSheet.create({
-  form: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    marginTop: 16,
-  },
-  input: {
-    minHeight: 56,
-    fontSize: 20,
-    color: '#FFFFFF',
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginTop: 8,
-  },
-  hint: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  button: {
-    minHeight: 56,
-    backgroundColor: '#F5A623',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  error: {
-    fontSize: 16,
-    color: '#F87171',
-    marginTop: 12,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    form: {
+      gap: 8,
+    },
+    label: {
+      fontSize: 16,
+      color: colors.textMuted,
+      marginTop: 16,
+    },
+    input: {
+      minHeight: 56,
+      fontSize: 20,
+      color: colors.text,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      marginTop: 8,
+    },
+    hint: {
+      fontSize: 14,
+      color: colors.textDim,
+      marginTop: 4,
+    },
+    button: {
+      minHeight: 56,
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 24,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    error: {
+      fontSize: 16,
+      color: colors.danger,
+      marginTop: 12,
+    },
+  });
+}

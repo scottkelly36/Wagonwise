@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 
 import { useStartTrip } from '../api/use-active-trip';
+import { useNearbyHazards } from '../api/use-hazards';
+import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
 import { computeEta } from '../lib/eta';
 import { routingErrorMessage } from '../lib/error-messages';
@@ -19,6 +21,12 @@ import { formatTime } from '../lib/format-date';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
+
+// "On your route" (design decision, 2026-09-24), same radius and reasoning as active-trip.tsx's
+// own on-route hazard query — wider than a routing-avoidance check (30m, design doc §5), since
+// this is just an on-map warning icon, not a decision to reroute around.
+const ON_ROUTE_HAZARD_RADIUS_M = 750;
 
 export default function RouteOverviewScreen() {
   const router = useRouter();
@@ -32,10 +40,15 @@ export default function RouteOverviewScreen() {
   // A driver who picks a specific time gets that instead, until they reset back to "now".
   const [leaveAt, setLeaveAt] = useState<Date | undefined>(undefined);
   const [showPicker, setShowPicker] = useState(false);
+  const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // decodePolyline6 is a pure function of plan.geometry — no need to redo it on every
   // unrelated re-render (e.g. a tap elsewhere on this screen).
   const routeLine = useMemo(() => (plan ? decodePolyline6(plan.geometry) : undefined), [plan]);
+  const corridor = useMemo(() => routeLine?.map(([lon, lat]) => ({ lat, lon })) ?? [], [routeLine]);
+  const nearbyHazards = useNearbyHazards(corridor, ON_ROUTE_HAZARD_RADIUS_M);
 
   const eta = plan ? computeEta(leaveAt ?? new Date(), plan.durationMin) : undefined;
 
@@ -74,7 +87,22 @@ export default function RouteOverviewScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <RouteMap origin={plan.origin} destination={plan.destination} routeLine={routeLine} />
+      <RouteMap
+        origin={plan.origin}
+        destination={plan.destination}
+        routeLine={routeLine}
+        hazards={nearbyHazards.data?.map((h) => ({
+          id: h.id,
+          type: h.type,
+          location: h.location,
+        }))}
+        onHazardPress={setSelectedHazardId}
+      />
+
+      <HazardDetailDrawer
+        hazardId={selectedHazardId}
+        onClose={() => setSelectedHazardId(undefined)}
+      />
 
       <View style={styles.panel}>
         <Text style={styles.distance}>
@@ -154,7 +182,7 @@ export default function RouteOverviewScreen() {
           testID="start-trip-button"
         >
           {startTrip.isPending ? (
-            <ActivityIndicator color="#0B1220" />
+            <ActivityIndicator color={colors.textOnAccent} />
           ) : (
             <Text style={styles.buttonText}>Start trip</Text>
           )}
@@ -172,94 +200,96 @@ export default function RouteOverviewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  panel: {
-    padding: 16,
-    gap: 12,
-    backgroundColor: '#0B1220',
-  },
-  distance: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  etaRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
-  eta: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#38BDF8',
-  },
-  etaChangeLink: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textDecorationLine: 'underline',
-  },
-  pickerWrap: {
-    alignItems: 'center',
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    padding: 8,
-  },
-  section: {
-    gap: 4,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    textTransform: 'uppercase',
-  },
-  sectionEmpty: {
-    fontSize: 16,
-    color: '#E5E7EB',
-  },
-  sectionItem: {
-    fontSize: 16,
-    color: '#E5E7EB',
-  },
-  footnote: {
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  button: {
-    minHeight: 56,
-    backgroundColor: '#F5A623',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  linkButton: {
-    minHeight: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  linkText: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    textDecorationLine: 'underline',
-  },
-  error: {
-    fontSize: 16,
-    color: '#F87171',
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    panel: {
+      padding: 16,
+      gap: 12,
+      backgroundColor: colors.background,
+    },
+    distance: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    etaRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 12,
+    },
+    eta: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.accentBlue,
+    },
+    etaChangeLink: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textDecorationLine: 'underline',
+    },
+    pickerWrap: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 8,
+    },
+    section: {
+      gap: 4,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+    },
+    sectionEmpty: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    sectionItem: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    footnote: {
+      fontSize: 13,
+      color: colors.textDim,
+      textAlign: 'center',
+    },
+    button: {
+      minHeight: 56,
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    linkButton: {
+      minHeight: 56,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    linkText: {
+      fontSize: 16,
+      color: colors.textMuted,
+      textDecorationLine: 'underline',
+    },
+    error: {
+      fontSize: 16,
+      color: colors.danger,
+      textAlign: 'center',
+    },
+  });
+}

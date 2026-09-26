@@ -1,10 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
+import type { IdentityModule } from '../identity/api.js';
 import type { HazardParser } from './application/ports/hazard-parser.js';
 import { isExpired, type GeoPoint, type HazardType } from './domain/hazard-report.js';
+import { findNearbyHazards } from './application/find-nearby-hazards.js';
 import { AnthropicHazardParser } from './infrastructure/anthropic-hazard-parser.js';
 import type { UntypedDb } from './infrastructure/db.js';
+import { IdentityAdminDirectory } from './infrastructure/identity-admin-directory.js';
 import { NullHazardParser } from './infrastructure/null-hazard-parser.js';
 import { PostgresHazardRepository } from './infrastructure/postgres-hazard-repository.js';
 import { registerHazardsRoutes, type HazardsRouteDeps } from './interface/routes.js';
@@ -30,6 +33,10 @@ export interface HazardsModuleDeps {
    *  (`routing/api.ts`). Override (e.g. with a stub) for tests or a local run that shouldn't
    *  reach Anthropic's real endpoint. */
   readonly hazardParser?: HazardParser | undefined;
+  /** The one cross-context read `deleteHazard`'s admin gate needs (AGENTS.md rule 7) — hazards
+   *  never imports identity's `Driver`/`DriverId` directly, just this one method, wrapped by
+   *  `infrastructure/identity-admin-directory.ts`. */
+  readonly identity: Pick<IdentityModule, 'isDriverAdmin'>;
 }
 
 /** Only the four hazard types design doc §5 names as blocking map to an avoidance kind; the rest
@@ -80,6 +87,13 @@ export interface HazardsModule {
     corridor: readonly GeoPoint[],
     radiusM: number,
   ): Promise<AvoidanceCandidate[]>;
+  /** Active, non-expired hazard ids of *any* type within `radiusM` of a corridor — unlike
+   *  `findAvoidanceCandidates`, not scoped to blocking types, since a route plan's
+   *  "hazards on this route" (routing's `HazardsOnRouteQuery` adapter) is a display list a
+   *  driver reads, not an avoidance input; a flood or roadworks belongs on it even though
+   *  routing never steers around one. Bare ids only, same reason as `AvoidanceCandidate`
+   *  never being a `HazardReport` (AGENTS.md rule 7). */
+  findHazardIdsNear(corridor: readonly GeoPoint[], radiusM: number): Promise<string[]>;
 }
 
 /**
@@ -96,11 +110,14 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
     (deps.anthropicApiKey === undefined
       ? new NullHazardParser()
       : new AnthropicHazardParser(deps.anthropicApiKey));
+  const adminDirectory = new IdentityAdminDirectory(deps.identity);
 
   const routeDeps: HazardsRouteDeps = {
     reportHazard: { repo, clock: deps.clock, ids: deps.ids },
     confirmHazard: { repo, clock: deps.clock, ids: deps.ids },
     dismissHazard: { repo },
+    deleteHazard: { repo },
+    adminDirectory,
     getHazard: { repo },
     parseVoiceReport: { parser: hazardParser },
     findNearbyHazards: { repo, clock: deps.clock },
@@ -134,6 +151,11 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
         });
       }
       return candidates;
+    },
+
+    async findHazardIdsNear(corridor: readonly GeoPoint[], radiusM: number): Promise<string[]> {
+      const nearby = await findNearbyHazards(routeDeps.findNearbyHazards, { corridor, radiusM });
+      return nearby.map((report) => report.id);
     },
   };
 }

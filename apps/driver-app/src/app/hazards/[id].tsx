@@ -1,6 +1,8 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -8,7 +10,12 @@ import {
   View,
 } from 'react-native';
 
-import { useConfirmHazard, useDismissHazard, useHazard } from '../../api/use-hazards';
+import {
+  useConfirmHazard,
+  useDeleteHazard,
+  useDismissHazard,
+  useHazard,
+} from '../../api/use-hazards';
 import { formatDateTime } from '../../lib/format-date';
 import { hazardsErrorMessage } from '../../lib/error-messages';
 import {
@@ -16,6 +23,7 @@ import {
   HAZARD_STATUS_LABELS,
   HAZARD_TYPE_LABELS,
 } from '../../lib/hazard-labels';
+import { useThemeColors, type ThemeColors } from '../../theme/colors';
 
 /**
  * Hazard detail (design doc §8): "What, when, confirmations; Confirm / Not there". Reached after
@@ -24,15 +32,19 @@ import {
  * this screen — a full navigation away from the map didn't fit "map is the app."
  */
 export default function HazardDetailScreen() {
+  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: hazard, isLoading, isError } = useHazard(id);
   const confirmMutation = useConfirmHazard();
   const dismissMutation = useDismissHazard();
+  const deleteMutation = useDeleteHazard();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator style={styles.loading} size="large" color="#FFFFFF" />
+        <ActivityIndicator style={styles.loading} size="large" color={colors.text} />
       </SafeAreaView>
     );
   }
@@ -49,8 +61,28 @@ export default function HazardDetailScreen() {
     ? hazardsErrorMessage(confirmMutation.error)
     : dismissMutation.isError
       ? hazardsErrorMessage(dismissMutation.error)
-      : undefined;
+      : deleteMutation.isError
+        ? hazardsErrorMessage(deleteMutation.error)
+        : undefined;
   const actionPending = confirmMutation.isPending || dismissMutation.isPending;
+
+  // Admin-only test-data cleanup (field-testing request, 2026-09-26) — shown to every driver
+  // (simpler than teaching the app "am I an admin"), enforced server-side: anyone else just gets
+  // a 403 with a real message (hazardsErrorMessage's `Forbidden` entry). Confirmed first since
+  // it's a true, unrecoverable delete, not a status flip like dismiss.
+  function handleDelete(): void {
+    Alert.alert('Delete this report?', 'This removes it permanently. This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          if (!hazard) return;
+          deleteMutation.mutate(hazard.id, { onSuccess: () => router.back() });
+        },
+      },
+    ]);
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -79,7 +111,7 @@ export default function HazardDetailScreen() {
             testID="confirm-hazard-button"
           >
             {confirmMutation.isPending ? (
-              <ActivityIndicator color="#0B1220" />
+              <ActivityIndicator color={colors.textOnAccent} />
             ) : (
               <Text style={styles.buttonText}>Still there</Text>
             )}
@@ -92,90 +124,118 @@ export default function HazardDetailScreen() {
             testID="dismiss-hazard-button"
           >
             {dismissMutation.isPending ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={colors.text} />
             ) : (
               <Text style={[styles.buttonText, styles.dismissButtonText]}>Not there</Text>
             )}
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={styles.deleteButton}
+          disabled={deleteMutation.isPending}
+          onPress={handleDelete}
+          testID="delete-hazard-button"
+        >
+          {deleteMutation.isPending ? (
+            <ActivityIndicator color={colors.danger} />
+          ) : (
+            <Text style={styles.deleteButtonText}>Delete report</Text>
+          )}
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  content: {
-    padding: 24,
-    gap: 8,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  status: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    textTransform: 'uppercase',
-  },
-  detail: {
-    fontSize: 18,
-    color: '#E5E7EB',
-    marginTop: 8,
-  },
-  meta: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 8,
-  },
-  loading: {
-    marginTop: 48,
-  },
-  message: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginTop: 48,
-    paddingHorizontal: 24,
-  },
-  error: {
-    fontSize: 16,
-    color: '#F87171',
-    marginTop: 16,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
-  },
-  button: {
-    flex: 1,
-    minHeight: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  confirmButton: {
-    backgroundColor: '#F5A623',
-  },
-  dismissButton: {
-    backgroundColor: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#6B7280',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  dismissButtonText: {
-    color: '#FFFFFF',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: 24,
+      gap: 8,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    status: {
+      fontSize: 16,
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+    },
+    detail: {
+      fontSize: 18,
+      color: colors.textSecondary,
+      marginTop: 8,
+    },
+    meta: {
+      fontSize: 14,
+      color: colors.textDim,
+      marginTop: 8,
+    },
+    loading: {
+      marginTop: 48,
+    },
+    message: {
+      fontSize: 16,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 48,
+      paddingHorizontal: 24,
+    },
+    error: {
+      fontSize: 16,
+      color: colors.danger,
+      marginTop: 16,
+    },
+    actionRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 24,
+    },
+    button: {
+      flex: 1,
+      minHeight: 56,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    confirmButton: {
+      backgroundColor: colors.accent,
+    },
+    dismissButton: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.textDim,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    dismissButtonText: {
+      color: colors.text,
+    },
+    // Admin-only, so deliberately understated rather than sitting alongside "Still there"/
+    // "Not there" as an equal third option — a plain text-link style, not a filled button.
+    deleteButton: {
+      minHeight: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 16,
+    },
+    deleteButtonText: {
+      fontSize: 15,
+      color: colors.danger,
+      textDecorationLine: 'underline',
+    },
+  });
+}

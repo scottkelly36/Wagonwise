@@ -8,7 +8,7 @@ This is the missing piece behind M5.10's "EAS Build → TestFlight + Play intern
 `https://wagonwise-backend-o2baa.ondigitalocean.app` answers `/health`, and a real
 `POST /identity/otp/request` round-tripped driver-app-shape request → `driver-bff` (public) →
 `core` (private VPC) → Postgres → a real ClickSend SMS, delivered. See §4 for what's actually
-provisioned and §7 for two real bugs found getting here.
+provisioned and §7 for three real bugs found getting here.
 
 ## 0. This week's plan
 
@@ -27,8 +27,9 @@ Checklist, in order — **all done as of 2026-09-25** except the last step:
 
 1. ✅ DO console: Managed PostgreSQL (`db-pgsql-lon1-09118`, PG17) → Valhalla droplet
    (`wagonwise-valhalla-lon1`) → App Platform app (`wagonwise-backend`) with `core` +
-   `driver-bff`. No separate VPC needed — DO's `default-lon1` VPC grouped everything
-   automatically. Full detail in §4.
+   `driver-bff`. All three land in the same `default-lon1` VPC automatically **except the App
+   Platform app itself**, which needs an explicit `vpc.id` in its spec to actually get a route
+   into that VPC — missing at first, causing the bug documented in §7 #3. Full detail in §4.
 2. ✅ `IDENTITY_PRIVATE_KEY`, `INTERNAL_KEYS`/`CORE_INTERNAL_KEY`, `ANTHROPIC_API_KEY`,
    `CLICKSEND_USERNAME`/`CLICKSEND_API_KEY` all set as encrypted App Platform env vars — none
    written here or committed anywhere.
@@ -228,7 +229,7 @@ came back clear.
 
 </details>
 
-## 7. What's actually deployed, and two real bugs found getting there
+## 7. What's actually deployed, and three real bugs found getting there
 
 **Provisioned (2026-09-25):**
 
@@ -246,7 +247,7 @@ came back clear.
   this DO account's UI has no "edit as YAML" option to work around it). Live at
   `https://wagonwise-backend-o2baa.ondigitalocean.app`.
 
-**Two real bugs found only by actually deploying, not by local testing:**
+**Three real bugs found only by actually deploying, not by local testing:**
 
 1. **`DeployContainerHealthChecksFailed` on both components.** DO's default health check
    probes `/`; neither `core` nor `driver-bff` has a route there, only `/health`. Fixed with
@@ -260,6 +261,18 @@ came back clear.
    both components. This is the same class of issue flagged earlier for LAN device testing
    (`README.md`'s physical-device table) — worth remembering as a recurring gotcha, not a
    one-off.
+3. **`core` couldn't reach the Valhalla droplet's private IP at all — every
+   `POST /routing/route-plans` timed out after 10s with a 500** (`fetch failed: Connect Timeout
+Error`, `10.131.30.167:8002`), even though Valhalla itself was healthy and reachable from the
+   droplet's own private IP, and the droplet's `ufw` rule allowed the whole `10.131.0.0/16`
+   range. Root cause: the App Platform app was never connected to a VPC — App Platform apps
+   only get a route into a datacenter's VPC when the spec says so explicitly; otherwise their
+   outbound traffic comes from a separate `100.64.0.0/10` CGNAT range with no path to the
+   droplet's `10.131.0.0/16` network, regardless of firewall rules. Fixed by adding a top-level
+   `vpc.id` (the `default-lon1` VPC UUID, the same VPC the Valhalla droplet is on) to the app
+   spec and reapplying via `doctl apps update --spec`. Verified for real, not just by status
+   code: watched `core`'s live logs while retrying "Plan route" in the app and confirmed
+   `POST /routing/route-plans` went from a 10.5s timeout/500 to a 292ms **201**.
 
 **Verified end to end**, not just "deployed and hoped": `GET /health` on the public URL, then a
 real `POST /identity/otp/request` (driver-app request shape, a temporary test invite code

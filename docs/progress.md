@@ -77,10 +77,37 @@ reports visible immediately, labelled "1 report, unconfirmed".
 Things worth building later, raised while actually using the app rather than planning it —
 not attached to a milestone yet.
 
-- **2026-09-25: text-to-speech for navigation** — spoken turn-by-turn directions and, more
-  specifically for this app, a spoken warning as an upcoming hazard on the route approaches
-  (rather than only a silent on-map icon/push notification). Complements M7's voice _input_
-  (speech-to-text for reporting) with voice _output_; no design or scoping done yet.
+- **2026-09-26: admin-only hazard delete — shipped same day.** Field-testing request: "give my
+  account the ability to remove hazards, I've been making some as tests." Dismiss ("not there")
+  already existed and already hides a hazard from every driver-facing query — but it's a soft
+  status flip, not removal, and the row (and its "not there" outcome) could still be seen or
+  reversed. The user's own call, after considering a server-config allowlist: a real `isAdmin`
+  boolean on the driver record (migration 0012), not an env var — survives independently of
+  deployment config. `identity.isDriverAdmin(driverId)` is the read-model hazards' new
+  `AdminDirectory` port wraps (`hazards/infrastructure/identity-admin-directory.ts`, AGENTS.md
+  rule 7 — hazards never imports identity's `Driver` type). `DELETE /hazards/reports/:id` (core,
+  proxied unchanged through the BFF) is gated to admins only, unlike confirm/dismiss's decision
+  63 ("no ownership check at all") — a true delete is a different, unrecoverable kind of action.
+  The driver-app's "Delete report" button shows for every driver (simpler than teaching the app
+  "am I an admin") and just surfaces the server's 403 with a real message for anyone else. No
+  self-service way to grant admin — it's set directly in the database, once, for whichever
+  account needs it.
+
+- **2026-09-25: text-to-speech for navigation — hazard-ahead half shipped 2026-09-26.** Split in
+  two when scoped: spoken turn-by-turn directions, and a spoken warning as a hazard on the route
+  approaches. The user's own call: warnings now, turn-by-turn "maybe phase 3" — full turn-by-turn
+  needs live maneuver detection off the route geometry, which is a sat-nav's job this app doesn't
+  need to duplicate, whereas a hazard warning is novel to this app (a sat-nav has no idea about a
+  driver-reported low bridge) and cheap given what M7.3 already built.
+  `lib/hazard-voice-warnings.ts`'s `hazardsAheadWithinRange` is route-relative (via
+  `route-progress.ts`'s own nearest-point-on-line snap for both the driver and each hazard), not
+  straight-line, so a hazard just passed never re-triggers just because it's still close as the
+  crow flies. `hooks/use-hazard-voice-warnings.ts` speaks each qualifying hazard once (500m ahead,
+  `expo-speech`, reusing the same dependency M7.3's confirm-out-loud step already added — no new
+  native module), tracked in a `Set` that lives for one `active-trip.tsx` mount, i.e. one trip.
+  Muted while the voice hazard-report flow is itself listening or speaking, so a warning never
+  talks over that. Complements M7's voice _input_ (speech-to-text for reporting) with voice
+  _output_. **Turn-by-turn directions remain unscoped and unattempted.**
 - **2026-09-25: break suggestions** — UK HGV drivers have a statutory break requirement (45
   minutes after 4.5 hours' driving, tachograph rules), so a spoken nudge ("your break's due in
   15 minutes, there's a layby 5 minutes ahead") could genuinely help, not just be a nice-to-have.
@@ -104,6 +131,24 @@ not attached to a milestone yet.
     using it would mean translating "sensor X reads slow" into "this stretch of the driver's
     planned route is congested" — real work, but on a real, free, already-confirmed data source
     rather than a guess.
+- **2026-09-25: light and dark mode — manual half shipped 2026-09-26.** The driver app was
+  dark-only (every screen's colours hardcoded, e.g. `home.tsx`/`consent.tsx`'s `#0B1220`
+  background). Scoped down to a manual toggle first (user's choice when asked): `theme/colors.ts`
+  holds a `ThemeColors` token set with `darkColors`/`lightColors` palettes (`darkColors` is
+  exactly the old hardcoded values, so switching to "dark" changes nothing anyone's seen);
+  `state/theme-store.ts` is a zustand store persisted via SecureStore (same mechanism as
+  `auth-store.ts`'s cached `DriverInfo` — no new dependency for one string), restored at boot in
+  `_layout.tsx` alongside auth, and feeds both the app's own screens and expo-router's
+  `ThemeProvider`/`StatusBar`. A "Dark"/"Light" toggle lives in `settings.tsx`. Every screen and
+  shared component migrated from a static `StyleSheet.create` to a `createStyles(colors)`
+  function called through `useMemo`. Deliberately left unthemed: `components/route-map.tsx`
+  (MapLibre tiles and pin/hazard-marker colours don't repaint for an app-chrome switch) and a
+  handful of floating map-overlay buttons (`home.tsx`'s menu/hazard buttons, `active-trip.tsx`'s
+  mic overlay) that need to stay legible against the map's own imagery regardless of theme.
+  **Still open, not attempted**: automatic sunrise/sunset switching — needs the driver's location
+  (already available via `useCurrentLocation()`) and a sun-times calculation (a small library like
+  `suncalc`, or a free sunrise-sunset API), recomputed as the driver moves and as days pass, not
+  fixed once at app start. No design or scoping done on that half yet.
 
 ## M1 task breakdown
 

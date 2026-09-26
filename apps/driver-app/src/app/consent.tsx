@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -11,6 +12,7 @@ import {
 import { useGiveConsent } from '../api/use-identity';
 import { PRODUCT_NAME } from '../product';
 import { useAuthStore } from '../state/auth-store';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 /**
  * Privacy notice + consent (design doc §9, M8): "Simple privacy notice and consent screen at
@@ -21,6 +23,8 @@ export default function ConsentScreen() {
   const router = useRouter();
   const setDriver = useAuthStore((s) => s.setDriver);
   const giveConsent = useGiveConsent();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   function handleAccept(): void {
     giveConsent.mutate(undefined, {
@@ -74,7 +78,7 @@ export default function ConsentScreen() {
           testID="consent-accept-button"
         >
           {giveConsent.isPending ? (
-            <ActivityIndicator color="#0B1220" />
+            <ActivityIndicator color={colors.textOnAccent} />
           ) : (
             <Text style={styles.buttonText}>I understand</Text>
           )}
@@ -84,52 +88,54 @@ export default function ConsentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  content: {
-    padding: 24,
-    gap: 4,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 16,
-  },
-  heading: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#F5A623',
-    marginTop: 20,
-  },
-  paragraph: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#E5E7EB',
-    marginTop: 8,
-  },
-  error: {
-    fontSize: 15,
-    color: '#F87171',
-    marginTop: 20,
-  },
-  button: {
-    minHeight: 56,
-    backgroundColor: '#F5A623',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 32,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: 24,
+      gap: 4,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 16,
+    },
+    heading: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.accent,
+      marginTop: 20,
+    },
+    paragraph: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: colors.textSecondary,
+      marginTop: 8,
+    },
+    error: {
+      fontSize: 15,
+      color: colors.danger,
+      marginTop: 20,
+    },
+    button: {
+      minHeight: 56,
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 32,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+  });
+}

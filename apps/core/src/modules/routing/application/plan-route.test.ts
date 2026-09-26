@@ -7,6 +7,7 @@ import type { ReportedObstruction } from '../domain/reported-obstruction.js';
 import { InMemoryRoutePlanRepository } from './testing/in-memory-route-plan-repository.js';
 import { InMemoryVehicleProfileRepository } from './testing/in-memory-vehicle-profile-repository.js';
 import { FakeHazardAvoidanceQuery } from './testing/fake-hazard-avoidance-query.js';
+import { FakeHazardsOnRouteQuery } from './testing/fake-hazards-on-route-query.js';
 import { FakeRestrictionOverrideRepository } from './testing/fake-restriction-override-repository.js';
 import { FakeRoutingEngine } from './testing/fake-routing-engine.js';
 import { planRoute, type PlanRouteDeps } from './plan-route.js';
@@ -29,6 +30,7 @@ async function buildDeps(): Promise<
     routePlanRepo: new InMemoryRoutePlanRepository(),
     routingEngine: new FakeRoutingEngine(),
     hazardAvoidanceQuery: new FakeHazardAvoidanceQuery(),
+    hazardsOnRouteQuery: new FakeHazardsOnRouteQuery(),
     restrictionOverrideRepo: new FakeRestrictionOverrideRepository(),
     clock: new FakeClock(now),
     ids: new SequentialIdGenerator(),
@@ -162,6 +164,41 @@ describe('planRoute', () => {
     expect(engine.requests[0]?.avoid).toEqual([]);
     expect(engine.requests[1]?.avoid).toEqual([obstruction.zone]);
     expect(query.corridors).toEqual(['first-pass']); // asked about the *first*-pass geometry
+  });
+
+  it('populates hazardsOnRoute from the hazards-on-route query, keyed to the final routed geometry', async () => {
+    const deps = await buildDeps();
+    const query = deps.hazardsOnRouteQuery as FakeHazardsOnRouteQuery;
+    query.ids = ['hazard-1', 'hazard-2'];
+
+    const result = await planRoute(deps, { driverId, profileId, origin, destination });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.hazardsOnRoute).toEqual(['hazard-1', 'hazard-2']);
+    expect(query.corridors).toEqual(['fake-geometry']); // no reroute here, so final === first-pass
+  });
+
+  it('asks the hazards-on-route query about the final, rerouted geometry, not the first pass', async () => {
+    const deps = await buildDeps();
+    const avoidance = deps.hazardAvoidanceQuery as FakeHazardAvoidanceQuery;
+    avoidance.obstructions = [
+      {
+        id: 'hazard-1',
+        kind: 'height',
+        limit: 3.5, // over the profile's widthM/heightM combo enough to force a re-plan
+        zone: { points: [{ lat: 54.97, lon: -2.1 }] },
+      },
+    ];
+    const engine = deps.routingEngine as FakeRoutingEngine;
+    engine.results = [
+      { ok: true, value: { geometry: 'first-pass', distanceKm: 8, durationMin: 12 } },
+      { ok: true, value: { geometry: 'rerouted', distanceKm: 9.5, durationMin: 14 } },
+    ];
+
+    await planRoute(deps, { driverId, profileId, origin, destination });
+
+    const query = deps.hazardsOnRouteQuery as FakeHazardsOnRouteQuery;
+    expect(query.corridors).toEqual(['rerouted']);
   });
 
   it('re-plans around and explains an applying restriction override', async () => {

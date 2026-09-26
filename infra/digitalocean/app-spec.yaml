@@ -5,9 +5,16 @@
 # INTERNAL_KEYS/CORE_INTERNAL_KEY, VALHALLA_URL, ANTHROPIC_API_KEY, CLICKSEND_USERNAME,
 # CLICKSEND_API_KEY) get added after creation, via the DO console's per-component
 # "Environment variables" panel or `doctl apps update`, never written here or committed.
-# See docs/deployment-guide.md for the full checklist.
+# See docs/deployment-guide.md for the full checklist, including §7 bug #3: the `vpc` field
+# below is required for `core` to reach the Valhalla droplet's private IP at all — without it
+# the app has no route into the droplet's VPC and every routing request times out.
 name: wagonwise-backend
 region: lon1
+vpc:
+  id: 1b4663cb-c8eb-490e-ab64-9027c1dcac83 # default-lon1, same VPC as the Valhalla droplet
+domains:
+  - domain: api.wagon-wise.co.uk
+    type: PRIMARY
 services:
   - name: core
     github:
@@ -20,6 +27,16 @@ services:
       - 3001
     instance_size_slug: basic-xxs
     instance_count: 1
+    health_check:
+      http_path: /health
+      port: 3001
+    envs:
+      - key: HOST
+        scope: RUN_AND_BUILD_TIME
+        value: 0.0.0.0
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: production
   - name: driver-bff
     github:
       repo: scottkelly36/Wagonwise
@@ -32,3 +49,13 @@ services:
       - path: /
     instance_size_slug: basic-xxs
     instance_count: 1
+    health_check:
+      http_path: /health
+      port: 3002
+    envs:
+      - key: HOST
+        scope: RUN_AND_BUILD_TIME
+        value: 0.0.0.0
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: production

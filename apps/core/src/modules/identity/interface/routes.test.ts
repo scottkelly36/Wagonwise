@@ -90,6 +90,7 @@ describe('POST /identity/otp/request', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
+      isAdmin: false,
     });
     const response = await app.inject({
       method: 'POST',
@@ -130,6 +131,7 @@ describe('POST /identity/otp/verify', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
+      isAdmin: false,
     });
     await app.inject({
       method: 'POST',
@@ -158,6 +160,7 @@ describe('POST /identity/otp/verify', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
+      isAdmin: false,
     });
     await app.inject({
       method: 'POST',
@@ -217,6 +220,7 @@ describe('POST /identity/token/refresh', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
+      isAdmin: false,
     });
     await app.inject({
       method: 'POST',
@@ -373,6 +377,7 @@ describe('POST /identity/consent', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
+      isAdmin: false,
     });
 
     const response = await app.inject({
@@ -413,6 +418,7 @@ describe('DELETE /identity/account', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
+      isAdmin: false,
     });
     await deps.registerDevice.repo.save({
       id: makeId<'DeviceId'>('device-1'),
@@ -461,6 +467,7 @@ describe('DELETE /identity/account', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
+      isAdmin: false,
     });
 
     await app.inject({ method: 'DELETE', url: '/identity/account', ...asDriver('driver-1') });

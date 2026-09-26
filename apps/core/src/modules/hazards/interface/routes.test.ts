@@ -1,8 +1,10 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { describe, expect, it } from 'vitest';
+import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import { InMemoryHazardRepository } from '../application/testing/in-memory-hazard-repository.js';
+import { StubAdminDirectory } from '../application/testing/stub-admin-directory.js';
 import { StubHazardParser } from '../application/testing/stub-hazard-parser.js';
 import { registerHazardsRoutes, type HazardsRouteDeps } from './routes.js';
 
@@ -13,6 +15,7 @@ const now = new Date('2026-06-15T08:00:00.000Z');
 // field. This suite isn't exercising that hook — driver-auth.test.ts already does, against real
 // verification — so it stands in for it with a trivial one keyed off a plain test header.
 const DRIVER_HEADER = 'x-test-driver-id';
+const ADMIN_DRIVER_ID = makeId<'DriverId'>('admin-driver');
 
 function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
   const repo = new InMemoryHazardRepository();
@@ -22,6 +25,8 @@ function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
     reportHazard: { repo, clock, ids },
     confirmHazard: { repo, clock, ids },
     dismissHazard: { repo },
+    deleteHazard: { repo },
+    adminDirectory: new StubAdminDirectory(new Set([ADMIN_DRIVER_ID])),
     getHazard: { repo },
     parseVoiceReport: { parser: new StubHazardParser() },
     findNearbyHazards: { repo, clock },
@@ -405,5 +410,82 @@ describe('POST /hazards/reports/:id/dismiss', () => {
     });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ tag: 'HazardReportNotFound' });
+  });
+});
+
+describe('DELETE /hazards/reports/:id', () => {
+  async function createReport(app: FastifyInstance): Promise<string> {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/hazards/reports',
+      payload: {
+        id: '11111111-1111-4111-8111-111111111111',
+        type: 'low_bridge',
+        location,
+        source: 'tap',
+      },
+      ...asDriver('driver-1'),
+    });
+    return created.json<{ id: string }>().id;
+  }
+
+  it('204s and actually removes the report for an admin', async () => {
+    const { app } = buildApp();
+    const id = await createReport(app);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/hazards/reports/${id}`,
+      ...asDriver(ADMIN_DRIVER_ID),
+    });
+    expect(response.statusCode).toBe(204);
+
+    const getResponse = await app.inject({ method: 'GET', url: `/hazards/reports/${id}` });
+    expect(getResponse.statusCode).toBe(404);
+  });
+
+  it('403s a non-admin driver, leaving the report in place', async () => {
+    const { app } = buildApp();
+    const id = await createReport(app);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/hazards/reports/${id}`,
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ tag: 'Forbidden' });
+
+    const getResponse = await app.inject({ method: 'GET', url: `/hazards/reports/${id}` });
+    expect(getResponse.statusCode).toBe(200);
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const id = await createReport(app);
+
+    const response = await app.inject({ method: 'DELETE', url: `/hazards/reports/${id}` });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('404s an unknown id for an admin', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/hazards/reports/22222222-2222-4222-8222-222222222222',
+      ...asDriver(ADMIN_DRIVER_ID),
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'HazardReportNotFound' });
+  });
+
+  it('400s a non-UUID id for an admin', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/hazards/reports/not-a-uuid',
+      ...asDriver(ADMIN_DRIVER_ID),
+    });
+    expect(response.statusCode).toBe(400);
   });
 });

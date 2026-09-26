@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -11,10 +12,13 @@ import {
 
 import { useVehicleProfiles } from '../../api/use-vehicle-profiles';
 import { formatHeightWithFeetInches } from '../../lib/units';
+import { useThemeColors, type ThemeColors } from '../../theme/colors';
 
 export default function VehicleProfilesScreen() {
   const router = useRouter();
   const { data, isLoading, isError, isRefetching, refetch } = useVehicleProfiles();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -30,7 +34,7 @@ export default function VehicleProfilesScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator style={styles.loading} size="large" color="#FFFFFF" />
+        <ActivityIndicator style={styles.loading} size="large" color={colors.text} />
       ) : isError ? (
         <Text style={styles.message}>Could not load your vehicles. Pull down to try again.</Text>
       ) : data === undefined || data.length === 0 ? (
@@ -60,62 +64,64 @@ export default function VehicleProfilesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  addButton: {
-    minHeight: 56,
-    minWidth: 56,
-    paddingHorizontal: 16,
-    backgroundColor: '#F5A623',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  loading: {
-    marginTop: 48,
-  },
-  message: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginTop: 48,
-    paddingHorizontal: 24,
-  },
-  row: {
-    minHeight: 72,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1F2937',
-  },
-  rowName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  rowDetail: {
-    fontSize: 15,
-    color: '#9CA3AF',
-    marginTop: 4,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 24,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    addButton: {
+      minHeight: 56,
+      minWidth: 56,
+      paddingHorizontal: 16,
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    addButtonText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    loading: {
+      marginTop: 48,
+    },
+    message: {
+      fontSize: 16,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 48,
+      paddingHorizontal: 24,
+    },
+    row: {
+      minHeight: 72,
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    rowName: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    rowDetail: {
+      fontSize: 15,
+      color: colors.textMuted,
+      marginTop: 4,
+    },
+  });
+}

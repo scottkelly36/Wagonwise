@@ -1,11 +1,12 @@
 import { Redirect } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet } from 'react-native';
 
 import { useResumeActiveTrip } from '../api/use-active-trip';
 import { useAuthStore } from '../state/auth-store';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 /**
  * A gate, not a screen: while the stored session is being restored (or exchanged for a fresh
@@ -23,6 +24,8 @@ export default function IndexScreen() {
   const resumeQuery = useResumeActiveTrip(
     state.status === 'signedIn' ? state.accessToken : undefined,
   );
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     if (resumeQuery.data) {
@@ -34,7 +37,7 @@ export default function IndexScreen() {
   if (state.status === 'restoring') {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#FFFFFF" />
+        <ActivityIndicator size="large" color={colors.text} />
       </SafeAreaView>
     );
   }
@@ -56,7 +59,7 @@ export default function IndexScreen() {
   if (resumeQuery.isPending) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#FFFFFF" />
+        <ActivityIndicator size="large" color={colors.text} />
       </SafeAreaView>
     );
   }
@@ -64,11 +67,13 @@ export default function IndexScreen() {
   return <Redirect href={resumeQuery.data ? '/active-trip' : '/home'} />;
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+  });
+}

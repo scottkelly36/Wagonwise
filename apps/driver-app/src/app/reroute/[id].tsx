@@ -15,6 +15,7 @@ import { routingErrorMessage } from '../../lib/error-messages';
 import { decodePolyline6 } from '../../lib/polyline';
 import { useCurrentActiveTripStore } from '../../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../../state/current-route-plan-store';
+import { useThemeColors, type ThemeColors } from '../../theme/colors';
 
 /**
  * Design doc §6: "Opening the notification shows old vs new route; driver accepts or keeps the
@@ -35,6 +36,8 @@ export default function RerouteScreen() {
   const setPlan = useCurrentRoutePlanStore((s) => s.setPlan);
   const trip = useCurrentActiveTripStore((s) => s.trip);
   const { data: newPlan, isLoading, isError, error } = useRoutePlan(id);
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const currentLine = useMemo(
     () => (currentPlan ? decodePolyline6(currentPlan.geometry) : undefined),
@@ -76,7 +79,7 @@ export default function RerouteScreen() {
       <ActivityIndicator
         style={[styles.loading, !isLoading && styles.hidden]}
         size="large"
-        color="#FFFFFF"
+        color={colors.text}
       />
 
       <View style={styles.panel}>
@@ -113,64 +116,66 @@ export default function RerouteScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  loading: {
-    position: 'absolute',
-    top: '40%',
-    left: 0,
-    right: 0,
-  },
-  hidden: {
-    display: 'none',
-  },
-  panel: {
-    padding: 16,
-    gap: 12,
-    backgroundColor: '#0B1220',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  comparison: {
-    fontSize: 16,
-    color: '#E5E7EB',
-    textAlign: 'center',
-  },
-  button: {
-    minHeight: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  acceptButton: {
-    backgroundColor: '#34D399',
-  },
-  keepButton: {
-    backgroundColor: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#6B7280',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  keepButtonText: {
-    color: '#FFFFFF',
-  },
-  error: {
-    fontSize: 16,
-    color: '#F87171',
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    loading: {
+      position: 'absolute',
+      top: '40%',
+      left: 0,
+      right: 0,
+    },
+    hidden: {
+      display: 'none',
+    },
+    panel: {
+      padding: 16,
+      gap: 12,
+      backgroundColor: colors.background,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    comparison: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    button: {
+      minHeight: 56,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    acceptButton: {
+      backgroundColor: colors.accentGreen,
+    },
+    keepButton: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.textDim,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    keepButtonText: {
+      color: colors.text,
+    },
+    error: {
+      fontSize: 16,
+      color: colors.danger,
+      textAlign: 'center',
+    },
+  });
+}

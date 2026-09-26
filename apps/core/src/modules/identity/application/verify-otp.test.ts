@@ -50,7 +50,12 @@ async function seedOtp(
 }
 
 function existingDriver(): Driver {
-  return { id: makeId<'DriverId'>('driver-1'), identifier: IDENTIFIER, createdAt: now };
+  return {
+    id: makeId<'DriverId'>('driver-1'),
+    identifier: IDENTIFIER,
+    createdAt: now,
+    isAdmin: false,
+  };
 }
 
 describe('verifyOtp: the code itself', () => {

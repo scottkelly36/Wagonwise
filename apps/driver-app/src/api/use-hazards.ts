@@ -63,6 +63,18 @@ export function useDismissHazard() {
   });
 }
 
+/** Admin-only test-data cleanup (2026-09-26), not a driver-facing feature — the button that
+ *  calls this shows for everyone (simpler than teaching the app "am I an admin"), and a non-admin
+ *  just gets a real 403 with a friendly message (lib/error-messages.ts). */
+export function useDeleteHazard() {
+  const accessToken = useAccessToken();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hazardsApi.deleteHazard(accessToken, id),
+    onSuccess: (_data, id) => void queryClient.invalidateQueries({ queryKey: [...HAZARD_KEY, id] }),
+  });
+}
+
 /** `corridor` is one point for "near me" (home screen) or the decoded route line for "near my
  *  route" (plan-route/active-trip) — disabled entirely until there's at least one point, since an
  *  empty corridor is a 400 (contracts' `findNearbyHazardsRequestSchema`), not a valid "no results"

@@ -46,6 +46,7 @@ describe('identity Postgres repositories', () => {
         id: makeId<'DriverId'>('11111111-1111-4111-8111-111111111111'),
         identifier: 'driver-a@example.com',
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        isAdmin: false,
       };
       await repo().save(driver);
 
@@ -65,6 +66,7 @@ describe('identity Postgres repositories', () => {
         id: makeId<'DriverId'>('22222222-2222-4222-8222-222222222222'),
         identifier: 'dup@example.com',
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        isAdmin: false,
       };
       await repo().save(driver);
       const dupe: Driver = {
@@ -103,6 +105,7 @@ describe('identity Postgres repositories', () => {
         id: driverId,
         identifier: 'redeemer@example.com',
         createdAt: new Date('2026-02-01T00:00:00.000Z'),
+        isAdmin: false,
       });
       const redeemedAt = new Date('2026-02-01T00:00:00.000Z');
       await repo().save({ ...invite, redeemedBy: driverId, redeemedAt });
@@ -141,6 +144,7 @@ describe('identity Postgres repositories', () => {
         id: driverId,
         identifier: 'session-driver@example.com',
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        isAdmin: false,
       });
       const s = session({ refreshTokenHash: 'hash-round-trip' });
       await repo().save(s);
@@ -276,11 +280,13 @@ describe('identity Postgres repositories', () => {
         id: driverId,
         identifier: 'device-driver-a@example.com',
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        isAdmin: false,
       });
       await driverRepo.save({
         id: otherDriverId,
         identifier: 'device-driver-b@example.com',
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        isAdmin: false,
       });
     });
 

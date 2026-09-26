@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -32,6 +32,7 @@ import {
   type VehicleProfileFormValues,
 } from '../lib/vehicle-profile-form';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 type PointMode = 'origin' | 'destination';
 type VehicleMode = 'profile' | 'manual';
@@ -73,6 +74,8 @@ export default function PlanRouteScreen() {
   const [destination, setDestination] = useState<MapPoint | undefined>(undefined);
   const [pointMode, setPointMode] = useState<PointMode>('destination');
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Origin defaults to current location (design doc §8) once it arrives, but only until a
   // driver has actually chosen one for themselves — a GPS fix landing late must never silently
@@ -225,7 +228,7 @@ export default function PlanRouteScreen() {
               contentContainerStyle={styles.profileRow}
             >
               {profilesLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={colors.text} />
               ) : profiles === undefined || profiles.length === 0 ? (
                 <Text style={styles.hint}>
                   No saved vehicles yet — try “Enter details” instead.
@@ -261,7 +264,7 @@ export default function PlanRouteScreen() {
                     value={dimensionValues[field.key]}
                     onChangeText={setDimensionField(field.key)}
                     placeholder={field.placeholder}
-                    placeholderTextColor="#6B7280"
+                    placeholderTextColor={colors.textDim}
                     keyboardType="decimal-pad"
                     testID={`manual-${field.key}-input`}
                   />
@@ -313,7 +316,7 @@ export default function PlanRouteScreen() {
             testID="plan-route-button"
           >
             {pending ? (
-              <ActivityIndicator color="#0B1220" />
+              <ActivityIndicator color={colors.textOnAccent} />
             ) : (
               <Text style={styles.buttonText}>Plan route</Text>
             )}
@@ -324,124 +327,126 @@ export default function PlanRouteScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1220',
-  },
-  flex: {
-    flex: 1,
-  },
-  panel: {
-    padding: 16,
-    gap: 12,
-    backgroundColor: '#0B1220',
-  },
-  vehicleModeRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  vehicleModeTab: {
-    flex: 1,
-    minHeight: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 22,
-    backgroundColor: '#1F2937',
-  },
-  vehicleModeTabActive: {
-    backgroundColor: '#334155',
-    borderWidth: 2,
-    borderColor: '#38BDF8',
-  },
-  vehicleModeTabText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  profileRow: {
-    gap: 8,
-    minHeight: 44,
-  },
-  chip: {
-    minHeight: 44,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    borderRadius: 22,
-    backgroundColor: '#1F2937',
-  },
-  chipSelected: {
-    backgroundColor: '#F5A623',
-  },
-  chipText: {
-    fontSize: 16,
-    color: '#E5E7EB',
-  },
-  chipTextSelected: {
-    color: '#0B1220',
-    fontWeight: '700',
-  },
-  hint: {
-    fontSize: 15,
-    color: '#9CA3AF',
-    alignSelf: 'center',
-  },
-  manualForm: {
-    maxHeight: 220,
-  },
-  label: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginTop: 8,
-  },
-  input: {
-    minHeight: 48,
-    fontSize: 18,
-    color: '#FFFFFF',
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginTop: 4,
-  },
-  modeRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  modeButton: {
-    flex: 1,
-    minHeight: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 12,
-    backgroundColor: '#1F2937',
-  },
-  modeButtonActive: {
-    backgroundColor: '#334155',
-    borderWidth: 2,
-    borderColor: '#38BDF8',
-  },
-  modeButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  button: {
-    minHeight: 56,
-    backgroundColor: '#F5A623',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  error: {
-    fontSize: 16,
-    color: '#F87171',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    flex: {
+      flex: 1,
+    },
+    panel: {
+      padding: 16,
+      gap: 12,
+      backgroundColor: colors.background,
+    },
+    vehicleModeRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    vehicleModeTab: {
+      flex: 1,
+      minHeight: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 22,
+      backgroundColor: colors.surface,
+    },
+    vehicleModeTabActive: {
+      backgroundColor: colors.surfaceStrong,
+      borderWidth: 2,
+      borderColor: colors.accentBlue,
+    },
+    vehicleModeTabText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    profileRow: {
+      gap: 8,
+      minHeight: 44,
+    },
+    chip: {
+      minHeight: 44,
+      paddingHorizontal: 16,
+      justifyContent: 'center',
+      borderRadius: 22,
+      backgroundColor: colors.surface,
+    },
+    chipSelected: {
+      backgroundColor: colors.accent,
+    },
+    chipText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    chipTextSelected: {
+      color: colors.textOnAccent,
+      fontWeight: '700',
+    },
+    hint: {
+      fontSize: 15,
+      color: colors.textMuted,
+      alignSelf: 'center',
+    },
+    manualForm: {
+      maxHeight: 220,
+    },
+    label: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: 8,
+    },
+    input: {
+      minHeight: 48,
+      fontSize: 18,
+      color: colors.text,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      marginTop: 4,
+    },
+    modeRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    modeButton: {
+      flex: 1,
+      minHeight: 56,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+    },
+    modeButtonActive: {
+      backgroundColor: colors.surfaceStrong,
+      borderWidth: 2,
+      borderColor: colors.accentBlue,
+    },
+    modeButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    button: {
+      minHeight: 56,
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    error: {
+      fontSize: 16,
+      color: colors.danger,
+    },
+  });
+}

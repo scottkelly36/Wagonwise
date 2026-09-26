@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   StyleSheet,
   Text,
@@ -8,10 +10,11 @@ import {
   View,
 } from 'react-native';
 
-import { useConfirmHazard, useDismissHazard, useHazard } from '../api/use-hazards';
+import { useConfirmHazard, useDeleteHazard, useDismissHazard, useHazard } from '../api/use-hazards';
 import { hazardsErrorMessage } from '../lib/error-messages';
 import { formatDateTime } from '../lib/format-date';
 import { formatMeasurement, HAZARD_STATUS_LABELS, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
+import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 interface Props {
   readonly hazardId: string | undefined;
@@ -31,13 +34,35 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
   const { data: hazard, isLoading, isError } = useHazard(hazardId);
   const confirmMutation = useConfirmHazard();
   const dismissMutation = useDismissHazard();
+  const deleteMutation = useDeleteHazard();
 
   const actionError = confirmMutation.isError
     ? hazardsErrorMessage(confirmMutation.error)
     : dismissMutation.isError
       ? hazardsErrorMessage(dismissMutation.error)
-      : undefined;
+      : deleteMutation.isError
+        ? hazardsErrorMessage(deleteMutation.error)
+        : undefined;
   const actionPending = confirmMutation.isPending || dismissMutation.isPending;
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // Admin-only test-data cleanup (field-testing request, 2026-09-26) — see app/hazards/[id].tsx's
+  // identical handler for the full reasoning; this drawer closes itself on success instead of
+  // navigating back.
+  function handleDelete(): void {
+    Alert.alert('Delete this report?', 'This removes it permanently. This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          if (!hazard) return;
+          deleteMutation.mutate(hazard.id, { onSuccess: onClose });
+        },
+      },
+    ]);
+  }
 
   return (
     <Modal
@@ -46,162 +71,211 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
       animationType="slide"
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.backdrop} />
-      </TouchableWithoutFeedback>
+      {/* `backdrop` and `sheet` used to be plain flex siblings — backdrop's rectangle stopped
+          exactly where sheet's began, so sheet's own rounded top corners had nothing behind
+          them but the Modal's native (light) window background, showing as a pale sliver in
+          each corner (found from a screenshot, 2026-09-26). `backdrop` now absolutely covers
+          this whole container instead, so it's still there — dimmed, not pale — behind the
+          corners sheet's border-radius cuts away. */}
+      <View style={styles.container}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={styles.backdrop} />
+        </TouchableWithoutFeedback>
 
-      <View style={styles.sheet}>
-        {isLoading ? (
-          <ActivityIndicator style={styles.loading} size="large" color="#FFFFFF" />
-        ) : isError || hazard === undefined ? (
-          <Text style={styles.message}>That report isn’t there any more.</Text>
-        ) : (
-          <>
-            <View style={styles.handle} />
-            <Text style={styles.title}>{HAZARD_TYPE_LABELS[hazard.type]}</Text>
-            <Text style={styles.status}>
-              {HAZARD_STATUS_LABELS[hazard.status] ?? hazard.status}
-            </Text>
+        <View style={styles.sheet}>
+          {isLoading ? (
+            <ActivityIndicator style={styles.loading} size="large" color={colors.text} />
+          ) : isError || hazard === undefined ? (
+            <Text style={styles.message}>That report isn’t there any more.</Text>
+          ) : (
+            <>
+              <View style={styles.handle} />
+              <Text style={styles.title}>{HAZARD_TYPE_LABELS[hazard.type]}</Text>
+              <Text style={styles.status}>
+                {HAZARD_STATUS_LABELS[hazard.status] ?? hazard.status}
+              </Text>
 
-            {hazard.measurement !== undefined && (
-              <Text style={styles.detail}>{formatMeasurement(hazard.measurement)}</Text>
-            )}
-            {hazard.note !== undefined && <Text style={styles.detail}>{hazard.note}</Text>}
+              {hazard.measurement !== undefined && (
+                <Text style={styles.detail}>{formatMeasurement(hazard.measurement)}</Text>
+              )}
+              {hazard.note !== undefined && <Text style={styles.detail}>{hazard.note}</Text>}
 
-            <Text style={styles.meta}>Reported {formatDateTime(hazard.createdAt)}</Text>
-            <Text style={styles.meta}>
-              {hazard.confirmations} confirmation{hazard.confirmations === 1 ? '' : 's'} ·{' '}
-              {hazard.dismissals} said not there
-            </Text>
+              <Text style={styles.meta}>Reported {formatDateTime(hazard.createdAt)}</Text>
+              <Text style={styles.meta}>
+                {hazard.confirmations} confirmation{hazard.confirmations === 1 ? '' : 's'} ·{' '}
+                {hazard.dismissals} said not there
+              </Text>
 
-            {actionError !== undefined && <Text style={styles.error}>{actionError}</Text>}
+              {actionError !== undefined && <Text style={styles.error}>{actionError}</Text>}
 
-            <View style={styles.actionRow}>
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    styles.confirmButton,
+                    actionPending && styles.buttonDisabled,
+                  ]}
+                  disabled={actionPending}
+                  onPress={() => confirmMutation.mutate(hazard.id)}
+                  testID="confirm-hazard-button"
+                >
+                  {confirmMutation.isPending ? (
+                    <ActivityIndicator color={colors.textOnAccent} />
+                  ) : (
+                    <Text style={styles.buttonText}>Still there</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    styles.dismissButton,
+                    actionPending && styles.buttonDisabled,
+                  ]}
+                  disabled={actionPending}
+                  onPress={() => dismissMutation.mutate(hazard.id)}
+                  testID="dismiss-hazard-button"
+                >
+                  {dismissMutation.isPending ? (
+                    <ActivityIndicator color={colors.text} />
+                  ) : (
+                    <Text style={[styles.buttonText, styles.dismissButtonText]}>Not there</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
-                style={[
-                  styles.button,
-                  styles.confirmButton,
-                  actionPending && styles.buttonDisabled,
-                ]}
-                disabled={actionPending}
-                onPress={() => confirmMutation.mutate(hazard.id)}
-                testID="confirm-hazard-button"
+                style={styles.deleteButton}
+                disabled={deleteMutation.isPending}
+                onPress={handleDelete}
+                testID="delete-hazard-button"
               >
-                {confirmMutation.isPending ? (
-                  <ActivityIndicator color="#0B1220" />
+                {deleteMutation.isPending ? (
+                  <ActivityIndicator color={colors.danger} />
                 ) : (
-                  <Text style={styles.buttonText}>Still there</Text>
+                  <Text style={styles.deleteButtonText}>Delete report</Text>
                 )}
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  styles.dismissButton,
-                  actionPending && styles.buttonDisabled,
-                ]}
-                disabled={actionPending}
-                onPress={() => dismissMutation.mutate(hazard.id)}
-                testID="dismiss-hazard-button"
-              >
-                {dismissMutation.isPending ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={[styles.buttonText, styles.dismissButtonText]}>Not there</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
+            </>
+          )}
+        </View>
       </View>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  sheet: {
-    backgroundColor: '#0B1220',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: 40,
-    gap: 4,
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#334155',
-    marginBottom: 16,
-  },
-  loading: {
-    marginVertical: 48,
-  },
-  message: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginVertical: 48,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  status: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textTransform: 'uppercase',
-  },
-  detail: {
-    fontSize: 17,
-    color: '#E5E7EB',
-    marginTop: 8,
-  },
-  meta: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 8,
-  },
-  error: {
-    fontSize: 15,
-    color: '#F87171',
-    marginTop: 12,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
-  },
-  button: {
-    flex: 1,
-    minHeight: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  confirmButton: {
-    backgroundColor: '#F5A623',
-  },
-  dismissButton: {
-    backgroundColor: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#6B7280',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0B1220',
-  },
-  dismissButtonText: {
-    color: '#FFFFFF',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    // Fills the whole Modal; `justifyContent: 'flex-end'` is what actually puts `sheet` at the
+    // bottom — `backdrop` below is absolutely positioned across all of this, not just the space
+    // above `sheet`, so it still shows (dimmed) behind `sheet`'s own rounded top corners.
+    container: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    // A modal dimming backdrop — kept a fixed black regardless of theme, the same everywhere
+    // this pattern shows up (standard UX, not part of the light/dark app chrome).
+    backdrop: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    sheet: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 24,
+      paddingBottom: 40,
+      gap: 4,
+    },
+    handle: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.surfaceStrong,
+      marginBottom: 16,
+    },
+    loading: {
+      marginVertical: 48,
+    },
+    message: {
+      fontSize: 16,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginVertical: 48,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    status: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+    },
+    detail: {
+      fontSize: 17,
+      color: colors.textSecondary,
+      marginTop: 8,
+    },
+    meta: {
+      fontSize: 14,
+      color: colors.textDim,
+      marginTop: 8,
+    },
+    error: {
+      fontSize: 15,
+      color: colors.danger,
+      marginTop: 12,
+    },
+    actionRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 20,
+    },
+    button: {
+      flex: 1,
+      minHeight: 56,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    confirmButton: {
+      backgroundColor: colors.accent,
+    },
+    dismissButton: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.textDim,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    dismissButtonText: {
+      color: colors.text,
+    },
+    // Admin-only, so deliberately understated rather than sitting alongside "Still there"/
+    // "Not there" as an equal third option — a plain text-link style, not a filled button.
+    deleteButton: {
+      minHeight: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 12,
+    },
+    deleteButtonText: {
+      fontSize: 15,
+      color: colors.danger,
+      textDecorationLine: 'underline',
+    },
+  });
+}

@@ -7,6 +7,7 @@ import { InMemoryActiveTripRepository } from '../application/testing/in-memory-a
 import { InMemoryRoutePlanRepository } from '../application/testing/in-memory-route-plan-repository.js';
 import { InMemoryVehicleProfileRepository } from '../application/testing/in-memory-vehicle-profile-repository.js';
 import { FakeHazardAvoidanceQuery } from '../application/testing/fake-hazard-avoidance-query.js';
+import { FakeHazardsOnRouteQuery } from '../application/testing/fake-hazards-on-route-query.js';
 import { FakeRestrictionOverrideRepository } from '../application/testing/fake-restriction-override-repository.js';
 import { FakeRoutingEngine } from '../application/testing/fake-routing-engine.js';
 import { registerRoutingRoutes, type RoutingRouteDeps } from './routes.js';
@@ -37,6 +38,7 @@ function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
       routePlanRepo,
       routingEngine: new FakeRoutingEngine(),
       hazardAvoidanceQuery: new FakeHazardAvoidanceQuery(),
+      hazardsOnRouteQuery: new FakeHazardsOnRouteQuery(),
       restrictionOverrideRepo: new FakeRestrictionOverrideRepository(),
       clock,
       ids,

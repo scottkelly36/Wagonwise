@@ -123,6 +123,7 @@ export function composeCore(
     ids,
     anthropicApiKey: config.anthropicApiKey,
     hazardParser: overrides.hazardParser,
+    identity,
   });
   const routing = createRoutingModule({
     db: routingDb,
