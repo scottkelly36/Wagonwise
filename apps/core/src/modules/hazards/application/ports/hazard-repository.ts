@@ -22,4 +22,8 @@ export interface HazardRepository {
    *  decision 4 — `reportHazard`/`confirmHazard` are the only callers that ever pass any;
    *  dismiss/expire pass none, since nothing consumes those events yet. */
   save(report: HazardReport, events?: readonly DomainEvent[]): Promise<void>;
+  /** True removal, unlike `save`'s upsert — the row is gone, not just re-statused. Only
+   *  `application/delete-hazard.ts` calls this, and only ever behind an admin check
+   *  (interface/routes.ts) — this port itself enforces nothing about who's allowed to call it. */
+  deleteById(id: HazardReportId): Promise<void>;
 }

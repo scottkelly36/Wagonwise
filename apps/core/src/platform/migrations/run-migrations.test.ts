@@ -42,6 +42,7 @@ describe('runMigrations', () => {
       '0009_route_plans_geography.sql',
       '0010_routing_restriction_overrides.sql',
       '0011_identity_driver_lifecycle.sql',
+      '0012_identity_admin_flag.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -131,6 +132,7 @@ describe('runMigrations', () => {
       '0009_route_plans_geography.sql',
       '0010_routing_restriction_overrides.sql',
       '0011_identity_driver_lifecycle.sql',
+      '0012_identity_admin_flag.sql',
     ]);
   });
 });

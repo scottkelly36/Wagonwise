@@ -55,4 +55,9 @@ export class InMemoryHazardRepository implements HazardRepository {
     this.emittedEvents.push(...events);
     return Promise.resolve();
   }
+
+  deleteById(id: HazardReportId): Promise<void> {
+    this.#byId.delete(id);
+    return Promise.resolve();
+  }
 }

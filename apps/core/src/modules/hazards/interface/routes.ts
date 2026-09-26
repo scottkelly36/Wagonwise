@@ -7,7 +7,9 @@ import {
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
 import { confirmHazard, type ConfirmHazardDeps } from '../application/confirm-hazard.js';
+import { deleteHazard, type DeleteHazardDeps } from '../application/delete-hazard.js';
 import { dismissHazard, type DismissHazardDeps } from '../application/dismiss-hazard.js';
+import type { AdminDirectory } from '../application/ports/admin-directory.js';
 import {
   findNearbyHazards,
   type FindNearbyHazardsDeps,
@@ -21,6 +23,10 @@ export interface HazardsRouteDeps {
   readonly reportHazard: ReportHazardDeps;
   readonly confirmHazard: ConfirmHazardDeps;
   readonly dismissHazard: DismissHazardDeps;
+  readonly deleteHazard: DeleteHazardDeps;
+  /** Gates `DELETE /hazards/reports/:id` — unlike confirm/dismiss (decision 63), a true delete is
+   *  not open to every driver. */
+  readonly adminDirectory: AdminDirectory;
   readonly getHazard: GetHazardDeps;
   readonly parseVoiceReport: ParseVoiceReportDeps;
   readonly findNearbyHazards: FindNearbyHazardsDeps;
@@ -150,5 +156,38 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(200).send(result.value);
+  });
+
+  /**
+   * True removal, unlike confirm/dismiss — a genuinely destructive, unrecoverable action, so
+   * unlike decision 63's "no ownership check at all" it's gated to admin accounts only
+   * (field-testing request, 2026-09-26: "give my account the ability to remove hazards, I've
+   * been making some as tests"). `requireDriverId` first (401, same as every other `/hazards/`
+   * route), then the admin check (403) — both before even parsing `:id`, so a non-admin never
+   * learns whether a given id exists. The 403 body uses `tag` rather than the neighbouring
+   * inline checks' `error` field: unlike an auth wiring bug (401) or a malformed request (400),
+   * this is a real outcome a driver can hit from the UI, worth a real driver-facing message
+   * (lib/error-messages.ts, driver-app) rather than the generic fallback an `error`-shaped body
+   * gets there.
+   */
+  app.delete('/hazards/reports/:id', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    if (!(await deps.adminDirectory.isAdmin(driverId))) {
+      return reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
+    }
+
+    const params = hazardReportIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await deleteHazard(deps.deleteHazard, {
+      id: makeId<'HazardReportId'>(params.data.id),
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(204).send();
   });
 }

@@ -16,6 +16,7 @@ function driver(overrides: Partial<Driver> = {}): Driver {
     id: makeId<'DriverId'>('driver-1'),
     identifier: 'driver1@example.com',
     createdAt: new Date('2026-06-01T00:00:00.000Z'),
+    isAdmin: false,
     ...overrides,
   };
 }

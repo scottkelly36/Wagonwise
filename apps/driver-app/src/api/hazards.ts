@@ -69,6 +69,15 @@ export async function dismissHazard(accessToken: string, id: string): Promise<Ha
   return hazardReportSchema.parse(json);
 }
 
+/** True removal — server-side admin-only (core's `interface/routes.ts`); any other account gets
+ *  a 403 with `tag: 'Forbidden'` (lib/error-messages.ts has the driver-facing copy for it). */
+export async function deleteHazard(accessToken: string, id: string): Promise<void> {
+  const { status, json } = await requestJson('DELETE', `/hazards/reports/${id}`, {
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [204]);
+}
+
 /** Powers the map markers (design decision, 2026-09-24: "would be nice to see them on the map...
  *  within x amount of distance from you or on your route") — `input.corridor` is one point for
  *  "near me", the decoded route line for "near my route". */

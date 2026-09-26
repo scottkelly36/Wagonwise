@@ -20,7 +20,11 @@ export interface ThemeColors {
   /** Text sat on top of an accent-coloured button or chip — stays dark in both themes since the
    *  accent colours themselves don't change with theme. */
   readonly textOnAccent: string;
-  /** Brand orange — primary actions, destination pin. Constant across themes. */
+  /** Brand blue, sampled from the app icon's road/arrow (2026-09-26, replacing the earlier
+   *  orange) — primary actions (buttons, selected chips). Constant across themes. Distinct from
+   *  `accentBlue` below on purpose: this is "do the primary thing," that's "informational/
+   *  active state" — kept as two tokens even though they're both blue now, since they still mean
+   *  different things and may need to diverge again later. */
   readonly accent: string;
   /** Sky blue — origin pin, links, active-tab border. Constant across themes. */
   readonly accentBlue: string;
@@ -31,9 +35,10 @@ export interface ThemeColors {
   readonly danger: string;
 }
 
-// The app's whole colour palette before this feature was these ten-odd hex values, hardcoded on
-// every screen (docs/progress.md's field-testing backlog, 2026-09-25) — kept as-is here so
-// switching to "dark" changes nothing anyone's already seen.
+// The app's whole colour palette before the light/dark feature was these ten-odd hex values,
+// hardcoded on every screen (docs/progress.md's field-testing backlog, 2026-09-25) — kept as-is
+// here so switching to "dark" changed nothing anyone had already seen. `accent` is the one
+// exception, updated 2026-09-26 from the original orange to a blue sampled from the app icon.
 export const darkColors: ThemeColors = {
   background: '#0B1220',
   surface: '#1F2937',
@@ -44,7 +49,7 @@ export const darkColors: ThemeColors = {
   textMuted: '#9CA3AF',
   textDim: '#6B7280',
   textOnAccent: '#0B1220',
-  accent: '#F5A623',
+  accent: '#00A4FE',
   accentBlue: '#38BDF8',
   accentGreen: '#34D399',
   danger: '#F87171',
@@ -64,7 +69,7 @@ export const lightColors: ThemeColors = {
   textMuted: '#4B5563',
   textDim: '#6B7280',
   textOnAccent: '#0B1220',
-  accent: '#F5A623',
+  accent: '#00A4FE',
   accentBlue: '#38BDF8',
   accentGreen: '#34D399',
   danger: '#DC2626',

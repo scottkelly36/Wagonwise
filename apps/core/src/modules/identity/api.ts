@@ -75,6 +75,11 @@ export interface IdentityModule {
    *  strings, not `Device`s: nothing outside identity needs a device's id or timestamps, only
    *  what a `PushNotifier` actually sends to. Unconsumed until M6.4 gives it a real caller. */
   getPushTokensForDriver(driverId: DriverId): Promise<string[]>;
+  /** The read-model hazards' `AdminDirectory` wraps (`hazards/infrastructure/
+   *  identity-admin-directory.ts`, 2026-09-26) for its true-delete action — identity owns whether
+   *  a driver is an admin; a caller with no such driver gets `false`, not an error, since "does
+   *  this id resolve to an admin" is itself the whole question, never a precondition failure. */
+  isDriverAdmin(driverId: DriverId): Promise<boolean>;
 }
 
 /**
@@ -141,6 +146,10 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     async getPushTokensForDriver(driverId: DriverId): Promise<string[]> {
       const devices = await deviceRepo.findByDriverId(driverId);
       return devices.map((device) => device.pushToken);
+    },
+    async isDriverAdmin(driverId: DriverId): Promise<boolean> {
+      const driver = await driverRepo.findById(driverId);
+      return driver?.isAdmin ?? false;
     },
   };
 }

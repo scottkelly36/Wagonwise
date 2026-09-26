@@ -130,7 +130,7 @@ async function createDriverFromInvite(
   }
 
   const driverId: DriverId = makeId<'DriverId'>(deps.ids.newId());
-  const newDriver: Driver = { id: driverId, identifier, createdAt: now };
+  const newDriver: Driver = { id: driverId, identifier, createdAt: now, isAdmin: false };
   const redeemed = redeem(invite, driverId, now);
   if (!redeemed.ok) {
     // Lost a race with another verify() call for the same code, between the check above and

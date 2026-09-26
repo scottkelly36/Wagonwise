@@ -77,6 +77,22 @@ reports visible immediately, labelled "1 report, unconfirmed".
 Things worth building later, raised while actually using the app rather than planning it —
 not attached to a milestone yet.
 
+- **2026-09-26: admin-only hazard delete — shipped same day.** Field-testing request: "give my
+  account the ability to remove hazards, I've been making some as tests." Dismiss ("not there")
+  already existed and already hides a hazard from every driver-facing query — but it's a soft
+  status flip, not removal, and the row (and its "not there" outcome) could still be seen or
+  reversed. The user's own call, after considering a server-config allowlist: a real `isAdmin`
+  boolean on the driver record (migration 0012), not an env var — survives independently of
+  deployment config. `identity.isDriverAdmin(driverId)` is the read-model hazards' new
+  `AdminDirectory` port wraps (`hazards/infrastructure/identity-admin-directory.ts`, AGENTS.md
+  rule 7 — hazards never imports identity's `Driver` type). `DELETE /hazards/reports/:id` (core,
+  proxied unchanged through the BFF) is gated to admins only, unlike confirm/dismiss's decision
+  63 ("no ownership check at all") — a true delete is a different, unrecoverable kind of action.
+  The driver-app's "Delete report" button shows for every driver (simpler than teaching the app
+  "am I an admin") and just surfaces the server's 403 with a real message for anyone else. No
+  self-service way to grant admin — it's set directly in the database, once, for whichever
+  account needs it.
+
 - **2026-09-25: text-to-speech for navigation — hazard-ahead half shipped 2026-09-26.** Split in
   two when scoped: spoken turn-by-turn directions, and a spoken warning as a hazard on the route
   approaches. The user's own call: warnings now, turn-by-turn "maybe phase 3" — full turn-by-turn

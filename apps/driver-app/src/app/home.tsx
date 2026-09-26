@@ -141,10 +141,14 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '600',
       color: '#FFFFFF',
     },
+    // Unlike the overlay buttons above, this one isn't about map legibility — it's the app's
+    // main CTA, so it follows the theme's own accent colour (constant across light/dark anyway)
+    // rather than a hardcoded copy of it that would silently drift if the accent ever changes
+    // (it just did, 2026-09-26: orange -> blue).
     planButton: {
       minHeight: 64,
       borderRadius: 32,
-      backgroundColor: '#F5A623',
+      backgroundColor: colors.accent,
       justifyContent: 'center',
       alignItems: 'center',
       shadowColor: '#000000',
@@ -156,7 +160,7 @@ function createStyles(colors: ThemeColors) {
     planButtonText: {
       fontSize: 20,
       fontWeight: '700',
-      color: '#0B1220',
+      color: colors.textOnAccent,
     },
   });
 }

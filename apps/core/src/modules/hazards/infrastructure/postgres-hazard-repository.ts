@@ -115,6 +115,10 @@ export class PostgresHazardRepository implements HazardRepository {
     return rows.map(toDomain);
   }
 
+  async deleteById(id: HazardReportId): Promise<void> {
+    await sql`delete from hazards.reports where id = ${id}`.execute(this.db);
+  }
+
   /** `events` (M6.3) are written to `outbox.events` in the same transaction as the row itself
    *  (decision 4) — a crash between the two must never lose an event or record one for a write
    *  that never happened. No transaction is opened at all when there's nothing to publish
