@@ -77,10 +77,21 @@ reports visible immediately, labelled "1 report, unconfirmed".
 Things worth building later, raised while actually using the app rather than planning it —
 not attached to a milestone yet.
 
-- **2026-09-25: text-to-speech for navigation** — spoken turn-by-turn directions and, more
-  specifically for this app, a spoken warning as an upcoming hazard on the route approaches
-  (rather than only a silent on-map icon/push notification). Complements M7's voice _input_
-  (speech-to-text for reporting) with voice _output_; no design or scoping done yet.
+- **2026-09-25: text-to-speech for navigation — hazard-ahead half shipped 2026-09-26.** Split in
+  two when scoped: spoken turn-by-turn directions, and a spoken warning as a hazard on the route
+  approaches. The user's own call: warnings now, turn-by-turn "maybe phase 3" — full turn-by-turn
+  needs live maneuver detection off the route geometry, which is a sat-nav's job this app doesn't
+  need to duplicate, whereas a hazard warning is novel to this app (a sat-nav has no idea about a
+  driver-reported low bridge) and cheap given what M7.3 already built.
+  `lib/hazard-voice-warnings.ts`'s `hazardsAheadWithinRange` is route-relative (via
+  `route-progress.ts`'s own nearest-point-on-line snap for both the driver and each hazard), not
+  straight-line, so a hazard just passed never re-triggers just because it's still close as the
+  crow flies. `hooks/use-hazard-voice-warnings.ts` speaks each qualifying hazard once (500m ahead,
+  `expo-speech`, reusing the same dependency M7.3's confirm-out-loud step already added — no new
+  native module), tracked in a `Set` that lives for one `active-trip.tsx` mount, i.e. one trip.
+  Muted while the voice hazard-report flow is itself listening or speaking, so a warning never
+  talks over that. Complements M7's voice _input_ (speech-to-text for reporting) with voice
+  _output_. **Turn-by-turn directions remain unscoped and unattempted.**
 - **2026-09-25: break suggestions** — UK HGV drivers have a statutory break requirement (45
   minutes after 4.5 hours' driving, tachograph rules), so a spoken nudge ("your break's due in
   15 minutes, there's a layby 5 minutes ahead") could genuinely help, not just be a nice-to-have.

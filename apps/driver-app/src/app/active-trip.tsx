@@ -13,6 +13,7 @@ import { useEndTrip } from '../api/use-active-trip';
 import { useNearbyHazards } from '../api/use-hazards';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
+import { useHazardVoiceWarnings } from '../hooks/use-hazard-voice-warnings';
 import { useLiveLocation } from '../hooks/use-live-location';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
 import { computeEta } from '../lib/eta';
@@ -85,6 +86,15 @@ export default function ActiveTripScreen() {
   const eta = plan ? computeEta(new Date(), remainingDurationMin) : undefined;
   const remainingKm = progress ? progress.remainingMetres / 1000 : plan?.distanceKm;
 
+  const micBusy =
+    voiceFlow.state.phase === 'parsing' ||
+    voiceFlow.state.phase === 'speaking-summary' ||
+    voiceFlow.state.phase === 'filing';
+  const micActive = CANCELLABLE_PHASES.has(voiceFlow.state.phase);
+  // Muted while the voice hazard-report flow is itself listening or speaking — talking over that
+  // would be worse than a missed warning.
+  useHazardVoiceWarnings(routeLine, location.point, nearbyHazards.data, !micBusy && !micActive);
+
   // Reachable with no current trip/plan only by navigating here directly, or after an app
   // relaunch mid-trip — the trip store is ephemeral (docs/progress.md, M5.6 deviations) and
   // doesn't survive one. Nothing to show, so send the driver back to plan a route rather than
@@ -103,12 +113,6 @@ export default function ActiveTripScreen() {
       },
     });
   }
-
-  const micBusy =
-    voiceFlow.state.phase === 'parsing' ||
-    voiceFlow.state.phase === 'speaking-summary' ||
-    voiceFlow.state.phase === 'filing';
-  const micActive = CANCELLABLE_PHASES.has(voiceFlow.state.phase);
 
   return (
     <SafeAreaView style={styles.container}>
