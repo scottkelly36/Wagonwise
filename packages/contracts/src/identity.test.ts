@@ -45,6 +45,7 @@ describe('verifyOtpResponseSchema', () => {
         id: '9897987c-75a2-431e-b26f-75d784045d0f',
         identifier: 'a@example.com',
         createdAt: '2026-09-22T09:24:27.168Z',
+        isAdmin: false,
       },
     });
     expect(result.success).toBe(true);

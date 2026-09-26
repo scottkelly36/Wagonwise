@@ -80,6 +80,7 @@ describe('verifyOtp', () => {
         id: 'driver-1',
         identifier: 'driver@example.com',
         createdAt: '2026-01-01T00:00:00.000Z',
+        isAdmin: false,
       },
     };
     globalThis.fetch = jest.fn().mockResolvedValue(jsonResponse(200, body));
@@ -164,6 +165,7 @@ describe('giveConsent', () => {
       identifier: 'driver@example.com',
       createdAt: '2026-01-01T00:00:00.000Z',
       consentedAt: '2026-06-15T08:00:00.000Z',
+      isAdmin: false,
     };
     const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, body));
     globalThis.fetch = fetchMock;

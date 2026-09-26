@@ -23,6 +23,7 @@ import {
   HAZARD_STATUS_LABELS,
   HAZARD_TYPE_LABELS,
 } from '../../lib/hazard-labels';
+import { useAuthStore } from '../../state/auth-store';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
 
 /**
@@ -38,6 +39,7 @@ export default function HazardDetailScreen() {
   const confirmMutation = useConfirmHazard();
   const dismissMutation = useDismissHazard();
   const deleteMutation = useDeleteHazard();
+  const isAdmin = useAuthStore((s) => s.state.status === 'signedIn' && s.state.driver.isAdmin);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -66,9 +68,9 @@ export default function HazardDetailScreen() {
         : undefined;
   const actionPending = confirmMutation.isPending || dismissMutation.isPending;
 
-  // Admin-only test-data cleanup (field-testing request, 2026-09-26) — shown to every driver
-  // (simpler than teaching the app "am I an admin"), enforced server-side: anyone else just gets
-  // a 403 with a real message (hazardsErrorMessage's `Forbidden` entry). Confirmed first since
+  // Admin-only test-data cleanup (field-testing request, 2026-09-26) — hidden from anyone whose
+  // account isn't flagged (`isAdmin`, checked here so a non-admin never sees a control that would
+  // just 403), on top of the server enforcing the same thing regardless. Confirmed first since
   // it's a true, unrecoverable delete, not a status flip like dismiss.
   function handleDelete(): void {
     Alert.alert('Delete this report?', 'This removes it permanently. This cannot be undone.', [
@@ -131,18 +133,20 @@ export default function HazardDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={styles.deleteButton}
-          disabled={deleteMutation.isPending}
-          onPress={handleDelete}
-          testID="delete-hazard-button"
-        >
-          {deleteMutation.isPending ? (
-            <ActivityIndicator color={colors.danger} />
-          ) : (
-            <Text style={styles.deleteButtonText}>Delete report</Text>
-          )}
-        </TouchableOpacity>
+        {isAdmin && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            disabled={deleteMutation.isPending}
+            onPress={handleDelete}
+            testID="delete-hazard-button"
+          >
+            {deleteMutation.isPending ? (
+              <ActivityIndicator color={colors.danger} />
+            ) : (
+              <Text style={styles.deleteButtonText}>Delete report</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
