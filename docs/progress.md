@@ -2,16 +2,17 @@
 
 ## Status
 
-| Milestone            | Status            |
-| -------------------- | ----------------- |
-| M1 Foundations       | Done — 2026-09-22 |
-| M2 Routing core      | Done — 2026-09-22 |
-| M3 Hazards core      | Done — 2026-09-22 |
-| M4 Driver BFF + auth | Done — 2026-09-22 |
-| M5 Driver app        | In progress       |
-| M6 Alerts            | Done — 2026-09-24 |
-| M7 Voice             | Done — 2026-09-24 |
-| M8 Field-ready       | Not started       |
+| Milestone                            | Status                   |
+| ------------------------------------ | ------------------------ |
+| M1 Foundations                       | Done — 2026-09-22        |
+| M2 Routing core                      | Done — 2026-09-22        |
+| M3 Hazards core                      | Done — 2026-09-22        |
+| M4 Driver BFF + auth                 | Done — 2026-09-22        |
+| M5 Driver app                        | In progress              |
+| M6 Alerts                            | Done — 2026-09-24        |
+| M7 Voice                             | Done — 2026-09-24        |
+| M8 Field-ready                       | Not started              |
+| Dashboard (2nd product, unscheduled) | In progress — 2026-09-26 |
 
 ## Decisions made before coding (from planning)
 
@@ -118,7 +119,8 @@ not attached to a milestone yet.
   `amenity=parking`, `amenity=restaurant`/`cafe`/`fast_food` — but nothing's been checked for
   completeness around the test area). Would likely reuse whatever voice-output mechanism the
   text-to-speech idea above ends up using.
-- **2026-09-25: congestion tracking — refined 2026-09-26 (twice).** The user's own framing:
+- **2026-09-25: congestion tracking — refined 2026-09-26 (twice), crowd-sourced half shipped
+  2026-09-27 (PR #35).** The user's own framing:
   country roads in the test area rarely see real traffic, but a congested motorway can add a lot
   to a journey, so this matters more for the A1-type corridors than the rural roads M2's routing
   already focuses on. Two options discussed, and the user's own sequencing for them:
@@ -135,8 +137,12 @@ not attached to a milestone yet.
     and the driver-app the same read-model-port way hazards already is) — real new plumbing
     rather than reusing hazards' pipeline wholesale, but it keeps hazards' restriction logic
     untouched and gives congestion room to grow its own rules (WebTRIS ingestion, a different
-    lifecycle) without hazards code having to care. No design or scoping done on the new module
-    itself yet — this only settled _whether_ it's separate, not its shape.
+    lifecycle) without hazards code having to care. **Shipped as scoped**: `packages/contracts/src/congestion.ts`,
+    `apps/core/src/modules/congestion/**` (own bounded context, migration `0013_congestion.sql`),
+    `apps/driver-bff/src/congestion-routes.ts`, and the driver-app half — `api/congestion.ts`/
+    `use-congestion.ts`, `app/report-congestion.tsx`, teal `CongestionMarker` pins on the map,
+    and a "Report traffic" button on `home.tsx`. Crowd-sourced, self-expiring reports, exactly the
+    near-term half above — no WebTRIS ingestion yet.
   - **National Highways' WebTRIS API second** — confirmed genuinely free, no API key or
     registration (`webtris.nationalhighways.co.uk/api/v1.0/...`, JSON), covers England's
     strategic road network (motorways + major A-roads, including the A1 corridor near the test
@@ -164,6 +170,38 @@ not attached to a milestone yet.
   (already available via `useCurrentLocation()`) and a sun-times calculation (a small library like
   `suncalc`, or a free sunrise-sunset API), recomputed as the driver moves and as days pass, not
   fixed once at app start. No design or scoping done on that half yet.
+- **2026-09-27: migrations run automatically on deploy (PR #36/#37).** Ad hoc, off the back of a
+  deploy where a new migration needed a manual `pnpm db:migrate` first — automated it with a DO
+  App Platform `PRE_DEPLOY` job (`infra/digitalocean/app-spec.yaml`'s `jobs: [{ name: migrate,
+kind: PRE_DEPLOY, run_command: "pnpm --filter @wagonwise/core run db:migrate" }]`), so a deploy
+  can't ship code against a schema it hasn't migrated yet. Documented in
+  `docs/deployment-guide.md` as bug #4, alongside a real incident this surfaced: `doctl apps
+update --spec` (used once to add the job) wiped `core`'s App-Level `DATABASE_URL`, since the
+  checked-in spec has no top-level `envs:` (no secrets are committed) — no real outage (the old
+  container kept serving while the new one crash-looped), fixed by restoring the var via the DO
+  console and redeploying with `doctl apps create-deployment` instead. **Rule going forward: never
+  run `doctl apps update --spec` directly again** — it's a full-spec replace, not a patch.
+- **2026-09-27: HGV top speed capped at 55mph in Valhalla (PR #38).** Question raised during
+  field testing: does Valhalla account for HGV-specific speed limits at all? Researched directly
+  against Valhalla's own `lua/graph.lua` — confirmed `maxspeed:hgv` is used only when the OSM way
+  actually carries that tag, with no country-default fallback, so routes over untagged roads (most
+  of them) were being timed at the full driveable speed, not a realistic truck speed. The user's
+  own call once that was known: cap at 55mph (`top_speed: 88` kph in
+  `valhalla-routing-engine.ts`'s truck `costing_options`) as a flat middle ground between
+  motorway and A-road speeds, rather than building per-road-class HGV defaults.
+- **2026-09-26/27: the business-facing "second product" (`apps/dashboard`) started for real —
+  see the [Phase 2 tech design doc](https://claude.ai/artifact/LK2oYrVSwotj7E8W9tXykD) for the
+  full plan and its decision log.** Built ahead of that doc's own sequencing, since an admin
+  surface was needed immediately: a Vite+React app (companies, driver accounts + invite codes,
+  hazard-report admin, all real and wired to real core endpoints), reusing driver OTP sign-in
+  gated on `driver.isAdmin`. This also let the hazard-delete admin action (2026-09-26's entry,
+  above) move from an `isAdmin`-gated button inside the driver app to the dashboard, where it now
+  belongs — the driver app's own delete button, `useDeleteHazard`, and the `isAdmin` field on
+  `DriverInfo` were removed once the dashboard replacement existed (2026-09-27). Also proposed,
+  not yet built: a 3-tier permission model (WagonWise staff / company-scoped Fleet users with
+  settable privileges / Drivers as their own linked account type) to replace the bare `isAdmin`
+  flag once Fleet users exist — see the Phase 2 doc's decision log for the full shape and the
+  pushback given on it.
 
 ## M1 task breakdown
 
