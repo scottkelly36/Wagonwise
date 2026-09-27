@@ -163,4 +163,28 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     );
     return reply.status(core.status).send(core.body);
   });
+
+  // The invite-codes admin screen's "Generate code" action (2026-09-27) — core decides who's
+  // allowed to (the admin gate lives in identity/interface/routes.ts), this route knows nothing
+  // about that, same "validate, authenticate, forward, relay unchanged" shape as every other
+  // route here. No body to validate — a code is generated, never chosen by the caller.
+  app.post('/identity/invite-codes', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const core = await deps.coreClient.request('POST', '/identity/invite-codes', request.id, {
+      authorization: `Bearer ${token}`,
+    });
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.get('/identity/invite-codes', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const core = await deps.coreClient.request('GET', '/identity/invite-codes', request.id, {
+      authorization: `Bearer ${token}`,
+    });
+    return reply.status(core.status).send(core.body);
+  });
 }

@@ -59,6 +59,22 @@ export const driverIdParamsSchema = z.object({
 });
 export type DriverIdParams = z.infer<typeof driverIdParamsSchema>;
 
+/** The invite-codes admin screen (2026-09-27) — a code is client-opaque, never parsed or
+ *  constructed by a caller, so there's no separate branded id schema the way `CompanyId` has
+ *  one; `redeemedBy` is `driverIdSchema` since it's a real driver reference once set. */
+export const inviteCodeSchema = z.object({
+  code: z.string(),
+  redeemedBy: driverIdSchema.nullable(),
+  redeemedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+});
+export type InviteCodeDto = z.infer<typeof inviteCodeSchema>;
+
+export const listInviteCodesResponseSchema = z.object({
+  inviteCodes: z.array(inviteCodeSchema),
+});
+export type ListInviteCodesResponse = z.infer<typeof listInviteCodesResponseSchema>;
+
 export const verifyOtpResponseSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),

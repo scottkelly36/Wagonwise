@@ -9,9 +9,11 @@ import {
 } from '@wagonwise/contracts/identity';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
+import { createInviteCode, type CreateInviteCodeDeps } from '../application/create-invite-code.js';
 import { deleteAccount, type DeleteAccountDeps } from '../application/delete-account.js';
 import { giveConsent, type GiveConsentDeps } from '../application/give-consent.js';
 import { listDrivers, type ListDriversDeps } from '../application/list-drivers.js';
+import { listInviteCodes, type ListInviteCodesDeps } from '../application/list-invite-codes.js';
 import type { DriverRepository } from '../application/ports/driver-repository.js';
 import { refreshToken, type RefreshTokenDeps } from '../application/refresh-token.js';
 import { registerDevice, type RegisterDeviceDeps } from '../application/register-device.js';
@@ -32,6 +34,8 @@ export interface IdentityRouteDeps {
   readonly deleteAccount: DeleteAccountDeps;
   readonly listDrivers: ListDriversDeps;
   readonly updateDriver: UpdateDriverDeps;
+  readonly createInviteCode: CreateInviteCodeDeps;
+  readonly listInviteCodes: ListInviteCodesDeps;
   /** The admin check `GET /identity/drivers` and `PATCH /identity/drivers/:id` both need — no
    *  separate `AdminDirectory` port the way other modules need one (2026-09-27's pattern):
    *  identity already *is* the source of truth for `isAdmin`, so this is an in-module read, not a
@@ -55,6 +59,20 @@ function driverDto(driver: {
     ...(driver.consentedAt === undefined ? {} : { consentedAt: driver.consentedAt }),
     isAdmin: driver.isAdmin,
     ...(driver.companyId === undefined ? {} : { companyId: driver.companyId }),
+  };
+}
+
+function inviteCodeDto(invite: {
+  readonly code: string;
+  readonly redeemedBy: string | null;
+  readonly redeemedAt: Date | null;
+  readonly createdAt: Date;
+}) {
+  return {
+    code: invite.code,
+    redeemedBy: invite.redeemedBy,
+    redeemedAt: invite.redeemedAt,
+    createdAt: invite.createdAt,
   };
 }
 
@@ -245,5 +263,28 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(200).send(driverDto(result.value));
+  });
+
+  // The invite-codes admin screen's "Generate code" action (2026-09-27) — replaces the manual
+  // `insert into identity.invite_codes` the README used to point at. Admin-gated, same shape as
+  // every other admin-only route here.
+  app.post('/identity/invite-codes', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+    if (!(await requireAdmin(deps, driverId, reply, request.id))) return reply;
+
+    const invite = await createInviteCode(deps.createInviteCode);
+    return reply.status(201).send(inviteCodeDto(invite));
+  });
+
+  // The same screen's own list — every code, redeemed or not; the dashboard decides how to show
+  // "active" vs "used".
+  app.get('/identity/invite-codes', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+    if (!(await requireAdmin(deps, driverId, reply, request.id))) return reply;
+
+    const invites = await listInviteCodes(deps.listInviteCodes);
+    return reply.status(200).send({ inviteCodes: invites.map(inviteCodeDto) });
   });
 }

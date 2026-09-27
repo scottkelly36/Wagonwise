@@ -119,6 +119,12 @@ describe('identity Postgres repositories', () => {
     it('returns null for an unknown code', async () => {
       expect(await repo().findByCode('NOPE')).toBeNull();
     });
+
+    it('findAll returns every code, redeemed or not', async () => {
+      const codes = (await repo().findAll()).map((c) => c.code);
+      expect(codes).toContain('HEXHAM-A');
+      expect(codes).toContain('HEXHAM-B');
+    });
   });
 
   describe('PostgresSessionRepository', () => {

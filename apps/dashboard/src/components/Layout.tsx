@@ -16,6 +16,7 @@ const FLEET_LINKS = [
 
 const ADMIN_LINKS = [
   { to: '/admin/companies', label: 'Companies' },
+  { to: '/admin/invite-codes', label: 'Invite codes' },
   { to: '/admin/hazard-reports', label: 'Hazard reports' },
   { to: '/admin/congestion-reports', label: 'Congestion reports' },
   { to: '/admin/driver-accounts', label: 'Driver accounts' },
