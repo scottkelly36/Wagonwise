@@ -2,7 +2,6 @@ import { hazardReportIdSchema } from '@wagonwise/contracts/hazards';
 
 import {
   confirmHazard,
-  deleteHazard,
   dismissHazard,
   findNearbyHazards,
   getHazard,
@@ -16,14 +15,6 @@ function jsonResponse(status: number, body: unknown): Response {
     status,
     headers: { get: () => null },
     json: () => Promise.resolve(body),
-  } as unknown as Response;
-}
-
-function noBodyResponse(status: number): Response {
-  return {
-    status,
-    headers: { get: (name: string) => (name === 'content-length' ? '0' : null) },
-    json: () => Promise.reject(new Error('should not be called')),
   } as unknown as Response;
 }
 
@@ -160,29 +151,6 @@ describe('dismissHazard', () => {
     expect(result.dismissals).toBe(1);
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toMatch(new RegExp(`/hazards/reports/${report.id}/dismiss$`));
-  });
-});
-
-describe('deleteHazard', () => {
-  it('sends a DELETE and resolves on a 204 with no body', async () => {
-    const fetchMock = jest.fn().mockResolvedValue(noBodyResponse(204));
-    globalThis.fetch = fetchMock;
-
-    await expect(deleteHazard('token-1', report.id)).resolves.toBeUndefined();
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toMatch(new RegExp(`/hazards/reports/${report.id}$`));
-    expect(init.method).toBe('DELETE');
-  });
-
-  it('throws an ApiError with tag Forbidden on a 403', async () => {
-    globalThis.fetch = jest
-      .fn()
-      .mockResolvedValue(jsonResponse(403, { tag: 'Forbidden', requestId: 'r1' }));
-
-    await expect(deleteHazard('token-1', report.id)).rejects.toMatchObject({
-      tag: 'Forbidden',
-      status: 403,
-    });
   });
 });
 

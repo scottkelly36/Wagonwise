@@ -73,6 +73,18 @@ describe('PostgresHazardRepository', () => {
     expect(await repo().findById(r.id)).toEqual(updated);
   });
 
+  describe('findAll', () => {
+    it('returns every report saved so far, regardless of status or location', async () => {
+      const all = await repo().findAll();
+      expect(all.map((r) => r.id)).toContain(
+        makeId<'HazardReportId'>('11111111-1111-4111-8111-111111111111'),
+      );
+      expect(all.map((r) => r.id)).toContain(
+        makeId<'HazardReportId'>('44444444-4444-4444-8444-444444444444'),
+      );
+    });
+  });
+
   describe('findNearby', () => {
     it('finds a report within the radius and excludes one outside it', async () => {
       const near = report({

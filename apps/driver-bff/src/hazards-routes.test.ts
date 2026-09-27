@@ -318,3 +318,42 @@ describe('DELETE /hazards/reports/:id', () => {
     expect(coreClient.calls).toEqual([]);
   });
 });
+
+describe('GET /hazards/reports', () => {
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({ method: 'GET', url: '/hazards/reports' });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards the token and relays the list', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 200, body: { hazards: [] } };
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/hazards/reports',
+      headers: AUTH_HEADER,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'GET',
+      path: '/hazards/reports',
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('relays a 403 from core unchanged', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 403, body: { tag: 'Forbidden' } };
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/hazards/reports',
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(403);
+  });
+});

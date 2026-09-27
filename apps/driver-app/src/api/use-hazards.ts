@@ -56,7 +56,7 @@ export function useConfirmHazard() {
 /** Also invalidates every `useNearbyHazards` query (the `NEARBY_HAZARDS_KEY` prefix, matching
  *  regardless of a given screen's own corridor/radius), not just this one hazard's own detail
  *  query — otherwise a dismissed hazard's marker/list row sat there until the next 90s poll
- *  (field-testing find, 2026-09-26: dismiss/delete looked like they'd done nothing). */
+ *  (field-testing find, 2026-09-26: dismiss looked like it had done nothing). */
 export function useDismissHazard() {
   const accessToken = useAccessToken();
   const queryClient = useQueryClient();
@@ -64,24 +64,6 @@ export function useDismissHazard() {
     mutationFn: (id: string) => hazardsApi.dismissHazard(accessToken, id),
     onSuccess: (report) => {
       void queryClient.invalidateQueries({ queryKey: [...HAZARD_KEY, report.id] });
-      void queryClient.invalidateQueries({ queryKey: NEARBY_HAZARDS_KEY });
-    },
-  });
-}
-
-/** Admin-only test-data cleanup (2026-09-26), not a driver-facing feature — the button that
- *  calls this is hidden client-side for a non-admin (`state.driver.isAdmin`, checked at each
- *  call site), and would also just get a real 403 with a friendly message
- *  (lib/error-messages.ts) if it somehow got called anyway. Same nearby-hazards invalidation as
- *  dismiss, for the same reason — a deleted hazard's marker/list row must not wait for the next
- *  poll to disappear. */
-export function useDeleteHazard() {
-  const accessToken = useAccessToken();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => hazardsApi.deleteHazard(accessToken, id),
-    onSuccess: (_data, id) => {
-      void queryClient.invalidateQueries({ queryKey: [...HAZARD_KEY, id] });
       void queryClient.invalidateQueries({ queryKey: NEARBY_HAZARDS_KEY });
     },
   });

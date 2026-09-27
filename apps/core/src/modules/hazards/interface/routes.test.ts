@@ -28,6 +28,7 @@ function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
     deleteHazard: { repo },
     adminDirectory: new StubAdminDirectory(new Set([ADMIN_DRIVER_ID])),
     getHazard: { repo },
+    listHazards: { repo },
     parseVoiceReport: { parser: new StubHazardParser() },
     findNearbyHazards: { repo, clock },
   };
@@ -487,5 +488,47 @@ describe('DELETE /hazards/reports/:id', () => {
       ...asDriver(ADMIN_DRIVER_ID),
     });
     expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('GET /hazards/reports', () => {
+  it('200s with every report for an admin', async () => {
+    const { app } = buildApp();
+    await app.inject({
+      method: 'POST',
+      url: '/hazards/reports',
+      payload: {
+        id: '11111111-1111-4111-8111-111111111111',
+        type: 'low_bridge',
+        location,
+        source: 'tap',
+      },
+      ...asDriver('driver-1'),
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/hazards/reports',
+      ...asDriver(ADMIN_DRIVER_ID),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ hazards: [{ type: 'low_bridge' }] });
+  });
+
+  it('403s a non-admin driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'GET',
+      url: '/hazards/reports',
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ tag: 'Forbidden' });
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({ method: 'GET', url: '/hazards/reports' });
+    expect(response.statusCode).toBe(401);
   });
 });

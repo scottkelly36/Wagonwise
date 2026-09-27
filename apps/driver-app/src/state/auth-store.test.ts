@@ -22,7 +22,6 @@ const driver: DriverInfo = {
   id: 'driver-1',
   identifier: 'driver@example.com',
   createdAt: '2026-01-01T00:00:00.000Z',
-  isAdmin: false,
 };
 
 beforeEach(() => {

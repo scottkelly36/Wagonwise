@@ -16,6 +16,11 @@ export interface HazardRepository {
   findNearbyLine(points: readonly GeoPoint[], radiusM: number): Promise<HazardReport[]>;
   /** `active` reports whose `expiresAt` has passed — what `expireHazards` acts on. */
   findExpirable(now: Date): Promise<HazardReport[]>;
+  /** The dashboard's Hazard reports admin screen (2026-09-27) — every report, any status,
+   *  unfiltered by location. Replaces the driver app's own admin-only delete UI, which had no
+   *  way to browse hazards in the first place (only ever reachable from a map marker a driver
+   *  happened to be looking at). */
+  findAll(): Promise<HazardReport[]>;
   /** Upsert — report, confirm, dismiss and expire all persist through this one method; a
    *  HazardReport has no separate insert-only path (mirrors routing's VehicleProfileRepository,
    *  M2.2). `events` (M6.3) are written to the outbox in the same transaction as the row, per

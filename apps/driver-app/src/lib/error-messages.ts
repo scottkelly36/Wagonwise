@@ -19,7 +19,6 @@ export function routingErrorMessage(error: unknown): string {
 const HAZARDS_MESSAGES: Record<string, string> = {
   InvalidMeasurement: 'The measurement must be a positive number.',
   HazardReportNotFound: "That report isn't there any more.",
-  Forbidden: "You don't have permission to delete this.",
 };
 
 export function hazardsErrorMessage(error: unknown): string {

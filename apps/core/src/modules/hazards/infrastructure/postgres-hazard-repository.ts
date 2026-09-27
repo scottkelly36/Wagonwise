@@ -115,6 +115,13 @@ export class PostgresHazardRepository implements HazardRepository {
     return rows.map(toDomain);
   }
 
+  async findAll(): Promise<HazardReport[]> {
+    const { rows } = await sql<HazardReportRow>`
+      select ${sql.raw(SELECT_COLUMNS)} from hazards.reports order by created_at desc
+    `.execute(this.db);
+    return rows.map(toDomain);
+  }
+
   async deleteById(id: HazardReportId): Promise<void> {
     await sql`delete from hazards.reports where id = ${id}`.execute(this.db);
   }
