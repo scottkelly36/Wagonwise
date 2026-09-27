@@ -28,4 +28,11 @@ export type NoRouteFound = TaggedError<'NoRouteFound'>;
  */
 export interface RoutingEngine {
   route(req: RouteRequest): Promise<Result<RouteResult, NoRouteFound>>;
+  /** The primary route plus whatever alternates the engine can find for the same request (M9,
+   *  docs/progress.md) — always at least one result on success. Kept as its own method rather than
+   *  an `alternates` flag on `route()`'s single-`RouteResult` return: every existing caller of
+   *  `route()` wants exactly one result and shouldn't have to narrow an array, and `planRoute`'s
+   *  hazard-avoidance re-plan pass (which always wants exactly one, already-avoiding result) keeps
+   *  using `route()` unchanged. */
+  routeAlternatives(req: RouteRequest): Promise<Result<readonly RouteResult[], NoRouteFound>>;
 }

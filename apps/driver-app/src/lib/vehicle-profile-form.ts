@@ -1,4 +1,5 @@
 import { dimensionsSchema, type DimensionsDto } from '@wagonwise/contracts/routing';
+import { z } from 'zod';
 
 // Pure parsing/validation, no React — testable directly, same split as
 // hooks/use-opportunistic-refresh.ts's pure scheduling core.
@@ -10,6 +11,9 @@ export interface VehicleProfileFormValues {
   readonly lengthM: string;
   readonly grossWeightT: string;
   readonly axleWeightT: string;
+  /** M9 (docs/progress.md): a sibling of dimensions, not one of them — never sent to Valhalla,
+   *  only feeds the rough fuel-cost estimate shown on route options. */
+  readonly fuelConsumptionL100km: string;
 }
 
 export const EMPTY_VEHICLE_PROFILE_FORM: VehicleProfileFormValues = {
@@ -19,11 +23,13 @@ export const EMPTY_VEHICLE_PROFILE_FORM: VehicleProfileFormValues = {
   lengthM: '',
   grossWeightT: '',
   axleWeightT: '',
+  fuelConsumptionL100km: '',
 };
 
 export interface ParsedVehicleProfile {
   readonly name: string;
   readonly dimensions: DimensionsDto;
+  readonly fuelConsumptionL100km?: number | undefined;
 }
 
 export type ParseVehicleProfileFormResult =
@@ -33,6 +39,8 @@ export type ParseVehicleProfileFormResult =
 function toNumber(text: string): number {
   return Number(text.trim());
 }
+
+const fuelConsumptionSchema = z.number().positive();
 
 /** Mirrors core's own validateName/validateDimensions (routing/domain/vehicle-profile.ts) so a
  *  driver sees the same "not a positive number" rule before a network round trip, not a
@@ -56,13 +64,25 @@ export function parseVehicleProfileForm(
   if (!parsed.success) {
     return { ok: false, message: 'Every measurement must be a positive number.' };
   }
-  return { ok: true, value: { name, dimensions: parsed.data } };
+
+  if (values.fuelConsumptionL100km.trim() === '') {
+    return { ok: true, value: { name, dimensions: parsed.data } };
+  }
+  const fuelConsumption = fuelConsumptionSchema.safeParse(toNumber(values.fuelConsumptionL100km));
+  if (!fuelConsumption.success) {
+    return { ok: false, message: 'Fuel consumption must be a positive number.' };
+  }
+  return {
+    ok: true,
+    value: { name, dimensions: parsed.data, fuelConsumptionL100km: fuelConsumption.data },
+  };
 }
 
 /** The inverse of parsing — pre-fills the edit form from a profile fetched off the wire. */
 export function vehicleProfileFormValuesFrom(profile: {
   readonly name: string;
   readonly dimensions: DimensionsDto;
+  readonly fuelConsumptionL100km?: number | undefined;
 }): VehicleProfileFormValues {
   return {
     name: profile.name,
@@ -72,5 +92,7 @@ export function vehicleProfileFormValuesFrom(profile: {
     grossWeightT: String(profile.dimensions.grossWeightT),
     axleWeightT:
       profile.dimensions.axleWeightT === undefined ? '' : String(profile.dimensions.axleWeightT),
+    fuelConsumptionL100km:
+      profile.fuelConsumptionL100km === undefined ? '' : String(profile.fuelConsumptionL100km),
   };
 }

@@ -35,6 +35,9 @@ export interface RoutingModuleDeps {
   readonly ids: IdGenerator;
   readonly clock: Clock;
   readonly valhallaUrl: string;
+  /** M9's rough fuel-cost estimate (docs/progress.md) — one app-wide constant
+   *  (`config.fuelPricePerLitreGBP`), not a live price feed. */
+  readonly fuelPricePerLitreGBP: number;
   /** `hazards`' facade — this module's own `HazardAvoidanceQueryAdapter` (M3.5) and
    *  `HazardsOnRouteQueryAdapter` both wrap it, the same "the module wires its own adapters"
    *  pattern as `ValhallaRoutingEngine` below. Also read directly by the reroute-detection
@@ -110,6 +113,12 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
       restrictionOverrideRepo,
       clock: deps.clock,
       ids: deps.ids,
+      fuelPricePerLitreGBP: deps.fuelPricePerLitreGBP,
+    },
+    previewRouteOptions: {
+      vehicleProfileRepo,
+      routingEngine,
+      fuelPricePerLitreGBP: deps.fuelPricePerLitreGBP,
     },
     getRoutePlan: { routePlanRepo },
     startTrip: { routePlanRepo, activeTripRepo, clock: deps.clock, ids: deps.ids },

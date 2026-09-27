@@ -3,10 +3,12 @@ import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import { ok, type Result } from '../../../shared/result.js';
 import {
   validateDimensions,
+  validateFuelConsumption,
   validateName,
   type Dimensions,
   type DriverId,
   type InvalidDimensions,
+  type InvalidFuelConsumption,
   type InvalidName,
   type VehicleProfile,
 } from '../domain/vehicle-profile.js';
@@ -21,9 +23,10 @@ export interface CreateVehicleProfileInput {
   readonly driverId: DriverId;
   readonly name: string;
   readonly dimensions: Dimensions;
+  readonly fuelConsumptionL100km?: number | undefined;
 }
 
-export type CreateVehicleProfileError = InvalidName | InvalidDimensions;
+export type CreateVehicleProfileError = InvalidName | InvalidDimensions | InvalidFuelConsumption;
 
 export async function createVehicleProfile(
   deps: CreateVehicleProfileDeps,
@@ -37,12 +40,17 @@ export async function createVehicleProfile(
   if (!dimensions.ok) {
     return dimensions;
   }
+  const fuelConsumptionL100km = validateFuelConsumption(input.fuelConsumptionL100km);
+  if (!fuelConsumptionL100km.ok) {
+    return fuelConsumptionL100km;
+  }
 
   const profile: VehicleProfile = {
     id: makeId<'VehicleProfileId'>(deps.ids.newId()),
     driverId: input.driverId,
     name: name.value,
     dimensions: dimensions.value,
+    fuelConsumptionL100km: fuelConsumptionL100km.value,
   };
   await deps.repo.save(profile);
   return ok(profile);

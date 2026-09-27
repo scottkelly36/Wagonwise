@@ -27,6 +27,7 @@ export function statusFor(error: RoutingError): number {
   switch (error.tag) {
     case 'InvalidName':
     case 'InvalidDimensions':
+    case 'InvalidFuelConsumption':
       return 400;
     case 'VehicleProfileNotFound':
     case 'RoutePlanNotFound':

@@ -26,11 +26,16 @@ export const dimensionsSchema = z.object({
 });
 export type DimensionsDto = z.infer<typeof dimensionsSchema>;
 
+// Sibling to `dimensions`, not part of it (M9, docs/progress.md) — this never reaches Valhalla's
+// truck costing, it only feeds a rough fuel-cost estimate for route options.
+const fuelConsumptionL100kmSchema = z.number().positive().optional();
+
 export const vehicleProfileSchema = z.object({
   id: vehicleProfileIdSchema,
   driverId: driverIdSchema,
   name: z.string(),
   dimensions: dimensionsSchema,
+  fuelConsumptionL100km: fuelConsumptionL100kmSchema,
 });
 export type VehicleProfileDto = z.infer<typeof vehicleProfileSchema>;
 
@@ -40,12 +45,14 @@ export type VehicleProfileDto = z.infer<typeof vehicleProfileSchema>;
 export const createVehicleProfileRequestSchema = z.object({
   name: z.string(),
   dimensions: dimensionsSchema,
+  fuelConsumptionL100km: fuelConsumptionL100kmSchema,
 });
 export type CreateVehicleProfileRequest = z.infer<typeof createVehicleProfileRequestSchema>;
 
 export const updateVehicleProfileRequestSchema = z.object({
   name: z.string(),
   dimensions: dimensionsSchema,
+  fuelConsumptionL100km: fuelConsumptionL100kmSchema,
 });
 export type UpdateVehicleProfileRequest = z.infer<typeof updateVehicleProfileRequestSchema>;
 
@@ -65,13 +72,43 @@ export const routingErrorResponseSchema = z.object({
 });
 export type RoutingErrorResponse = z.infer<typeof routingErrorResponseSchema>;
 
-/** No `driverId` field, same reasoning as `createVehicleProfileRequestSchema` above. */
+/** No `driverId` field, same reasoning as `createVehicleProfileRequestSchema` above.
+ *  `strategy` (M9, docs/progress.md) is optional — omitted (or `'fastest'`) means today's only
+ *  behaviour, the engine's primary route; `'shortest'` picks the shortest of the engine's
+ *  alternates instead. Usually set from whichever option a driver picked after previewing via
+ *  `POST /routing/route-options/preview`. */
 export const planRouteRequestSchema = z.object({
   profileId: vehicleProfileIdSchema,
   origin: geoPointSchema,
   destination: geoPointSchema,
+  strategy: z.enum(['fastest', 'shortest']).optional(),
 });
 export type PlanRouteRequest = z.infer<typeof planRouteRequestSchema>;
+
+/** Same request shape as planning, minus `strategy` — previewing is how a driver decides what
+ *  `strategy` to send in the first place. */
+export const previewRouteOptionsRequestSchema = z.object({
+  profileId: vehicleProfileIdSchema,
+  origin: geoPointSchema,
+  destination: geoPointSchema,
+});
+export type PreviewRouteOptionsRequest = z.infer<typeof previewRouteOptionsRequestSchema>;
+
+/** `labels` is non-empty — a route that's both the fastest and the shortest of the candidates
+ *  carries both labels rather than being split into two identical-looking cards. */
+export const routeOptionSchema = z.object({
+  geometry: z.string(),
+  distanceKm: z.number(),
+  durationMin: z.number(),
+  estimatedFuelCostGBP: z.number().optional(),
+  labels: z.array(z.enum(['fastest', 'shortest'])).min(1),
+});
+export type RouteOptionDto = z.infer<typeof routeOptionSchema>;
+
+export const previewRouteOptionsResponseSchema = z.object({
+  options: z.array(routeOptionSchema),
+});
+export type PreviewRouteOptionsResponse = z.infer<typeof previewRouteOptionsResponseSchema>;
 
 /** Always `[]` for now — see docs/progress.md's M2.5 deviations. The shape is here so nothing
  *  about the wire contract has to change once it's populated for real. */
@@ -92,6 +129,7 @@ export const routePlanSchema = z.object({
   avoidedRestrictions: z.array(avoidedRestrictionSchema),
   hazardsOnRoute: z.array(z.string()),
   createdAt: z.iso.datetime(),
+  estimatedFuelCostGBP: z.number().optional(),
 });
 export type RoutePlanDto = z.infer<typeof routePlanSchema>;
 

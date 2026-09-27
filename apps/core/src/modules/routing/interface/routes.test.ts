@@ -21,12 +21,17 @@ const now = new Date('2026-06-15T08:00:00.000Z');
 // header, letting every test below say who's calling without real token machinery.
 const DRIVER_HEADER = 'x-test-driver-id';
 
-function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
+function buildApp(): {
+  app: FastifyInstance;
+  deps: RoutingRouteDeps;
+  routingEngine: FakeRoutingEngine;
+} {
   const repo = new InMemoryVehicleProfileRepository();
   const ids = new SequentialIdGenerator();
   const routePlanRepo = new InMemoryRoutePlanRepository();
   const activeTripRepo = new InMemoryActiveTripRepository();
   const clock = new FakeClock(now);
+  const routingEngine = new FakeRoutingEngine();
   const deps: RoutingRouteDeps = {
     createVehicleProfile: { repo, ids },
     updateVehicleProfile: { repo },
@@ -36,13 +41,15 @@ function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
     planRoute: {
       vehicleProfileRepo: repo,
       routePlanRepo,
-      routingEngine: new FakeRoutingEngine(),
+      routingEngine,
       hazardAvoidanceQuery: new FakeHazardAvoidanceQuery(),
       hazardsOnRouteQuery: new FakeHazardsOnRouteQuery(),
       restrictionOverrideRepo: new FakeRestrictionOverrideRepository(),
       clock,
       ids,
+      fuelPricePerLitreGBP: 1.6,
     },
+    previewRouteOptions: { vehicleProfileRepo: repo, routingEngine, fuelPricePerLitreGBP: 1.6 },
     getRoutePlan: { routePlanRepo },
     startTrip: { routePlanRepo, activeTripRepo, clock, ids },
     endTrip: { repo: activeTripRepo, clock },
@@ -57,7 +64,7 @@ function buildApp(): { app: FastifyInstance; deps: RoutingRouteDeps } {
     done();
   });
   registerRoutingRoutes(app, deps);
-  return { app, deps };
+  return { app, deps, routingEngine };
 }
 
 function asDriver(driverId: string): { headers: Record<string, string> } {
@@ -368,6 +375,102 @@ describe('POST /routing/route-plans', () => {
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toMatchObject({ tag: 'NoRouteFound' });
+  });
+
+  it('picks the shortest-distance alternative when strategy is "shortest"', async () => {
+    const { app, routingEngine } = buildApp();
+    const created = await app.inject({
+      method: 'POST',
+      url: '/routing/vehicle-profiles',
+      payload: { name: 'Big Wagon', dimensions },
+      ...asDriver('driver-1'),
+    });
+    const { id: profileId } = created.json<{ id: string }>();
+    routingEngine.alternativesResult = {
+      ok: true,
+      value: [
+        { geometry: 'fast-geometry', distanceKm: 120, durationMin: 90 },
+        { geometry: 'short-geometry', distanceKm: 80, durationMin: 110 },
+      ],
+    };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-plans',
+      payload: { profileId, origin, destination, strategy: 'shortest' },
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ geometry: 'short-geometry', distanceKm: 80 });
+  });
+});
+
+describe('POST /routing/route-options/preview', () => {
+  it('200s with fastest/shortest options for an existing, owned profile', async () => {
+    const { app, routingEngine } = buildApp();
+    const created = await app.inject({
+      method: 'POST',
+      url: '/routing/vehicle-profiles',
+      payload: { name: 'Big Wagon', dimensions, fuelConsumptionL100km: 30 },
+      ...asDriver('driver-1'),
+    });
+    const { id: profileId } = created.json<{ id: string }>();
+    routingEngine.alternativesResult = {
+      ok: true,
+      value: [
+        { geometry: 'fast-geometry', distanceKm: 120, durationMin: 90 },
+        { geometry: 'short-geometry', distanceKm: 80, durationMin: 110 },
+      ],
+    };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-options/preview',
+      payload: { profileId, origin, destination },
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      options: [
+        {
+          geometry: 'fast-geometry',
+          distanceKm: 120,
+          durationMin: 90,
+          estimatedFuelCostGBP: 120 * 0.3 * 1.6,
+          labels: ['fastest'],
+        },
+        {
+          geometry: 'short-geometry',
+          distanceKm: 80,
+          durationMin: 110,
+          estimatedFuelCostGBP: 80 * 0.3 * 1.6,
+          labels: ['shortest'],
+        },
+      ],
+    });
+  });
+
+  it('400s a malformed body', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-options/preview',
+      payload: { nonsense: true },
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('404s an unknown profileId', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-options/preview',
+      payload: { profileId: '11111111-1111-4111-8111-111111111111', origin, destination },
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'VehicleProfileNotFound' });
   });
 });
 

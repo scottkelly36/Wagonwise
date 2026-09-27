@@ -8,6 +8,7 @@ import {
   getVehicleProfile,
   listVehicleProfiles,
   planRoute,
+  previewRouteOptions,
   startTrip,
   updateVehicleProfile,
 } from './routing';
@@ -185,6 +186,40 @@ describe('planRoute', () => {
         destination: routePlan.destination,
       }),
     ).rejects.toMatchObject({ tag: 'NoRouteFound', status: 422 });
+  });
+});
+
+describe('previewRouteOptions', () => {
+  const options = [
+    { geometry: 'fast-geometry', distanceKm: 120, durationMin: 90, labels: ['fastest'] },
+    { geometry: 'short-geometry', distanceKm: 80, durationMin: 110, labels: ['shortest'] },
+  ];
+
+  it('posts the profile and points, parsing the options array out of the response', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, { options }));
+    globalThis.fetch = fetchMock;
+
+    const result = await previewRouteOptions('token-1', {
+      profileId: vehicleProfileIdSchema.parse(profile.id),
+      origin: { lat: 54.971, lon: -2.1 },
+      destination: { lat: 54.973, lon: -2.017 },
+    });
+
+    expect(result).toEqual(options);
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toMatch(/\/routing\/route-options\/preview$/);
+  });
+
+  it('throws an ApiError on a non-200 response', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue(jsonResponse(400, { error: 'invalid_request' }));
+
+    await expect(
+      previewRouteOptions('token-1', {
+        profileId: vehicleProfileIdSchema.parse(profile.id),
+        origin: { lat: 54.971, lon: -2.1 },
+        destination: { lat: 54.973, lon: -2.017 },
+      }),
+    ).rejects.toBeInstanceOf(ApiError);
   });
 });
 

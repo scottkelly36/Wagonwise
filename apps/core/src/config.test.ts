@@ -29,6 +29,7 @@ describe('loadConfig', () => {
       resendApiKey: undefined,
       resendFromEmail: undefined,
       outboxPollIntervalMs: 2000,
+      fuelPricePerLitreGBP: 1.6,
     });
   });
 
@@ -49,6 +50,7 @@ describe('loadConfig', () => {
       RESEND_API_KEY: 'resend-secret-key',
       RESEND_FROM_EMAIL: 'WagonWise <noreply@wagon-wise.co.uk>',
       OUTBOX_POLL_INTERVAL_MS: '500',
+      FUEL_PRICE_PER_LITRE_GBP: '1.75',
     });
     expect(config).toEqual({
       nodeEnv: 'production',
@@ -66,6 +68,7 @@ describe('loadConfig', () => {
       resendApiKey: 'resend-secret-key',
       resendFromEmail: 'WagonWise <noreply@wagon-wise.co.uk>',
       outboxPollIntervalMs: 500,
+      fuelPricePerLitreGBP: 1.75,
     });
   });
 

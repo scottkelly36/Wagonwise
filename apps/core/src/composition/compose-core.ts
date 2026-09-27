@@ -26,6 +26,7 @@ import {
   type TokenSigner,
   type UntypedDb,
 } from '../modules/identity/api.js';
+import { createParkingModule, type UntypedDb as ParkingUntypedDb } from '../modules/parking/api.js';
 import {
   createRoutingModule,
   type PushNotifier,
@@ -123,6 +124,7 @@ export function composeCore(
   const feedbackDb: FeedbackUntypedDb = identityDb;
   const congestionDb: CongestionUntypedDb = identityDb;
   const companiesDb: CompaniesUntypedDb = identityDb;
+  const parkingDb: ParkingUntypedDb = identityDb;
 
   // hazards and identity both built before routing: routing's HazardAvoidanceQueryAdapter (M3.5)
   // and its reroute-detection handlers (M6.4) both wrap the other modules' facades — the same
@@ -140,6 +142,7 @@ export function composeCore(
     ids,
     clock,
     valhallaUrl: config.valhallaUrl,
+    fuelPricePerLitreGBP: config.fuelPricePerLitreGBP,
     expoAccessToken: config.expoAccessToken,
     hazards,
     identity,
@@ -148,6 +151,7 @@ export function composeCore(
   const feedback = createFeedbackModule({ db: feedbackDb, clock, ids });
   const congestion = createCongestionModule({ db: congestionDb, clock });
   const companies = createCompaniesModule({ db: companiesDb, clock, identity });
+  const parking = createParkingModule({ db: parkingDb, clock });
 
   const outboxDispatcher = new OutboxDispatcher(
     platformDb,
@@ -168,6 +172,7 @@ export function composeCore(
   feedback.registerRoutes(app);
   congestion.registerRoutes(app);
   companies.registerRoutes(app);
+  parking.registerRoutes(app);
 
   return {
     app,

@@ -4,6 +4,7 @@ import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-na
 
 import { useNearbyCongestion } from '../api/use-congestion';
 import { useNearbyHazards } from '../api/use-hazards';
+import { useNearbySafeParkingSpots } from '../api/use-parking';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
 import { useLiveLocation } from '../hooks/use-live-location';
@@ -34,6 +35,10 @@ export default function HomeScreen() {
     location.point ? [location.point] : [],
     NEARBY_RADIUS_M,
   );
+  const nearbyParkingSpots = useNearbySafeParkingSpots(
+    location.point ? [location.point] : [],
+    NEARBY_RADIUS_M,
+  );
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -50,6 +55,7 @@ export default function HomeScreen() {
           location: c.location,
           estimatedWaitMinutes: c.estimatedWaitMinutes,
         }))}
+        parkingSpots={nearbyParkingSpots.data?.map((s) => ({ id: s.id, location: s.location }))}
       />
 
       <HazardDetailDrawer
@@ -87,6 +93,14 @@ export default function HomeScreen() {
             testID="report-hazard-button"
           >
             <Text style={styles.hazardButtonText}>Report hazard</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.hazardButton}
+            onPress={() => router.push('/report-safe-parking-spot')}
+            testID="report-parking-spot-button"
+          >
+            <Text style={styles.hazardButtonText}>Report parking</Text>
           </TouchableOpacity>
         </View>
 
@@ -147,6 +161,7 @@ function createStyles(colors: ThemeColors) {
     },
     reportButtonRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       justifyContent: 'flex-end',
       gap: 12,
     },

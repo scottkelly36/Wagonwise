@@ -2,6 +2,7 @@ import {
   activeTripIdParamsSchema,
   createVehicleProfileRequestSchema,
   planRouteRequestSchema,
+  previewRouteOptionsRequestSchema,
   routePlanIdParamsSchema,
   updateVehicleProfileRequestSchema,
   vehicleProfileIdParamsSchema,
@@ -114,6 +115,23 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       body: parsed.data,
       authorization: `Bearer ${token}`,
     });
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.post('/routing/route-options/preview', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const parsed = previewRouteOptionsRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request(
+      'POST',
+      '/routing/route-options/preview',
+      request.id,
+      { body: parsed.data, authorization: `Bearer ${token}` },
+    );
     return reply.status(core.status).send(core.body);
   });
 

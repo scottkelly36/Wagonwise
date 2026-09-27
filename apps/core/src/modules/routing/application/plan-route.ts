@@ -5,6 +5,7 @@ import { err, ok, type Result } from '../../../shared/result.js';
 import { applies } from '../domain/avoidance-policy.js';
 import { decodePolyline, ON_ROUTE_RADIUS_M, type GeoPoint } from '../domain/geo.js';
 import { describeAvoidedOverride, toReportedObstruction } from '../domain/restriction-override.js';
+import { estimateFuelCostGBP } from '../domain/route-option.js';
 import type { RoutePlan } from '../domain/route-plan.js';
 import type { DriverId, VehicleProfileId } from '../domain/vehicle-profile.js';
 import type { VehicleProfileNotFound } from './errors.js';
@@ -24,6 +25,9 @@ export interface PlanRouteDeps {
   readonly restrictionOverrideRepo: RestrictionOverrideRepository;
   readonly clock: Clock;
   readonly ids: IdGenerator;
+  /** M9's rough fuel-cost estimate — one app-wide constant (`config.fuelPricePerLitreGBP`), not a
+   *  live price feed (docs/progress.md's M9 scoping). */
+  readonly fuelPricePerLitreGBP: number;
 }
 
 export interface PlanRouteInput {
@@ -31,6 +35,15 @@ export interface PlanRouteInput {
   readonly profileId: VehicleProfileId;
   readonly origin: GeoPoint;
   readonly destination: GeoPoint;
+  /** The alternative the driver picked after previewing options via `previewRouteOptions` (M9) —
+   *  undefined (today's only behaviour, before M9) means "just the engine's primary route," same
+   *  as `'fastest'`. Only `'shortest'` changes what gets requested: the first pass calls
+   *  `routeAlternatives` instead of `route` and picks the shortest-distance candidate, then
+   *  hazard-avoidance proceeds exactly as before against whichever geometry was chosen. If a
+   *  blocking hazard then forces a second pass, that pass always asks for a single, already-
+   *  avoiding route — the "shortest" preference doesn't carry through a re-plan, an accepted
+   *  edge case (safety-avoidance wins over a distance preference). */
+  readonly strategy?: 'fastest' | 'shortest' | undefined;
 }
 
 export type PlanRouteError = VehicleProfileNotFound | NoRouteFound;
@@ -62,19 +75,43 @@ export async function planRoute(
     return err({ tag: 'VehicleProfileNotFound' });
   }
 
-  const firstPass = await deps.routingEngine.route({
-    origin: input.origin,
-    destination: input.destination,
-    dimensions: profile.dimensions,
-    avoid: [],
-  });
-  if (!firstPass.ok) {
-    return firstPass;
+  let firstPassGeometry: string;
+  let firstPassDistanceKm: number;
+  let firstPassDurationMin: number;
+  if (input.strategy === 'shortest') {
+    const alternatives = await deps.routingEngine.routeAlternatives({
+      origin: input.origin,
+      destination: input.destination,
+      dimensions: profile.dimensions,
+      avoid: [],
+    });
+    if (!alternatives.ok) {
+      return alternatives;
+    }
+    const shortest = alternatives.value.reduce((min, r) =>
+      r.distanceKm < min.distanceKm ? r : min,
+    );
+    firstPassGeometry = shortest.geometry;
+    firstPassDistanceKm = shortest.distanceKm;
+    firstPassDurationMin = shortest.durationMin;
+  } else {
+    const firstPass = await deps.routingEngine.route({
+      origin: input.origin,
+      destination: input.destination,
+      dimensions: profile.dimensions,
+      avoid: [],
+    });
+    if (!firstPass.ok) {
+      return firstPass;
+    }
+    firstPassGeometry = firstPass.value.geometry;
+    firstPassDistanceKm = firstPass.value.distanceKm;
+    firstPassDurationMin = firstPass.value.durationMin;
   }
 
-  const hazardCandidates = await deps.hazardAvoidanceQuery.activeNear(firstPass.value.geometry);
+  const hazardCandidates = await deps.hazardAvoidanceQuery.activeNear(firstPassGeometry);
   const overrides = await deps.restrictionOverrideRepo.findNearbyLine(
-    decodePolyline(firstPass.value.geometry),
+    decodePolyline(firstPassGeometry),
     ON_ROUTE_RADIUS_M,
   );
   const overrideCandidates = overrides.map(toReportedObstruction);
@@ -82,7 +119,11 @@ export async function planRoute(
   const nearby = [...hazardCandidates, ...overrideCandidates];
   const blocking = nearby.filter((obstruction) => applies(obstruction, profile.dimensions));
 
-  let routed = firstPass.value;
+  let routed = {
+    geometry: firstPassGeometry,
+    distanceKm: firstPassDistanceKm,
+    durationMin: firstPassDurationMin,
+  };
   if (blocking.length > 0) {
     const secondPass = await deps.routingEngine.route({
       origin: input.origin,
@@ -118,6 +159,11 @@ export async function planRoute(
     avoidedRestrictions,
     hazardsOnRoute,
     createdAt: deps.clock.now(),
+    estimatedFuelCostGBP: estimateFuelCostGBP(
+      routed.distanceKm,
+      profile.fuelConsumptionL100km,
+      deps.fuelPricePerLitreGBP,
+    ),
   };
   await deps.routePlanRepo.save(plan);
   return ok(plan);

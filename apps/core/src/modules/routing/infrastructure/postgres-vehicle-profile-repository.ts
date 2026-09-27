@@ -13,6 +13,7 @@ interface VehicleProfileRow {
   readonly length_m: number;
   readonly gross_weight_t: number;
   readonly axle_weight_t: number | null;
+  readonly fuel_consumption_l100km: number | null;
 }
 
 function toDomain(row: VehicleProfileRow): VehicleProfile {
@@ -27,8 +28,16 @@ function toDomain(row: VehicleProfileRow): VehicleProfile {
       grossWeightT: row.gross_weight_t,
       ...(row.axle_weight_t === null ? {} : { axleWeightT: row.axle_weight_t }),
     },
+    ...(row.fuel_consumption_l100km === null
+      ? {}
+      : { fuelConsumptionL100km: row.fuel_consumption_l100km }),
   };
 }
+
+const SELECT_COLUMNS = `
+  id, driver_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t,
+  fuel_consumption_l100km
+`;
 
 /** Raw `sql` tagged-template queries, not Kysely's typed query builder — same reasoning as
  *  identity's Postgres repositories (decision 26, docs/progress.md). */
@@ -37,16 +46,14 @@ export class PostgresVehicleProfileRepository implements VehicleProfileRepositor
 
   async findById(id: VehicleProfileId): Promise<VehicleProfile | null> {
     const { rows } = await sql<VehicleProfileRow>`
-      select id, driver_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t
-      from routing.vehicle_profiles where id = ${id}
+      select ${sql.raw(SELECT_COLUMNS)} from routing.vehicle_profiles where id = ${id}
     `.execute(this.db);
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
   async listForDriver(driverId: DriverId): Promise<VehicleProfile[]> {
     const { rows } = await sql<VehicleProfileRow>`
-      select id, driver_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t
-      from routing.vehicle_profiles where driver_id = ${driverId}
+      select ${sql.raw(SELECT_COLUMNS)} from routing.vehicle_profiles where driver_id = ${driverId}
       order by name
     `.execute(this.db);
     return rows.map(toDomain);
@@ -55,11 +62,13 @@ export class PostgresVehicleProfileRepository implements VehicleProfileRepositor
   async save(profile: VehicleProfile): Promise<void> {
     await sql`
       insert into routing.vehicle_profiles
-        (id, driver_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t)
+        (id, driver_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t,
+         fuel_consumption_l100km)
       values (
         ${profile.id}, ${profile.driverId}, ${profile.name},
         ${profile.dimensions.heightM}, ${profile.dimensions.widthM}, ${profile.dimensions.lengthM},
-        ${profile.dimensions.grossWeightT}, ${profile.dimensions.axleWeightT ?? null}
+        ${profile.dimensions.grossWeightT}, ${profile.dimensions.axleWeightT ?? null},
+        ${profile.fuelConsumptionL100km ?? null}
       )
       on conflict (id) do update set
         name = excluded.name,
@@ -67,7 +76,8 @@ export class PostgresVehicleProfileRepository implements VehicleProfileRepositor
         width_m = excluded.width_m,
         length_m = excluded.length_m,
         gross_weight_t = excluded.gross_weight_t,
-        axle_weight_t = excluded.axle_weight_t
+        axle_weight_t = excluded.axle_weight_t,
+        fuel_consumption_l100km = excluded.fuel_consumption_l100km
     `.execute(this.db);
   }
 

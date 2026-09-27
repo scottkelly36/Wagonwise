@@ -455,18 +455,26 @@ Hand-rolled in `domain/shared` (about twenty lines) rather than pulling in `neve
 
 Agent-assisted, built in small pockets of time. Each milestone ends with something you can actually run.
 
-| #   | Milestone         | Done when                                                                                                                                                                                           | Est.    |
-| --- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| M1  | Foundations       | Monorepo, CI with architecture tests, docker compose (Postgres/PostGIS + Valhalla with Northumberland extract), `identity` wired end to end as the reference module, one vertical slice BFF to core | 1 wk    |
-| M2  | Routing core      | `VehicleProfile` + `PlanRoute` use case, Valhalla adapter, `applies()` fully tested, avoided-restriction explanation, golden-route tests passing                                                    | 2–3 wks |
-| M3  | Hazards core      | Report/confirm/dismiss/expire use cases, PostGIS on-route query, hazards feeding avoid polygons via the read-model port                                                                             | 1–2 wks |
-| M4  | Driver BFF + auth | OTP sign-in, invite codes, sessions + refresh rotation, all driver endpoints behind contracts                                                                                                       | 1 wk    |
-| M5  | Driver app        | Profiles, plan route, route overview, active trip, tap reporting, offline queue, feedback screen                                                                                                    | 2–3 wks |
-| M6  | Alerts            | Active-trip tracking, reroute-on-new-hazard, push notifications, idempotent handlers                                                                                                                | 1–2 wks |
-| M7  | Voice             | Mic flow, transcription, LLM parsing, spoken confirm                                                                                                                                                | 1–2 wks |
-| M8  | Field-ready       | Test-area restriction audit, privacy/terms screens, TestFlight + Play internal testing, first driver onboarded                                                                                      | 1–2 wks |
+| #   | Milestone                    | Done when                                                                                                                                                                                           | Est.    |
+| --- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| M1  | Foundations                  | Monorepo, CI with architecture tests, docker compose (Postgres/PostGIS + Valhalla with Northumberland extract), `identity` wired end to end as the reference module, one vertical slice BFF to core | 1 wk    |
+| M2  | Routing core                 | `VehicleProfile` + `PlanRoute` use case, Valhalla adapter, `applies()` fully tested, avoided-restriction explanation, golden-route tests passing                                                    | 2–3 wks |
+| M3  | Hazards core                 | Report/confirm/dismiss/expire use cases, PostGIS on-route query, hazards feeding avoid polygons via the read-model port                                                                             | 1–2 wks |
+| M4  | Driver BFF + auth            | OTP sign-in, invite codes, sessions + refresh rotation, all driver endpoints behind contracts                                                                                                       | 1 wk    |
+| M5  | Driver app                   | Profiles, plan route, route overview, active trip, tap reporting, offline queue, feedback screen                                                                                                    | 2–3 wks |
+| M6  | Alerts                       | Active-trip tracking, reroute-on-new-hazard, push notifications, idempotent handlers                                                                                                                | 1–2 wks |
+| M7  | Voice                        | Mic flow, transcription, LLM parsing, spoken confirm                                                                                                                                                | 1–2 wks |
+| M8  | Field-ready                  | Test-area restriction audit, privacy/terms screens, TestFlight + Play internal testing, first driver onboarded                                                                                      | 1–2 wks |
+| M9  | Route options & safe parking | New `parking` module (driver-marked safe parking spots), `PlanRoute` returns ranked fastest/shortest alternatives with a rough estimated fuel cost per option                                       | 1–2 wks |
 
-**Total:** roughly 10–16 weeks. M7 (voice) can slip to a fast-follow update if needed, but it should land before the wider tester group starts, since it's the safe way to report while driving.
+Added 2026-09-27, out of the original planning pass — scoped from field-testing feedback once M7
+was already done. See `docs/progress.md`'s M9 task breakdown for the full scoping, including the
+same-day revision that unblocked a rough fuel-cost estimate (optional `fuelConsumptionL100km` on
+`VehicleProfile` × a manually-maintained average fuel price, not a real cost model or live price
+feed) so the driver can weigh cost against time/distance themselves, instead of the app picking
+one option and calling it "most economical."
+
+**Total:** roughly 10–16 weeks, plus M9's 1–2 weeks added after the fact. M7 (voice) can slip to a fast-follow update if needed, but it should land before the wider tester group starts, since it's the safe way to report while driving.
 
 **M1 contains the skeleton that proves the rules, not a full scaffold:**
 

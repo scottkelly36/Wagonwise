@@ -25,12 +25,20 @@ export interface VehicleProfile {
   readonly driverId: DriverId;
   readonly name: string;
   readonly dimensions: Dimensions;
+  /** Optional (M9, docs/progress.md) — sibling to `dimensions`, not part of it: this never gets
+   *  sent to Valhalla's truck costing, it only feeds `estimateFuelCostGBP` for the rough
+   *  fastest/shortest route-option comparison. A profile with no value set just doesn't get a
+   *  cost estimate; nothing forces a number nobody entered. */
+  readonly fuelConsumptionL100km?: number | undefined;
 }
 
 export interface InvalidDimensions extends TaggedError<'InvalidDimensions'> {
   readonly reason: 'must_be_positive';
 }
 export type InvalidName = TaggedError<'InvalidName'>;
+export interface InvalidFuelConsumption extends TaggedError<'InvalidFuelConsumption'> {
+  readonly reason: 'must_be_positive';
+}
 
 /**
  * Every dimension a route request sends to Valhalla's truck costing (design doc §4) must be a
@@ -61,4 +69,17 @@ export function validateName(raw: string): Result<string, InvalidName> {
     return err({ tag: 'InvalidName' });
   }
   return ok(trimmed);
+}
+
+/** Not part of `validateDimensions` — `fuelConsumptionL100km` isn't a `Dimensions` field (M9's own
+ *  scoping: it never reaches Valhalla), so it gets its own guard rather than loosening that
+ *  function's signature. Undefined is always valid — a driver who hasn't measured their vehicle's
+ *  consumption just doesn't get a cost estimate. */
+export function validateFuelConsumption(
+  value: number | undefined,
+): Result<number | undefined, InvalidFuelConsumption> {
+  if (value !== undefined && !(Number.isFinite(value) && value > 0)) {
+    return err({ tag: 'InvalidFuelConsumption', reason: 'must_be_positive' });
+  }
+  return ok(value);
 }

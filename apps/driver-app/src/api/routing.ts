@@ -3,11 +3,15 @@ import {
   createVehicleProfileRequestSchema,
   findActiveTripResponseSchema,
   planRouteRequestSchema,
+  previewRouteOptionsRequestSchema,
+  previewRouteOptionsResponseSchema,
   routePlanSchema,
   vehicleProfileSchema,
   type ActiveTripDto,
   type CreateVehicleProfileRequest,
   type PlanRouteRequest,
+  type PreviewRouteOptionsRequest,
+  type RouteOptionDto,
   type RoutePlanDto,
   type VehicleProfileDto,
 } from '@wagonwise/contracts/routing';
@@ -89,6 +93,21 @@ export async function planRoute(
   });
   throwUnlessSuccess(status, json, [201]);
   return routePlanSchema.parse(json);
+}
+
+/** M9 — unpersisted, lets a driver compare fastest/shortest before `planRoute` actually commits
+ *  to one. */
+export async function previewRouteOptions(
+  accessToken: string,
+  input: PreviewRouteOptionsRequest,
+): Promise<RouteOptionDto[]> {
+  const body = previewRouteOptionsRequestSchema.parse(input);
+  const { status, json } = await requestJson('POST', '/routing/route-options/preview', {
+    body,
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return previewRouteOptionsResponseSchema.parse(json).options;
 }
 
 export async function getRoutePlan(accessToken: string, id: string): Promise<RoutePlanDto> {

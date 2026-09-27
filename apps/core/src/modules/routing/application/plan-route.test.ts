@@ -34,6 +34,7 @@ async function buildDeps(): Promise<
     restrictionOverrideRepo: new FakeRestrictionOverrideRepository(),
     clock: new FakeClock(now),
     ids: new SequentialIdGenerator(),
+    fuelPricePerLitreGBP: 1.6,
   };
 }
 
@@ -276,5 +277,69 @@ describe('planRoute', () => {
         makeId<'RoutePlanId'>('00000000-0000-4000-8000-000000000001'),
       ),
     ).toBeNull();
+  });
+
+  it('omits estimatedFuelCostGBP when the profile has no fuelConsumptionL100km', async () => {
+    const deps = await buildDeps();
+    const result = await planRoute(deps, { driverId, profileId, origin, destination });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.estimatedFuelCostGBP).toBeUndefined();
+  });
+
+  it('computes estimatedFuelCostGBP from the profile’s fuelConsumptionL100km and the configured price', async () => {
+    const deps = await buildDeps();
+    await deps.vehicleProfileRepo.save({
+      id: profileId,
+      driverId,
+      name: 'Big Wagon',
+      dimensions,
+      fuelConsumptionL100km: 30,
+    });
+    (deps.routingEngine as FakeRoutingEngine).result = {
+      ok: true,
+      value: { geometry: 'g', distanceKm: 100, durationMin: 90 },
+    };
+
+    const result = await planRoute(deps, { driverId, profileId, origin, destination });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.estimatedFuelCostGBP).toBeCloseTo(100 * 0.3 * 1.6, 5);
+  });
+
+  it('with strategy "shortest", asks the engine for alternatives and picks the shortest one', async () => {
+    const deps = await buildDeps();
+    const engine = deps.routingEngine as FakeRoutingEngine;
+    engine.alternativesResult = {
+      ok: true,
+      value: [
+        { geometry: 'fast-geometry', distanceKm: 120, durationMin: 90 },
+        { geometry: 'short-geometry', distanceKm: 80, durationMin: 110 },
+      ],
+    };
+
+    const result = await planRoute(deps, {
+      driverId,
+      profileId,
+      origin,
+      destination,
+      strategy: 'shortest',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.geometry).toBe('short-geometry');
+    expect(result.value.distanceKm).toBe(80);
+    expect(result.value.durationMin).toBe(110);
+    expect(engine.alternativesRequests).toEqual([{ origin, destination, dimensions, avoid: [] }]);
+    expect(engine.requests).toEqual([]);
+  });
+
+  it('with no strategy, calls route() as before rather than routeAlternatives()', async () => {
+    const deps = await buildDeps();
+    const engine = deps.routingEngine as FakeRoutingEngine;
+    await planRoute(deps, { driverId, profileId, origin, destination });
+    expect(engine.alternativesRequests).toEqual([]);
+    expect(engine.requests).toEqual([{ origin, destination, dimensions, avoid: [] }]);
   });
 });

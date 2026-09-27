@@ -1,10 +1,12 @@
 import { err, ok, type Result } from '../../../shared/result.js';
 import {
   validateDimensions,
+  validateFuelConsumption,
   validateName,
   type Dimensions,
   type DriverId,
   type InvalidDimensions,
+  type InvalidFuelConsumption,
   type InvalidName,
   type VehicleProfile,
   type VehicleProfileId,
@@ -21,9 +23,11 @@ export interface UpdateVehicleProfileInput {
   readonly driverId: DriverId;
   readonly name: string;
   readonly dimensions: Dimensions;
+  readonly fuelConsumptionL100km?: number | undefined;
 }
 
-export type UpdateVehicleProfileError = InvalidName | InvalidDimensions | VehicleProfileNotFound;
+export type UpdateVehicleProfileError =
+  InvalidName | InvalidDimensions | InvalidFuelConsumption | VehicleProfileNotFound;
 
 export async function updateVehicleProfile(
   deps: UpdateVehicleProfileDeps,
@@ -42,8 +46,17 @@ export async function updateVehicleProfile(
   if (!dimensions.ok) {
     return dimensions;
   }
+  const fuelConsumptionL100km = validateFuelConsumption(input.fuelConsumptionL100km);
+  if (!fuelConsumptionL100km.ok) {
+    return fuelConsumptionL100km;
+  }
 
-  const updated: VehicleProfile = { ...existing, name: name.value, dimensions: dimensions.value };
+  const updated: VehicleProfile = {
+    ...existing,
+    name: name.value,
+    dimensions: dimensions.value,
+    fuelConsumptionL100km: fuelConsumptionL100km.value,
+  };
   await deps.repo.save(updated);
   return ok(updated);
 }

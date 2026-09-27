@@ -127,6 +127,9 @@ export default function RouteOverviewScreen() {
       <View style={styles.panel}>
         <Text style={styles.distance}>
           {plan.distanceKm.toFixed(1)} km · {Math.round(plan.durationMin)} min
+          {plan.estimatedFuelCostGBP !== undefined
+            ? ` · est. £${plan.estimatedFuelCostGBP.toFixed(2)} fuel`
+            : ''}
         </Text>
 
         <View style={styles.etaRow}>

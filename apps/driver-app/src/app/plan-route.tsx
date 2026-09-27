@@ -13,11 +13,11 @@ import {
   View,
 } from 'react-native';
 
-import type { PlanRouteRequest } from '@wagonwise/contracts/routing';
+import type { PlanRouteRequest, RouteOptionDto } from '@wagonwise/contracts/routing';
 
 import { useCreateVehicleProfile, useVehicleProfiles } from '../api/use-vehicle-profiles';
 import { useNearbyHazards } from '../api/use-hazards';
-import { useCreateRoutePlan } from '../api/use-route-plans';
+import { useCreateRoutePlan, usePreviewRouteOptions } from '../api/use-route-plans';
 import { AddressSearchField } from '../components/address-search-field';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap, type MapPoint } from '../components/route-map';
@@ -64,7 +64,18 @@ export default function PlanRouteScreen() {
   const { data: profiles, isLoading: profilesLoading } = useVehicleProfiles();
   const createVehicleProfile = useCreateVehicleProfile();
   const createRoutePlan = useCreateRoutePlan();
+  const previewRouteOptions = usePreviewRouteOptions();
   const setCurrentRoutePlan = useCurrentRoutePlanStore((s) => s.setPlan);
+
+  // M9: a driver compares options before committing. `undefined` means "haven't compared yet" —
+  // the panel still shows the ordinary "Plan route" button in that state, one tap away from
+  // exactly today's behaviour if there's only one real option.
+  const [routeOptions, setRouteOptions] = useState<readonly RouteOptionDto[] | undefined>(
+    undefined,
+  );
+  const [comparedProfileId, setComparedProfileId] = useState<
+    PlanRouteRequest['profileId'] | undefined
+  >(undefined);
 
   const [vehicleMode, setVehicleMode] = useState<VehicleMode>('profile');
   const [profileId, setProfileId] = useState<string | undefined>(undefined);
@@ -86,7 +97,8 @@ export default function PlanRouteScreen() {
   const nearbyHazards = useNearbyHazards(corridor, NEARBY_RADIUS_M);
 
   const selectedProfile = profiles?.find((p) => p.id === profileId);
-  const pending = createVehicleProfile.isPending || createRoutePlan.isPending;
+  const pending =
+    createVehicleProfile.isPending || createRoutePlan.isPending || previewRouteOptions.isPending;
   const canPlan =
     effectiveOrigin !== undefined &&
     destination !== undefined &&
@@ -96,11 +108,13 @@ export default function PlanRouteScreen() {
   function setDimensionField(field: keyof Omit<VehicleProfileFormValues, 'name'>) {
     return (text: string) => {
       setManualError(undefined);
+      setRouteOptions(undefined);
       setDimensionValues((current) => ({ ...current, [field]: text }));
     };
   }
 
   function handleMapPress(point: MapPoint): void {
+    setRouteOptions(undefined);
     if (pointMode === 'origin') {
       setOrigin(point);
       setPointMode('destination');
@@ -110,20 +124,40 @@ export default function PlanRouteScreen() {
   }
 
   function handleOriginSearchSelect(result: GeocodingResult): void {
+    setRouteOptions(undefined);
     setOrigin(result.point);
   }
 
   function handleDestinationSearchSelect(result: GeocodingResult): void {
+    setRouteOptions(undefined);
     setDestination(result.point);
+  }
+
+  function handleSelectProfile(id: string): void {
+    setRouteOptions(undefined);
+    setProfileId(id);
+  }
+
+  function handleSelectVehicleMode(mode: VehicleMode): void {
+    setRouteOptions(undefined);
+    setVehicleMode(mode);
+  }
+
+  /** The strategy `planRoute` needs to reproduce whichever option the driver picked — a route
+   *  that's both fastest and shortest (identical geometry) is requested the cheap way, same as
+   *  today's behaviour before M9 existed. */
+  function strategyFor(option: RouteOptionDto): PlanRouteRequest['strategy'] {
+    return option.labels.includes('fastest') ? 'fastest' : 'shortest';
   }
 
   function planWith(
     profileId: PlanRouteRequest['profileId'],
     origin: MapPoint,
     destination: MapPoint,
+    strategy?: PlanRouteRequest['strategy'],
   ): void {
     createRoutePlan.mutate(
-      { profileId, origin, destination },
+      { profileId, origin, destination, strategy },
       {
         onSuccess: (plan) => {
           setCurrentRoutePlan(plan);
@@ -133,19 +167,14 @@ export default function PlanRouteScreen() {
     );
   }
 
-  function handlePlan(): void {
-    if (!canPlan || effectiveOrigin === undefined || destination === undefined) return;
-
+  /** Manual entry creates the profile first — silently, no separate save step — same as before
+   *  M9. Returns the id to compare/plan with, whichever path got there. */
+  function resolveProfileId(onProfileId: (id: PlanRouteRequest['profileId']) => void): void {
     if (vehicleMode === 'profile') {
       if (selectedProfile === undefined) return;
-      planWith(selectedProfile.id, effectiveOrigin, destination);
+      onProfileId(selectedProfile.id);
       return;
     }
-
-    // Manual entry: create the profile first — silently, no separate save step — then plan with
-    // it. This is a real, ordinary vehicle profile once created (visible under Vehicle profiles
-    // afterwards), not a throwaway; a driver who never wants to name one up front still ends up
-    // with a reusable one for next time.
     const result = parseVehicleProfileForm({
       ...dimensionValues,
       name: `Vehicle ${formatDateTime(new Date().toISOString())}`,
@@ -156,17 +185,43 @@ export default function PlanRouteScreen() {
     }
     createVehicleProfile.mutate(
       { name: result.value.name, dimensions: result.value.dimensions },
-      { onSuccess: (profile) => planWith(profile.id, effectiveOrigin, destination) },
+      { onSuccess: (profile) => onProfileId(profile.id) },
     );
   }
 
+  function handleCompareRoutes(): void {
+    if (!canPlan || effectiveOrigin === undefined || destination === undefined) return;
+    setRouteOptions(undefined);
+    resolveProfileId((resolvedProfileId) => {
+      setComparedProfileId(resolvedProfileId);
+      previewRouteOptions.mutate(
+        { profileId: resolvedProfileId, origin: effectiveOrigin, destination },
+        { onSuccess: setRouteOptions },
+      );
+    });
+  }
+
+  function handleConfirmOption(option: RouteOptionDto): void {
+    if (
+      comparedProfileId === undefined ||
+      effectiveOrigin === undefined ||
+      destination === undefined
+    ) {
+      return;
+    }
+    planWith(comparedProfileId, effectiveOrigin, destination, strategyFor(option));
+  }
+
+  const pendingCompare = createVehicleProfile.isPending || previewRouteOptions.isPending;
   const displayedError =
     manualError ??
     (createVehicleProfile.isError
       ? routingErrorMessage(createVehicleProfile.error)
-      : createRoutePlan.isError
-        ? routingErrorMessage(createRoutePlan.error)
-        : undefined);
+      : previewRouteOptions.isError
+        ? routingErrorMessage(previewRouteOptions.error)
+        : createRoutePlan.isError
+          ? routingErrorMessage(createRoutePlan.error)
+          : undefined);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -204,7 +259,7 @@ export default function PlanRouteScreen() {
                 styles.vehicleModeTab,
                 vehicleMode === 'profile' && styles.vehicleModeTabActive,
               ]}
-              onPress={() => setVehicleMode('profile')}
+              onPress={() => handleSelectVehicleMode('profile')}
               testID="vehicle-mode-profile-button"
             >
               <Text style={styles.vehicleModeTabText}>My vehicles</Text>
@@ -214,7 +269,7 @@ export default function PlanRouteScreen() {
                 styles.vehicleModeTab,
                 vehicleMode === 'manual' && styles.vehicleModeTabActive,
               ]}
-              onPress={() => setVehicleMode('manual')}
+              onPress={() => handleSelectVehicleMode('manual')}
               testID="vehicle-mode-manual-button"
             >
               <Text style={styles.vehicleModeTabText}>Enter details</Text>
@@ -238,7 +293,7 @@ export default function PlanRouteScreen() {
                   <TouchableOpacity
                     key={profile.id}
                     style={[styles.chip, profile.id === profileId && styles.chipSelected]}
-                    onPress={() => setProfileId(profile.id)}
+                    onPress={() => handleSelectProfile(profile.id)}
                     testID={`profile-chip-${profile.id}`}
                   >
                     <Text
@@ -309,18 +364,51 @@ export default function PlanRouteScreen() {
 
           {displayedError !== undefined && <Text style={styles.error}>{displayedError}</Text>}
 
-          <TouchableOpacity
-            style={[styles.button, !canPlan && styles.buttonDisabled]}
-            disabled={!canPlan}
-            onPress={handlePlan}
-            testID="plan-route-button"
-          >
-            {pending ? (
-              <ActivityIndicator color={colors.textOnAccent} />
-            ) : (
-              <Text style={styles.buttonText}>Plan route</Text>
-            )}
-          </TouchableOpacity>
+          {routeOptions === undefined ? (
+            <TouchableOpacity
+              style={[styles.button, !canPlan && styles.buttonDisabled]}
+              disabled={!canPlan}
+              onPress={handleCompareRoutes}
+              testID="plan-route-button"
+            >
+              {pendingCompare ? (
+                <ActivityIndicator color={colors.textOnAccent} />
+              ) : (
+                <Text style={styles.buttonText}>Plan route</Text>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.optionsList}>
+              <Text style={styles.label}>Choose a route</Text>
+              {routeOptions.map((option, index) => (
+                <TouchableOpacity
+                  key={`${option.geometry}-${index}`}
+                  style={styles.optionCard}
+                  disabled={createRoutePlan.isPending}
+                  onPress={() => handleConfirmOption(option)}
+                  testID={`route-option-${index}`}
+                >
+                  <Text style={styles.optionLabel}>
+                    {option.labels
+                      .map((l) => (l === 'fastest' ? 'Fastest' : 'Shortest'))
+                      .join(' & ')}
+                  </Text>
+                  <Text style={styles.optionDetail}>
+                    {option.distanceKm.toFixed(1)} km · {Math.round(option.durationMin)} min
+                    {option.estimatedFuelCostGBP !== undefined
+                      ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
+                      : ''}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                onPress={() => setRouteOptions(undefined)}
+                testID="edit-route-button"
+              >
+                <Text style={styles.editLink}>Change route or vehicle</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -447,6 +535,33 @@ function createStyles(colors: ThemeColors) {
     error: {
       fontSize: 16,
       color: colors.danger,
+    },
+    optionsList: {
+      gap: 8,
+    },
+    optionCard: {
+      minHeight: 64,
+      justifyContent: 'center',
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      backgroundColor: colors.accent,
+    },
+    optionLabel: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.textOnAccent,
+    },
+    optionDetail: {
+      fontSize: 14,
+      color: colors.textOnAccent,
+      marginTop: 2,
+    },
+    editLink: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 4,
     },
   });
 }

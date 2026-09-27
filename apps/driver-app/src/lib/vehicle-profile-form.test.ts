@@ -11,6 +11,7 @@ const validValues: VehicleProfileFormValues = {
   lengthM: '16.5',
   grossWeightT: '32',
   axleWeightT: '',
+  fuelConsumptionL100km: '',
 };
 
 describe('parseVehicleProfileForm', () => {
@@ -65,6 +66,25 @@ describe('parseVehicleProfileForm', () => {
       message: 'Every measurement must be a positive number.',
     });
   });
+
+  it('omits fuelConsumptionL100km when left blank', () => {
+    const result = parseVehicleProfileForm(validValues);
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.value.fuelConsumptionL100km).toBeUndefined();
+  });
+
+  it('includes a given fuelConsumptionL100km', () => {
+    const result = parseVehicleProfileForm({ ...validValues, fuelConsumptionL100km: '30' });
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.value.fuelConsumptionL100km).toBe(30);
+  });
+
+  it('rejects a non-positive fuelConsumptionL100km when one is given', () => {
+    expect(parseVehicleProfileForm({ ...validValues, fuelConsumptionL100km: '0' })).toEqual({
+      ok: false,
+      message: 'Fuel consumption must be a positive number.',
+    });
+  });
 });
 
 describe('vehicleProfileFormValuesFrom', () => {
@@ -80,6 +100,7 @@ describe('vehicleProfileFormValuesFrom', () => {
       lengthM: '16.5',
       grossWeightT: '32',
       axleWeightT: '10',
+      fuelConsumptionL100km: '',
     });
   });
 
@@ -89,5 +110,20 @@ describe('vehicleProfileFormValuesFrom', () => {
       dimensions: { heightM: 2.2, widthM: 1.8, lengthM: 5, grossWeightT: 3.5 },
     });
     expect(values.axleWeightT).toBe('');
+  });
+
+  it('formats a given fuelConsumptionL100km, leaves it blank when unset', () => {
+    const withConsumption = vehicleProfileFormValuesFrom({
+      name: 'Big rig',
+      dimensions: { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32 },
+      fuelConsumptionL100km: 30,
+    });
+    expect(withConsumption.fuelConsumptionL100km).toBe('30');
+
+    const withoutConsumption = vehicleProfileFormValuesFrom({
+      name: 'Van',
+      dimensions: { heightM: 2.2, widthM: 1.8, lengthM: 5, grossWeightT: 3.5 },
+    });
+    expect(withoutConsumption.fuelConsumptionL100km).toBe('');
   });
 });

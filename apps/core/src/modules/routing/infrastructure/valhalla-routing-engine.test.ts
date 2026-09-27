@@ -202,4 +202,69 @@ describe('ValhallaRoutingEngine', () => {
 
     await expect(resultPromise).rejects.toThrow(/no legs/);
   });
+
+  describe('routeAlternatives', () => {
+    it('sends an alternates count and maps trip + alternates into a RouteResult array', async () => {
+      const engine = new ValhallaRoutingEngine(baseUrl);
+      const resultPromise = engine.routeAlternatives({
+        origin,
+        destination,
+        dimensions,
+        avoid: [],
+      });
+      const received = await nextRequest;
+      expect(received.body.alternates).toBe(2);
+      received.respond(
+        {
+          trip: { summary: { time: 475.465, length: 8.038 }, legs: [{ shape: 'primary-shape' }] },
+          alternates: [
+            {
+              trip: { summary: { time: 600, length: 6 }, legs: [{ shape: 'alternate-shape' }] },
+            },
+          ],
+        },
+        200,
+      );
+      const result = await resultPromise;
+
+      expect(result).toEqual({
+        ok: true,
+        value: [
+          { geometry: 'primary-shape', distanceKm: 8.038, durationMin: 475.465 / 60 },
+          { geometry: 'alternate-shape', distanceKm: 6, durationMin: 10 },
+        ],
+      });
+    });
+
+    it('returns just the primary route when Valhalla finds no alternates', async () => {
+      const engine = new ValhallaRoutingEngine(baseUrl);
+      const resultPromise = engine.routeAlternatives({
+        origin,
+        destination,
+        dimensions,
+        avoid: [],
+      });
+      (await nextRequest).respond(successBody, 200);
+      const result = await resultPromise;
+
+      expect(result).toEqual({
+        ok: true,
+        value: [{ geometry: 'encoded-shape', distanceKm: 8.038, durationMin: 475.465 / 60 }],
+      });
+    });
+
+    it('returns NoRouteFound for a Valhalla routing failure, same as route()', async () => {
+      const engine = new ValhallaRoutingEngine(baseUrl);
+      const resultPromise = engine.routeAlternatives({
+        origin,
+        destination,
+        dimensions,
+        avoid: [],
+      });
+      (await nextRequest).respond({ error_code: 442, error: 'No path could be found' }, 400);
+      const result = await resultPromise;
+
+      expect(result).toEqual({ ok: false, error: { tag: 'NoRouteFound' } });
+    });
+  });
 });
