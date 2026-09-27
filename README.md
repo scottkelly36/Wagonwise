@@ -185,9 +185,9 @@ facing wrapper described below, and is how you should normally reach these:
 | `POST /identity/devices`              | `{ pushToken }` — registers a driver's Expo push token (M6.2, see Alerts)     |
 
 `identifier` is an email or a UK-ish phone number. `inviteCode` is required only the first time —
-signing in with an identifier that has no Driver yet needs one. There's no admin endpoint to
-create invite codes yet (that's staff-portal territory, out of scope — AGENTS.md); seed one
-directly for local testing:
+signing in with an identifier that has no Driver yet needs one. Generate one from
+`apps/dashboard`'s "Invite codes" screen (admin-only) via `POST /identity/invite-codes`, or seed
+one directly for local testing:
 
 ```bash
 docker exec -it $(docker compose -f infra/docker/compose.yml ps -q postgres) \

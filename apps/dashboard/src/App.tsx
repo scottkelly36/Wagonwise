@@ -9,6 +9,7 @@ import { Drivers } from './pages/fleet/Drivers';
 import { FleetOverview } from './pages/fleet/Overview';
 import { LiveTrips } from './pages/fleet/LiveTrips';
 import { VehicleProfiles } from './pages/fleet/VehicleProfiles';
+import { InviteCodes } from './pages/admin/InviteCodes';
 import { SignIn } from './pages/SignIn';
 
 export function App() {
@@ -24,6 +25,7 @@ export function App() {
             <Route path="/fleet/drivers" element={<Drivers />} />
             <Route path="/fleet/vehicle-profiles" element={<VehicleProfiles />} />
             <Route path="/admin/companies" element={<Companies />} />
+            <Route path="/admin/invite-codes" element={<InviteCodes />} />
             <Route path="/admin/hazard-reports" element={<HazardReports />} />
             <Route path="/admin/congestion-reports" element={<CongestionReports />} />
             <Route path="/admin/driver-accounts" element={<DriverAccounts />} />

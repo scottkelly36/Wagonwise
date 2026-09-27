@@ -12,6 +12,10 @@ export class InMemoryInviteCodeRepository implements InviteCodeRepository {
     return Promise.resolve(this.#byCode.get(code) ?? null);
   }
 
+  findAll(): Promise<InviteCode[]> {
+    return Promise.resolve([...this.#byCode.values()]);
+  }
+
   save(invite: InviteCode): Promise<void> {
     this.#byCode.set(invite.code, invite);
     return Promise.resolve();

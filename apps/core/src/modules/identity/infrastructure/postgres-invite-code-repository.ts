@@ -32,6 +32,14 @@ export class PostgresInviteCodeRepository implements InviteCodeRepository {
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
+  async findAll(): Promise<InviteCode[]> {
+    const { rows } = await sql<InviteCodeRow>`
+      select code, redeemed_by, redeemed_at, created_at
+      from identity.invite_codes order by created_at desc
+    `.execute(this.db);
+    return rows.map(toDomain);
+  }
+
   /** Upsert: an invite code is seeded once (manually, for now — see the migration) and later
    *  redeemed, which is an update to the same row, not a new one. */
   async save(invite: InviteCode, tx?: Transaction): Promise<void> {

@@ -30,6 +30,7 @@ const DRIVER_AUTH_PREFIXES = [
   '/identity/consent/',
   '/identity/account/',
   '/identity/drivers/',
+  '/identity/invite-codes/',
 ];
 
 const REQUEST_ID_HEADER = 'x-request-id';

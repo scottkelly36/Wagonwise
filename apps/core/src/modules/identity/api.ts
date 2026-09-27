@@ -9,6 +9,7 @@ import { ChannelRoutingOtpSender } from './infrastructure/channel-routing-otp-se
 import { ClickSendOtpSender } from './infrastructure/clicksend-otp-sender.js';
 import { ConsoleOtpSender } from './infrastructure/console-otp-sender.js';
 import { ResendOtpSender } from './infrastructure/resend-otp-sender.js';
+import { CryptoInviteCodeGenerator } from './infrastructure/crypto-invite-code-generator.js';
 import { CryptoOtpCodeGenerator } from './infrastructure/crypto-otp-code-generator.js';
 import { CryptoRefreshTokenGenerator } from './infrastructure/crypto-refresh-token-generator.js';
 import type { UntypedDb } from './infrastructure/db.js';
@@ -104,6 +105,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
   const otpSender = deps.otpSender ?? new ChannelRoutingOtpSender(smsSender, emailSender);
   const otpCodeGenerator = new CryptoOtpCodeGenerator();
   const refreshTokenGenerator = new CryptoRefreshTokenGenerator();
+  const inviteCodeGenerator = new CryptoInviteCodeGenerator();
 
   const routeDeps: IdentityRouteDeps = {
     requestOtp: {
@@ -138,6 +140,8 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     deleteAccount: { driverRepo, sessionRepo, deviceRepo, clock: deps.clock },
     listDrivers: { driverRepo },
     updateDriver: { driverRepo },
+    createInviteCode: { repo: inviteCodeRepo, generator: inviteCodeGenerator, clock: deps.clock },
+    listInviteCodes: { repo: inviteCodeRepo },
     driverRepo,
     tokenSigner: deps.tokenSigner,
   };

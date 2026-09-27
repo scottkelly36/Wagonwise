@@ -12,6 +12,7 @@ import { InMemoryOtpRepository } from '../application/testing/in-memory-otp-repo
 import { InMemorySessionRepository } from '../application/testing/in-memory-session-repository.js';
 import { FakeOtpSender } from '../application/testing/fake-otp-sender.js';
 import { FakeTokenSigner } from '../application/testing/fake-token-signer.js';
+import { SequentialInviteCodeGenerator } from '../application/testing/sequential-invite-code-generator.js';
 import { SequentialOtpCodeGenerator } from '../application/testing/sequential-otp-code-generator.js';
 import { SequentialRefreshTokenGenerator } from '../application/testing/sequential-refresh-token-generator.js';
 import { registerIdentityRoutes, type IdentityRouteDeps } from './routes.js';
@@ -67,6 +68,12 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
     deleteAccount: { driverRepo, sessionRepo, deviceRepo, clock },
     listDrivers: { driverRepo },
     updateDriver: { driverRepo },
+    createInviteCode: {
+      repo: inviteCodeRepo,
+      generator: new SequentialInviteCodeGenerator(),
+      clock,
+    },
+    listInviteCodes: { repo: inviteCodeRepo },
     driverRepo,
     tokenSigner,
   };
@@ -661,5 +668,105 @@ describe('PATCH /identity/drivers/:id', () => {
       ...asDriver(ADMIN_ID),
     });
     expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('POST /identity/invite-codes', () => {
+  const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
+
+  async function seedAdmin(deps: IdentityRouteDeps): Promise<void> {
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>(ADMIN_ID),
+      identifier: 'admin@example.com',
+      createdAt: now,
+      isAdmin: true,
+    });
+  }
+
+  it('201s and returns a fresh, unredeemed code for an admin', async () => {
+    const { app, deps } = buildApp();
+    await seedAdmin(deps);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/invite-codes',
+      ...asDriver(ADMIN_ID),
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ code: 'CODE1', redeemedBy: null, redeemedAt: null });
+  });
+
+  it('403s a non-admin driver', async () => {
+    const { app, deps } = buildApp();
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>('22222222-2222-4222-8222-222222222222'),
+      identifier: 'driver@example.com',
+      createdAt: now,
+      isAdmin: false,
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/invite-codes',
+      ...asDriver('22222222-2222-4222-8222-222222222222'),
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({ method: 'POST', url: '/identity/invite-codes' });
+    expect(response.statusCode).toBe(401);
+  });
+});
+
+describe('GET /identity/invite-codes', () => {
+  const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
+
+  async function seedAdmin(deps: IdentityRouteDeps): Promise<void> {
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>(ADMIN_ID),
+      identifier: 'admin@example.com',
+      createdAt: now,
+      isAdmin: true,
+    });
+  }
+
+  it('200s with every generated code for an admin', async () => {
+    const { app, deps } = buildApp();
+    await seedAdmin(deps);
+    await app.inject({ method: 'POST', url: '/identity/invite-codes', ...asDriver(ADMIN_ID) });
+    await app.inject({ method: 'POST', url: '/identity/invite-codes', ...asDriver(ADMIN_ID) });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/identity/invite-codes',
+      ...asDriver(ADMIN_ID),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ inviteCodes: unknown[] }>().inviteCodes).toHaveLength(2);
+  });
+
+  it('403s a non-admin driver', async () => {
+    const { app, deps } = buildApp();
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>('22222222-2222-4222-8222-222222222222'),
+      identifier: 'driver@example.com',
+      createdAt: now,
+      isAdmin: false,
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/identity/invite-codes',
+      ...asDriver('22222222-2222-4222-8222-222222222222'),
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({ method: 'GET', url: '/identity/invite-codes' });
+    expect(response.statusCode).toBe(401);
   });
 });

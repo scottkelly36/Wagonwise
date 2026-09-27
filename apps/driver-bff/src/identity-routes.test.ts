@@ -385,3 +385,75 @@ describe('DELETE /identity/account', () => {
     });
   });
 });
+
+describe('POST /identity/invite-codes', () => {
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({ method: 'POST', url: '/identity/invite-codes' });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards the token and relays the created code', async () => {
+    const { app, coreClient, verifier } = buildApp();
+    verifier.claimsByToken.set('a-real-token', { driverId: 'admin-driver', sessionId: 's-1' });
+    coreClient.nextResponse = {
+      status: 201,
+      body: { code: 'CODE1', redeemedBy: null, redeemedAt: null },
+    };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/invite-codes',
+      headers: { authorization: 'Bearer a-real-token' },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: '/identity/invite-codes',
+      authorization: 'Bearer a-real-token',
+    });
+  });
+
+  it('relays a 403 from core unchanged', async () => {
+    const { app, coreClient, verifier } = buildApp();
+    verifier.claimsByToken.set('a-real-token', { driverId: 'driver-1', sessionId: 's-1' });
+    coreClient.nextResponse = { status: 403, body: { tag: 'Forbidden' } };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/identity/invite-codes',
+      headers: { authorization: 'Bearer a-real-token' },
+    });
+    expect(response.statusCode).toBe(403);
+  });
+});
+
+describe('GET /identity/invite-codes', () => {
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({ method: 'GET', url: '/identity/invite-codes' });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards the token and relays the list', async () => {
+    const { app, coreClient, verifier } = buildApp();
+    verifier.claimsByToken.set('a-real-token', { driverId: 'admin-driver', sessionId: 's-1' });
+    coreClient.nextResponse = { status: 200, body: { inviteCodes: [] } };
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/identity/invite-codes',
+      headers: { authorization: 'Bearer a-real-token' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'GET',
+      path: '/identity/invite-codes',
+      authorization: 'Bearer a-real-token',
+    });
+  });
+});

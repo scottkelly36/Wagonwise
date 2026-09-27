@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   deviceSchema,
   driverIdParamsSchema,
+  inviteCodeSchema,
   listDriversResponseSchema,
+  listInviteCodesResponseSchema,
   refreshTokenRequestSchema,
   registerDeviceRequestSchema,
   requestOtpRequestSchema,
@@ -167,6 +169,44 @@ describe('driverIdParamsSchema', () => {
     expect(
       driverIdParamsSchema.safeParse({ id: '11111111-1111-4111-8111-111111111111' }).success,
     ).toBe(true);
+  });
+});
+
+describe('inviteCodeSchema', () => {
+  it('parses an unredeemed code', () => {
+    const result = inviteCodeSchema.safeParse({
+      code: 'HEXHAM24',
+      redeemedBy: null,
+      redeemedAt: null,
+      createdAt: '2026-09-27T08:00:00.000Z',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('parses a redeemed code', () => {
+    const result = inviteCodeSchema.safeParse({
+      code: 'HEXHAM24',
+      redeemedBy: 'driver-1',
+      redeemedAt: '2026-09-27T09:00:00.000Z',
+      createdAt: '2026-09-27T08:00:00.000Z',
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('listInviteCodesResponseSchema', () => {
+  it('parses a list of invite codes', () => {
+    const result = listInviteCodesResponseSchema.safeParse({
+      inviteCodes: [
+        {
+          code: 'HEXHAM24',
+          redeemedBy: null,
+          redeemedAt: null,
+          createdAt: '2026-09-27T08:00:00.000Z',
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
   });
 });
 
