@@ -90,6 +90,10 @@ const envSchema = z.object({
   // fast enough that a Phase 1 tester never notices the delay, without hammering the database
   // between polls.
   OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(100).default(2000),
+  // M9's rough fuel-cost estimate (docs/progress.md) — one app-wide constant, not a live price
+  // feed. Default is a rough UK average diesel price; update it here as prices actually move,
+  // rather than wiring up a live feed for a number that's explicitly a rough estimate anyway.
+  FUEL_PRICE_PER_LITRE_GBP: z.coerce.number().positive().default(1.6),
 });
 
 export interface Config {
@@ -108,6 +112,7 @@ export interface Config {
   readonly resendApiKey: string | undefined;
   readonly resendFromEmail: string | undefined;
   readonly outboxPollIntervalMs: number;
+  readonly fuelPricePerLitreGBP: number;
 }
 
 /** Thrown at boot when the environment is invalid; the process should exit, not limp on. */
@@ -147,5 +152,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     resendApiKey: values.RESEND_API_KEY,
     resendFromEmail: values.RESEND_FROM_EMAIL,
     outboxPollIntervalMs: values.OUTBOX_POLL_INTERVAL_MS,
+    fuelPricePerLitreGBP: values.FUEL_PRICE_PER_LITRE_GBP,
   };
 }

@@ -126,6 +126,18 @@ export function VehicleProfileForm({
         testID="profile-axle-weight-input"
       />
 
+      <Text style={styles.label}>Fuel consumption (L/100km, optional)</Text>
+      <TextInput
+        style={styles.input}
+        value={values.fuelConsumptionL100km}
+        onChangeText={setField('fuelConsumptionL100km')}
+        placeholder="30"
+        placeholderTextColor={colors.textDim}
+        keyboardType="decimal-pad"
+        testID="profile-fuel-consumption-input"
+      />
+      <Text style={styles.hint}>Used only for a rough fuel-cost estimate on route options.</Text>
+
       {displayedError !== undefined && <Text style={styles.error}>{displayedError}</Text>}
 
       <TouchableOpacity

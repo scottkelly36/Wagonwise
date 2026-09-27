@@ -64,4 +64,32 @@ describe('createVehicleProfile', () => {
     });
     expect(await deps.repo.listForDriver(driverId)).toEqual([]);
   });
+
+  it('accepts an optional fuelConsumptionL100km', async () => {
+    const deps = buildDeps();
+    const result = await createVehicleProfile(deps, {
+      driverId,
+      name: 'Big Wagon',
+      dimensions: dimensions(),
+      fuelConsumptionL100km: 32,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.fuelConsumptionL100km).toBe(32);
+  });
+
+  it('rejects a non-positive fuelConsumptionL100km without touching the repository', async () => {
+    const deps = buildDeps();
+    const result = await createVehicleProfile(deps, {
+      driverId,
+      name: 'Big Wagon',
+      dimensions: dimensions(),
+      fuelConsumptionL100km: 0,
+    });
+    expect(result).toEqual({
+      ok: false,
+      error: { tag: 'InvalidFuelConsumption', reason: 'must_be_positive' },
+    });
+    expect(await deps.repo.listForDriver(driverId)).toEqual([]);
+  });
 });

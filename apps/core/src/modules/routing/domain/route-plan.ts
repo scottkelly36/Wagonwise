@@ -34,4 +34,8 @@ export interface RoutePlan {
    *  Always empty until M3 gives routing a hazards read-model port to query. */
   readonly hazardsOnRoute: readonly string[];
   readonly createdAt: Date;
+  /** A rough estimate, not a quote (M9, docs/progress.md) — `distanceKm × (fuelConsumptionL100km /
+   *  100) × fuelPricePerLitreGBP`. Undefined whenever the profile this plan was made from has no
+   *  `fuelConsumptionL100km` set — never a guessed or default consumption figure. */
+  readonly estimatedFuelCostGBP?: number | undefined;
 }

@@ -2,6 +2,7 @@ import {
   activeTripIdParamsSchema,
   createVehicleProfileRequestSchema,
   planRouteRequestSchema,
+  previewRouteOptionsRequestSchema,
   routePlanIdParamsSchema,
   updateVehicleProfileRequestSchema,
   vehicleProfileIdParamsSchema,
@@ -28,6 +29,10 @@ import {
   type ListVehicleProfilesDeps,
 } from '../application/list-vehicle-profiles.js';
 import { planRoute, type PlanRouteDeps } from '../application/plan-route.js';
+import {
+  previewRouteOptions,
+  type PreviewRouteOptionsDeps,
+} from '../application/preview-route-options.js';
 import { startTrip, type StartTripDeps } from '../application/start-trip.js';
 import {
   updateVehicleProfile,
@@ -42,6 +47,7 @@ export interface RoutingRouteDeps {
   readonly getVehicleProfile: GetVehicleProfileDeps;
   readonly listVehicleProfiles: ListVehicleProfilesDeps;
   readonly planRoute: PlanRouteDeps;
+  readonly previewRouteOptions: PreviewRouteOptionsDeps;
   readonly getRoutePlan: GetRoutePlanDeps;
   readonly startTrip: StartTripDeps;
   readonly endTrip: EndTripDeps;
@@ -77,6 +83,7 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       driverId,
       name: parsed.data.name,
       dimensions: parsed.data.dimensions,
+      fuelConsumptionL100km: parsed.data.fuelConsumptionL100km,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
@@ -124,6 +131,7 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       driverId,
       name: body.data.name,
       dimensions: body.data.dimensions,
+      fuelConsumptionL100km: body.data.fuelConsumptionL100km,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
@@ -162,11 +170,34 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       profileId: makeId<'VehicleProfileId'>(parsed.data.profileId),
       origin: parsed.data.origin,
       destination: parsed.data.destination,
+      strategy: parsed.data.strategy,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(201).send(result.value);
+  });
+
+  // Unpersisted (M9, docs/progress.md) — lets a driver compare fastest/shortest before
+  // `POST /routing/route-plans` runs the real hazard-avoidance pass and saves anything.
+  app.post('/routing/route-options/preview', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const parsed = previewRouteOptionsRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await previewRouteOptions(deps.previewRouteOptions, {
+      driverId,
+      profileId: makeId<'VehicleProfileId'>(parsed.data.profileId),
+      origin: parsed.data.origin,
+      destination: parsed.data.destination,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send({ options: result.value });
   });
 
   app.get('/routing/route-plans/:id', async (request, reply) => {

@@ -37,6 +37,14 @@ export interface CongestionMarker {
   readonly estimatedWaitMinutes: number;
 }
 
+/** A driver-vouched safe place to park an HGV (M9, docs/progress.md) — a third, visually distinct
+ *  kind of marker: a square blue pin, unlike a hazard's square red/amber or congestion's round
+ *  teal, so it reads as "a place," not a warning or a delay. */
+export interface ParkingSpotMarker {
+  readonly id: string;
+  readonly location: MapPoint;
+}
+
 const HAZARD_MARKER_COLOR: Record<'high' | 'caution', string> = {
   high: '#F87171',
   caution: '#F59E0B',
@@ -82,6 +90,12 @@ interface Props {
   /** Fired when a congestion marker is tapped — no drawer yet (Phase 1 has nothing more to show
    *  than the wait estimate already on the marker itself), so undefined is a valid, common case. */
   readonly onCongestionPress?: (congestionId: string) => void;
+  /** Driver-reported safe parking spots (M9) — same "caller decides the query, this component
+   *  just draws what it's given" split as `hazards`/`congestion` above. */
+  readonly parkingSpots?: readonly ParkingSpotMarker[];
+  /** Fired when a parking-spot marker is tapped — no drawer yet, same reasoning as
+   *  `onCongestionPress`. */
+  readonly onParkingSpotPress?: (parkingSpotId: string) => void;
 }
 
 function toLngLat(point: MapPoint): LngLat {
@@ -127,6 +141,8 @@ export function RouteMap({
   onHazardPress,
   congestion,
   onCongestionPress,
+  parkingSpots,
+  onParkingSpotPress,
 }: Props) {
   // Whether the camera is actively tracking `currentPosition` — true until the driver manually
   // pans/zooms (see `handleRegionWillChange`), at which point it stays false (their view stays
@@ -264,6 +280,18 @@ export function RouteMap({
             </View>
           </ViewAnnotation>
         ))}
+        {parkingSpots?.map((spot) => (
+          <ViewAnnotation
+            key={spot.id}
+            id={`parking-${spot.id}`}
+            lngLat={toLngLat(spot.location)}
+            onPress={() => onParkingSpotPress?.(spot.id)}
+          >
+            <View style={styles.parkingMarker} testID={`parking-pin-${spot.id}`}>
+              <Text style={styles.parkingMarkerText}>P</Text>
+            </View>
+          </ViewAnnotation>
+        ))}
       </MapLibreMap>
       {isFreeLooking && (
         <TouchableOpacity
@@ -352,5 +380,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#0B1220',
+  },
+  // Square and blue, unlike either the square red/amber hazardMarker or the round teal
+  // congestionMarker above — a place to park reads as neither a warning nor a delay.
+  parkingMarker: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  parkingMarkerText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

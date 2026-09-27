@@ -80,4 +80,34 @@ describe('updateVehicleProfile', () => {
     expect(result.ok).toBe(false);
     expect((await deps.repo.findById(profileId))?.name).toBe('Original Name');
   });
+
+  it('updates fuelConsumptionL100km', async () => {
+    const deps = await seeded();
+    const result = await updateVehicleProfile(deps, {
+      id: profileId,
+      driverId,
+      name: 'New Name',
+      dimensions: dimensions(),
+      fuelConsumptionL100km: 28,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.fuelConsumptionL100km).toBe(28);
+  });
+
+  it('rejects a non-positive fuelConsumptionL100km without persisting the change', async () => {
+    const deps = await seeded();
+    const result = await updateVehicleProfile(deps, {
+      id: profileId,
+      driverId,
+      name: 'New Name',
+      dimensions: dimensions(),
+      fuelConsumptionL100km: -5,
+    });
+    expect(result).toEqual({
+      ok: false,
+      error: { tag: 'InvalidFuelConsumption', reason: 'must_be_positive' },
+    });
+    expect((await deps.repo.findById(profileId))?.name).toBe('Original Name');
+  });
 });

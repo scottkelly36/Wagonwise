@@ -46,6 +46,8 @@ describe('runMigrations', () => {
       '0013_congestion.sql',
       '0014_companies.sql',
       '0015_identity_company_id.sql',
+      '0016_parking.sql',
+      '0017_route_options.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -159,6 +161,8 @@ describe('runMigrations', () => {
       '0013_congestion.sql',
       '0014_companies.sql',
       '0015_identity_company_id.sql',
+      '0016_parking.sql',
+      '0017_route_options.sql',
     ]);
   });
 });

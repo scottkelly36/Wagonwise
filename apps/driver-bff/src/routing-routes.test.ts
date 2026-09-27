@@ -206,6 +206,71 @@ describe('POST /routing/route-plans', () => {
     expect(response.statusCode).toBe(422);
     expect(response.json()).toEqual({ tag: 'NoRouteFound' });
   });
+
+  it('forwards an optional strategy field', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 201, body: { id: 'plan-1' } };
+
+    await app.inject({
+      method: 'POST',
+      url: '/routing/route-plans',
+      payload: { profileId, origin, destination, strategy: 'shortest' },
+      headers: AUTH_HEADER,
+    });
+
+    expect(coreClient.calls[0]).toMatchObject({
+      body: { profileId, origin, destination, strategy: 'shortest' },
+    });
+  });
+});
+
+describe('POST /routing/route-options/preview', () => {
+  const origin = { lat: 54.9707, lon: -2.1013 };
+  const destination = { lat: 54.9738, lon: -2.0165 };
+  const profileId = '11111111-1111-4111-8111-111111111111';
+
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-options/preview',
+      payload: { profileId, origin, destination },
+    });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards profileId/origin/destination and the token, no driverId', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 200, body: { options: [] } };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-options/preview',
+      payload: { profileId, origin, destination },
+      headers: AUTH_HEADER,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: '/routing/route-options/preview',
+      body: { profileId, origin, destination },
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('400s locally on a malformed body, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/route-options/preview',
+      payload: { nonsense: true },
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
 });
 
 describe('GET /routing/route-plans/:id', () => {

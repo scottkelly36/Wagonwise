@@ -12,11 +12,18 @@ interface ValhallaLocation {
   readonly lon: number;
 }
 
+interface ValhallaTrip {
+  readonly summary: { readonly time: number; readonly length: number };
+  readonly legs: readonly { readonly shape: string }[];
+}
+
 interface ValhallaSuccessResponse {
-  readonly trip: {
-    readonly summary: { readonly time: number; readonly length: number };
-    readonly legs: readonly { readonly shape: string }[];
-  };
+  readonly trip: ValhallaTrip;
+  /** Present only when the request carried `alternates` and Valhalla found any — a sibling array
+   *  of `{ trip }` wrappers, not part of `trip` itself. May be shorter than requested, or absent
+   *  entirely: alternate-route diversity isn't guaranteed with `truck` costing plus
+   *  `exclude_polygons` (Valhalla's own documented caveat). */
+  readonly alternates?: readonly { readonly trip: ValhallaTrip }[];
 }
 
 interface ValhallaErrorResponse {
@@ -55,6 +62,22 @@ function toValhallaPolygon(polygon: GeoPolygon): [number, number][] {
  *  OpenStreetMap itself, out of scope for now. */
 const TOP_SPEED_KPH = 88;
 
+/** How many alternates to ask Valhalla for on top of its primary route (M9) — two is enough to
+ *  give a driver a genuine second option without inflating Valhalla's own routing cost much. */
+const ALTERNATES_REQUESTED = 2;
+
+function toRouteResult(trip: ValhallaTrip): RouteResult {
+  const leg = trip.legs[0];
+  if (!leg) {
+    throw new Error('Valhalla response had no legs');
+  }
+  return {
+    geometry: leg.shape,
+    distanceKm: trip.summary.length,
+    durationMin: trip.summary.time / 60,
+  };
+}
+
 /**
  * Truck-aware routing via a self-hosted Valhalla instance (design doc §4), behind the
  * `RoutingEngine` port. Talks to Valhalla's `/route` action directly over HTTP — no client
@@ -64,8 +87,8 @@ const TOP_SPEED_KPH = 88;
 export class ValhallaRoutingEngine implements RoutingEngine {
   constructor(private readonly baseUrl: string) {}
 
-  async route(req: RouteRequest): Promise<Result<RouteResult, NoRouteFound>> {
-    const body = {
+  private requestBody(req: RouteRequest, alternates: number | undefined): Record<string, unknown> {
+    return {
       locations: [toValhallaLocation(req.origin), toValhallaLocation(req.destination)],
       costing: 'truck',
       costing_options: {
@@ -81,8 +104,13 @@ export class ValhallaRoutingEngine implements RoutingEngine {
         },
       },
       ...(req.avoid.length === 0 ? {} : { exclude_polygons: req.avoid.map(toValhallaPolygon) }),
+      ...(alternates === undefined ? {} : { alternates }),
     };
+  }
 
+  private async post(
+    body: Record<string, unknown>,
+  ): Promise<Result<ValhallaSuccessResponse, NoRouteFound>> {
     const response = await fetch(`${this.baseUrl}/route`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -98,16 +126,25 @@ export class ValhallaRoutingEngine implements RoutingEngine {
         `Valhalla returned ${response.status} with an unrecognised body: ${JSON.stringify(parsed)}`,
       );
     }
+    return ok(parsed as ValhallaSuccessResponse);
+  }
 
-    const success = parsed as ValhallaSuccessResponse;
-    const leg = success.trip.legs[0];
-    if (!leg) {
-      throw new Error('Valhalla response had no legs');
+  async route(req: RouteRequest): Promise<Result<RouteResult, NoRouteFound>> {
+    const result = await this.post(this.requestBody(req, undefined));
+    if (!result.ok) {
+      return result;
     }
-    return ok({
-      geometry: leg.shape,
-      distanceKm: success.trip.summary.length,
-      durationMin: success.trip.summary.time / 60,
-    });
+    return ok(toRouteResult(result.value.trip));
+  }
+
+  async routeAlternatives(
+    req: RouteRequest,
+  ): Promise<Result<readonly RouteResult[], NoRouteFound>> {
+    const result = await this.post(this.requestBody(req, ALTERNATES_REQUESTED));
+    if (!result.ok) {
+      return result;
+    }
+    const alternateTrips = result.value.alternates?.map((a) => a.trip) ?? [];
+    return ok([result.value.trip, ...alternateTrips].map(toRouteResult));
   }
 }

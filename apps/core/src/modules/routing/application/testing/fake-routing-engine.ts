@@ -21,8 +21,22 @@ export class FakeRoutingEngine implements RoutingEngine {
   results: Result<RouteResult, NoRouteFound>[] = [];
   readonly requests: RouteRequest[] = [];
 
+  /** Same shape as `result`/`results` above, for `routeAlternatives` (M9) — a separate queue since
+   *  a test may exercise both methods in one plan (`planRoute`'s `strategy: 'shortest'` path calls
+   *  `routeAlternatives` first, then `route` again for the hazard-avoidance pass). */
+  alternativesResult: Result<readonly RouteResult[], NoRouteFound> = ok([
+    { geometry: 'fake-geometry', distanceKm: 10, durationMin: 15 },
+  ]);
+  alternativesResults: Result<readonly RouteResult[], NoRouteFound>[] = [];
+  readonly alternativesRequests: RouteRequest[] = [];
+
   route(req: RouteRequest): Promise<Result<RouteResult, NoRouteFound>> {
     this.requests.push(req);
     return Promise.resolve(this.results.shift() ?? this.result);
+  }
+
+  routeAlternatives(req: RouteRequest): Promise<Result<readonly RouteResult[], NoRouteFound>> {
+    this.alternativesRequests.push(req);
+    return Promise.resolve(this.alternativesResults.shift() ?? this.alternativesResult);
   }
 }
