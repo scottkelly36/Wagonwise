@@ -1,11 +1,12 @@
 import type { CSSProperties } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../state/auth-store';
 
-/** Two sections, not one flat nav — the two things asked for so far (2026-09-26): a
- *  fleet/dispatcher view for a business tracking its own drivers, and an admin/moderation view
- *  over what already exists in core (hazard reports, congestion reports, driver accounts). Which
- *  business sees which drivers, and how a dispatcher/admin actually signs in, are both still
- *  undecided — see `pages/SignIn.tsx`. */
+/** Two sections, not one flat nav — a fleet/dispatcher view for a business tracking its own
+ *  drivers, and an admin/moderation view over what already exists in core (companies, hazard
+ *  reports, congestion reports, driver accounts). Which business sees which drivers is still
+ *  undecided (see `pages/fleet/Overview.tsx`); company creation and driver assignment (admin
+ *  side, 2026-09-27) are real now. */
 const FLEET_LINKS = [
   { to: '/fleet', label: 'Overview' },
   { to: '/fleet/live-trips', label: 'Live trips' },
@@ -14,12 +15,17 @@ const FLEET_LINKS = [
 ] as const;
 
 const ADMIN_LINKS = [
+  { to: '/admin/companies', label: 'Companies' },
   { to: '/admin/hazard-reports', label: 'Hazard reports' },
   { to: '/admin/congestion-reports', label: 'Congestion reports' },
   { to: '/admin/driver-accounts', label: 'Driver accounts' },
 ] as const;
 
 export function Layout() {
+  const navigate = useNavigate();
+  const state = useAuthStore((s) => s.state);
+  const signOut = useAuthStore((s) => s.signOut);
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <nav style={{ width: 220, borderRight: '1px solid #e5e7eb', padding: 16 }}>
@@ -38,6 +44,22 @@ export function Layout() {
             {link.label}
           </NavLink>
         ))}
+
+        {state.status === 'signedIn' && (
+          <div style={{ marginTop: 32, borderTop: '1px solid #e5e7eb', paddingTop: 16 }}>
+            <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
+              {state.driver.identifier}
+            </p>
+            <button
+              onClick={() => {
+                signOut();
+                navigate('/sign-in');
+              }}
+            >
+              Sign out
+            </button>
+          </div>
+        )}
       </nav>
       <main style={{ flex: 1, padding: 24 }}>
         <Outlet />

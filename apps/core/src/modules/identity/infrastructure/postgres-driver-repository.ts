@@ -12,6 +12,7 @@ interface DriverRow {
   readonly consented_at: Date | null;
   readonly deleted_at: Date | null;
   readonly is_admin: boolean;
+  readonly company_id: string | null;
 }
 
 function toDomain(row: DriverRow): Driver {
@@ -22,8 +23,13 @@ function toDomain(row: DriverRow): Driver {
     consentedAt: row.consented_at ?? undefined,
     deletedAt: row.deleted_at ?? undefined,
     isAdmin: row.is_admin,
+    companyId: row.company_id === null ? undefined : makeId<'CompanyId'>(row.company_id),
   };
 }
+
+const SELECT_COLUMNS = `
+  id, identifier, created_at, consented_at, deleted_at, is_admin, company_id
+`;
 
 /**
  * Raw `sql` tagged-template queries, not Kysely's typed query builder — modules may not import
@@ -37,37 +43,46 @@ export class PostgresDriverRepository implements DriverRepository {
 
   async findByIdentifier(identifier: string): Promise<Driver | null> {
     const { rows } = await sql<DriverRow>`
-      select id, identifier, created_at, consented_at, deleted_at, is_admin
-      from identity.drivers where identifier = ${identifier}
+      select ${sql.raw(SELECT_COLUMNS)} from identity.drivers where identifier = ${identifier}
     `.execute(this.db);
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
   async findById(id: DriverId): Promise<Driver | null> {
     const { rows } = await sql<DriverRow>`
-      select id, identifier, created_at, consented_at, deleted_at, is_admin
-      from identity.drivers where id = ${id}
+      select ${sql.raw(SELECT_COLUMNS)} from identity.drivers where id = ${id}
     `.execute(this.db);
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
-  /** Upsert (the port's contract, M8) — `consent()`/`anonymize()` re-save an existing row.
-   *  `is_admin` is never part of `excluded` on conflict — this repository is not how a driver
-   *  becomes an admin (there's no domain function that sets `isAdmin: true`), so a re-save must
-   *  never clobber a flag set directly in the database back to whatever the in-memory `Driver`
-   *  happened to be constructed with. */
+  async findAll(): Promise<Driver[]> {
+    const { rows } = await sql<DriverRow>`
+      select ${sql.raw(SELECT_COLUMNS)} from identity.drivers order by created_at desc
+    `.execute(this.db);
+    return rows.map(toDomain);
+  }
+
+  /** Upsert (the port's contract, M8) — `consent()`/`anonymize()` re-save an existing row, and
+   *  now so does `update-driver.ts`'s admin action (2026-09-27). `is_admin`/`company_id` used to
+   *  be deliberately excluded from `excluded` here, back when there was no sanctioned way to set
+   *  either — only a direct database edit. Now that a real, admin-gated use case exists, this is
+   *  the one legitimate path for both to change, so they're included like every other field. */
   async save(driver: Driver, tx?: Transaction): Promise<void> {
     const executor = tx ? (tx as unknown as UntypedDb) : this.db;
     await sql`
-      insert into identity.drivers (id, identifier, created_at, consented_at, deleted_at, is_admin)
+      insert into identity.drivers
+        (id, identifier, created_at, consented_at, deleted_at, is_admin, company_id)
       values (
         ${driver.id}, ${driver.identifier}, ${driver.createdAt},
-        ${driver.consentedAt ?? null}, ${driver.deletedAt ?? null}, ${driver.isAdmin}
+        ${driver.consentedAt ?? null}, ${driver.deletedAt ?? null}, ${driver.isAdmin},
+        ${driver.companyId ?? null}
       )
       on conflict (id) do update set
         identifier = excluded.identifier,
         consented_at = excluded.consented_at,
-        deleted_at = excluded.deleted_at
+        deleted_at = excluded.deleted_at,
+        is_admin = excluded.is_admin,
+        company_id = excluded.company_id
     `.execute(executor);
   }
 }

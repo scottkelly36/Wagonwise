@@ -25,9 +25,11 @@ const DRIVER_AUTH_PREFIXES = [
   '/hazards/',
   '/feedback/',
   '/congestion/',
+  '/companies/',
   '/identity/devices/',
   '/identity/consent/',
   '/identity/account/',
+  '/identity/drivers/',
 ];
 
 const REQUEST_ID_HEADER = 'x-request-id';

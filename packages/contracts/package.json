@@ -28,6 +28,11 @@
       "types": "./dist/congestion.d.ts",
       "import": "./dist/congestion.js",
       "default": "./dist/congestion.js"
+    },
+    "./companies": {
+      "types": "./dist/companies.d.ts",
+      "import": "./dist/companies.js",
+      "default": "./dist/companies.js"
     }
   },
   "scripts": {

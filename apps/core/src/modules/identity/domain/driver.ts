@@ -1,6 +1,10 @@
 import type { Id } from '../../../shared/brand.js';
 
 export type DriverId = Id<'DriverId'>;
+/** Same brand name as companies' own `CompanyId` (decision 46) — declared here rather than
+ *  imported, since identity's `application/update-driver.ts` is the one place this field is
+ *  ever set. */
+export type CompanyId = Id<'CompanyId'>;
 
 /** A signed-in tester. Phase 1 has no profile beyond the identifier they signed in with. */
 export interface Driver {
@@ -21,6 +25,10 @@ export interface Driver {
    *  directly in the database. Required (not optional like the two fields above) since it always
    *  has a real value once a row exists — the DB column defaults `false`, not null. */
   readonly isAdmin: boolean;
+  /** A driver belongs to at most one company at a time (2026-09-27: "one driver, one company,
+   *  but drivers change jobs so they can change companies") — unset until an admin assigns one,
+   *  via `application/update-driver.ts`. No history of past companies is kept. */
+  readonly companyId?: CompanyId | undefined;
 }
 
 export function consent(driver: Driver, now: Date): Driver {

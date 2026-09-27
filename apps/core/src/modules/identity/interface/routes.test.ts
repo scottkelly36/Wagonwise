@@ -65,6 +65,9 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
     registerDevice: { repo: deviceRepo, clock, ids },
     giveConsent: { driverRepo, clock },
     deleteAccount: { driverRepo, sessionRepo, deviceRepo, clock },
+    listDrivers: { driverRepo },
+    updateDriver: { driverRepo },
+    driverRepo,
     tokenSigner,
   };
 
@@ -477,5 +480,186 @@ describe('DELETE /identity/account', () => {
       ...asDriver('driver-1'),
     });
     expect(second.statusCode).toBe(204);
+  });
+});
+
+describe('GET /identity/drivers', () => {
+  async function seedDrivers(deps: IdentityRouteDeps): Promise<void> {
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>('admin-driver'),
+      identifier: 'admin@example.com',
+      createdAt: now,
+      isAdmin: true,
+    });
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>('driver-1'),
+      identifier: 'driver@example.com',
+      createdAt: now,
+      isAdmin: false,
+    });
+  }
+
+  it('200s with every driver for an admin', async () => {
+    const { app, deps } = buildApp();
+    await seedDrivers(deps);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/identity/drivers',
+      ...asDriver('admin-driver'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ drivers: unknown[] }>().drivers).toHaveLength(2);
+  });
+
+  it('403s a non-admin driver', async () => {
+    const { app, deps } = buildApp();
+    await seedDrivers(deps);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/identity/drivers',
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ tag: 'Forbidden' });
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({ method: 'GET', url: '/identity/drivers' });
+    expect(response.statusCode).toBe(401);
+  });
+});
+
+describe('PATCH /identity/drivers/:id', () => {
+  // Unlike the caller's own `driverId` (a plain header value in this test suite, per the file's
+  // own convention above), the *target* id here is a real URL param parsed by
+  // `driverIdParamsSchema` (`z.uuid()`) — so both the admin's own id and the target driver's id
+  // need to actually look like UUIDs, not the arbitrary strings ('driver-1' etc.) every other
+  // describe block in this file uses for a caller.
+  const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
+  const DRIVER_ID = '22222222-2222-4222-8222-222222222222';
+
+  async function seedDrivers(deps: IdentityRouteDeps): Promise<void> {
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>(ADMIN_ID),
+      identifier: 'admin@example.com',
+      createdAt: now,
+      isAdmin: true,
+    });
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>(DRIVER_ID),
+      identifier: 'driver@example.com',
+      createdAt: now,
+      isAdmin: false,
+    });
+  }
+
+  it('200s and assigns a company, for an admin', async () => {
+    const { app, deps } = buildApp();
+    await seedDrivers(deps);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/identity/drivers/${DRIVER_ID}`,
+      payload: { companyId: 'company-1' },
+      ...asDriver(ADMIN_ID),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ companyId: 'company-1' });
+  });
+
+  it('clears a company assignment with companyId: null', async () => {
+    const { app, deps } = buildApp();
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>(ADMIN_ID),
+      identifier: 'admin@example.com',
+      createdAt: now,
+      isAdmin: true,
+    });
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>(DRIVER_ID),
+      identifier: 'driver@example.com',
+      createdAt: now,
+      isAdmin: false,
+      companyId: makeId<'CompanyId'>('company-1'),
+    });
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/identity/drivers/${DRIVER_ID}`,
+      payload: { companyId: null },
+      ...asDriver(ADMIN_ID),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).not.toHaveProperty('companyId');
+  });
+
+  it('sets isAdmin', async () => {
+    const { app, deps } = buildApp();
+    await seedDrivers(deps);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/identity/drivers/${DRIVER_ID}`,
+      payload: { isAdmin: true },
+      ...asDriver(ADMIN_ID),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ isAdmin: true });
+  });
+
+  it('403s a non-admin driver, changing nothing', async () => {
+    const { app, deps } = buildApp();
+    await seedDrivers(deps);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/identity/drivers/${ADMIN_ID}`,
+      payload: { isAdmin: false },
+      ...asDriver(DRIVER_ID),
+    });
+    expect(response.statusCode).toBe(403);
+
+    const admin = await deps.requestOtp.driverRepo.findById(makeId<'DriverId'>(ADMIN_ID));
+    expect(admin?.isAdmin).toBe(true);
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/identity/drivers/${DRIVER_ID}`,
+      payload: { isAdmin: true },
+    });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('404s an unknown driver id, for an admin', async () => {
+    const { app, deps } = buildApp();
+    await seedDrivers(deps);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/identity/drivers/33333333-3333-4333-8333-333333333333',
+      payload: { isAdmin: true },
+      ...asDriver(ADMIN_ID),
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'DriverNotFound' });
+  });
+
+  it('400s a non-UUID id, for an admin', async () => {
+    const { app, deps } = buildApp();
+    await seedDrivers(deps);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/identity/drivers/not-a-uuid',
+      payload: { isAdmin: true },
+      ...asDriver(ADMIN_ID),
+    });
+    expect(response.statusCode).toBe(400);
   });
 });

@@ -4,6 +4,10 @@ import type { Config } from '../config.js';
 import type { AccessTokenVerifier } from '../host/access-token-verifier.js';
 import { buildApp } from '../host/build-app.js';
 import {
+  createCompaniesModule,
+  type UntypedDb as CompaniesUntypedDb,
+} from '../modules/companies/api.js';
+import {
   createCongestionModule,
   type UntypedDb as CongestionUntypedDb,
 } from '../modules/congestion/api.js';
@@ -118,6 +122,7 @@ export function composeCore(
   const hazardsDb: HazardsUntypedDb = identityDb;
   const feedbackDb: FeedbackUntypedDb = identityDb;
   const congestionDb: CongestionUntypedDb = identityDb;
+  const companiesDb: CompaniesUntypedDb = identityDb;
 
   // hazards and identity both built before routing: routing's HazardAvoidanceQueryAdapter (M3.5)
   // and its reroute-detection handlers (M6.4) both wrap the other modules' facades — the same
@@ -142,6 +147,7 @@ export function composeCore(
   });
   const feedback = createFeedbackModule({ db: feedbackDb, clock, ids });
   const congestion = createCongestionModule({ db: congestionDb, clock });
+  const companies = createCompaniesModule({ db: companiesDb, clock, identity });
 
   const outboxDispatcher = new OutboxDispatcher(
     platformDb,
@@ -161,6 +167,7 @@ export function composeCore(
   hazards.registerRoutes(app);
   feedback.registerRoutes(app);
   congestion.registerRoutes(app);
+  companies.registerRoutes(app);
 
   return {
     app,

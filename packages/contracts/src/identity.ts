@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { brandedId } from './brand.js';
+import { companyIdSchema } from './companies.js';
 
 export const driverIdSchema = brandedId<'DriverId'>();
 export type DriverId = z.infer<typeof driverIdSchema>;
@@ -32,8 +33,31 @@ export const driverSchema = z.object({
    *  alone. Always present — the domain's own `Driver.isAdmin` is a required boolean, never
    *  unset. */
   isAdmin: z.boolean(),
+  /** A driver belongs to at most one company at a time (2026-09-27: "one driver, one company,
+   *  but drivers change jobs so they can change companies") — absent until an admin assigns one.
+   *  No history of past companies is kept. */
+  companyId: companyIdSchema.optional(),
 });
 export type DriverDto = z.infer<typeof driverSchema>;
+
+export const listDriversResponseSchema = z.object({
+  drivers: z.array(driverSchema),
+});
+export type ListDriversResponse = z.infer<typeof listDriversResponseSchema>;
+
+/** Admin-only (core's `identity/interface/routes.ts` gates it). `companyId: null` clears an
+ *  existing assignment; omitting the field leaves it unchanged — plain PATCH semantics, not a
+ *  reset to "no company" by default. Same for `isAdmin`: omitted means unchanged. */
+export const updateDriverRequestSchema = z.object({
+  companyId: companyIdSchema.nullable().optional(),
+  isAdmin: z.boolean().optional(),
+});
+export type UpdateDriverRequest = z.infer<typeof updateDriverRequestSchema>;
+
+export const driverIdParamsSchema = z.object({
+  id: z.uuid(),
+});
+export type DriverIdParams = z.infer<typeof driverIdParamsSchema>;
 
 export const verifyOtpResponseSchema = z.object({
   accessToken: z.string(),

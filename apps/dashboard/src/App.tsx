@@ -1,5 +1,7 @@
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { RequireAdmin } from './components/RequireAdmin';
+import { Companies } from './pages/admin/Companies';
 import { CongestionReports } from './pages/admin/CongestionReports';
 import { DriverAccounts } from './pages/admin/DriverAccounts';
 import { HazardReports } from './pages/admin/HazardReports';
@@ -14,15 +16,18 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/sign-in" element={<SignIn />} />
-        <Route element={<Layout />}>
-          <Route index element={<Navigate to="/fleet" replace />} />
-          <Route path="/fleet" element={<FleetOverview />} />
-          <Route path="/fleet/live-trips" element={<LiveTrips />} />
-          <Route path="/fleet/drivers" element={<Drivers />} />
-          <Route path="/fleet/vehicle-profiles" element={<VehicleProfiles />} />
-          <Route path="/admin/hazard-reports" element={<HazardReports />} />
-          <Route path="/admin/congestion-reports" element={<CongestionReports />} />
-          <Route path="/admin/driver-accounts" element={<DriverAccounts />} />
+        <Route element={<RequireAdmin />}>
+          <Route element={<Layout />}>
+            <Route index element={<Navigate to="/fleet" replace />} />
+            <Route path="/fleet" element={<FleetOverview />} />
+            <Route path="/fleet/live-trips" element={<LiveTrips />} />
+            <Route path="/fleet/drivers" element={<Drivers />} />
+            <Route path="/fleet/vehicle-profiles" element={<VehicleProfiles />} />
+            <Route path="/admin/companies" element={<Companies />} />
+            <Route path="/admin/hazard-reports" element={<HazardReports />} />
+            <Route path="/admin/congestion-reports" element={<CongestionReports />} />
+            <Route path="/admin/driver-accounts" element={<DriverAccounts />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>

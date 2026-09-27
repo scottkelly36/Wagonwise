@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fastify/cors": "^11.1.0",
     "@wagonwise/contracts": "workspace:*",
     "fastify": "^5.12.5",
     "jose": "^6.2.12",
