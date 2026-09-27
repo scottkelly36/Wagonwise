@@ -137,4 +137,17 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
     );
     return reply.status(core.status).send(core.body);
   });
+
+  // The dashboard's Hazard reports admin screen (2026-09-27) — core decides who's allowed to
+  // (the admin gate lives in hazards/interface/routes.ts), same "validate, authenticate,
+  // forward, relay unchanged" shape as every other route here.
+  app.get('/hazards/reports', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const core = await deps.coreClient.request('GET', '/hazards/reports', request.id, {
+      authorization: `Bearer ${token}`,
+    });
+    return reply.status(core.status).send(core.body);
+  });
 }

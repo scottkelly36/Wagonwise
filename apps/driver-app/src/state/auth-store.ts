@@ -13,9 +13,6 @@ export interface DriverInfo {
   /** Design doc §9's privacy notice/consent screen (M8) — absent until the driver accepts it;
    *  `index.tsx`'s gate uses this to decide whether to show it. */
   readonly consentedAt?: string;
-  /** Lets the app hide admin-only actions (e.g. a true hazard delete, 2026-09-26) instead of
-   *  showing the control to every driver and relying on the server's 403 alone. */
-  readonly isAdmin: boolean;
 }
 
 export type AuthState =

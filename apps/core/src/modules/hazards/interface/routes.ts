@@ -15,6 +15,7 @@ import {
   type FindNearbyHazardsDeps,
 } from '../application/find-nearby-hazards.js';
 import { getHazard, type GetHazardDeps } from '../application/get-hazard.js';
+import { listHazards, type ListHazardsDeps } from '../application/list-hazards.js';
 import { parseVoiceReport, type ParseVoiceReportDeps } from '../application/parse-voice-report.js';
 import { reportHazard, type ReportHazardDeps } from '../application/report-hazard.js';
 import { statusFor } from './error-mapping.js';
@@ -28,6 +29,7 @@ export interface HazardsRouteDeps {
    *  not open to every driver. */
   readonly adminDirectory: AdminDirectory;
   readonly getHazard: GetHazardDeps;
+  readonly listHazards: ListHazardsDeps;
   readonly parseVoiceReport: ParseVoiceReportDeps;
   readonly findNearbyHazards: FindNearbyHazardsDeps;
 }
@@ -189,5 +191,21 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(204).send();
+  });
+
+  // The dashboard's Hazard reports admin screen (2026-09-27) — every report, any status,
+  // replacing the driver app's own admin-only delete UI (which had no way to browse hazards at
+  // all, only ever reachable from a map marker). Admin-gated, same shape as the delete route
+  // above; a non-admin gets 403, never a partial list.
+  app.get('/hazards/reports', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    if (!(await deps.adminDirectory.isAdmin(driverId))) {
+      return reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
+    }
+
+    const hazards = await listHazards(deps.listHazards);
+    return reply.status(200).send({ hazards });
   });
 }

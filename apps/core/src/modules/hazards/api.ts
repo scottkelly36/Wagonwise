@@ -119,6 +119,7 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
     deleteHazard: { repo },
     adminDirectory,
     getHazard: { repo },
+    listHazards: { repo },
     parseVoiceReport: { parser: hazardParser },
     findNearbyHazards: { repo, clock: deps.clock },
   };

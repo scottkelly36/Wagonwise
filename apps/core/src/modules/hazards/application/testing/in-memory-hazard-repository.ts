@@ -40,6 +40,13 @@ export class InMemoryHazardRepository implements HazardRepository {
     return Promise.resolve(matches);
   }
 
+  findAll(): Promise<HazardReport[]> {
+    const matches = [...this.#byId.values()].sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    );
+    return Promise.resolve(matches);
+  }
+
   findExpirable(now: Date): Promise<HazardReport[]> {
     const matches = [...this.#byId.values()].filter(
       (r) =>

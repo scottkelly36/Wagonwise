@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   StyleSheet,
   Text,
@@ -10,11 +9,10 @@ import {
   View,
 } from 'react-native';
 
-import { useConfirmHazard, useDeleteHazard, useDismissHazard, useHazard } from '../api/use-hazards';
+import { useConfirmHazard, useDismissHazard, useHazard } from '../api/use-hazards';
 import { hazardsErrorMessage } from '../lib/error-messages';
 import { formatDateTime } from '../lib/format-date';
 import { formatMeasurement, HAZARD_STATUS_LABELS, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
-import { useAuthStore } from '../state/auth-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 interface Props {
@@ -35,36 +33,15 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
   const { data: hazard, isLoading, isError } = useHazard(hazardId);
   const confirmMutation = useConfirmHazard();
   const dismissMutation = useDismissHazard();
-  const deleteMutation = useDeleteHazard();
-  const isAdmin = useAuthStore((s) => s.state.status === 'signedIn' && s.state.driver.isAdmin);
 
   const actionError = confirmMutation.isError
     ? hazardsErrorMessage(confirmMutation.error)
     : dismissMutation.isError
       ? hazardsErrorMessage(dismissMutation.error)
-      : deleteMutation.isError
-        ? hazardsErrorMessage(deleteMutation.error)
-        : undefined;
+      : undefined;
   const actionPending = confirmMutation.isPending || dismissMutation.isPending;
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-
-  // Admin-only test-data cleanup (field-testing request, 2026-09-26) — see app/hazards/[id].tsx's
-  // identical handler and `isAdmin` reasoning; this drawer closes itself on success instead of
-  // navigating back.
-  function handleDelete(): void {
-    Alert.alert('Delete this report?', 'This removes it permanently. This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          if (!hazard) return;
-          deleteMutation.mutate(hazard.id, { onSuccess: onClose });
-        },
-      },
-    ]);
-  }
 
   return (
     <Modal
@@ -145,21 +122,6 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
                   )}
                 </TouchableOpacity>
               </View>
-
-              {isAdmin && (
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  disabled={deleteMutation.isPending}
-                  onPress={handleDelete}
-                  testID="delete-hazard-button"
-                >
-                  {deleteMutation.isPending ? (
-                    <ActivityIndicator color={colors.danger} />
-                  ) : (
-                    <Text style={styles.deleteButtonText}>Delete report</Text>
-                  )}
-                </TouchableOpacity>
-              )}
             </>
           )}
         </View>
@@ -267,19 +229,6 @@ function createStyles(colors: ThemeColors) {
     },
     dismissButtonText: {
       color: colors.text,
-    },
-    // Admin-only, so deliberately understated rather than sitting alongside "Still there"/
-    // "Not there" as an equal third option — a plain text-link style, not a filled button.
-    deleteButton: {
-      minHeight: 44,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: 12,
-    },
-    deleteButtonText: {
-      fontSize: 15,
-      color: colors.danger,
-      textDecorationLine: 'underline',
     },
   });
 }

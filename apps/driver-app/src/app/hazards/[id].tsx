@@ -1,8 +1,7 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -10,12 +9,7 @@ import {
   View,
 } from 'react-native';
 
-import {
-  useConfirmHazard,
-  useDeleteHazard,
-  useDismissHazard,
-  useHazard,
-} from '../../api/use-hazards';
+import { useConfirmHazard, useDismissHazard, useHazard } from '../../api/use-hazards';
 import { formatDateTime } from '../../lib/format-date';
 import { hazardsErrorMessage } from '../../lib/error-messages';
 import {
@@ -23,7 +17,6 @@ import {
   HAZARD_STATUS_LABELS,
   HAZARD_TYPE_LABELS,
 } from '../../lib/hazard-labels';
-import { useAuthStore } from '../../state/auth-store';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
 
 /**
@@ -33,13 +26,10 @@ import { useThemeColors, type ThemeColors } from '../../theme/colors';
  * this screen — a full navigation away from the map didn't fit "map is the app."
  */
 export default function HazardDetailScreen() {
-  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: hazard, isLoading, isError } = useHazard(id);
   const confirmMutation = useConfirmHazard();
   const dismissMutation = useDismissHazard();
-  const deleteMutation = useDeleteHazard();
-  const isAdmin = useAuthStore((s) => s.state.status === 'signedIn' && s.state.driver.isAdmin);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -63,28 +53,8 @@ export default function HazardDetailScreen() {
     ? hazardsErrorMessage(confirmMutation.error)
     : dismissMutation.isError
       ? hazardsErrorMessage(dismissMutation.error)
-      : deleteMutation.isError
-        ? hazardsErrorMessage(deleteMutation.error)
-        : undefined;
+      : undefined;
   const actionPending = confirmMutation.isPending || dismissMutation.isPending;
-
-  // Admin-only test-data cleanup (field-testing request, 2026-09-26) — hidden from anyone whose
-  // account isn't flagged (`isAdmin`, checked here so a non-admin never sees a control that would
-  // just 403), on top of the server enforcing the same thing regardless. Confirmed first since
-  // it's a true, unrecoverable delete, not a status flip like dismiss.
-  function handleDelete(): void {
-    Alert.alert('Delete this report?', 'This removes it permanently. This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          if (!hazard) return;
-          deleteMutation.mutate(hazard.id, { onSuccess: () => router.back() });
-        },
-      },
-    ]);
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -132,21 +102,6 @@ export default function HazardDetailScreen() {
             )}
           </TouchableOpacity>
         </View>
-
-        {isAdmin && (
-          <TouchableOpacity
-            style={styles.deleteButton}
-            disabled={deleteMutation.isPending}
-            onPress={handleDelete}
-            testID="delete-hazard-button"
-          >
-            {deleteMutation.isPending ? (
-              <ActivityIndicator color={colors.danger} />
-            ) : (
-              <Text style={styles.deleteButtonText}>Delete report</Text>
-            )}
-          </TouchableOpacity>
-        )}
       </View>
     </SafeAreaView>
   );
@@ -227,19 +182,6 @@ function createStyles(colors: ThemeColors) {
     },
     dismissButtonText: {
       color: colors.text,
-    },
-    // Admin-only, so deliberately understated rather than sitting alongside "Still there"/
-    // "Not there" as an equal third option — a plain text-link style, not a filled button.
-    deleteButton: {
-      minHeight: 44,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: 16,
-    },
-    deleteButtonText: {
-      fontSize: 15,
-      color: colors.danger,
-      textDecorationLine: 'underline',
     },
   });
 }
