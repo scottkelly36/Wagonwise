@@ -1,4 +1,5 @@
 import { createAccessTokenVerifier } from './auth/access-token-verifier.js';
+import { registerCompaniesRoutes } from './companies-routes.js';
 import { ConfigError, loadConfig } from './config.js';
 import { registerCongestionRoutes } from './congestion-routes.js';
 import { createCoreClient } from './core-client.js';
@@ -32,6 +33,7 @@ registerRoutingRoutes(app, routeDeps);
 registerHazardsRoutes(app, routeDeps);
 registerFeedbackRoutes(app, routeDeps);
 registerCongestionRoutes(app, routeDeps);
+registerCompaniesRoutes(app, routeDeps);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {

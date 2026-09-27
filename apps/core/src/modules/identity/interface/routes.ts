@@ -1,18 +1,23 @@
 import {
+  driverIdParamsSchema,
   refreshTokenRequestSchema,
   registerDeviceRequestSchema,
   requestOtpRequestSchema,
   revokeSessionParamsSchema,
+  updateDriverRequestSchema,
   verifyOtpRequestSchema,
 } from '@wagonwise/contracts/identity';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
 import { deleteAccount, type DeleteAccountDeps } from '../application/delete-account.js';
 import { giveConsent, type GiveConsentDeps } from '../application/give-consent.js';
+import { listDrivers, type ListDriversDeps } from '../application/list-drivers.js';
+import type { DriverRepository } from '../application/ports/driver-repository.js';
 import { refreshToken, type RefreshTokenDeps } from '../application/refresh-token.js';
 import { registerDevice, type RegisterDeviceDeps } from '../application/register-device.js';
 import { requestOtp, type RequestOtpDeps } from '../application/request-otp.js';
 import { revokeSession, type RevokeSessionDeps } from '../application/revoke-session.js';
+import { updateDriver, type UpdateDriverDeps } from '../application/update-driver.js';
 import { verifyOtp, type VerifyOtpDeps } from '../application/verify-otp.js';
 import type { TokenSigner } from '../application/ports/token-signer.js';
 import { statusFor } from './error-mapping.js';
@@ -25,6 +30,13 @@ export interface IdentityRouteDeps {
   readonly registerDevice: RegisterDeviceDeps;
   readonly giveConsent: GiveConsentDeps;
   readonly deleteAccount: DeleteAccountDeps;
+  readonly listDrivers: ListDriversDeps;
+  readonly updateDriver: UpdateDriverDeps;
+  /** The admin check `GET /identity/drivers` and `PATCH /identity/drivers/:id` both need — no
+   *  separate `AdminDirectory` port the way other modules need one (2026-09-27's pattern):
+   *  identity already *is* the source of truth for `isAdmin`, so this is an in-module read, not a
+   *  cross-context one. */
+  readonly driverRepo: Pick<DriverRepository, 'findById'>;
   readonly tokenSigner: TokenSigner;
 }
 
@@ -34,6 +46,7 @@ function driverDto(driver: {
   readonly createdAt: Date;
   readonly consentedAt?: Date | undefined;
   readonly isAdmin: boolean;
+  readonly companyId?: string | undefined;
 }) {
   return {
     id: driver.id,
@@ -41,6 +54,7 @@ function driverDto(driver: {
     createdAt: driver.createdAt,
     ...(driver.consentedAt === undefined ? {} : { consentedAt: driver.consentedAt }),
     isAdmin: driver.isAdmin,
+    ...(driver.companyId === undefined ? {} : { companyId: driver.companyId }),
   };
 }
 
@@ -57,6 +71,22 @@ function requireDriverId(request: FastifyRequest, reply: FastifyReply): Id<'Driv
     return undefined;
   }
   return makeId<'DriverId'>(request.driverId);
+}
+
+/** `requireDriverId` first (401), then this (403) — the user-management screen's own gate. A
+ *  non-admin never learns whether any other driver exists. */
+async function requireAdmin(
+  deps: IdentityRouteDeps,
+  driverId: Id<'DriverId'>,
+  reply: FastifyReply,
+  requestId: string,
+): Promise<boolean> {
+  const caller = await deps.driverRepo.findById(driverId);
+  if (!caller?.isAdmin) {
+    void reply.status(403).send({ tag: 'Forbidden', requestId });
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -172,5 +202,48 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
   app.get('/identity/.well-known/jwks.json', async (_request, reply) => {
     const jwk = await deps.tokenSigner.publicJwk();
     return reply.status(200).send({ keys: [jwk] });
+  });
+
+  // The user-management screen's own read (2026-09-27) — every driver, for an admin to assign a
+  // company or a role to. Admin-gated; a non-admin gets 403, never a partial or filtered list.
+  app.get('/identity/drivers', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+    if (!(await requireAdmin(deps, driverId, reply, request.id))) return reply;
+
+    const drivers = await listDrivers(deps.listDrivers);
+    return reply.status(200).send({ drivers: drivers.map(driverDto) });
+  });
+
+  // The one sanctioned way to change `companyId`/`isAdmin` now (2026-09-27) — see
+  // `application/update-driver.ts`'s own reasoning for why this replaces hand-editing the
+  // database. Admin-gated; a non-admin never learns whether the target id exists.
+  app.patch('/identity/drivers/:id', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+    if (!(await requireAdmin(deps, driverId, reply, request.id))) return reply;
+
+    const params = driverIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const body = updateDriverRequestSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await updateDriver(deps.updateDriver, {
+      id: makeId<'DriverId'>(params.data.id),
+      ...(body.data.companyId === undefined
+        ? {}
+        : {
+            companyId:
+              body.data.companyId === null ? null : makeId<'CompanyId'>(body.data.companyId),
+          }),
+      ...(body.data.isAdmin === undefined ? {} : { isAdmin: body.data.isAdmin }),
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send(driverDto(result.value));
   });
 }

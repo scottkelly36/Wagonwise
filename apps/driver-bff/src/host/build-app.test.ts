@@ -33,6 +33,33 @@ describe('request IDs', () => {
   });
 });
 
+describe('CORS', () => {
+  it('allows the configured dashboard origin', async () => {
+    const app = buildApp(loadConfig({ LOG_LEVEL: 'silent', DASHBOARD_ORIGIN: 'http://dash.test' }));
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health',
+      headers: { origin: 'http://dash.test' },
+    });
+    expect(response.headers['access-control-allow-origin']).toBe('http://dash.test');
+  });
+
+  // `@fastify/cors` with a fixed string `origin` always sets the header to that configured
+  // value, whatever the request's own Origin is — it's the *browser* that then refuses to let
+  // evil.test's own script read the response, by comparing its own origin against this header
+  // rather than the server changing its answer per request. So the real assertion is "the
+  // configured origin is what gets sent," not "an unrelated Origin gets nothing back".
+  it('never allows an origin other than the configured one', async () => {
+    const app = buildApp(loadConfig({ LOG_LEVEL: 'silent', DASHBOARD_ORIGIN: 'http://dash.test' }));
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health',
+      headers: { origin: 'http://evil.test' },
+    });
+    expect(response.headers['access-control-allow-origin']).toBe('http://dash.test');
+  });
+});
+
 describe('error handling', () => {
   it('does not leak an unexpected error message', async () => {
     const app = makeApp();

@@ -44,14 +44,17 @@ describe('runMigrations', () => {
       '0011_identity_driver_lifecycle.sql',
       '0012_identity_admin_flag.sql',
       '0013_congestion.sql',
+      '0014_companies.sql',
+      '0015_identity_company_id.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
       `select schema_name from information_schema.schemata
-       where schema_name in ('identity', 'routing', 'hazards', 'feedback', 'outbox', 'congestion')
+       where schema_name in ('identity', 'routing', 'hazards', 'feedback', 'outbox', 'congestion', 'companies')
        order by schema_name`,
     );
     expect(schemas.map((row) => row.schema_name)).toEqual([
+      'companies',
       'congestion',
       'feedback',
       'hazards',
@@ -108,6 +111,18 @@ describe('runMigrations', () => {
     );
     expect(congestionTables.map((row) => row.table_name)).toEqual(['reports']);
 
+    const { rows: companiesTables } = await pool.query<{ table_name: string }>(
+      `select table_name from information_schema.tables
+       where table_schema = 'companies' order by table_name`,
+    );
+    expect(companiesTables.map((row) => row.table_name)).toEqual(['companies']);
+
+    const { rows: driverColumns } = await pool.query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+       where table_schema = 'identity' and table_name = 'drivers' and column_name = 'company_id'`,
+    );
+    expect(driverColumns).toHaveLength(1);
+
     const { rows: extensions } = await pool.query<{ extname: string }>(
       "select extname from pg_extension where extname = 'postgis'",
     );
@@ -142,6 +157,8 @@ describe('runMigrations', () => {
       '0011_identity_driver_lifecycle.sql',
       '0012_identity_admin_flag.sql',
       '0013_congestion.sql',
+      '0014_companies.sql',
+      '0015_identity_company_id.sql',
     ]);
   });
 });

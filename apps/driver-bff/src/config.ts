@@ -15,6 +15,11 @@ const envSchema = z.object({
   // INTERNAL_KEYS. Same well-known local-dev default on both sides, so this needs no `.env` for
   // local dev; override with a real shared secret for anything else.
   CORE_INTERNAL_KEY: z.string().min(1).default(DEFAULT_CORE_INTERNAL_KEY),
+  // The dashboard (apps/dashboard, 2026-09-27) is the first browser-based caller this BFF has
+  // ever had — driver-app is a mobile app, no CORS concerns. Defaults to Vite's own dev-server
+  // port, matching the "well-known local-dev default, zero config needed" convention every other
+  // env var here follows; override with the dashboard's real deployed origin elsewhere.
+  DASHBOARD_ORIGIN: z.url().default('http://localhost:5173'),
 });
 
 export interface Config {
@@ -24,6 +29,7 @@ export interface Config {
   readonly logLevel: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
   readonly coreInternalUrl: string;
   readonly coreInternalKey: string;
+  readonly dashboardOrigin: string;
 }
 
 /** Thrown at boot when the environment is invalid; the process should exit, not limp on. */
@@ -54,5 +60,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     logLevel: values.LOG_LEVEL,
     coreInternalUrl: values.CORE_INTERNAL_URL,
     coreInternalKey: values.CORE_INTERNAL_KEY,
+    dashboardOrigin: values.DASHBOARD_ORIGIN,
   };
 }

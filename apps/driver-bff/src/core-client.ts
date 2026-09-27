@@ -3,7 +3,7 @@ export interface CoreResponse {
   readonly body: unknown;
 }
 
-export type CoreMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+export type CoreMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 export interface CoreRequestOptions {
   readonly body?: unknown;
