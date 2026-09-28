@@ -16,11 +16,20 @@ import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
 import { useHazardVoiceWarnings } from '../hooks/use-hazard-voice-warnings';
 import { useLiveLocation } from '../hooks/use-live-location';
+import { useQuickVoiceReport } from '../hooks/use-quick-voice-report';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
 import { computeEta } from '../lib/eta';
 import { routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
 import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
+import {
+  activeKind as activeQuickReportKind,
+  isBusy as isQuickReportBusy,
+  isListening as isQuickReportListening,
+  outcomeMessage as quickReportOutcome,
+  type QuickReportKind,
+  type QuickVoiceReportState,
+} from '../lib/quick-voice-report-reducer';
 import { decodePolyline6 } from '../lib/polyline';
 import { routeProgress } from '../lib/route-progress';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
@@ -40,6 +49,29 @@ const VOICE_FLOW_LABEL: Record<string, string> = {
   'draft-saved': 'Report hazard',
   error: 'Tap to try again',
 };
+
+const QUICK_REPORT_LABEL: Record<QuickReportKind, string> = {
+  traffic: 'Traffic',
+  parking: 'Mark parking',
+};
+
+/** The label for one quick-report button: its own name when idle (or while the other kind is
+ *  running), progress text while its own report is in flight. */
+function quickReportButtonLabel(kind: QuickReportKind, state: QuickVoiceReportState): string {
+  if (activeQuickReportKind(state) !== kind) return QUICK_REPORT_LABEL[kind];
+  switch (state.phase) {
+    case 'asking-wait':
+    case 'confirming':
+      return 'Speaking…';
+    case 'capturing-wait':
+    case 'capturing-confirmation':
+      return 'Listening… tap to cancel';
+    case 'filing':
+      return 'Sending…';
+    default:
+      return QUICK_REPORT_LABEL[kind];
+  }
+}
 
 // A phase the driver can tap out of before it reaches its own natural end — every other phase
 // either runs to completion on its own or is a resting state where tapping starts a fresh report.
@@ -70,6 +102,7 @@ export default function ActiveTripScreen() {
   const location = useLiveLocation();
   const endTrip = useEndTrip();
   const voiceFlow = useVoiceHazardReportFlow(location.point);
+  const quickReport = useQuickVoiceReport(location.point);
 
   // decodePolyline6 is a pure function of plan.geometry — no need to redo it on every
   // unrelated re-render (e.g. a location update).
@@ -118,9 +151,17 @@ export default function ActiveTripScreen() {
     voiceFlow.state.phase === 'speaking-summary' ||
     voiceFlow.state.phase === 'filing';
   const micActive = CANCELLABLE_PHASES.has(voiceFlow.state.phase);
-  // Muted while the voice hazard-report flow is itself listening or speaking — talking over that
-  // would be worse than a missed warning.
-  useHazardVoiceWarnings(routeLine, location.point, nearbyHazardsData, !micBusy && !micActive);
+  const quickBusy = isQuickReportBusy(quickReport.state);
+  const quickListening = isQuickReportListening(quickReport.state);
+  const quickInFlight = quickBusy || quickListening;
+  // Muted while any voice report is listening or speaking — talking over that would be worse
+  // than a missed warning.
+  useHazardVoiceWarnings(
+    routeLine,
+    location.point,
+    nearbyHazardsData,
+    !micBusy && !micActive && !quickInFlight,
+  );
 
   // Reachable with no current trip/plan only by navigating here directly, or after an app
   // relaunch mid-trip — the trip store is ephemeral (docs/progress.md, M5.6 deviations) and
@@ -189,14 +230,54 @@ export default function ActiveTripScreen() {
           {voiceFlow.state.phase === 'error' && (
             <Text style={styles.overlayFootnote}>{voiceFlow.state.message}</Text>
           )}
+          {quickReport.state.phase === 'confirming' && (
+            <Text style={styles.overlayFootnote} testID="quick-report-prompt">
+              “{quickReport.state.prompt}”
+            </Text>
+          )}
+          {quickReportOutcome(quickReport.state) !== undefined && (
+            <Text style={styles.overlayFootnote} testID="quick-report-status">
+              {quickReportOutcome(quickReport.state)}
+            </Text>
+          )}
+
+          {/* Traffic and Mark parking: one tap each, then entirely by voice — same big targets
+              and no typing as the hazard mic (AGENTS.md: nothing on this screen needs typing or
+              small taps while moving). Only one voice report runs at a time. */}
+          <View style={styles.quickReportRow}>
+            {(['traffic', 'parking'] as const).map((kind) => {
+              const ownListening =
+                quickListening && activeQuickReportKind(quickReport.state) === kind;
+              const disabled =
+                micBusy || micActive || quickBusy || (quickListening && !ownListening);
+              return (
+                <TouchableOpacity
+                  key={kind}
+                  style={[
+                    styles.micButton,
+                    styles.quickReportButton,
+                    ownListening && styles.micButtonListening,
+                    disabled && styles.buttonDisabled,
+                  ]}
+                  disabled={disabled}
+                  onPress={() => (ownListening ? quickReport.cancel() : quickReport.start(kind))}
+                  testID={`quick-report-${kind}`}
+                >
+                  <Text style={styles.micButtonText}>
+                    {quickReportButtonLabel(kind, quickReport.state)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
           <TouchableOpacity
             style={[
               styles.micButton,
               micActive && styles.micButtonListening,
-              micBusy && styles.buttonDisabled,
+              (micBusy || quickInFlight) && styles.buttonDisabled,
             ]}
-            disabled={micBusy}
+            disabled={micBusy || quickInFlight}
             onPress={micActive ? voiceFlow.reset : voiceFlow.start}
             testID="voice-report-button"
           >
@@ -328,6 +409,17 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 28,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    quickReportRow: {
+      flexDirection: 'row',
+      gap: 8,
+      alignSelf: 'stretch',
+      justifyContent: 'center',
+    },
+    quickReportButton: {
+      flex: 1,
+      maxWidth: 200,
+      paddingHorizontal: 12,
     },
     micButtonListening: {
       backgroundColor: 'rgba(248, 113, 113, 0.8)',

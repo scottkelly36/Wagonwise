@@ -99,4 +99,33 @@ describe('voiceCaptureReducer', () => {
       ),
     ).toEqual({ status: 'idle' });
   });
+
+  describe("ignores native events for a session it didn't start", () => {
+    const resting: VoiceCaptureState[] = [
+      { status: 'idle' },
+      { status: 'transcribed', origin, transcript: 'low bridge' },
+      { status: 'no-speech', origin },
+      { status: 'error', errorMessage: 'network' },
+      { status: 'permission-denied' },
+    ];
+
+    it.each(resting)('native-started leaves $status unchanged', (state) => {
+      expect(voiceCaptureReducer(state, { type: 'native-started', origin })).toBe(state);
+    });
+
+    it.each(resting)('result leaves $status unchanged', (state) => {
+      expect(voiceCaptureReducer(state, { type: 'result', transcript: 'yes' })).toBe(state);
+    });
+
+    it.each(resting)('error leaves $status unchanged', (state) => {
+      expect(voiceCaptureReducer(state, { type: 'error', message: 'busy' })).toBe(state);
+    });
+
+    it('native-started while already listening keeps the original origin', () => {
+      const listening: VoiceCaptureState = { status: 'listening', origin };
+      expect(voiceCaptureReducer(listening, { type: 'native-started', origin: undefined })).toBe(
+        listening,
+      );
+    });
+  });
 });
