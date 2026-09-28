@@ -21,14 +21,25 @@ describe('Ed25519TokenSigner', () => {
     expect(payload.sid).toBe(claims.sessionId);
   });
 
-  it('carries only sub, sid, iat and exp — no email, no vehicle data (design doc §9)', async () => {
+  it('carries only sub, sid, kind, iat and exp — no email, no vehicle data (design doc §9)', async () => {
     const signer = await Ed25519TokenSigner.generateEphemeral();
     const token = await signer.signAccessToken(claims);
     const jwk = await signer.publicJwk();
     const publicKey = await importJWK(jwk, 'EdDSA');
 
     const { payload } = await jwtVerify(token, publicKey);
-    expect(Object.keys(payload).sort()).toEqual(['exp', 'iat', 'sid', 'sub']);
+    expect(Object.keys(payload).sort()).toEqual(['exp', 'iat', 'kind', 'sid', 'sub']);
+    expect(payload.kind).toBe('driver');
+  });
+
+  it("signs staff tokens with the same key, marked kind 'staff' (P2-M1.6)", async () => {
+    const signer = await Ed25519TokenSigner.generateEphemeral();
+    const token = await signer.signStaffAccessToken({ staffId: 'staff-1', sessionId: 'sess-1' });
+    const publicKey = await importJWK(await signer.publicJwk(), 'EdDSA');
+
+    const { payload } = await jwtVerify(token, publicKey);
+    expect(Object.keys(payload).sort()).toEqual(['exp', 'iat', 'kind', 'sid', 'sub']);
+    expect(payload).toMatchObject({ sub: 'staff-1', sid: 'sess-1', kind: 'staff' });
   });
 
   it('sets a 15-minute expiry', async () => {

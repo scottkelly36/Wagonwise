@@ -1,7 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
-import type { AccessTokenVerifier } from '../host/access-token-verifier.js';
+import {
+  createLocalStaffAccessTokenVerifier,
+  type AccessTokenVerifier,
+  type StaffAccessTokenVerifier,
+} from '../host/access-token-verifier.js';
 import { buildApp } from '../host/build-app.js';
 import {
   createCompaniesModule,
@@ -57,6 +61,7 @@ export interface CoreOverrides {
    *  ClickSend's/Resend's actual endpoint. */
   readonly otpSender?: OtpSender | undefined;
   readonly accessTokenVerifier?: AccessTokenVerifier;
+  readonly staffAccessTokenVerifier?: StaffAccessTokenVerifier;
   /** Defaults to `routing.eventHandlers` (M6.4's reroute-detection handlers) — tests substitute
    *  their own list here the same way they substitute every other override, entirely replacing
    *  the real handlers rather than adding to them. */
@@ -75,6 +80,18 @@ export interface Core {
   readonly app: FastifyInstance;
   /** Closes the app and the database pool. `main.ts` calls this on SIGINT/SIGTERM. */
   close(): Promise<void>;
+}
+
+/** Staff tokens are verified with the same public key identity signs with. Building a verifier
+ *  is async (`importJWK`) and `composeCore` isn't, so it's built on first use. */
+function lazyStaffVerifier(tokenSigner: TokenSigner): StaffAccessTokenVerifier {
+  let verifier: Promise<StaffAccessTokenVerifier> | undefined;
+  return {
+    async verify(token) {
+      verifier ??= tokenSigner.publicJwk().then(createLocalStaffAccessTokenVerifier);
+      return (await verifier).verify(token);
+    },
+  };
 }
 
 /**
@@ -152,7 +169,13 @@ export function composeCore(
   });
   const feedback = createFeedbackModule({ db: feedbackDb, clock, ids });
   const congestion = createCongestionModule({ db: congestionDb, clock });
-  const companies = createCompaniesModule({ db: companiesDb, clock, identity });
+  const companies = createCompaniesModule({
+    db: companiesDb,
+    clock,
+    ids,
+    identity,
+    staffSecretKey: config.staffSecretKey,
+  });
   const parking = createParkingModule({ db: parkingDb, clock });
   const fleet = createFleetModule({ db: fleetDb, ids, identity });
 
@@ -168,6 +191,8 @@ export function composeCore(
     clock,
     ids,
     accessTokenVerifier: overrides.accessTokenVerifier ?? accessTokenVerifier,
+    staffAccessTokenVerifier:
+      overrides.staffAccessTokenVerifier ?? lazyStaffVerifier(overrides.tokenSigner ?? tokenSigner),
   });
   identity.registerRoutes(app);
   routing.registerRoutes(app);

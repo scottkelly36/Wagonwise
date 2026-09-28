@@ -30,6 +30,11 @@ export function createAccessTokenVerifier(
       if (typeof payload.sub !== 'string' || typeof payload.sid !== 'string') {
         throw new Error('access token is missing its sub or sid claim');
       }
+      // Core signs staff tokens with the same key (P2-M1), so a staff token would otherwise pass
+      // here. Tokens with no `kind` predate it and are driver tokens (15-minute lifetime).
+      if (payload.kind !== undefined && payload.kind !== 'driver') {
+        throw new Error('not a driver access token');
+      }
       return { driverId: payload.sub, sessionId: payload.sid };
     },
   };

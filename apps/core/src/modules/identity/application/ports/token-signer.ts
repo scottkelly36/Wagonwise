@@ -16,8 +16,18 @@ export interface AccessTokenClaims {
  * can mint a token; a BFF gets the public key from `publicJwk()` (exposed at a JWKS route) and
  * can only verify. Real implementation: infrastructure/ed25519-token-signer.ts.
  */
+/** A dashboard staff member's session (P2-M1.6). Plain strings: identity signs staff tokens with
+ *  the same key so every BFF verifies them the same way, but knows nothing else about staff. */
+export interface StaffAccessTokenClaims {
+  readonly staffId: string;
+  readonly sessionId: string;
+}
+
 export interface TokenSigner {
+  /** `kind: 'driver'`. Driver routes accept only these. */
   signAccessToken(claims: AccessTokenClaims): Promise<string>;
+  /** `kind: 'staff'`. Staff routes accept only these, and driver routes refuse them. */
+  signStaffAccessToken(claims: StaffAccessTokenClaims): Promise<string>;
   /** The public key as a JWK — never the private key. For a JWKS endpoint. */
   publicJwk(): Promise<Record<string, unknown>>;
 }

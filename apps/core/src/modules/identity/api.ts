@@ -93,6 +93,10 @@ export interface IdentityModule {
    *  (P2-M1.4) reach it through `companies`' own `CodeSender` port, so ClickSend/Resend accounts
    *  and credentials stay configured in one place. */
   sendOneTimeCode(destination: string, code: string): Promise<void>;
+  /** Signs a staff access token (`kind: 'staff'`) with core's one Ed25519 key, so the staff BFF
+   *  verifies it from the same JWKS as drivers' tokens. `companies` owns staff sessions and wraps
+   *  this in its own `StaffTokenIssuer` port (P2-M1.6). */
+  signStaffAccessToken(staffId: string, sessionId: string): Promise<string>;
 }
 
 /**
@@ -181,6 +185,9 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     },
     sendOneTimeCode(destination: string, code: string): Promise<void> {
       return otpSender.send(destination, code);
+    },
+    signStaffAccessToken(staffId: string, sessionId: string): Promise<string> {
+      return deps.tokenSigner.signStaffAccessToken({ staffId, sessionId });
     },
   };
 }

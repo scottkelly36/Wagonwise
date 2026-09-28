@@ -30,6 +30,7 @@
         "LOG_LEVEL",
         "DATABASE_URL",
         "IDENTITY_PRIVATE_KEY",
+        "STAFF_SECRET_KEY",
         "INTERNAL_KEYS",
         "CORE_INTERNAL_URL",
         "VALHALLA_URL",

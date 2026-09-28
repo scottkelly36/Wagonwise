@@ -16,6 +16,7 @@ const migrationsDir = fileURLToPath(new URL('../../migrations', import.meta.url)
 
 const fakeTokenSigner = {
   signAccessToken: () => Promise.resolve('unused-in-this-test'),
+  signStaffAccessToken: () => Promise.resolve('unused-in-this-test'),
   publicJwk: () => Promise.resolve({ kty: 'OKP', crv: 'Ed25519', x: 'fake' }),
 };
 
