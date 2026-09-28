@@ -2,7 +2,7 @@
 
 Scoped 2026-09-28 from the [Phase 2 tech design doc](https://claude.ai/artifact/LK2oYrVSwotj7E8W9tXykD)
 §4 and §9, plus its decision log's proposed 3-tier permission model. **Status: in progress. P2-M1.1
-(contracts) done 2026-09-28.**
+(contracts) and P2-M1.2 (domain rules) done 2026-09-28.**
 
 **Decision 2026-09-28 (user's call, option 1 of 3): interim driver scopes first, staff accounts
 on top later.** A first fleet slice was built outside this plan (PR #48, branch `phase-2/m1`):
@@ -81,7 +81,7 @@ One per session, each with its tests.
 | #        | Task                                                                                                                                                  | Status            |
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
 | P2-M1.1  | `packages/contracts`: `StaffAccount`, `Privilege` enum, staff auth + invite DTOs, branded `StaffId`                                                   | Done — 2026-09-28 |
-| P2-M1.2  | Core domain: `StaffAccount` aggregate, `Actor` type, `can(actor, action)` policy functions + the rules above                                          | Proposed          |
+| P2-M1.2  | Core domain: `StaffAccount` aggregate, `Actor` type, `can(actor, action)` policy functions + the rules above                                          | Done — 2026-09-28 |
 | P2-M1.3  | Core: migration (`companies.staff_accounts`, `staff_invites`, `staff_sessions`), Postgres repositories                                                | Proposed          |
 | P2-M1.4  | Core: password hashing (`scrypt`, node crypto — no dependency), TOTP (RFC 6238, hand-rolled), and SMS/email codes via identity's facade, behind ports | Proposed          |
 | P2-M1.5  | Core use cases: invite, accept invite (set password + enrol a second factor), sign in, refresh, revoke, set privileges, remove user                   | Proposed          |
@@ -121,6 +121,16 @@ One per session, each with its tests.
   auth needs somewhere to live, and the dashboard shouldn't keep going through the driver BFF.
 - **P2-M1.12** needs a deploy plan: a new DO service for staff-bff, the new DB role, and the
   secrets. Remember the standing rule: never `doctl apps update --spec`.
+
+## Notes from done tasks
+
+- **P2-M1.2** (`companies/domain/staff-account.ts`, `staff-policy.ts`): pure functions, 24 tests.
+  Two rules beyond the plan, both following from "managers only control what they hold":
+  a manager can only switch _off_ privileges they hold too (not just switch on), and can only
+  remove someone whose privileges they all hold. The last-manager guard applies to WagonWise
+  admins as well: an admin fixing a company must promote someone before demoting its only
+  manager. The domain keeps its own copy of the privilege list (rule 2);
+  `interface/privileges-contract.test.ts` fails if it drifts from contracts.
 
 ## Carrying over the interim scopes
 
