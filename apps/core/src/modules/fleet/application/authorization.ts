@@ -11,5 +11,7 @@ export function canViewFleet(caller: Caller, companyId: CompanyId): boolean {
 }
 
 export function canManageFleet(caller: Caller, companyId: CompanyId): boolean {
-  return caller.isAdmin || (caller.companyId === companyId && caller.scopes.includes('manage_fleet'));
+  return (
+    caller.isAdmin || (caller.companyId === companyId && caller.scopes.includes('manage_fleet'))
+  );
 }

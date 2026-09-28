@@ -15,7 +15,10 @@ import {
   deleteFleetVehicle,
   type DeleteFleetVehicleDeps,
 } from '../application/delete-fleet-vehicle.js';
-import { listFleetVehicles, type ListFleetVehiclesDeps } from '../application/list-fleet-vehicles.js';
+import {
+  listFleetVehicles,
+  type ListFleetVehiclesDeps,
+} from '../application/list-fleet-vehicles.js';
 import type { CallerDirectory } from '../application/ports/caller-directory.js';
 import type { FleetVehicleRepository } from '../application/ports/fleet-vehicle-repository.js';
 import {

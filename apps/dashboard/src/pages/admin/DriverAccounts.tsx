@@ -41,7 +41,7 @@ export function DriverAccounts() {
               companyId: input.companyId === null ? null : companyIdSchema.parse(input.companyId),
             }),
         ...(input.isAdmin === undefined ? {} : { isAdmin: input.isAdmin }),
-        ...(input.scopes === undefined ? {} : { scopes: input.scopes }),
+        ...(input.scopes === undefined ? {} : { scopes: [...input.scopes] }),
       }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: DRIVERS_KEY }),
   });

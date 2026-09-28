@@ -1,8 +1,4 @@
-import type {
-  CompanyId,
-  FleetVehicle,
-  FleetVehicleId,
-} from '../../domain/vehicle.js';
+import type { CompanyId, FleetVehicle, FleetVehicleId } from '../../domain/vehicle.js';
 import type { FleetVehicleRepository } from '../ports/fleet-vehicle-repository.js';
 
 export class InMemoryFleetVehicleRepository implements FleetVehicleRepository {
@@ -13,9 +9,7 @@ export class InMemoryFleetVehicleRepository implements FleetVehicleRepository {
   }
 
   listForCompany(companyId: CompanyId): Promise<FleetVehicle[]> {
-    return Promise.resolve(
-      [...this.#byId.values()].filter((v) => v.companyId === companyId),
-    );
+    return Promise.resolve([...this.#byId.values()].filter((v) => v.companyId === companyId));
   }
 
   save(vehicle: FleetVehicle): Promise<void> {

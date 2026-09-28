@@ -55,9 +55,7 @@ describe('PostgresFleetVehicleRepository', () => {
 
   it('returns null for an unknown id', async () => {
     expect(
-      await repo().findById(
-        makeId<'FleetVehicleId'>('00000000-0000-4000-8000-000000000000'),
-      ),
+      await repo().findById(makeId<'FleetVehicleId'>('00000000-0000-4000-8000-000000000000')),
     ).toBeNull();
   });
 

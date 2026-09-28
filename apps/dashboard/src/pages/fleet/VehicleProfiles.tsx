@@ -1,3 +1,4 @@
+import { companyIdSchema } from '@wagonwise/contracts/companies';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as companiesApi from '../../api/companies';
@@ -33,9 +34,7 @@ export function VehicleProfiles() {
     enabled: accessToken !== undefined && driver?.isAdmin === true,
   });
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(
-    driver?.companyId,
-  );
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(driver?.companyId);
   const companyId = driver?.isAdmin ? selectedCompanyId : driver?.companyId;
   const vehiclesKey = ['fleet-vehicles', companyId] as const;
 
@@ -49,7 +48,7 @@ export function VehicleProfiles() {
   const createVehicle = useMutation({
     mutationFn: () =>
       fleetApi.createFleetVehicle(accessToken as string, companyId as string, {
-        companyId: companyId as string,
+        companyId: companyIdSchema.parse(companyId),
         name: form.name,
         dimensions: {
           heightM: Number(form.heightM),

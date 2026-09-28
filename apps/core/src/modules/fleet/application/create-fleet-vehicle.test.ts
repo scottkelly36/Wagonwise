@@ -11,9 +11,7 @@ function dimensions(overrides: Partial<Dimensions> = {}): Dimensions {
   return { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32, ...overrides };
 }
 
-function buildDeps(
-  repo: InMemoryFleetVehicleRepository,
-): CreateFleetVehicleDeps {
+function buildDeps(repo: InMemoryFleetVehicleRepository): CreateFleetVehicleDeps {
   return { repo, ids: new SequentialIdGenerator() };
 }
 

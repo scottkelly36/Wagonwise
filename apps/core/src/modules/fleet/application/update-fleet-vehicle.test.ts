@@ -33,7 +33,12 @@ describe('updateFleetVehicle', () => {
     });
     expect(result).toEqual({
       ok: true,
-      value: { id: vehicleId, companyId, name: 'New Name', dimensions: dimensions({ heightM: 3.9 }) },
+      value: {
+        id: vehicleId,
+        companyId,
+        name: 'New Name',
+        dimensions: dimensions({ heightM: 3.9 }),
+      },
     });
   });
 
