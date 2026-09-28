@@ -23,15 +23,16 @@ history file keeps the record.
 | M8 Field-ready                     | In progress — partly shipped 2026-09-25  | below (no breakdown written yet)       |
 | M9 Route options & safe parking    | Done — 2026-09-27                        | `history/m9-route-options-parking.md`  |
 | Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only   | below, and the Phase 2 tech design doc |
-| P2-M1 Orgs, roles, RLS, staff auth | Breakdown proposed 2026-09-28            | `history/p2-m1-organisations-auth.md`  |
+| P2-M1 Orgs, roles, RLS, staff auth | In progress — P2-M1.1 done 2026-09-28    | `history/p2-m1-organisations-auth.md`  |
 | P2-M2 Fleet (early slice)          | Vehicles + interim driver scopes, PR #48 | `history/p2-m1-organisations-auth.md`  |
 
 ## Next up
 
 1. **P2-M1** (user's call 2026-09-28: start Phase 2 ahead of its entry criteria and before
-   M8 is finished). Breakdown in `history/p2-m1-organisations-auth.md`, waiting on four open
-   decisions at the bottom of that file. Then P2-M1.1 (contracts). Builds on top of the interim
-   driver scopes from PR #48 (user's call 2026-09-28) and migrates them at P2-M1.12.
+   M8 is finished). Plan, decisions and task list in `history/p2-m1-organisations-auth.md`.
+   P2-M1.1 (staff contracts, `packages/contracts/src/staff.ts`) done; next is P2-M1.2 (core
+   domain: `StaffAccount`, `Actor`, privilege policy functions). Builds on top of the interim
+   driver scopes from PR #48 and migrates them at P2-M1.12.
 
 ## Open items (verified against the code 2026-09-28)
 
