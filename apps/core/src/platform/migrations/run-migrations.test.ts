@@ -50,6 +50,7 @@ describe('runMigrations', () => {
       '0017_route_options.sql',
       '0018_identity_scopes.sql',
       '0019_fleet.sql',
+      '0020_staff.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -167,6 +168,7 @@ describe('runMigrations', () => {
       '0017_route_options.sql',
       '0018_identity_scopes.sql',
       '0019_fleet.sql',
+      '0020_staff.sql',
     ]);
   });
 });

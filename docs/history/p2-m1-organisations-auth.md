@@ -2,7 +2,7 @@
 
 Scoped 2026-09-28 from the [Phase 2 tech design doc](https://claude.ai/artifact/LK2oYrVSwotj7E8W9tXykD)
 §4 and §9, plus its decision log's proposed 3-tier permission model. **Status: in progress. P2-M1.1
-(contracts) and P2-M1.2 (domain rules) done 2026-09-28.**
+(contracts), P2-M1.2 (domain rules) and P2-M1.3 (storage) done 2026-09-28.**
 
 **Decision 2026-09-28 (user's call, option 1 of 3): interim driver scopes first, staff accounts
 on top later.** A first fleet slice was built outside this plan (PR #48, branch `phase-2/m1`):
@@ -82,7 +82,7 @@ One per session, each with its tests.
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
 | P2-M1.1  | `packages/contracts`: `StaffAccount`, `Privilege` enum, staff auth + invite DTOs, branded `StaffId`                                                   | Done — 2026-09-28 |
 | P2-M1.2  | Core domain: `StaffAccount` aggregate, `Actor` type, `can(actor, action)` policy functions + the rules above                                          | Done — 2026-09-28 |
-| P2-M1.3  | Core: migration (`companies.staff_accounts`, `staff_invites`, `staff_sessions`), Postgres repositories                                                | Proposed          |
+| P2-M1.3  | Core: migration (`companies.staff_accounts`, `staff_invites`, `staff_sessions`), Postgres repositories                                                | Done — 2026-09-28 |
 | P2-M1.4  | Core: password hashing (`scrypt`, node crypto — no dependency), TOTP (RFC 6238, hand-rolled), and SMS/email codes via identity's facade, behind ports | Proposed          |
 | P2-M1.5  | Core use cases: invite, accept invite (set password + enrol a second factor), sign in, refresh, revoke, set privileges, remove user                   | Proposed          |
 | P2-M1.6  | Token claims gain `kind: 'driver' \| 'staff'`; driver routes reject staff tokens and vice versa                                                       | Proposed          |
@@ -131,6 +131,19 @@ One per session, each with its tests.
   admins as well: an admin fixing a company must promote someone before demoting its only
   manager. The domain keeps its own copy of the privilege list (rule 2);
   `interface/privileges-contract.test.ts` fails if it drifts from contracts.
+
+- **P2-M1.3** (migration `0020_staff.sql`, `companies/infrastructure/postgres-staff-*.ts`): five
+  tables. `staff_accounts` holds the account and its credentials (password hash, second-factor
+  method, encrypted TOTP secret or phone), but the domain keeps them apart
+  (`StaffAccount` vs `StaffCredentials`), so only sign-in code ever loads a hash or secret.
+  Accounts are soft-deleted (`removed_at`) for the audit trail; one _live_ account per email,
+  case-insensitive. `staff_challenges` covers both the sign-in second step and enrolment (an
+  invitee's pending password and factor wait there until their first code proves the factor
+  works, so no half-made account ever exists). `staff_recovery_codes` marks a code used in one
+  statement, so the same code can't succeed twice. Database checks back up the domain rules
+  (fleet users need a company; platform staff have no privileges; a TOTP account has a secret,
+  an SMS account a phone). Repository tests: 15, run against a real Postgres 16 locally and in
+  CI via Testcontainers.
 
 ## Carrying over the interim scopes
 
