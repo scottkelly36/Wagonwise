@@ -6,6 +6,7 @@ import {
 } from '@wagonwise/contracts/fleet';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
+import type { DataScope, DataScopes } from '../../../shared/ports/data-scope.js';
 import { canManageFleet, canViewFleet } from '../application/authorization.js';
 import {
   createFleetVehicle,
@@ -19,7 +20,7 @@ import {
   listFleetVehicles,
   type ListFleetVehiclesDeps,
 } from '../application/list-fleet-vehicles.js';
-import type { CallerDirectory } from '../application/ports/caller-directory.js';
+import type { Caller, CallerDirectory } from '../application/ports/caller-directory.js';
 import type { FleetVehicleRepository } from '../application/ports/fleet-vehicle-repository.js';
 import {
   updateFleetVehicle,
@@ -37,6 +38,8 @@ export interface FleetRouteDeps {
   /** Every fleet route's authorization check needs this — an admin, or a company-scoped driver
    *  with (for mutations) the `manage_fleet` scope (`application/authorization.ts`). */
   readonly callerDirectory: CallerDirectory;
+  /** Row-Level Security scope per request (P2-M1.7, migration 0021). */
+  readonly dataScopes: DataScopes;
 }
 
 function vehicleDto(vehicle: FleetVehicle) {
@@ -58,30 +61,66 @@ function requireDriverId(request: FastifyRequest, reply: FastifyReply): Id<'Driv
   return makeId<'DriverId'>(request.driverId);
 }
 
+/** What a handler decided, sent only after its scope's transaction has committed. */
+interface Outcome {
+  readonly status: number;
+  readonly body?: object;
+}
+
+function send(request: FastifyRequest, reply: FastifyReply, outcome: Outcome) {
+  if (outcome.body === undefined) return reply.status(outcome.status).send();
+  const body = outcome.status >= 400 ? { ...outcome.body, requestId: request.id } : outcome.body;
+  return reply.status(outcome.status).send(body);
+}
+
+const INVALID: Outcome = { status: 400, body: { error: 'invalid_request' } };
+const FORBIDDEN: Outcome = { status: 403, body: { tag: 'Forbidden' } };
+const NOT_FOUND: Outcome = { status: 404, body: { tag: 'FleetVehicleNotFound' } };
+
+/** Admins see every company's fleet; anyone else only their own company's. `undefined`: no
+ *  company, so no fleet at all. */
+function scopeFor(caller: Caller): DataScope | undefined {
+  if (caller.isAdmin) return { kind: 'platform' };
+  return caller.companyId === undefined
+    ? undefined
+    : { kind: 'company', companyId: caller.companyId };
+}
+
 /**
  * Fleet vehicles are company-scoped business data (Phase 2 tech design doc §3/§4) — a driver
  * never sees another company's fleet. Every route resolves the caller via `callerDirectory`
  * (identity's own `isAdmin`/`companyId`/`scopes`, AGENTS.md rule 7) and checks it against the
  * target company before doing anything else; `requireDriverId` (401) always runs first, the
  * authorization check (403) second, same order as every other admin-gated route in this codebase.
+ *
+ * P2-M1.7: the vehicle reads and writes run inside the caller's `DataScopes` scope, so Postgres
+ * Row-Level Security enforces the same company boundary a second time. With RLS in force, another
+ * company's vehicle is simply not found (404), where the in-memory tests see it and get 403.
  */
 export function registerFleetRoutes(app: FastifyInstance, deps: FleetRouteDeps): void {
+  /** The caller, and the scope their fleet work runs in, or the 403 to send instead. */
+  async function callerAndScope(
+    driverId: Id<'DriverId'>,
+  ): Promise<{ caller: Caller; scope: DataScope } | undefined> {
+    const caller = await deps.callerDirectory.getCaller(driverId);
+    const scope = caller ? scopeFor(caller) : undefined;
+    return caller && scope ? { caller, scope } : undefined;
+  }
+
   app.get('/fleet/companies/:companyId/vehicles', async (request, reply) => {
     const driverId = requireDriverId(request, reply);
     if (driverId === undefined) return reply;
 
     const params = fleetCompanyIdParamsSchema.safeParse(request.params);
-    if (!params.success) {
-      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
-    }
+    if (!params.success) return send(request, reply, INVALID);
     const companyId = makeId<'CompanyId'>(params.data.companyId);
-    const caller = await deps.callerDirectory.getCaller(driverId);
-    if (!caller || !canViewFleet(caller, companyId)) {
-      return reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
-    }
+    const who = await callerAndScope(driverId);
+    if (!who || !canViewFleet(who.caller, companyId)) return send(request, reply, FORBIDDEN);
 
-    const vehicles = await listFleetVehicles(deps.listFleetVehicles, { companyId });
-    return reply.status(200).send({ vehicles: vehicles.map(vehicleDto) });
+    const vehicles = await deps.dataScopes.run(who.scope, () =>
+      listFleetVehicles(deps.listFleetVehicles, { companyId }),
+    );
+    return send(request, reply, { status: 200, body: { vehicles: vehicles.map(vehicleDto) } });
   });
 
   app.post('/fleet/companies/:companyId/vehicles', async (request, reply) => {
@@ -90,24 +129,21 @@ export function registerFleetRoutes(app: FastifyInstance, deps: FleetRouteDeps):
 
     const params = fleetCompanyIdParamsSchema.safeParse(request.params);
     const body = createFleetVehicleRequestSchema.safeParse(request.body);
-    if (!params.success || !body.success) {
-      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
-    }
+    if (!params.success || !body.success) return send(request, reply, INVALID);
     const companyId = makeId<'CompanyId'>(params.data.companyId);
-    const caller = await deps.callerDirectory.getCaller(driverId);
-    if (!caller || !canManageFleet(caller, companyId)) {
-      return reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
-    }
+    const who = await callerAndScope(driverId);
+    if (!who || !canManageFleet(who.caller, companyId)) return send(request, reply, FORBIDDEN);
 
-    const result = await createFleetVehicle(deps.createFleetVehicle, {
-      companyId,
-      name: body.data.name,
-      dimensions: body.data.dimensions,
+    const outcome = await deps.dataScopes.run(who.scope, async (): Promise<Outcome> => {
+      const result = await createFleetVehicle(deps.createFleetVehicle, {
+        companyId,
+        name: body.data.name,
+        dimensions: body.data.dimensions,
+      });
+      if (!result.ok) return { status: statusFor(result.error), body: result.error };
+      return { status: 201, body: vehicleDto(result.value) };
     });
-    if (!result.ok) {
-      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
-    }
-    return reply.status(201).send(vehicleDto(result.value));
+    return send(request, reply, outcome);
   });
 
   app.put('/fleet/vehicles/:id', async (request, reply) => {
@@ -116,27 +152,23 @@ export function registerFleetRoutes(app: FastifyInstance, deps: FleetRouteDeps):
 
     const params = fleetVehicleIdParamsSchema.safeParse(request.params);
     const body = updateFleetVehicleRequestSchema.safeParse(request.body);
-    if (!params.success || !body.success) {
-      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
-    }
-    const existing = await deps.vehicleRepo.findById(makeId<'FleetVehicleId'>(params.data.id));
-    if (!existing) {
-      return reply.status(404).send({ tag: 'FleetVehicleNotFound', requestId: request.id });
-    }
-    const caller = await deps.callerDirectory.getCaller(driverId);
-    if (!caller || !canManageFleet(caller, existing.companyId)) {
-      return reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
-    }
+    if (!params.success || !body.success) return send(request, reply, INVALID);
+    const who = await callerAndScope(driverId);
+    if (!who) return send(request, reply, FORBIDDEN);
 
-    const result = await updateFleetVehicle(deps.updateFleetVehicle, {
-      id: existing.id,
-      name: body.data.name,
-      dimensions: body.data.dimensions,
+    const outcome = await deps.dataScopes.run(who.scope, async (): Promise<Outcome> => {
+      const existing = await deps.vehicleRepo.findById(makeId<'FleetVehicleId'>(params.data.id));
+      if (!existing) return NOT_FOUND;
+      if (!canManageFleet(who.caller, existing.companyId)) return FORBIDDEN;
+      const result = await updateFleetVehicle(deps.updateFleetVehicle, {
+        id: existing.id,
+        name: body.data.name,
+        dimensions: body.data.dimensions,
+      });
+      if (!result.ok) return { status: statusFor(result.error), body: result.error };
+      return { status: 200, body: vehicleDto(result.value) };
     });
-    if (!result.ok) {
-      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
-    }
-    return reply.status(200).send(vehicleDto(result.value));
+    return send(request, reply, outcome);
   });
 
   app.delete('/fleet/vehicles/:id', async (request, reply) => {
@@ -144,22 +176,18 @@ export function registerFleetRoutes(app: FastifyInstance, deps: FleetRouteDeps):
     if (driverId === undefined) return reply;
 
     const params = fleetVehicleIdParamsSchema.safeParse(request.params);
-    if (!params.success) {
-      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
-    }
-    const existing = await deps.vehicleRepo.findById(makeId<'FleetVehicleId'>(params.data.id));
-    if (!existing) {
-      return reply.status(404).send({ tag: 'FleetVehicleNotFound', requestId: request.id });
-    }
-    const caller = await deps.callerDirectory.getCaller(driverId);
-    if (!caller || !canManageFleet(caller, existing.companyId)) {
-      return reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
-    }
+    if (!params.success) return send(request, reply, INVALID);
+    const who = await callerAndScope(driverId);
+    if (!who) return send(request, reply, FORBIDDEN);
 
-    const result = await deleteFleetVehicle(deps.deleteFleetVehicle, { id: existing.id });
-    if (!result.ok) {
-      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
-    }
-    return reply.status(204).send();
+    const outcome = await deps.dataScopes.run(who.scope, async (): Promise<Outcome> => {
+      const existing = await deps.vehicleRepo.findById(makeId<'FleetVehicleId'>(params.data.id));
+      if (!existing) return NOT_FOUND;
+      if (!canManageFleet(who.caller, existing.companyId)) return FORBIDDEN;
+      const result = await deleteFleetVehicle(deps.deleteFleetVehicle, { id: existing.id });
+      if (!result.ok) return { status: statusFor(result.error), body: result.error };
+      return { status: 204 };
+    });
+    return send(request, reply, outcome);
   });
 }

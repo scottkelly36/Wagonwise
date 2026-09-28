@@ -1,4 +1,4 @@
-import { Kysely, PostgresDialect } from 'kysely';
+import { Kysely, PostgresDialect, type PostgresPool } from 'kysely';
 import { Pool } from 'pg';
 
 /**
@@ -21,6 +21,7 @@ export function createPool(databaseUrl: string): Pool {
   return new Pool({ connectionString: databaseUrl });
 }
 
-export function createDb(pool: Pool): Kysely<Database> {
+/** `pool` is usually `PostgresDataScopes.pool`, so queries inside a scope join its transaction. */
+export function createDb(pool: PostgresPool): Kysely<Database> {
   return new Kysely<Database>({ dialect: new PostgresDialect({ pool }) });
 }

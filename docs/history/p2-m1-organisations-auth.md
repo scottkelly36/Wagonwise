@@ -3,7 +3,7 @@
 Scoped 2026-09-28 from the [Phase 2 tech design doc](https://claude.ai/artifact/LK2oYrVSwotj7E8W9tXykD)
 §4 and §9, plus its decision log's proposed 3-tier permission model. **Status: in progress. P2-M1.1
 (contracts), P2-M1.2 (domain rules), P2-M1.3 (storage), P2-M1.4 (crypto building blocks)
-P2-M1.5 (use cases) and P2-M1.6 (staff tokens + routes) done 2026-09-28.**
+P2-M1.5 (use cases), P2-M1.6 (staff tokens + routes) and P2-M1.7 (RLS) done 2026-09-28.**
 
 **Decision 2026-09-28 (user's call, option 1 of 3): interim driver scopes first, staff accounts
 on top later.** A first fleet slice was built outside this plan (PR #48, branch `phase-2/m1`):
@@ -87,7 +87,7 @@ One per session, each with its tests.
 | P2-M1.4  | Core: password hashing (`scrypt`, node crypto — no dependency), TOTP (RFC 6238, hand-rolled), and SMS/email codes via identity's facade, behind ports | Done — 2026-09-28 |
 | P2-M1.5  | Core use cases: invite, accept invite (set password + enrol a second factor), sign in, refresh, revoke, set privileges, remove user                   | Done — 2026-09-28 |
 | P2-M1.6  | Token claims gain `kind: 'driver' \| 'staff'`; driver routes reject staff tokens and vice versa                                                       | Done — 2026-09-28 |
-| P2-M1.7  | **RLS**: non-owner `wagonwise_app` DB role, policies on company-owned tables, `app.company_id` set per transaction                                    | Proposed          |
+| P2-M1.7  | **RLS**: non-owner `wagonwise_app` DB role, policies on company-owned tables, `app.company_id` set per transaction                                    | Done — 2026-09-28 |
 | P2-M1.8  | Move existing admin checks (companies, invite codes, driver accounts, hazard delete) into application-layer policies                                  | Proposed          |
 | P2-M1.9  | `apps/staff-bff`: verify staff tokens, proxy staff routes; remove the admin routes from driver-bff                                                    | Proposed          |
 | P2-M1.10 | Dashboard: email + password + TOTP sign-in, point at staff-bff, "Users" screen (invite with presets, edit privileges, remove)                         | Proposed          |
@@ -195,6 +195,41 @@ One per session, each with its tests.
     becomes required at P2-M1.12. Added to the README and deployment guide.
   - Still behind `X-Internal-Key`: nothing outside the VPC can reach these until the staff BFF
     (P2-M1.9).
+
+- **P2-M1.7**: Row-Level Security, so the database itself keeps a company to its own rows.
+  - Migration 0021 creates `wagonwise_app` (owns nothing, plain grants on every module schema,
+    plus default privileges for future tables) and turns on RLS for `fleet.vehicles` and the
+    five staff tables. Sessions, recovery codes and challenges have no `company_id`: a row is
+    visible when its account (or, for an enrolment, its invite) is.
+  - Three per-transaction settings, all empty unless set: `app.company_id`,
+    `app.platform_staff` (WagonWise admins, every company, not a bypass role) and
+    `app.staff_auth` (staff tables only, for the steps that have to find an account before its
+    company is known: sign-in, second factor, refresh, accepting an invite, and loading the
+    signed-in account on every request). No scope means no rows.
+  - `DataScopes` (`shared/ports/data-scope.ts`, `platform/postgres-data-scopes.ts`): one
+    transaction per scoped request, settings set with `set_config(..., true)` so they end at
+    commit. Every Kysely instance is built on its pool, so repositories join the scope's
+    transaction without changing. Committed when the work returns (an error `Result` included:
+    a failed code attempt must still count), rolled back if it throws; the reply is sent only
+    after commit. A Kysely transaction or a second scope inside a scope throws.
+  - Staff routes: pre-sign-in routes in `staff-auth`, then each signed-in request loads the
+    account in `staff-auth` and runs its work as `platform` or `company`. Fleet routes resolve
+    the caller first, then run as `platform` (admins) or the caller's company. With RLS in force
+    another company's vehicle is 404, not 403.
+  - `APP_DATABASE_URL` (optional until P2-M1.12): core serves on it; `DATABASE_URL` stays the
+    owner for migrations. Unset, core serves on `DATABASE_URL` as before and the owner skips
+    RLS, so this deploys safely before the role has a password. Deployment steps in the
+    deployment guide.
+  - Proof: `composition/row-level-security.test.ts` connects as `wagonwise_app` through the real
+    `PostgresDataScopes` and tries to read, change and plant rows across two companies, with
+    the owner as the control, plus a guard that every table with a `company_id` has RLS except
+    `identity.drivers` (P2-M2). Also run here against a local Postgres 16 with a
+    non-superuser owner (as on DO): 10/10.
+  - Known limits: a manager's invite only checks the email against their own company's
+    accounts; the global uniqueness check runs again on accept and confirm (in `staff-auth`),
+    so a clash is a clean 409 there. The sign-in transaction stays open while a text/email
+    code is sent. `companies.companies` has no RLS (no secrets; company admin still runs as
+    drivers until P2-M1.8/1.12).
 
 ## Carrying over the interim scopes
 

@@ -83,20 +83,21 @@ Core reads its environment in exactly one place, `apps/core/src/config.ts`, vali
 An invalid value stops the process with a message naming every problem, rather than starting
 half-configured.
 
-| Variable                  | Default                                                   | Notes                                                                                       |
-| ------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `NODE_ENV`                | `development`                                             | `development`, `test` or `production`                                                       |
-| `HOST`                    | `127.0.0.1`                                               | Use `0.0.0.0` inside a container                                                            |
-| `PORT`                    | `3001`                                                    | 1–65535                                                                                     |
-| `LOG_LEVEL`               | `info`                                                    | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`                                |
-| `DATABASE_URL`            | `postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise` | Matches `pnpm db:up`'s compose service; `postgres://` or `postgresql://`                    |
-| `IDENTITY_PRIVATE_KEY`    | unset (fresh key each boot)                               | PEM, PKCS8, Ed25519 only — see Identity, below                                              |
-| `STAFF_SECRET_KEY`        | unset (fresh key each boot)                               | Base64 of 32 random bytes (`openssl rand -base64 32`); encrypts staff authenticator secrets |
-| `INTERNAL_KEYS`           | `local-dev-internal-key`                                  | Comma-separated; a BFF must send one in `X-Internal-Key` on everything except `/health`     |
-| `VALHALLA_URL`            | `http://127.0.0.1:8002`                                   | Matches `infra/docker/compose.yml`'s `valhalla` service (see Routing, below)                |
-| `EXPO_ACCESS_TOKEN`       | unset                                                     | Only needed if Expo's "enhanced push security" is turned on (see Alerts, below)             |
-| `ANTHROPIC_API_KEY`       | unset (falls back to `NullHazardParser`)                  | Needed for real voice-report parsing (see Voice reporting, below)                           |
-| `OUTBOX_POLL_INTERVAL_MS` | `2000`                                                    | How often the in-process outbox poller checks for pending events (see Alerts, below)        |
+| Variable                  | Default                                                   | Notes                                                                                                  |
+| ------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `NODE_ENV`                | `development`                                             | `development`, `test` or `production`                                                                  |
+| `HOST`                    | `127.0.0.1`                                               | Use `0.0.0.0` inside a container                                                                       |
+| `PORT`                    | `3001`                                                    | 1–65535                                                                                                |
+| `LOG_LEVEL`               | `info`                                                    | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`                                           |
+| `DATABASE_URL`            | `postgres://wagonwise:wagonwise@127.0.0.1:5432/wagonwise` | Matches `pnpm db:up`'s compose service; `postgres://` or `postgresql://`                               |
+| `APP_DATABASE_URL`        | unset (serve on `DATABASE_URL`)                           | The `wagonwise_app` role, subject to Row-Level Security; `DATABASE_URL` stays the owner for migrations |
+| `IDENTITY_PRIVATE_KEY`    | unset (fresh key each boot)                               | PEM, PKCS8, Ed25519 only — see Identity, below                                                         |
+| `STAFF_SECRET_KEY`        | unset (fresh key each boot)                               | Base64 of 32 random bytes (`openssl rand -base64 32`); encrypts staff authenticator secrets            |
+| `INTERNAL_KEYS`           | `local-dev-internal-key`                                  | Comma-separated; a BFF must send one in `X-Internal-Key` on everything except `/health`                |
+| `VALHALLA_URL`            | `http://127.0.0.1:8002`                                   | Matches `infra/docker/compose.yml`'s `valhalla` service (see Routing, below)                           |
+| `EXPO_ACCESS_TOKEN`       | unset                                                     | Only needed if Expo's "enhanced push security" is turned on (see Alerts, below)                        |
+| `ANTHROPIC_API_KEY`       | unset (falls back to `NullHazardParser`)                  | Needed for real voice-report parsing (see Voice reporting, below)                                      |
+| `OUTBOX_POLL_INTERVAL_MS` | `2000`                                                    | How often the in-process outbox poller checks for pending events (see Alerts, below)                   |
 
 ```bash
 PORT=4000 LOG_LEVEL=debug pnpm dev

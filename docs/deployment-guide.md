@@ -177,7 +177,17 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
      `IDENTITY_PRIVATE_KEY`, `INTERNAL_KEYS`, `VALHALLA_URL` (the droplet's private IP),
      `ANTHROPIC_API_KEY`, `CLICKSEND_USERNAME`, `CLICKSEND_API_KEY`, `RESEND_API_KEY`,
      `STAFF_SECRET_KEY` (`openssl rand -base64 32`; keep a copy somewhere safe: losing it
-     makes every staff authenticator-app enrolment unreadable), `NODE_ENV=production`.
+     makes every staff authenticator-app enrolment unreadable), `APP_DATABASE_URL` (below),
+     `NODE_ENV=production`.
+   - **`APP_DATABASE_URL`, added P2-M1.7.** Core should serve requests as `wagonwise_app`, a
+     role that owns no tables, so Postgres Row-Level Security keeps each company to its own
+     rows (the owner skips RLS). Migration 0021 creates the role without a password; give it
+     one once, connected as `doadmin` (DO console → the cluster → Connection details → psql):
+     `alter role wagonwise_app with login password '<openssl rand -base64 24>';`. Then set
+     `APP_DATABASE_URL` on `core` only: `DATABASE_URL` with `doadmin` and its password swapped
+     for `wagonwise_app` and the new one (keep `?sslmode=require`). Leave `DATABASE_URL` as it
+     is: the `migrate` job still needs the owner. Until `APP_DATABASE_URL` is set, core keeps
+     serving on `DATABASE_URL` exactly as before.
    - `driver-bff`: public route on your domain. Env: `CORE_INTERNAL_URL=http://core:3001`,
      `CORE_INTERNAL_KEY` (must match one of `core`'s `INTERNAL_KEYS`), `NODE_ENV=production`.
    - Basic containers, $5/mo each, to start.

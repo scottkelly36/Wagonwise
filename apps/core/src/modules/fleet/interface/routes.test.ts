@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
+import { RecordingDataScopes } from '../../../shared/testing/recording-data-scopes.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import { InMemoryFleetVehicleRepository } from '../application/testing/in-memory-fleet-vehicle-repository.js';
 import { StubCallerDirectory } from '../application/testing/stub-caller-directory.js';
@@ -18,8 +19,13 @@ const FLEET_USER_ID = makeId<'DriverId'>('fleet-user'); // companyA, manage_flee
 const VIEWER_ID = makeId<'DriverId'>('viewer'); // companyA, no scope
 const OUTSIDER_ID = makeId<'DriverId'>('outsider'); // companyB, manage_fleet
 
-function buildApp(): { app: FastifyInstance; repo: InMemoryFleetVehicleRepository } {
+function buildApp(): {
+  app: FastifyInstance;
+  repo: InMemoryFleetVehicleRepository;
+  scopes: RecordingDataScopes;
+} {
   const repo = new InMemoryFleetVehicleRepository();
+  const scopes = new RecordingDataScopes();
   const callers = new Map<DriverId, Caller>([
     [ADMIN_ID, { isAdmin: true, scopes: [] }],
     [
@@ -39,6 +45,7 @@ function buildApp(): { app: FastifyInstance; repo: InMemoryFleetVehicleRepositor
     listFleetVehicles: { repo },
     vehicleRepo: repo,
     callerDirectory: new StubCallerDirectory(callers),
+    dataScopes: scopes,
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {
@@ -49,7 +56,7 @@ function buildApp(): { app: FastifyInstance; repo: InMemoryFleetVehicleRepositor
     done();
   });
   registerFleetRoutes(app, deps);
-  return { app, repo };
+  return { app, repo, scopes };
 }
 
 function asDriver(driverId: string): { headers: Record<string, string> } {
@@ -233,5 +240,33 @@ describe('DELETE /fleet/vehicles/:id', () => {
       ...asDriver(VIEWER_ID),
     });
     expect(response.statusCode).toBe(403);
+  });
+});
+
+describe('Row-Level Security scope (P2-M1.7)', () => {
+  it('runs an admin as platform and a fleet user as their own company', async () => {
+    const { app, scopes } = buildApp();
+    await app.inject({
+      method: 'GET',
+      url: `/fleet/companies/${companyA}/vehicles`,
+      ...asDriver(ADMIN_ID),
+    });
+    await app.inject({
+      method: 'GET',
+      url: `/fleet/companies/${companyA}/vehicles`,
+      ...asDriver(FLEET_USER_ID),
+    });
+    expect(scopes.used).toEqual([{ kind: 'platform' }, { kind: 'company', companyId: companyA }]);
+  });
+
+  it('never opens a scope for a request it refuses', async () => {
+    const { app, scopes } = buildApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: `/fleet/companies/${companyA}/vehicles`,
+      ...asDriver(OUTSIDER_ID),
+    });
+    expect(res.statusCode).toBe(403);
+    expect(scopes.used).toEqual([]);
   });
 });

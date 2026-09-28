@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
+import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { IdentityModule } from '../identity/api.js';
 import { IdentityAdminDirectory } from './infrastructure/identity-admin-directory.js';
@@ -29,6 +30,8 @@ export interface CompaniesModuleDeps {
   readonly db: UntypedDb;
   readonly clock: Clock;
   readonly ids: IdGenerator;
+  /** Row-Level Security scope per staff request (P2-M1.7). */
+  readonly dataScopes: DataScopes;
   /** The cross-context calls this module makes (AGENTS.md rule 7), each wrapped by an adapter in
    *  `infrastructure/`: the admin gate (`isDriverAdmin`), and for staff sign-in (P2-M1.6)
    *  sending codes through drivers' SMS/email senders and signing staff tokens with core's key. */
@@ -90,7 +93,7 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
   return {
     registerRoutes(app: FastifyInstance): void {
       registerCompaniesRoutes(app, routeDeps);
-      registerStaffRoutes(app, staffDeps);
+      registerStaffRoutes(app, staffDeps, deps.dataScopes);
     },
   };
 }
