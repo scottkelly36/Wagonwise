@@ -1,4 +1,5 @@
 import type { Id } from '../../../shared/brand.js';
+import type { TaggedError } from '../../../shared/result.js';
 import type { SecondFactorMethod, StaffId } from './staff-account.js';
 import type { StaffInviteId } from './staff-invite.js';
 
@@ -38,3 +39,22 @@ export interface EnrolmentChallenge extends ChallengeBase {
 }
 
 export type StaffChallenge = SignInChallenge | EnrolmentChallenge;
+
+export type ChallengeNotUsable = TaggedError<'ChallengeNotUsable'>;
+
+/** Open for a code: not used yet, not expired, and tries left. */
+export function isChallengeUsable(challenge: StaffChallenge, now: Date): boolean {
+  return (
+    challenge.consumedAt === null &&
+    challenge.expiresAt.getTime() > now.getTime() &&
+    challenge.attempts < STAFF_CHALLENGE_MAX_ATTEMPTS
+  );
+}
+
+export function recordFailedAttempt<C extends StaffChallenge>(challenge: C): C {
+  return { ...challenge, attempts: challenge.attempts + 1 };
+}
+
+export function consumeChallenge<C extends StaffChallenge>(challenge: C, now: Date): C {
+  return { ...challenge, consumedAt: now };
+}

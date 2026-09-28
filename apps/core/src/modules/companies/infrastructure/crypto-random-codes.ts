@@ -24,4 +24,8 @@ export class CryptoRandomCodes implements RandomCodes {
   inviteToken(): string {
     return randomBytes(32).toString('base64url');
   }
+
+  refreshToken(): string {
+    return randomBytes(32).toString('base64url');
+  }
 }

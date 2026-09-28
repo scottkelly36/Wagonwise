@@ -2,8 +2,8 @@
 
 Scoped 2026-09-28 from the [Phase 2 tech design doc](https://claude.ai/artifact/LK2oYrVSwotj7E8W9tXykD)
 §4 and §9, plus its decision log's proposed 3-tier permission model. **Status: in progress. P2-M1.1
-(contracts), P2-M1.2 (domain rules), P2-M1.3 (storage) and P2-M1.4 (crypto building blocks)
-done 2026-09-28.**
+(contracts), P2-M1.2 (domain rules), P2-M1.3 (storage), P2-M1.4 (crypto building blocks)
+and P2-M1.5 (use cases) done 2026-09-28.**
 
 **Decision 2026-09-28 (user's call, option 1 of 3): interim driver scopes first, staff accounts
 on top later.** A first fleet slice was built outside this plan (PR #48, branch `phase-2/m1`):
@@ -85,7 +85,7 @@ One per session, each with its tests.
 | P2-M1.2  | Core domain: `StaffAccount` aggregate, `Actor` type, `can(actor, action)` policy functions + the rules above                                          | Done — 2026-09-28 |
 | P2-M1.3  | Core: migration (`companies.staff_accounts`, `staff_invites`, `staff_sessions`), Postgres repositories                                                | Done — 2026-09-28 |
 | P2-M1.4  | Core: password hashing (`scrypt`, node crypto — no dependency), TOTP (RFC 6238, hand-rolled), and SMS/email codes via identity's facade, behind ports | Done — 2026-09-28 |
-| P2-M1.5  | Core use cases: invite, accept invite (set password + enrol a second factor), sign in, refresh, revoke, set privileges, remove user                   | Proposed          |
+| P2-M1.5  | Core use cases: invite, accept invite (set password + enrol a second factor), sign in, refresh, revoke, set privileges, remove user                   | Done — 2026-09-28 |
 | P2-M1.6  | Token claims gain `kind: 'driver' \| 'staff'`; driver routes reject staff tokens and vice versa                                                       | Proposed          |
 | P2-M1.7  | **RLS**: non-owner `wagonwise_app` DB role, policies on company-owned tables, `app.company_id` set per transaction                                    | Proposed          |
 | P2-M1.8  | Move existing admin checks (companies, invite codes, driver accounts, hazard delete) into application-layer policies                                  | Proposed          |
@@ -163,6 +163,22 @@ One per session, each with its tests.
     invite tokens.
   - `IdentityCodeSender` over a new `IdentityModule.sendOneTimeCode`, so staff text/email codes
     use drivers' ClickSend/Resend setup without `companies` importing identity.
+
+- **P2-M1.5** (`companies/application/`): the staff use cases, tested end to end against
+  fakes (24 tests): invite, accept (password + chosen factor), confirm enrolment (creates the
+  account, 10 recovery codes, signs in), sign in (password opens a challenge; the second factor
+  or a recovery code gives tokens), refresh / sign out, set privileges, remove, list. Choices:
+  - **Invite links aren't emailed yet**: creating one returns the token once for the inviter to
+    send (as driver invite codes work today). Emailing needs a proper template; later.
+  - **Staff sessions last 7 days of inactivity** (drivers: 60), then password + code again.
+  - A wrong email and a wrong password give the same error, and an unknown email is checked
+    against a well-formed decoy scrypt hash so both take the same time.
+  - Challenges: 10 minutes, 5 tries. Recovery codes accepted in any case, with or without the
+    dash, each once.
+  - Removing someone signs them out everywhere; a removed account's refresh tokens stop working.
+  - Not yet: rate limiting of password attempts per email/IP (only per-challenge tries), and
+    wrapping multi-step writes in one transaction (arrives with P2-M1.7's per-request
+    transaction). `StaffTokenIssuer` is a port with a fake until P2-M1.6.
 
 ## Carrying over the interim scopes
 
