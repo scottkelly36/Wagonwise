@@ -98,8 +98,8 @@ optionally linked to a company).
 - 2026-09-28: active-trip screen gains one-tap voice **Traffic** and **Mark parking** buttons
   beside the hazard mic (spoken question/read-back, files only on a spoken "yes", declines are
   discarded, no offline queue). JS-only, so it ships by `eas update`. "Report parking" renamed
-  "Mark parking" everywhere. Suspected bug to check: the hazard voice flow may read the report's
-  own transcript as the yes/no answer and save every report as a draft.
+  "Mark parking" everywhere. Fixed voice hazard reports always being saved as drafts, even after
+  a clear "yes" (the flow read the report's own transcript as the yes/no reply).
 - 2026-09-28: fixed the nightly golden-routes job (red since the 55 mph cap). Split this file
   (was 287 KB / ~3,700 lines) into `docs/history/` and `docs/ideas.md`.
 - 2026-09-27: M9 shipped (safe parking spots, route options with fuel-cost estimates). Dashboard
