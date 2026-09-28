@@ -627,7 +627,9 @@ infra/
   deploy/         hosting config                                  (later)
 docs/
   phase-1-tech-design.md    the design — read before any milestone
-  progress.md               milestone status and decisions log
+  progress.md               status, what's next, open items — short; read first
+  history/                  per-milestone decisions and deviations (archived detail)
+  ideas.md                  field-testing ideas backlog
 ```
 
 Inside `apps/core/src` (the shape the architecture rules enforce):

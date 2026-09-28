@@ -13,5 +13,6 @@ Then, depending on the task:
   for getting the project running.
 - [`docs/phase-1-tech-design.md`](docs/phase-1-tech-design.md) — the full design. Read
   before starting any milestone.
-- [`docs/progress.md`](docs/progress.md) — milestone status and the decisions log, so a
-  session can pick up cold.
+- [`docs/progress.md`](docs/progress.md) — short: milestone status, what's next, open items,
+  and an index into `docs/history/` (per-milestone decisions and deviations). Read the history
+  file for a milestone only when working in that area.

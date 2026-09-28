@@ -121,8 +121,11 @@ can subscribe later.
 - Anything needed to get the project running — a new service, container, env var, seed
   command — goes in `README.md` in the same task that introduces it. The README is the
   source of truth for start-up; a cold start must never need a step that is not written down.
-- Keep `docs/progress.md` current with milestone status and decisions made, so the
-  next session can pick up without re-explaining.
+- Keep `docs/progress.md` current with milestone status, what's next and what's still open,
+  so the next session can pick up without re-explaining. **Keep it short (~150 lines):** a
+  milestone's task breakdown, decisions and deviations go in its own `docs/history/<milestone>.md`;
+  `progress.md` gets one line plus any still-open items, and loses them once they close.
+  Field-testing ideas go in `docs/ideas.md`.
 - UK English in user-facing text. Show bridge heights in metres and feet/inches.
 
 ## Tooling gotchas
