@@ -101,6 +101,7 @@ describe('POST /identity/otp/request', () => {
       identifier: 'driver@example.com',
       createdAt: now,
       isAdmin: false,
+      scopes: [],
     });
     const response = await app.inject({
       method: 'POST',
@@ -142,6 +143,7 @@ describe('POST /identity/otp/verify', () => {
       identifier: 'driver@example.com',
       createdAt: now,
       isAdmin: false,
+      scopes: [],
     });
     await app.inject({
       method: 'POST',
@@ -171,6 +173,7 @@ describe('POST /identity/otp/verify', () => {
       identifier: 'driver@example.com',
       createdAt: now,
       isAdmin: false,
+      scopes: [],
     });
     await app.inject({
       method: 'POST',
@@ -231,6 +234,7 @@ describe('POST /identity/token/refresh', () => {
       identifier: 'driver@example.com',
       createdAt: now,
       isAdmin: false,
+      scopes: [],
     });
     await app.inject({
       method: 'POST',
@@ -388,6 +392,7 @@ describe('POST /identity/consent', () => {
       identifier: 'driver@example.com',
       createdAt: now,
       isAdmin: false,
+      scopes: [],
     });
 
     const response = await app.inject({
@@ -429,6 +434,7 @@ describe('DELETE /identity/account', () => {
       identifier: 'driver@example.com',
       createdAt: now,
       isAdmin: false,
+      scopes: [],
     });
     await deps.registerDevice.repo.save({
       id: makeId<'DeviceId'>('device-1'),
@@ -478,6 +484,7 @@ describe('DELETE /identity/account', () => {
       identifier: 'driver@example.com',
       createdAt: now,
       isAdmin: false,
+      scopes: [],
     });
 
     await app.inject({ method: 'DELETE', url: '/identity/account', ...asDriver('driver-1') });
@@ -497,12 +504,14 @@ describe('GET /identity/drivers', () => {
       identifier: 'admin@example.com',
       createdAt: now,
       isAdmin: true,
+      scopes: [],
     });
     await deps.requestOtp.driverRepo.save({
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
       isAdmin: false,
+      scopes: [],
     });
   }
 
@@ -554,12 +563,14 @@ describe('PATCH /identity/drivers/:id', () => {
       identifier: 'admin@example.com',
       createdAt: now,
       isAdmin: true,
+      scopes: [],
     });
     await deps.requestOtp.driverRepo.save({
       id: makeId<'DriverId'>(DRIVER_ID),
       identifier: 'driver@example.com',
       createdAt: now,
       isAdmin: false,
+      scopes: [],
     });
   }
 
@@ -584,12 +595,14 @@ describe('PATCH /identity/drivers/:id', () => {
       identifier: 'admin@example.com',
       createdAt: now,
       isAdmin: true,
+      scopes: [],
     });
     await deps.requestOtp.driverRepo.save({
       id: makeId<'DriverId'>(DRIVER_ID),
       identifier: 'driver@example.com',
       createdAt: now,
       isAdmin: false,
+      scopes: [],
       companyId: makeId<'CompanyId'>('company-1'),
     });
 
@@ -610,11 +623,11 @@ describe('PATCH /identity/drivers/:id', () => {
     const response = await app.inject({
       method: 'PATCH',
       url: `/identity/drivers/${DRIVER_ID}`,
-      payload: { isAdmin: true },
+      payload: { isAdmin: true, scopes: [] },
       ...asDriver(ADMIN_ID),
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ isAdmin: true });
+    expect(response.json()).toMatchObject({ isAdmin: true, scopes: [] });
   });
 
   it('403s a non-admin driver, changing nothing', async () => {
@@ -624,7 +637,7 @@ describe('PATCH /identity/drivers/:id', () => {
     const response = await app.inject({
       method: 'PATCH',
       url: `/identity/drivers/${ADMIN_ID}`,
-      payload: { isAdmin: false },
+      payload: { isAdmin: false, scopes: [] },
       ...asDriver(DRIVER_ID),
     });
     expect(response.statusCode).toBe(403);
@@ -638,7 +651,7 @@ describe('PATCH /identity/drivers/:id', () => {
     const response = await app.inject({
       method: 'PATCH',
       url: `/identity/drivers/${DRIVER_ID}`,
-      payload: { isAdmin: true },
+      payload: { isAdmin: true, scopes: [] },
     });
     expect(response.statusCode).toBe(401);
   });
@@ -650,7 +663,7 @@ describe('PATCH /identity/drivers/:id', () => {
     const response = await app.inject({
       method: 'PATCH',
       url: '/identity/drivers/33333333-3333-4333-8333-333333333333',
-      payload: { isAdmin: true },
+      payload: { isAdmin: true, scopes: [] },
       ...asDriver(ADMIN_ID),
     });
     expect(response.statusCode).toBe(404);
@@ -664,7 +677,7 @@ describe('PATCH /identity/drivers/:id', () => {
     const response = await app.inject({
       method: 'PATCH',
       url: '/identity/drivers/not-a-uuid',
-      payload: { isAdmin: true },
+      payload: { isAdmin: true, scopes: [] },
       ...asDriver(ADMIN_ID),
     });
     expect(response.statusCode).toBe(400);
@@ -680,6 +693,7 @@ describe('POST /identity/invite-codes', () => {
       identifier: 'admin@example.com',
       createdAt: now,
       isAdmin: true,
+      scopes: [],
     });
   }
 
@@ -703,6 +717,7 @@ describe('POST /identity/invite-codes', () => {
       identifier: 'driver@example.com',
       createdAt: now,
       isAdmin: false,
+      scopes: [],
     });
 
     const response = await app.inject({
@@ -729,6 +744,7 @@ describe('GET /identity/invite-codes', () => {
       identifier: 'admin@example.com',
       createdAt: now,
       isAdmin: true,
+      scopes: [],
     });
   }
 
@@ -754,6 +770,7 @@ describe('GET /identity/invite-codes', () => {
       identifier: 'driver@example.com',
       createdAt: now,
       isAdmin: false,
+      scopes: [],
     });
 
     const response = await app.inject({

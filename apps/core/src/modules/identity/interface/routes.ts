@@ -51,6 +51,7 @@ function driverDto(driver: {
   readonly consentedAt?: Date | undefined;
   readonly isAdmin: boolean;
   readonly companyId?: string | undefined;
+  readonly scopes: readonly string[];
 }) {
   return {
     id: driver.id,
@@ -59,6 +60,7 @@ function driverDto(driver: {
     ...(driver.consentedAt === undefined ? {} : { consentedAt: driver.consentedAt }),
     isAdmin: driver.isAdmin,
     ...(driver.companyId === undefined ? {} : { companyId: driver.companyId }),
+    scopes: driver.scopes,
   };
 }
 
@@ -258,6 +260,7 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
               body.data.companyId === null ? null : makeId<'CompanyId'>(body.data.companyId),
           }),
       ...(body.data.isAdmin === undefined ? {} : { isAdmin: body.data.isAdmin }),
+      ...(body.data.scopes === undefined ? {} : { scopes: body.data.scopes }),
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });

@@ -4,6 +4,14 @@ Scoped 2026-09-28 from the [Phase 2 tech design doc](https://claude.ai/artifact/
 §4 and §9, plus its decision log's proposed 3-tier permission model. **Status: proposed, awaiting
 approval — no code yet.**
 
+**Decision 2026-09-28 (user's call, option 1 of 3): interim driver scopes first, staff accounts
+on top later.** A first fleet slice was built outside this plan (PR #48, branch `phase-2/m1`):
+company vehicles plus a `scopes` list on the `Driver` account (`manage_fleet` only), using the
+existing driver OTP sign-in. It ships as-is, as an early P2-M2 (fleet). This plan still stands.
+Staff accounts, TOTP, RLS and application-layer policies are built on top of it, and P2-M1.12's
+cutover moves driver scopes onto fleet-user privileges (see "Carrying over the interim scopes"
+below). The four open decisions at the bottom are still unanswered.
+
 Started knowingly ahead of the doc's entry criteria (a month of real drivers, trusted hazard
 density, a pilot firm signed up). None of them are met yet (user's call, 2026-09-28).
 
@@ -17,6 +25,11 @@ density, a pilot firm signed up). None of them are met yet (user's call, 2026-09
   routes. Its fleet pages are placeholders.
 - Admin checks live in `interface/routes.ts` (companies, hazards, identity) as
   `if (!isAdmin) return 403`. That's not the application-layer policy the Phase 2 doc asks for.
+- **Interim (PR #48):** `identity.drivers.scopes` (0018, jsonb, `['manage_fleet']` max) and a
+  `fleet` module (0019, `fleet.vehicles`). A non-admin driver with a `companyId` can view their
+  company's vehicles; `manage_fleet` lets them create/edit/delete them. Checks live in
+  `fleet/application/authorization.ts` (`canViewFleet`/`canManageFleet`), called from the routes.
+  The dashboard admits any driver with `isAdmin` or at least one scope.
 - Access tokens carry only `sub` (driverId) and `sid`. Nothing tells a driver token apart from a
   staff token.
 - **Core connects as the `wagonwise` role, which owns every table** (and is a superuser in the
@@ -108,6 +121,23 @@ One per session, each with its tests.
   auth needs somewhere to live, and the dashboard shouldn't keep going through the driver BFF.
 - **P2-M1.12** needs a deploy plan: a new DO service for staff-bff, the new DB role, and the
   secrets. Remember the standing rule: never `doctl apps update --spec`.
+
+## Carrying over the interim scopes
+
+- **P2-M1.2**: `can(actor, 'manage_fleet', companyId)` replaces `canManageFleet`. Keep
+  `fleet/application/authorization.test.ts`'s cases as the regression suite; they must pass
+  unchanged against the new policy.
+- **P2-M1.12** (cutover), in addition to `is_admin`:
+  - for every driver with non-empty `scopes` and a `companyId`, create a fleet-user invite for
+    that company with the same privileges (the driver sets a password + TOTP on accepting);
+  - then drop `identity.drivers.scopes`, remove `scopes` from contracts' `driverSchema` and
+    `updateDriverRequestSchema`, and remove the dashboard's "any scope" sign-in path;
+  - `fleet`'s `CallerDirectory` reads the staff actor instead of identity's driver record.
+- Until then, every new privilege goes on the fixed list in **both** places
+  (`DRIVER_SCOPES` in contracts and in identity's domain), not as a new mechanism.
+- Known gap in the interim routes: `PUT`/`DELETE /fleet/vehicles/:id` answer 404 before the
+  permission check, so a non-member can tell whether a vehicle id exists (ids are random UUIDs,
+  low risk). Fix alongside P2-M1.8 by checking permission before revealing existence.
 
 ## Open decisions (need the user's answer before P2-M1.1)
 

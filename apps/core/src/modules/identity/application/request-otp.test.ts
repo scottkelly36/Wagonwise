@@ -99,6 +99,7 @@ describe('requestOtp', () => {
       identifier: 'driver@example.com',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       isAdmin: false,
+      scopes: [],
     });
     const deps = buildDeps({ driverRepo });
 
@@ -117,6 +118,7 @@ describe('requestOtp', () => {
       identifier: 'driver@example.com',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       isAdmin: false,
+      scopes: [],
     });
     const deps = buildDeps({ driverRepo, otpRepo });
 
@@ -139,6 +141,7 @@ describe('requestOtp', () => {
       identifier: 'driver@example.com',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       isAdmin: false,
+      scopes: [],
     });
     const deps = buildDeps({ driverRepo });
 

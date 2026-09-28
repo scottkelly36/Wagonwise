@@ -1,5 +1,5 @@
 import { companyIdSchema } from '@wagonwise/contracts/companies';
-import type { DriverDto } from '@wagonwise/contracts/identity';
+import { DRIVER_SCOPES, type DriverDto, type DriverScope } from '@wagonwise/contracts/identity';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as companiesApi from '../../api/companies';
 import * as identityApi from '../../api/identity';
@@ -28,7 +28,12 @@ export function DriverAccounts() {
   });
 
   const updateDriver = useMutation({
-    mutationFn: (input: { id: string; companyId?: string | null; isAdmin?: boolean }) =>
+    mutationFn: (input: {
+      id: string;
+      companyId?: string | null;
+      isAdmin?: boolean;
+      scopes?: readonly DriverScope[];
+    }) =>
       identityApi.updateDriver(accessToken as string, input.id, {
         ...(input.companyId === undefined
           ? {}
@@ -36,6 +41,7 @@ export function DriverAccounts() {
               companyId: input.companyId === null ? null : companyIdSchema.parse(input.companyId),
             }),
         ...(input.isAdmin === undefined ? {} : { isAdmin: input.isAdmin }),
+        ...(input.scopes === undefined ? {} : { scopes: [...input.scopes] }),
       }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: DRIVERS_KEY }),
   });
@@ -46,6 +52,15 @@ export function DriverAccounts() {
 
   function handleAdminToggle(driver: DriverDto): void {
     updateDriver.mutate({ id: driver.id, isAdmin: !driver.isAdmin });
+  }
+
+  /** Fleet-user scopes (Phase 2 tech design doc's decision log, 2026-09-27) — a fixed list, one
+   *  checkbox per scope, replacing the whole set on toggle (plain-PATCH semantics, not a merge). */
+  function handleScopeToggle(driver: DriverDto, scope: DriverScope): void {
+    const next = driver.scopes.includes(scope)
+      ? driver.scopes.filter((s) => s !== scope)
+      : [...driver.scopes, scope];
+    updateDriver.mutate({ id: driver.id, scopes: next });
   }
 
   const error = drivers.error ?? companies.error ?? updateDriver.error;
@@ -70,6 +85,7 @@ export function DriverAccounts() {
               <th>Identifier</th>
               <th>Company</th>
               <th>Admin</th>
+              <th>Scopes</th>
             </tr>
           </thead>
           <tbody>
@@ -102,6 +118,23 @@ export function DriverAccounts() {
                       />{' '}
                       Admin
                     </label>
+                  </td>
+                  <td>
+                    {driver.companyId === undefined ? (
+                      <span style={{ color: '#9ca3af' }}>— needs a company —</span>
+                    ) : (
+                      DRIVER_SCOPES.map((scope) => (
+                        <label key={scope} style={{ marginRight: 12 }}>
+                          <input
+                            type="checkbox"
+                            checked={driver.scopes.includes(scope)}
+                            disabled={saving}
+                            onChange={() => handleScopeToggle(driver, scope)}
+                          />{' '}
+                          {scope}
+                        </label>
+                      ))
+                    )}
                   </td>
                 </tr>
               );

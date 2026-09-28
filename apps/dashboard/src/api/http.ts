@@ -1,7 +1,7 @@
 import { bffUrl } from './config';
 import { ApiError } from './errors';
 
-export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 export interface RequestOptions {
   readonly body?: unknown;

@@ -55,6 +55,7 @@ function existingDriver(): Driver {
     identifier: IDENTIFIER,
     createdAt: now,
     isAdmin: false,
+    scopes: [],
   };
 }
 

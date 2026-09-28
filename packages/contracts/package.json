@@ -38,6 +38,11 @@
       "types": "./dist/parking.d.ts",
       "import": "./dist/parking.js",
       "default": "./dist/parking.js"
+    },
+    "./fleet": {
+      "types": "./dist/fleet.d.ts",
+      "import": "./dist/fleet.js",
+      "default": "./dist/fleet.js"
     }
   },
   "scripts": {

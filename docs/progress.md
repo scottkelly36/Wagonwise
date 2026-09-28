@@ -11,25 +11,27 @@ history file keeps the record.
 
 ## Status
 
-| Milestone                          | Status                                  | Detail                                 |
-| ---------------------------------- | --------------------------------------- | -------------------------------------- |
-| M1 Foundations                     | Done — 2026-09-22                       | `history/m1-foundations.md`            |
-| M2 Routing core                    | Done — 2026-09-22                       | `history/m2-routing-core.md`           |
-| M3 Hazards core                    | Done — 2026-09-22                       | `history/m3-hazards-core.md`           |
-| M4 Driver BFF + auth               | Done — 2026-09-22                       | `history/m4-driver-bff-auth.md`        |
-| M5 Driver app                      | In progress — only M5.10 left           | `history/m5-driver-app.md`             |
-| M6 Alerts                          | Done — 2026-09-24                       | `history/m6-alerts.md`                 |
-| M7 Voice                           | Done — 2026-09-24                       | `history/m7-voice.md`                  |
-| M8 Field-ready                     | In progress — partly shipped 2026-09-25 | below (no breakdown written yet)       |
-| M9 Route options & safe parking    | Done — 2026-09-27                       | `history/m9-route-options-parking.md`  |
-| Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only  | below, and the Phase 2 tech design doc |
-| P2-M1 Orgs, roles, RLS, staff auth | Breakdown proposed 2026-09-28           | `history/p2-m1-organisations-auth.md`  |
+| Milestone                          | Status                                   | Detail                                 |
+| ---------------------------------- | ---------------------------------------- | -------------------------------------- |
+| M1 Foundations                     | Done — 2026-09-22                        | `history/m1-foundations.md`            |
+| M2 Routing core                    | Done — 2026-09-22                        | `history/m2-routing-core.md`           |
+| M3 Hazards core                    | Done — 2026-09-22                        | `history/m3-hazards-core.md`           |
+| M4 Driver BFF + auth               | Done — 2026-09-22                        | `history/m4-driver-bff-auth.md`        |
+| M5 Driver app                      | In progress — only M5.10 left            | `history/m5-driver-app.md`             |
+| M6 Alerts                          | Done — 2026-09-24                        | `history/m6-alerts.md`                 |
+| M7 Voice                           | Done — 2026-09-24                        | `history/m7-voice.md`                  |
+| M8 Field-ready                     | In progress — partly shipped 2026-09-25  | below (no breakdown written yet)       |
+| M9 Route options & safe parking    | Done — 2026-09-27                        | `history/m9-route-options-parking.md`  |
+| Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only   | below, and the Phase 2 tech design doc |
+| P2-M1 Orgs, roles, RLS, staff auth | Breakdown proposed 2026-09-28            | `history/p2-m1-organisations-auth.md`  |
+| P2-M2 Fleet (early slice)          | Vehicles + interim driver scopes, PR #48 | `history/p2-m1-organisations-auth.md`  |
 
 ## Next up
 
 1. **P2-M1** (user's call 2026-09-28: start Phase 2 ahead of its entry criteria and before
    M8 is finished). Breakdown in `history/p2-m1-organisations-auth.md`, waiting on four open
-   decisions at the bottom of that file. Then P2-M1.1 (contracts).
+   decisions at the bottom of that file. Then P2-M1.1 (contracts). Builds on top of the interim
+   driver scopes from PR #48 (user's call 2026-09-28) and migrates them at P2-M1.12.
 
 ## Open items (verified against the code 2026-09-28)
 
@@ -71,8 +73,13 @@ surface was needed straight away:
 - Admin screens: Companies, Driver Accounts (create/list/assign company/toggle admin), Invite
   Codes (generate/list), Hazard Reports (list/delete — replaced the driver app's delete button).
 
-Not built: roles/permissions, RLS, staff auth + 2FA, and everything from P2-M2 on (fleet, jobs,
-dispatch, live map, moderation, reports). **Proposed, not built:** a 3-tier permission model —
+- **Fleet vehicles (PR #48, early P2-M2):** `fleet` module (company vehicles with dimensions,
+  migration 0019), Vehicle Profiles page. **Interim permissions:** a `scopes` list on `Driver`
+  (migration 0018, only `manage_fleet`), granted by admins; drivers with a scope can use the
+  dashboard. Temporary by decision: replaced by fleet-user privileges at P2-M1.12.
+
+Not built: staff accounts, RLS, staff auth + 2FA, and the rest of Phase 2 (jobs, dispatch, live
+map, moderation, reports). **Proposed, not built:** a 3-tier permission model —
 WagonWise staff (unscoped, replaces `isAdmin`), Fleet users (company-scoped, privileges from a
 fixed WagonWise-defined list, "manager" is a privilege not a role), Drivers (own account type,
 optionally linked to a company).

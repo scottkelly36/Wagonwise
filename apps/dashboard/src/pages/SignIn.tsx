@@ -5,9 +5,10 @@ import { ApiError } from '../api/errors';
 import { useAuthStore } from '../state/auth-store';
 
 /** Real OTP sign-in, reusing the same flow driver-app uses — the dashboard has no separate
- *  business/dispatcher auth model (that's still undecided, see the rest of this app's earlier
- *  placeholders), so an admin dashboard user is just an existing `Driver` whose `isAdmin` is
- *  true. A non-admin can still complete OTP (core doesn't know this is the admin dashboard when
+ *  business/dispatcher auth model, so a dashboard user is just an existing `Driver` who is either
+ *  WagonWise staff (`isAdmin`) or a company-scoped Fleet user with at least one granted scope
+ *  (Phase 2 tech design doc's decision log, 2026-09-27's 3-tier permission model, first slice).
+ *  A driver with neither can still complete OTP (core doesn't know this is the dashboard when
  *  verifying a code), but gets rejected here client-side, and would get a real 403 from every
  *  endpoint this app calls regardless. */
 export function SignIn() {
@@ -38,8 +39,8 @@ export function SignIn() {
     setPending(true);
     try {
       const result = await identityApi.verifyOtp(identifier, code);
-      if (!result.driver.isAdmin) {
-        setError("This account doesn't have admin access.");
+      if (!result.driver.isAdmin && result.driver.scopes.length === 0) {
+        setError("This account doesn't have dashboard access.");
         return;
       }
       signIn(result.accessToken, result.driver);

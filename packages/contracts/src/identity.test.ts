@@ -51,6 +51,7 @@ describe('verifyOtpResponseSchema', () => {
         identifier: 'a@example.com',
         createdAt: '2026-09-22T09:24:27.168Z',
         isAdmin: false,
+        scopes: [],
       },
     });
     expect(result.success).toBe(true);
@@ -110,6 +111,7 @@ describe('driverSchema (via verifyOtpResponseSchema)', () => {
         identifier: 'a@example.com',
         createdAt: '2026-09-22T09:24:27.168Z',
         isAdmin: false,
+        scopes: [],
         companyId: 'company-1',
       },
     });
@@ -123,6 +125,7 @@ describe('driverSchema (via verifyOtpResponseSchema)', () => {
         identifier: 'a@example.com',
         createdAt: '2026-09-22T09:24:27.168Z',
         isAdmin: false,
+        scopes: [],
       },
     });
     expect(withoutCompany.success).toBe(true);
@@ -138,6 +141,7 @@ describe('listDriversResponseSchema', () => {
           identifier: 'a@example.com',
           createdAt: '2026-09-22T09:24:27.168Z',
           isAdmin: false,
+          scopes: [],
         },
       ],
     });
@@ -160,6 +164,12 @@ describe('updateDriverRequestSchema', () => {
 
   it('accepts companyId: null to clear an assignment', () => {
     expect(updateDriverRequestSchema.safeParse({ companyId: null }).success).toBe(true);
+  });
+
+  it('accepts a scopes array, including empty, and rejects an unknown scope', () => {
+    expect(updateDriverRequestSchema.safeParse({ scopes: [] }).success).toBe(true);
+    expect(updateDriverRequestSchema.safeParse({ scopes: ['manage_fleet'] }).success).toBe(true);
+    expect(updateDriverRequestSchema.safeParse({ scopes: ['made_up_scope'] }).success).toBe(false);
   });
 });
 

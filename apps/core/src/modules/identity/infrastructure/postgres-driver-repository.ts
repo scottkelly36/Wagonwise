@@ -2,7 +2,7 @@ import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
 import type { Transaction } from '../../../shared/ports/unit-of-work.js';
 import type { DriverRepository } from '../application/ports/driver-repository.js';
-import type { Driver, DriverId } from '../domain/driver.js';
+import type { Driver, DriverId, DriverScope } from '../domain/driver.js';
 import type { UntypedDb } from './db.js';
 
 interface DriverRow {
@@ -13,6 +13,7 @@ interface DriverRow {
   readonly deleted_at: Date | null;
   readonly is_admin: boolean;
   readonly company_id: string | null;
+  readonly scopes: DriverScope[];
 }
 
 function toDomain(row: DriverRow): Driver {
@@ -24,11 +25,12 @@ function toDomain(row: DriverRow): Driver {
     deletedAt: row.deleted_at ?? undefined,
     isAdmin: row.is_admin,
     companyId: row.company_id === null ? undefined : makeId<'CompanyId'>(row.company_id),
+    scopes: row.scopes,
   };
 }
 
 const SELECT_COLUMNS = `
-  id, identifier, created_at, consented_at, deleted_at, is_admin, company_id
+  id, identifier, created_at, consented_at, deleted_at, is_admin, company_id, scopes
 `;
 
 /**
@@ -71,18 +73,19 @@ export class PostgresDriverRepository implements DriverRepository {
     const executor = tx ? (tx as unknown as UntypedDb) : this.db;
     await sql`
       insert into identity.drivers
-        (id, identifier, created_at, consented_at, deleted_at, is_admin, company_id)
+        (id, identifier, created_at, consented_at, deleted_at, is_admin, company_id, scopes)
       values (
         ${driver.id}, ${driver.identifier}, ${driver.createdAt},
         ${driver.consentedAt ?? null}, ${driver.deletedAt ?? null}, ${driver.isAdmin},
-        ${driver.companyId ?? null}
+        ${driver.companyId ?? null}, ${JSON.stringify(driver.scopes)}
       )
       on conflict (id) do update set
         identifier = excluded.identifier,
         consented_at = excluded.consented_at,
         deleted_at = excluded.deleted_at,
         is_admin = excluded.is_admin,
-        company_id = excluded.company_id
+        company_id = excluded.company_id,
+        scopes = excluded.scopes
     `.execute(executor);
   }
 }
