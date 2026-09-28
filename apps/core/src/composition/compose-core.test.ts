@@ -8,6 +8,7 @@ const config = loadConfig({ LOG_LEVEL: 'silent' });
 
 const fakeTokenSigner = {
   signAccessToken: () => Promise.resolve('fake-access-token'),
+  signStaffAccessToken: () => Promise.resolve('fake-staff-access-token'),
   publicJwk: () => Promise.resolve({ kty: 'OKP', crv: 'Ed25519', x: 'fake' }),
 };
 

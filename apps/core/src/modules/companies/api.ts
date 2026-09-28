@@ -1,10 +1,25 @@
+import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
+import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { IdentityModule } from '../identity/api.js';
 import { IdentityAdminDirectory } from './infrastructure/identity-admin-directory.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresCompanyRepository } from './infrastructure/postgres-company-repository.js';
 import { registerCompaniesRoutes, type CompaniesRouteDeps } from './interface/routes.js';
+import type { StaffDeps } from './application/staff-deps.js';
+import { AesGcmSecretBox } from './infrastructure/aes-gcm-secret-box.js';
+import { CryptoRandomCodes } from './infrastructure/crypto-random-codes.js';
+import { IdentityCodeSender } from './infrastructure/identity-code-sender.js';
+import { IdentityStaffTokenIssuer } from './infrastructure/identity-staff-token-issuer.js';
+import { PostgresStaffAccountRepository } from './infrastructure/postgres-staff-account-repository.js';
+import { PostgresStaffChallengeRepository } from './infrastructure/postgres-staff-challenge-repository.js';
+import { PostgresStaffInviteRepository } from './infrastructure/postgres-staff-invite-repository.js';
+import { PostgresStaffRecoveryCodeRepository } from './infrastructure/postgres-staff-recovery-code-repository.js';
+import { PostgresStaffSessionRepository } from './infrastructure/postgres-staff-session-repository.js';
+import { Rfc6238Totp } from './infrastructure/rfc6238-totp.js';
+import { ScryptPasswordHasher } from './infrastructure/scrypt-password-hasher.js';
+import { registerStaffRoutes } from './interface/staff-routes.js';
 
 // Re-exported so composition/ can type its overrides without reaching past this facade into
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
@@ -13,10 +28,17 @@ export type { UntypedDb } from './infrastructure/db.js';
 export interface CompaniesModuleDeps {
   readonly db: UntypedDb;
   readonly clock: Clock;
-  /** The one cross-context read every companies route's admin gate needs (AGENTS.md rule 7) —
-   *  companies never imports identity's `Driver`/`DriverId` directly, just this one method,
-   *  wrapped by `infrastructure/identity-admin-directory.ts`. */
-  readonly identity: Pick<IdentityModule, 'isDriverAdmin'>;
+  readonly ids: IdGenerator;
+  /** The cross-context calls this module makes (AGENTS.md rule 7), each wrapped by an adapter in
+   *  `infrastructure/`: the admin gate (`isDriverAdmin`), and for staff sign-in (P2-M1.6)
+   *  sending codes through drivers' SMS/email senders and signing staff tokens with core's key. */
+  readonly identity: Pick<
+    IdentityModule,
+    'isDriverAdmin' | 'sendOneTimeCode' | 'signStaffAccessToken'
+  >;
+  /** Base64 32-byte key for staff TOTP secrets (config's STAFF_SECRET_KEY). Undefined: a fresh
+   *  key per boot, local dev only. */
+  readonly staffSecretKey?: string | undefined;
 }
 
 export interface CompaniesModule {
@@ -41,9 +63,34 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     adminDirectory,
   };
 
+  const staffDeps: StaffDeps = {
+    accounts: new PostgresStaffAccountRepository(deps.db),
+    invites: new PostgresStaffInviteRepository(deps.db),
+    sessions: new PostgresStaffSessionRepository(deps.db),
+    challenges: new PostgresStaffChallengeRepository(deps.db),
+    recoveryCodes: new PostgresStaffRecoveryCodeRepository(deps.db),
+    passwordHasher: new ScryptPasswordHasher(),
+    secretBox: new AesGcmSecretBox(
+      deps.staffSecretKey === undefined
+        ? randomBytes(32)
+        : Buffer.from(deps.staffSecretKey, 'base64'),
+    ),
+    totp: new Rfc6238Totp(),
+    codeSender: new IdentityCodeSender((destination, code) =>
+      deps.identity.sendOneTimeCode(destination, code),
+    ),
+    randomCodes: new CryptoRandomCodes(),
+    tokenIssuer: new IdentityStaffTokenIssuer((staffId, sessionId) =>
+      deps.identity.signStaffAccessToken(staffId, sessionId),
+    ),
+    clock: deps.clock,
+    ids: deps.ids,
+  };
+
   return {
     registerRoutes(app: FastifyInstance): void {
       registerCompaniesRoutes(app, routeDeps);
+      registerStaffRoutes(app, staffDeps);
     },
   };
 }

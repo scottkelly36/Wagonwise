@@ -6,4 +6,6 @@ export interface RandomCodes {
   recoveryCodes(count: number): string[];
   /** The secret in an invite link. Long enough that guessing one is hopeless. */
   inviteToken(): string;
+  /** A staff refresh token: same strength as an invite token. */
+  refreshToken(): string;
 }

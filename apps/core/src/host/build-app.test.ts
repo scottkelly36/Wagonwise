@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadConfig, PRODUCT_NAME } from '../config.js';
 import { FakeClock } from '../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../shared/testing/sequential-id-generator.js';
-import type { AccessTokenVerifier } from './access-token-verifier.js';
+import type { AccessTokenVerifier, StaffAccessTokenVerifier } from './access-token-verifier.js';
 import { buildApp } from './build-app.js';
 
 const FIRST_ID = '00000000-0000-4000-8000-000000000001';
@@ -18,6 +18,10 @@ const fakeAccessTokenVerifier: AccessTokenVerifier = {
   },
 };
 
+const rejectingStaffVerifier: StaffAccessTokenVerifier = {
+  verify: () => Promise.reject(new Error('no staff tokens in this test')),
+};
+
 function makeApp(overrides: Partial<Parameters<typeof loadConfig>[0]> = {}) {
   const clock = new FakeClock('2026-03-01T12:00:00.000Z');
   const ids = new SequentialIdGenerator();
@@ -26,6 +30,7 @@ function makeApp(overrides: Partial<Parameters<typeof loadConfig>[0]> = {}) {
     clock,
     ids,
     accessTokenVerifier: fakeAccessTokenVerifier,
+    staffAccessTokenVerifier: rejectingStaffVerifier,
   });
   return { app, clock, ids };
 }

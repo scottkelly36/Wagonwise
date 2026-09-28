@@ -94,6 +94,18 @@ const envSchema = z.object({
   // feed. Default is a rough UK average diesel price; update it here as prices actually move,
   // rather than wiring up a live feed for a number that's explicitly a rough estimate anyway.
   FUEL_PRICE_PER_LITRE_GBP: z.coerce.number().positive().default(1.6),
+  // P2-M1.6: encrypts staff members' authenticator-app secrets at rest (AES-256-GCM). 32 random
+  // bytes, base64 (`openssl rand -base64 32`). Optional: unset means a fresh key every boot,
+  // fine for local dev, but every authenticator enrolment then becomes unreadable on restart.
+  // Set it before any real staff account exists, and never lose it: the deployment guide keeps
+  // it with the other secrets.
+  STAFF_SECRET_KEY: z
+    .string()
+    .min(1)
+    .optional()
+    .refine((key) => key === undefined || Buffer.from(key, 'base64').length === 32, {
+      message: 'must be 32 random bytes, base64-encoded (openssl rand -base64 32)',
+    }),
 });
 
 export interface Config {
@@ -113,6 +125,8 @@ export interface Config {
   readonly resendFromEmail: string | undefined;
   readonly outboxPollIntervalMs: number;
   readonly fuelPricePerLitreGBP: number;
+  /** Base64, 32 bytes, or undefined for a per-boot key (local dev only). */
+  readonly staffSecretKey: string | undefined;
 }
 
 /** Thrown at boot when the environment is invalid; the process should exit, not limp on. */
@@ -153,5 +167,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     resendFromEmail: values.RESEND_FROM_EMAIL,
     outboxPollIntervalMs: values.OUTBOX_POLL_INTERVAL_MS,
     fuelPricePerLitreGBP: values.FUEL_PRICE_PER_LITRE_GBP,
+    staffSecretKey: values.STAFF_SECRET_KEY,
   };
 }

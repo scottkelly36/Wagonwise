@@ -30,7 +30,16 @@ describe('loadConfig', () => {
       resendFromEmail: undefined,
       outboxPollIntervalMs: 2000,
       fuelPricePerLitreGBP: 1.6,
+      staffSecretKey: undefined,
     });
+  });
+
+  it('accepts a 32-byte base64 STAFF_SECRET_KEY and rejects any other length', () => {
+    const key = Buffer.alloc(32, 7).toString('base64');
+    expect(loadConfig({ STAFF_SECRET_KEY: key }).staffSecretKey).toBe(key);
+    expect(() => loadConfig({ STAFF_SECRET_KEY: Buffer.alloc(16).toString('base64') })).toThrow(
+      ConfigError,
+    );
   });
 
   it('reads overrides, coercing PORT from its string form', () => {
@@ -69,6 +78,7 @@ describe('loadConfig', () => {
       resendFromEmail: 'WagonWise <noreply@wagon-wise.co.uk>',
       outboxPollIntervalMs: 500,
       fuelPricePerLitreGBP: 1.75,
+      staffSecretKey: undefined,
     });
   });
 

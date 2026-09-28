@@ -62,6 +62,18 @@ describe('createAccessTokenVerifier', () => {
     expect(receivedInternalKey).toBe('the-internal-key');
   });
 
+  it('accepts a driver token carrying kind: driver', async () => {
+    const verifier = createAccessTokenVerifier(baseUrl, 'k');
+    const claims = await verifier.verify(await signToken({ sid: 'session-1', kind: 'driver' }));
+    expect(claims).toEqual({ driverId: 'driver-1', sessionId: 'session-1' });
+  });
+
+  it('rejects a staff token, even though core signed it with the same key', async () => {
+    const verifier = createAccessTokenVerifier(baseUrl, 'k');
+    const staffToken = await signToken({ sid: 'session-1', kind: 'staff' });
+    await expect(verifier.verify(staffToken)).rejects.toThrow('not a driver access token');
+  });
+
   it('rejects a token missing the sid claim', async () => {
     const verifier = createAccessTokenVerifier(baseUrl, 'k');
     const badToken = await new SignJWT({})

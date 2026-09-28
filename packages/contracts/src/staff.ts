@@ -188,6 +188,14 @@ export const staffInviteSchema = z.object({
 });
 export type StaffInviteDto = z.infer<typeof staffInviteSchema>;
 
+/** `inviteToken` goes in the link the inviter sends (`/join?token=…` on the dashboard). It's
+ *  returned this once and never again: only its hash is stored. */
+export const createStaffInviteResponseSchema = z.object({
+  invite: staffInviteSchema,
+  inviteToken: z.string().min(1),
+});
+export type CreateStaffInviteResponse = z.infer<typeof createStaffInviteResponseSchema>;
+
 /** Step 1 of accepting: the emailed invite token, a password, and which second factor to use.
  *  `phone` is required for `sms` and not allowed otherwise. */
 export const acceptStaffInviteRequestSchema = z
@@ -235,6 +243,12 @@ export const setStaffPrivilegesRequestSchema = z.object({
   privileges: privilegeListSchema,
 });
 export type SetStaffPrivilegesRequest = z.infer<typeof setStaffPrivilegesRequestSchema>;
+
+/** No `companyId`: everyone (WagonWise admins only). */
+export const listStaffQuerySchema = z.object({
+  companyId: z.uuid().optional(),
+});
+export type ListStaffQuery = z.infer<typeof listStaffQuerySchema>;
 
 export const staffIdParamsSchema = z.object({
   id: z.uuid(),

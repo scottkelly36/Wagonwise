@@ -1,7 +1,11 @@
 import { createPrivateKey, createPublicKey, generateKeyPair, type KeyObject } from 'node:crypto';
 import { promisify } from 'node:util';
 import { exportJWK, SignJWT } from 'jose';
-import type { AccessTokenClaims, TokenSigner } from '../application/ports/token-signer.js';
+import type {
+  AccessTokenClaims,
+  StaffAccessTokenClaims,
+  TokenSigner,
+} from '../application/ports/token-signer.js';
 
 const generateKeyPairAsync = promisify(generateKeyPair);
 
@@ -45,9 +49,19 @@ export class Ed25519TokenSigner implements TokenSigner {
 
   async signAccessToken(claims: AccessTokenClaims): Promise<string> {
     // Claims limited to sub and sid (design doc §9) — no email, no vehicle data.
-    return new SignJWT({ sid: claims.sessionId })
+    // `kind` (P2-M1.6) keeps driver and staff tokens apart even though one key signs both.
+    return new SignJWT({ sid: claims.sessionId, kind: 'driver' })
       .setProtectedHeader({ alg: ALG })
       .setSubject(claims.driverId)
+      .setIssuedAt()
+      .setExpirationTime(ACCESS_TOKEN_TTL)
+      .sign(this.privateKey);
+  }
+
+  async signStaffAccessToken(claims: StaffAccessTokenClaims): Promise<string> {
+    return new SignJWT({ sid: claims.sessionId, kind: 'staff' })
+      .setProtectedHeader({ alg: ALG })
+      .setSubject(claims.staffId)
       .setIssuedAt()
       .setExpirationTime(ACCESS_TOKEN_TTL)
       .sign(this.privateKey);
