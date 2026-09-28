@@ -3,6 +3,10 @@ import { makeId } from '../../../shared/brand.js';
 import type { HazardReport } from '../domain/hazard-report.js';
 import { InMemoryHazardRepository } from './testing/in-memory-hazard-repository.js';
 import { listHazards } from './list-hazards.js';
+import { StubAdminDirectory } from './testing/stub-admin-directory.js';
+
+const ADMIN = makeId<'DriverId'>('admin');
+const admins = new StubAdminDirectory(new Set([ADMIN]));
 
 function report(overrides: Partial<HazardReport> = {}): HazardReport {
   return {
@@ -25,12 +29,25 @@ describe('listHazards', () => {
     await repo.save(report());
     await repo.save(report({ id: makeId<'HazardReportId'>('report-2'), status: 'dismissed' }));
 
-    const result = await listHazards({ repo });
-    expect(result).toHaveLength(2);
+    const result = await listHazards({ repo, admins }, { callerId: ADMIN });
+    expect(result.ok && result.value).toHaveLength(2);
   });
 
   it('returns an empty array when there are no reports', async () => {
     const repo = new InMemoryHazardRepository();
-    expect(await listHazards({ repo })).toEqual([]);
+    expect(await listHazards({ repo, admins }, { callerId: ADMIN })).toEqual({
+      ok: true,
+      value: [],
+    });
+  });
+
+  it('refuses a non-admin, never a partial list', async () => {
+    const repo = new InMemoryHazardRepository();
+    await repo.save(report());
+    const result = await listHazards(
+      { repo, admins },
+      { callerId: makeId<'DriverId'>('driver-1') },
+    );
+    expect(result).toEqual({ ok: false, error: { tag: 'Forbidden' } });
   });
 });

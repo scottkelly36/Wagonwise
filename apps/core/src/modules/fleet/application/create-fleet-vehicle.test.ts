@@ -3,9 +3,11 @@ import { makeId } from '../../../shared/brand.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { Dimensions } from '../domain/vehicle.js';
 import { createFleetVehicle, type CreateFleetVehicleDeps } from './create-fleet-vehicle.js';
+import type { Caller } from './ports/caller-directory.js';
 import { InMemoryFleetVehicleRepository } from './testing/in-memory-fleet-vehicle-repository.js';
 
 const companyId = makeId<'CompanyId'>('company-1');
+const ADMIN: Caller = { isAdmin: true, scopes: [] };
 
 function dimensions(overrides: Partial<Dimensions> = {}): Dimensions {
   return { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32, ...overrides };
@@ -19,6 +21,7 @@ describe('createFleetVehicle', () => {
   it('creates and persists a vehicle with a generated id', async () => {
     const repo = new InMemoryFleetVehicleRepository();
     const result = await createFleetVehicle(buildDeps(repo), {
+      caller: ADMIN,
       companyId,
       name: '  Big Wagon  ',
       dimensions: dimensions(),
@@ -39,6 +42,7 @@ describe('createFleetVehicle', () => {
   it('rejects a blank name without touching the repository', async () => {
     const repo = new InMemoryFleetVehicleRepository();
     const result = await createFleetVehicle(buildDeps(repo), {
+      caller: ADMIN,
       companyId,
       name: '   ',
       dimensions: dimensions(),
@@ -50,6 +54,7 @@ describe('createFleetVehicle', () => {
   it('rejects invalid dimensions without touching the repository', async () => {
     const repo = new InMemoryFleetVehicleRepository();
     const result = await createFleetVehicle(buildDeps(repo), {
+      caller: ADMIN,
       companyId,
       name: 'Big Wagon',
       dimensions: dimensions({ heightM: 0 }),
@@ -59,5 +64,26 @@ describe('createFleetVehicle', () => {
       error: { tag: 'InvalidDimensions', reason: 'must_be_positive' },
     });
     expect(await repo.listForCompany(companyId)).toEqual([]);
+  });
+
+  it('lets a manage_fleet member add to their own company, and refuses anyone else', async () => {
+    const repo = new InMemoryFleetVehicleRepository();
+    const input = { companyId, name: 'Big Wagon', dimensions: dimensions() };
+    const member: Caller = { isAdmin: false, companyId, scopes: ['manage_fleet'] };
+    const viewer: Caller = { isAdmin: false, companyId, scopes: [] };
+    const outsider: Caller = {
+      isAdmin: false,
+      companyId: makeId<'CompanyId'>('company-2'),
+      scopes: ['manage_fleet'],
+    };
+
+    expect((await createFleetVehicle(buildDeps(repo), { ...input, caller: member })).ok).toBe(true);
+    for (const caller of [viewer, outsider]) {
+      expect(await createFleetVehicle(buildDeps(repo), { ...input, caller })).toEqual({
+        ok: false,
+        error: { tag: 'Forbidden' },
+      });
+    }
+    expect(await repo.listForCompany(companyId)).toHaveLength(1);
   });
 });

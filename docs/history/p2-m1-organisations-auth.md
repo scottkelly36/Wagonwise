@@ -3,7 +3,8 @@
 Scoped 2026-09-28 from the [Phase 2 tech design doc](https://claude.ai/artifact/LK2oYrVSwotj7E8W9tXykD)
 §4 and §9, plus its decision log's proposed 3-tier permission model. **Status: in progress. P2-M1.1
 (contracts), P2-M1.2 (domain rules), P2-M1.3 (storage), P2-M1.4 (crypto building blocks)
-P2-M1.5 (use cases), P2-M1.6 (staff tokens + routes) and P2-M1.7 (RLS) done 2026-09-28.**
+P2-M1.5 (use cases), P2-M1.6 (staff tokens + routes), P2-M1.7 (RLS) and P2-M1.8 (policies in use cases) done
+2026-09-28.**
 
 **Decision 2026-09-28 (user's call, option 1 of 3): interim driver scopes first, staff accounts
 on top later.** A first fleet slice was built outside this plan (PR #48, branch `phase-2/m1`):
@@ -88,7 +89,7 @@ One per session, each with its tests.
 | P2-M1.5  | Core use cases: invite, accept invite (set password + enrol a second factor), sign in, refresh, revoke, set privileges, remove user                   | Done — 2026-09-28 |
 | P2-M1.6  | Token claims gain `kind: 'driver' \| 'staff'`; driver routes reject staff tokens and vice versa                                                       | Done — 2026-09-28 |
 | P2-M1.7  | **RLS**: non-owner `wagonwise_app` DB role, policies on company-owned tables, `app.company_id` set per transaction                                    | Done — 2026-09-28 |
-| P2-M1.8  | Move existing admin checks (companies, invite codes, driver accounts, hazard delete) into application-layer policies                                  | Proposed          |
+| P2-M1.8  | Move existing admin checks (companies, invite codes, driver accounts, hazard delete) into application-layer policies                                  | Done — 2026-09-28 |
 | P2-M1.9  | `apps/staff-bff`: verify staff tokens, proxy staff routes; remove the admin routes from driver-bff                                                    | Proposed          |
 | P2-M1.10 | Dashboard: email + password + TOTP sign-in, point at staff-bff, "Users" screen (invite with presets, edit privileges, remove)                         | Proposed          |
 | P2-M1.11 | Staff audit log (`companies.staff_audit`): who did what, to which company, when — written by every staff use case                                     | Proposed          |
@@ -231,6 +232,24 @@ One per session, each with its tests.
     code is sent. `companies.companies` has no RLS (no secrets; company admin still runs as
     drivers until P2-M1.8/1.12).
 
+- **P2-M1.8**: every existing admin check moved out of the routes into the use cases, so no
+  caller of a use case (the staff BFF path at P2-M1.12 included) can skip it.
+  - Each module owns its own policy function, per AGENTS.md rule 6: identity
+    `application/authorization.ts` (`requireAdmin`: list drivers, update driver, create/list
+    invite codes), companies `application/company-authorization.ts` (create/list companies, with
+    a new `listCompanies` use case), hazards `application/authorization.ts` (delete, list all).
+    Fleet's existing `canViewFleet`/`canManageFleet` are now called by its use cases, which take
+    the resolved `Caller`.
+  - Each returns a `Forbidden` error mapped to 403 in the module's one error table. Checks run
+    before the target is looked up (update driver, delete hazard), so a non-admin can't tell
+    whether an id exists.
+  - Fleet: a vehicle in a company the caller can't see is `FleetVehicleNotFound` (404), the same
+    as an unknown id; a same-company member without `manage_fleet` gets 403.
+  - Behaviour change: a malformed request from a non-admin is now 400 rather than 403, because
+    input is parsed before the use case runs. Neither reveals any data.
+  - Tests: each use case gained refusal cases (non-admin, unknown caller, other company); the
+    existing route tests' 403s pass unchanged, except the cross-company fleet PUT (now 404).
+
 ## Carrying over the interim scopes
 
 - **P2-M1.2**: `can(actor, 'manage_fleet', companyId)` replaces `canManageFleet`. Keep
@@ -244,9 +263,8 @@ One per session, each with its tests.
   - `fleet`'s `CallerDirectory` reads the staff actor instead of identity's driver record.
 - Until then, every new privilege goes on the fixed list in **both** places
   (`DRIVER_SCOPES` in contracts and in identity's domain), not as a new mechanism.
-- Known gap in the interim routes: `PUT`/`DELETE /fleet/vehicles/:id` answer 404 before the
-  permission check, so a non-member can tell whether a vehicle id exists (ids are random UUIDs,
-  low risk). Fix alongside P2-M1.8 by checking permission before revealing existence.
+- ~~Known gap: `PUT`/`DELETE /fleet/vehicles/:id` revealed whether a vehicle id exists.~~
+  Fixed in P2-M1.8: another company's vehicle is now 404, the same as an unknown id.
 
 ## Decisions (user, 2026-09-28)
 

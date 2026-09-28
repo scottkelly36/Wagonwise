@@ -14,7 +14,6 @@ import { deleteAccount, type DeleteAccountDeps } from '../application/delete-acc
 import { giveConsent, type GiveConsentDeps } from '../application/give-consent.js';
 import { listDrivers, type ListDriversDeps } from '../application/list-drivers.js';
 import { listInviteCodes, type ListInviteCodesDeps } from '../application/list-invite-codes.js';
-import type { DriverRepository } from '../application/ports/driver-repository.js';
 import { refreshToken, type RefreshTokenDeps } from '../application/refresh-token.js';
 import { registerDevice, type RegisterDeviceDeps } from '../application/register-device.js';
 import { requestOtp, type RequestOtpDeps } from '../application/request-otp.js';
@@ -36,11 +35,6 @@ export interface IdentityRouteDeps {
   readonly updateDriver: UpdateDriverDeps;
   readonly createInviteCode: CreateInviteCodeDeps;
   readonly listInviteCodes: ListInviteCodesDeps;
-  /** The admin check `GET /identity/drivers` and `PATCH /identity/drivers/:id` both need — no
-   *  separate `AdminDirectory` port the way other modules need one (2026-09-27's pattern):
-   *  identity already *is* the source of truth for `isAdmin`, so this is an in-module read, not a
-   *  cross-context one. */
-  readonly driverRepo: Pick<DriverRepository, 'findById'>;
   readonly tokenSigner: TokenSigner;
 }
 
@@ -91,22 +85,6 @@ function requireDriverId(request: FastifyRequest, reply: FastifyReply): Id<'Driv
     return undefined;
   }
   return makeId<'DriverId'>(request.driverId);
-}
-
-/** `requireDriverId` first (401), then this (403) — the user-management screen's own gate. A
- *  non-admin never learns whether any other driver exists. */
-async function requireAdmin(
-  deps: IdentityRouteDeps,
-  driverId: Id<'DriverId'>,
-  reply: FastifyReply,
-  requestId: string,
-): Promise<boolean> {
-  const caller = await deps.driverRepo.findById(driverId);
-  if (!caller?.isAdmin) {
-    void reply.status(403).send({ tag: 'Forbidden', requestId });
-    return false;
-  }
-  return true;
 }
 
 /**
@@ -229,19 +207,21 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
   app.get('/identity/drivers', async (request, reply) => {
     const driverId = requireDriverId(request, reply);
     if (driverId === undefined) return reply;
-    if (!(await requireAdmin(deps, driverId, reply, request.id))) return reply;
 
-    const drivers = await listDrivers(deps.listDrivers);
-    return reply.status(200).send({ drivers: drivers.map(driverDto) });
+    const result = await listDrivers(deps.listDrivers, { callerId: driverId });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send({ drivers: result.value.map(driverDto) });
   });
 
   // The one sanctioned way to change `companyId`/`isAdmin` now (2026-09-27) — see
   // `application/update-driver.ts`'s own reasoning for why this replaces hand-editing the
-  // database. Admin-gated; a non-admin never learns whether the target id exists.
+  // database. Admin-gated in the use case, before the target is looked up, so a non-admin
+  // never learns whether the target id exists.
   app.patch('/identity/drivers/:id', async (request, reply) => {
     const driverId = requireDriverId(request, reply);
     if (driverId === undefined) return reply;
-    if (!(await requireAdmin(deps, driverId, reply, request.id))) return reply;
 
     const params = driverIdParamsSchema.safeParse(request.params);
     if (!params.success) {
@@ -252,6 +232,7 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
     const result = await updateDriver(deps.updateDriver, {
+      callerId: driverId,
       id: makeId<'DriverId'>(params.data.id),
       ...(body.data.companyId === undefined
         ? {}
@@ -274,10 +255,12 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
   app.post('/identity/invite-codes', async (request, reply) => {
     const driverId = requireDriverId(request, reply);
     if (driverId === undefined) return reply;
-    if (!(await requireAdmin(deps, driverId, reply, request.id))) return reply;
 
-    const invite = await createInviteCode(deps.createInviteCode);
-    return reply.status(201).send(inviteCodeDto(invite));
+    const result = await createInviteCode(deps.createInviteCode, { callerId: driverId });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(201).send(inviteCodeDto(result.value));
   });
 
   // The same screen's own list — every code, redeemed or not; the dashboard decides how to show
@@ -285,9 +268,11 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
   app.get('/identity/invite-codes', async (request, reply) => {
     const driverId = requireDriverId(request, reply);
     if (driverId === undefined) return reply;
-    if (!(await requireAdmin(deps, driverId, reply, request.id))) return reply;
 
-    const invites = await listInviteCodes(deps.listInviteCodes);
-    return reply.status(200).send({ inviteCodes: invites.map(inviteCodeDto) });
+    const result = await listInviteCodes(deps.listInviteCodes, { callerId: driverId });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send({ inviteCodes: result.value.map(inviteCodeDto) });
   });
 }

@@ -42,7 +42,6 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
     updateFleetVehicle: { repo },
     deleteFleetVehicle: { repo },
     listFleetVehicles: { repo },
-    vehicleRepo: repo,
     callerDirectory,
     dataScopes: deps.dataScopes,
   };

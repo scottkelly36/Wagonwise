@@ -61,9 +61,8 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
   const adminDirectory = new IdentityAdminDirectory(deps.identity);
 
   const routeDeps: CompaniesRouteDeps = {
-    createCompany: { repo, clock: deps.clock },
-    companyRepo: repo,
-    adminDirectory,
+    createCompany: { repo, clock: deps.clock, admins: adminDirectory },
+    listCompanies: { repo, admins: adminDirectory },
   };
 
   const staffDeps: StaffDeps = {

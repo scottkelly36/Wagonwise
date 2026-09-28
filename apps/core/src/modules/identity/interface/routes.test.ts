@@ -72,9 +72,9 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
       repo: inviteCodeRepo,
       generator: new SequentialInviteCodeGenerator(),
       clock,
+      driverRepo,
     },
-    listInviteCodes: { repo: inviteCodeRepo },
-    driverRepo,
+    listInviteCodes: { repo: inviteCodeRepo, driverRepo },
     tokenSigner,
   };
 

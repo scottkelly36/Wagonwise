@@ -1,3 +1,4 @@
+import type { Forbidden } from '../application/authorization.js';
 import type { GiveConsentError } from '../application/give-consent.js';
 import type { RegisterDeviceError } from '../application/register-device.js';
 import type { RequestOtpError } from '../application/request-otp.js';
@@ -11,7 +12,8 @@ export type IdentityError =
   | RefreshTokenError
   | SessionNotFound
   | RegisterDeviceError
-  | GiveConsentError;
+  | GiveConsentError
+  | Forbidden;
 
 /**
  * Tag -> HTTP status, in exactly one table (AGENTS.md rule 13). `switch-exhaustiveness-check`
@@ -40,5 +42,7 @@ export function statusFor(error: IdentityError): number {
       return 401;
     case 'TooManyAttempts':
       return 429;
+    case 'Forbidden':
+      return 403;
   }
 }

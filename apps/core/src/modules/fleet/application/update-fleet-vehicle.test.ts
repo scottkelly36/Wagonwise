@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import type { Dimensions, FleetVehicle } from '../domain/vehicle.js';
 import { updateFleetVehicle, type UpdateFleetVehicleDeps } from './update-fleet-vehicle.js';
+import type { Caller } from './ports/caller-directory.js';
 import { InMemoryFleetVehicleRepository } from './testing/in-memory-fleet-vehicle-repository.js';
 
 const companyId = makeId<'CompanyId'>('company-1');
 const vehicleId = makeId<'FleetVehicleId'>('vehicle-1');
+const ADMIN: Caller = { isAdmin: true, scopes: [] };
 
 function dimensions(overrides: Partial<Dimensions> = {}): Dimensions {
   return { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32, ...overrides };
@@ -27,6 +29,7 @@ describe('updateFleetVehicle', () => {
   it('updates the name and dimensions', async () => {
     const deps = await seeded();
     const result = await updateFleetVehicle(deps, {
+      caller: ADMIN,
       id: vehicleId,
       name: 'New Name',
       dimensions: dimensions({ heightM: 3.9 }),
@@ -45,6 +48,7 @@ describe('updateFleetVehicle', () => {
   it('returns FleetVehicleNotFound for an unknown id', async () => {
     const deps = await seeded();
     const result = await updateFleetVehicle(deps, {
+      caller: ADMIN,
       id: makeId<'FleetVehicleId'>('nope'),
       name: 'New Name',
       dimensions: dimensions(),
@@ -55,11 +59,41 @@ describe('updateFleetVehicle', () => {
   it('rejects invalid dimensions without persisting the change', async () => {
     const deps = await seeded();
     const result = await updateFleetVehicle(deps, {
+      caller: ADMIN,
       id: vehicleId,
       name: 'New Name',
       dimensions: dimensions({ widthM: -1 }),
     });
     expect(result.ok).toBe(false);
     expect((await deps.repo.findById(vehicleId))?.name).toBe('Original Name');
+  });
+
+  it("answers another company's vehicle as not found, so ids can't be probed", async () => {
+    const deps = await seeded();
+    const outsider: Caller = {
+      isAdmin: false,
+      companyId: makeId<'CompanyId'>('company-2'),
+      scopes: ['manage_fleet'],
+    };
+    const result = await updateFleetVehicle(deps, {
+      caller: outsider,
+      id: vehicleId,
+      name: 'Hijacked',
+      dimensions: dimensions(),
+    });
+    expect(result).toEqual({ ok: false, error: { tag: 'FleetVehicleNotFound' } });
+    expect((await deps.repo.findById(vehicleId))?.name).toBe('Original Name');
+  });
+
+  it('refuses a same-company viewer without manage_fleet', async () => {
+    const deps = await seeded();
+    const viewer: Caller = { isAdmin: false, companyId, scopes: [] };
+    const result = await updateFleetVehicle(deps, {
+      caller: viewer,
+      id: vehicleId,
+      name: 'Renamed',
+      dimensions: dimensions(),
+    });
+    expect(result).toEqual({ ok: false, error: { tag: 'Forbidden' } });
   });
 });

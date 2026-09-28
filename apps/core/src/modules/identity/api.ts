@@ -156,9 +156,13 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     deleteAccount: { driverRepo, sessionRepo, deviceRepo, clock: deps.clock },
     listDrivers: { driverRepo },
     updateDriver: { driverRepo },
-    createInviteCode: { repo: inviteCodeRepo, generator: inviteCodeGenerator, clock: deps.clock },
-    listInviteCodes: { repo: inviteCodeRepo },
-    driverRepo,
+    createInviteCode: {
+      repo: inviteCodeRepo,
+      generator: inviteCodeGenerator,
+      clock: deps.clock,
+      driverRepo,
+    },
+    listInviteCodes: { repo: inviteCodeRepo, driverRepo },
     tokenSigner: deps.tokenSigner,
   };
 

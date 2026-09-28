@@ -21,14 +21,14 @@ function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
   const repo = new InMemoryHazardRepository();
   const clock = new FakeClock(now);
   const ids = new SequentialIdGenerator();
+  const admins = new StubAdminDirectory(new Set([ADMIN_DRIVER_ID]));
   const deps: HazardsRouteDeps = {
     reportHazard: { repo, clock, ids },
     confirmHazard: { repo, clock, ids },
     dismissHazard: { repo },
-    deleteHazard: { repo },
-    adminDirectory: new StubAdminDirectory(new Set([ADMIN_DRIVER_ID])),
+    deleteHazard: { repo, admins },
     getHazard: { repo },
-    listHazards: { repo },
+    listHazards: { repo, admins },
     parseVoiceReport: { parser: new StubHazardParser() },
     findNearbyHazards: { repo, clock },
   };

@@ -43,7 +43,7 @@ function buildApp(): {
     updateFleetVehicle: { repo },
     deleteFleetVehicle: { repo },
     listFleetVehicles: { repo },
-    vehicleRepo: repo,
+
     callerDirectory: new StubCallerDirectory(callers),
     dataScopes: scopes,
   };
@@ -179,7 +179,7 @@ describe('PUT /fleet/vehicles/:id', () => {
     expect(response.json()).toMatchObject({ name: 'Renamed' });
   });
 
-  it('403s a driver from a different company', async () => {
+  it("404s a driver from a different company, same as an unknown id (P2-M1.8: ids can't be probed)", async () => {
     const { app } = buildApp();
     const id = await createVehicle(app);
 
@@ -189,7 +189,8 @@ describe('PUT /fleet/vehicles/:id', () => {
       payload: { name: 'Renamed', dimensions },
       ...asDriver(OUTSIDER_ID),
     });
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'FleetVehicleNotFound' });
   });
 
   it('404s an unknown id', async () => {
@@ -259,7 +260,7 @@ describe('Row-Level Security scope (P2-M1.7)', () => {
     expect(scopes.used).toEqual([{ kind: 'platform' }, { kind: 'company', companyId: companyA }]);
   });
 
-  it('never opens a scope for a request it refuses', async () => {
+  it("runs a refused request in the caller's own company scope, never the target's", async () => {
     const { app, scopes } = buildApp();
     const res = await app.inject({
       method: 'GET',
@@ -267,6 +268,6 @@ describe('Row-Level Security scope (P2-M1.7)', () => {
       ...asDriver(OUTSIDER_ID),
     });
     expect(res.statusCode).toBe(403);
-    expect(scopes.used).toEqual([]);
+    expect(scopes.used).toEqual([{ kind: 'company', companyId: companyB }]);
   });
 });
