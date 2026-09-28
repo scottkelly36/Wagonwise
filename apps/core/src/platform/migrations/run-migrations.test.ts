@@ -120,7 +120,14 @@ describe('runMigrations', () => {
       `select table_name from information_schema.tables
        where table_schema = 'companies' order by table_name`,
     );
-    expect(companiesTables.map((row) => row.table_name)).toEqual(['companies']);
+    expect(companiesTables.map((row) => row.table_name)).toEqual([
+      'companies',
+      'staff_accounts',
+      'staff_challenges',
+      'staff_invites',
+      'staff_recovery_codes',
+      'staff_sessions',
+    ]);
 
     const { rows: driverColumns } = await pool.query<{ column_name: string }>(
       `select column_name from information_schema.columns
