@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { IdentityModule } from '../identity/api.js';
 import type { UntypedDb } from './infrastructure/db.js';
@@ -13,6 +14,8 @@ export type { UntypedDb } from './infrastructure/db.js';
 export interface FleetModuleDeps {
   readonly db: UntypedDb;
   readonly ids: IdGenerator;
+  /** Row-Level Security scope per request (P2-M1.7). */
+  readonly dataScopes: DataScopes;
   /** The one cross-context read every fleet route's authorization check needs (AGENTS.md rule 7)
    *  — fleet never imports identity's `Driver` directly, just this one method, wrapped by
    *  `infrastructure/identity-caller-directory.ts`. */
@@ -41,6 +44,7 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
     listFleetVehicles: { repo },
     vehicleRepo: repo,
     callerDirectory,
+    dataScopes: deps.dataScopes,
   };
 
   return {

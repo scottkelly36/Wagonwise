@@ -39,10 +39,12 @@ import {
 } from '../modules/routing/api.js';
 import { createDb, createPool } from '../platform/db.js';
 import { OutboxDispatcher, type OutboxEventHandler } from '../platform/outbox-dispatcher.js';
+import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
 import { PostgresUnitOfWork } from '../platform/postgres-unit-of-work.js';
 import { SystemClock } from '../platform/system-clock.js';
 import { UuidIdGenerator } from '../platform/uuid-id-generator.js';
 import type { Clock } from '../shared/ports/clock.js';
+import type { DataScopes } from '../shared/ports/data-scope.js';
 import type { IdGenerator } from '../shared/ports/id-generator.js';
 import type { UnitOfWork } from '../shared/ports/unit-of-work.js';
 
@@ -51,6 +53,7 @@ export interface CoreOverrides {
   readonly clock?: Clock;
   readonly ids?: IdGenerator;
   readonly unitOfWork?: UnitOfWork;
+  readonly dataScopes?: DataScopes;
   readonly db?: UntypedDb;
   readonly tokenSigner?: TokenSigner;
   /** Defaults to a `ChannelRoutingOtpSender` splitting phone identifiers to
@@ -111,15 +114,24 @@ export function composeCore(
 ): Core {
   const clock = overrides.clock ?? new SystemClock();
   const ids = overrides.ids ?? new UuidIdGenerator();
-  const pool = createPool(config.databaseUrl);
+  // Requests are served as `wagonwise_app` when APP_DATABASE_URL is set (P2-M1.7), so RLS
+  // applies; migrations run separately (`scripts/migrate.ts`) on DATABASE_URL, the owner.
+  const pool = createPool(config.appDatabaseUrl ?? config.databaseUrl);
+  // Every Kysely instance below is built on `postgresScopes.pool`, not `pool` directly, so a
+  // query made inside `dataScopes.run` joins that scope's transaction (and its RLS settings).
+  const postgresScopes = new PostgresDataScopes(pool);
+  const dataScopes = overrides.dataScopes ?? postgresScopes;
   // One pool, two typed views: platform's own (empty) Database schema for the UnitOfWork, and
   // identity's untyped view for its raw-sql repositories (decision 26). Both wrap the same
   // underlying pg.Pool (cheap — Kysely instances are lightweight, the pool is what's stateful),
   // but Kysely<Database> is not assignable to Kysely<Record<string, unknown>> (its methods use
   // the schema type both co- and contravariantly), so this needs its own instance, not a cast.
-  const platformDb = createDb(pool);
+  const platformDb = createDb(postgresScopes.pool);
   const identityDb: UntypedDb =
-    overrides.db ?? new Kysely<Record<string, unknown>>({ dialect: new PostgresDialect({ pool }) });
+    overrides.db ??
+    new Kysely<Record<string, unknown>>({
+      dialect: new PostgresDialect({ pool: postgresScopes.pool }),
+    });
   const unitOfWork = overrides.unitOfWork ?? new PostgresUnitOfWork(platformDb);
 
   const identity = createIdentityModule({
@@ -174,10 +186,11 @@ export function composeCore(
     clock,
     ids,
     identity,
+    dataScopes,
     staffSecretKey: config.staffSecretKey,
   });
   const parking = createParkingModule({ db: parkingDb, clock });
-  const fleet = createFleetModule({ db: fleetDb, ids, identity });
+  const fleet = createFleetModule({ db: fleetDb, ids, identity, dataScopes });
 
   const outboxDispatcher = new OutboxDispatcher(
     platformDb,

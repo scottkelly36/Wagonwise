@@ -31,6 +31,11 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }).default(DEFAULT_DATABASE_URL),
+  // P2-M1.7: the connection core serves requests on, as the `wagonwise_app` role (migration 0021),
+  // which owns nothing and so is subject to Row-Level Security. DATABASE_URL stays the owner and
+  // is what migrations use. Optional for now: unset means core serves on DATABASE_URL as before,
+  // where the table owner skips RLS. Becomes required at P2-M1.12.
+  APP_DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }).optional(),
   // Optional: unset means identity signs with a fresh key generated at boot, which is fine for
   // local dev (every restart just invalidates existing sessions) but never for anything meant to
   // stay up — set this to a PEM-encoded Ed25519 private key (PKCS8) before a real deployment.
@@ -114,6 +119,8 @@ export interface Config {
   readonly port: number;
   readonly logLevel: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
   readonly databaseUrl: string;
+  /** Where requests are served from; `databaseUrl` (the owner) when unset. */
+  readonly appDatabaseUrl: string | undefined;
   readonly identityPrivateKeyPem: string | undefined;
   readonly internalKeys: readonly string[];
   readonly valhallaUrl: string;
@@ -156,6 +163,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     port: values.PORT,
     logLevel: values.LOG_LEVEL,
     databaseUrl: values.DATABASE_URL,
+    appDatabaseUrl: values.APP_DATABASE_URL,
     identityPrivateKeyPem: values.IDENTITY_PRIVATE_KEY,
     internalKeys: values.INTERNAL_KEYS,
     valhallaUrl: values.VALHALLA_URL,

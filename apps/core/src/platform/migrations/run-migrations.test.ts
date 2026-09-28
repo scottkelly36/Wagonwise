@@ -51,6 +51,7 @@ describe('runMigrations', () => {
       '0018_identity_scopes.sql',
       '0019_fleet.sql',
       '0020_staff.sql',
+      '0021_rls.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -176,6 +177,7 @@ describe('runMigrations', () => {
       '0018_identity_scopes.sql',
       '0019_fleet.sql',
       '0020_staff.sql',
+      '0021_rls.sql',
     ]);
   });
 });

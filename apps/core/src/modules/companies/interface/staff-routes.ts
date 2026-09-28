@@ -11,6 +11,7 @@ import {
 } from '@wagonwise/contracts/staff';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId } from '../../../shared/brand.js';
+import type { DataScope, DataScopes } from '../../../shared/ports/data-scope.js';
 import { acceptStaffInvite } from '../application/accept-staff-invite.js';
 import { confirmStaffEnrolment } from '../application/confirm-staff-enrolment.js';
 import { createStaffInvite } from '../application/create-staff-invite.js';
@@ -49,12 +50,33 @@ function inviteDto(invite: StaffInvite) {
   };
 }
 
-function badRequest(request: FastifyRequest, reply: FastifyReply) {
-  return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+/** What a handler decided, sent only after its scope's transaction has committed: a response
+ *  must never claim success for writes that then fail to commit. */
+interface Outcome {
+  readonly status: number;
+  readonly body?: object;
 }
 
-function fail(request: FastifyRequest, reply: FastifyReply, error: { readonly tag: string }) {
-  return reply.status(staffStatusFor(error)).send({ tag: error.tag, requestId: request.id });
+const ok = (status: number, body?: object): Outcome => ({ status, ...(body ? { body } : {}) });
+const badRequest = (): Outcome => ({ status: 400, body: { error: 'invalid_request' } });
+const fail = (error: { readonly tag: string }): Outcome => ({
+  status: staffStatusFor(error),
+  body: { tag: error.tag },
+});
+
+function send(request: FastifyRequest, reply: FastifyReply, outcome: Outcome) {
+  if (outcome.body === undefined) return reply.status(outcome.status).send();
+  const body = outcome.status >= 400 ? { ...outcome.body, requestId: request.id } : outcome.body;
+  return reply.status(outcome.status).send(body);
+}
+
+const STAFF_AUTH: DataScope = { kind: 'staff-auth' };
+
+/** WagonWise admins see every company; a fleet user only their own (migration 0021). */
+function scopeFor(staff: StaffAccount): DataScope {
+  return staff.kind === 'platform'
+    ? { kind: 'platform' }
+    : { kind: 'company', companyId: staff.companyId };
 }
 
 /**
@@ -62,161 +84,189 @@ function fail(request: FastifyRequest, reply: FastifyReply, error: { readonly ta
  * for everything except the pre-sign-in routes. Each authenticated request loads the account
  * fresh to build its `Actor`, so a privilege change or removal takes effect on the very next
  * request, not when the 15-minute access token runs out.
+ *
+ * P2-M1.7: every handler runs inside a `DataScopes` transaction. The pre-sign-in routes, and
+ * loading the signed-in account, use the `staff-auth` scope (an account has to be found before
+ * its company is known); everything after that runs in the account's own scope, so the database
+ * itself keeps a fleet user to their company's rows.
  */
-export function registerStaffRoutes(app: FastifyInstance, deps: StaffDeps): void {
-  async function requireActor(
+export function registerStaffRoutes(
+  app: FastifyInstance,
+  deps: StaffDeps,
+  scopes: DataScopes,
+): void {
+  /** Loads the signed-in account (401 if it's gone), then runs `work` in that account's scope. */
+  async function asActor(
     request: FastifyRequest,
-    reply: FastifyReply,
-  ): Promise<{ actor: Actor; staff: StaffAccount } | undefined> {
+    work: (who: { actor: Actor; staff: StaffAccount }) => Promise<Outcome>,
+  ): Promise<Outcome> {
+    const staffId = request.staffId;
     const staff =
-      request.staffId === undefined
+      staffId === undefined
         ? null
-        : await deps.accounts.findById(makeId<'StaffId'>(request.staffId));
-    if (!staff) {
-      await reply.status(401).send({ error: 'invalid_access_token', requestId: request.id });
-      return undefined;
-    }
-    return { actor: actorFor(staff), staff };
+        : await scopes.run(STAFF_AUTH, () => deps.accounts.findById(makeId<'StaffId'>(staffId)));
+    if (!staff) return { status: 401, body: { error: 'invalid_access_token' } };
+    return scopes.run(scopeFor(staff), () => work({ actor: actorFor(staff), staff }));
   }
 
   // ---- Before there's a token -----------------------------------------------------------
 
   app.post('/staff/auth/sign-in', async (request, reply) => {
     const body = staffSignInRequestSchema.safeParse(request.body);
-    if (!body.success) return badRequest(request, reply);
-    const result = await staffSignIn(deps, body.data);
-    if (!result.ok) return fail(request, reply, result.error);
-    return reply.status(200).send({
-      challengeId: result.value.challengeId,
-      method: result.value.method,
-      expiresAt: result.value.expiresAt.toISOString(),
+    if (!body.success) return send(request, reply, badRequest());
+    const outcome = await scopes.run(STAFF_AUTH, async () => {
+      const result = await staffSignIn(deps, body.data);
+      if (!result.ok) return fail(result.error);
+      return ok(200, {
+        challengeId: result.value.challengeId,
+        method: result.value.method,
+        expiresAt: result.value.expiresAt.toISOString(),
+      });
     });
+    return send(request, reply, outcome);
   });
 
   app.post('/staff/auth/second-factor', async (request, reply) => {
     const body = staffVerifySecondFactorRequestSchema.safeParse(request.body);
-    if (!body.success) return badRequest(request, reply);
-    const result = await verifyStaffSecondFactor(deps, {
-      challengeId: makeId<'StaffChallengeId'>(body.data.challengeId),
-      code: body.data.code,
+    if (!body.success) return send(request, reply, badRequest());
+    const outcome = await scopes.run(STAFF_AUTH, async () => {
+      const result = await verifyStaffSecondFactor(deps, {
+        challengeId: makeId<'StaffChallengeId'>(body.data.challengeId),
+        code: body.data.code,
+      });
+      if (!result.ok) return fail(result.error);
+      return ok(200, {
+        accessToken: result.value.accessToken,
+        refreshToken: result.value.refreshToken,
+        staff: staffDto(result.value.staff),
+      });
     });
-    if (!result.ok) return fail(request, reply, result.error);
-    return reply.status(200).send({
-      accessToken: result.value.accessToken,
-      refreshToken: result.value.refreshToken,
-      staff: staffDto(result.value.staff),
-    });
+    return send(request, reply, outcome);
   });
 
   app.post('/staff/auth/refresh', async (request, reply) => {
     const body = staffRefreshTokenRequestSchema.safeParse(request.body);
-    if (!body.success) return badRequest(request, reply);
-    const result = await refreshStaffSession(deps, body.data);
-    if (!result.ok) return fail(request, reply, result.error);
-    return reply.status(200).send(result.value);
+    if (!body.success) return send(request, reply, badRequest());
+    const outcome = await scopes.run(STAFF_AUTH, async () => {
+      const result = await refreshStaffSession(deps, body.data);
+      if (!result.ok) return fail(result.error);
+      return ok(200, result.value);
+    });
+    return send(request, reply, outcome);
   });
 
   app.post('/staff/auth/sign-out', async (request, reply) => {
     const body = staffRefreshTokenRequestSchema.safeParse(request.body);
-    if (!body.success) return badRequest(request, reply);
-    await signOutStaff(deps, body.data);
-    return reply.status(204).send();
+    if (!body.success) return send(request, reply, badRequest());
+    await scopes.run(STAFF_AUTH, () => signOutStaff(deps, body.data));
+    return send(request, reply, ok(204));
   });
 
   app.post('/staff/invites/accept', async (request, reply) => {
     const body = acceptStaffInviteRequestSchema.safeParse(request.body);
-    if (!body.success) return badRequest(request, reply);
-    const result = await acceptStaffInvite(deps, body.data);
-    if (!result.ok) return fail(request, reply, result.error);
-    return reply.status(200).send({
-      enrolmentId: result.value.enrolmentId,
-      secondFactorMethod: result.value.secondFactorMethod,
-      ...(result.value.totpUri === undefined ? {} : { totpUri: result.value.totpUri }),
+    if (!body.success) return send(request, reply, badRequest());
+    const outcome = await scopes.run(STAFF_AUTH, async () => {
+      const result = await acceptStaffInvite(deps, body.data);
+      if (!result.ok) return fail(result.error);
+      return ok(200, {
+        enrolmentId: result.value.enrolmentId,
+        secondFactorMethod: result.value.secondFactorMethod,
+        ...(result.value.totpUri === undefined ? {} : { totpUri: result.value.totpUri }),
+      });
     });
+    return send(request, reply, outcome);
   });
 
   app.post('/staff/invites/confirm', async (request, reply) => {
     const body = confirmStaffEnrolmentRequestSchema.safeParse(request.body);
-    if (!body.success) return badRequest(request, reply);
-    const result = await confirmStaffEnrolment(deps, {
-      enrolmentId: makeId<'StaffChallengeId'>(body.data.enrolmentId),
-      code: body.data.code,
+    if (!body.success) return send(request, reply, badRequest());
+    const outcome = await scopes.run(STAFF_AUTH, async () => {
+      const result = await confirmStaffEnrolment(deps, {
+        enrolmentId: makeId<'StaffChallengeId'>(body.data.enrolmentId),
+        code: body.data.code,
+      });
+      if (!result.ok) return fail(result.error);
+      return ok(200, {
+        accessToken: result.value.accessToken,
+        refreshToken: result.value.refreshToken,
+        staff: staffDto(result.value.staff),
+        recoveryCodes: result.value.recoveryCodes,
+      });
     });
-    if (!result.ok) return fail(request, reply, result.error);
-    return reply.status(200).send({
-      accessToken: result.value.accessToken,
-      refreshToken: result.value.refreshToken,
-      staff: staffDto(result.value.staff),
-      recoveryCodes: result.value.recoveryCodes,
-    });
+    return send(request, reply, outcome);
   });
 
   // ---- Signed in ----------------------------------------------------------------------
 
   app.get('/staff/me', async (request, reply) => {
-    const who = await requireActor(request, reply);
-    if (!who) return reply;
-    return reply.status(200).send(staffDto(who.staff));
+    const outcome = await asActor(request, ({ staff }) =>
+      Promise.resolve(ok(200, staffDto(staff))),
+    );
+    return send(request, reply, outcome);
   });
 
   app.post('/staff/invites', async (request, reply) => {
-    const who = await requireActor(request, reply);
-    if (!who) return reply;
-    const body = createStaffInviteRequestSchema.safeParse(request.body);
-    if (!body.success) return badRequest(request, reply);
-    const input =
-      body.data.kind === 'platform'
-        ? { kind: 'platform' as const, email: body.data.email, name: body.data.name }
-        : {
-            kind: 'fleet' as const,
-            email: body.data.email,
-            name: body.data.name,
-            companyId: makeId<'CompanyId'>(body.data.companyId ?? ''),
-            privileges: body.data.privileges,
-          };
-    const result = await createStaffInvite(deps, who.actor, input);
-    if (!result.ok) return fail(request, reply, result.error);
-    return reply
-      .status(201)
-      .send({ invite: inviteDto(result.value.invite), inviteToken: result.value.token });
+    const outcome = await asActor(request, async ({ actor }) => {
+      const body = createStaffInviteRequestSchema.safeParse(request.body);
+      if (!body.success) return badRequest();
+      const input =
+        body.data.kind === 'platform'
+          ? { kind: 'platform' as const, email: body.data.email, name: body.data.name }
+          : {
+              kind: 'fleet' as const,
+              email: body.data.email,
+              name: body.data.name,
+              companyId: makeId<'CompanyId'>(body.data.companyId ?? ''),
+              privileges: body.data.privileges,
+            };
+      const result = await createStaffInvite(deps, actor, input);
+      if (!result.ok) return fail(result.error);
+      return ok(201, { invite: inviteDto(result.value.invite), inviteToken: result.value.token });
+    });
+    return send(request, reply, outcome);
   });
 
   app.get('/staff/members', async (request, reply) => {
-    const who = await requireActor(request, reply);
-    if (!who) return reply;
-    const query = listStaffQuerySchema.safeParse(request.query);
-    if (!query.success) return badRequest(request, reply);
-    const result = await listStaff(deps, who.actor, {
-      companyId:
-        query.data.companyId === undefined ? undefined : makeId<'CompanyId'>(query.data.companyId),
+    const outcome = await asActor(request, async ({ actor }) => {
+      const query = listStaffQuerySchema.safeParse(request.query);
+      if (!query.success) return badRequest();
+      const result = await listStaff(deps, actor, {
+        companyId:
+          query.data.companyId === undefined
+            ? undefined
+            : makeId<'CompanyId'>(query.data.companyId),
+      });
+      if (!result.ok) return fail(result.error);
+      return ok(200, { staff: result.value.map(staffDto) });
     });
-    if (!result.ok) return fail(request, reply, result.error);
-    return reply.status(200).send({ staff: result.value.map(staffDto) });
+    return send(request, reply, outcome);
   });
 
   app.put('/staff/members/:id/privileges', async (request, reply) => {
-    const who = await requireActor(request, reply);
-    if (!who) return reply;
-    const params = staffIdParamsSchema.safeParse(request.params);
-    const body = setStaffPrivilegesRequestSchema.safeParse(request.body);
-    if (!params.success || !body.success) return badRequest(request, reply);
-    const result = await setStaffPrivileges(deps, who.actor, {
-      staffId: makeId<'StaffId'>(params.data.id),
-      privileges: body.data.privileges,
+    const outcome = await asActor(request, async ({ actor }) => {
+      const params = staffIdParamsSchema.safeParse(request.params);
+      const body = setStaffPrivilegesRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return badRequest();
+      const result = await setStaffPrivileges(deps, actor, {
+        staffId: makeId<'StaffId'>(params.data.id),
+        privileges: body.data.privileges,
+      });
+      if (!result.ok) return fail(result.error);
+      return ok(200, staffDto(result.value));
     });
-    if (!result.ok) return fail(request, reply, result.error);
-    return reply.status(200).send(staffDto(result.value));
+    return send(request, reply, outcome);
   });
 
   app.delete('/staff/members/:id', async (request, reply) => {
-    const who = await requireActor(request, reply);
-    if (!who) return reply;
-    const params = staffIdParamsSchema.safeParse(request.params);
-    if (!params.success) return badRequest(request, reply);
-    const result = await removeStaff(deps, who.actor, {
-      staffId: makeId<'StaffId'>(params.data.id),
+    const outcome = await asActor(request, async ({ actor }) => {
+      const params = staffIdParamsSchema.safeParse(request.params);
+      if (!params.success) return badRequest();
+      const result = await removeStaff(deps, actor, {
+        staffId: makeId<'StaffId'>(params.data.id),
+      });
+      if (!result.ok) return fail(result.error);
+      return ok(204);
     });
-    if (!result.ok) return fail(request, reply, result.error);
-    return reply.status(204).send();
+    return send(request, reply, outcome);
   });
 }

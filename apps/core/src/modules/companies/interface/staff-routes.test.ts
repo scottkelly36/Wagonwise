@@ -10,6 +10,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
+import { RecordingDataScopes } from '../../../shared/testing/recording-data-scopes.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { StaffDeps } from '../application/staff-deps.js';
 import {
@@ -48,6 +49,7 @@ function fakeStaffAuth(app: FastifyInstance): void {
 }
 
 let app: FastifyInstance;
+let scopes: RecordingDataScopes;
 let deps: StaffDeps & { totp: FakeTotp; codeSender: RecordingCodeSender };
 
 beforeEach(async () => {
@@ -82,7 +84,8 @@ beforeEach(async () => {
 
   app = Fastify();
   fakeStaffAuth(app);
-  registerStaffRoutes(app, deps);
+  scopes = new RecordingDataScopes();
+  registerStaffRoutes(app, deps, scopes);
 });
 
 async function signIn(email: string): Promise<{ accessToken: string; refreshToken: string }> {
@@ -261,6 +264,57 @@ describe('staff routes', () => {
       headers: bearer(temp.accessToken),
     });
     expect(me.statusCode).toBe(401);
+  });
+
+  it("runs sign-in in the staff-auth scope, then each request in the signed-in account's scope", async () => {
+    const { accessToken } = await signIn('support@wagon-wise.co.uk');
+    expect(scopes.used).toEqual([{ kind: 'staff-auth' }, { kind: 'staff-auth' }]);
+
+    scopes.used.length = 0;
+    await app.inject({ method: 'GET', url: '/staff/me', headers: bearer(accessToken) });
+    // Loading the account (company unknown yet), then the work, as a WagonWise admin.
+    expect(scopes.used).toEqual([{ kind: 'staff-auth' }, { kind: 'platform' }]);
+  });
+
+  it("runs a fleet user in their own company's scope", async () => {
+    const { accessToken: adminToken } = await signIn('support@wagon-wise.co.uk');
+    const invite = await app.inject({
+      method: 'POST',
+      url: '/staff/invites',
+      headers: bearer(adminToken),
+      payload: {
+        kind: 'fleet',
+        email: 'boss@acme.example',
+        name: 'Boss',
+        companyId: ACME,
+        privileges: ['manage_users'],
+      },
+    });
+    const accepted = await app.inject({
+      method: 'POST',
+      url: '/staff/invites/accept',
+      payload: {
+        inviteToken: invite.json<CreateStaffInviteResponse>().inviteToken,
+        password: PASSWORD,
+        secondFactorMethod: 'totp',
+      },
+    });
+    const confirmed = await app.inject({
+      method: 'POST',
+      url: '/staff/invites/confirm',
+      payload: {
+        enrolmentId: accepted.json<AcceptStaffInviteResponse>().enrolmentId,
+        code: deps.totp.currentCode,
+      },
+    });
+
+    scopes.used.length = 0;
+    await app.inject({
+      method: 'GET',
+      url: `/staff/members?companyId=${ACME}`,
+      headers: bearer(confirmed.json<ConfirmStaffEnrolmentResponse>().accessToken),
+    });
+    expect(scopes.used).toEqual([{ kind: 'staff-auth' }, { kind: 'company', companyId: ACME }]);
   });
 
   it('refresh rotates, and sign-out ends the session', async () => {
