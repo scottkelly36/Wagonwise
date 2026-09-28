@@ -1,5 +1,5 @@
 import { err, ok, type Result } from '../../../shared/result.js';
-import type { CompanyId, Driver, DriverId } from '../domain/driver.js';
+import type { CompanyId, Driver, DriverId, DriverScope } from '../domain/driver.js';
 import type { DriverNotFound } from './errors.js';
 import type { DriverRepository } from './ports/driver-repository.js';
 
@@ -17,6 +17,9 @@ export interface UpdateDriverInput {
   readonly companyId?: CompanyId | null;
   /** `undefined`: leave unchanged. A boolean: set it. */
   readonly isAdmin?: boolean;
+  /** `undefined`: leave unchanged. An array (including `[]`): replace the whole set — same
+   *  plain-PATCH semantics as `companyId`/`isAdmin`, not a merge/append. */
+  readonly scopes?: readonly DriverScope[];
 }
 
 export type UpdateDriverError = DriverNotFound;
@@ -40,6 +43,7 @@ export async function updateDriver(
       ? { companyId: input.companyId === null ? undefined : input.companyId }
       : {}),
     ...(input.isAdmin !== undefined ? { isAdmin: input.isAdmin } : {}),
+    ...(input.scopes !== undefined ? { scopes: input.scopes } : {}),
   };
   await deps.driverRepo.save(updated);
   return ok(updated);

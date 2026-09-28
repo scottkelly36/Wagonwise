@@ -39,12 +39,16 @@ export function Layout() {
           </NavLink>
         ))}
 
-        <p style={navSectionStyle}>Admin</p>
-        {ADMIN_LINKS.map((link) => (
-          <NavLink key={link.to} to={link.to} style={navLinkStyle}>
-            {link.label}
-          </NavLink>
-        ))}
+        {state.status === 'signedIn' && state.driver.isAdmin && (
+          <>
+            <p style={navSectionStyle}>Admin</p>
+            {ADMIN_LINKS.map((link) => (
+              <NavLink key={link.to} to={link.to} style={navLinkStyle}>
+                {link.label}
+              </NavLink>
+            ))}
+          </>
+        )}
 
         {state.status === 'signedIn' && (
           <div style={{ marginTop: 32, borderTop: '1px solid #e5e7eb', paddingTop: 16 }}>

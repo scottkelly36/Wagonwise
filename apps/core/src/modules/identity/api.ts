@@ -4,7 +4,7 @@ import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { UnitOfWork } from '../../shared/ports/unit-of-work.js';
 import type { OtpSender } from './application/ports/otp-sender.js';
 import type { TokenSigner } from './application/ports/token-signer.js';
-import type { DriverId } from './domain/driver.js';
+import type { CompanyId, DriverId, DriverScope } from './domain/driver.js';
 import { ChannelRoutingOtpSender } from './infrastructure/channel-routing-otp-sender.js';
 import { ClickSendOtpSender } from './infrastructure/clicksend-otp-sender.js';
 import { ConsoleOtpSender } from './infrastructure/console-otp-sender.js';
@@ -81,6 +81,13 @@ export interface IdentityModule {
    *  a driver is an admin; a caller with no such driver gets `false`, not an error, since "does
    *  this id resolve to an admin" is itself the whole question, never a precondition failure. */
   isDriverAdmin(driverId: DriverId): Promise<boolean>;
+  /** The read-model `fleet`'s own `CallerDirectory` wraps (`fleet/infrastructure/
+   *  identity-caller-directory.ts`) — everything a cross-context authorization check needs about
+   *  a driver in one call, rather than three. `null` for an unknown id, same "the id not
+   *  resolving is itself the answer" reasoning as `isDriverAdmin`. */
+  getDriverAccess(
+    driverId: DriverId,
+  ): Promise<{ isAdmin: boolean; companyId?: CompanyId; scopes: readonly DriverScope[] } | null>;
 }
 
 /**
@@ -157,6 +164,15 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     async isDriverAdmin(driverId: DriverId): Promise<boolean> {
       const driver = await driverRepo.findById(driverId);
       return driver?.isAdmin ?? false;
+    },
+    async getDriverAccess(driverId: DriverId) {
+      const driver = await driverRepo.findById(driverId);
+      if (!driver) return null;
+      return {
+        isAdmin: driver.isAdmin,
+        ...(driver.companyId === undefined ? {} : { companyId: driver.companyId }),
+        scopes: driver.scopes,
+      };
     },
   };
 }

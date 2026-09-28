@@ -13,6 +13,7 @@ function driver(overrides: Partial<Driver> = {}): Driver {
     identifier: 'driver1@example.com',
     createdAt: new Date('2026-06-01T00:00:00.000Z'),
     isAdmin: false,
+    scopes: [],
     ...overrides,
   };
 }

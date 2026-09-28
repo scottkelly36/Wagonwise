@@ -6,6 +6,15 @@ export type DriverId = Id<'DriverId'>;
  *  ever set. */
 export type CompanyId = Id<'CompanyId'>;
 
+/** A fixed, WagonWise-defined list — never freeform text a company could invent (Phase 2 tech
+ *  design doc's decision log, 2026-09-27's pushback on the 3-tier permission model). Grants a
+ *  company-scoped "Fleet user" (a non-admin driver with a `companyId`) one extra capability
+ *  within their own company; `isAdmin` (WagonWise staff) already bypasses every scope check —
+ *  scopes only ever open up permission, never restrict an admin. `manage_fleet` is the first:
+ *  create/update/delete their own company's vehicles (`fleet` module). */
+export const DRIVER_SCOPES = ['manage_fleet'] as const;
+export type DriverScope = (typeof DRIVER_SCOPES)[number];
+
 /** A signed-in tester. Phase 1 has no profile beyond the identifier they signed in with. */
 export interface Driver {
   readonly id: DriverId;
@@ -29,6 +38,11 @@ export interface Driver {
    *  but drivers change jobs so they can change companies") — unset until an admin assigns one,
    *  via `application/update-driver.ts`. No history of past companies is kept. */
   readonly companyId?: CompanyId | undefined;
+  /** Empty for almost every driver — only ever non-empty for a Fleet user an admin has
+   *  deliberately granted a capability to (`application/update-driver.ts`). Required, not
+   *  optional, same reasoning as `isAdmin`: the DB column defaults to an empty array, never
+   *  null, so a real `Driver` always has a real (if empty) value here. */
+  readonly scopes: readonly DriverScope[];
 }
 
 export function consent(driver: Driver, now: Date): Driver {

@@ -5,6 +5,13 @@ import { companyIdSchema } from './companies.js';
 export const driverIdSchema = brandedId<'DriverId'>();
 export type DriverId = z.infer<typeof driverIdSchema>;
 
+/** A fixed, WagonWise-defined list (Phase 2 tech design doc's decision log, 2026-09-27) — never
+ *  freeform text a company could invent. Grants a company-scoped "Fleet user" one extra
+ *  capability within their own company; `isAdmin` already bypasses every scope check. */
+export const DRIVER_SCOPES = ['manage_fleet'] as const;
+export const driverScopeSchema = z.enum(DRIVER_SCOPES);
+export type DriverScope = z.infer<typeof driverScopeSchema>;
+
 export const sessionIdSchema = brandedId<'SessionId'>();
 export type SessionId = z.infer<typeof sessionIdSchema>;
 
@@ -37,6 +44,9 @@ export const driverSchema = z.object({
    *  but drivers change jobs so they can change companies") — absent until an admin assigns one.
    *  No history of past companies is kept. */
   companyId: companyIdSchema.optional(),
+  /** Empty for almost every driver — see `DRIVER_SCOPES`. Always present, same reasoning as
+   *  `isAdmin`. */
+  scopes: z.array(driverScopeSchema),
 });
 export type DriverDto = z.infer<typeof driverSchema>;
 
@@ -51,6 +61,8 @@ export type ListDriversResponse = z.infer<typeof listDriversResponseSchema>;
 export const updateDriverRequestSchema = z.object({
   companyId: companyIdSchema.nullable().optional(),
   isAdmin: z.boolean().optional(),
+  /** Omitted: unchanged. An array (including `[]`): replaces the whole set, not a merge. */
+  scopes: z.array(driverScopeSchema).optional(),
 });
 export type UpdateDriverRequest = z.infer<typeof updateDriverRequestSchema>;
 

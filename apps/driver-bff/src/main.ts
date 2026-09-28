@@ -4,6 +4,7 @@ import { ConfigError, loadConfig } from './config.js';
 import { registerCongestionRoutes } from './congestion-routes.js';
 import { createCoreClient } from './core-client.js';
 import { registerFeedbackRoutes } from './feedback-routes.js';
+import { registerFleetRoutes } from './fleet-routes.js';
 import { registerHazardsRoutes } from './hazards-routes.js';
 import { buildApp } from './host/build-app.js';
 import { registerIdentityRoutes } from './identity-routes.js';
@@ -36,6 +37,7 @@ registerFeedbackRoutes(app, routeDeps);
 registerCongestionRoutes(app, routeDeps);
 registerCompaniesRoutes(app, routeDeps);
 registerParkingRoutes(app, routeDeps);
+registerFleetRoutes(app, routeDeps);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {

@@ -15,6 +15,7 @@ import {
   createFeedbackModule,
   type UntypedDb as FeedbackUntypedDb,
 } from '../modules/feedback/api.js';
+import { createFleetModule, type UntypedDb as FleetUntypedDb } from '../modules/fleet/api.js';
 import {
   createHazardsModule,
   type HazardParser,
@@ -125,6 +126,7 @@ export function composeCore(
   const congestionDb: CongestionUntypedDb = identityDb;
   const companiesDb: CompaniesUntypedDb = identityDb;
   const parkingDb: ParkingUntypedDb = identityDb;
+  const fleetDb: FleetUntypedDb = identityDb;
 
   // hazards and identity both built before routing: routing's HazardAvoidanceQueryAdapter (M3.5)
   // and its reroute-detection handlers (M6.4) both wrap the other modules' facades — the same
@@ -152,6 +154,7 @@ export function composeCore(
   const congestion = createCongestionModule({ db: congestionDb, clock });
   const companies = createCompaniesModule({ db: companiesDb, clock, identity });
   const parking = createParkingModule({ db: parkingDb, clock });
+  const fleet = createFleetModule({ db: fleetDb, ids, identity });
 
   const outboxDispatcher = new OutboxDispatcher(
     platformDb,
@@ -173,6 +176,7 @@ export function composeCore(
   congestion.registerRoutes(app);
   companies.registerRoutes(app);
   parking.registerRoutes(app);
+  fleet.registerRoutes(app);
 
   return {
     app,
