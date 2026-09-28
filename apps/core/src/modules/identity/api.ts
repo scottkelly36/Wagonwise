@@ -88,6 +88,11 @@ export interface IdentityModule {
   getDriverAccess(
     driverId: DriverId,
   ): Promise<{ isAdmin: boolean; companyId?: CompanyId; scopes: readonly DriverScope[] } | null>;
+  /** Delivers a one-time code by text (a phone number) or email, through the same senders drivers'
+   *  sign-in codes use (ClickSend / Resend, or the console in local dev). Staff second factors
+   *  (P2-M1.4) reach it through `companies`' own `CodeSender` port, so ClickSend/Resend accounts
+   *  and credentials stay configured in one place. */
+  sendOneTimeCode(destination: string, code: string): Promise<void>;
 }
 
 /**
@@ -173,6 +178,9 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
         ...(driver.companyId === undefined ? {} : { companyId: driver.companyId }),
         scopes: driver.scopes,
       };
+    },
+    sendOneTimeCode(destination: string, code: string): Promise<void> {
+      return otpSender.send(destination, code);
     },
   };
 }

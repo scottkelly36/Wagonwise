@@ -23,15 +23,16 @@ history file keeps the record.
 | M8 Field-ready                     | In progress — partly shipped 2026-09-25  | below (no breakdown written yet)       |
 | M9 Route options & safe parking    | Done — 2026-09-27                        | `history/m9-route-options-parking.md`  |
 | Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only   | below, and the Phase 2 tech design doc |
-| P2-M1 Orgs, roles, RLS, staff auth | In progress — P2-M1.3 done 2026-09-28    | `history/p2-m1-organisations-auth.md`  |
+| P2-M1 Orgs, roles, RLS, staff auth | In progress — P2-M1.4 done 2026-09-28    | `history/p2-m1-organisations-auth.md`  |
 | P2-M2 Fleet (early slice)          | Vehicles + interim driver scopes, PR #48 | `history/p2-m1-organisations-auth.md`  |
 
 ## Next up
 
 1. **P2-M1** (user's call 2026-09-28: start Phase 2 ahead of its entry criteria and before
    M8 is finished). Plan, decisions and task list in `history/p2-m1-organisations-auth.md`.
-   P2-M1.1 (contracts), P2-M1.2 (permission rules) and P2-M1.3 (migration 0020 + staff
-   repositories) done; next is P2-M1.4 (password hashing, TOTP, and text/email codes). Builds on top of the interim
+   P2-M1.1 (contracts), P2-M1.2 (permission rules), P2-M1.3 (migration 0020 + staff
+   repositories) and P2-M1.4 (password hashing, TOTP, text/email codes) done; next is
+   P2-M1.5 (the staff use cases: invite, enrol, sign in, refresh, manage privileges). Builds on top of the interim
    driver scopes from PR #48 and migrates them at P2-M1.12.
 
 ## Open items (verified against the code 2026-09-28)

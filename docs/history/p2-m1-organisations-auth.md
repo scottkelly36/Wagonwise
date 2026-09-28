@@ -2,7 +2,8 @@
 
 Scoped 2026-09-28 from the [Phase 2 tech design doc](https://claude.ai/artifact/LK2oYrVSwotj7E8W9tXykD)
 §4 and §9, plus its decision log's proposed 3-tier permission model. **Status: in progress. P2-M1.1
-(contracts), P2-M1.2 (domain rules) and P2-M1.3 (storage) done 2026-09-28.**
+(contracts), P2-M1.2 (domain rules), P2-M1.3 (storage) and P2-M1.4 (crypto building blocks)
+done 2026-09-28.**
 
 **Decision 2026-09-28 (user's call, option 1 of 3): interim driver scopes first, staff accounts
 on top later.** A first fleet slice was built outside this plan (PR #48, branch `phase-2/m1`):
@@ -83,7 +84,7 @@ One per session, each with its tests.
 | P2-M1.1  | `packages/contracts`: `StaffAccount`, `Privilege` enum, staff auth + invite DTOs, branded `StaffId`                                                   | Done — 2026-09-28 |
 | P2-M1.2  | Core domain: `StaffAccount` aggregate, `Actor` type, `can(actor, action)` policy functions + the rules above                                          | Done — 2026-09-28 |
 | P2-M1.3  | Core: migration (`companies.staff_accounts`, `staff_invites`, `staff_sessions`), Postgres repositories                                                | Done — 2026-09-28 |
-| P2-M1.4  | Core: password hashing (`scrypt`, node crypto — no dependency), TOTP (RFC 6238, hand-rolled), and SMS/email codes via identity's facade, behind ports | Proposed          |
+| P2-M1.4  | Core: password hashing (`scrypt`, node crypto — no dependency), TOTP (RFC 6238, hand-rolled), and SMS/email codes via identity's facade, behind ports | Done — 2026-09-28 |
 | P2-M1.5  | Core use cases: invite, accept invite (set password + enrol a second factor), sign in, refresh, revoke, set privileges, remove user                   | Proposed          |
 | P2-M1.6  | Token claims gain `kind: 'driver' \| 'staff'`; driver routes reject staff tokens and vice versa                                                       | Proposed          |
 | P2-M1.7  | **RLS**: non-owner `wagonwise_app` DB role, policies on company-owned tables, `app.company_id` set per transaction                                    | Proposed          |
@@ -144,6 +145,24 @@ One per session, each with its tests.
   (fleet users need a company; platform staff have no privileges; a TOTP account has a secret,
   an SMS account a phone). Repository tests: 15, run against a real Postgres 16 locally and in
   CI via Testcontainers.
+
+- **P2-M1.4** (`companies/application/ports/` + `companies/infrastructure/`): building blocks,
+  not yet wired into the running server (that, and its config, comes with the use cases in
+  P2-M1.5).
+  - `ScryptPasswordHasher`: node's scrypt, N=2^15, r=8, p=1, 16-byte salt; the parameters are
+    stored in each hash so the cost can be raised later. Passwords are NFKC-normalised first.
+    N is below OWASP's 2^17 baseline to keep a few simultaneous sign-ins inside a small
+    container's memory; revisit if the container grows.
+  - `AesGcmSecretBox`: AES-256-GCM, random IV, `v1:` prefix, for TOTP secrets. Needs a 32-byte
+    key: a new `STAFF_SECRET_KEY` env var arrives with P2-M1.5. **Losing that key makes every
+    authenticator enrolment unreadable** (staff would fall back to recovery codes), so it
+    belongs in the deployment guide's secrets list, not just DO's env settings.
+  - `Rfc6238Totp`: hand-rolled HMAC-SHA1, 6 digits, 30 s, one step of drift either way; checked
+    against the RFC 6238 Appendix B vectors.
+  - `CryptoRandomCodes`: 6-digit codes, `XXXXX-XXXXX` recovery codes (no 0/O/1/I/L), 256-bit
+    invite tokens.
+  - `IdentityCodeSender` over a new `IdentityModule.sendOneTimeCode`, so staff text/email codes
+    use drivers' ClickSend/Resend setup without `companies` importing identity.
 
 ## Carrying over the interim scopes
 
