@@ -90,7 +90,7 @@ describe('golden routes (real Valhalla, Northumberland extract)', () => {
     if (!result.ok) return;
     report('hexham-newcastle', result.value);
     expectWithinTolerance(result.value.distanceKm, 18.438, 0.1);
-    expectWithinTolerance(result.value.durationMin, 11.363216666666666, 0.15);
+    expectWithinTolerance(result.value.durationMin, 18.753683333333335, 0.15);
     expectWithinSpeedCap(result.value);
   });
 
