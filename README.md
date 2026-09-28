@@ -436,13 +436,27 @@ prefixed variables are inlined into the JS bundle by Expo's own tooling; this on
 `turbo.json`'s `passThroughEnv` list, or `pnpm dev` would silently drop it.
 
 **EAS Build** (`apps/driver-app/eas.json`) has `development`/`preview`/`production` profiles for
-both platforms, ready for TestFlight and Google Play internal testing (M5.10) — not yet linked to
-a real Expo account/project (`eas login` + `eas init` are one-time, interactive steps only you can
-do). **Not yet verified on a real simulator/device or Expo Go** — this machine has no Android SDK
-and no macOS, so verification so far is `expo export --platform android|ios` (a real Metro bundle,
-proves every import resolves and Hermes compiles it) plus `expo-doctor` (21/21 checks), not an
-actual running app. Worth a real run on your phone via Expo Go before trusting the BFF connectivity
-logic (`src/config.ts`) beyond what its unit tests cover.
+both platforms. The app is linked to the EAS project `scottkelly36/wagonwise-driver-app`, and the
+Android package / iOS bundle id is `com.wagonwise.driverapp` (permanent once a build is uploaded
+to Play or App Store Connect).
+
+Store builds can't read your local `apps/driver-app/.env` (it's never uploaded), so the
+`production` profile reads EAS's `production` environment variables instead. Set them once:
+
+```bash
+npm install -g eas-cli   # then open a new terminal; `npx eas-cli@latest` works without installing
+eas login
+cd apps/driver-app
+eas env:create --environment production --name EXPO_PUBLIC_BFF_URL --value https://<driver-bff public URL> --visibility plaintext
+eas env:create --environment production --name EXPO_PUBLIC_MAPTILER_API_KEY --value <key> --visibility plaintext
+eas env:list --environment production   # check both are there
+```
+
+Without `EXPO_PUBLIC_BFF_URL` a store build points at the emulator address (`10.0.2.2`) and no
+tester can connect. The MapTiler key ships inside the app, so treat it as public: restrict it and
+cap its usage in MapTiler's dashboard. Then build with
+`eas build --platform android --profile production`. The first `.aab` has to be uploaded to Play
+Console's internal-testing track by hand; later ones can use `eas submit --platform android`.
 
 **Sign-in (M5.2)**: OTP over email/phone plus an invite code on first sign-in, matching identity's
 own flow exactly (`/sign-in` → `/identity/otp/request` → `/identity/otp/verify`, through the BFF).
