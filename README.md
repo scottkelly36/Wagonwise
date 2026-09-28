@@ -458,6 +458,26 @@ cap its usage in MapTiler's dashboard. Then build with
 `eas build --platform android --profile production`. The first `.aab` has to be uploaded to Play
 Console's internal-testing track by hand; later ones can use `eas submit --platform android`.
 
+**Versions and updates.** Two kinds of release:
+
+| Change                                                                           | What to do                                                                                                               |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| JavaScript only (screens, logic, text, styling) — most fixes                     | `eas update --channel production --environment production --message "…"`. No version bump, no new build, no Play upload. |
+| Native (new/upgraded native package, `plugins` or permissions, Expo SDK upgrade) | Bump `version` in `app.config.ts`, `eas build --platform android --profile production`, upload the `.aab` to Play.       |
+
+- `version` follows semver **per store build** (1.0.1 fixes, 1.1.0 features, 2.0.0 major). An update
+  can't change it — it's baked into the binary — so over-the-air fixes are identified by their
+  `--message` in the Expo dashboard, not by a version number.
+- The Android version code is incremented by EAS on every build (`autoIncrement`, remote version
+  source); never set it by hand.
+- `runtimeVersion` uses the `fingerprint` policy: an update only reaches builds whose native code
+  matches, so JavaScript that needs a new native module can't reach (and crash) an older build.
+  An update published after a native change just isn't delivered to older builds, so if testers
+  aren't seeing a fix, check whether it touched native code and needs a store build.
+- Always pass `--environment production` to `eas update`. Without it the update bundles whatever
+  is in your local `.env`, which may point at your own machine instead of the real server.
+- Testers get an update the next time they fully close and reopen the app.
+
 **Sign-in (M5.2)**: OTP over email/phone plus an invite code on first sign-in, matching identity's
 own flow exactly (`/sign-in` → `/identity/otp/request` → `/identity/otp/verify`, through the BFF).
 The refresh token and driver info are persisted in `expo-secure-store` (Keychain on iOS, Keystore

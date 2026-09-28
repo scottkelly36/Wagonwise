@@ -7,7 +7,9 @@ import { PRODUCT_NAME } from './src/product';
 const config: ExpoConfig = {
   name: PRODUCT_NAME,
   slug: 'wagonwise-driver-app',
-  version: '1.0.0',
+  // Store-build version, bumped by hand on each `eas build` (README: "Versions and updates").
+  // OTA updates can't change it — it's baked into the binary.
+  version: '1.0.1',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'wagonwise',
@@ -15,14 +17,16 @@ const config: ExpoConfig = {
   owner: 'scottkelly36',
   // EAS Update (OTA): JS-only changes push straight to installed builds without a new
   // native build/reinstall — added 2026-09-25 so the post-weekend bug-fix pass doesn't have
-  // to go through EAS Build's slow free-tier queue for every fix. "appVersion" ties runtime
-  // compatibility to `version` above, not to every individual native change, matching the
-  // free-tier MAU limits (1,000/month) comfortably covering Phase 1's test group.
+  // to go through EAS Build's slow free-tier queue for every fix. Free-tier MAU limits
+  // (1,000/month) comfortably cover Phase 1's test group.
+  // "fingerprint" (2026-09-28, was "appVersion"): runtime compatibility is a hash of the native
+  // project, so an update only reaches builds with the same native code, and `version` above is
+  // free to follow normal semver on each store build without stranding updates.
   updates: {
     url: 'https://u.expo.dev/5b6314ae-4cb1-4b28-aa7c-fad17e503c14',
   },
   runtimeVersion: {
-    policy: 'appVersion',
+    policy: 'fingerprint',
   },
   extra: {
     eas: {
