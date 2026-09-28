@@ -18,11 +18,11 @@ import { useReportCongestion } from '../api/use-congestion';
 import { RouteMap, type MapPoint } from '../components/route-map';
 import { useCurrentLocation } from '../hooks/use-current-location';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
+import { WAIT_MINUTES_PRESETS } from '../lib/spoken-wait-minutes';
 
 // A handful of presets rather than a free-text field — a driver reporting this while stopped in
 // traffic wants one tap, not a keyboard (same hands-free-first spirit as hazards' voice reporting,
 // design doc §7, even though this particular flow is still tap-only in Phase 1).
-const WAIT_MINUTES_PRESETS = [5, 15, 30, 60] as const;
 
 /** Report traffic (Phase 1, crowd-sourced congestion tracking, docs/progress.md) — tap the map to
  *  drop a pin, pick how long the wait looks like, done. Deliberately simpler than

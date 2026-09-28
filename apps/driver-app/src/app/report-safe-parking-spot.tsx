@@ -74,7 +74,7 @@ export default function ReportSafeParkingSpotScreen() {
         />
 
         <ScrollView style={styles.panel} contentContainerStyle={styles.panelContent}>
-          <Text style={styles.title}>Report safe parking</Text>
+          <Text style={styles.title}>Mark safe parking</Text>
           <Text style={styles.hint}>Tap the map to drop a pin where it is.</Text>
 
           <Text style={styles.label}>Note (optional)</Text>
@@ -100,7 +100,7 @@ export default function ReportSafeParkingSpotScreen() {
             {reportSpot.isPending ? (
               <ActivityIndicator color={colors.textOnAccent} />
             ) : (
-              <Text style={styles.buttonText}>Report parking spot</Text>
+              <Text style={styles.buttonText}>Mark parking spot</Text>
             )}
           </TouchableOpacity>
         </ScrollView>

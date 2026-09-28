@@ -100,7 +100,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/report-safe-parking-spot')}
             testID="report-parking-spot-button"
           >
-            <Text style={styles.hazardButtonText}>Report parking</Text>
+            <Text style={styles.hazardButtonText}>Mark parking</Text>
           </TouchableOpacity>
         </View>
 

@@ -40,10 +40,16 @@ export function voiceCaptureReducer(
       return { status: 'starting' };
     case 'permission-denied':
       return { status: 'permission-denied' };
+    // Speech recognition is one app-wide native module, so its events reach every mounted
+    // capture hook (active-trip.tsx runs two: the hazard flow and the quick traffic/parking
+    // flow). Each instance only accepts events for a session it started itself; anything
+    // arriving while it's idle or finished belongs to the other hook and is ignored.
     case 'native-started':
-      return { status: 'listening', origin: event.origin };
+      return state.status === 'starting' ? { status: 'listening', origin: event.origin } : state;
     case 'result':
-      return { status: 'transcribed', origin: state.origin, transcript: event.transcript };
+      return state.status === 'listening' || state.status === 'starting'
+        ? { status: 'transcribed', origin: state.origin, transcript: event.transcript }
+        : state;
     case 'no-speech':
       // Only meaningful while a capture session is actually in flight — a transcript, an error or
       // a permission denial may already have arrived before the recognizer's own trailing `end`
@@ -52,7 +58,9 @@ export function voiceCaptureReducer(
         ? { status: 'no-speech', origin: state.origin }
         : state;
     case 'error':
-      return { status: 'error', errorMessage: event.message };
+      return state.status === 'listening' || state.status === 'starting'
+        ? { status: 'error', errorMessage: event.message }
+        : state;
     case 'reset':
       return { status: 'idle' };
   }

@@ -44,11 +44,19 @@ export function useVoiceHazardReportFlow(fallbackOrigin: MapPoint | undefined): 
     fallbackOriginRef.current = fallbackOrigin;
   }, [fallbackOrigin]);
 
+  // True only between our own `capture.start()` and the result we consume. The capture hook keeps
+  // its last result after a session ends, so without this the report itself ("low bridge…") was
+  // read again as the yes/no reply the moment the flow started listening for one — every voice
+  // report ended up as a draft, even after a clear "yes" (fixed 2026-09-28).
+  const awaitingCaptureRef = useRef(false);
+
   // Steps 1-2 / step 4's reply: interpret the capture hook's own terminal states, depending on
   // which of the two capture sessions (the report itself, or the yes/no reply) is in flight.
   useEffect(() => {
+    if (!awaitingCaptureRef.current) return;
     const status = capture.state.status;
     if (status === 'idle' || status === 'starting' || status === 'listening') return;
+    awaitingCaptureRef.current = false;
 
     if (state.phase === 'capturing-report') {
       if (status === 'transcribed' && capture.state.transcript !== undefined) {
@@ -111,6 +119,7 @@ export function useVoiceHazardReportFlow(fallbackOrigin: MapPoint | undefined): 
 
   useEffect(() => {
     if (state.phase !== 'capturing-confirmation') return;
+    awaitingCaptureRef.current = true;
     capture.start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.phase]);
@@ -167,9 +176,11 @@ export function useVoiceHazardReportFlow(fallbackOrigin: MapPoint | undefined): 
     state,
     start: () => {
       dispatch({ type: 'start' });
+      awaitingCaptureRef.current = true;
       capture.start();
     },
     reset: () => {
+      awaitingCaptureRef.current = false;
       capture.reset();
       dispatch({ type: 'reset' });
     },
