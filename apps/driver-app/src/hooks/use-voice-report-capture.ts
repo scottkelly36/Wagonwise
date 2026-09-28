@@ -53,7 +53,7 @@ export function useVoiceReportCapture(): {
   });
 
   useSpeechRecognitionEvent('end', () => {
-    dispatch({ type: 'no-speech' });
+    dispatch({ type: 'ended' });
   });
 
   useSpeechRecognitionEvent('error', (event) => {

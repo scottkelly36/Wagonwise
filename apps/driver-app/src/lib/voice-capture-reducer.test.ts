@@ -66,6 +66,30 @@ describe('voiceCaptureReducer', () => {
     });
   });
 
+  it('ended while listening means nothing was heard', () => {
+    expect(voiceCaptureReducer({ status: 'listening', origin }, { type: 'ended' })).toEqual({
+      status: 'no-speech',
+      origin,
+    });
+  });
+
+  it("ignores a previous session's end event while the next one is still starting", () => {
+    const starting: VoiceCaptureState = { status: 'starting' };
+    expect(voiceCaptureReducer(starting, { type: 'ended' })).toBe(starting);
+  });
+
+  it('ended never overwrites a transcript, an error or a permission denial', () => {
+    const resting: VoiceCaptureState[] = [
+      { status: 'transcribed', origin, transcript: 'flooding' },
+      { status: 'error', errorMessage: 'network' },
+      { status: 'permission-denied' },
+      { status: 'idle' },
+    ];
+    for (const state of resting) {
+      expect(voiceCaptureReducer(state, { type: 'ended' })).toBe(state);
+    }
+  });
+
   it('a trailing no-speech (the recognizer end event) never overwrites an already-transcribed result', () => {
     const transcribed: VoiceCaptureState = {
       status: 'transcribed',

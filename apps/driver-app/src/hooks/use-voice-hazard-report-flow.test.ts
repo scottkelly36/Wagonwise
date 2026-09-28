@@ -35,7 +35,11 @@ async function say(transcript: string): Promise<void> {
   await fire('start');
   await fire('result', { isFinal: true, results: [{ transcript }] });
   await fire('end');
-  // Let the parse call and the spoken read-back (both asynchronous) finish.
+  await flush();
+}
+
+/** Let the parse call and the spoken read-back (both asynchronous) finish. */
+async function flush(): Promise<void> {
   for (let i = 0; i < 5; i += 1) {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 5));
@@ -110,6 +114,24 @@ describe('useVoiceHazardReportFlow', () => {
     expect(result.current.state.phase).toBe('capturing-confirmation');
     expect(mockSaveDraft).not.toHaveBeenCalled();
     expect(mockReportMutate).not.toHaveBeenCalled();
+  });
+
+  it("ignores the report session's late end event once it's listening for yes/no", async () => {
+    const { result } = await renderHook(() => useVoiceHazardReportFlow(origin));
+
+    await act(async () => result.current.start());
+    await act(async () => {});
+    await fire('start');
+    await fire('result', { isFinal: true, results: [{ transcript: 'low bridge' }] });
+    // Parse and read back first, so the yes/no capture has already been requested…
+    await flush();
+    expect(result.current.state.phase).toBe('capturing-confirmation');
+    // …then the report session's own trailing `end` event arrives (the order CI hit).
+    await fire('end');
+    await flush();
+
+    expect(result.current.state.phase).toBe('capturing-confirmation');
+    expect(mockSaveDraft).not.toHaveBeenCalled();
   });
 
   it('files the report when the driver says yes', async () => {

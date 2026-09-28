@@ -15,7 +15,10 @@ export type VoiceCaptureEvent =
   | { readonly type: 'permission-denied' }
   | { readonly type: 'native-started'; readonly origin: MapPoint | undefined }
   | { readonly type: 'result'; readonly transcript: string }
+  // The recognizer's own no-speech / speech-timeout error codes.
   | { readonly type: 'no-speech' }
+  // The recognizer's trailing `end` event, which fires after every session.
+  | { readonly type: 'ended' }
   | { readonly type: 'error'; readonly message: string }
   | { readonly type: 'reset' };
 
@@ -57,6 +60,13 @@ export function voiceCaptureReducer(
       return state.status === 'listening' || state.status === 'starting'
         ? { status: 'no-speech', origin: state.origin }
         : state;
+    case 'ended':
+      // Session over with nothing heard. Only once this session is actually listening: the
+      // previous session's `end` can arrive just after the next capture was requested (the flow
+      // moving from the report straight to its yes/no question), and counting it as silence
+      // there declined every report (CI, 2026-09-28). A session that never starts reports that
+      // through an error event instead, so nothing gets stuck in `starting`.
+      return state.status === 'listening' ? { status: 'no-speech', origin: state.origin } : state;
     case 'error':
       return state.status === 'listening' || state.status === 'starting'
         ? { status: 'error', errorMessage: event.message }
