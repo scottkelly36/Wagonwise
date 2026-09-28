@@ -43,6 +43,11 @@
       "types": "./dist/fleet.d.ts",
       "import": "./dist/fleet.js",
       "default": "./dist/fleet.js"
+    },
+    "./staff": {
+      "types": "./dist/staff.d.ts",
+      "import": "./dist/staff.js",
+      "default": "./dist/staff.js"
     }
   },
   "scripts": {

@@ -1,8 +1,8 @@
 # P2-M1 Organisations, roles, RLS, staff auth + 2FA
 
 Scoped 2026-09-28 from the [Phase 2 tech design doc](https://claude.ai/artifact/LK2oYrVSwotj7E8W9tXykD)
-§4 and §9, plus its decision log's proposed 3-tier permission model. **Status: proposed, awaiting
-approval — no code yet.**
+§4 and §9, plus its decision log's proposed 3-tier permission model. **Status: in progress. P2-M1.1
+(contracts), P2-M1.2 (domain rules) and P2-M1.3 (storage) done 2026-09-28.**
 
 **Decision 2026-09-28 (user's call, option 1 of 3): interim driver scopes first, staff accounts
 on top later.** A first fleet slice was built outside this plan (PR #48, branch `phase-2/m1`):
@@ -10,7 +10,7 @@ company vehicles plus a `scopes` list on the `Driver` account (`manage_fleet` on
 existing driver OTP sign-in. It ships as-is, as an early P2-M2 (fleet). This plan still stands.
 Staff accounts, TOTP, RLS and application-layer policies are built on top of it, and P2-M1.12's
 cutover moves driver scopes onto fleet-user privileges (see "Carrying over the interim scopes"
-below). The four open decisions at the bottom are still unanswered.
+below). The open decisions were answered the same day (see Decisions, bottom).
 
 Started knowingly ahead of the doc's entry criteria (a month of real drivers, trusted hazard
 density, a pilot firm signed up). None of them are met yet (user's call, 2026-09-28).
@@ -40,11 +40,11 @@ density, a pilot firm signed up). None of them are met yet (user's call, 2026-09
 
 Three account types, replacing the bare `isAdmin` flag:
 
-| Account         | Scope                      | Signs in with             | Where it lives                        |
-| --------------- | -------------------------- | ------------------------- | ------------------------------------- |
-| WagonWise staff | Unscoped (all companies)   | email + password + TOTP   | `staff` accounts, `kind = 'platform'` |
-| Fleet user      | One company                | email + password + TOTP   | `staff` accounts, `kind = 'fleet'`    |
-| Driver          | Own data; optional company | email/SMS OTP (unchanged) | `identity.drivers` (unchanged)        |
+| Account         | Scope                      | Signs in with                 | Where it lives                        |
+| --------------- | -------------------------- | ----------------------------- | ------------------------------------- |
+| WagonWise staff | Unscoped (all companies)   | email + password + 2nd factor | `staff` accounts, `kind = 'platform'` |
+| Fleet user      | One company                | email + password + 2nd factor | `staff` accounts, `kind = 'fleet'`    |
+| Driver          | Own data; optional company | email/SMS OTP (unchanged)     | `identity.drivers` (unchanged)        |
 
 **Privileges are a fixed list WagonWise defines** (the decision log's accepted pushback: not
 free text, "manager" is a privilege, not a role):
@@ -78,20 +78,20 @@ stored as privileges, not roles.
 
 One per session, each with its tests.
 
-| #        | Task                                                                                                                               | Status   |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| P2-M1.1  | `packages/contracts`: `StaffAccount`, `Privilege` enum, staff auth + invite DTOs, branded `StaffId`                                | Proposed |
-| P2-M1.2  | Core domain: `StaffAccount` aggregate, `Actor` type, `can(actor, action)` policy functions + the rules above                       | Proposed |
-| P2-M1.3  | Core: migration (`companies.staff_accounts`, `staff_invites`, `staff_sessions`), Postgres repositories                             | Proposed |
-| P2-M1.4  | Core: password hashing (`scrypt`, node crypto — no dependency) and TOTP (RFC 6238, hand-rolled) behind ports                       | Proposed |
-| P2-M1.5  | Core use cases: invite, accept invite (set password + enrol TOTP), sign in, refresh, revoke, set privileges, remove user           | Proposed |
-| P2-M1.6  | Token claims gain `kind: 'driver' \| 'staff'`; driver routes reject staff tokens and vice versa                                    | Proposed |
-| P2-M1.7  | **RLS**: non-owner `wagonwise_app` DB role, policies on company-owned tables, `app.company_id` set per transaction                 | Proposed |
-| P2-M1.8  | Move existing admin checks (companies, invite codes, driver accounts, hazard delete) into application-layer policies               | Proposed |
-| P2-M1.9  | `apps/staff-bff`: verify staff tokens, proxy staff routes; remove the admin routes from driver-bff                                 | Proposed |
-| P2-M1.10 | Dashboard: email + password + TOTP sign-in, point at staff-bff, "Users" screen (invite with presets, edit privileges, remove)      | Proposed |
-| P2-M1.11 | Staff audit log (`companies.staff_audit`): who did what, to which company, when — written by every staff use case                  | Proposed |
-| P2-M1.12 | Bootstrap + cutover: CLI to create the first platform account (README), migrate today's `is_admin` driver, drop `is_admin`, deploy | Proposed |
+| #        | Task                                                                                                                                                  | Status            |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| P2-M1.1  | `packages/contracts`: `StaffAccount`, `Privilege` enum, staff auth + invite DTOs, branded `StaffId`                                                   | Done — 2026-09-28 |
+| P2-M1.2  | Core domain: `StaffAccount` aggregate, `Actor` type, `can(actor, action)` policy functions + the rules above                                          | Done — 2026-09-28 |
+| P2-M1.3  | Core: migration (`companies.staff_accounts`, `staff_invites`, `staff_sessions`), Postgres repositories                                                | Done — 2026-09-28 |
+| P2-M1.4  | Core: password hashing (`scrypt`, node crypto — no dependency), TOTP (RFC 6238, hand-rolled), and SMS/email codes via identity's facade, behind ports | Proposed          |
+| P2-M1.5  | Core use cases: invite, accept invite (set password + enrol a second factor), sign in, refresh, revoke, set privileges, remove user                   | Proposed          |
+| P2-M1.6  | Token claims gain `kind: 'driver' \| 'staff'`; driver routes reject staff tokens and vice versa                                                       | Proposed          |
+| P2-M1.7  | **RLS**: non-owner `wagonwise_app` DB role, policies on company-owned tables, `app.company_id` set per transaction                                    | Proposed          |
+| P2-M1.8  | Move existing admin checks (companies, invite codes, driver accounts, hazard delete) into application-layer policies                                  | Proposed          |
+| P2-M1.9  | `apps/staff-bff`: verify staff tokens, proxy staff routes; remove the admin routes from driver-bff                                                    | Proposed          |
+| P2-M1.10 | Dashboard: email + password + TOTP sign-in, point at staff-bff, "Users" screen (invite with presets, edit privileges, remove)                         | Proposed          |
+| P2-M1.11 | Staff audit log (`companies.staff_audit`): who did what, to which company, when — written by every staff use case                                     | Proposed          |
+| P2-M1.12 | Bootstrap + cutover: CLI to create the first platform account (README), migrate today's `is_admin` driver, drop `is_admin`, deploy                    | Proposed          |
 
 ### Notes per task
 
@@ -122,6 +122,29 @@ One per session, each with its tests.
 - **P2-M1.12** needs a deploy plan: a new DO service for staff-bff, the new DB role, and the
   secrets. Remember the standing rule: never `doctl apps update --spec`.
 
+## Notes from done tasks
+
+- **P2-M1.2** (`companies/domain/staff-account.ts`, `staff-policy.ts`): pure functions, 24 tests.
+  Two rules beyond the plan, both following from "managers only control what they hold":
+  a manager can only switch _off_ privileges they hold too (not just switch on), and can only
+  remove someone whose privileges they all hold. The last-manager guard applies to WagonWise
+  admins as well: an admin fixing a company must promote someone before demoting its only
+  manager. The domain keeps its own copy of the privilege list (rule 2);
+  `interface/privileges-contract.test.ts` fails if it drifts from contracts.
+
+- **P2-M1.3** (migration `0020_staff.sql`, `companies/infrastructure/postgres-staff-*.ts`): five
+  tables. `staff_accounts` holds the account and its credentials (password hash, second-factor
+  method, encrypted TOTP secret or phone), but the domain keeps them apart
+  (`StaffAccount` vs `StaffCredentials`), so only sign-in code ever loads a hash or secret.
+  Accounts are soft-deleted (`removed_at`) for the audit trail; one _live_ account per email,
+  case-insensitive. `staff_challenges` covers both the sign-in second step and enrolment (an
+  invitee's pending password and factor wait there until their first code proves the factor
+  works, so no half-made account ever exists). `staff_recovery_codes` marks a code used in one
+  statement, so the same code can't succeed twice. Database checks back up the domain rules
+  (fleet users need a company; platform staff have no privileges; a TOTP account has a secret,
+  an SMS account a phone). Repository tests: 15, run against a real Postgres 16 locally and in
+  CI via Testcontainers.
+
 ## Carrying over the interim scopes
 
 - **P2-M1.2**: `can(actor, 'manage_fleet', companyId)` replaces `canManageFleet`. Keep
@@ -139,12 +162,26 @@ One per session, each with its tests.
   permission check, so a non-member can tell whether a vehicle id exists (ids are random UUIDs,
   low risk). Fix alongside P2-M1.8 by checking permission before revealing existence.
 
-## Open decisions (need the user's answer before P2-M1.1)
+## Decisions (user, 2026-09-28)
 
-1. **Staff BFF now (P2-M1.9) or keep the dashboard on driver-bff until P2-M4?** Recommend now.
-2. **Staff sign-in: email + password + TOTP (the doc) or keep emailed OTP plus TOTP?** Recommend
-   password + TOTP, as the doc says. Transport offices often share a mailbox, so an emailed code
-   is a weak first factor.
-3. **Privilege list above**: add or remove any before it's baked into contracts?
-4. **Dashboard today**: while P2-M1 is in progress, keep the current OTP-plus-`isAdmin` sign-in
-   working until P2-M1.12's cutover? Recommend yes, so the admin screens never break.
+1. **Staff BFF now.** P2-M1.9 builds `apps/staff-bff`; the dashboard moves off driver-bff.
+2. **Sign-in: email + password, then a second factor the person picks at enrolment**:
+   authenticator app (TOTP), or a code by text or email. Behind a password, a texted or emailed
+   code is a real second factor. The text/email codes reuse the ClickSend/Resend senders drivers
+   already use: identity exposes a "send this code to this address" call on its facade, and
+   `companies` reaches it through its own port (AGENTS.md rules 6-7), never by importing
+   identity's adapters.
+3. **The six privileges stand as listed.** Owner / Dispatcher / Viewer are presets in the invite
+   form, stored as the resulting privilege list.
+4. **Keep today's dashboard sign-in** (driver OTP + `isAdmin`/scopes) working until P2-M1.12's
+   cutover, which happens after the roll-out.
+
+**How managers and admins work (user's framing, same model):**
+
+- A _manager_ is a fleet user holding `manage_users` (normally the Owner preset). They invite
+  and manage people in their own company, can only grant privileges they hold themselves, and a
+  company can never be left without a manager.
+- _WagonWise admins_ are platform staff: they see everyone's privileges in every company and can
+  change any of them, so WagonWise can step in for support. Every such change goes in the staff
+  audit log (P2-M1.11) with the company it touched.
+- Custom named groups per company ("Night desk") are possible later without changing this model.
