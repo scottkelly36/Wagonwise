@@ -8,6 +8,7 @@ import { IdentityAdminDirectory } from './infrastructure/identity-admin-director
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresCompanyRepository } from './infrastructure/postgres-company-repository.js';
 import { registerCompaniesRoutes, type CompaniesRouteDeps } from './interface/routes.js';
+import { bootstrapFirstAdmin as bootstrapFirstAdminUseCase } from './application/bootstrap-first-admin.js';
 import type { StaffDeps } from './application/staff-deps.js';
 import { AesGcmSecretBox } from './infrastructure/aes-gcm-secret-box.js';
 import { CryptoRandomCodes } from './infrastructure/crypto-random-codes.js';
@@ -97,4 +98,33 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
       registerStaffRoutes(app, staffDeps, deps.dataScopes);
     },
   };
+}
+
+/**
+ * `pnpm staff:bootstrap`'s entry point (P2-M1.12b): issues the invite for the first WagonWise
+ * admin, refused once any exists. Returns the invite link token (shown once), or why not.
+ */
+export async function bootstrapFirstAdmin(
+  deps: Pick<CompaniesModuleDeps, 'db' | 'clock' | 'ids' | 'dataScopes'>,
+  input: { readonly email: string; readonly name: string },
+): Promise<
+  | { readonly ok: true; readonly token: string; readonly expiresAt: Date }
+  | { readonly ok: false; readonly reason: 'AdminAlreadyExists' | 'EmailAlreadyInUse' }
+> {
+  const result = await deps.dataScopes.run({ kind: 'platform' }, () =>
+    bootstrapFirstAdminUseCase(
+      {
+        accounts: new PostgresStaffAccountRepository(deps.db),
+        invites: new PostgresStaffInviteRepository(deps.db),
+        auditLog: new PostgresStaffAuditLog(deps.db),
+        randomCodes: new CryptoRandomCodes(),
+        clock: deps.clock,
+        ids: deps.ids,
+      },
+      input,
+    ),
+  );
+  return result.ok
+    ? { ok: true, token: result.value.token, expiresAt: result.value.invite.expiresAt }
+    : { ok: false, reason: result.error.tag };
 }

@@ -13,6 +13,7 @@ import { STAFF_INVITE_LIFETIME_MS } from '../domain/staff-invite.js';
 import { STAFF_LOCKOUT_WINDOW_MS } from '../domain/staff-lockout.js';
 import { STAFF_REFRESH_LIFETIME_MS } from '../domain/staff-session.js';
 import { acceptStaffInvite } from './accept-staff-invite.js';
+import { bootstrapFirstAdmin } from './bootstrap-first-admin.js';
 import { confirmStaffEnrolment } from './confirm-staff-enrolment.js';
 import { createStaffInvite } from './create-staff-invite.js';
 import { listStaffAudit } from './list-staff-audit.js';
@@ -768,5 +769,67 @@ describe('lockout (P2-M1.12)', () => {
     expect((await staffSignIn(deps, { email: 'other@acme.example', password: PASSWORD })).ok).toBe(
       true,
     );
+  });
+});
+
+describe('bootstrapping the first WagonWise admin (P2-M1.12b)', () => {
+  it('refuses while a WagonWise admin exists', async () => {
+    expect(await bootstrapFirstAdmin(deps, { email: 'me@wagon-wise.co.uk', name: 'Me' })).toEqual({
+      ok: false,
+      error: { tag: 'AdminAlreadyExists' },
+    });
+    expect(deps.auditLog.entries).toEqual([]);
+  });
+
+  it('with none yet, issues an invite that joins as a WagonWise admin, recorded as a bootstrap', async () => {
+    await deps.accounts.remove(admin.id, deps.clock.now());
+
+    const created = await bootstrapFirstAdmin(deps, { email: ' me@wagon-wise.co.uk ', name: 'Me' });
+    if (!created.ok) throw new Error(created.error.tag);
+    expect(created.value.invite).toMatchObject({
+      kind: 'platform',
+      email: 'me@wagon-wise.co.uk',
+      invitedBy: null,
+      privileges: [],
+    });
+
+    const accepted = await acceptStaffInvite(deps, {
+      inviteToken: created.value.token,
+      password: PASSWORD,
+      secondFactorMethod: 'totp',
+    });
+    if (!accepted.ok) throw new Error(accepted.error.tag);
+    const joined = await confirmStaffEnrolment(deps, {
+      enrolmentId: accepted.value.enrolmentId,
+      code: deps.totp.currentCode,
+    });
+    if (!joined.ok) throw new Error(joined.error.tag);
+    expect(joined.value.staff.kind).toBe('platform');
+
+    expect(deps.auditLog.entries.map((e) => [e.action, e.details])).toEqual([
+      ['invite_created', { email: 'me@wagon-wise.co.uk', kind: 'platform', via: 'bootstrap' }],
+      ['staff_joined', { method: 'totp', invitedBy: 'bootstrap' }],
+    ]);
+
+    // Now there is an admin, the door is shut.
+    expect(
+      await bootstrapFirstAdmin(deps, { email: 'second@wagon-wise.co.uk', name: 'Two' }),
+    ).toEqual({
+      ok: false,
+      error: { tag: 'AdminAlreadyExists' },
+    });
+  });
+
+  it('can be run again before the link is used, and the newest link works', async () => {
+    await deps.accounts.remove(admin.id, deps.clock.now());
+    const first = await bootstrapFirstAdmin(deps, { email: 'me@wagon-wise.co.uk', name: 'Me' });
+    const second = await bootstrapFirstAdmin(deps, { email: 'me@wagon-wise.co.uk', name: 'Me' });
+    if (!first.ok || !second.ok) throw new Error('expected both to succeed');
+    const accepted = await acceptStaffInvite(deps, {
+      inviteToken: second.value.token,
+      password: PASSWORD,
+      secondFactorMethod: 'email',
+    });
+    expect(accepted.ok).toBe(true);
   });
 });

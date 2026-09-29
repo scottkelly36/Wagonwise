@@ -434,8 +434,10 @@ The dashboard's staff pages (P2-M1.10) talk to it: `/staff/sign-in` (email, pass
 second factor), `/join?token=…` (the invite link: set a password, pick a second factor, save the
 recovery codes) and `/staff/users` (invite, change privileges, remove) and `/staff/activity` (the audit log). Point the dashboard at it
 with `VITE_STAFF_BFF_URL` (default `http://localhost:3003`); `VITE_BFF_URL` stays the driver BFF
-for the existing pages. To try it locally you need a first WagonWise staff account, which
-arrives with the bootstrap step (P2-M1.12).
+for the existing pages. To try it locally, create the first WagonWise admin's invite with
+`pnpm --filter @wagonwise/core staff:bootstrap --email you@example.com --name "You"
+--dashboard-url http://localhost:5173` and open the link it prints (it refuses once a WagonWise
+admin exists).
 
 ## Driver app
 

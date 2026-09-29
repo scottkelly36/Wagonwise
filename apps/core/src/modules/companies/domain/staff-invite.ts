@@ -19,7 +19,8 @@ export interface StaffInvite {
   readonly name: string;
   readonly privileges: readonly Privilege[];
   readonly tokenHash: string;
-  readonly invitedBy: StaffId;
+  /** Null only for the bootstrap invite that creates the first WagonWise admin (P2-M1.12b). */
+  readonly invitedBy: StaffId | null;
   readonly createdAt: Date;
   readonly expiresAt: Date;
   readonly acceptedAt: Date | null;
