@@ -14,6 +14,7 @@ import { CryptoRandomCodes } from './infrastructure/crypto-random-codes.js';
 import { IdentityCodeSender } from './infrastructure/identity-code-sender.js';
 import { IdentityStaffTokenIssuer } from './infrastructure/identity-staff-token-issuer.js';
 import { PostgresStaffAccountRepository } from './infrastructure/postgres-staff-account-repository.js';
+import { PostgresStaffAuditLog } from './infrastructure/postgres-staff-audit-log.js';
 import { PostgresStaffChallengeRepository } from './infrastructure/postgres-staff-challenge-repository.js';
 import { PostgresStaffInviteRepository } from './infrastructure/postgres-staff-invite-repository.js';
 import { PostgresStaffRecoveryCodeRepository } from './infrastructure/postgres-staff-recovery-code-repository.js';
@@ -71,6 +72,7 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     sessions: new PostgresStaffSessionRepository(deps.db),
     challenges: new PostgresStaffChallengeRepository(deps.db),
     recoveryCodes: new PostgresStaffRecoveryCodeRepository(deps.db),
+    auditLog: new PostgresStaffAuditLog(deps.db),
     passwordHasher: new ScryptPasswordHasher(),
     secretBox: new AesGcmSecretBox(
       deps.staffSecretKey === undefined

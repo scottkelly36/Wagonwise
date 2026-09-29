@@ -25,6 +25,7 @@ import {
   InMemoryStaffAccountRepository,
   InMemoryStaffChallengeRepository,
   InMemoryStaffInviteRepository,
+  InMemoryStaffAuditLog,
   InMemoryStaffRecoveryCodeRepository,
   InMemoryStaffSessionRepository,
 } from '../application/testing/in-memory-staff-repositories.js';
@@ -59,6 +60,7 @@ beforeEach(async () => {
     sessions: new InMemoryStaffSessionRepository(),
     challenges: new InMemoryStaffChallengeRepository(),
     recoveryCodes: new InMemoryStaffRecoveryCodeRepository(),
+    auditLog: new InMemoryStaffAuditLog(),
     passwordHasher: new FakePasswordHasher(),
     secretBox: new FakeSecretBox(),
     totp: new FakeTotp(),
@@ -315,6 +317,27 @@ describe('staff routes', () => {
       headers: bearer(confirmed.json<ConfirmStaffEnrolmentResponse>().accessToken),
     });
     expect(scopes.used).toEqual([{ kind: 'staff-auth' }, { kind: 'company', companyId: ACME }]);
+  });
+
+  it('GET /staff/audit lists what happened, newest first, for a WagonWise admin', async () => {
+    const { accessToken } = await signIn('support@wagon-wise.co.uk');
+    const res = await app.inject({
+      method: 'GET',
+      url: '/staff/audit',
+      headers: bearer(accessToken),
+    });
+    expect(res.statusCode).toBe(200);
+    const { entries } = res.json<{ entries: { action: string; at: string }[] }>();
+    expect(entries.map((e) => e.action)).toEqual(['signed_in']);
+    expect(entries[0]?.at).toBe('2026-09-28T12:00:00.000Z');
+
+    const bad = await app.inject({
+      method: 'GET',
+      url: '/staff/audit?companyId=not-a-uuid',
+      headers: bearer(accessToken),
+    });
+    expect(bad.statusCode).toBe(400);
+    expect(scopes.used.at(-1)).toEqual({ kind: 'platform' });
   });
 
   it('refresh rotates, and sign-out ends the session', async () => {

@@ -9,6 +9,7 @@ import {
   type Forbidden,
   type PrivilegeNotHeld,
 } from '../domain/staff-policy.js';
+import { audit } from './audit.js';
 import { sha256Hex } from './hash.js';
 import type { StaffDeps } from './staff-deps.js';
 
@@ -32,7 +33,7 @@ export interface CreatedStaffInvite {
 }
 
 export async function createStaffInvite(
-  deps: Pick<StaffDeps, 'accounts' | 'invites' | 'randomCodes' | 'clock' | 'ids'>,
+  deps: Pick<StaffDeps, 'accounts' | 'invites' | 'auditLog' | 'randomCodes' | 'clock' | 'ids'>,
   actor: Actor,
   input: CreateStaffInviteInput,
 ): Promise<Result<CreatedStaffInvite, Forbidden | PrivilegeNotHeld | EmailAlreadyInUse>> {
@@ -62,5 +63,11 @@ export async function createStaffInvite(
     acceptedAt: null,
   };
   await deps.invites.save(invite);
+  await audit(deps, {
+    action: 'invite_created',
+    actorId: actor.staffId,
+    companyId: invite.companyId,
+    details: { email: invite.email, kind: invite.kind, privileges: invite.privileges },
+  });
   return ok({ invite, token });
 }

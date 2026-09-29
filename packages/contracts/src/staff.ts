@@ -260,3 +260,39 @@ export const staffErrorResponseSchema = z.object({
   requestId: z.string(),
 });
 export type StaffErrorResponse = z.infer<typeof staffErrorResponseSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// Audit log (P2-M1.11): who did what, to which company, when. Same visibility as the users list.
+// ---------------------------------------------------------------------------------------------
+
+export const STAFF_AUDIT_ACTIONS = [
+  'invite_created',
+  'staff_joined',
+  'signed_in',
+  'sign_in_failed',
+  'second_factor_failed',
+  'privileges_changed',
+  'staff_removed',
+] as const;
+export const staffAuditActionSchema = z.enum(STAFF_AUDIT_ACTIONS);
+export type StaffAuditAction = z.infer<typeof staffAuditActionSchema>;
+
+export const staffAuditEntrySchema = z.object({
+  id: z.uuid(),
+  at: z.iso.datetime(),
+  action: staffAuditActionSchema,
+  /** Absent when nobody was signed in (a failed sign-in). */
+  actorId: staffIdSchema.optional(),
+  /** Absent for entries about WagonWise staff accounts. */
+  companyId: companyIdSchema.optional(),
+  targetId: staffIdSchema.optional(),
+  /** e.g. `{ before: [...], after: [...] }` for a privilege change, `{ method }` for a sign-in. */
+  details: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
+});
+export type StaffAuditEntryDto = z.infer<typeof staffAuditEntrySchema>;
+
+/** Newest first, the latest 200. */
+export const listStaffAuditResponseSchema = z.object({
+  entries: z.array(staffAuditEntrySchema),
+});
+export type ListStaffAuditResponse = z.infer<typeof listStaffAuditResponseSchema>;

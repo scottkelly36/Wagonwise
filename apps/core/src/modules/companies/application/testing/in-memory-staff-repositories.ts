@@ -1,10 +1,12 @@
 import type { CompanyId } from '../../domain/company.js';
 import type { StaffAccount, StaffId } from '../../domain/staff-account.js';
 import type { StaffChallenge, StaffChallengeId } from '../../domain/staff-challenge.js';
+import type { StaffAuditEntry } from '../../domain/staff-audit.js';
 import type { StaffCredentials } from '../../domain/staff-credentials.js';
 import type { StaffInvite, StaffInviteId } from '../../domain/staff-invite.js';
 import type { StaffSession, StaffSessionId } from '../../domain/staff-session.js';
 import type { StaffAccountRepository } from '../ports/staff-account-repository.js';
+import type { StaffAuditLog } from '../ports/staff-audit-log.js';
 import type { StaffChallengeRepository } from '../ports/staff-challenge-repository.js';
 import type { StaffInviteRepository } from '../ports/staff-invite-repository.js';
 import type { StaffRecoveryCodeRepository } from '../ports/staff-recovery-code-repository.js';
@@ -174,5 +176,25 @@ export class InMemoryStaffRecoveryCodeRepository implements StaffRecoveryCodeRep
   countUnused(staffId: StaffId): Promise<number> {
     const codes = this.#codes.get(staffId);
     return Promise.resolve(codes ? [...codes.values()].filter((u) => u === null).length : 0);
+  }
+}
+
+/** Keeps entries in order; `recent` returns newest first, like the Postgres one. */
+export class InMemoryStaffAuditLog implements StaffAuditLog {
+  readonly entries: StaffAuditEntry[] = [];
+
+  record(entry: StaffAuditEntry): Promise<void> {
+    this.entries.push(entry);
+    return Promise.resolve();
+  }
+
+  recent(input: {
+    readonly companyId?: CompanyId | undefined;
+    readonly limit: number;
+  }): Promise<StaffAuditEntry[]> {
+    const matching = this.entries.filter(
+      (e) => input.companyId === undefined || e.companyId === input.companyId,
+    );
+    return Promise.resolve(matching.reverse().slice(0, input.limit));
   }
 }

@@ -16,13 +16,14 @@ import {
   type NotAFleetUser,
   type PrivilegeNotHeld,
 } from '../domain/staff-policy.js';
+import { audit, auditCompanyOf } from './audit.js';
 import type { StaffDeps } from './staff-deps.js';
 
 export type StaffNotFound = TaggedError<'StaffNotFound'>;
 
 /** Replaces someone's privileges, within the P2-M1.2 rules. */
 export async function setStaffPrivileges(
-  deps: Pick<StaffDeps, 'accounts'>,
+  deps: Pick<StaffDeps, 'accounts' | 'auditLog' | 'clock' | 'ids'>,
   actor: Actor,
   input: { readonly staffId: StaffId; readonly privileges: readonly Privilege[] },
 ): Promise<
@@ -35,12 +36,22 @@ export async function setStaffPrivileges(
   const updated = setPrivileges(actor, target, input.privileges, managers);
   if (!updated.ok) return updated;
   await deps.accounts.save(updated.value);
+  await audit(deps, {
+    action: 'privileges_changed',
+    actorId: actor.staffId,
+    companyId: updated.value.companyId,
+    targetId: target.id,
+    details: {
+      before: target.kind === 'fleet' ? target.privileges : [],
+      after: updated.value.privileges,
+    },
+  });
   return ok(updated.value);
 }
 
 /** Removes someone from the dashboard and signs them out everywhere at once. */
 export async function removeStaff(
-  deps: Pick<StaffDeps, 'accounts' | 'sessions' | 'clock'>,
+  deps: Pick<StaffDeps, 'accounts' | 'sessions' | 'auditLog' | 'clock' | 'ids'>,
   actor: Actor,
   input: { readonly staffId: StaffId },
 ): Promise<Result<void, StaffNotFound | Forbidden | PrivilegeNotHeld | LastManager>> {
@@ -53,6 +64,13 @@ export async function removeStaff(
   const now = deps.clock.now();
   await deps.accounts.remove(target.id, now);
   await deps.sessions.revokeAllForStaff(target.id, now);
+  await audit(deps, {
+    action: 'staff_removed',
+    actorId: actor.staffId,
+    companyId: auditCompanyOf(target),
+    targetId: target.id,
+    details: { email: target.email },
+  });
   return ok(undefined);
 }
 

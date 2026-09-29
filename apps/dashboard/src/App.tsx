@@ -13,6 +13,7 @@ import { LiveTrips } from './pages/fleet/LiveTrips';
 import { VehicleProfiles } from './pages/fleet/VehicleProfiles';
 import { InviteCodes } from './pages/admin/InviteCodes';
 import { SignIn } from './pages/SignIn';
+import { Activity } from './pages/staff/Activity';
 import { Join } from './pages/staff/Join';
 import { StaffSignIn } from './pages/staff/StaffSignIn';
 import { Users } from './pages/staff/Users';
@@ -30,6 +31,7 @@ export function App() {
           <Route element={<StaffLayout />}>
             <Route path="/staff" element={<Navigate to="/staff/users" replace />} />
             <Route path="/staff/users" element={<Users />} />
+            <Route path="/staff/activity" element={<Activity />} />
           </Route>
         </Route>
         <Route element={<RequireAdmin />}>

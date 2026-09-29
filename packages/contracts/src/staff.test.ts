@@ -8,6 +8,7 @@ import {
   setStaffPrivilegesRequestSchema,
   staffAccountSchema,
   staffSignInRequestSchema,
+  staffAuditEntrySchema,
 } from './staff.js';
 
 const fleetUser = {
@@ -200,6 +201,32 @@ describe('setStaffPrivilegesRequestSchema', () => {
     expect(
       setStaffPrivilegesRequestSchema.safeParse({ privileges: ['view_reports', 'view_reports'] })
         .success,
+    ).toBe(false);
+  });
+});
+
+describe('staffAuditEntrySchema', () => {
+  const entry = {
+    id: '55555555-5555-4555-8555-555555555555',
+    at: '2026-09-29T08:00:00.000Z',
+    action: 'privileges_changed',
+    actorId: '66666666-6666-4666-8666-666666666666',
+    companyId: '11111111-1111-4111-8111-111111111111',
+    targetId: '77777777-7777-4777-8777-777777777777',
+    details: { before: ['view_reports'], after: ['view_reports', 'dispatch'] },
+  };
+
+  it('accepts an entry, and one with no actor or company (a WagonWise account, a failed sign-in)', () => {
+    expect(staffAuditEntrySchema.safeParse(entry).success).toBe(true);
+    const { actorId: _a, companyId: _c, ...bare } = entry;
+    expect(
+      staffAuditEntrySchema.safeParse({ ...bare, action: 'sign_in_failed', details: {} }).success,
+    ).toBe(true);
+  });
+
+  it('rejects an action that is not on the list', () => {
+    expect(
+      staffAuditEntrySchema.safeParse({ ...entry, action: 'deleted_everything' }).success,
     ).toBe(false);
   });
 });

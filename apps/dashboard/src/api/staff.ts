@@ -2,6 +2,7 @@ import {
   acceptStaffInviteResponseSchema,
   confirmStaffEnrolmentResponseSchema,
   createStaffInviteResponseSchema,
+  listStaffAuditResponseSchema,
   listStaffResponseSchema,
   staffAccountSchema,
   staffRefreshTokenResponseSchema,
@@ -13,6 +14,7 @@ import {
   type CreateStaffInviteRequest,
   type CreateStaffInviteResponse,
   type Privilege,
+  type StaffAuditEntryDto,
   type StaffAccountDto,
   type StaffRefreshTokenResponse,
   type StaffSignInResponse,
@@ -129,4 +131,18 @@ export async function removeMember(accessToken: string, staffId: string): Promis
     accessToken,
   );
   throwUnlessSuccess(status, json, [204]);
+}
+
+/** Newest first, the latest 200. No `companyId`: everything (WagonWise admins only). */
+export async function listAudit(
+  accessToken: string,
+  companyId?: string,
+): Promise<StaffAuditEntryDto[]> {
+  const path =
+    companyId === undefined
+      ? '/staff/audit'
+      : `/staff/audit?companyId=${encodeURIComponent(companyId)}`;
+  const { status, json } = await call('GET', path, undefined, accessToken);
+  throwUnlessSuccess(status, json, [200]);
+  return listStaffAuditResponseSchema.parse(json).entries;
 }

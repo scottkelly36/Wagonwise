@@ -18,6 +18,12 @@ export function StaffLayout() {
         <NavLink to="/staff/users" style={{ display: 'block', padding: '6px 0', color: '#111827' }}>
           Users
         </NavLink>
+        <NavLink
+          to="/staff/activity"
+          style={{ display: 'block', padding: '6px 0', color: '#111827' }}
+        >
+          Activity
+        </NavLink>
         <NavLink to="/fleet" style={{ display: 'block', padding: '6px 0', color: '#6b7280' }}>
           Fleet &amp; admin pages (driver sign-in)
         </NavLink>

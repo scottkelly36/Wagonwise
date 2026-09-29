@@ -6,6 +6,7 @@ import {
   type StaffChallengeId,
   type ChallengeNotUsable,
 } from '../domain/staff-challenge.js';
+import { audit, auditCompanyOf } from './audit.js';
 import { checkSecondFactorCode, totpCiphertextOf } from './check-second-factor-code.js';
 import type { InvalidCode } from './confirm-staff-enrolment.js';
 import { sha256Hex } from './hash.js';
@@ -24,6 +25,7 @@ export async function verifyStaffSecondFactor(
     | 'challenges'
     | 'recoveryCodes'
     | 'sessions'
+    | 'auditLog'
     | 'secretBox'
     | 'totp'
     | 'randomCodes'
@@ -43,8 +45,9 @@ export async function verifyStaffSecondFactor(
   if (!account || !credentials) return err({ tag: 'ChallengeNotUsable' });
 
   const code = input.code.trim();
+  const byRecoveryCode = !/^\d{6}$/.test(code);
   let passed = false;
-  if (/^\d{6}$/.test(code)) {
+  if (!byRecoveryCode) {
     passed = checkSecondFactorCode(
       deps,
       challenge,
@@ -57,10 +60,18 @@ export async function verifyStaffSecondFactor(
       recovery !== null && (await deps.recoveryCodes.use(account.id, sha256Hex(recovery), now));
   }
 
+  const about = { companyId: auditCompanyOf(account), targetId: account.id };
   if (!passed) {
     await deps.challenges.save(recordFailedAttempt(challenge));
+    await audit(deps, { action: 'second_factor_failed', ...about });
     return err({ tag: 'InvalidCode' });
   }
   await deps.challenges.save(consumeChallenge(challenge, now));
+  await audit(deps, {
+    action: 'signed_in',
+    actorId: account.id,
+    ...about,
+    details: { method: byRecoveryCode ? 'recovery_code' : challenge.method },
+  });
   return ok(await issueStaffSession(deps, account));
 }

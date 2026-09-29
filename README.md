@@ -430,7 +430,7 @@ the staff sign-in replaces them (P2-M1.10, P2-M1.12).
 
 The dashboard's staff pages (P2-M1.10) talk to it: `/staff/sign-in` (email, password, then the
 second factor), `/join?token=…` (the invite link: set a password, pick a second factor, save the
-recovery codes) and `/staff/users` (invite, change privileges, remove). Point the dashboard at it
+recovery codes) and `/staff/users` (invite, change privileges, remove) and `/staff/activity` (the audit log). Point the dashboard at it
 with `VITE_STAFF_BFF_URL` (default `http://localhost:3003`); `VITE_BFF_URL` stays the driver BFF
 for the existing pages. To try it locally you need a first WagonWise staff account, which
 arrives with the bootstrap step (P2-M1.12).

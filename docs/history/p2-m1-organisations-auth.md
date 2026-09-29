@@ -4,7 +4,7 @@ Scoped 2026-09-28 from the [Phase 2 tech design doc](https://claude.ai/artifact/
 §4 and §9, plus its decision log's proposed 3-tier permission model. **Status: in progress. P2-M1.1
 (contracts), P2-M1.2 (domain rules), P2-M1.3 (storage), P2-M1.4 (crypto building blocks)
 P2-M1.5 (use cases), P2-M1.6 (staff tokens + routes), P2-M1.7 (RLS), P2-M1.8 (policies in use cases) done 2026-09-28; P2-M1.9 (staff BFF)
-and P2-M1.10 (dashboard staff pages) done 2026-09-29.**
+P2-M1.10 (dashboard staff pages) and P2-M1.11 (audit log) done 2026-09-29.**
 
 **Decision 2026-09-28 (user's call, option 1 of 3): interim driver scopes first, staff accounts
 on top later.** A first fleet slice was built outside this plan (PR #48, branch `phase-2/m1`):
@@ -92,7 +92,7 @@ One per session, each with its tests.
 | P2-M1.8  | Move existing admin checks (companies, invite codes, driver accounts, hazard delete) into application-layer policies                                  | Done — 2026-09-28 |
 | P2-M1.9  | `apps/staff-bff`: verify staff tokens, proxy staff routes; remove the admin routes from driver-bff                                                    | Done — 2026-09-29 |
 | P2-M1.10 | Dashboard: email + password + TOTP sign-in, point at staff-bff, "Users" screen (invite with presets, edit privileges, remove)                         | Done — 2026-09-29 |
-| P2-M1.11 | Staff audit log (`companies.staff_audit`): who did what, to which company, when — written by every staff use case                                     | Proposed          |
+| P2-M1.11 | Staff audit log (`companies.staff_audit`): who did what, to which company, when — written by every staff use case                                     | Done — 2026-09-29 |
 | P2-M1.12 | Bootstrap + cutover: CLI to create the first platform account (README), migrate today's `is_admin` driver, drop `is_admin`, deploy                    | Proposed          |
 
 ### Notes per task
@@ -295,6 +295,27 @@ One per session, each with its tests.
     recovery codes), and the no-permission message.
   - **Before staff sign-in goes live** (P2-M1.12): rate-limit password attempts per email and
     per IP (only the per-challenge limit exists).
+
+- **P2-M1.11**: the staff audit log (`companies.staff_audit`, migration 0022).
+  - Recorded: `invite_created`, `staff_joined`, `signed_in` (method, or `recovery_code`),
+    `sign_in_failed` (known accounts only: an unknown email has no company to file it under),
+    `second_factor_failed`, `privileges_changed` (before and after), `staff_removed`. Routine
+    reads and token refreshes aren't.
+  - Written inside each use case, so it lands in the request's transaction: a change that
+    commits always has its entry, a refused or rolled-back one never does.
+  - Append-only: `wagonwise_app` can insert and read but not update or delete (revoked in 0022;
+    0021's default privileges had granted them). Same RLS as the staff tables. No foreign keys to
+    accounts, so the log outlives anyone it mentions.
+  - Read with `GET /staff/audit?companyId` (core, forwarded by staff-bff): same visibility as the
+    users list. The dashboard's Activity page shows the latest 200 in plain English, failed
+    sign-ins highlighted.
+  - The action list lives in the domain, the contracts and the migration's check constraint; a
+    test keeps the first two equal (and names the third).
+  - **Found and fixed while testing (a P2-M1.7 bug):** if a statement inside a `DataScopes`
+    transaction failed and the code caught the error, Postgres had already aborted the
+    transaction and turned the COMMIT into a silent ROLLBACK, so the request reported success
+    with nothing saved. `PostgresDataScopes.run` now throws when the commit comes back as a
+    rollback, and the RLS suite has a test for it.
 
 ## Carrying over the interim scopes
 

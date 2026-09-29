@@ -98,6 +98,21 @@ export function registerStaffRoutes(app: FastifyInstance, deps: StaffRouteDeps):
     );
   });
 
+  app.get('/staff/audit', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.staffTokenVerifier);
+    if (token === undefined) return reply;
+    const query = listStaffQuerySchema.safeParse(request.query);
+    if (!query.success) return invalid(request, reply);
+    const path =
+      query.data.companyId === undefined
+        ? '/staff/audit'
+        : `/staff/audit?companyId=${encodeURIComponent(query.data.companyId)}`;
+    return relay(
+      reply,
+      await deps.coreClient.request('GET', path, request.id, { authorization: `Bearer ${token}` }),
+    );
+  });
+
   app.put('/staff/members/:id/privileges', async (request, reply) => {
     const token = await authenticateOrReject(request, reply, deps.staffTokenVerifier);
     if (token === undefined) return reply;

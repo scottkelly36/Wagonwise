@@ -7,6 +7,7 @@ import {
   type StaffChallengeId,
 } from '../domain/staff-challenge.js';
 import type { CodeNotSent } from './accept-staff-invite.js';
+import { audit, auditCompanyOf } from './audit.js';
 import { sha256Hex } from './hash.js';
 import type { StaffDeps } from './staff-deps.js';
 
@@ -31,7 +32,14 @@ export const TIMING_DECOY_HASH =
 export async function staffSignIn(
   deps: Pick<
     StaffDeps,
-    'accounts' | 'challenges' | 'passwordHasher' | 'codeSender' | 'randomCodes' | 'clock' | 'ids'
+    | 'accounts'
+    | 'challenges'
+    | 'auditLog'
+    | 'passwordHasher'
+    | 'codeSender'
+    | 'randomCodes'
+    | 'clock'
+    | 'ids'
   >,
   input: { readonly email: string; readonly password: string },
 ): Promise<Result<StaffSignInChallenge, InvalidCredentials | CodeNotSent>> {
@@ -41,7 +49,18 @@ export async function staffSignIn(
     input.password,
     credentials?.passwordHash ?? TIMING_DECOY_HASH,
   );
-  if (!account || !credentials || !passwordOk) return err({ tag: 'InvalidCredentials' });
+  if (!account || !credentials || !passwordOk) {
+    // Only a known account's failures are recorded: an unknown email has no company to file
+    // it under, and the response is the same either way.
+    if (account) {
+      await audit(deps, {
+        action: 'sign_in_failed',
+        companyId: auditCompanyOf(account),
+        targetId: account.id,
+      });
+    }
+    return err({ tag: 'InvalidCredentials' });
+  }
 
   const now = deps.clock.now();
   const factor = credentials.secondFactor;
