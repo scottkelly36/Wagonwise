@@ -1,5 +1,6 @@
 import { ok, type Result } from '../../../shared/result.js';
-import type { Company, DriverId } from '../domain/company.js';
+import type { Company } from '../domain/company.js';
+import type { StaffId } from '../domain/staff-account.js';
 import type { Forbidden } from '../domain/staff-policy.js';
 import { requireCompanyAdmin } from './company-authorization.js';
 import type { AdminDirectory } from './ports/admin-directory.js';
@@ -14,7 +15,7 @@ export interface ListCompaniesDeps {
  *  companies exist. */
 export async function listCompanies(
   deps: ListCompaniesDeps,
-  input: { readonly callerId: DriverId },
+  input: { readonly callerId: StaffId },
 ): Promise<Result<Company[], Forbidden>> {
   const allowed = await requireCompanyAdmin(deps.admins, input.callerId);
   if (!allowed.ok) return allowed;

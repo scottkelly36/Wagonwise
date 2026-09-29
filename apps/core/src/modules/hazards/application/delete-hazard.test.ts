@@ -6,8 +6,8 @@ import { InMemoryHazardRepository } from './testing/in-memory-hazard-repository.
 import { StubAdminDirectory } from './testing/stub-admin-directory.js';
 
 const reportId = makeId<'HazardReportId'>('report-1');
-const ADMIN = makeId<'DriverId'>('admin');
-const DRIVER = makeId<'DriverId'>('driver-1');
+const ADMIN = makeId<'StaffId'>('admin');
+const DRIVER = makeId<'StaffId'>('fleet-user-1');
 
 function freshReport(overrides: Partial<HazardReport> = {}): HazardReport {
   return {

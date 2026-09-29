@@ -1,10 +1,8 @@
 import {
-  driverIdParamsSchema,
   refreshTokenRequestSchema,
   registerDeviceRequestSchema,
   requestOtpRequestSchema,
   revokeSessionParamsSchema,
-  updateDriverRequestSchema,
   verifyOtpRequestSchema,
 } from '@wagonwise/contracts/identity';
 import type { FastifyInstance } from 'fastify';
@@ -125,64 +123,6 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     if (token === undefined) return reply;
 
     const core = await deps.coreClient.request('DELETE', '/identity/account', request.id, {
-      authorization: `Bearer ${token}`,
-    });
-    return reply.status(core.status).send(core.body);
-  });
-
-  // The dashboard's user-management screen (2026-09-27) — core decides who's allowed to (the
-  // admin gate lives in identity/interface/routes.ts), this route knows nothing about that, same
-  // "validate, authenticate, forward, relay unchanged" shape as every other route here.
-  app.get('/identity/drivers', async (request, reply) => {
-    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
-    if (token === undefined) return reply;
-
-    const core = await deps.coreClient.request('GET', '/identity/drivers', request.id, {
-      authorization: `Bearer ${token}`,
-    });
-    return reply.status(core.status).send(core.body);
-  });
-
-  app.patch('/identity/drivers/:id', async (request, reply) => {
-    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
-    if (token === undefined) return reply;
-
-    const params = driverIdParamsSchema.safeParse(request.params);
-    if (!params.success) {
-      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
-    }
-    const body = updateDriverRequestSchema.safeParse(request.body);
-    if (!body.success) {
-      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
-    }
-    const core = await deps.coreClient.request(
-      'PATCH',
-      `/identity/drivers/${params.data.id}`,
-      request.id,
-      { body: body.data, authorization: `Bearer ${token}` },
-    );
-    return reply.status(core.status).send(core.body);
-  });
-
-  // The invite-codes admin screen's "Generate code" action (2026-09-27) — core decides who's
-  // allowed to (the admin gate lives in identity/interface/routes.ts), this route knows nothing
-  // about that, same "validate, authenticate, forward, relay unchanged" shape as every other
-  // route here. No body to validate — a code is generated, never chosen by the caller.
-  app.post('/identity/invite-codes', async (request, reply) => {
-    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
-    if (token === undefined) return reply;
-
-    const core = await deps.coreClient.request('POST', '/identity/invite-codes', request.id, {
-      authorization: `Bearer ${token}`,
-    });
-    return reply.status(core.status).send(core.body);
-  });
-
-  app.get('/identity/invite-codes', async (request, reply) => {
-    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
-    if (token === undefined) return reply;
-
-    const core = await deps.coreClient.request('GET', '/identity/invite-codes', request.id, {
       authorization: `Bearer ${token}`,
     });
     return reply.status(core.status).send(core.body);

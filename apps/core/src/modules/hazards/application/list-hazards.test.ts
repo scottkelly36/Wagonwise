@@ -5,7 +5,7 @@ import { InMemoryHazardRepository } from './testing/in-memory-hazard-repository.
 import { listHazards } from './list-hazards.js';
 import { StubAdminDirectory } from './testing/stub-admin-directory.js';
 
-const ADMIN = makeId<'DriverId'>('admin');
+const ADMIN = makeId<'StaffId'>('admin');
 const admins = new StubAdminDirectory(new Set([ADMIN]));
 
 function report(overrides: Partial<HazardReport> = {}): HazardReport {
@@ -46,7 +46,7 @@ describe('listHazards', () => {
     await repo.save(report());
     const result = await listHazards(
       { repo, admins },
-      { callerId: makeId<'DriverId'>('driver-1') },
+      { callerId: makeId<'StaffId'>('fleet-user-1') },
     );
     expect(result).toEqual({ ok: false, error: { tag: 'Forbidden' } });
   });

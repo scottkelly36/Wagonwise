@@ -1,6 +1,5 @@
 import { err, ok, type Result, type TaggedError } from '../../../shared/result.js';
-import type { DriverId } from '../domain/hazard-report.js';
-import type { AdminDirectory } from './ports/admin-directory.js';
+import type { AdminDirectory, StaffId } from './ports/admin-directory.js';
 
 /** The caller isn't allowed to do this. Mapped to 403 in `interface/error-mapping.ts`. */
 export type Forbidden = TaggedError<'Forbidden'>;
@@ -13,7 +12,7 @@ export type Forbidden = TaggedError<'Forbidden'>;
  */
 export async function requireHazardAdmin(
   admins: AdminDirectory,
-  callerId: DriverId,
+  callerId: StaffId,
 ): Promise<Result<void, Forbidden>> {
   return (await admins.isAdmin(callerId)) ? ok(undefined) : err({ tag: 'Forbidden' });
 }

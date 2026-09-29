@@ -55,6 +55,7 @@ describe('runMigrations', () => {
       '0022_staff_audit.sql',
       '0023_staff_lockout_index.sql',
       '0024_staff_bootstrap_invite.sql',
+      '0025_drop_driver_admin_scopes.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -185,6 +186,7 @@ describe('runMigrations', () => {
       '0022_staff_audit.sql',
       '0023_staff_lockout_index.sql',
       '0024_staff_bootstrap_invite.sql',
+      '0025_drop_driver_admin_scopes.sql',
     ]);
   });
 });

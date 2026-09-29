@@ -48,14 +48,14 @@ function vehicleDto(vehicle: FleetVehicle) {
   };
 }
 
-/** Duplicated from every other module's own `requireDriverId` rather than shared (AGENTS.md
- *  rule 6). */
-function requireDriverId(request: FastifyRequest, reply: FastifyReply): Id<'DriverId'> | undefined {
-  if (request.driverId === undefined) {
+/** The signed-in staff member, from `host/staff-auth.ts` (P2-M1.12c: fleet moved from driver
+ *  tokens to staff tokens). 401 if there isn't one. */
+function requireStaffId(request: FastifyRequest, reply: FastifyReply): Id<'StaffId'> | undefined {
+  if (request.staffId === undefined) {
     void reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
     return undefined;
   }
-  return makeId<'DriverId'>(request.driverId);
+  return makeId<'StaffId'>(request.staffId);
 }
 
 /** What a handler decided, sent only after its scope's transaction has committed. */
@@ -73,20 +73,18 @@ function send(request: FastifyRequest, reply: FastifyReply, outcome: Outcome) {
 const INVALID: Outcome = { status: 400, body: { error: 'invalid_request' } };
 const FORBIDDEN: Outcome = { status: 403, body: { tag: 'Forbidden' } };
 
-/** Admins see every company's fleet; anyone else only their own company's. `undefined`: no
- *  company, so no fleet at all. */
-function scopeFor(caller: Caller): DataScope | undefined {
-  if (caller.isAdmin) return { kind: 'platform' };
-  return caller.companyId === undefined
-    ? undefined
+/** WagonWise admins see every company's fleet; a company's staff only their own company's. */
+function scopeFor(caller: Caller): DataScope {
+  return caller.kind === 'platform'
+    ? { kind: 'platform' }
     : { kind: 'company', companyId: caller.companyId };
 }
 
 /**
- * Fleet vehicles are company-scoped business data (Phase 2 tech design doc §3/§4) — a driver
- * never sees another company's fleet. Every route resolves the caller via `callerDirectory`
- * (identity's own `isAdmin`/`companyId`/`scopes`, AGENTS.md rule 7) and checks it against the
- * target company; `requireDriverId` (401) always runs first. The permission checks themselves
+ * Fleet vehicles are company-scoped business data (Phase 2 tech design doc §3/§4): nobody sees
+ * another company's fleet. Every route resolves the signed-in staff member via `callerDirectory`
+ * (P2-M1.12c; `companies` owns staff accounts, AGENTS.md rule 7); `requireStaffId` (401) always
+ * runs first. The permission checks themselves
  * (403, or 404 for a vehicle in a company the caller can't see) are the use cases' own
  * (P2-M1.8, `application/authorization.ts`).
  *
@@ -96,20 +94,19 @@ function scopeFor(caller: Caller): DataScope | undefined {
 export function registerFleetRoutes(app: FastifyInstance, deps: FleetRouteDeps): void {
   /** The caller, and the scope their fleet work runs in, or the 403 to send instead. */
   async function callerAndScope(
-    driverId: Id<'DriverId'>,
+    staffId: Id<'StaffId'>,
   ): Promise<{ caller: Caller; scope: DataScope } | undefined> {
-    const caller = await deps.callerDirectory.getCaller(driverId);
-    const scope = caller ? scopeFor(caller) : undefined;
-    return caller && scope ? { caller, scope } : undefined;
+    const caller = await deps.callerDirectory.getCaller(staffId);
+    return caller ? { caller, scope: scopeFor(caller) } : undefined;
   }
 
-  app.get('/fleet/companies/:companyId/vehicles', async (request, reply) => {
-    const driverId = requireDriverId(request, reply);
-    if (driverId === undefined) return reply;
+  app.get('/staff/fleet/companies/:companyId/vehicles', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
 
     const params = fleetCompanyIdParamsSchema.safeParse(request.params);
     if (!params.success) return send(request, reply, INVALID);
-    const who = await callerAndScope(driverId);
+    const who = await callerAndScope(staffId);
     if (!who) return send(request, reply, FORBIDDEN);
 
     const outcome = await deps.dataScopes.run(who.scope, async (): Promise<Outcome> => {
@@ -123,14 +120,14 @@ export function registerFleetRoutes(app: FastifyInstance, deps: FleetRouteDeps):
     return send(request, reply, outcome);
   });
 
-  app.post('/fleet/companies/:companyId/vehicles', async (request, reply) => {
-    const driverId = requireDriverId(request, reply);
-    if (driverId === undefined) return reply;
+  app.post('/staff/fleet/companies/:companyId/vehicles', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
 
     const params = fleetCompanyIdParamsSchema.safeParse(request.params);
     const body = createFleetVehicleRequestSchema.safeParse(request.body);
     if (!params.success || !body.success) return send(request, reply, INVALID);
-    const who = await callerAndScope(driverId);
+    const who = await callerAndScope(staffId);
     if (!who) return send(request, reply, FORBIDDEN);
 
     const outcome = await deps.dataScopes.run(who.scope, async (): Promise<Outcome> => {
@@ -146,14 +143,14 @@ export function registerFleetRoutes(app: FastifyInstance, deps: FleetRouteDeps):
     return send(request, reply, outcome);
   });
 
-  app.put('/fleet/vehicles/:id', async (request, reply) => {
-    const driverId = requireDriverId(request, reply);
-    if (driverId === undefined) return reply;
+  app.put('/staff/fleet/vehicles/:id', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
 
     const params = fleetVehicleIdParamsSchema.safeParse(request.params);
     const body = updateFleetVehicleRequestSchema.safeParse(request.body);
     if (!params.success || !body.success) return send(request, reply, INVALID);
-    const who = await callerAndScope(driverId);
+    const who = await callerAndScope(staffId);
     if (!who) return send(request, reply, FORBIDDEN);
 
     const outcome = await deps.dataScopes.run(who.scope, async (): Promise<Outcome> => {
@@ -169,13 +166,13 @@ export function registerFleetRoutes(app: FastifyInstance, deps: FleetRouteDeps):
     return send(request, reply, outcome);
   });
 
-  app.delete('/fleet/vehicles/:id', async (request, reply) => {
-    const driverId = requireDriverId(request, reply);
-    if (driverId === undefined) return reply;
+  app.delete('/staff/fleet/vehicles/:id', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
 
     const params = fleetVehicleIdParamsSchema.safeParse(request.params);
     if (!params.success) return send(request, reply, INVALID);
-    const who = await callerAndScope(driverId);
+    const who = await callerAndScope(staffId);
     if (!who) return send(request, reply, FORBIDDEN);
 
     const outcome = await deps.dataScopes.run(who.scope, async (): Promise<Outcome> => {

@@ -1,15 +1,19 @@
-import type { CompanyId, DriverId } from '../../domain/vehicle.js';
+import type { CompanyId, StaffId } from '../../domain/vehicle.js';
 
-/** Everything a fleet authorization check needs about the calling driver, in one read (AGENTS.md
- *  rule 7 — fleet owns this port with its own types, never importing identity's `Driver`
- *  directly). Implemented by `infrastructure/identity-caller-directory.ts`, adapting identity's
- *  own `getDriverAccess` read-model. `null` for an unknown id. */
-export interface Caller {
-  readonly isAdmin: boolean;
-  readonly companyId?: CompanyId | undefined;
-  readonly scopes: readonly string[];
-}
+/**
+ * Who's calling, as far as fleet's permission checks care (P2-M1.12c: a signed-in staff account,
+ * replacing the driver admin flag and scopes). Fleet owns this port with its own types
+ * (AGENTS.md rule 7); composition supplies it over `companies`' `getStaffCaller`.
+ */
+export type Caller =
+  | { readonly kind: 'platform' }
+  | {
+      readonly kind: 'fleet';
+      readonly companyId: CompanyId;
+      readonly privileges: readonly string[];
+    };
 
 export interface CallerDirectory {
-  getCaller(driverId: DriverId): Promise<Caller | null>;
+  /** `null` for an unknown or removed account. */
+  getCaller(staffId: StaffId): Promise<Caller | null>;
 }

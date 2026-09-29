@@ -7,7 +7,7 @@ import {
 import { requestJson, throwUnlessSuccess } from './http';
 
 export async function createInviteCode(accessToken: string): Promise<InviteCodeDto> {
-  const { status, json } = await requestJson('POST', '/identity/invite-codes', {
+  const { status, json } = await requestJson('POST', '/staff/invite-codes', {
     authorization: `Bearer ${accessToken}`,
   });
   throwUnlessSuccess(status, json, [201]);
@@ -15,7 +15,7 @@ export async function createInviteCode(accessToken: string): Promise<InviteCodeD
 }
 
 export async function listInviteCodes(accessToken: string): Promise<InviteCodeDto[]> {
-  const { status, json } = await requestJson('GET', '/identity/invite-codes', {
+  const { status, json } = await requestJson('GET', '/staff/invite-codes', {
     authorization: `Bearer ${accessToken}`,
   });
   throwUnlessSuccess(status, json, [200]);

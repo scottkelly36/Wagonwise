@@ -1,6 +1,7 @@
 import type { Clock } from '../../../shared/ports/clock.js';
 import { ok, type Result } from '../../../shared/result.js';
-import type { Company, CompanyId, DriverId } from '../domain/company.js';
+import type { Company, CompanyId } from '../domain/company.js';
+import type { StaffId } from '../domain/staff-account.js';
 import type { Forbidden } from '../domain/staff-policy.js';
 import { requireCompanyAdmin } from './company-authorization.js';
 import type { AdminDirectory } from './ports/admin-directory.js';
@@ -13,7 +14,7 @@ export interface CreateCompanyDeps {
 }
 
 export interface CreateCompanyInput {
-  readonly callerId: DriverId;
+  readonly callerId: StaffId;
   readonly id: CompanyId;
   readonly name: string;
 }

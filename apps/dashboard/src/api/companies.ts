@@ -13,7 +13,7 @@ export async function createCompany(
   input: CreateCompanyRequest,
 ): Promise<CompanyDto> {
   const body = createCompanyRequestSchema.parse(input);
-  const { status, json } = await requestJson('POST', '/companies', {
+  const { status, json } = await requestJson('POST', '/staff/companies', {
     body,
     authorization: `Bearer ${accessToken}`,
   });
@@ -22,7 +22,7 @@ export async function createCompany(
 }
 
 export async function listCompanies(accessToken: string): Promise<CompanyDto[]> {
-  const { status, json } = await requestJson('GET', '/companies', {
+  const { status, json } = await requestJson('GET', '/staff/companies', {
     authorization: `Bearer ${accessToken}`,
   });
   throwUnlessSuccess(status, json, [200]);

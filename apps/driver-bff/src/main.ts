@@ -1,10 +1,8 @@
 import { createAccessTokenVerifier } from './auth/access-token-verifier.js';
-import { registerCompaniesRoutes } from './companies-routes.js';
 import { ConfigError, loadConfig } from './config.js';
 import { registerCongestionRoutes } from './congestion-routes.js';
 import { createCoreClient } from './core-client.js';
 import { registerFeedbackRoutes } from './feedback-routes.js';
-import { registerFleetRoutes } from './fleet-routes.js';
 import { registerHazardsRoutes } from './hazards-routes.js';
 import { buildApp } from './host/build-app.js';
 import { registerIdentityRoutes } from './identity-routes.js';
@@ -35,9 +33,7 @@ registerRoutingRoutes(app, routeDeps);
 registerHazardsRoutes(app, routeDeps);
 registerFeedbackRoutes(app, routeDeps);
 registerCongestionRoutes(app, routeDeps);
-registerCompaniesRoutes(app, routeDeps);
 registerParkingRoutes(app, routeDeps);
-registerFleetRoutes(app, routeDeps);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {

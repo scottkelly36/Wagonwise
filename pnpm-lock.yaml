@@ -400,9 +400,6 @@ importers:
 
   apps/driver-bff:
     dependencies:
-      '@fastify/cors':
-        specifier: ^11.1.0
-        version: 11.3.0
       '@wagonwise/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

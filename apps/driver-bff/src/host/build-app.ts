@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import cors from '@fastify/cors';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Config } from '../config.js';
 import { registerErrorHandling } from './error-handler.js';
@@ -28,11 +27,8 @@ export function buildApp(config: Config): FastifyInstance {
     done();
   });
 
-  // Only the dashboard's origin, not `true`/`*` — this BFF still carries real access tokens.
-  void app.register(cors, {
-    origin: config.dashboardOrigin,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-  });
+  // No CORS: since P2-M1.12c the dashboard talks only to the staff BFF, and the driver app is a
+  // mobile app. No browser page has any business calling this one.
 
   registerErrorHandling(app);
   registerHealthRoute(app);

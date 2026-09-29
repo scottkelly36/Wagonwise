@@ -6,8 +6,8 @@ import { StubAdminDirectory } from './testing/stub-admin-directory.js';
 import { createCompany } from './create-company.js';
 import { listCompanies } from './list-companies.js';
 
-const ADMIN = makeId<'DriverId'>('admin');
-const DRIVER = makeId<'DriverId'>('driver');
+const ADMIN = makeId<'StaffId'>('admin');
+const DRIVER = makeId<'StaffId'>('fleet-user');
 
 function setUp() {
   return {

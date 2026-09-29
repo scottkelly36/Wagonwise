@@ -7,7 +7,7 @@ import { InMemoryFleetVehicleRepository } from './testing/in-memory-fleet-vehicl
 const companyA = makeId<'CompanyId'>('company-a');
 const companyB = makeId<'CompanyId'>('company-b');
 const dimensions = { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32 };
-const ADMIN: Caller = { isAdmin: true, scopes: [] };
+const ADMIN: Caller = { kind: 'platform' };
 
 describe('listFleetVehicles', () => {
   it('returns only the given company’s vehicles', async () => {
@@ -31,7 +31,7 @@ describe('listFleetVehicles', () => {
 
   it("lets a member view their own company's list, never another's", async () => {
     const repo = new InMemoryFleetVehicleRepository();
-    const member: Caller = { isAdmin: false, companyId: companyA, scopes: [] };
+    const member: Caller = { kind: 'fleet', companyId: companyA, privileges: [] };
     expect(await listFleetVehicles({ repo }, { caller: member, companyId: companyA })).toEqual({
       ok: true,
       value: [],

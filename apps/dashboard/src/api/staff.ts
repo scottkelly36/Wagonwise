@@ -20,13 +20,10 @@ import {
   type StaffSignInResponse,
   type StaffTokensResponse,
 } from '@wagonwise/contracts/staff';
-import { staffBffUrl } from './config';
 import { requestJson, throwUnlessSuccess, type HttpMethod } from './http';
 
-/** Every staff call goes to the staff BFF, never the driver one. */
 function call(method: HttpMethod, path: string, body?: unknown, accessToken?: string) {
   return requestJson(method, path, {
-    baseUrl: staffBffUrl,
     ...(body === undefined ? {} : { body }),
     ...(accessToken === undefined ? {} : { authorization: `Bearer ${accessToken}` }),
   });

@@ -4,7 +4,8 @@ import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { UnitOfWork } from '../../shared/ports/unit-of-work.js';
 import type { OtpSender } from './application/ports/otp-sender.js';
 import type { TokenSigner } from './application/ports/token-signer.js';
-import type { CompanyId, DriverId, DriverScope } from './domain/driver.js';
+import type { DriverId } from './domain/driver.js';
+import type { PlatformStaffDirectory } from './application/ports/platform-staff.js';
 import { ChannelRoutingOtpSender } from './infrastructure/channel-routing-otp-sender.js';
 import { ClickSendOtpSender } from './infrastructure/clicksend-otp-sender.js';
 import { ConsoleOtpSender } from './infrastructure/console-otp-sender.js';
@@ -25,6 +26,7 @@ import { registerIdentityRoutes, type IdentityRouteDeps } from './interface/rout
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
 export type { OtpSender } from './application/ports/otp-sender.js';
 export type { TokenSigner } from './application/ports/token-signer.js';
+export type { PlatformStaffDirectory } from './application/ports/platform-staff.js';
 export type { UntypedDb } from './infrastructure/db.js';
 
 /**
@@ -50,6 +52,9 @@ export interface IdentityModuleDeps {
   readonly ids: IdGenerator;
   readonly unitOfWork: UnitOfWork;
   readonly tokenSigner: TokenSigner;
+  /** Is a staff member a WagonWise admin? For the driver-account and invite-code screens
+   *  (P2-M1.12c). Supplied by composition over `companies`' `getStaffCaller`. */
+  readonly platformStaff: PlatformStaffDirectory;
   /** Both set wires `ClickSendOtpSender` for phone-identifier OTPs; either unset falls back to
    *  the local-dev `ConsoleOtpSender` for that channel — same "real adapter behind a config
    *  toggle" precedent as hazards' `anthropicApiKey` (hazards/api.ts). */
@@ -76,18 +81,6 @@ export interface IdentityModule {
    *  strings, not `Device`s: nothing outside identity needs a device's id or timestamps, only
    *  what a `PushNotifier` actually sends to. Unconsumed until M6.4 gives it a real caller. */
   getPushTokensForDriver(driverId: DriverId): Promise<string[]>;
-  /** The read-model hazards' `AdminDirectory` wraps (`hazards/infrastructure/
-   *  identity-admin-directory.ts`, 2026-09-26) for its true-delete action — identity owns whether
-   *  a driver is an admin; a caller with no such driver gets `false`, not an error, since "does
-   *  this id resolve to an admin" is itself the whole question, never a precondition failure. */
-  isDriverAdmin(driverId: DriverId): Promise<boolean>;
-  /** The read-model `fleet`'s own `CallerDirectory` wraps (`fleet/infrastructure/
-   *  identity-caller-directory.ts`) — everything a cross-context authorization check needs about
-   *  a driver in one call, rather than three. `null` for an unknown id, same "the id not
-   *  resolving is itself the answer" reasoning as `isDriverAdmin`. */
-  getDriverAccess(
-    driverId: DriverId,
-  ): Promise<{ isAdmin: boolean; companyId?: CompanyId; scopes: readonly DriverScope[] } | null>;
   /** Delivers a one-time code by text (a phone number) or email, through the same senders drivers'
    *  sign-in codes use (ClickSend / Resend, or the console in local dev). Staff second factors
    *  (P2-M1.4) reach it through `companies`' own `CodeSender` port, so ClickSend/Resend accounts
@@ -154,15 +147,15 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     registerDevice: { repo: deviceRepo, clock: deps.clock, ids: deps.ids },
     giveConsent: { driverRepo, clock: deps.clock },
     deleteAccount: { driverRepo, sessionRepo, deviceRepo, clock: deps.clock },
-    listDrivers: { driverRepo },
-    updateDriver: { driverRepo },
+    listDrivers: { driverRepo, staff: deps.platformStaff },
+    updateDriver: { driverRepo, staff: deps.platformStaff },
     createInviteCode: {
       repo: inviteCodeRepo,
       generator: inviteCodeGenerator,
       clock: deps.clock,
-      driverRepo,
+      staff: deps.platformStaff,
     },
-    listInviteCodes: { repo: inviteCodeRepo, driverRepo },
+    listInviteCodes: { repo: inviteCodeRepo, staff: deps.platformStaff },
     tokenSigner: deps.tokenSigner,
   };
 
@@ -173,19 +166,6 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     async getPushTokensForDriver(driverId: DriverId): Promise<string[]> {
       const devices = await deviceRepo.findByDriverId(driverId);
       return devices.map((device) => device.pushToken);
-    },
-    async isDriverAdmin(driverId: DriverId): Promise<boolean> {
-      const driver = await driverRepo.findById(driverId);
-      return driver?.isAdmin ?? false;
-    },
-    async getDriverAccess(driverId: DriverId) {
-      const driver = await driverRepo.findById(driverId);
-      if (!driver) return null;
-      return {
-        isAdmin: driver.isAdmin,
-        ...(driver.companyId === undefined ? {} : { companyId: driver.companyId }),
-        scopes: driver.scopes,
-      };
     },
     sendOneTimeCode(destination: string, code: string): Promise<void> {
       return otpSender.send(destination, code);

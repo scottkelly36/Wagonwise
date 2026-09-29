@@ -15,13 +15,14 @@ const now = new Date('2026-06-15T08:00:00.000Z');
 // field. This suite isn't exercising that hook — driver-auth.test.ts already does, against real
 // verification — so it stands in for it with a trivial one keyed off a plain test header.
 const DRIVER_HEADER = 'x-test-driver-id';
-const ADMIN_DRIVER_ID = makeId<'DriverId'>('admin-driver');
+const STAFF_HEADER = 'x-test-staff-id';
+const ADMIN_STAFF_ID = makeId<'StaffId'>('admin-staff');
 
 function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
   const repo = new InMemoryHazardRepository();
   const clock = new FakeClock(now);
   const ids = new SequentialIdGenerator();
-  const admins = new StubAdminDirectory(new Set([ADMIN_DRIVER_ID]));
+  const admins = new StubAdminDirectory(new Set([ADMIN_STAFF_ID]));
   const deps: HazardsRouteDeps = {
     reportHazard: { repo, clock, ids },
     confirmHazard: { repo, clock, ids },
@@ -38,6 +39,10 @@ function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
     if (typeof driverId === 'string') {
       request.driverId = driverId;
     }
+    const staffId = request.headers[STAFF_HEADER];
+    if (typeof staffId === 'string') {
+      request.staffId = staffId;
+    }
     done();
   });
   registerHazardsRoutes(app, deps);
@@ -46,6 +51,10 @@ function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
 
 function asDriver(driverId: string): { headers: Record<string, string> } {
   return { headers: { [DRIVER_HEADER]: driverId } };
+}
+
+function asStaff(staffId: string): { headers: Record<string, string> } {
+  return { headers: { [STAFF_HEADER]: staffId } };
 }
 
 describe('POST /hazards/reports', () => {
@@ -414,7 +423,7 @@ describe('POST /hazards/reports/:id/dismiss', () => {
   });
 });
 
-describe('DELETE /hazards/reports/:id', () => {
+describe('DELETE /staff/hazard-reports/:id', () => {
   async function createReport(app: FastifyInstance): Promise<string> {
     const created = await app.inject({
       method: 'POST',
@@ -430,14 +439,14 @@ describe('DELETE /hazards/reports/:id', () => {
     return created.json<{ id: string }>().id;
   }
 
-  it('204s and actually removes the report for an admin', async () => {
+  it('204s and actually removes the report for a WagonWise admin', async () => {
     const { app } = buildApp();
     const id = await createReport(app);
 
     const response = await app.inject({
       method: 'DELETE',
-      url: `/hazards/reports/${id}`,
-      ...asDriver(ADMIN_DRIVER_ID),
+      url: `/staff/hazard-reports/${id}`,
+      ...asStaff(ADMIN_STAFF_ID),
     });
     expect(response.statusCode).toBe(204);
 
@@ -445,14 +454,14 @@ describe('DELETE /hazards/reports/:id', () => {
     expect(getResponse.statusCode).toBe(404);
   });
 
-  it('403s a non-admin driver, leaving the report in place', async () => {
+  it('403s staff who are not WagonWise admins, leaving the report in place', async () => {
     const { app } = buildApp();
     const id = await createReport(app);
 
     const response = await app.inject({
       method: 'DELETE',
-      url: `/hazards/reports/${id}`,
-      ...asDriver('driver-1'),
+      url: `/staff/hazard-reports/${id}`,
+      ...asStaff('fleet-user-1'),
     });
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ tag: 'Forbidden' });
@@ -461,38 +470,38 @@ describe('DELETE /hazards/reports/:id', () => {
     expect(getResponse.statusCode).toBe(200);
   });
 
-  it('401s with no authenticated driver', async () => {
+  it('401s with no signed-in staff member', async () => {
     const { app } = buildApp();
     const id = await createReport(app);
 
-    const response = await app.inject({ method: 'DELETE', url: `/hazards/reports/${id}` });
+    const response = await app.inject({ method: 'DELETE', url: `/staff/hazard-reports/${id}` });
     expect(response.statusCode).toBe(401);
   });
 
-  it('404s an unknown id for an admin', async () => {
+  it('404s an unknown id for a WagonWise admin', async () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'DELETE',
-      url: '/hazards/reports/22222222-2222-4222-8222-222222222222',
-      ...asDriver(ADMIN_DRIVER_ID),
+      url: '/staff/hazard-reports/22222222-2222-4222-8222-222222222222',
+      ...asStaff(ADMIN_STAFF_ID),
     });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ tag: 'HazardReportNotFound' });
   });
 
-  it('400s a non-UUID id for an admin', async () => {
+  it('400s a non-UUID id for a WagonWise admin', async () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'DELETE',
-      url: '/hazards/reports/not-a-uuid',
-      ...asDriver(ADMIN_DRIVER_ID),
+      url: '/staff/hazard-reports/not-a-uuid',
+      ...asStaff(ADMIN_STAFF_ID),
     });
     expect(response.statusCode).toBe(400);
   });
 });
 
-describe('GET /hazards/reports', () => {
-  it('200s with every report for an admin', async () => {
+describe('GET /staff/hazard-reports', () => {
+  it('200s with every report for a WagonWise admin', async () => {
     const { app } = buildApp();
     await app.inject({
       method: 'POST',
@@ -508,27 +517,27 @@ describe('GET /hazards/reports', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/hazards/reports',
-      ...asDriver(ADMIN_DRIVER_ID),
+      url: '/staff/hazard-reports',
+      ...asStaff(ADMIN_STAFF_ID),
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ hazards: [{ type: 'low_bridge' }] });
   });
 
-  it('403s a non-admin driver', async () => {
+  it('403s staff who are not WagonWise admins', async () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'GET',
-      url: '/hazards/reports',
-      ...asDriver('driver-1'),
+      url: '/staff/hazard-reports',
+      ...asStaff('fleet-user-1'),
     });
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ tag: 'Forbidden' });
   });
 
-  it('401s with no authenticated driver', async () => {
+  it('401s with no signed-in staff member', async () => {
     const { app } = buildApp();
-    const response = await app.inject({ method: 'GET', url: '/hazards/reports' });
+    const response = await app.inject({ method: 'GET', url: '/staff/hazard-reports' });
     expect(response.statusCode).toBe(401);
   });
 });

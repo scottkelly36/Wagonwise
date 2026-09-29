@@ -3,12 +3,12 @@ import { err, ok, type Result, type TaggedError } from '../../../shared/result.j
 
 export type FleetVehicleId = Id<'FleetVehicleId'>;
 
-// fleet owns its own CompanyId/DriverId rather than importing companies'/identity's (AGENTS.md
+// fleet owns its own CompanyId/StaffId rather than importing companies' (AGENTS.md
 // rule 6/7 — a module is reachable only through its facade, cross-context reads use the
 // consuming context's own types). Same brand names (decision 46), so a value either side
 // produces is usable here via makeId(), with no import across the module boundary.
 export type CompanyId = Id<'CompanyId'>;
-export type DriverId = Id<'DriverId'>;
+export type StaffId = Id<'StaffId'>;
 
 /** Same shape as routing's own `Dimensions` (routing/domain/vehicle-profile.ts) — declared fresh
  *  here rather than imported, for the same reason: a company-owned vehicle and a driver's

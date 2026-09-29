@@ -2,29 +2,28 @@ import { companyIdSchema } from '@wagonwise/contracts/companies';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as companiesApi from '../../api/companies';
-import { ApiError } from '../../api/errors';
-import { useAuthStore } from '../../state/auth-store';
+import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { staffErrorMessage } from '../staff/messages';
 
 const COMPANIES_KEY = ['companies'] as const;
 
 export function Companies() {
-  const accessToken = useAuthStore((s) =>
-    s.state.status === 'signedIn' ? s.state.accessToken : undefined,
-  );
+  const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
   const queryClient = useQueryClient();
 
   const companies = useQuery({
     queryKey: COMPANIES_KEY,
-    queryFn: () => companiesApi.listCompanies(accessToken as string),
-    enabled: accessToken !== undefined,
+    queryFn: () => withAccessToken((token) => companiesApi.listCompanies(token)),
   });
 
   const createCompany = useMutation({
     mutationFn: (name: string) =>
-      companiesApi.createCompany(accessToken as string, {
-        id: companyIdSchema.parse(crypto.randomUUID()),
-        name,
-      }),
+      withAccessToken((token) =>
+        companiesApi.createCompany(token, {
+          id: companyIdSchema.parse(crypto.randomUUID()),
+          name,
+        }),
+      ),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: COMPANIES_KEY }),
   });
 
@@ -54,11 +53,7 @@ export function Companies() {
         </button>
       </form>
 
-      {error !== null && (
-        <p style={{ color: '#dc2626' }}>
-          {error instanceof ApiError ? error.tag : 'Something went wrong.'}
-        </p>
-      )}
+      {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
 
       {companies.isPending ? (
         <p>Loading…</p>

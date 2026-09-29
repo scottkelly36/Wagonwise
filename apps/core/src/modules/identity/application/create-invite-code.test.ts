@@ -1,31 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
-import { InMemoryDriverRepository } from './testing/in-memory-driver-repository.js';
 import { InMemoryInviteCodeRepository } from './testing/in-memory-invite-code-repository.js';
 import { SequentialInviteCodeGenerator } from './testing/sequential-invite-code-generator.js';
+import { StubPlatformStaff } from './testing/stub-platform-staff.js';
 import { createInviteCode } from './create-invite-code.js';
 
-const ADMIN = makeId<'DriverId'>('admin');
-const DRIVER = makeId<'DriverId'>('driver');
+const ADMIN = makeId<'StaffId'>('admin');
+const FLEET_USER = makeId<'StaffId'>('fleet-user');
 
-async function setUp() {
-  const driverRepo = new InMemoryDriverRepository();
-  const base = { identifier: 'a@example.com', createdAt: new Date(), scopes: [] };
-  await driverRepo.save({ ...base, id: ADMIN, isAdmin: true });
-  await driverRepo.save({ ...base, id: DRIVER, isAdmin: false });
-  const deps = {
+function setUp() {
+  return {
     repo: new InMemoryInviteCodeRepository(),
     generator: new SequentialInviteCodeGenerator(),
     clock: new FakeClock(),
-    driverRepo,
+    staff: new StubPlatformStaff(new Set([ADMIN])),
   };
-  return deps;
 }
 
 describe('createInviteCode', () => {
   it('generates and persists a fresh, unredeemed code', async () => {
-    const deps = await setUp();
+    const deps = setUp();
 
     const result = await createInviteCode(deps, { callerId: ADMIN });
 
@@ -40,7 +35,7 @@ describe('createInviteCode', () => {
   });
 
   it('generates a different code on each call', async () => {
-    const deps = await setUp();
+    const deps = setUp();
 
     const first = await createInviteCode(deps, { callerId: ADMIN });
     const second = await createInviteCode(deps, { callerId: ADMIN });
@@ -49,10 +44,10 @@ describe('createInviteCode', () => {
     expect(first.value.code).not.toBe(second.value.code);
   });
 
-  it('refuses a non-admin, creating nothing', async () => {
-    const deps = await setUp();
+  it('refuses anyone but a WagonWise admin, creating nothing', async () => {
+    const deps = setUp();
 
-    expect(await createInviteCode(deps, { callerId: DRIVER })).toEqual({
+    expect(await createInviteCode(deps, { callerId: FLEET_USER })).toEqual({
       ok: false,
       error: { tag: 'Forbidden' },
     });

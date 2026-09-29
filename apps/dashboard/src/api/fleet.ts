@@ -14,9 +14,13 @@ export async function listFleetVehicles(
   accessToken: string,
   companyId: string,
 ): Promise<FleetVehicleDto[]> {
-  const { status, json } = await requestJson('GET', `/fleet/companies/${companyId}/vehicles`, {
-    authorization: `Bearer ${accessToken}`,
-  });
+  const { status, json } = await requestJson(
+    'GET',
+    `/staff/fleet/companies/${companyId}/vehicles`,
+    {
+      authorization: `Bearer ${accessToken}`,
+    },
+  );
   throwUnlessSuccess(status, json, [200]);
   return listFleetVehiclesResponseSchema.parse(json).vehicles;
 }
@@ -27,10 +31,14 @@ export async function createFleetVehicle(
   input: CreateFleetVehicleRequest,
 ): Promise<FleetVehicleDto> {
   const body = createFleetVehicleRequestSchema.parse(input);
-  const { status, json } = await requestJson('POST', `/fleet/companies/${companyId}/vehicles`, {
-    body,
-    authorization: `Bearer ${accessToken}`,
-  });
+  const { status, json } = await requestJson(
+    'POST',
+    `/staff/fleet/companies/${companyId}/vehicles`,
+    {
+      body,
+      authorization: `Bearer ${accessToken}`,
+    },
+  );
   throwUnlessSuccess(status, json, [201]);
   return fleetVehicleSchema.parse(json);
 }
@@ -41,7 +49,7 @@ export async function updateFleetVehicle(
   input: UpdateFleetVehicleRequest,
 ): Promise<FleetVehicleDto> {
   const body = updateFleetVehicleRequestSchema.parse(input);
-  const { status, json } = await requestJson('PUT', `/fleet/vehicles/${id}`, {
+  const { status, json } = await requestJson('PUT', `/staff/fleet/vehicles/${id}`, {
     body,
     authorization: `Bearer ${accessToken}`,
   });
@@ -50,7 +58,7 @@ export async function updateFleetVehicle(
 }
 
 export async function deleteFleetVehicle(accessToken: string, id: string): Promise<void> {
-  const { status, json } = await requestJson('DELETE', `/fleet/vehicles/${id}`, {
+  const { status, json } = await requestJson('DELETE', `/staff/fleet/vehicles/${id}`, {
     authorization: `Bearer ${accessToken}`,
   });
   throwUnlessSuccess(status, json, [204]);

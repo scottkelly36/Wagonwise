@@ -1,26 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as inviteCodesApi from '../../api/invite-codes';
-import { ApiError } from '../../api/errors';
-import { useAuthStore } from '../../state/auth-store';
+import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { staffErrorMessage } from '../staff/messages';
 
 const INVITE_CODES_KEY = ['invite-codes'] as const;
 
 /** Replaces the manual `insert into identity.invite_codes` the README used to point testers at
  *  (2026-09-27) — see core's `application/create-invite-code.ts` for the full reasoning. */
 export function InviteCodes() {
-  const accessToken = useAuthStore((s) =>
-    s.state.status === 'signedIn' ? s.state.accessToken : undefined,
-  );
+  const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
   const queryClient = useQueryClient();
 
   const inviteCodes = useQuery({
     queryKey: INVITE_CODES_KEY,
-    queryFn: () => inviteCodesApi.listInviteCodes(accessToken as string),
-    enabled: accessToken !== undefined,
+    queryFn: () => withAccessToken((token) => inviteCodesApi.listInviteCodes(token)),
   });
 
   const generateCode = useMutation({
-    mutationFn: () => inviteCodesApi.createInviteCode(accessToken as string),
+    mutationFn: () => withAccessToken((token) => inviteCodesApi.createInviteCode(token)),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: INVITE_CODES_KEY }),
   });
 
@@ -44,11 +41,7 @@ export function InviteCodes() {
         {generateCode.isPending ? 'Generating…' : 'Generate code'}
       </button>
 
-      {error !== null && (
-        <p style={{ color: '#dc2626' }}>
-          {error instanceof ApiError ? error.tag : 'Something went wrong.'}
-        </p>
-      )}
+      {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
 
       {inviteCodes.isPending ? (
         <p>Loading…</p>

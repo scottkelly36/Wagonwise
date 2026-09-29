@@ -7,7 +7,7 @@ import { InMemoryFleetVehicleRepository } from './testing/in-memory-fleet-vehicl
 
 const companyId = makeId<'CompanyId'>('company-1');
 const vehicleId = makeId<'FleetVehicleId'>('vehicle-1');
-const ADMIN: Caller = { isAdmin: true, scopes: [] };
+const ADMIN: Caller = { kind: 'platform' };
 
 function dimensions(overrides: Partial<Dimensions> = {}): Dimensions {
   return { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32, ...overrides };
@@ -71,9 +71,9 @@ describe('updateFleetVehicle', () => {
   it("answers another company's vehicle as not found, so ids can't be probed", async () => {
     const deps = await seeded();
     const outsider: Caller = {
-      isAdmin: false,
+      kind: 'fleet',
       companyId: makeId<'CompanyId'>('company-2'),
-      scopes: ['manage_fleet'],
+      privileges: ['manage_fleet'],
     };
     const result = await updateFleetVehicle(deps, {
       caller: outsider,
@@ -87,7 +87,7 @@ describe('updateFleetVehicle', () => {
 
   it('refuses a same-company viewer without manage_fleet', async () => {
     const deps = await seeded();
-    const viewer: Caller = { isAdmin: false, companyId, scopes: [] };
+    const viewer: Caller = { kind: 'fleet', companyId, privileges: [] };
     const result = await updateFleetVehicle(deps, {
       caller: viewer,
       id: vehicleId,

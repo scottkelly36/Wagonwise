@@ -2,7 +2,7 @@ import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
 import type { Transaction } from '../../../shared/ports/unit-of-work.js';
 import type { DriverRepository } from '../application/ports/driver-repository.js';
-import type { Driver, DriverId, DriverScope } from '../domain/driver.js';
+import type { Driver, DriverId } from '../domain/driver.js';
 import type { UntypedDb } from './db.js';
 
 interface DriverRow {
@@ -11,9 +11,7 @@ interface DriverRow {
   readonly created_at: Date;
   readonly consented_at: Date | null;
   readonly deleted_at: Date | null;
-  readonly is_admin: boolean;
   readonly company_id: string | null;
-  readonly scopes: DriverScope[];
 }
 
 function toDomain(row: DriverRow): Driver {
@@ -23,14 +21,12 @@ function toDomain(row: DriverRow): Driver {
     createdAt: row.created_at,
     consentedAt: row.consented_at ?? undefined,
     deletedAt: row.deleted_at ?? undefined,
-    isAdmin: row.is_admin,
     companyId: row.company_id === null ? undefined : makeId<'CompanyId'>(row.company_id),
-    scopes: row.scopes,
   };
 }
 
 const SELECT_COLUMNS = `
-  id, identifier, created_at, consented_at, deleted_at, is_admin, company_id, scopes
+  id, identifier, created_at, consented_at, deleted_at, company_id
 `;
 
 /**
@@ -64,28 +60,22 @@ export class PostgresDriverRepository implements DriverRepository {
     return rows.map(toDomain);
   }
 
-  /** Upsert (the port's contract, M8) — `consent()`/`anonymize()` re-save an existing row, and
-   *  now so does `update-driver.ts`'s admin action (2026-09-27). `is_admin`/`company_id` used to
-   *  be deliberately excluded from `excluded` here, back when there was no sanctioned way to set
-   *  either — only a direct database edit. Now that a real, admin-gated use case exists, this is
-   *  the one legitimate path for both to change, so they're included like every other field. */
+  /** Upsert (the port's contract, M8) — `consent()`/`anonymize()` re-save an existing row, and so
+   *  does `update-driver.ts`'s admin action (the company assignment). */
   async save(driver: Driver, tx?: Transaction): Promise<void> {
     const executor = tx ? (tx as unknown as UntypedDb) : this.db;
     await sql`
       insert into identity.drivers
-        (id, identifier, created_at, consented_at, deleted_at, is_admin, company_id, scopes)
+        (id, identifier, created_at, consented_at, deleted_at, company_id)
       values (
         ${driver.id}, ${driver.identifier}, ${driver.createdAt},
-        ${driver.consentedAt ?? null}, ${driver.deletedAt ?? null}, ${driver.isAdmin},
-        ${driver.companyId ?? null}, ${JSON.stringify(driver.scopes)}
+        ${driver.consentedAt ?? null}, ${driver.deletedAt ?? null}, ${driver.companyId ?? null}
       )
       on conflict (id) do update set
         identifier = excluded.identifier,
         consented_at = excluded.consented_at,
         deleted_at = excluded.deleted_at,
-        is_admin = excluded.is_admin,
-        company_id = excluded.company_id,
-        scopes = excluded.scopes
+        company_id = excluded.company_id
     `.execute(executor);
   }
 }

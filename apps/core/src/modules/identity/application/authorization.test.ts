@@ -1,22 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
-import { requireAdmin } from './authorization.js';
-import { InMemoryDriverRepository } from './testing/in-memory-driver-repository.js';
+import { requirePlatformStaff } from './authorization.js';
+import { StubPlatformStaff } from './testing/stub-platform-staff.js';
 
-const base = { identifier: 'a@example.com', createdAt: new Date(), scopes: [] };
-
-describe('requireAdmin', () => {
-  it('allows an admin, and refuses a non-admin or an unknown caller alike', async () => {
-    const driverRepo = new InMemoryDriverRepository();
-    await driverRepo.save({ ...base, id: makeId<'DriverId'>('admin'), isAdmin: true });
-    await driverRepo.save({ ...base, id: makeId<'DriverId'>('driver'), isAdmin: false });
-
-    expect(await requireAdmin(driverRepo, makeId<'DriverId'>('admin'))).toEqual({
+describe('requirePlatformStaff', () => {
+  it('allows a WagonWise admin, and refuses anyone else', async () => {
+    const staff = new StubPlatformStaff(new Set([makeId<'StaffId'>('admin')]));
+    expect(await requirePlatformStaff(staff, makeId<'StaffId'>('admin'))).toEqual({
       ok: true,
       value: undefined,
     });
-    for (const id of ['driver', 'nobody']) {
-      expect(await requireAdmin(driverRepo, makeId<'DriverId'>(id))).toEqual({
+    for (const id of ['fleet-user', 'nobody']) {
+      expect(await requirePlatformStaff(staff, makeId<'StaffId'>(id))).toEqual({
         ok: false,
         error: { tag: 'Forbidden' },
       });

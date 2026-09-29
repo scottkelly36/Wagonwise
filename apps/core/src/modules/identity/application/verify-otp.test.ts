@@ -54,8 +54,6 @@ function existingDriver(): Driver {
     id: makeId<'DriverId'>('driver-1'),
     identifier: IDENTIFIER,
     createdAt: now,
-    isAdmin: false,
-    scopes: [],
   };
 }
 

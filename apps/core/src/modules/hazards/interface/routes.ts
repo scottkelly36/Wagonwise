@@ -47,6 +47,16 @@ function requireDriverId(request: FastifyRequest, reply: FastifyReply): Id<'Driv
   return makeId<'DriverId'>(request.driverId);
 }
 
+/** The signed-in staff member, from `host/staff-auth.ts`, for the WagonWise admin routes (list
+ *  every report, true delete; P2-M1.12c moved them from driver tokens to staff tokens). */
+function requireStaffId(request: FastifyRequest, reply: FastifyReply): Id<'StaffId'> | undefined {
+  if (request.staffId === undefined) {
+    void reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+    return undefined;
+  }
+  return makeId<'StaffId'>(request.staffId);
+}
+
 /**
  * Reachable only by a trusted caller via `X-Internal-Key` (host/internal-auth.ts) *and* a
  * verified access token (host/driver-auth.ts, gated on `/hazards/` as of M4.3). Confirm/dismiss
@@ -157,27 +167,20 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
   });
 
   /**
-   * True removal, unlike confirm/dismiss — a genuinely destructive, unrecoverable action, so
-   * unlike decision 63's "no ownership check at all" it's gated to admin accounts only
-   * (field-testing request, 2026-09-26: "give my account the ability to remove hazards, I've
-   * been making some as tests"). `requireDriverId` first (401, same as every other `/hazards/`
-   * route); the admin check (403) is the use case's own (P2-M1.8), made before the report is
-   * looked up, so a non-admin never learns whether a given id exists. The 403 body uses `tag` rather than the neighbouring
-   * inline checks' `error` field: unlike an auth wiring bug (401) or a malformed request (400),
-   * this is a real outcome a driver can hit from the UI, worth a real driver-facing message
-   * (lib/error-messages.ts, driver-app) rather than the generic fallback an `error`-shaped body
-   * gets there.
+   * True removal, unlike confirm/dismiss: destructive and unrecoverable, so WagonWise admins only
+   * (a signed-in staff account since P2-M1.12c). The admin check (403) is the use case's own,
+   * made before the report is looked up, so nobody else learns whether an id exists.
    */
-  app.delete('/hazards/reports/:id', async (request, reply) => {
-    const driverId = requireDriverId(request, reply);
-    if (driverId === undefined) return reply;
+  app.delete('/staff/hazard-reports/:id', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
 
     const params = hazardReportIdParamsSchema.safeParse(request.params);
     if (!params.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
     const result = await deleteHazard(deps.deleteHazard, {
-      callerId: driverId,
+      callerId: staffId,
       id: makeId<'HazardReportId'>(params.data.id),
     });
     if (!result.ok) {
@@ -186,15 +189,13 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
     return reply.status(204).send();
   });
 
-  // The dashboard's Hazard reports admin screen (2026-09-27) — every report, any status,
-  // replacing the driver app's own admin-only delete UI (which had no way to browse hazards at
-  // all, only ever reachable from a map marker). Admin-gated, same shape as the delete route
-  // above; a non-admin gets 403, never a partial list.
-  app.get('/hazards/reports', async (request, reply) => {
-    const driverId = requireDriverId(request, reply);
-    if (driverId === undefined) return reply;
+  // The dashboard's Hazard reports screen: every report, any status. WagonWise admins only;
+  // anyone else gets 403, never a partial list.
+  app.get('/staff/hazard-reports', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
 
-    const result = await listHazards(deps.listHazards, { callerId: driverId });
+    const result = await listHazards(deps.listHazards, { callerId: staffId });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }

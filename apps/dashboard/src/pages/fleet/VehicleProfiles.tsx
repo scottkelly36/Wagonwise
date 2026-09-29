@@ -3,8 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
-import { ApiError } from '../../api/errors';
-import { useAuthStore } from '../../state/auth-store';
+import { holds, isPlatform } from '../../state/access';
+import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { staffErrorMessage } from '../staff/messages';
 
 const COMPANIES_KEY = ['companies'] as const;
 const DIMENSION_FIELDS = [
@@ -16,47 +17,49 @@ const DIMENSION_FIELDS = [
 
 const EMPTY_FORM = { name: '', heightM: '', widthM: '', lengthM: '', grossWeightT: '' };
 
-/** A company's own vehicles (Phase 2 tech design doc §3's `fleet` context, first slice). An
- *  admin picks which company to view; a Fleet user (their own `companyId` + `manage_fleet` scope,
- *  granted via Driver accounts) only ever sees and manages their own — core enforces that
- *  regardless of what this page shows, but there's no reason to offer a picker with nothing else
- *  in it. */
+/** A company's own vehicles (Phase 2 tech design doc §3's `fleet` context, first slice).
+ *  WagonWise staff pick which company to view; a company's own staff with "Manage fleet" only
+ *  ever see and manage their own. Core enforces that (and its database refuses other companies'
+ *  rows) whatever this page shows, but there's no reason to offer a picker with nothing in it. */
 export function VehicleProfiles() {
-  const driver = useAuthStore((s) => (s.state.status === 'signedIn' ? s.state.driver : undefined));
-  const accessToken = useAuthStore((s) =>
-    s.state.status === 'signedIn' ? s.state.accessToken : undefined,
-  );
+  const me = useStaffAuthStore((s) => s.session?.staff);
+  const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
+  const everyCompany = isPlatform(me);
+  const canManage = holds(me, 'manage_fleet');
   const queryClient = useQueryClient();
 
   const companies = useQuery({
     queryKey: COMPANIES_KEY,
-    queryFn: () => companiesApi.listCompanies(accessToken as string),
-    enabled: accessToken !== undefined && driver?.isAdmin === true,
+    queryFn: () => withAccessToken((token) => companiesApi.listCompanies(token)),
+    enabled: everyCompany,
   });
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(driver?.companyId);
-  const companyId = driver?.isAdmin ? selectedCompanyId : driver?.companyId;
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(undefined);
+  const companyId = everyCompany ? selectedCompanyId : me?.companyId;
   const vehiclesKey = ['fleet-vehicles', companyId] as const;
 
   const vehicles = useQuery({
     queryKey: vehiclesKey,
-    queryFn: () => fleetApi.listFleetVehicles(accessToken as string, companyId as string),
-    enabled: accessToken !== undefined && companyId !== undefined,
+    queryFn: () =>
+      withAccessToken((token) => fleetApi.listFleetVehicles(token, companyId as string)),
+    enabled: canManage && companyId !== undefined,
   });
 
   const [form, setForm] = useState(EMPTY_FORM);
   const createVehicle = useMutation({
     mutationFn: () =>
-      fleetApi.createFleetVehicle(accessToken as string, companyId as string, {
-        companyId: companyIdSchema.parse(companyId),
-        name: form.name,
-        dimensions: {
-          heightM: Number(form.heightM),
-          widthM: Number(form.widthM),
-          lengthM: Number(form.lengthM),
-          grossWeightT: Number(form.grossWeightT),
-        },
-      }),
+      withAccessToken((token) =>
+        fleetApi.createFleetVehicle(token, companyId as string, {
+          companyId: companyIdSchema.parse(companyId),
+          name: form.name,
+          dimensions: {
+            heightM: Number(form.heightM),
+            widthM: Number(form.widthM),
+            lengthM: Number(form.lengthM),
+            grossWeightT: Number(form.grossWeightT),
+          },
+        }),
+      ),
     onSuccess: () => {
       setForm(EMPTY_FORM);
       void queryClient.invalidateQueries({ queryKey: vehiclesKey });
@@ -64,7 +67,7 @@ export function VehicleProfiles() {
   });
 
   const deleteVehicle = useMutation({
-    mutationFn: (id: string) => fleetApi.deleteFleetVehicle(accessToken as string, id),
+    mutationFn: (id: string) => withAccessToken((token) => fleetApi.deleteFleetVehicle(token, id)),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: vehiclesKey }),
   });
 
@@ -75,12 +78,24 @@ export function VehicleProfiles() {
 
   const error = companies.error ?? vehicles.error ?? createVehicle.error ?? deleteVehicle.error;
 
+  if (!canManage) {
+    return (
+      <div>
+        <h1>Vehicle profiles</h1>
+        <p>
+          You don't have permission to manage vehicles. Ask someone at your company with the "Manage
+          users" privilege to give you "Manage vehicles".
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1>Vehicle profiles</h1>
       <p style={{ color: '#6b7280' }}>Your company's own fleet.</p>
 
-      {driver?.isAdmin && (
+      {everyCompany && (
         <div style={{ marginBottom: 16 }}>
           <label>
             Company:{' '}
@@ -99,15 +114,11 @@ export function VehicleProfiles() {
         </div>
       )}
 
-      {error !== null && (
-        <p style={{ color: '#dc2626' }}>
-          {error instanceof ApiError ? error.tag : 'Something went wrong.'}
-        </p>
-      )}
+      {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
 
       {companyId === undefined ? (
         <p style={{ color: '#6b7280' }}>
-          {driver?.isAdmin ? 'Choose a company above.' : 'No company assigned to your account.'}
+          {everyCompany ? 'Choose a company above.' : 'No company assigned to your account.'}
         </p>
       ) : (
         <>

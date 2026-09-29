@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as hazardsApi from '../../api/hazards';
-import { ApiError } from '../../api/errors';
-import { useAuthStore } from '../../state/auth-store';
+import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { staffErrorMessage } from '../staff/messages';
 
 const HAZARDS_KEY = ['hazards'] as const;
 
@@ -9,19 +9,16 @@ const HAZARDS_KEY = ['hazards'] as const;
  *  hazards at all, only ever reachable one at a time from a map marker a driver happened to be
  *  looking at. This is the first real place to see every report and clean up test data. */
 export function HazardReports() {
-  const accessToken = useAuthStore((s) =>
-    s.state.status === 'signedIn' ? s.state.accessToken : undefined,
-  );
+  const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
   const queryClient = useQueryClient();
 
   const hazards = useQuery({
     queryKey: HAZARDS_KEY,
-    queryFn: () => hazardsApi.listHazards(accessToken as string),
-    enabled: accessToken !== undefined,
+    queryFn: () => withAccessToken((token) => hazardsApi.listHazards(token)),
   });
 
   const deleteHazard = useMutation({
-    mutationFn: (id: string) => hazardsApi.deleteHazard(accessToken as string, id),
+    mutationFn: (id: string) => withAccessToken((token) => hazardsApi.deleteHazard(token, id)),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: HAZARDS_KEY }),
   });
 
@@ -31,11 +28,7 @@ export function HazardReports() {
     <div>
       <h1>Hazard reports</h1>
 
-      {error !== null && (
-        <p style={{ color: '#dc2626' }}>
-          {error instanceof ApiError ? error.tag : 'Something went wrong.'}
-        </p>
-      )}
+      {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
 
       {hazards.isPending ? (
         <p>Loading…</p>

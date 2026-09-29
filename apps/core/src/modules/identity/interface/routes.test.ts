@@ -15,6 +15,7 @@ import { FakeTokenSigner } from '../application/testing/fake-token-signer.js';
 import { SequentialInviteCodeGenerator } from '../application/testing/sequential-invite-code-generator.js';
 import { SequentialOtpCodeGenerator } from '../application/testing/sequential-otp-code-generator.js';
 import { SequentialRefreshTokenGenerator } from '../application/testing/sequential-refresh-token-generator.js';
+import { StubPlatformStaff } from '../application/testing/stub-platform-staff.js';
 import { registerIdentityRoutes, type IdentityRouteDeps } from './routes.js';
 
 const now = new Date('2026-06-15T08:00:00.000Z');
@@ -29,6 +30,16 @@ function asDriver(driverId: string): { headers: Record<string, string> } {
   return { headers: { [DRIVER_HEADER]: driverId } };
 }
 
+// The WagonWise-admin screens take a staff token (P2-M1.12c); staff-auth.ts's hook sets
+// `request.staffId`, stood in for the same way.
+const STAFF_HEADER = 'x-test-staff-id';
+const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
+const FLEET_STAFF_ID = '44444444-4444-4444-8444-444444444444';
+
+function asStaff(staffId: string): { headers: Record<string, string> } {
+  return { headers: { [STAFF_HEADER]: staffId } };
+}
+
 function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
   const driverRepo = new InMemoryDriverRepository();
   const inviteCodeRepo = new InMemoryInviteCodeRepository();
@@ -39,6 +50,7 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
   const ids = new SequentialIdGenerator();
   const tokenSigner = new FakeTokenSigner();
   const refreshTokenGenerator = new SequentialRefreshTokenGenerator();
+  const staff = new StubPlatformStaff(new Set([makeId<'StaffId'>(ADMIN_ID)]));
 
   const deps: IdentityRouteDeps = {
     requestOtp: {
@@ -66,15 +78,15 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
     registerDevice: { repo: deviceRepo, clock, ids },
     giveConsent: { driverRepo, clock },
     deleteAccount: { driverRepo, sessionRepo, deviceRepo, clock },
-    listDrivers: { driverRepo },
-    updateDriver: { driverRepo },
+    listDrivers: { driverRepo, staff },
+    updateDriver: { driverRepo, staff },
     createInviteCode: {
       repo: inviteCodeRepo,
       generator: new SequentialInviteCodeGenerator(),
       clock,
-      driverRepo,
+      staff,
     },
-    listInviteCodes: { repo: inviteCodeRepo, driverRepo },
+    listInviteCodes: { repo: inviteCodeRepo, staff },
     tokenSigner,
   };
 
@@ -83,6 +95,10 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
     const driverId = request.headers[DRIVER_HEADER];
     if (typeof driverId === 'string') {
       request.driverId = driverId;
+    }
+    const staffId = request.headers[STAFF_HEADER];
+    if (typeof staffId === 'string') {
+      request.staffId = staffId;
     }
     done();
   });
@@ -100,8 +116,6 @@ describe('POST /identity/otp/request', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
-      isAdmin: false,
-      scopes: [],
     });
     const response = await app.inject({
       method: 'POST',
@@ -142,8 +156,6 @@ describe('POST /identity/otp/verify', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
-      isAdmin: false,
-      scopes: [],
     });
     await app.inject({
       method: 'POST',
@@ -172,8 +184,6 @@ describe('POST /identity/otp/verify', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
-      isAdmin: false,
-      scopes: [],
     });
     await app.inject({
       method: 'POST',
@@ -233,8 +243,6 @@ describe('POST /identity/token/refresh', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
-      isAdmin: false,
-      scopes: [],
     });
     await app.inject({
       method: 'POST',
@@ -391,8 +399,6 @@ describe('POST /identity/consent', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
-      isAdmin: false,
-      scopes: [],
     });
 
     const response = await app.inject({
@@ -433,8 +439,6 @@ describe('DELETE /identity/account', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
-      isAdmin: false,
-      scopes: [],
     });
     await deps.registerDevice.repo.save({
       id: makeId<'DeviceId'>('device-1'),
@@ -483,8 +487,6 @@ describe('DELETE /identity/account', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: now,
-      isAdmin: false,
-      scopes: [],
     });
 
     await app.inject({ method: 'DELETE', url: '/identity/account', ...asDriver('driver-1') });
@@ -497,92 +499,83 @@ describe('DELETE /identity/account', () => {
   });
 });
 
-describe('GET /identity/drivers', () => {
+describe('GET /staff/drivers', () => {
   async function seedDrivers(deps: IdentityRouteDeps): Promise<void> {
-    await deps.requestOtp.driverRepo.save({
-      id: makeId<'DriverId'>('admin-driver'),
-      identifier: 'admin@example.com',
-      createdAt: now,
-      isAdmin: true,
-      scopes: [],
-    });
-    await deps.requestOtp.driverRepo.save({
-      id: makeId<'DriverId'>('driver-1'),
-      identifier: 'driver@example.com',
-      createdAt: now,
-      isAdmin: false,
-      scopes: [],
-    });
+    for (const [id, identifier] of [
+      ['driver-1', 'one@example.com'],
+      ['driver-2', 'two@example.com'],
+    ] as const) {
+      await deps.requestOtp.driverRepo.save({
+        id: makeId<'DriverId'>(id),
+        identifier,
+        createdAt: now,
+      });
+    }
   }
 
-  it('200s with every driver for an admin', async () => {
+  it('200s with every driver for a WagonWise admin, still sending the old admin fields', async () => {
     const { app, deps } = buildApp();
     await seedDrivers(deps);
 
     const response = await app.inject({
       method: 'GET',
-      url: '/identity/drivers',
-      ...asDriver('admin-driver'),
+      url: '/staff/drivers',
+      ...asStaff(ADMIN_ID),
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json<{ drivers: unknown[] }>().drivers).toHaveLength(2);
+    const drivers = response.json<{ drivers: unknown[] }>().drivers;
+    expect(drivers).toHaveLength(2);
+    // Released driver-app builds still parse these two fields; they are fixed now.
+    expect(drivers[0]).toMatchObject({ isAdmin: false, scopes: [] });
   });
 
-  it('403s a non-admin driver', async () => {
+  it("403s a company's staff", async () => {
     const { app, deps } = buildApp();
     await seedDrivers(deps);
 
     const response = await app.inject({
       method: 'GET',
-      url: '/identity/drivers',
-      ...asDriver('driver-1'),
+      url: '/staff/drivers',
+      ...asStaff(FLEET_STAFF_ID),
     });
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ tag: 'Forbidden' });
   });
 
-  it('401s with no authenticated driver', async () => {
+  it('401s a driver token, or none', async () => {
     const { app } = buildApp();
-    const response = await app.inject({ method: 'GET', url: '/identity/drivers' });
-    expect(response.statusCode).toBe(401);
+    const none = await app.inject({ method: 'GET', url: '/staff/drivers' });
+    expect(none.statusCode).toBe(401);
+    const driver = await app.inject({
+      method: 'GET',
+      url: '/staff/drivers',
+      ...asDriver('driver-1'),
+    });
+    expect(driver.statusCode).toBe(401);
   });
 });
 
-describe('PATCH /identity/drivers/:id', () => {
-  // Unlike the caller's own `driverId` (a plain header value in this test suite, per the file's
-  // own convention above), the *target* id here is a real URL param parsed by
-  // `driverIdParamsSchema` (`z.uuid()`) — so both the admin's own id and the target driver's id
-  // need to actually look like UUIDs, not the arbitrary strings ('driver-1' etc.) every other
-  // describe block in this file uses for a caller.
-  const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
+describe('PATCH /staff/drivers/:id', () => {
   const DRIVER_ID = '22222222-2222-4222-8222-222222222222';
 
-  async function seedDrivers(deps: IdentityRouteDeps): Promise<void> {
-    await deps.requestOtp.driverRepo.save({
-      id: makeId<'DriverId'>(ADMIN_ID),
-      identifier: 'admin@example.com',
-      createdAt: now,
-      isAdmin: true,
-      scopes: [],
-    });
+  async function seedDriver(deps: IdentityRouteDeps, companyId?: string): Promise<void> {
     await deps.requestOtp.driverRepo.save({
       id: makeId<'DriverId'>(DRIVER_ID),
       identifier: 'driver@example.com',
       createdAt: now,
-      isAdmin: false,
-      scopes: [],
+      ...(companyId === undefined ? {} : { companyId: makeId<'CompanyId'>(companyId) }),
     });
   }
 
-  it('200s and assigns a company, for an admin', async () => {
+  it('200s and assigns a company, for a WagonWise admin', async () => {
     const { app, deps } = buildApp();
-    await seedDrivers(deps);
+    await seedDriver(deps);
 
     const response = await app.inject({
       method: 'PATCH',
-      url: `/identity/drivers/${DRIVER_ID}`,
+      url: `/staff/drivers/${DRIVER_ID}`,
       payload: { companyId: 'company-1' },
-      ...asDriver(ADMIN_ID),
+      ...asStaff(ADMIN_ID),
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ companyId: 'company-1' });
@@ -590,200 +583,115 @@ describe('PATCH /identity/drivers/:id', () => {
 
   it('clears a company assignment with companyId: null', async () => {
     const { app, deps } = buildApp();
-    await deps.requestOtp.driverRepo.save({
-      id: makeId<'DriverId'>(ADMIN_ID),
-      identifier: 'admin@example.com',
-      createdAt: now,
-      isAdmin: true,
-      scopes: [],
-    });
-    await deps.requestOtp.driverRepo.save({
-      id: makeId<'DriverId'>(DRIVER_ID),
-      identifier: 'driver@example.com',
-      createdAt: now,
-      isAdmin: false,
-      scopes: [],
-      companyId: makeId<'CompanyId'>('company-1'),
-    });
+    await seedDriver(deps, 'company-1');
 
     const response = await app.inject({
       method: 'PATCH',
-      url: `/identity/drivers/${DRIVER_ID}`,
+      url: `/staff/drivers/${DRIVER_ID}`,
       payload: { companyId: null },
-      ...asDriver(ADMIN_ID),
+      ...asStaff(ADMIN_ID),
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).not.toHaveProperty('companyId');
   });
 
-  it('sets isAdmin', async () => {
+  it("403s a company's staff, changing nothing", async () => {
     const { app, deps } = buildApp();
-    await seedDrivers(deps);
+    await seedDriver(deps, 'company-1');
 
     const response = await app.inject({
       method: 'PATCH',
-      url: `/identity/drivers/${DRIVER_ID}`,
-      payload: { isAdmin: true, scopes: [] },
-      ...asDriver(ADMIN_ID),
-    });
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ isAdmin: true, scopes: [] });
-  });
-
-  it('403s a non-admin driver, changing nothing', async () => {
-    const { app, deps } = buildApp();
-    await seedDrivers(deps);
-
-    const response = await app.inject({
-      method: 'PATCH',
-      url: `/identity/drivers/${ADMIN_ID}`,
-      payload: { isAdmin: false, scopes: [] },
-      ...asDriver(DRIVER_ID),
+      url: `/staff/drivers/${DRIVER_ID}`,
+      payload: { companyId: 'company-2' },
+      ...asStaff(FLEET_STAFF_ID),
     });
     expect(response.statusCode).toBe(403);
 
-    const admin = await deps.requestOtp.driverRepo.findById(makeId<'DriverId'>(ADMIN_ID));
-    expect(admin?.isAdmin).toBe(true);
+    const driver = await deps.requestOtp.driverRepo.findById(makeId<'DriverId'>(DRIVER_ID));
+    expect(driver?.companyId).toBe('company-1');
   });
 
-  it('401s with no authenticated driver', async () => {
+  it('401s with no staff token', async () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'PATCH',
-      url: `/identity/drivers/${DRIVER_ID}`,
-      payload: { isAdmin: true, scopes: [] },
+      url: `/staff/drivers/${DRIVER_ID}`,
+      payload: { companyId: null },
     });
     expect(response.statusCode).toBe(401);
   });
 
-  it('404s an unknown driver id, for an admin', async () => {
-    const { app, deps } = buildApp();
-    await seedDrivers(deps);
-
+  it('404s an unknown driver id, for a WagonWise admin', async () => {
+    const { app } = buildApp();
     const response = await app.inject({
       method: 'PATCH',
-      url: '/identity/drivers/33333333-3333-4333-8333-333333333333',
-      payload: { isAdmin: true, scopes: [] },
-      ...asDriver(ADMIN_ID),
+      url: '/staff/drivers/33333333-3333-4333-8333-333333333333',
+      payload: { companyId: null },
+      ...asStaff(ADMIN_ID),
     });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ tag: 'DriverNotFound' });
   });
 
-  it('400s a non-UUID id, for an admin', async () => {
-    const { app, deps } = buildApp();
-    await seedDrivers(deps);
-
+  it('400s a non-UUID id', async () => {
+    const { app } = buildApp();
     const response = await app.inject({
       method: 'PATCH',
-      url: '/identity/drivers/not-a-uuid',
-      payload: { isAdmin: true, scopes: [] },
-      ...asDriver(ADMIN_ID),
+      url: '/staff/drivers/not-a-uuid',
+      payload: { companyId: null },
+      ...asStaff(ADMIN_ID),
     });
     expect(response.statusCode).toBe(400);
   });
 });
 
-describe('POST /identity/invite-codes', () => {
-  const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
+describe('/staff/invite-codes', () => {
+  it('201s a fresh, unredeemed code for a WagonWise admin, and lists them all', async () => {
+    const { app } = buildApp();
 
-  async function seedAdmin(deps: IdentityRouteDeps): Promise<void> {
-    await deps.requestOtp.driverRepo.save({
-      id: makeId<'DriverId'>(ADMIN_ID),
-      identifier: 'admin@example.com',
-      createdAt: now,
-      isAdmin: true,
-      scopes: [],
-    });
-  }
-
-  it('201s and returns a fresh, unredeemed code for an admin', async () => {
-    const { app, deps } = buildApp();
-    await seedAdmin(deps);
-
-    const response = await app.inject({
+    const created = await app.inject({
       method: 'POST',
-      url: '/identity/invite-codes',
-      ...asDriver(ADMIN_ID),
+      url: '/staff/invite-codes',
+      ...asStaff(ADMIN_ID),
     });
-    expect(response.statusCode).toBe(201);
-    expect(response.json()).toMatchObject({ code: 'CODE1', redeemedBy: null, redeemedAt: null });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ code: 'CODE1', redeemedBy: null, redeemedAt: null });
+    await app.inject({ method: 'POST', url: '/staff/invite-codes', ...asStaff(ADMIN_ID) });
+
+    const listed = await app.inject({
+      method: 'GET',
+      url: '/staff/invite-codes',
+      ...asStaff(ADMIN_ID),
+    });
+    expect(listed.statusCode).toBe(200);
+    expect(listed.json<{ inviteCodes: unknown[] }>().inviteCodes).toHaveLength(2);
   });
 
-  it('403s a non-admin driver', async () => {
-    const { app, deps } = buildApp();
-    await deps.requestOtp.driverRepo.save({
-      id: makeId<'DriverId'>('22222222-2222-4222-8222-222222222222'),
-      identifier: 'driver@example.com',
-      createdAt: now,
-      isAdmin: false,
-      scopes: [],
-    });
-
+  it.each(['POST', 'GET'] as const)("%s 403s a company's staff", async (method) => {
+    const { app } = buildApp();
     const response = await app.inject({
-      method: 'POST',
-      url: '/identity/invite-codes',
-      ...asDriver('22222222-2222-4222-8222-222222222222'),
+      method,
+      url: '/staff/invite-codes',
+      ...asStaff(FLEET_STAFF_ID),
     });
     expect(response.statusCode).toBe(403);
   });
 
-  it('401s with no authenticated driver', async () => {
+  it.each(['POST', 'GET'] as const)('%s 401s with no staff token', async (method) => {
     const { app } = buildApp();
-    const response = await app.inject({ method: 'POST', url: '/identity/invite-codes' });
+    const response = await app.inject({ method, url: '/staff/invite-codes' });
     expect(response.statusCode).toBe(401);
   });
-});
 
-describe('GET /identity/invite-codes', () => {
-  const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
-
-  async function seedAdmin(deps: IdentityRouteDeps): Promise<void> {
-    await deps.requestOtp.driverRepo.save({
-      id: makeId<'DriverId'>(ADMIN_ID),
-      identifier: 'admin@example.com',
-      createdAt: now,
-      isAdmin: true,
-      scopes: [],
-    });
-  }
-
-  it('200s with every generated code for an admin', async () => {
-    const { app, deps } = buildApp();
-    await seedAdmin(deps);
-    await app.inject({ method: 'POST', url: '/identity/invite-codes', ...asDriver(ADMIN_ID) });
-    await app.inject({ method: 'POST', url: '/identity/invite-codes', ...asDriver(ADMIN_ID) });
-
-    const response = await app.inject({
-      method: 'GET',
-      url: '/identity/invite-codes',
-      ...asDriver(ADMIN_ID),
-    });
-    expect(response.statusCode).toBe(200);
-    expect(response.json<{ inviteCodes: unknown[] }>().inviteCodes).toHaveLength(2);
-  });
-
-  it('403s a non-admin driver', async () => {
-    const { app, deps } = buildApp();
-    await deps.requestOtp.driverRepo.save({
-      id: makeId<'DriverId'>('22222222-2222-4222-8222-222222222222'),
-      identifier: 'driver@example.com',
-      createdAt: now,
-      isAdmin: false,
-      scopes: [],
-    });
-
-    const response = await app.inject({
-      method: 'GET',
-      url: '/identity/invite-codes',
-      ...asDriver('22222222-2222-4222-8222-222222222222'),
-    });
-    expect(response.statusCode).toBe(403);
-  });
-
-  it('401s with no authenticated driver', async () => {
+  it('the old driver-token routes are gone', async () => {
     const { app } = buildApp();
-    const response = await app.inject({ method: 'GET', url: '/identity/invite-codes' });
-    expect(response.statusCode).toBe(401);
+    for (const [method, url] of [
+      ['GET', '/identity/drivers'],
+      ['POST', '/identity/invite-codes'],
+      ['GET', '/identity/invite-codes'],
+    ] as const) {
+      const response = await app.inject({ method, url, ...asDriver('driver-1') });
+      expect(response.statusCode).toBe(404);
+    }
   });
 });
