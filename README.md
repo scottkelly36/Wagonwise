@@ -424,7 +424,9 @@ curl http://127.0.0.1:3003/health
 ```
 
 Same variables as the driver BFF (`NODE_ENV`, `HOST`, `PORT` (default `3003`), `LOG_LEVEL`,
-`CORE_INTERNAL_URL`, `CORE_INTERNAL_KEY`, `DASHBOARD_ORIGIN`), with the same defaults. The
+`CORE_INTERNAL_URL`, `CORE_INTERNAL_KEY`, `DASHBOARD_ORIGIN`), with the same defaults, plus
+`TRUST_PROXY_HOPS` (default `0`): how many proxies sit in front and add to `X-Forwarded-For`, so the
+sign-in rate limit counts each real caller. Leave it `0` locally; `1` on DigitalOcean App Platform. The
 dashboard's existing admin pages still go through the driver BFF, signed in as a driver, until
 the staff sign-in replaces them (P2-M1.10, P2-M1.12).
 

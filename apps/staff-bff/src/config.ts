@@ -17,6 +17,11 @@ const envSchema = z.object({
   // The dashboard is this BFF's only caller, from a browser, so CORS allows exactly its origin.
   // Defaults to Vite's dev-server port.
   DASHBOARD_ORIGIN: z.url().default('http://localhost:5173'),
+  // How many proxies sit in front of this BFF and append to X-Forwarded-For, so `request.ip` is
+  // the real caller for the sign-in rate limit. 0 locally (nothing in front); 1 on DigitalOcean
+  // App Platform (its router). Too few and every caller shares one address; too many and a
+  // caller can pick their own.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
 });
 
 export interface Config {
@@ -27,6 +32,7 @@ export interface Config {
   readonly coreInternalUrl: string;
   readonly coreInternalKey: string;
   readonly dashboardOrigin: string;
+  readonly trustProxyHops: number;
 }
 
 /** Thrown at boot when the environment is invalid; the process should exit, not limp on. */
@@ -58,5 +64,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     coreInternalUrl: values.CORE_INTERNAL_URL,
     coreInternalKey: values.CORE_INTERNAL_KEY,
     dashboardOrigin: values.DASHBOARD_ORIGIN,
+    trustProxyHops: values.TRUST_PROXY_HOPS,
   };
 }

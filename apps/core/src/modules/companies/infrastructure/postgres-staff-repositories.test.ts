@@ -383,6 +383,32 @@ describe('Postgres staff repositories', () => {
       expect(await log().recent({ limit: 2 })).toHaveLength(2);
     });
 
+    it("counts one account's entries of one action since a time (the lockout count)", async () => {
+      const failed = (
+        n: number,
+        targetId: typeof owner.id,
+        action: 'sign_in_failed' | 'signed_in',
+      ) => ({
+        id: makeId<'StaffAuditEntryId'>(`5000000${n}-0000-4000-8000-00000000000${n}`),
+        at: new Date(t0.getTime() + n * 60_000),
+        action,
+        actorId: undefined,
+        companyId: companyA,
+        targetId,
+        details: {},
+      });
+      await log().record(failed(1, owner.id, 'sign_in_failed'));
+      await log().record(failed(2, owner.id, 'sign_in_failed'));
+      await log().record(failed(3, owner.id, 'signed_in'));
+      await log().record(failed(4, viewer.id, 'sign_in_failed'));
+
+      const count = (since: Date) =>
+        log().countSince({ targetId: owner.id, action: 'sign_in_failed', since });
+      expect(await count(t0)).toBe(2);
+      expect(await count(new Date(t0.getTime() + 2 * 60_000))).toBe(1);
+      expect(await count(new Date(t0.getTime() + 10 * 60_000))).toBe(0);
+    });
+
     it('rejects an action the log does not know, at the database level', async () => {
       await expect(
         sql`insert into companies.staff_audit (id, at, action)

@@ -5,6 +5,7 @@
 const STATUS_BY_TAG: Record<string, number> = {
   InvalidCredentials: 401,
   InvalidCode: 401,
+  TooManyAttempts: 429,
   ChallengeNotUsable: 410,
   EnrolmentNotUsable: 410,
   InviteNotUsable: 410,

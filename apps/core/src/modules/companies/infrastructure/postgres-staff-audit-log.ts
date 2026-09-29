@@ -2,6 +2,7 @@ import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
 import type { StaffAuditLog } from '../application/ports/staff-audit-log.js';
 import type { CompanyId } from '../domain/company.js';
+import type { StaffId } from '../domain/staff-account.js';
 import {
   STAFF_AUDIT_ACTIONS,
   type StaffAuditAction,
@@ -73,5 +74,17 @@ export class PostgresStaffAuditLog implements StaffAuditLog {
       limit ${input.limit}
     `.execute(this.db);
     return rows.map(toDomain);
+  }
+
+  async countSince(input: {
+    readonly targetId: StaffId;
+    readonly action: StaffAuditAction;
+    readonly since: Date;
+  }): Promise<number> {
+    const { rows } = await sql<{ n: number }>`
+      select count(*)::int as n from companies.staff_audit
+      where target_id = ${input.targetId} and action = ${input.action} and at >= ${input.since}
+    `.execute(this.db);
+    return rows[0]?.n ?? 0;
   }
 }

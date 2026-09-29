@@ -11,6 +11,7 @@ describe('loadConfig', () => {
       coreInternalUrl: 'http://127.0.0.1:3001',
       coreInternalKey: 'local-dev-internal-key',
       dashboardOrigin: 'http://localhost:5173',
+      trustProxyHops: 0,
     });
   });
 
@@ -24,6 +25,7 @@ describe('loadConfig', () => {
         CORE_INTERNAL_URL: 'https://core.internal',
         CORE_INTERNAL_KEY: 'a-real-shared-secret',
         DASHBOARD_ORIGIN: 'https://dashboard.wagon-wise.co.uk',
+        TRUST_PROXY_HOPS: '1',
       }),
     ).toEqual({
       nodeEnv: 'production',
@@ -33,6 +35,7 @@ describe('loadConfig', () => {
       coreInternalUrl: 'https://core.internal',
       coreInternalKey: 'a-real-shared-secret',
       dashboardOrigin: 'https://dashboard.wagon-wise.co.uk',
+      trustProxyHops: 1,
     });
   });
 

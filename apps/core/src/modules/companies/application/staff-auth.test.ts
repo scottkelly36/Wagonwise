@@ -10,6 +10,7 @@ import {
 } from '../domain/staff-account.js';
 import { STAFF_CHALLENGE_MAX_ATTEMPTS } from '../domain/staff-challenge.js';
 import { STAFF_INVITE_LIFETIME_MS } from '../domain/staff-invite.js';
+import { STAFF_LOCKOUT_WINDOW_MS } from '../domain/staff-lockout.js';
 import { STAFF_REFRESH_LIFETIME_MS } from '../domain/staff-session.js';
 import { acceptStaffInvite } from './accept-staff-invite.js';
 import { confirmStaffEnrolment } from './confirm-staff-enrolment.js';
@@ -694,5 +695,78 @@ describe('audit log (P2-M1.11)', () => {
       const all = await listStaffAudit(deps, actorFor(admin), {});
       expect(all.ok && all.value).toHaveLength(6);
     });
+  });
+});
+
+describe('lockout (P2-M1.12)', () => {
+  const email = 'boss@acme.example';
+
+  async function wrongPassword(): Promise<void> {
+    const result = await staffSignIn(deps, { email, password: 'wrong wrong wrong' });
+    expect(result.ok).toBe(false);
+  }
+
+  it('locks sign-in after 5 wrong passwords in 15 minutes, even for the right password', async () => {
+    await onboard({ email, companyId: acme });
+    for (let i = 0; i < 4; i++) await wrongPassword();
+    // Four wrong: still open.
+    expect((await staffSignIn(deps, { email, password: PASSWORD })).ok).toBe(true);
+
+    await wrongPassword();
+    expect(await staffSignIn(deps, { email, password: PASSWORD })).toEqual({
+      ok: false,
+      error: { tag: 'TooManyAttempts' },
+    });
+
+    // Once the failures are 15 minutes old, the account opens again.
+    deps.clock.advance(STAFF_LOCKOUT_WINDOW_MS + 1);
+    expect((await staffSignIn(deps, { email, password: PASSWORD })).ok).toBe(true);
+  });
+
+  it('locks after 10 wrong codes, across sign-in attempts, refusing even the right code', async () => {
+    await onboard({ email, companyId: acme });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const challenge = await staffSignIn(deps, { email, password: PASSWORD });
+      if (!challenge.ok) throw new Error(challenge.error.tag);
+      for (let i = 0; i < 5; i++) {
+        await verifyStaffSecondFactor(deps, {
+          challengeId: challenge.value.challengeId,
+          code: '000000',
+        });
+      }
+    }
+    // A third sign-in is refused outright, before any code.
+    expect(await staffSignIn(deps, { email, password: PASSWORD })).toEqual({
+      ok: false,
+      error: { tag: 'TooManyAttempts' },
+    });
+  });
+
+  it('refuses the right code on a challenge opened just before the lockout', async () => {
+    await onboard({ email, companyId: acme });
+    const challenge = await staffSignIn(deps, { email, password: PASSWORD });
+    if (!challenge.ok) throw new Error(challenge.error.tag);
+    for (let i = 0; i < 5; i++) await wrongPassword();
+    expect(
+      await verifyStaffSecondFactor(deps, {
+        challengeId: challenge.value.challengeId,
+        code: deps.totp.currentCode,
+      }),
+    ).toEqual({ ok: false, error: { tag: 'TooManyAttempts' } });
+  });
+
+  it("never locks an unknown email (there's no account), and one account's failures don't lock another", async () => {
+    await onboard({ email, companyId: acme });
+    for (let i = 0; i < 6; i++) {
+      expect(await staffSignIn(deps, { email: 'nobody@example.com', password: 'x' })).toEqual({
+        ok: false,
+        error: { tag: 'InvalidCredentials' },
+      });
+    }
+    await onboard({ email: 'other@acme.example', companyId: acme });
+    for (let i = 0; i < 5; i++) await wrongPassword();
+    expect((await staffSignIn(deps, { email: 'other@acme.example', password: PASSWORD })).ok).toBe(
+      true,
+    );
   });
 });

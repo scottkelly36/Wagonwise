@@ -9,10 +9,15 @@ import {
 import type { CodeNotSent } from './accept-staff-invite.js';
 import { audit, auditCompanyOf } from './audit.js';
 import { sha256Hex } from './hash.js';
+import { isAccountLockedOut } from './lockout.js';
 import type { StaffDeps } from './staff-deps.js';
 
 /** Wrong email or wrong password: one error, so the response never reveals which accounts exist. */
 export type InvalidCredentials = TaggedError<'InvalidCredentials'>;
+
+/** Too many recent failures for this account (`domain/staff-lockout.ts`); try again later. This
+ *  does tell a caller the email has an account, the usual price of a lockout people can act on. */
+export type TooManyAttempts = TaggedError<'TooManyAttempts'>;
 
 export interface StaffSignInChallenge {
   readonly challengeId: StaffChallengeId;
@@ -42,8 +47,12 @@ export async function staffSignIn(
     | 'ids'
   >,
   input: { readonly email: string; readonly password: string },
-): Promise<Result<StaffSignInChallenge, InvalidCredentials | CodeNotSent>> {
+): Promise<Result<StaffSignInChallenge, InvalidCredentials | TooManyAttempts | CodeNotSent>> {
   const account = await deps.accounts.findByEmail(input.email);
+  // Checked before the password, so a correct guess during a lockout doesn't get through.
+  if (account && (await isAccountLockedOut(deps, account.id))) {
+    return err({ tag: 'TooManyAttempts' });
+  }
   const credentials = account ? await deps.accounts.findCredentials(account.id) : null;
   const passwordOk = await deps.passwordHasher.verify(
     input.password,
