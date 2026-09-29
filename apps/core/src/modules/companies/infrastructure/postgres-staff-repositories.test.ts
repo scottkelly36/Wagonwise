@@ -11,6 +11,7 @@ import type { StaffSession } from '../domain/staff-session.js';
 import type { UntypedDb } from './db.js';
 import { PostgresCompanyRepository } from './postgres-company-repository.js';
 import { PostgresStaffAccountRepository } from './postgres-staff-account-repository.js';
+import { PostgresStaffAuditLog } from './postgres-staff-audit-log.js';
 import { PostgresStaffChallengeRepository } from './postgres-staff-challenge-repository.js';
 import { PostgresStaffInviteRepository } from './postgres-staff-invite-repository.js';
 import { PostgresStaffRecoveryCodeRepository } from './postgres-staff-recovery-code-repository.js';
@@ -84,7 +85,7 @@ describe('Postgres staff repositories', () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate companies.staff_recovery_codes, companies.staff_challenges,
+    await sql`truncate companies.staff_audit, companies.staff_recovery_codes, companies.staff_challenges,
       companies.staff_sessions, companies.staff_invites, companies.staff_accounts,
       companies.companies cascade`.execute(db);
     const companies = new PostgresCompanyRepository(db);
@@ -342,6 +343,51 @@ describe('Postgres staff repositories', () => {
       expect(await repo().countUnused(owner.id)).toBe(2);
       expect(await repo().use(owner.id, 'a', t0)).toBe(false);
       expect(await repo().use(owner.id, 'x', t0)).toBe(true);
+    });
+  });
+
+  describe('PostgresStaffAuditLog', () => {
+    const log = () => new PostgresStaffAuditLog(db);
+    const entry = (n: number, companyId: typeof companyA | undefined) => ({
+      id: makeId<'StaffAuditEntryId'>(`4000000${n}-0000-4000-8000-00000000000${n}`),
+      at: new Date(t0.getTime() + n * 1000),
+      action: 'privileges_changed' as const,
+      actorId: owner.id,
+      companyId,
+      targetId: viewer.id,
+      details: { before: ['view_reports'], after: ['view_reports', 'dispatch'] },
+    });
+
+    it('round-trips entries, newest first, filtered by company, with nothing absent made up', async () => {
+      await log().record(entry(1, companyA));
+      await log().record(entry(2, companyB));
+      await log().record(entry(3, undefined));
+      await log().record({
+        id: makeId<'StaffAuditEntryId'>('40000004-0000-4000-8000-000000000004'),
+        at: new Date(t0.getTime() + 4000),
+        action: 'sign_in_failed',
+        actorId: undefined,
+        companyId: companyA,
+        targetId: owner.id,
+        details: {},
+      });
+
+      const acme = await log().recent({ companyId: companyA, limit: 10 });
+      expect(acme.map((e) => e.action)).toEqual(['sign_in_failed', 'privileges_changed']);
+      expect(acme[1]).toEqual(entry(1, companyA));
+      expect(acme[0]?.actorId).toBeUndefined();
+
+      const everyone = await log().recent({ limit: 10 });
+      expect(everyone.map((e) => e.at.getTime() - t0.getTime())).toEqual([4000, 3000, 2000, 1000]);
+      expect(everyone[1]?.companyId).toBeUndefined();
+      expect(await log().recent({ limit: 2 })).toHaveLength(2);
+    });
+
+    it('rejects an action the log does not know, at the database level', async () => {
+      await expect(
+        sql`insert into companies.staff_audit (id, at, action)
+            values (gen_random_uuid(), now(), 'deleted_everything')`.execute(db),
+      ).rejects.toThrow(/check constraint/);
     });
   });
 });

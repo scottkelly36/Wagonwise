@@ -52,6 +52,7 @@ describe('runMigrations', () => {
       '0019_fleet.sql',
       '0020_staff.sql',
       '0021_rls.sql',
+      '0022_staff_audit.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -124,6 +125,7 @@ describe('runMigrations', () => {
     expect(companiesTables.map((row) => row.table_name)).toEqual([
       'companies',
       'staff_accounts',
+      'staff_audit',
       'staff_challenges',
       'staff_invites',
       'staff_recovery_codes',
@@ -178,6 +180,7 @@ describe('runMigrations', () => {
       '0019_fleet.sql',
       '0020_staff.sql',
       '0021_rls.sql',
+      '0022_staff_audit.sql',
     ]);
   });
 });

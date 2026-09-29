@@ -75,6 +75,7 @@ describe('staff routes after sign-in', () => {
     ['GET', '/staff/me'],
     ['POST', '/staff/invites'],
     ['GET', '/staff/members'],
+    ['GET', '/staff/audit'],
     ['PUT', `/staff/members/${STAFF_ID}/privileges`],
     ['DELETE', `/staff/members/${STAFF_ID}`],
   ] as const)('%s %s 401s without a staff token, never calling core', async (method, url) => {
@@ -171,6 +172,17 @@ describe('staff routes after sign-in', () => {
     expect(core.calls.map((c) => [c.method, c.path])).toEqual([
       ['PUT', `/staff/members/${STAFF_ID}/privileges`],
       ['DELETE', `/staff/members/${STAFF_ID}`],
+    ]);
+  });
+
+  it('forwards the audit log, with or without a company filter', async () => {
+    const { app, core } = buildApp();
+    core.nextResponse = { status: 200, body: { entries: [] } };
+    await app.inject({ method: 'GET', url: '/staff/audit', headers: AUTH });
+    await app.inject({ method: 'GET', url: `/staff/audit?companyId=${ACME}`, headers: AUTH });
+    expect(core.calls.map((c) => [c.path, c.authorization])).toEqual([
+      ['/staff/audit', `Bearer ${STAFF_TOKEN}`],
+      [`/staff/audit?companyId=${ACME}`, `Bearer ${STAFF_TOKEN}`],
     ]);
   });
 

@@ -69,7 +69,13 @@ export class PostgresDataScopes implements DataScopes {
         settingsFor(scope),
       );
       const value = await this.#current.run(client, work);
-      await client.query('commit');
+      // If a statement failed and `work` caught the error and carried on, Postgres has already
+      // aborted the transaction, and COMMIT quietly becomes ROLLBACK (no error): every write in
+      // the scope is gone. Surface that, rather than report success for nothing saved.
+      const committed = await client.query('commit');
+      if (committed.command === 'ROLLBACK') {
+        throw new Error('the scope was rolled back: a statement inside it failed');
+      }
       return value;
     } catch (error) {
       await client.query('rollback').catch((rollbackError: unknown) => {

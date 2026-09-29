@@ -182,6 +182,48 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
     ).rejects.toThrow(/must not be nested/);
   });
 
+  it('the audit log is append-only for the app, and filtered by company like the rest', async () => {
+    const insertAudit = (companyId: string) =>
+      sql`insert into companies.staff_audit (id, at, action, company_id)
+          values (gen_random_uuid(), now(), 'signed_in', ${companyId})`.execute(db);
+
+    await scopes.run({ kind: 'company', companyId: ACME }, () => insertAudit(ACME));
+    await expect(
+      scopes.run({ kind: 'company', companyId: ACME }, () => insertAudit(BETA)),
+    ).rejects.toThrow(/row-level security/);
+    await scopes.run({ kind: 'platform' }, () => insertAudit(BETA));
+
+    await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+      const { rows } = await sql<{ n: number }>`
+        select count(*)::int as n from companies.staff_audit`.execute(db);
+      expect(rows[0]?.n).toBe(1);
+    });
+    await expect(
+      scopes.run({ kind: 'platform' }, () =>
+        sql`update companies.staff_audit set action = 'staff_removed'`.execute(db),
+      ),
+    ).rejects.toThrow(/permission denied/);
+    await expect(
+      scopes.run({ kind: 'platform' }, () => sql`delete from companies.staff_audit`.execute(db)),
+    ).rejects.toThrow(/permission denied/);
+  });
+
+  it('never reports success when a failed statement inside the scope was swallowed', async () => {
+    // A failed statement aborts the transaction; Postgres then turns COMMIT into a silent
+    // ROLLBACK. The scope must throw, not return as if the earlier write had been saved.
+    await expect(
+      scopes.run({ kind: 'platform' }, async () => {
+        await sql`update fleet.vehicles set name = 'lost' where id = ${BETA_VEHICLE}`.execute(db);
+        await sql`select 1 / 0`.execute(db).catch(() => undefined);
+        return 'looked fine';
+      }),
+    ).rejects.toThrow(/rolled back/);
+    const { rows } = await ownerPool.query<{ name: string }>(
+      `select name from fleet.vehicles where id = '${BETA_VEHICLE}'`,
+    );
+    expect(rows[0]?.name).toBe('Beta 1');
+  });
+
   it('every table with a company_id has RLS, except those knowingly left for later', async () => {
     const { rows } = await ownerPool.query<{ name: string }>(`
       select c.table_schema || '.' || c.table_name as name

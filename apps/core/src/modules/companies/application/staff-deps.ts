@@ -4,6 +4,7 @@ import type { CodeSender } from './ports/code-sender.js';
 import type { PasswordHasher } from './ports/password-hasher.js';
 import type { RandomCodes } from './ports/random-codes.js';
 import type { SecretBox } from './ports/secret-box.js';
+import type { StaffAuditLog } from './ports/staff-audit-log.js';
 import type { StaffAccountRepository } from './ports/staff-account-repository.js';
 import type { StaffChallengeRepository } from './ports/staff-challenge-repository.js';
 import type { StaffInviteRepository } from './ports/staff-invite-repository.js';
@@ -23,6 +24,7 @@ export interface StaffDeps {
   readonly sessions: StaffSessionRepository;
   readonly challenges: StaffChallengeRepository;
   readonly recoveryCodes: StaffRecoveryCodeRepository;
+  readonly auditLog: StaffAuditLog;
   readonly passwordHasher: PasswordHasher;
   readonly secretBox: SecretBox;
   readonly totp: Totp;

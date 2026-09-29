@@ -10,6 +10,7 @@ import {
 import type { SecondFactor } from '../domain/staff-credentials.js';
 import { isInviteOpen } from '../domain/staff-invite.js';
 import type { InviteNotUsable } from './accept-staff-invite.js';
+import { audit, auditCompanyOf } from './audit.js';
 import { checkSecondFactorCode } from './check-second-factor-code.js';
 import type { EmailAlreadyInUse } from './create-staff-invite.js';
 import { sha256Hex } from './hash.js';
@@ -38,6 +39,7 @@ export async function confirmStaffEnrolment(
     | 'challenges'
     | 'recoveryCodes'
     | 'sessions'
+    | 'auditLog'
     | 'secretBox'
     | 'totp'
     | 'randomCodes'
@@ -100,6 +102,13 @@ export async function confirmStaffEnrolment(
 
   const recoveryCodes = deps.randomCodes.recoveryCodes(RECOVERY_CODE_COUNT);
   await deps.recoveryCodes.replaceAll(staff.id, recoveryCodes.map(sha256Hex));
+  await audit(deps, {
+    action: 'staff_joined',
+    actorId: staff.id,
+    companyId: auditCompanyOf(staff),
+    targetId: staff.id,
+    details: { method: challenge.method, invitedBy: invite.invitedBy },
+  });
 
   const tokens = await issueStaffSession(deps, staff);
   return ok({ ...tokens, recoveryCodes });

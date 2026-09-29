@@ -15,12 +15,14 @@ import type { DataScope, DataScopes } from '../../../shared/ports/data-scope.js'
 import { acceptStaffInvite } from '../application/accept-staff-invite.js';
 import { confirmStaffEnrolment } from '../application/confirm-staff-enrolment.js';
 import { createStaffInvite } from '../application/create-staff-invite.js';
+import { listStaffAudit } from '../application/list-staff-audit.js';
 import { listStaff, removeStaff, setStaffPrivileges } from '../application/manage-staff.js';
 import { refreshStaffSession, signOutStaff } from '../application/refresh-staff-session.js';
 import type { StaffDeps } from '../application/staff-deps.js';
 import { staffSignIn } from '../application/staff-sign-in.js';
 import { verifyStaffSecondFactor } from '../application/verify-staff-second-factor.js';
 import { actorFor, type Actor, type StaffAccount } from '../domain/staff-account.js';
+import type { StaffAuditEntry } from '../domain/staff-audit.js';
 import type { StaffInvite } from '../domain/staff-invite.js';
 import { staffStatusFor } from './staff-error-mapping.js';
 
@@ -34,6 +36,18 @@ export function staffDto(staff: StaffAccount) {
     privileges: staff.kind === 'fleet' ? [...staff.privileges] : [],
     secondFactorMethod: staff.secondFactorMethod,
     createdAt: staff.createdAt.toISOString(),
+  };
+}
+
+function auditDto(entry: StaffAuditEntry) {
+  return {
+    id: entry.id,
+    at: entry.at.toISOString(),
+    action: entry.action,
+    ...(entry.actorId === undefined ? {} : { actorId: entry.actorId }),
+    ...(entry.companyId === undefined ? {} : { companyId: entry.companyId }),
+    ...(entry.targetId === undefined ? {} : { targetId: entry.targetId }),
+    details: entry.details,
   };
 }
 
@@ -238,6 +252,23 @@ export function registerStaffRoutes(
       });
       if (!result.ok) return fail(result.error);
       return ok(200, { staff: result.value.map(staffDto) });
+    });
+    return send(request, reply, outcome);
+  });
+
+  // The audit log (P2-M1.11): same query and visibility as the members list.
+  app.get('/staff/audit', async (request, reply) => {
+    const outcome = await asActor(request, async ({ actor }) => {
+      const query = listStaffQuerySchema.safeParse(request.query);
+      if (!query.success) return badRequest();
+      const result = await listStaffAudit(deps, actor, {
+        companyId:
+          query.data.companyId === undefined
+            ? undefined
+            : makeId<'CompanyId'>(query.data.companyId),
+      });
+      if (!result.ok) return fail(result.error);
+      return ok(200, { entries: result.value.map(auditDto) });
     });
     return send(request, reply, outcome);
   });
