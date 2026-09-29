@@ -407,6 +407,27 @@ second check on top — core alone decides ownership/authorization for those.
 | `CORE_INTERNAL_URL` | `http://127.0.0.1:3001`  | Where core lives                         |
 | `CORE_INTERNAL_KEY` | `local-dev-internal-key` | Must match one of core's `INTERNAL_KEYS` |
 
+## Staff BFF
+
+`apps/staff-bff` (P2-M1.9) is the dashboard's back end for staff accounts. It does the same
+three jobs as the driver BFF, and nothing else:
+
+- it checks request shapes against `@wagonwise/contracts`
+- it verifies the staff access token against core's JWKS, refusing driver tokens
+- it forwards to core's `/staff/*` routes with `X-Internal-Key`
+
+Everything about who may do what is decided in core.
+
+```bash
+pnpm --filter @wagonwise/staff-bff dev   # port 3003 by default
+curl http://127.0.0.1:3003/health
+```
+
+Same variables as the driver BFF (`NODE_ENV`, `HOST`, `PORT` (default `3003`), `LOG_LEVEL`,
+`CORE_INTERNAL_URL`, `CORE_INTERNAL_KEY`, `DASHBOARD_ORIGIN`), with the same defaults. The
+dashboard's existing admin pages still go through the driver BFF, signed in as a driver, until
+the staff sign-in replaces them (P2-M1.10, P2-M1.12).
+
 ## Driver app
 
 `apps/driver-app` (M5, in progress — M5.1 skeleton, M5.2 sign-in, M5.3 vehicle profiles, M5.4 plan

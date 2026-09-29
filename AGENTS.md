@@ -32,6 +32,7 @@ can subscribe later.
 - Monorepo: pnpm workspaces + Turborepo
 - `apps/core` — Fastify host, modular monolith, clean architecture
 - `apps/driver-bff` — Fastify BFF for the driver app
+- `apps/staff-bff` — Fastify BFF for the dashboard's staff accounts (P2-M1.9)
 - `apps/driver-app` — Expo React Native, Expo Router, TanStack Query, Zustand, expo-sqlite
 - `packages/contracts` — zod schemas + inferred types shared by app, BFF and core
 - Postgres + PostGIS; Valhalla (self-hosted) for truck routing; MapLibre for maps

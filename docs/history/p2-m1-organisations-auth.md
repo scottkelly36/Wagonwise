@@ -3,8 +3,8 @@
 Scoped 2026-09-28 from the [Phase 2 tech design doc](https://claude.ai/artifact/LK2oYrVSwotj7E8W9tXykD)
 §4 and §9, plus its decision log's proposed 3-tier permission model. **Status: in progress. P2-M1.1
 (contracts), P2-M1.2 (domain rules), P2-M1.3 (storage), P2-M1.4 (crypto building blocks)
-P2-M1.5 (use cases), P2-M1.6 (staff tokens + routes), P2-M1.7 (RLS) and P2-M1.8 (policies in use cases) done
-2026-09-28.**
+P2-M1.5 (use cases), P2-M1.6 (staff tokens + routes), P2-M1.7 (RLS), P2-M1.8 (policies in use cases) done 2026-09-28; P2-M1.9 (staff BFF)
+done 2026-09-29.**
 
 **Decision 2026-09-28 (user's call, option 1 of 3): interim driver scopes first, staff accounts
 on top later.** A first fleet slice was built outside this plan (PR #48, branch `phase-2/m1`):
@@ -90,7 +90,7 @@ One per session, each with its tests.
 | P2-M1.6  | Token claims gain `kind: 'driver' \| 'staff'`; driver routes reject staff tokens and vice versa                                                       | Done — 2026-09-28 |
 | P2-M1.7  | **RLS**: non-owner `wagonwise_app` DB role, policies on company-owned tables, `app.company_id` set per transaction                                    | Done — 2026-09-28 |
 | P2-M1.8  | Move existing admin checks (companies, invite codes, driver accounts, hazard delete) into application-layer policies                                  | Done — 2026-09-28 |
-| P2-M1.9  | `apps/staff-bff`: verify staff tokens, proxy staff routes; remove the admin routes from driver-bff                                                    | Proposed          |
+| P2-M1.9  | `apps/staff-bff`: verify staff tokens, proxy staff routes; remove the admin routes from driver-bff                                                    | Done — 2026-09-29 |
 | P2-M1.10 | Dashboard: email + password + TOTP sign-in, point at staff-bff, "Users" screen (invite with presets, edit privileges, remove)                         | Proposed          |
 | P2-M1.11 | Staff audit log (`companies.staff_audit`): who did what, to which company, when — written by every staff use case                                     | Proposed          |
 | P2-M1.12 | Bootstrap + cutover: CLI to create the first platform account (README), migrate today's `is_admin` driver, drop `is_admin`, deploy                    | Proposed          |
@@ -249,6 +249,25 @@ One per session, each with its tests.
     input is parsed before the use case runs. Neither reveals any data.
   - Tests: each use case gained refusal cases (non-admin, unknown caller, other company); the
     existing route tests' 403s pass unchanged, except the cross-company fleet PUT (now 404).
+
+- **P2-M1.9** (`apps/staff-bff`, port 3003): the dashboard's staff back end.
+  - It validates against the staff contracts, verifies staff tokens against core's JWKS
+    (`kind: 'staff'` only, no legacy allowance, so a driver token is refused), and forwards to
+    core's `/staff/*` with `X-Internal-Key`. It holds no business rules, and relays core's
+    status and body unchanged.
+  - Routes: the six pre-sign-in routes (no token), then `/staff/me`, `POST /staff/invites`,
+    `GET /staff/members?companyId`, `PUT /staff/members/:id/privileges`,
+    `DELETE /staff/members/:id`.
+  - **Changed from the plan:** driver-bff keeps its admin routes for now. The dashboard's
+    admin pages still sign in as drivers (decision 4: keep the current sign-in until after the
+    roll-out), and core only takes driver tokens on those routes until the cutover. They move
+    to staff-bff at P2-M1.12, when core's companies/fleet/hazards/drivers routes take a staff
+    actor.
+  - Not deployed yet: nothing calls it until the dashboard's staff sign-in (P2-M1.10). The DO
+    service is part of P2-M1.12's deploy plan (the existing spec file is not applied; never
+    `doctl apps update --spec`).
+  - Still open: rate limiting of password attempts (only the per-challenge limit exists). A
+    per-IP limit on `/staff/auth/*` belongs here or in core; decide with P2-M1.10.
 
 ## Carrying over the interim scopes
 
