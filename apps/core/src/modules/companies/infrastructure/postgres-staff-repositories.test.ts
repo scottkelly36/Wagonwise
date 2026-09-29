@@ -230,6 +230,18 @@ describe('Postgres staff repositories', () => {
       await repo().save(platform);
       expect(await repo().findById(platform.id)).toEqual(platform);
     });
+
+    it('round-trips the bootstrap invite, which has no inviter (0024)', async () => {
+      const bootstrap: StaffInvite = {
+        ...invite(),
+        kind: 'platform',
+        companyId: undefined,
+        privileges: [],
+        invitedBy: null,
+      };
+      await repo().save(bootstrap);
+      expect(await repo().findById(bootstrap.id)).toEqual(bootstrap);
+    });
   });
 
   describe('PostgresStaffSessionRepository', () => {

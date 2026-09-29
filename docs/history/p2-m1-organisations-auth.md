@@ -336,6 +336,19 @@ One per session, each with its tests.
     pick their own. A test shows a caller can't dodge it by adding their own address in front.
   - Dashboard: any 429 reads "Too many attempts. Please wait 15 minutes, then try again."
 
+- **P2-M1.12b** (done 2026-09-29): the first WagonWise admin.
+  - `pnpm staff:bootstrap --email … --name … [--dashboard-url …]` (`scripts/bootstrap-staff.ts`,
+    through `companies/api.ts`'s `bootstrapFirstAdmin`) issues a platform invite with no inviter
+    and prints its join link. Refused (`AdminAlreadyExists`) once any live WagonWise admin
+    exists, so it can't add a second one later; rerunning before the link is used issues a fresh
+    link. Recorded in the audit log as `invite_created` with `via: bootstrap`, and the join as
+    `invitedBy: bootstrap`.
+  - Migration 0024 drops `not null` on `staff_invites.invited_by` for that one case; the domain
+    type is `StaffId | null`, and only the bootstrap use case writes null.
+  - Runs on the owner connection (`DATABASE_URL`), like `db:migrate`, from the `core` console on
+    DO (deployment guide §4 step 8). Checked here against a local Postgres: usage message, the
+    link, the stored invite and audit entry, and the refusal once an admin exists.
+
 ## Carrying over the interim scopes
 
 - **P2-M1.2**: `can(actor, 'manage_fleet', companyId)` replaces `canManageFleet`. Keep

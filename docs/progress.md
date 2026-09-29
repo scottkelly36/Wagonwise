@@ -23,7 +23,7 @@ history file keeps the record.
 | M8 Field-ready                     | In progress — partly shipped 2026-09-25  | below (no breakdown written yet)       |
 | M9 Route options & safe parking    | Done — 2026-09-27                        | `history/m9-route-options-parking.md`  |
 | Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only   | below, and the Phase 2 tech design doc |
-| P2-M1 Orgs, roles, RLS, staff auth | In progress — P2-M1.12a done 2026-09-29  | `history/p2-m1-organisations-auth.md`  |
+| P2-M1 Orgs, roles, RLS, staff auth | In progress — P2-M1.12b done 2026-09-29  | `history/p2-m1-organisations-auth.md`  |
 | P2-M2 Fleet (early slice)          | Vehicles + interim driver scopes, PR #48 | `history/p2-m1-organisations-auth.md`  |
 
 ## Next up
@@ -35,8 +35,8 @@ history file keeps the record.
    cases), P2-M1.6 (staff tokens + core's `/staff/*` routes) and P2-M1.7 (RLS, `wagonwise_app`
    role, per-request transaction), P2-M1.8 (admin checks moved into the use cases) and P2-M1.9
    (`apps/staff-bff`), P2-M1.10 (dashboard staff sign-in, join, Users) and P2-M1.11 (audit
-   log) and P2-M1.12a (sign-in guessing limits) done; next is P2-M1.12b (bootstrap the first
-   WagonWise admin), then 12c (admin pages to staff sign-in), 12d (required config, deploy). **Deploy step owed:** give `wagonwise_app` a password and set
+   log), P2-M1.12a (sign-in guessing limits) and P2-M1.12b (`pnpm staff:bootstrap`) done; next
+   is 12c (admin pages to staff sign-in), then 12d (required config, deploy). **Deploy step owed:** give `wagonwise_app` a password and set
    `APP_DATABASE_URL` (deployment guide). Builds on top of the interim
    driver scopes from PR #48 and migrates them at P2-M1.12.
 

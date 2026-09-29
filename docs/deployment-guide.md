@@ -208,6 +208,17 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
    testing right now; switch `production`'s to match once a Play Store submission is real.
 7. ~~Decide on the `OtpSender` gap~~ — resolved same day (§2.1): `ClickSendOtpSender` is live
    and its env vars are set on `core`.
+8. **The first WagonWise admin (P2-M1.12b), once, after a deploy that includes migration 0024.**
+   In DO: the app → `core` component → **Console** tab, then:
+   ```bash
+   cd /repo/apps/core
+   pnpm staff:bootstrap --email you@example.com --name "Your Name" --dashboard-url https://<dashboard address>
+   ```
+   It prints a join link valid for 7 days: open it, choose a password and a second factor, and
+   save the recovery codes. From then on invite everyone else from the dashboard's Users
+   screen. The command refuses once any WagonWise admin exists; running it again before the
+   link is used just prints a fresh one. `STAFF_SECRET_KEY` must be set on `core` before you
+   do this, or an authenticator-app set-up won't survive the next deploy.
 
 ## 5. Pricing (DigitalOcean, starting tiers)
 

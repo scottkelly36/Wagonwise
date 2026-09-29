@@ -14,7 +14,7 @@ interface InviteRow {
   readonly name: string;
   readonly privileges: unknown;
   readonly token_hash: string;
-  readonly invited_by: string;
+  readonly invited_by: string | null;
   readonly created_at: Date;
   readonly expires_at: Date;
   readonly accepted_at: Date | null;
@@ -32,7 +32,7 @@ function toDomain(row: InviteRow): StaffInvite {
     name: row.name,
     privileges,
     tokenHash: row.token_hash,
-    invitedBy: makeId<'StaffId'>(row.invited_by),
+    invitedBy: row.invited_by === null ? null : makeId<'StaffId'>(row.invited_by),
     createdAt: row.created_at,
     expiresAt: row.expires_at,
     acceptedAt: row.accepted_at,

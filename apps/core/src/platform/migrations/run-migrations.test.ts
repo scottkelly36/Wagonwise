@@ -54,6 +54,7 @@ describe('runMigrations', () => {
       '0021_rls.sql',
       '0022_staff_audit.sql',
       '0023_staff_lockout_index.sql',
+      '0024_staff_bootstrap_invite.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -183,6 +184,7 @@ describe('runMigrations', () => {
       '0021_rls.sql',
       '0022_staff_audit.sql',
       '0023_staff_lockout_index.sql',
+      '0024_staff_bootstrap_invite.sql',
     ]);
   });
 });

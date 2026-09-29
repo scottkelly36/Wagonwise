@@ -107,7 +107,7 @@ export async function confirmStaffEnrolment(
     actorId: staff.id,
     companyId: auditCompanyOf(staff),
     targetId: staff.id,
-    details: { method: challenge.method, invitedBy: invite.invitedBy },
+    details: { method: challenge.method, invitedBy: invite.invitedBy ?? 'bootstrap' },
   });
 
   const tokens = await issueStaffSession(deps, staff);
