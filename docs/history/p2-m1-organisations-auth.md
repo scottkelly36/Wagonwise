@@ -4,7 +4,7 @@ Scoped 2026-09-28 from the [Phase 2 tech design doc](https://claude.ai/artifact/
 §4 and §9, plus its decision log's proposed 3-tier permission model. **Status: in progress. P2-M1.1
 (contracts), P2-M1.2 (domain rules), P2-M1.3 (storage), P2-M1.4 (crypto building blocks)
 P2-M1.5 (use cases), P2-M1.6 (staff tokens + routes), P2-M1.7 (RLS), P2-M1.8 (policies in use cases) done 2026-09-28; P2-M1.9 (staff BFF)
-done 2026-09-29.**
+and P2-M1.10 (dashboard staff pages) done 2026-09-29.**
 
 **Decision 2026-09-28 (user's call, option 1 of 3): interim driver scopes first, staff accounts
 on top later.** A first fleet slice was built outside this plan (PR #48, branch `phase-2/m1`):
@@ -91,7 +91,7 @@ One per session, each with its tests.
 | P2-M1.7  | **RLS**: non-owner `wagonwise_app` DB role, policies on company-owned tables, `app.company_id` set per transaction                                    | Done — 2026-09-28 |
 | P2-M1.8  | Move existing admin checks (companies, invite codes, driver accounts, hazard delete) into application-layer policies                                  | Done — 2026-09-28 |
 | P2-M1.9  | `apps/staff-bff`: verify staff tokens, proxy staff routes; remove the admin routes from driver-bff                                                    | Done — 2026-09-29 |
-| P2-M1.10 | Dashboard: email + password + TOTP sign-in, point at staff-bff, "Users" screen (invite with presets, edit privileges, remove)                         | Proposed          |
+| P2-M1.10 | Dashboard: email + password + TOTP sign-in, point at staff-bff, "Users" screen (invite with presets, edit privileges, remove)                         | Done — 2026-09-29 |
 | P2-M1.11 | Staff audit log (`companies.staff_audit`): who did what, to which company, when — written by every staff use case                                     | Proposed          |
 | P2-M1.12 | Bootstrap + cutover: CLI to create the first platform account (README), migrate today's `is_admin` driver, drop `is_admin`, deploy                    | Proposed          |
 
@@ -268,6 +268,33 @@ One per session, each with its tests.
     `doctl apps update --spec`).
   - Still open: rate limiting of password attempts (only the per-challenge limit exists). A
     per-IP limit on `/staff/auth/*` belongs here or in core; decide with P2-M1.10.
+
+- **P2-M1.10** (dashboard): staff sign-in, joining from an invite, and a Users screen, all
+  against staff-bff (`VITE_STAFF_BFF_URL`).
+  - **Alongside the driver sign-in, not replacing it** (decision 4): the staff session is its
+    own store (`state/staff-auth-store.ts`) and area (`/staff/*`, `/join`), linked both ways.
+    The fleet and admin pages still use the driver sign-in until the cutover (P2-M1.12).
+  - The staff session lives in `sessionStorage` (ends with the tab; the refresh token lasts 7
+    days). A 401 refreshes once and retries; a failed refresh ends the session. Signing out
+    revokes the refresh token in core.
+  - `/join?token=…`: password (12+ characters, typed twice), second factor (authenticator
+    app, text or email; a UK mobile for text), the first code, then the 10 recovery codes shown
+    once. For an authenticator app it shows the setup key and an `otpauth://` link; there's no
+    QR code yet (it would need a QR library).
+  - Users: managers see and manage their own company; WagonWise admins see everyone, filter by
+    company id, and can invite WagonWise staff too. Presets (Manager, Dispatcher, Viewer) fill
+    the ticks; privileges the signed-in person doesn't hold can't be ticked (core enforces it
+    regardless). The invite link is shown once, to send by hand (invites aren't emailed yet).
+    Someone without `manage_users` gets a plain "no permission" message.
+  - Platform staff type a company id when inviting into a company: the company list lives
+    behind the driver-token `/companies` route until P2-M1.12.
+  - Checked in Chromium against the built dashboard with the staff BFF stubbed at the network
+    level (the dashboard has no unit-test set-up): redirect when signed out, wrong password,
+    sign-in with the code, token refresh and retry, invite with a preset, privilege change,
+    sign-out revoking the session, the whole join flow (password rules, setup key, wrong code,
+    recovery codes), and the no-permission message.
+  - **Before staff sign-in goes live** (P2-M1.12): rate-limit password attempts per email and
+    per IP (only the per-challenge limit exists).
 
 ## Carrying over the interim scopes
 
