@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import * as identityApi from '../api/identity';
 import { ApiError } from '../api/errors';
 import { useAuthStore } from '../state/auth-store';
@@ -95,6 +95,10 @@ export function SignIn() {
       )}
 
       {error !== undefined && <p style={{ color: '#dc2626' }}>{error}</p>}
+
+      <p style={{ marginTop: 32, fontSize: 13 }}>
+        Have a staff account (email and password)? <Link to="/staff/sign-in">Sign in here</Link>
+      </p>
     </div>
   );
 }

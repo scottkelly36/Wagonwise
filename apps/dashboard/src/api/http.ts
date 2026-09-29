@@ -6,6 +6,8 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export interface RequestOptions {
   readonly body?: unknown;
   readonly authorization?: string;
+  /** Which BFF to call; the driver BFF unless the staff pages say otherwise. */
+  readonly baseUrl?: string;
 }
 
 interface JsonResponse {
@@ -30,7 +32,7 @@ export async function requestJson(
     init.body = JSON.stringify(options.body);
   }
 
-  const response = await fetch(`${bffUrl}${path}`, init);
+  const response = await fetch(`${options.baseUrl ?? bffUrl}${path}`, init);
   const contentLength = response.headers.get('content-length');
   const json: unknown =
     response.status === 204 || contentLength === '0' ? undefined : await response.json();
