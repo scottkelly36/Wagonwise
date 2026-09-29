@@ -9,8 +9,10 @@ import {
 import { audit, auditCompanyOf } from './audit.js';
 import { checkSecondFactorCode, totpCiphertextOf } from './check-second-factor-code.js';
 import type { InvalidCode } from './confirm-staff-enrolment.js';
+import type { TooManyAttempts } from './staff-sign-in.js';
 import { sha256Hex } from './hash.js';
 import { issueStaffSession, type StaffTokens } from './issue-staff-session.js';
+import { isAccountLockedOut } from './lockout.js';
 import { normaliseRecoveryCode } from './recovery-code.js';
 import type { StaffDeps } from './staff-deps.js';
 
@@ -34,7 +36,7 @@ export async function verifyStaffSecondFactor(
     | 'ids'
   >,
   input: { readonly challengeId: StaffChallengeId; readonly code: string },
-): Promise<Result<StaffTokens, ChallengeNotUsable | InvalidCode>> {
+): Promise<Result<StaffTokens, ChallengeNotUsable | InvalidCode | TooManyAttempts>> {
   const now = deps.clock.now();
   const challenge = await deps.challenges.findById(input.challengeId);
   if (!challenge || challenge.purpose !== 'sign-in' || !isChallengeUsable(challenge, now)) {
@@ -43,6 +45,7 @@ export async function verifyStaffSecondFactor(
   const account = await deps.accounts.findById(challenge.staffId);
   const credentials = account ? await deps.accounts.findCredentials(account.id) : null;
   if (!account || !credentials) return err({ tag: 'ChallengeNotUsable' });
+  if (await isAccountLockedOut(deps, account.id)) return err({ tag: 'TooManyAttempts' });
 
   const code = input.code.trim();
   const byRecoveryCode = !/^\d{6}$/.test(code);

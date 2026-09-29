@@ -1,7 +1,7 @@
 import type { CompanyId } from '../../domain/company.js';
 import type { StaffAccount, StaffId } from '../../domain/staff-account.js';
 import type { StaffChallenge, StaffChallengeId } from '../../domain/staff-challenge.js';
-import type { StaffAuditEntry } from '../../domain/staff-audit.js';
+import type { StaffAuditAction, StaffAuditEntry } from '../../domain/staff-audit.js';
 import type { StaffCredentials } from '../../domain/staff-credentials.js';
 import type { StaffInvite, StaffInviteId } from '../../domain/staff-invite.js';
 import type { StaffSession, StaffSessionId } from '../../domain/staff-session.js';
@@ -196,5 +196,17 @@ export class InMemoryStaffAuditLog implements StaffAuditLog {
       (e) => input.companyId === undefined || e.companyId === input.companyId,
     );
     return Promise.resolve(matching.reverse().slice(0, input.limit));
+  }
+
+  countSince(input: {
+    readonly targetId: StaffId;
+    readonly action: StaffAuditAction;
+    readonly since: Date;
+  }): Promise<number> {
+    return Promise.resolve(
+      this.entries.filter(
+        (e) => e.targetId === input.targetId && e.action === input.action && e.at >= input.since,
+      ).length,
+    );
   }
 }

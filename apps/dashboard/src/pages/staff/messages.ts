@@ -19,6 +19,10 @@ const MESSAGES: Record<string, string> = {
 };
 
 export function staffErrorMessage(error: unknown): string {
+  // Core's per-account lockout (TooManyAttempts) and the staff BFF's per-address limit.
+  if (error instanceof ApiError && error.status === 429) {
+    return 'Too many attempts. Please wait 15 minutes, then try again.';
+  }
   if (error instanceof ApiError)
     return MESSAGES[error.tag] ?? `Something went wrong (${error.tag}).`;
   return 'Something went wrong. Please try again.';

@@ -293,8 +293,8 @@ One per session, each with its tests.
     sign-in with the code, token refresh and retry, invite with a preset, privilege change,
     sign-out revoking the session, the whole join flow (password rules, setup key, wrong code,
     recovery codes), and the no-permission message.
-  - **Before staff sign-in goes live** (P2-M1.12): rate-limit password attempts per email and
-    per IP (only the per-challenge limit exists).
+  - ~~Before staff sign-in goes live: rate-limit password attempts per email and per IP.~~
+    Done in P2-M1.12a.
 
 - **P2-M1.11**: the staff audit log (`companies.staff_audit`, migration 0022).
   - Recorded: `invite_created`, `staff_joined`, `signed_in` (method, or `recovery_code`),
@@ -316,6 +316,25 @@ One per session, each with its tests.
     transaction and turned the COMMIT into a silent ROLLBACK, so the request reported success
     with nothing saved. `PostgresDataScopes.run` now throws when the commit comes back as a
     rollback, and the RLS suite has a test for it.
+
+- **P2-M1.12** is split into four PRs, each safe to deploy alone (agreed 2026-09-29): 12a
+  sign-in guessing limits, 12b bootstrap the first WagonWise admin, 12c move the admin pages to
+  staff sign-in (a clean switch: driver admins lose dashboard access when it lands, and are
+  re-invited as staff), 12d make `STAFF_SECRET_KEY`/`APP_DATABASE_URL` required and deploy
+  staff-bff.
+- **P2-M1.12a** (done 2026-09-29): stopping password and code guessing.
+  - Core, per account (`domain/staff-lockout.ts`): 5 wrong passwords or 10 wrong codes within
+    15 minutes lock that account's sign-in (and a challenge already open) until the failures
+    age out. Counted from the audit log's `sign_in_failed`/`second_factor_failed` entries, so
+    there's no second counter; migration 0023 indexes the count. Answers `TooManyAttempts`
+    (429), which does reveal the email has an account: the usual price of a lockout people
+    can act on. Unknown emails never lock.
+  - staff-bff, per address (`host/rate-limit.ts`): 30 tries per 15 minutes across sign-in,
+    second factor and the two invite steps, 429 with `Retry-After`. In memory, per instance.
+    Keyed on `request.ip`, so `TRUST_PROXY_HOPS` must match the proxies in front (1 on App
+    Platform): too few and everyone shares the router's address; too many and callers can
+    pick their own. A test shows a caller can't dodge it by adding their own address in front.
+  - Dashboard: any 429 reads "Too many attempts. Please wait 15 minutes, then try again."
 
 ## Carrying over the interim scopes
 
