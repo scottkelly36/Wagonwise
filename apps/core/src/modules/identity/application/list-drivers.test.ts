@@ -4,6 +4,8 @@ import { InMemoryDriverRepository } from './testing/in-memory-driver-repository.
 import { listDrivers } from './list-drivers.js';
 import type { Driver } from '../domain/driver.js';
 
+const ADMIN = makeId<'DriverId'>('admin');
+
 function driver(overrides: Partial<Driver> = {}): Driver {
   return {
     id: makeId<'DriverId'>('driver-1'),
@@ -16,17 +18,22 @@ function driver(overrides: Partial<Driver> = {}): Driver {
 }
 
 describe('listDrivers', () => {
-  it('returns every driver', async () => {
+  it('returns every driver to an admin', async () => {
     const driverRepo = new InMemoryDriverRepository();
+    await driverRepo.save(driver({ id: ADMIN, isAdmin: true }));
     await driverRepo.save(driver());
     await driverRepo.save(driver({ id: makeId<'DriverId'>('driver-2') }));
 
-    const result = await listDrivers({ driverRepo });
-    expect(result).toHaveLength(2);
+    const result = await listDrivers({ driverRepo }, { callerId: ADMIN });
+    expect(result.ok && result.value).toHaveLength(3);
   });
 
-  it('returns an empty array when there are no drivers', async () => {
+  it('refuses a non-admin, never a partial list', async () => {
     const driverRepo = new InMemoryDriverRepository();
-    expect(await listDrivers({ driverRepo })).toEqual([]);
+    await driverRepo.save(driver());
+    expect(await listDrivers({ driverRepo }, { callerId: driver().id })).toEqual({
+      ok: false,
+      error: { tag: 'Forbidden' },
+    });
   });
 });

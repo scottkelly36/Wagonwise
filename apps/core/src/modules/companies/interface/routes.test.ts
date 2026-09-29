@@ -12,10 +12,10 @@ const DRIVER_HEADER = 'x-test-driver-id';
 function buildApp(): { app: FastifyInstance; repo: InMemoryCompanyRepository } {
   const repo = new InMemoryCompanyRepository();
   const clock = new FakeClock();
+  const admins = new StubAdminDirectory(new Set([ADMIN_DRIVER_ID]));
   const deps: CompaniesRouteDeps = {
-    createCompany: { repo, clock },
-    companyRepo: repo,
-    adminDirectory: new StubAdminDirectory(new Set([ADMIN_DRIVER_ID])),
+    createCompany: { repo, clock, admins },
+    listCompanies: { repo, admins },
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {
