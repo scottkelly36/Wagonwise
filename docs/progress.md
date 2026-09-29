@@ -23,7 +23,7 @@ history file keeps the record.
 | M8 Field-ready                     | In progress — partly shipped 2026-09-25  | below (no breakdown written yet)       |
 | M9 Route options & safe parking    | Done — 2026-09-27                        | `history/m9-route-options-parking.md`  |
 | Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only   | below, and the Phase 2 tech design doc |
-| P2-M1 Orgs, roles, RLS, staff auth | In progress — P2-M1.12b done 2026-09-29  | `history/p2-m1-organisations-auth.md`  |
+| P2-M1 Orgs, roles, RLS, staff auth | In progress — P2-M1.12c done 2026-09-29  | `history/p2-m1-organisations-auth.md`  |
 | P2-M2 Fleet (early slice)          | Vehicles + interim driver scopes, PR #48 | `history/p2-m1-organisations-auth.md`  |
 
 ## Next up
@@ -35,10 +35,12 @@ history file keeps the record.
    cases), P2-M1.6 (staff tokens + core's `/staff/*` routes) and P2-M1.7 (RLS, `wagonwise_app`
    role, per-request transaction), P2-M1.8 (admin checks moved into the use cases) and P2-M1.9
    (`apps/staff-bff`), P2-M1.10 (dashboard staff sign-in, join, Users) and P2-M1.11 (audit
-   log), P2-M1.12a (sign-in guessing limits) and P2-M1.12b (`pnpm staff:bootstrap`) done; next
-   is 12c (admin pages to staff sign-in), then 12d (required config, deploy). **Deploy step owed:** give `wagonwise_app` a password and set
-   `APP_DATABASE_URL` (deployment guide). Builds on top of the interim
-   driver scopes from PR #48 and migrates them at P2-M1.12.
+   log), P2-M1.12a (sign-in guessing limits), P2-M1.12b (`pnpm staff:bootstrap`) and P2-M1.12c
+   (every dashboard page on the staff sign-in; driver admin flag and scopes dropped) done; next
+   is 12d (required config, deploy). **Deploy step owed:** give `wagonwise_app` a password and
+   set `APP_DATABASE_URL`, deploy staff-bff, point the dashboard at it (`VITE_STAFF_BFF_URL`),
+   then bootstrap the first admin (deployment guide). Until then the deployed dashboard can't
+   sign anyone in: 12c removed the driver sign-in.
 
 ## Open items (verified against the code 2026-09-28)
 
@@ -75,21 +77,18 @@ Plan: the [Phase 2 tech design doc](https://claude.ai/artifact/LK2oYrVSwotj7E8W9
 (milestones P2-M1 … P2-M9, decision log). Built early, ahead of its sequencing, because an admin
 surface was needed straight away:
 
-- `apps/dashboard` (Vite + React), using driver OTP sign-in, gated on `driver.isAdmin`.
+- `apps/dashboard` (Vite + React). Since P2-M1.12c it uses staff accounts only (email,
+  password, second factor) through `apps/staff-bff`.
 - `companies` module (own migration) and `Driver.companyId`.
-- Admin screens: Companies, Driver Accounts (create/list/assign company/toggle admin), Invite
+- Admin screens: Companies, Driver Accounts (assign company), Invite
   Codes (generate/list), Hazard Reports (list/delete — replaced the driver app's delete button).
 
 - **Fleet vehicles (PR #48, early P2-M2):** `fleet` module (company vehicles with dimensions,
-  migration 0019), Vehicle Profiles page. **Interim permissions:** a `scopes` list on `Driver`
-  (migration 0018, only `manage_fleet`), granted by admins; drivers with a scope can use the
-  dashboard. Temporary by decision: replaced by fleet-user privileges at P2-M1.12.
+  migration 0019), Vehicle Profiles page. Its interim driver `scopes` were replaced by staff
+  privileges at P2-M1.12c (migration 0025 drops them).
 
-Not built: staff accounts, RLS, staff auth + 2FA, and the rest of Phase 2 (jobs, dispatch, live
-map, moderation, reports). **Proposed, not built:** a 3-tier permission model —
-WagonWise staff (unscoped, replaces `isAdmin`), Fleet users (company-scoped, privileges from a
-fixed WagonWise-defined list, "manager" is a privilege not a role), Drivers (own account type,
-optionally linked to a company).
+Staff accounts, RLS, staff auth + 2FA are P2-M1 (above). Not built: the rest of Phase 2 (jobs,
+dispatch, live map, moderation, reports).
 
 ## Standing rules learned the hard way
 

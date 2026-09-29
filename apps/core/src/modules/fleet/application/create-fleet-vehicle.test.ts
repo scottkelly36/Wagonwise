@@ -7,7 +7,7 @@ import type { Caller } from './ports/caller-directory.js';
 import { InMemoryFleetVehicleRepository } from './testing/in-memory-fleet-vehicle-repository.js';
 
 const companyId = makeId<'CompanyId'>('company-1');
-const ADMIN: Caller = { isAdmin: true, scopes: [] };
+const ADMIN: Caller = { kind: 'platform' };
 
 function dimensions(overrides: Partial<Dimensions> = {}): Dimensions {
   return { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32, ...overrides };
@@ -69,12 +69,12 @@ describe('createFleetVehicle', () => {
   it('lets a manage_fleet member add to their own company, and refuses anyone else', async () => {
     const repo = new InMemoryFleetVehicleRepository();
     const input = { companyId, name: 'Big Wagon', dimensions: dimensions() };
-    const member: Caller = { isAdmin: false, companyId, scopes: ['manage_fleet'] };
-    const viewer: Caller = { isAdmin: false, companyId, scopes: [] };
+    const member: Caller = { kind: 'fleet', companyId, privileges: ['manage_fleet'] };
+    const viewer: Caller = { kind: 'fleet', companyId, privileges: [] };
     const outsider: Caller = {
-      isAdmin: false,
+      kind: 'fleet',
       companyId: makeId<'CompanyId'>('company-2'),
-      scopes: ['manage_fleet'],
+      privileges: ['manage_fleet'],
     };
 
     expect((await createFleetVehicle(buildDeps(repo), { ...input, caller: member })).ok).toBe(true);

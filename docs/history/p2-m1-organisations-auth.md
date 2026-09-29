@@ -93,7 +93,7 @@ One per session, each with its tests.
 | P2-M1.9  | `apps/staff-bff`: verify staff tokens, proxy staff routes; remove the admin routes from driver-bff                                                    | Done — 2026-09-29 |
 | P2-M1.10 | Dashboard: email + password + TOTP sign-in, point at staff-bff, "Users" screen (invite with presets, edit privileges, remove)                         | Done — 2026-09-29 |
 | P2-M1.11 | Staff audit log (`companies.staff_audit`): who did what, to which company, when — written by every staff use case                                     | Done — 2026-09-29 |
-| P2-M1.12 | Bootstrap + cutover: CLI to create the first platform account (README), migrate today's `is_admin` driver, drop `is_admin`, deploy                    | Proposed          |
+| P2-M1.12 | Bootstrap + cutover: CLI to create the first platform account (README), migrate today's `is_admin` driver, drop `is_admin`, deploy                    | 12a–c done        |
 
 ### Notes per task
 
@@ -349,19 +349,50 @@ One per session, each with its tests.
     DO (deployment guide §4 step 8). Checked here against a local Postgres: usage message, the
     link, the stored invite and audit entry, and the refusal once an admin exists.
 
+- **P2-M1.12c** (done 2026-09-29): every dashboard page on the one staff sign-in.
+  - Core: the admin and fleet routes moved under `/staff/` and take staff tokens only:
+    `/staff/companies`, `/staff/drivers` (+ `PATCH /:id`, company only), `/staff/invite-codes`,
+    `/staff/hazard-reports` (list, `DELETE /:id`), `/staff/fleet/companies/:companyId/vehicles`
+    and `/staff/fleet/vehicles/:id`. The old driver-token routes are gone (404). The driver
+    routes for reporting, confirming and viewing hazards are unchanged.
+  - Who may: companies, hazards and identity ask "is this a WagonWise admin?" through their own
+    ports; fleet asks for the caller (`platform`, or `fleet` with company and privileges) and
+    needs `manage_fleet`. Composition answers all of them from `companies`
+    (`getStaffCaller`, `infrastructure/staff-callers.ts`), which is built after identity and
+    hazards, so they get a function that reaches it once it exists.
+  - Identity's `isDriverAdmin`/`getDriverAccess`, the driver `isAdmin` flag and interim
+    `scopes` are gone; migration 0025 drops both columns. The contract keeps
+    `driverSchema.isAdmin`/`scopes` (always `false`/`[]`) because released driver-app builds
+    require them; `updateDriverRequestSchema` is `companyId` only, and the old fields are
+    dropped if sent.
+  - The interim scopes were **not** migrated into invites automatically (the plan below): no
+    driver has an email address to send an invite to, and there's no invite delivery yet. Anyone
+    who needs the dashboard is invited from Users, per the clean-switch decision.
+  - staff-bff forwards the moved routes (`dashboard-routes.ts`: token, then contract checks,
+    then core); driver-bff loses its companies, fleet and admin routes, and its CORS and
+    `DASHBOARD_ORIGIN` with them: no browser calls it now.
+  - Dashboard: one sign-in (`/sign-in` redirects to `/staff/sign-in`), one layout. The menu
+    shows Fleet to everyone (Vehicle profiles with "Manage vehicles"), Users/Activity with
+    "Manage users", and the admin pages to WagonWise staff. Signing in lands on Users for those
+    who manage people, Fleet otherwise. `VITE_BFF_URL` is gone.
+  - Checked in Chromium against a stubbed staff-bff: every page calls `/staff/...` with the
+    staff token and nothing calls the driver BFF; a dispatcher sees only Fleet and is told why
+    Vehicle profiles is closed; someone with "Manage vehicles" gets their own company with no
+    picker. 0025 checked against a local Postgres, with the driver repository's queries run on
+    the result.
+
 ## Carrying over the interim scopes
 
 - **P2-M1.2**: `can(actor, 'manage_fleet', companyId)` replaces `canManageFleet`. Keep
   `fleet/application/authorization.test.ts`'s cases as the regression suite; they must pass
   unchanged against the new policy.
-- **P2-M1.12** (cutover), in addition to `is_admin`:
+- **P2-M1.12** (cutover), in addition to `is_admin` (done in 12c, except the automatic invites:
+  see its notes above):
   - for every driver with non-empty `scopes` and a `companyId`, create a fleet-user invite for
     that company with the same privileges (the driver sets a password + TOTP on accepting);
   - then drop `identity.drivers.scopes`, remove `scopes` from contracts' `driverSchema` and
     `updateDriverRequestSchema`, and remove the dashboard's "any scope" sign-in path;
   - `fleet`'s `CallerDirectory` reads the staff actor instead of identity's driver record.
-- Until then, every new privilege goes on the fixed list in **both** places
-  (`DRIVER_SCOPES` in contracts and in identity's domain), not as a new mechanism.
 - ~~Known gap: `PUT`/`DELETE /fleet/vehicles/:id` revealed whether a vehicle id exists.~~
   Fixed in P2-M1.8: another company's vehicle is now 404, the same as an unknown id.
 

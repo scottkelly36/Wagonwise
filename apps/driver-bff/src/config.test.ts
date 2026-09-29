@@ -10,7 +10,6 @@ describe('loadConfig', () => {
       logLevel: 'info',
       coreInternalUrl: 'http://127.0.0.1:3001',
       coreInternalKey: 'local-dev-internal-key',
-      dashboardOrigin: 'http://localhost:5173',
     });
   });
 
@@ -26,7 +25,6 @@ describe('loadConfig', () => {
       LOG_LEVEL: 'warn',
       CORE_INTERNAL_URL: 'https://core.internal',
       CORE_INTERNAL_KEY: 'a-real-shared-secret',
-      DASHBOARD_ORIGIN: 'https://dashboard.wagon-wise.co.uk',
     });
     expect(config).toEqual({
       nodeEnv: 'production',
@@ -35,7 +33,6 @@ describe('loadConfig', () => {
       logLevel: 'warn',
       coreInternalUrl: 'https://core.internal',
       coreInternalKey: 'a-real-shared-secret',
-      dashboardOrigin: 'https://dashboard.wagon-wise.co.uk',
     });
   });
 
@@ -52,10 +49,6 @@ describe('loadConfig', () => {
 
   it('rejects an empty CORE_INTERNAL_KEY', () => {
     expect(() => loadConfig({ CORE_INTERNAL_KEY: '' })).toThrow(ConfigError);
-  });
-
-  it('rejects a DASHBOARD_ORIGIN that is not a URL', () => {
-    expect(() => loadConfig({ DASHBOARD_ORIGIN: 'not-a-url' })).toThrow(ConfigError);
   });
 
   it('ignores unrelated environment variables', () => {

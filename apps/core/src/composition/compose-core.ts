@@ -9,6 +9,7 @@ import {
 import { buildApp } from '../host/build-app.js';
 import {
   createCompaniesModule,
+  type CompaniesModule,
   type UntypedDb as CompaniesUntypedDb,
 } from '../modules/companies/api.js';
 import {
@@ -134,6 +135,18 @@ export function composeCore(
     });
   const unitOfWork = overrides.unitOfWork ?? new PostgresUnitOfWork(platformDb);
 
+  // Staff accounts live in `companies`, which is built after identity and hazards (it needs
+  // identity's code sender and token signer). Their staff-only admin screens (P2-M1.12c) ask
+  // "who is this staff member?" per request, long after composition, so they get a function that
+  // reaches `companies` once it exists, rather than a construction-order cycle.
+  const composed: { companies?: CompaniesModule } = {};
+  const staffCaller = (staffId: string) => {
+    if (composed.companies === undefined) throw new Error('companies module not composed yet');
+    return composed.companies.getStaffCaller(staffId);
+  };
+  const isPlatformStaff = async (staffId: string) =>
+    (await staffCaller(staffId))?.kind === 'platform';
+
   const identity = createIdentityModule({
     db: identityDb,
     clock,
@@ -145,6 +158,7 @@ export function composeCore(
     resendApiKey: config.resendApiKey,
     resendFromEmail: config.resendFromEmail,
     otpSender: overrides.otpSender,
+    platformStaff: { isPlatformStaff },
   });
   // Same underlying pool, same untyped-Kysely shape as identity's — structurally the same type
   // (Kysely<Record<string, unknown>>, no branding), so one instance serves both modules; unlike
@@ -166,7 +180,7 @@ export function composeCore(
     ids,
     anthropicApiKey: config.anthropicApiKey,
     hazardParser: overrides.hazardParser,
-    identity,
+    admins: { isAdmin: isPlatformStaff },
   });
   const routing = createRoutingModule({
     db: routingDb,
@@ -189,8 +203,14 @@ export function composeCore(
     dataScopes,
     staffSecretKey: config.staffSecretKey,
   });
+  composed.companies = companies;
   const parking = createParkingModule({ db: parkingDb, clock });
-  const fleet = createFleetModule({ db: fleetDb, ids, identity, dataScopes });
+  const fleet = createFleetModule({
+    db: fleetDb,
+    ids,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+  });
 
   const outboxDispatcher = new OutboxDispatcher(
     platformDb,

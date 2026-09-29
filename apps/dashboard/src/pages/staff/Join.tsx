@@ -239,7 +239,7 @@ export function Join() {
                 refreshToken: step.result.refreshToken,
                 staff: step.result.staff,
               });
-              navigate('/staff/users');
+              navigate('/');
             }}
           >
             I've saved them, continue

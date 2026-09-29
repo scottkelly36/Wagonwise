@@ -24,9 +24,8 @@ export interface StaffAuthStore {
 }
 
 /**
- * The staff session (P2-M1.10), separate from the driver session in `auth-store.ts`: until the
- * cutover (P2-M1.12) the existing admin pages still sign in as a driver, so both can be open at
- * once. Kept in `sessionStorage`, not `localStorage`: it survives a reload but ends with the tab,
+ * The staff session (P2-M1.10), the dashboard's only sign-in since P2-M1.12c. Kept in
+ * `sessionStorage`, not `localStorage`: it survives a reload but ends with the tab,
  * since a staff refresh token is good for 7 days and shouldn't sit on a shared machine.
  */
 export const useStaffAuthStore = create<StaffAuthStore>((set, get) => {

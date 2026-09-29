@@ -134,8 +134,6 @@ async function createDriverFromInvite(
     id: driverId,
     identifier,
     createdAt: now,
-    isAdmin: false,
-    scopes: [],
   };
   const redeemed = redeem(invite, driverId, now);
   if (!redeemed.ok) {

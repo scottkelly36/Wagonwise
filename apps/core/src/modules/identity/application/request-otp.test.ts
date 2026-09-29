@@ -98,8 +98,6 @@ describe('requestOtp', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      isAdmin: false,
-      scopes: [],
     });
     const deps = buildDeps({ driverRepo });
 
@@ -117,8 +115,6 @@ describe('requestOtp', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      isAdmin: false,
-      scopes: [],
     });
     const deps = buildDeps({ driverRepo, otpRepo });
 
@@ -140,8 +136,6 @@ describe('requestOtp', () => {
       id: makeId<'DriverId'>('driver-1'),
       identifier: 'driver@example.com',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      isAdmin: false,
-      scopes: [],
     });
     const deps = buildDeps({ driverRepo });
 

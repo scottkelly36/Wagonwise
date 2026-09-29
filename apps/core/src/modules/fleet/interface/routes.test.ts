@@ -6,18 +6,18 @@ import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-gen
 import { InMemoryFleetVehicleRepository } from '../application/testing/in-memory-fleet-vehicle-repository.js';
 import { StubCallerDirectory } from '../application/testing/stub-caller-directory.js';
 import type { Caller } from '../application/ports/caller-directory.js';
-import type { DriverId } from '../domain/vehicle.js';
+import type { StaffId } from '../domain/vehicle.js';
 import { registerFleetRoutes, type FleetRouteDeps } from './routes.js';
 
 const dimensions = { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32 };
 const companyA = '11111111-1111-4111-8111-111111111111';
 const companyB = '22222222-2222-4222-8222-222222222222';
-const DRIVER_HEADER = 'x-test-driver-id';
+const STAFF_HEADER = 'x-test-staff-id';
 
-const ADMIN_ID = makeId<'DriverId'>('admin');
-const FLEET_USER_ID = makeId<'DriverId'>('fleet-user'); // companyA, manage_fleet
-const VIEWER_ID = makeId<'DriverId'>('viewer'); // companyA, no scope
-const OUTSIDER_ID = makeId<'DriverId'>('outsider'); // companyB, manage_fleet
+const ADMIN_ID = makeId<'StaffId'>('admin');
+const FLEET_USER_ID = makeId<'StaffId'>('fleet-user'); // companyA, manage_fleet
+const VIEWER_ID = makeId<'StaffId'>('viewer'); // companyA, no scope
+const OUTSIDER_ID = makeId<'StaffId'>('outsider'); // companyB, manage_fleet
 
 function buildApp(): {
   app: FastifyInstance;
@@ -26,16 +26,16 @@ function buildApp(): {
 } {
   const repo = new InMemoryFleetVehicleRepository();
   const scopes = new RecordingDataScopes();
-  const callers = new Map<DriverId, Caller>([
-    [ADMIN_ID, { isAdmin: true, scopes: [] }],
+  const callers = new Map<StaffId, Caller>([
+    [ADMIN_ID, { kind: 'platform' }],
     [
       FLEET_USER_ID,
-      { isAdmin: false, companyId: makeId<'CompanyId'>(companyA), scopes: ['manage_fleet'] },
+      { kind: 'fleet', companyId: makeId<'CompanyId'>(companyA), privileges: ['manage_fleet'] },
     ],
-    [VIEWER_ID, { isAdmin: false, companyId: makeId<'CompanyId'>(companyA), scopes: [] }],
+    [VIEWER_ID, { kind: 'fleet', companyId: makeId<'CompanyId'>(companyA), privileges: [] }],
     [
       OUTSIDER_ID,
-      { isAdmin: false, companyId: makeId<'CompanyId'>(companyB), scopes: ['manage_fleet'] },
+      { kind: 'fleet', companyId: makeId<'CompanyId'>(companyB), privileges: ['manage_fleet'] },
     ],
   ]);
   const deps: FleetRouteDeps = {
@@ -49,9 +49,9 @@ function buildApp(): {
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {
-    const driverId = request.headers[DRIVER_HEADER];
-    if (typeof driverId === 'string') {
-      request.driverId = driverId;
+    const staffId = request.headers[STAFF_HEADER];
+    if (typeof staffId === 'string') {
+      request.staffId = staffId;
     }
     done();
   });
@@ -59,30 +59,30 @@ function buildApp(): {
   return { app, repo, scopes };
 }
 
-function asDriver(driverId: string): { headers: Record<string, string> } {
-  return { headers: { [DRIVER_HEADER]: driverId } };
+function asStaff(staffId: string): { headers: Record<string, string> } {
+  return { headers: { [STAFF_HEADER]: staffId } };
 }
 
-describe('POST /fleet/companies/:companyId/vehicles', () => {
+describe('POST /staff/fleet/companies/:companyId/vehicles', () => {
   it('201s for an admin', async () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'POST',
-      url: `/fleet/companies/${companyA}/vehicles`,
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
       payload: { companyId: companyA, name: 'Big Wagon', dimensions },
-      ...asDriver(ADMIN_ID),
+      ...asStaff(ADMIN_ID),
     });
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({ companyId: companyA, name: 'Big Wagon' });
   });
 
-  it('201s for a fleet user with manage_fleet scope in their own company', async () => {
+  it('201s for a fleet user with the manage_fleet privilege in their own company', async () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'POST',
-      url: `/fleet/companies/${companyA}/vehicles`,
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
       payload: { companyId: companyA, name: 'Big Wagon', dimensions },
-      ...asDriver(FLEET_USER_ID),
+      ...asStaff(FLEET_USER_ID),
     });
     expect(response.statusCode).toBe(201);
   });
@@ -91,9 +91,9 @@ describe('POST /fleet/companies/:companyId/vehicles', () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'POST',
-      url: `/fleet/companies/${companyA}/vehicles`,
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
       payload: { companyId: companyA, name: 'Big Wagon', dimensions },
-      ...asDriver(VIEWER_ID),
+      ...asStaff(VIEWER_ID),
     });
     expect(response.statusCode).toBe(403);
   });
@@ -102,18 +102,18 @@ describe('POST /fleet/companies/:companyId/vehicles', () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'POST',
-      url: `/fleet/companies/${companyA}/vehicles`,
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
       payload: { companyId: companyA, name: 'Big Wagon', dimensions },
-      ...asDriver(OUTSIDER_ID),
+      ...asStaff(OUTSIDER_ID),
     });
     expect(response.statusCode).toBe(403);
   });
 
-  it('401s with no authenticated driver', async () => {
+  it('401s with no signed-in staff member', async () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'POST',
-      url: `/fleet/companies/${companyA}/vehicles`,
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
       payload: { companyId: companyA, name: 'Big Wagon', dimensions },
     });
     expect(response.statusCode).toBe(401);
@@ -123,71 +123,71 @@ describe('POST /fleet/companies/:companyId/vehicles', () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'POST',
-      url: `/fleet/companies/${companyA}/vehicles`,
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
       payload: { nonsense: true },
-      ...asDriver(ADMIN_ID),
+      ...asStaff(ADMIN_ID),
     });
     expect(response.statusCode).toBe(400);
   });
 });
 
-describe('GET /fleet/companies/:companyId/vehicles', () => {
+describe('GET /staff/fleet/companies/:companyId/vehicles', () => {
   it('200s for a viewer with no scope, in their own company', async () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'GET',
-      url: `/fleet/companies/${companyA}/vehicles`,
-      ...asDriver(VIEWER_ID),
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
+      ...asStaff(VIEWER_ID),
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ vehicles: [] });
   });
 
-  it('403s a driver from a different company', async () => {
+  it('403s staff from a different company', async () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'GET',
-      url: `/fleet/companies/${companyA}/vehicles`,
-      ...asDriver(OUTSIDER_ID),
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
+      ...asStaff(OUTSIDER_ID),
     });
     expect(response.statusCode).toBe(403);
   });
 });
 
-describe('PUT /fleet/vehicles/:id', () => {
+describe('PUT /staff/fleet/vehicles/:id', () => {
   async function createVehicle(app: FastifyInstance): Promise<string> {
     const created = await app.inject({
       method: 'POST',
-      url: `/fleet/companies/${companyA}/vehicles`,
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
       payload: { companyId: companyA, name: 'Big Wagon', dimensions },
-      ...asDriver(ADMIN_ID),
+      ...asStaff(ADMIN_ID),
     });
     return created.json<{ id: string }>().id;
   }
 
-  it('200s for a fleet user with manage_fleet scope in the vehicle’s own company', async () => {
+  it('200s for a fleet user with the manage_fleet privilege in the vehicle’s own company', async () => {
     const { app } = buildApp();
     const id = await createVehicle(app);
 
     const response = await app.inject({
       method: 'PUT',
-      url: `/fleet/vehicles/${id}`,
+      url: `/staff/fleet/vehicles/${id}`,
       payload: { name: 'Renamed', dimensions },
-      ...asDriver(FLEET_USER_ID),
+      ...asStaff(FLEET_USER_ID),
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ name: 'Renamed' });
   });
 
-  it("404s a driver from a different company, same as an unknown id (P2-M1.8: ids can't be probed)", async () => {
+  it("404s staff from a different company, same as an unknown id (P2-M1.8: ids can't be probed)", async () => {
     const { app } = buildApp();
     const id = await createVehicle(app);
 
     const response = await app.inject({
       method: 'PUT',
-      url: `/fleet/vehicles/${id}`,
+      url: `/staff/fleet/vehicles/${id}`,
       payload: { name: 'Renamed', dimensions },
-      ...asDriver(OUTSIDER_ID),
+      ...asStaff(OUTSIDER_ID),
     });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ tag: 'FleetVehicleNotFound' });
@@ -197,29 +197,29 @@ describe('PUT /fleet/vehicles/:id', () => {
     const { app } = buildApp();
     const response = await app.inject({
       method: 'PUT',
-      url: '/fleet/vehicles/11111111-1111-4111-8111-111111111111',
+      url: '/staff/fleet/vehicles/11111111-1111-4111-8111-111111111111',
       payload: { name: 'Renamed', dimensions },
-      ...asDriver(ADMIN_ID),
+      ...asStaff(ADMIN_ID),
     });
     expect(response.statusCode).toBe(404);
   });
 });
 
-describe('DELETE /fleet/vehicles/:id', () => {
+describe('DELETE /staff/fleet/vehicles/:id', () => {
   it('204s for an admin, and the vehicle is actually gone', async () => {
     const { app, repo } = buildApp();
     const created = await app.inject({
       method: 'POST',
-      url: `/fleet/companies/${companyA}/vehicles`,
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
       payload: { companyId: companyA, name: 'Big Wagon', dimensions },
-      ...asDriver(ADMIN_ID),
+      ...asStaff(ADMIN_ID),
     });
     const { id } = created.json<{ id: string }>();
 
     const response = await app.inject({
       method: 'DELETE',
-      url: `/fleet/vehicles/${id}`,
-      ...asDriver(ADMIN_ID),
+      url: `/staff/fleet/vehicles/${id}`,
+      ...asStaff(ADMIN_ID),
     });
     expect(response.statusCode).toBe(204);
     expect(await repo.findById(makeId<'FleetVehicleId'>(id))).toBeNull();
@@ -229,16 +229,16 @@ describe('DELETE /fleet/vehicles/:id', () => {
     const { app } = buildApp();
     const created = await app.inject({
       method: 'POST',
-      url: `/fleet/companies/${companyA}/vehicles`,
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
       payload: { companyId: companyA, name: 'Big Wagon', dimensions },
-      ...asDriver(ADMIN_ID),
+      ...asStaff(ADMIN_ID),
     });
     const { id } = created.json<{ id: string }>();
 
     const response = await app.inject({
       method: 'DELETE',
-      url: `/fleet/vehicles/${id}`,
-      ...asDriver(VIEWER_ID),
+      url: `/staff/fleet/vehicles/${id}`,
+      ...asStaff(VIEWER_ID),
     });
     expect(response.statusCode).toBe(403);
   });
@@ -249,13 +249,13 @@ describe('Row-Level Security scope (P2-M1.7)', () => {
     const { app, scopes } = buildApp();
     await app.inject({
       method: 'GET',
-      url: `/fleet/companies/${companyA}/vehicles`,
-      ...asDriver(ADMIN_ID),
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
+      ...asStaff(ADMIN_ID),
     });
     await app.inject({
       method: 'GET',
-      url: `/fleet/companies/${companyA}/vehicles`,
-      ...asDriver(FLEET_USER_ID),
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
+      ...asStaff(FLEET_USER_ID),
     });
     expect(scopes.used).toEqual([{ kind: 'platform' }, { kind: 'company', companyId: companyA }]);
   });
@@ -264,8 +264,8 @@ describe('Row-Level Security scope (P2-M1.7)', () => {
     const { app, scopes } = buildApp();
     const res = await app.inject({
       method: 'GET',
-      url: `/fleet/companies/${companyA}/vehicles`,
-      ...asDriver(OUTSIDER_ID),
+      url: `/staff/fleet/companies/${companyA}/vehicles`,
+      ...asStaff(OUTSIDER_ID),
     });
     expect(res.statusCode).toBe(403);
     expect(scopes.used).toEqual([{ kind: 'company', companyId: companyB }]);

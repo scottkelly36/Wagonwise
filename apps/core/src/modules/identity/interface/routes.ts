@@ -43,19 +43,29 @@ function driverDto(driver: {
   readonly identifier: string;
   readonly createdAt: Date;
   readonly consentedAt?: Date | undefined;
-  readonly isAdmin: boolean;
   readonly companyId?: string | undefined;
-  readonly scopes: readonly string[];
 }) {
   return {
     id: driver.id,
     identifier: driver.identifier,
     createdAt: driver.createdAt,
     ...(driver.consentedAt === undefined ? {} : { consentedAt: driver.consentedAt }),
-    isAdmin: driver.isAdmin,
+    // Drivers have had no admin flag or privileges since P2-M1.12c. Still sent, always false and
+    // empty, so driver-app builds already installed keep parsing the sign-in response.
+    isAdmin: false,
     ...(driver.companyId === undefined ? {} : { companyId: driver.companyId }),
-    scopes: driver.scopes,
+    scopes: [],
   };
+}
+
+/** The signed-in staff member, from `host/staff-auth.ts`, for the WagonWise admin screens below.
+ *  401 if there isn't one. */
+function requireStaffId(request: FastifyRequest, reply: FastifyReply): Id<'StaffId'> | undefined {
+  if (request.staffId === undefined) {
+    void reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+    return undefined;
+  }
+  return makeId<'StaffId'>(request.staffId);
 }
 
 function inviteCodeDto(invite: {
@@ -202,26 +212,25 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     return reply.status(200).send({ keys: [jwk] });
   });
 
-  // The user-management screen's own read (2026-09-27) — every driver, for an admin to assign a
-  // company or a role to. Admin-gated; a non-admin gets 403, never a partial or filtered list.
-  app.get('/identity/drivers', async (request, reply) => {
-    const driverId = requireDriverId(request, reply);
-    if (driverId === undefined) return reply;
+  // ---- WagonWise admin screens (staff tokens, P2-M1.12c) --------------------------------
 
-    const result = await listDrivers(deps.listDrivers, { callerId: driverId });
+  // The driver-accounts screen: every driver, for a WagonWise admin to assign a company to.
+  app.get('/staff/drivers', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
+
+    const result = await listDrivers(deps.listDrivers, { callerId: staffId });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(200).send({ drivers: result.value.map(driverDto) });
   });
 
-  // The one sanctioned way to change `companyId`/`isAdmin` now (2026-09-27) — see
-  // `application/update-driver.ts`'s own reasoning for why this replaces hand-editing the
-  // database. Admin-gated in the use case, before the target is looked up, so a non-admin
-  // never learns whether the target id exists.
-  app.patch('/identity/drivers/:id', async (request, reply) => {
-    const driverId = requireDriverId(request, reply);
-    if (driverId === undefined) return reply;
+  // Assigns a driver to a company, or clears it. Checked in the use case before the target is
+  // looked up, so nobody but a WagonWise admin learns whether an id exists.
+  app.patch('/staff/drivers/:id', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
 
     const params = driverIdParamsSchema.safeParse(request.params);
     if (!params.success) {
@@ -232,7 +241,7 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
     const result = await updateDriver(deps.updateDriver, {
-      callerId: driverId,
+      callerId: staffId,
       id: makeId<'DriverId'>(params.data.id),
       ...(body.data.companyId === undefined
         ? {}
@@ -240,8 +249,6 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
             companyId:
               body.data.companyId === null ? null : makeId<'CompanyId'>(body.data.companyId),
           }),
-      ...(body.data.isAdmin === undefined ? {} : { isAdmin: body.data.isAdmin }),
-      ...(body.data.scopes === undefined ? {} : { scopes: body.data.scopes }),
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
@@ -249,27 +256,24 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     return reply.status(200).send(driverDto(result.value));
   });
 
-  // The invite-codes admin screen's "Generate code" action (2026-09-27) — replaces the manual
-  // `insert into identity.invite_codes` the README used to point at. Admin-gated, same shape as
-  // every other admin-only route here.
-  app.post('/identity/invite-codes', async (request, reply) => {
-    const driverId = requireDriverId(request, reply);
-    if (driverId === undefined) return reply;
+  // The invite-codes screen's "Generate code" action.
+  app.post('/staff/invite-codes', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
 
-    const result = await createInviteCode(deps.createInviteCode, { callerId: driverId });
+    const result = await createInviteCode(deps.createInviteCode, { callerId: staffId });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(201).send(inviteCodeDto(result.value));
   });
 
-  // The same screen's own list — every code, redeemed or not; the dashboard decides how to show
-  // "active" vs "used".
-  app.get('/identity/invite-codes', async (request, reply) => {
-    const driverId = requireDriverId(request, reply);
-    if (driverId === undefined) return reply;
+  // Every code, redeemed or not; the dashboard decides how to show "active" vs "used".
+  app.get('/staff/invite-codes', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
 
-    const result = await listInviteCodes(deps.listInviteCodes, { callerId: driverId });
+    const result = await listInviteCodes(deps.listInviteCodes, { callerId: staffId });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }

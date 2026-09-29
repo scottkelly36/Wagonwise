@@ -31,7 +31,7 @@ export function buildApp(config: Config): FastifyInstance {
   // Only the dashboard's origin, never `*`: this BFF carries staff access tokens.
   void app.register(cors, {
     origin: config.dashboardOrigin,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   });
 
   registerErrorHandling(app);

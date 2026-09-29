@@ -2,6 +2,7 @@ import { createStaffTokenVerifier } from './auth/staff-token-verifier.js';
 import { ConfigError, loadConfig } from './config.js';
 import { createCoreClient } from './core-client.js';
 import { buildApp } from './host/build-app.js';
+import { registerDashboardRoutes } from './dashboard-routes.js';
 import { registerStaffRoutes } from './staff-routes.js';
 
 function bootConfig() {
@@ -19,10 +20,12 @@ function bootConfig() {
 const config = bootConfig();
 const app = buildApp(config);
 
-registerStaffRoutes(app, {
+const routeDeps = {
   coreClient: createCoreClient(config.coreInternalUrl, config.coreInternalKey),
   staffTokenVerifier: createStaffTokenVerifier(config.coreInternalUrl, config.coreInternalKey),
-});
+};
+registerStaffRoutes(app, routeDeps);
+registerDashboardRoutes(app, routeDeps);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {

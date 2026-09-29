@@ -7,46 +7,41 @@ const companyA = makeId<'CompanyId'>('11111111-1111-4111-8111-111111111111');
 const companyB = makeId<'CompanyId'>('22222222-2222-4222-8222-222222222222');
 
 describe('canViewFleet', () => {
-  it('allows an admin to view any company', () => {
-    const admin: Caller = { isAdmin: true, scopes: [] };
+  it('allows a WagonWise admin to view any company', () => {
+    const admin: Caller = { kind: 'platform' };
     expect(canViewFleet(admin, companyA)).toBe(true);
     expect(canViewFleet(admin, companyB)).toBe(true);
   });
 
-  it('allows a driver with no scope to view their own company', () => {
-    const caller: Caller = { isAdmin: false, companyId: companyA, scopes: [] };
+  it("allows a company's staff to view their own company, no privilege needed", () => {
+    const caller: Caller = { kind: 'fleet', companyId: companyA, privileges: [] };
     expect(canViewFleet(caller, companyA)).toBe(true);
   });
 
-  it('denies a driver viewing a different company', () => {
-    const caller: Caller = { isAdmin: false, companyId: companyA, scopes: [] };
+  it('denies viewing a different company', () => {
+    const caller: Caller = { kind: 'fleet', companyId: companyA, privileges: [] };
     expect(canViewFleet(caller, companyB)).toBe(false);
-  });
-
-  it('denies a driver with no company at all', () => {
-    const caller: Caller = { isAdmin: false, scopes: [] };
-    expect(canViewFleet(caller, companyA)).toBe(false);
   });
 });
 
 describe('canManageFleet', () => {
-  it('allows an admin to manage any company, scope or not', () => {
-    const admin: Caller = { isAdmin: true, scopes: [] };
+  it('allows a WagonWise admin to manage any company', () => {
+    const admin: Caller = { kind: 'platform' };
     expect(canManageFleet(admin, companyA)).toBe(true);
   });
 
-  it('allows a driver in the right company with the manage_fleet scope', () => {
-    const caller: Caller = { isAdmin: false, companyId: companyA, scopes: ['manage_fleet'] };
+  it("allows a company's staff with manage_fleet to manage it", () => {
+    const caller: Caller = { kind: 'fleet', companyId: companyA, privileges: ['manage_fleet'] };
     expect(canManageFleet(caller, companyA)).toBe(true);
   });
 
-  it('denies a driver in the right company without the scope', () => {
-    const caller: Caller = { isAdmin: false, companyId: companyA, scopes: [] };
+  it("denies the right company's staff without manage_fleet", () => {
+    const caller: Caller = { kind: 'fleet', companyId: companyA, privileges: [] };
     expect(canManageFleet(caller, companyA)).toBe(false);
   });
 
-  it('denies a driver with the scope but the wrong company', () => {
-    const caller: Caller = { isAdmin: false, companyId: companyB, scopes: ['manage_fleet'] };
+  it('denies manage_fleet in another company', () => {
+    const caller: Caller = { kind: 'fleet', companyId: companyB, privileges: ['manage_fleet'] };
     expect(canManageFleet(caller, companyA)).toBe(false);
   });
 });

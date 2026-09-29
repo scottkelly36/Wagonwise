@@ -7,7 +7,7 @@ import { InMemoryFleetVehicleRepository } from './testing/in-memory-fleet-vehicl
 const companyId = makeId<'CompanyId'>('company-1');
 const vehicleId = makeId<'FleetVehicleId'>('vehicle-1');
 const dimensions = { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32 };
-const ADMIN: Caller = { isAdmin: true, scopes: [] };
+const ADMIN: Caller = { kind: 'platform' };
 
 describe('deleteFleetVehicle', () => {
   it('deletes an existing vehicle', async () => {
@@ -32,11 +32,11 @@ describe('deleteFleetVehicle', () => {
     const repo = new InMemoryFleetVehicleRepository();
     await repo.save({ id: vehicleId, companyId, name: 'Big Wagon', dimensions });
     const outsider: Caller = {
-      isAdmin: false,
+      kind: 'fleet',
       companyId: makeId<'CompanyId'>('company-2'),
-      scopes: ['manage_fleet'],
+      privileges: ['manage_fleet'],
     };
-    const viewer: Caller = { isAdmin: false, companyId, scopes: [] };
+    const viewer: Caller = { kind: 'fleet', companyId, privileges: [] };
 
     expect(await deleteFleetVehicle({ repo }, { caller: outsider, id: vehicleId })).toEqual({
       ok: false,

@@ -1,13 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
-import type { IdentityModule } from '../identity/api.js';
 import type { HazardParser } from './application/ports/hazard-parser.js';
 import { isExpired, type GeoPoint, type HazardType } from './domain/hazard-report.js';
 import { findNearbyHazards } from './application/find-nearby-hazards.js';
 import { AnthropicHazardParser } from './infrastructure/anthropic-hazard-parser.js';
 import type { UntypedDb } from './infrastructure/db.js';
-import { IdentityAdminDirectory } from './infrastructure/identity-admin-directory.js';
+import type { AdminDirectory } from './application/ports/admin-directory.js';
 import { NullHazardParser } from './infrastructure/null-hazard-parser.js';
 import { PostgresHazardRepository } from './infrastructure/postgres-hazard-repository.js';
 import { registerHazardsRoutes, type HazardsRouteDeps } from './interface/routes.js';
@@ -33,10 +32,9 @@ export interface HazardsModuleDeps {
    *  (`routing/api.ts`). Override (e.g. with a stub) for tests or a local run that shouldn't
    *  reach Anthropic's real endpoint. */
   readonly hazardParser?: HazardParser | undefined;
-  /** The one cross-context read `deleteHazard`'s admin gate needs (AGENTS.md rule 7) — hazards
-   *  never imports identity's `Driver`/`DriverId` directly, just this one method, wrapped by
-   *  `infrastructure/identity-admin-directory.ts`. */
-  readonly identity: Pick<IdentityModule, 'isDriverAdmin'>;
+  /** Is a staff member a WagonWise admin? For browsing every report and true deletes
+   *  (P2-M1.12c). Supplied by composition over `companies`' `getStaffCaller`. */
+  readonly admins: AdminDirectory;
 }
 
 /** Only the four hazard types design doc §5 names as blocking map to an avoidance kind; the rest
@@ -110,15 +108,14 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
     (deps.anthropicApiKey === undefined
       ? new NullHazardParser()
       : new AnthropicHazardParser(deps.anthropicApiKey));
-  const adminDirectory = new IdentityAdminDirectory(deps.identity);
 
   const routeDeps: HazardsRouteDeps = {
     reportHazard: { repo, clock: deps.clock, ids: deps.ids },
     confirmHazard: { repo, clock: deps.clock, ids: deps.ids },
     dismissHazard: { repo },
-    deleteHazard: { repo, admins: adminDirectory },
+    deleteHazard: { repo, admins: deps.admins },
     getHazard: { repo },
-    listHazards: { repo, admins: adminDirectory },
+    listHazards: { repo, admins: deps.admins },
     parseVoiceReport: { parser: hazardParser },
     findNearbyHazards: { repo, clock: deps.clock },
   };

@@ -49,7 +49,7 @@ export function StaffSignIn() {
     try {
       const tokens = await staffApi.verifySecondFactor(challenge.id, code.trim());
       signIn(tokens);
-      navigate('/staff/users');
+      navigate('/');
     } catch (err) {
       setError(staffErrorMessage(err));
     } finally {

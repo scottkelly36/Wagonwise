@@ -219,6 +219,11 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
    screen. The command refuses once any WagonWise admin exists; running it again before the
    link is used just prints a fresh one. `STAFF_SECRET_KEY` must be set on `core` before you
    do this, or an authenticator-app set-up won't survive the next deploy.
+   **From P2-M1.12c the dashboard has no driver sign-in**: it signs in with staff accounts
+   only, through `staff-bff`. Deploy `staff-bff` and point the dashboard at it
+   (`VITE_STAFF_BFF_URL`) before or with 12c, and run this step straight after, or nobody can
+   use the dashboard in between. Former driver admins are invited again from Users. Steps for
+   `staff-bff` itself come with P2-M1.12d.
 
 ## 5. Pricing (DigitalOcean, starting tiers)
 

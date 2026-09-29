@@ -1,8 +1,8 @@
 import { err, ok, type Result } from '../../../shared/result.js';
-import type { DriverId, HazardReportId } from '../domain/hazard-report.js';
+import type { HazardReportId } from '../domain/hazard-report.js';
 import { requireHazardAdmin, type Forbidden } from './authorization.js';
 import type { HazardReportNotFound } from './errors.js';
-import type { AdminDirectory } from './ports/admin-directory.js';
+import type { AdminDirectory, StaffId } from './ports/admin-directory.js';
 import type { HazardRepository } from './ports/hazard-repository.js';
 
 export interface DeleteHazardDeps {
@@ -11,7 +11,7 @@ export interface DeleteHazardDeps {
 }
 
 export interface DeleteHazardInput {
-  readonly callerId: DriverId;
+  readonly callerId: StaffId;
   readonly id: HazardReportId;
 }
 

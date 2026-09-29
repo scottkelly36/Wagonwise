@@ -188,8 +188,8 @@ facing wrapper described below, and is how you should normally reach these:
 
 `identifier` is an email or a UK-ish phone number. `inviteCode` is required only the first time —
 signing in with an identifier that has no Driver yet needs one. Generate one from
-`apps/dashboard`'s "Invite codes" screen (admin-only) via `POST /identity/invite-codes`, or seed
-one directly for local testing:
+`apps/dashboard`'s "Invite codes" screen (WagonWise staff only, `POST /staff/invite-codes`), or
+seed one directly for local testing:
 
 ```bash
 docker exec -it $(docker compose -f infra/docker/compose.yml ps -q postgres) \
@@ -424,17 +424,19 @@ curl http://127.0.0.1:3003/health
 ```
 
 Same variables as the driver BFF (`NODE_ENV`, `HOST`, `PORT` (default `3003`), `LOG_LEVEL`,
-`CORE_INTERNAL_URL`, `CORE_INTERNAL_KEY`, `DASHBOARD_ORIGIN`), with the same defaults, plus
-`TRUST_PROXY_HOPS` (default `0`): how many proxies sit in front and add to `X-Forwarded-For`, so the
-sign-in rate limit counts each real caller. Leave it `0` locally; `1` on DigitalOcean App Platform. The
-dashboard's existing admin pages still go through the driver BFF, signed in as a driver, until
-the staff sign-in replaces them (P2-M1.10, P2-M1.12).
+`CORE_INTERNAL_URL`, `CORE_INTERNAL_KEY`), with the same defaults, plus `DASHBOARD_ORIGIN`
+(default `http://localhost:5173`, the only browser origin it answers) and `TRUST_PROXY_HOPS`
+(default `0`): how many proxies sit in front and add to `X-Forwarded-For`, so the sign-in rate
+limit counts each real caller. Leave it `0` locally; `1` on DigitalOcean App Platform.
 
-The dashboard's staff pages (P2-M1.10) talk to it: `/staff/sign-in` (email, password, then the
-second factor), `/join?token=…` (the invite link: set a password, pick a second factor, save the
-recovery codes) and `/staff/users` (invite, change privileges, remove) and `/staff/activity` (the audit log). Point the dashboard at it
-with `VITE_STAFF_BFF_URL` (default `http://localhost:3003`); `VITE_BFF_URL` stays the driver BFF
-for the existing pages. To try it locally, create the first WagonWise admin's invite with
+The whole dashboard talks to it, and only to it (P2-M1.12c: the driver sign-in is gone, and the
+driver BFF answers no browser). Pages: `/staff/sign-in` (email, password, then the second
+factor), `/join?token=…` (the invite link: set a password, pick a second factor, save the
+recovery codes), `/staff/users` (invite, change privileges, remove) and `/staff/activity` (the
+audit log), the fleet pages, and for WagonWise staff the admin pages (companies, invite codes,
+hazard reports, driver accounts). The menu shows each person what their privileges allow; core
+decides every request. Point the dashboard at it with `VITE_STAFF_BFF_URL` (default
+`http://localhost:3003`). To try it locally, create the first WagonWise admin's invite with
 `pnpm --filter @wagonwise/core staff:bootstrap --email you@example.com --name "You"
 --dashboard-url http://localhost:5173` and open the link it prints (it refuses once a WagonWise
 admin exists).

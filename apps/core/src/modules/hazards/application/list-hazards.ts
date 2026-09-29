@@ -1,7 +1,7 @@
 import { ok, type Result } from '../../../shared/result.js';
-import type { DriverId, HazardReport } from '../domain/hazard-report.js';
+import type { HazardReport } from '../domain/hazard-report.js';
 import { requireHazardAdmin, type Forbidden } from './authorization.js';
-import type { AdminDirectory } from './ports/admin-directory.js';
+import type { AdminDirectory, StaffId } from './ports/admin-directory.js';
 import type { HazardRepository } from './ports/hazard-repository.js';
 
 export interface ListHazardsDeps {
@@ -13,7 +13,7 @@ export interface ListHazardsDeps {
  *  status. Admins only (`authorization.ts`); anyone else gets `Forbidden`, never a partial list. */
 export async function listHazards(
   deps: ListHazardsDeps,
-  input: { readonly callerId: DriverId },
+  input: { readonly callerId: StaffId },
 ): Promise<Result<HazardReport[], Forbidden>> {
   const allowed = await requireHazardAdmin(deps.admins, input.callerId);
   if (!allowed.ok) return allowed;

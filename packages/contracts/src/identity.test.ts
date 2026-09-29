@@ -150,26 +150,18 @@ describe('listDriversResponseSchema', () => {
 });
 
 describe('updateDriverRequestSchema', () => {
-  it('accepts an empty body — both fields optional', () => {
+  it('accepts an empty body: companyId is optional', () => {
     expect(updateDriverRequestSchema.safeParse({}).success).toBe(true);
   });
 
-  it('accepts a companyId, isAdmin, or both', () => {
+  it('accepts a companyId, or null to clear an assignment', () => {
     expect(updateDriverRequestSchema.safeParse({ companyId: 'company-1' }).success).toBe(true);
-    expect(updateDriverRequestSchema.safeParse({ isAdmin: true }).success).toBe(true);
-    expect(
-      updateDriverRequestSchema.safeParse({ companyId: 'company-1', isAdmin: true }).success,
-    ).toBe(true);
-  });
-
-  it('accepts companyId: null to clear an assignment', () => {
     expect(updateDriverRequestSchema.safeParse({ companyId: null }).success).toBe(true);
   });
 
-  it('accepts a scopes array, including empty, and rejects an unknown scope', () => {
-    expect(updateDriverRequestSchema.safeParse({ scopes: [] }).success).toBe(true);
-    expect(updateDriverRequestSchema.safeParse({ scopes: ['manage_fleet'] }).success).toBe(true);
-    expect(updateDriverRequestSchema.safeParse({ scopes: ['made_up_scope'] }).success).toBe(false);
+  it('drops the retired isAdmin and scopes fields, so they can never reach core', () => {
+    const parsed = updateDriverRequestSchema.parse({ isAdmin: true, scopes: ['manage_fleet'] });
+    expect(parsed).toEqual({});
   });
 });
 
