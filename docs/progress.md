@@ -25,7 +25,7 @@ history file keeps the record.
 | Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only   | below, and the Phase 2 tech design doc |
 | P2-M1 Orgs, roles, RLS, staff auth | In progress — P2-M1.12c done 2026-09-29  | `history/p2-m1-organisations-auth.md`  |
 | P2-M2 Fleet (early slice)          | Vehicles + interim driver scopes, PR #48 | `history/p2-m1-organisations-auth.md`  |
-| P2-M3 Jobs core (first slice)      | Job domain model + "create job" only     | below                                   |
+| P2-M3 Jobs core (first slice)      | Job domain model + "create job" only     | below                                  |
 
 ## Next up
 
