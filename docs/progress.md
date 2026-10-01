@@ -37,10 +37,16 @@ history file keeps the record.
    (`apps/staff-bff`), P2-M1.10 (dashboard staff sign-in, join, Users) and P2-M1.11 (audit
    log), P2-M1.12a (sign-in guessing limits), P2-M1.12b (`pnpm staff:bootstrap`) and P2-M1.12c
    (every dashboard page on the staff sign-in; driver admin flag and scopes dropped) done; next
-   is 12d (required config, deploy). **Deploy step owed:** give `wagonwise_app` a password and
-   set `APP_DATABASE_URL`, deploy staff-bff, point the dashboard at it (`VITE_STAFF_BFF_URL`),
-   then bootstrap the first admin (deployment guide). Until then the deployed dashboard can't
-   sign anyone in: 12c removed the driver sign-in.
+   is 12d (required config, deploy). **Spec/docs prepped 2026-10-01**, not yet applied: `staff-
+bff` and the dashboard (a static site, own subdomain `dashboard.wagon-wise.co.uk`) added to
+   `infra/digitalocean/app-spec.yaml`, with `ingress.rules` path-routing `staff-bff` under
+   `api.wagon-wise.co.uk/staff`; full runbook in `docs/deployment-guide.md` §4 step 9
+   (unverified against the real app — `doctl` wasn't available in the environment that wrote
+   it). **Deploy step still owed, needs a real `doctl`/DO console session:** apply the merged
+   spec (never the raw file, §7 bug #4), give `wagonwise_app` a password and set
+   `APP_DATABASE_URL` on `core`, set `staff-bff`'s `CORE_INTERNAL_KEY` secret, confirm both new
+   components are healthy, then bootstrap the first admin (deployment guide step 8). Until then
+   the deployed dashboard can't sign anyone in: 12c removed the driver sign-in.
 
 ## Open items (verified against the code 2026-09-28)
 
@@ -101,6 +107,10 @@ dispatch, live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-01: P2-M1.12d prepped (not deployed): `staff-bff` + the dashboard (static site, own
+  subdomain) added to `infra/digitalocean/app-spec.yaml` via `ingress.rules`; deployment-guide
+  §4 step 9 written up. `doctl` unavailable in this environment, so the actual apply/secrets/
+  bootstrap steps are still owed from a real DO session.
 - 2026-09-28: active-trip screen gains one-tap voice **Traffic** and **Mark parking** buttons
   beside the hazard mic (spoken question/read-back, files only on a spoken "yes", declines are
   discarded, no offline queue). JS-only, so it ships by `eas update`. "Report parking" renamed
