@@ -23,31 +23,19 @@ history file keeps the record.
 | M8 Field-ready                     | In progress — partly shipped 2026-09-25  | below (no breakdown written yet)       |
 | M9 Route options & safe parking    | Done — 2026-09-27                        | `history/m9-route-options-parking.md`  |
 | Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only   | below, and the Phase 2 tech design doc |
-| P2-M1 Orgs, roles, RLS, staff auth | In progress — P2-M1.12c done 2026-09-29  | `history/p2-m1-organisations-auth.md`  |
+| P2-M1 Orgs, roles, RLS, staff auth | Done — 2026-10-01                        | `history/p2-m1-organisations-auth.md`  |
 | P2-M2 Fleet (early slice)          | Vehicles + interim driver scopes, PR #48 | `history/p2-m1-organisations-auth.md`  |
 | P2-M3 Jobs core (first slice)      | Job domain model + "create job" only     | below                                  |
 
 ## Next up
 
-1. **P2-M1** (user's call 2026-09-28: start Phase 2 ahead of its entry criteria and before
-   M8 is finished). Plan, decisions and task list in `history/p2-m1-organisations-auth.md`.
-   P2-M1.1 (contracts), P2-M1.2 (permission rules), P2-M1.3 (migration 0020 + staff
-   repositories), P2-M1.4 (password hashing, TOTP, text/email codes), P2-M1.5 (staff use
-   cases), P2-M1.6 (staff tokens + core's `/staff/*` routes) and P2-M1.7 (RLS, `wagonwise_app`
-   role, per-request transaction), P2-M1.8 (admin checks moved into the use cases) and P2-M1.9
-   (`apps/staff-bff`), P2-M1.10 (dashboard staff sign-in, join, Users) and P2-M1.11 (audit
-   log), P2-M1.12a (sign-in guessing limits), P2-M1.12b (`pnpm staff:bootstrap`) and P2-M1.12c
-   (every dashboard page on the staff sign-in; driver admin flag and scopes dropped) done; next
-   is 12d (required config, deploy). **Spec/docs prepped 2026-10-01**, not yet applied: `staff-
-bff` and the dashboard (a static site, own subdomain `dashboard.wagon-wise.co.uk`) added to
-   `infra/digitalocean/app-spec.yaml`, with `ingress.rules` path-routing `staff-bff` under
-   `api.wagon-wise.co.uk/staff`; full runbook in `docs/deployment-guide.md` §4 step 9
-   (unverified against the real app — `doctl` wasn't available in the environment that wrote
-   it). **Deploy step still owed, needs a real `doctl`/DO console session:** apply the merged
-   spec (never the raw file, §7 bug #4), give `wagonwise_app` a password and set
-   `APP_DATABASE_URL` on `core`, set `staff-bff`'s `CORE_INTERNAL_KEY` secret, confirm both new
-   components are healthy, then bootstrap the first admin (deployment guide step 8). Until then
-   the deployed dashboard can't sign anyone in: 12c removed the driver sign-in.
+1. **P2-M1 is done (2026-10-01).** P2-M1.12d (required config, deploy) applied for real:
+   `staff-bff` + the dashboard deployed on DigitalOcean App Platform, `wagonwise_app`/
+   `APP_DATABASE_URL` wired up, and the first WagonWise admin successfully onboarded through
+   `pnpm staff:bootstrap` and the dashboard's join flow (deployment-guide step 8) — five real
+   bugs fixed along the way, see the Recent log entry below. Phase 2's next real milestone is
+   **P2-M3 Jobs core**; its first slice (domain model + "create job") is already done — see
+   below — the rest (dispatch use cases, events, the full 2-week scope) isn't started.
 
 ## Open items (verified against the code 2026-09-28)
 
@@ -147,8 +135,8 @@ live map, moderation, reports).
   gap, since the module-boundary rules (`companies` can't import `platform/`) make a tightly-
   scoped regression test awkward; closing it properly needs either an end-to-end test through the
   real HTTP route (like `composition/reroute-end-to-end.test.ts`) or a rule relaxation, neither
-  done yet. Still open: `pnpm staff:bootstrap` (step 8) hasn't been run yet — no WagonWise admin
-  exists on the deployed app.
+  done yet. `pnpm staff:bootstrap` (step 8) run for real after the fix: the first WagonWise admin
+  signed in through the dashboard successfully. **P2-M1 is done.**
 - 2026-10-01: P2-M3 first slice: `jobs` module (migration 0026) — see "Phase 2" below.
 - 2026-09-28: active-trip screen gains one-tap voice **Traffic** and **Mark parking** buttons
   beside the hazard mic (spoken question/read-back, files only on a spoken "yes", declines are
