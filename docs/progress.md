@@ -118,7 +118,7 @@ live map, moderation, reports).
 
 - 2026-10-01: P2-M1.12d applied for real: `staff-bff` + the dashboard (static site) deployed on
   DigitalOcean App Platform, `wagonwise_app` given a password and `APP_DATABASE_URL`/
-  `STAFF_SECRET_KEY` set on `core`. Four real bugs hit getting there, beyond the ones already in
+  `STAFF_SECRET_KEY` set on `core`. Five real bugs hit getting there, beyond the ones already in
   `docs/deployment-guide.md` §7: `APP_DATABASE_URL`'s `sslrootcert=/path/to/ca-certificate.crt`
   was a literal, unsubstituted placeholder (not a real file) — fixed by using the same
   `?sslmode=require`-only suffix as the working `DATABASE_URL`, then that hit
@@ -136,8 +136,19 @@ live map, moderation, reports).
   the extra one doubled it to `/staff/staff/...`; found via the join flow's "something went
   wrong", confirmed in `staff-bff`'s runtime logs) — fixed to the bare origin, in both the live
   env var and the checked-in spec/deployment-guide. This would have broken staff sign-in too, not
-  just joining. Still open: `pnpm staff:bootstrap` (step 8) hasn't been run yet — no WagonWise
-  admin exists on the deployed app.
+  just joining. A fifth bug was a real code defect, not a deploy-config one: confirming a staff
+  enrolment 500'd with `no transactions inside DataScopes.run: it is already one` —
+  `PostgresStaffRecoveryCodeRepository.replaceAll` opened its own `db.transaction()` while already
+  running inside `confirmStaffEnrolment`'s `DataScopes.run` scope, which rejects a nested one on
+  purpose (`platform/postgres-data-scopes.ts`). Fixed by dropping the inner transaction — the
+  scope's own already gives the delete+insert the same atomicity. No unit or integration test
+  caught this: the repository's own test calls it directly against the plain owner connection
+  (never inside a scope), and `confirmStaffEnrolment` itself has no test at all — a real coverage
+  gap, since the module-boundary rules (`companies` can't import `platform/`) make a tightly-
+  scoped regression test awkward; closing it properly needs either an end-to-end test through the
+  real HTTP route (like `composition/reroute-end-to-end.test.ts`) or a rule relaxation, neither
+  done yet. Still open: `pnpm staff:bootstrap` (step 8) hasn't been run yet — no WagonWise admin
+  exists on the deployed app.
 - 2026-10-01: P2-M3 first slice: `jobs` module (migration 0026) — see "Phase 2" below.
 - 2026-09-28: active-trip screen gains one-tap voice **Traffic** and **Mark parking** buttons
   beside the hazard mic (spoken question/read-back, files only on a spoken "yes", declines are
