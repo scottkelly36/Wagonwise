@@ -25,6 +25,7 @@ history file keeps the record.
 | Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only   | below, and the Phase 2 tech design doc |
 | P2-M1 Orgs, roles, RLS, staff auth | In progress — P2-M1.12c done 2026-09-29  | `history/p2-m1-organisations-auth.md`  |
 | P2-M2 Fleet (early slice)          | Vehicles + interim driver scopes, PR #48 | `history/p2-m1-organisations-auth.md`  |
+| P2-M3 Jobs core (first slice)      | Job domain model + "create job" only     | below                                  |
 
 ## Next up
 
@@ -93,8 +94,16 @@ surface was needed straight away:
   migration 0019), Vehicle Profiles page. Its interim driver `scopes` were replaced by staff
   privileges at P2-M1.12c (migration 0025 drops them).
 
-Staff accounts, RLS, staff auth + 2FA are P2-M1 (above). Not built: the rest of Phase 2 (jobs,
-dispatch, live map, moderation, reports).
+- **Jobs — first slice of P2-M3 (2026-10-01):** `jobs` module (migration 0026), the `Job`/
+  `JobStop`/`JobStatus` domain model from the design doc's §3 sketch, and the one "create job" use
+  case (`POST /staff/jobs/companies/:companyId/jobs`) — a job starts `draft` with its stops, no
+  driver/vehicle/route plan until dispatch assigns it. Gated by the `dispatch` privilege
+  (`companies/domain/staff-account.ts`'s `PRIVILEGES`, defined since P2-M1 but unused until now).
+  No list/get endpoint, no dashboard UI, no status transitions past `draft` — that's the rest of
+  P2-M3 (dispatch use cases, events) and P2-M4 (portal job list/assign), not built yet.
+
+Staff accounts, RLS, staff auth + 2FA are P2-M1 (above). Not built: the rest of Phase 2 (dispatch,
+live map, moderation, reports).
 
 ## Standing rules learned the hard way
 
@@ -107,10 +116,24 @@ dispatch, live map, moderation, reports).
 
 ## Recent log
 
-- 2026-10-01: P2-M1.12d prepped (not deployed): `staff-bff` + the dashboard (static site, own
-  subdomain) added to `infra/digitalocean/app-spec.yaml` via `ingress.rules`; deployment-guide
-  §4 step 9 written up. `doctl` unavailable in this environment, so the actual apply/secrets/
-  bootstrap steps are still owed from a real DO session.
+- 2026-10-01: P2-M1.12d applied for real: `staff-bff` + the dashboard (static site) deployed on
+  DigitalOcean App Platform, `api.wagon-wise.co.uk/staff/*` routing confirmed end-to-end (its own
+  auth middleware responds), `wagonwise_app` given a password and `APP_DATABASE_URL`/
+  `STAFF_SECRET_KEY` set on `core`. Three real bugs hit getting there, beyond the ones already in
+  `docs/deployment-guide.md` §7: `APP_DATABASE_URL`'s `sslrootcert=/path/to/ca-certificate.crt`
+  was a literal, unsubstituted placeholder (not a real file) — fixed by using the same
+  `?sslmode=require`-only suffix as the working `DATABASE_URL`, then that hit
+  `SELF_SIGNED_CERT_IN_CHAIN` (node-postgres doesn't skip CA verification for `sslmode=require`
+  the way libpq does) — fixed with `sslmode=no-verify`. `dashboard.wagon-wise.co.uk`'s CNAME
+  record didn't get created automatically when the domain was added to the app spec (unlike the
+  original `api` domain) and needed adding by hand. And the dashboard (a client-side React Router
+  SPA) 404ed on every route but `/` when hit directly — DigitalOcean's static site hosting needs
+  an explicit fallback for unmatched paths — fixed via the component's Custom Pages setting
+  (Catchall → `index.html`); `infra/digitalocean/app-spec.yaml`'s `static_sites` entry doesn't
+  have this yet and should get a `catchall_document: index.html` field so it's not lost on the
+  next full spec apply. Still open: `pnpm staff:bootstrap` (step 8) hasn't been run yet — no
+  WagonWise admin exists on the deployed app.
+- 2026-10-01: P2-M3 first slice: `jobs` module (migration 0026) — see "Phase 2" below.
 - 2026-09-28: active-trip screen gains one-tap voice **Traffic** and **Mark parking** buttons
   beside the hazard mic (spoken question/read-back, files only on a spoken "yes", declines are
   discarded, no offline queue). JS-only, so it ships by `eas update`. "Report parking" renamed
