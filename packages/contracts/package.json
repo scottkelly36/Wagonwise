@@ -48,6 +48,11 @@
       "types": "./dist/staff.d.ts",
       "import": "./dist/staff.js",
       "default": "./dist/staff.js"
+    },
+    "./jobs": {
+      "types": "./dist/jobs.d.ts",
+      "import": "./dist/jobs.js",
+      "default": "./dist/jobs.js"
     }
   },
   "scripts": {

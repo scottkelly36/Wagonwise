@@ -32,6 +32,7 @@ import {
   type TokenSigner,
   type UntypedDb,
 } from '../modules/identity/api.js';
+import { createJobsModule, type UntypedDb as JobsUntypedDb } from '../modules/jobs/api.js';
 import { createParkingModule, type UntypedDb as ParkingUntypedDb } from '../modules/parking/api.js';
 import {
   createRoutingModule,
@@ -170,6 +171,7 @@ export function composeCore(
   const companiesDb: CompaniesUntypedDb = identityDb;
   const parkingDb: ParkingUntypedDb = identityDb;
   const fleetDb: FleetUntypedDb = identityDb;
+  const jobsDb: JobsUntypedDb = identityDb;
 
   // hazards and identity both built before routing: routing's HazardAvoidanceQueryAdapter (M3.5)
   // and its reroute-detection handlers (M6.4) both wrap the other modules' facades — the same
@@ -211,6 +213,13 @@ export function composeCore(
     dataScopes,
     callers: { getCaller: staffCaller },
   });
+  const jobs = createJobsModule({
+    db: jobsDb,
+    ids,
+    clock,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+  });
 
   const outboxDispatcher = new OutboxDispatcher(
     platformDb,
@@ -235,6 +244,7 @@ export function composeCore(
   companies.registerRoutes(app);
   parking.registerRoutes(app);
   fleet.registerRoutes(app);
+  jobs.registerRoutes(app);
 
   return {
     app,
