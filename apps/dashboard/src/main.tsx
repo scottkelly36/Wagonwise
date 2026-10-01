@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { queryClient } from './api/query-client';
 import { App } from './App';
+import './styles/theme.css';
 
 const root = document.getElementById('root');
 if (root === null) {

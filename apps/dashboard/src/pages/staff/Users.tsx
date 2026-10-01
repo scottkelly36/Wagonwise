@@ -91,45 +91,47 @@ export function Users() {
         </p>
       )}
 
-      {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p className="error">{staffErrorMessage(error)}</p>}
 
       {members.isPending ? (
         <p>Loading…</p>
       ) : members.data?.length === 0 ? (
-        <p style={{ color: '#6b7280' }}>No users yet.</p>
+        <p className="muted">No users yet.</p>
       ) : (
-        <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              {isPlatform && <th>Account</th>}
-              <th>Privileges</th>
-              <th>Sign-in check</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {members.data?.map((member) => (
-              <MemberRow
-                key={member.id}
-                member={member}
-                isSelf={member.id === me.id}
-                isPlatform={isPlatform}
-                myPrivileges={myPrivileges}
-                saving={setPrivileges.isPending}
-                onSave={(privileges) => setPrivileges.mutate({ staffId: member.id, privileges })}
-                onRemove={() => {
-                  if (
-                    window.confirm(`Remove ${member.name}? They'll be signed out straight away.`)
-                  ) {
-                    remove.mutate(member.id);
-                  }
-                }}
-              />
-            ))}
-          </tbody>
-        </table>
+        <div className="card table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                {isPlatform && <th>Account</th>}
+                <th>Privileges</th>
+                <th>Sign-in check</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {members.data?.map((member) => (
+                <MemberRow
+                  key={member.id}
+                  member={member}
+                  isSelf={member.id === me.id}
+                  isPlatform={isPlatform}
+                  myPrivileges={myPrivileges}
+                  saving={setPrivileges.isPending}
+                  onSave={(privileges) => setPrivileges.mutate({ staffId: member.id, privileges })}
+                  onRemove={() => {
+                    if (
+                      window.confirm(`Remove ${member.name}? They'll be signed out straight away.`)
+                    ) {
+                      remove.mutate(member.id);
+                    }
+                  }}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
@@ -152,10 +154,10 @@ function MemberRow(props: {
     draft.length !== member.privileges.length || draft.some((p) => !member.privileges.includes(p));
 
   return (
-    <tr style={{ borderTop: '1px solid #e5e7eb', verticalAlign: 'top' }}>
+    <tr style={{ verticalAlign: 'top' }}>
       <td>
         {member.name}
-        {props.isSelf && <span style={{ color: '#6b7280' }}> (you)</span>}
+        {props.isSelf && <span className="muted"> (you)</span>}
       </td>
       <td>{member.email}</td>
       {props.isPlatform && (
@@ -165,7 +167,7 @@ function MemberRow(props: {
       )}
       <td>
         {member.kind === 'platform' ? (
-          <span style={{ color: '#6b7280' }}>Everything, every company</span>
+          <span className="muted">Everything, every company</span>
         ) : (
           <>
             <PrivilegeChecklist value={draft} allowed={props.myPrivileges} onChange={setDraft} />
@@ -180,7 +182,9 @@ function MemberRow(props: {
       <td>{FACTOR_LABELS[member.secondFactorMethod]}</td>
       <td>
         {!props.isSelf && (member.kind === 'fleet' || props.isPlatform) && (
-          <button onClick={props.onRemove}>Remove</button>
+          <button className="btn-danger" onClick={props.onRemove}>
+            Remove
+          </button>
         )}
       </td>
     </tr>
@@ -266,8 +270,8 @@ function InviteForm(props: {
     (kind === 'platform' || !props.isPlatform || UUID.test(companyId.trim()));
 
   return (
-    <section style={{ border: '1px solid #e5e7eb', padding: 16, marginBottom: 24, maxWidth: 560 }}>
-      <h2 style={{ marginTop: 0 }}>Invite someone</h2>
+    <section className="card" style={{ maxWidth: 560 }}>
+      <h2>Invite someone</h2>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -317,6 +321,7 @@ function InviteForm(props: {
                   <button
                     key={preset}
                     type="button"
+                    className="btn-chip"
                     onClick={() =>
                       setPrivileges(
                         PRIVILEGE_PRESETS[preset].filter((p) => props.myPrivileges.includes(p)),
@@ -341,9 +346,7 @@ function InviteForm(props: {
         </button>
       </form>
 
-      {invite.error !== null && (
-        <p style={{ color: '#dc2626' }}>{staffErrorMessage(invite.error)}</p>
-      )}
+      {invite.error !== null && <p className="error">{staffErrorMessage(invite.error)}</p>}
       {link !== undefined && (
         <div style={{ marginTop: 12 }}>
           <p>Send this link to them. It works once, expires in 7 days, and won't be shown again:</p>
