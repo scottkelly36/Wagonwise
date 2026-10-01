@@ -6,17 +6,20 @@ import type { UntypedDb } from './db.js';
 export class PostgresStaffRecoveryCodeRepository implements StaffRecoveryCodeRepository {
   constructor(private readonly db: UntypedDb) {}
 
+  // No `this.db.transaction()` here on purpose: every real caller (confirmStaffEnrolment) already
+  // runs inside a `DataScopes.run` scope, which opens its own transaction and rejects a nested one
+  // (platform/postgres-data-scopes.ts's own guard) — found as a real 500 in production,
+  // 2026-10-01 (docs/progress.md). The scope's transaction already gives this delete+insert the
+  // same atomicity a local one would.
   async replaceAll(staffId: StaffId, codeHashes: readonly string[]): Promise<void> {
-    await this.db.transaction().execute(async (trx) => {
-      await sql`delete from companies.staff_recovery_codes where staff_id = ${staffId}`.execute(
-        trx,
-      );
-      for (const hash of codeHashes) {
-        await sql`
-          insert into companies.staff_recovery_codes (staff_id, code_hash) values (${staffId}, ${hash})
-        `.execute(trx);
-      }
-    });
+    await sql`delete from companies.staff_recovery_codes where staff_id = ${staffId}`.execute(
+      this.db,
+    );
+    for (const hash of codeHashes) {
+      await sql`
+        insert into companies.staff_recovery_codes (staff_id, code_hash) values (${staffId}, ${hash})
+      `.execute(this.db);
+    }
   }
 
   /** One statement, so two simultaneous uses of the same code can't both succeed. */
