@@ -188,7 +188,11 @@ static_sites:
     envs:
       # VITE_STAFF_BFF_URL is inlined into the built JS at BUILD_TIME (Vite's own convention,
       # config.ts's own comment) — a plain (non-secret) env var, since it's just a public URL
-      # that ends up in the shipped bundle regardless.
+      # that ends up in the shipped bundle regardless. The BARE origin, no /staff suffix: every
+      # staff-bff route is registered with its own /staff/... prefix already (api/staff.ts), and
+      # the ingress rule's preserve_path_prefix forwards that prefix through unchanged — adding
+      # it here too doubles it to /staff/staff/... and 404s every request (found and fixed for
+      # real 2026-10-01, docs/progress.md).
       - key: VITE_STAFF_BFF_URL
         scope: BUILD_TIME
-        value: https://api.wagon-wise.co.uk/staff
+        value: https://api.wagon-wise.co.uk

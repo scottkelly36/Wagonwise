@@ -240,8 +240,12 @@ update --spec` before applying it):
 dist`), on its own subdomain `dashboard.wagon-wise.co.uk` (also added to `domains:` in the
      spec) rather than a path under the API domain, so its client-side routes
      (`/fleet`, `/admin/companies`, …) never need a basename. `VITE_STAFF_BFF_URL` is baked in
-     at build time to `https://api.wagon-wise.co.uk/staff` — not a secret (it ends up in the
-     shipped JS regardless), set in the spec file directly.
+     at build time to `https://api.wagon-wise.co.uk` (the **bare origin, no `/staff` suffix** —
+     every staff-bff route already carries its own `/staff/...` prefix in `api/staff.ts`, and
+     the ingress rule's `preserve_path_prefix` forwards that prefix through unchanged, so adding
+     it here too doubles it to `/staff/staff/...` and 404s every request; found and fixed for
+     real 2026-10-01, `docs/progress.md`) — not a secret (it ends up in the shipped JS
+     regardless), set in the spec file directly.
    - **`APP_DATABASE_URL`, the Row-Level Security role (P2-M1.7).** Migration 0021 creates
      `wagonwise_app` (owns no tables, so RLS actually applies to it — the owner role bypasses
      RLS) with no password. Give it one once, connected as `doadmin` (DO console → the cluster →
