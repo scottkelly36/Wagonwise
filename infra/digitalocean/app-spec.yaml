@@ -1,13 +1,20 @@
-# DigitalOcean App Platform spec for `core` + `driver-bff`, created via:
+# DigitalOcean App Platform spec for `core` + `driver-bff` + `staff-bff` + `dashboard`, created
+# via:
 #   doctl apps create --spec infra/digitalocean/app-spec.yaml
 #
-# No secrets in this file on purpose — env vars (DATABASE_URL, IDENTITY_PRIVATE_KEY,
-# INTERNAL_KEYS/CORE_INTERNAL_KEY, VALHALLA_URL, ANTHROPIC_API_KEY, CLICKSEND_USERNAME,
-# CLICKSEND_API_KEY) get added after creation, via the DO console's per-component
-# "Environment variables" panel or `doctl apps update`, never written here or committed.
+# No secrets in this file on purpose — env vars (DATABASE_URL, APP_DATABASE_URL,
+# IDENTITY_PRIVATE_KEY, INTERNAL_KEYS/CORE_INTERNAL_KEY, STAFF_SECRET_KEY, VALHALLA_URL,
+# ANTHROPIC_API_KEY, CLICKSEND_USERNAME, CLICKSEND_API_KEY) get added after creation, via the DO
+# console's per-component "Environment variables" panel or `doctl apps update`, never written
+# here or committed.
 # See docs/deployment-guide.md for the full checklist, including §7 bug #3: the `vpc` field
 # below is required for `core` to reach the Valhalla droplet's private IP at all — without it
 # the app has no route into the droplet's VPC and every routing request times out.
+# NEVER apply this file directly with `doctl apps update --spec` once the app is live — it has
+# no top-level `envs:` on purpose, and that command treats the submitted file as the complete,
+# authoritative spec, which wipes every App-Level environment variable not in it (§7 bug #4).
+# Fetch the live spec first (`doctl apps spec get <app-id>`), merge this file's changes into
+# it, and apply the merged version instead.
 name: wagonwise-backend
 region: lon1
 vpc:
@@ -15,6 +22,46 @@ vpc:
 domains:
   - domain: api.wagon-wise.co.uk
     type: PRIMARY
+  # The dashboard SPA gets its own subdomain rather than a path under api.wagon-wise.co.uk —
+  # react-router's client-side routes (e.g. /fleet, /admin/companies) would otherwise need a
+  # basename and every asset path rewritten for no real benefit (P2-M1.12d).
+  - domain: dashboard.wagon-wise.co.uk
+    type: ALIAS
+# App Platform's per-component `routes:` field is path-only and shared across every domain
+# pointed at the app — on its own it can't say "driver-bff/staff-bff answer
+# api.wagon-wise.co.uk, dashboard answers dashboard.wagon-wise.co.uk". `ingress.rules` is DO's
+# documented mechanism for binding a specific domain *and* path to a specific component; once
+# it's present it's authoritative and each component's own `routes:` below is redundant (kept
+# only on driver-bff/staff-bff as the pre-ingress fallback, harmless either way). Rule order
+# matters: the more specific `/staff` prefix must come before the catch-all `/`.
+# UNVERIFIED (P2-M1.12d) — written from DO's documented ingress schema, not yet applied to the
+# real app (doctl is unavailable in the environment this was written in). Run
+# `doctl apps spec validate -f infra/digitalocean/app-spec.yaml` before applying for real, and
+# re-check this section against DO's current docs if that fails.
+ingress:
+  rules:
+    - match:
+        authority:
+          exact: api.wagon-wise.co.uk
+        path:
+          prefix: /staff
+      component:
+        name: staff-bff
+        preserve_path_prefix: true
+    - match:
+        authority:
+          exact: api.wagon-wise.co.uk
+        path:
+          prefix: /
+      component:
+        name: driver-bff
+    - match:
+        authority:
+          exact: dashboard.wagon-wise.co.uk
+        path:
+          prefix: /
+      component:
+        name: dashboard
 jobs:
   # Runs once before core/driver-bff's new deployment goes live (DO App Platform's PRE_DEPLOY
   # job kind) — if this fails, the deploy aborts and the old version stays up, so a bad migration
@@ -84,3 +131,59 @@ services:
       - key: NODE_ENV
         scope: RUN_AND_BUILD_TIME
         value: production
+  # The dashboard's only back end (P2-M1.9/P2-M1.12c) — public (the dashboard calls it from the
+  # browser), but only ever at api.wagon-wise.co.uk/staff/* (see `ingress` above), never at the
+  # bare domain root the way driver-bff is.
+  - name: staff-bff
+    github:
+      repo: scottkelly36/Wagonwise
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: apps/staff-bff/Dockerfile
+    source_dir: /
+    http_port: 3003
+    routes:
+      - path: /staff
+        preserve_path_prefix: true
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    health_check:
+      http_path: /health
+      port: 3003
+    envs:
+      - key: HOST
+        scope: RUN_AND_BUILD_TIME
+        value: 0.0.0.0
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: production
+      - key: CORE_INTERNAL_URL
+        scope: RUN_AND_BUILD_TIME
+        value: http://core:3001
+      # TRUST_PROXY_HOPS=1: DO App Platform's own router is the one hop in front of this
+      # service, so request.ip (the sign-in rate limit's key) reads the real caller, not DO's
+      # router — see config.ts's own comment.
+      - key: TRUST_PROXY_HOPS
+        scope: RUN_AND_BUILD_TIME
+        value: '1'
+      - key: DASHBOARD_ORIGIN
+        scope: RUN_AND_BUILD_TIME
+        value: https://dashboard.wagon-wise.co.uk
+      # CORE_INTERNAL_KEY: encrypted secret, set after creation — must match one of core's
+      # INTERNAL_KEYS, same as driver-bff's own copy.
+static_sites:
+  - name: dashboard
+    github:
+      repo: scottkelly36/Wagonwise
+      branch: main
+      deploy_on_push: true
+    source_dir: /
+    build_command: pnpm install --frozen-lockfile --filter "@wagonwise/dashboard..." && pnpm --filter "@wagonwise/dashboard..." run build
+    output_dir: apps/dashboard/dist
+    envs:
+      # VITE_STAFF_BFF_URL is inlined into the built JS at BUILD_TIME (Vite's own convention,
+      # config.ts's own comment) — a plain (non-secret) env var, since it's just a public URL
+      # that ends up in the shipped bundle regardless.
+      - key: VITE_STAFF_BFF_URL
+        scope: BUILD_TIME
+        value: https://api.wagon-wise.co.uk/staff

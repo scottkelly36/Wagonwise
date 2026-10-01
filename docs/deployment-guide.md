@@ -223,7 +223,41 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
    only, through `staff-bff`. Deploy `staff-bff` and point the dashboard at it
    (`VITE_STAFF_BFF_URL`) before or with 12c, and run this step straight after, or nobody can
    use the dashboard in between. Former driver admins are invited again from Users. Steps for
-   `staff-bff` itself come with P2-M1.12d.
+   `staff-bff` itself are step 9, below — do that step (and the `APP_DATABASE_URL` half of it)
+   **before** this one.
+9. **`staff-bff` + the dashboard itself (P2-M1.12d).** Neither had a deploy story before this —
+   the dashboard has only ever been run locally against local `staff-bff`/`core`. Spec changes
+   for both are in `infra/digitalocean/app-spec.yaml` (unverified against the real app as
+   written — see that file's own header comment and §7 bug #4's warning about `doctl apps
+update --spec` before applying it):
+   - **`staff-bff`** joins `core`/`driver-bff` as a third component on the same
+     `wagonwise-backend` app, reachable at `api.wagon-wise.co.uk/staff/*` (path-routed via the
+     spec's `ingress.rules`, not its own subdomain — its own routes are already namespaced under
+     `/staff`). Needs `CORE_INTERNAL_KEY` set as an encrypted secret, matching one of `core`'s
+     `INTERNAL_KEYS` (same value `driver-bff` already uses works fine — `INTERNAL_KEYS` accepts
+     more than one at once, decision 11).
+   - **The dashboard** is a static site (no Dockerfile — `vite build`'s output, `apps/dashboard/
+dist`), on its own subdomain `dashboard.wagon-wise.co.uk` (also added to `domains:` in the
+     spec) rather than a path under the API domain, so its client-side routes
+     (`/fleet`, `/admin/companies`, …) never need a basename. `VITE_STAFF_BFF_URL` is baked in
+     at build time to `https://api.wagon-wise.co.uk/staff` — not a secret (it ends up in the
+     shipped JS regardless), set in the spec file directly.
+   - **`APP_DATABASE_URL`, the Row-Level Security role (P2-M1.7).** Migration 0021 creates
+     `wagonwise_app` (owns no tables, so RLS actually applies to it — the owner role bypasses
+     RLS) with no password. Give it one once, connected as `doadmin` (DO console → the cluster →
+     Connection details → psql): `alter role wagonwise_app with login password '<openssl rand
+-base64 24>';`. Then set `APP_DATABASE_URL` on `core` only (encrypted secret): the same
+     connection string as `DATABASE_URL` with `doadmin` and its password swapped for
+     `wagonwise_app` and the new one (keep `?sslmode=require`). Leave `DATABASE_URL` as-is — the
+     `migrate` job and `pnpm staff:bootstrap` (step 8) both need the owner role, never the
+     app role. Until `APP_DATABASE_URL` is set, `core` keeps serving on `DATABASE_URL` exactly
+     as before (no RLS enforcement) — not a security hole today (nothing company-scoped is
+     exposed yet beyond what admin-only gates already cover), but it is the point of P2-M1.7, so
+     don't leave it unset longer than it takes to do this step.
+   - Apply the updated app spec (merged into the live one, never the raw file — §7 bug #4),
+     confirm `staff-bff` and `dashboard` both come up healthy
+     (`https://api.wagon-wise.co.uk/staff/health`, `https://dashboard.wagon-wise.co.uk`), then
+     do step 8 (bootstrap the first admin).
 
 ## 5. Pricing (DigitalOcean, starting tiers)
 
@@ -231,9 +265,11 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
 | --------------------------- | ---------------------------------- | ----------- |
 | App Platform — `core`       | Basic, 1 vCPU shared / 512 MiB     | $5          |
 | App Platform — `driver-bff` | Basic, 1 vCPU shared / 512 MiB     | $5          |
+| App Platform — `staff-bff`  | Basic, 1 vCPU shared / 512 MiB     | $5          |
+| App Platform — `dashboard`  | Static site (no compute charge)    | $0          |
 | Managed PostgreSQL          | Standard single-node, 1 GiB        | $15         |
 | Droplet — Valhalla          | Basic, 2 GiB / 1 vCPU / 50 GiB SSD | $12         |
-| **Total**                   |                                    | **~$37/mo** |
+| **Total**                   |                                    | **~$42/mo** |
 
 Bump the Valhalla droplet to 4 GiB ($24/mo) if the tile build needs more RAM than 2 GiB gives
 it — county-sized extracts are usually fine at 2 GiB, but this wasn't tested against the real
