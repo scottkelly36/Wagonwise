@@ -180,6 +180,11 @@ static_sites:
     source_dir: /
     build_command: pnpm install --frozen-lockfile --filter "@wagonwise/dashboard..." && pnpm --filter "@wagonwise/dashboard..." run build
     output_dir: apps/dashboard/dist
+    # The dashboard is a client-side React Router SPA (BrowserRouter): without this, DO's static
+    # site hosting 404s on every route but `/` when hit directly (bookmark, refresh, shared link)
+    # — found and fixed for real 2026-10-01 (docs/progress.md), via the console's own Custom
+    # Pages setting; added here so it isn't lost the next time the live spec is fully reapplied.
+    catchall_document: index.html
     envs:
       # VITE_STAFF_BFF_URL is inlined into the built JS at BUILD_TIME (Vite's own convention,
       # config.ts's own comment) — a plain (non-secret) env var, since it's just a public URL
