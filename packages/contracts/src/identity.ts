@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { brandedId } from './brand.js';
-import { companyIdSchema } from './companies.js';
 
 export const driverIdSchema = brandedId<'DriverId'>();
 export type DriverId = z.infer<typeof driverIdSchema>;
@@ -31,33 +30,11 @@ export const driverSchema = z.object({
   /** Retired (P2-M1.12c): admin screens are for staff accounts now, and no driver is an admin.
    *  Core always sends `false`; the field stays because released driver-app builds require it. */
   isAdmin: z.boolean(),
-  /** A driver belongs to at most one company at a time (2026-09-27: "one driver, one company,
-   *  but drivers change jobs so they can change companies") — absent until an admin assigns one.
-   *  No history of past companies is kept. */
-  companyId: companyIdSchema.optional(),
   /** Retired with `isAdmin` (P2-M1.12c): core always sends `[]`, for the same released builds.
    *  Staff privileges live on staff accounts (`staff.ts`). */
   scopes: z.array(z.string()),
 });
 export type DriverDto = z.infer<typeof driverSchema>;
-
-export const listDriversResponseSchema = z.object({
-  drivers: z.array(driverSchema),
-});
-export type ListDriversResponse = z.infer<typeof listDriversResponseSchema>;
-
-/** WagonWise admins only (`PATCH /staff/drivers/:id`). `companyId: null` clears an existing
- *  assignment; omitting the field leaves it unchanged — plain PATCH semantics, not a reset to
- *  "no company" by default. */
-export const updateDriverRequestSchema = z.object({
-  companyId: companyIdSchema.nullable().optional(),
-});
-export type UpdateDriverRequest = z.infer<typeof updateDriverRequestSchema>;
-
-export const driverIdParamsSchema = z.object({
-  id: z.uuid(),
-});
-export type DriverIdParams = z.infer<typeof driverIdParamsSchema>;
 
 /** The invite-codes admin screen (2026-09-27) — a code is client-opaque, never parsed or
  *  constructed by a caller, so there's no separate branded id schema the way `CompanyId` has

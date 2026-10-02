@@ -1,10 +1,6 @@
 import type { Id } from '../../../shared/brand.js';
 
 export type DriverId = Id<'DriverId'>;
-/** Same brand name as companies' own `CompanyId` (decision 46) — declared here rather than
- *  imported, since identity's `application/update-driver.ts` is the one place this field is
- *  ever set. */
-export type CompanyId = Id<'CompanyId'>;
 
 /** A signed-in tester. Phase 1 has no profile beyond the identifier they signed in with. */
 export interface Driver {
@@ -20,12 +16,10 @@ export interface Driver {
    *  hold this id too), but `identifier` is overwritten with an opaque placeholder by
    *  `anonymize()`, so the only real PII on a Driver no longer exists anywhere. */
   readonly deletedAt?: Date | undefined;
-  /** A driver belongs to at most one company at a time (2026-09-27: "one driver, one company,
-   *  but drivers change jobs so they can change companies") — unset until an admin assigns one,
-   *  via `application/update-driver.ts`. No history of past companies is kept. */
-  readonly companyId?: CompanyId | undefined;
   // No admin flag or privileges here since P2-M1.12c: dashboard access belongs to staff
   // accounts (the `companies` module), never to a driver.
+  // No company here either, since P2-M2.8: a driver's companies are `fleet.driver_links`
+  // (several at once, each with its own decided history), not a single column on this record.
 }
 
 export function consent(driver: Driver, now: Date): Driver {

@@ -1,10 +1,8 @@
 import {
-  driverIdParamsSchema,
   refreshTokenRequestSchema,
   registerDeviceRequestSchema,
   requestOtpRequestSchema,
   revokeSessionParamsSchema,
-  updateDriverRequestSchema,
   verifyOtpRequestSchema,
 } from '@wagonwise/contracts/identity';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -12,13 +10,11 @@ import { makeId, type Id } from '../../../shared/brand.js';
 import { createInviteCode, type CreateInviteCodeDeps } from '../application/create-invite-code.js';
 import { deleteAccount, type DeleteAccountDeps } from '../application/delete-account.js';
 import { giveConsent, type GiveConsentDeps } from '../application/give-consent.js';
-import { listDrivers, type ListDriversDeps } from '../application/list-drivers.js';
 import { listInviteCodes, type ListInviteCodesDeps } from '../application/list-invite-codes.js';
 import { refreshToken, type RefreshTokenDeps } from '../application/refresh-token.js';
 import { registerDevice, type RegisterDeviceDeps } from '../application/register-device.js';
 import { requestOtp, type RequestOtpDeps } from '../application/request-otp.js';
 import { revokeSession, type RevokeSessionDeps } from '../application/revoke-session.js';
-import { updateDriver, type UpdateDriverDeps } from '../application/update-driver.js';
 import { verifyOtp, type VerifyOtpDeps } from '../application/verify-otp.js';
 import type { TokenSigner } from '../application/ports/token-signer.js';
 import { statusFor } from './error-mapping.js';
@@ -31,8 +27,6 @@ export interface IdentityRouteDeps {
   readonly registerDevice: RegisterDeviceDeps;
   readonly giveConsent: GiveConsentDeps;
   readonly deleteAccount: DeleteAccountDeps;
-  readonly listDrivers: ListDriversDeps;
-  readonly updateDriver: UpdateDriverDeps;
   readonly createInviteCode: CreateInviteCodeDeps;
   readonly listInviteCodes: ListInviteCodesDeps;
   readonly tokenSigner: TokenSigner;
@@ -43,17 +37,16 @@ function driverDto(driver: {
   readonly identifier: string;
   readonly createdAt: Date;
   readonly consentedAt?: Date | undefined;
-  readonly companyId?: string | undefined;
 }) {
   return {
     id: driver.id,
     identifier: driver.identifier,
     createdAt: driver.createdAt,
     ...(driver.consentedAt === undefined ? {} : { consentedAt: driver.consentedAt }),
-    // Drivers have had no admin flag or privileges since P2-M1.12c. Still sent, always false and
-    // empty, so driver-app builds already installed keep parsing the sign-in response.
+    // Drivers have had no admin flag or privileges since P2-M1.12c, and no single `companyId`
+    // since P2-M2.8 (replaced by fleet.driver_links). Still sent, always false/empty, so
+    // driver-app builds already installed keep parsing the sign-in response.
     isAdmin: false,
-    ...(driver.companyId === undefined ? {} : { companyId: driver.companyId }),
     scopes: [],
   };
 }
@@ -213,48 +206,8 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
   });
 
   // ---- WagonWise admin screens (staff tokens, P2-M1.12c) --------------------------------
-
-  // The driver-accounts screen: every driver, for a WagonWise admin to assign a company to.
-  app.get('/staff/drivers', async (request, reply) => {
-    const staffId = requireStaffId(request, reply);
-    if (staffId === undefined) return reply;
-
-    const result = await listDrivers(deps.listDrivers, { callerId: staffId });
-    if (!result.ok) {
-      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
-    }
-    return reply.status(200).send({ drivers: result.value.map(driverDto) });
-  });
-
-  // Assigns a driver to a company, or clears it. Checked in the use case before the target is
-  // looked up, so nobody but a WagonWise admin learns whether an id exists.
-  app.patch('/staff/drivers/:id', async (request, reply) => {
-    const staffId = requireStaffId(request, reply);
-    if (staffId === undefined) return reply;
-
-    const params = driverIdParamsSchema.safeParse(request.params);
-    if (!params.success) {
-      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
-    }
-    const body = updateDriverRequestSchema.safeParse(request.body);
-    if (!body.success) {
-      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
-    }
-    const result = await updateDriver(deps.updateDriver, {
-      callerId: staffId,
-      id: makeId<'DriverId'>(params.data.id),
-      ...(body.data.companyId === undefined
-        ? {}
-        : {
-            companyId:
-              body.data.companyId === null ? null : makeId<'CompanyId'>(body.data.companyId),
-          }),
-    });
-    if (!result.ok) {
-      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
-    }
-    return reply.status(200).send(driverDto(result.value));
-  });
+  // The driver-accounts screen (every driver, assign a company) was here until P2-M2.8, when
+  // fleet.driver_links replaced the single `drivers.company_id` it edited.
 
   // The invite-codes screen's "Generate code" action.
   app.post('/staff/invite-codes', async (request, reply) => {

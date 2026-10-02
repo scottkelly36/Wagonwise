@@ -17,10 +17,6 @@ export class InMemoryDriverRepository implements DriverRepository {
     return Promise.resolve(this.#byId.get(id) ?? null);
   }
 
-  findAll(): Promise<Driver[]> {
-    return Promise.resolve([...this.#byId.values()]);
-  }
-
   save(driver: Driver): Promise<void> {
     this.#byId.set(driver.id, driver);
     return Promise.resolve();

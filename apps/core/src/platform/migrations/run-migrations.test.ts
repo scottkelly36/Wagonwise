@@ -59,6 +59,7 @@ describe('runMigrations', () => {
       '0026_jobs.sql',
       '0027_jobs_one_active_per_driver.sql',
       '0028_fleet_driver_links.sql',
+      '0029_drop_identity_drivers_company_id.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -138,11 +139,12 @@ describe('runMigrations', () => {
       'staff_sessions',
     ]);
 
+    // P2-M2.8: dropped in favour of fleet.driver_links, which can hold several companies.
     const { rows: driverColumns } = await pool.query<{ column_name: string }>(
       `select column_name from information_schema.columns
        where table_schema = 'identity' and table_name = 'drivers' and column_name = 'company_id'`,
     );
-    expect(driverColumns).toHaveLength(1);
+    expect(driverColumns).toHaveLength(0);
 
     const { rows: extensions } = await pool.query<{ extname: string }>(
       "select extname from pg_extension where extname = 'postgis'",
@@ -193,6 +195,7 @@ describe('runMigrations', () => {
       '0026_jobs.sql',
       '0027_jobs_one_active_per_driver.sql',
       '0028_fleet_driver_links.sql',
+      '0029_drop_identity_drivers_company_id.sql',
     ]);
   });
 });

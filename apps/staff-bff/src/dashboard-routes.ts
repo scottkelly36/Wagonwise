@@ -8,7 +8,6 @@ import {
   updateFleetVehicleRequestSchema,
 } from '@wagonwise/contracts/fleet';
 import { hazardReportIdParamsSchema } from '@wagonwise/contracts/hazards';
-import { driverIdParamsSchema, updateDriverRequestSchema } from '@wagonwise/contracts/identity';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticateOrReject } from './auth/authenticate.js';
@@ -30,13 +29,6 @@ const FORWARDS: readonly Forward[] = [
   // WagonWise admins only; core decides.
   { method: 'GET', path: '/staff/companies', params: noParams },
   { method: 'POST', path: '/staff/companies', params: noParams, body: createCompanyRequestSchema },
-  { method: 'GET', path: '/staff/drivers', params: noParams },
-  {
-    method: 'PATCH',
-    path: '/staff/drivers/:id',
-    params: driverIdParamsSchema,
-    body: updateDriverRequestSchema,
-  },
   { method: 'GET', path: '/staff/invite-codes', params: noParams },
   { method: 'POST', path: '/staff/invite-codes', params: noParams },
   { method: 'GET', path: '/staff/hazard-reports', params: noParams },

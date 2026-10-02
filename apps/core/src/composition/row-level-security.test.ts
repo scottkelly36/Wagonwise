@@ -321,7 +321,7 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
     });
   });
 
-  it('every table with a company_id has RLS, except those knowingly left for later', async () => {
+  it('every table with a company_id has RLS', async () => {
     const { rows } = await ownerPool.query<{ name: string }>(`
       select c.table_schema || '.' || c.table_name as name
       from information_schema.columns c
@@ -329,7 +329,8 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
       join pg_namespace n on n.oid = t.relnamespace and n.nspname = c.table_schema
       where c.column_name = 'company_id' and t.relkind = 'r' and not t.relrowsecurity
       order by 1`);
-    // identity.drivers.company_id is replaced by driver-company links in P2-M2, with RLS then.
-    expect(rows.map((r) => r.name)).toEqual(['identity.drivers']);
+    // identity.drivers.company_id (the one knowing exception here) is gone as of P2-M2.8,
+    // replaced by fleet.driver_links, which does have RLS (migration 0028).
+    expect(rows.map((r) => r.name)).toEqual([]);
   });
 });

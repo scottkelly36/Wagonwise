@@ -22,8 +22,6 @@ function buildApp(): { app: FastifyInstance; core: FakeCoreClient } {
 const VALID = [
   ['GET', '/staff/companies', undefined],
   ['POST', '/staff/companies', { id: ACME, name: 'Acme' }],
-  ['GET', '/staff/drivers', undefined],
-  ['PATCH', `/staff/drivers/${ID}`, { companyId: ACME }],
   ['GET', '/staff/invite-codes', undefined],
   ['POST', '/staff/invite-codes', undefined],
   ['GET', '/staff/hazard-reports', undefined],
@@ -80,7 +78,6 @@ describe('the moved dashboard pages (P2-M1.12c)', () => {
   );
 
   it.each([
-    ['PATCH', '/staff/drivers/not-a-uuid', { companyId: ACME }],
     ['DELETE', '/staff/hazard-reports/1', undefined],
     ['GET', '/staff/fleet/companies/acme/vehicles', undefined],
     ['POST', `/staff/fleet/companies/${ACME}/vehicles`, { companyId: ACME, name: 'No sizes' }],
@@ -102,16 +99,5 @@ describe('the moved dashboard pages (P2-M1.12c)', () => {
     });
     expect(res.statusCode).toBe(400);
     expect(core.calls).toEqual([]);
-  });
-
-  it("strips the driver's retired admin fields, so only a company change reaches core", async () => {
-    const { app, core } = buildApp();
-    await app.inject({
-      method: 'PATCH',
-      url: `/staff/drivers/${ID}`,
-      headers: AUTH,
-      payload: { companyId: null, isAdmin: true, scopes: ['manage_fleet'] },
-    });
-    expect(core.calls[0]?.body).toEqual({ companyId: null });
   });
 });

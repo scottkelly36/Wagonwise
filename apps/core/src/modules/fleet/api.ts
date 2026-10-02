@@ -45,6 +45,9 @@ export interface FleetModule {
   /** The company a vehicle belongs to, or null. For `jobs' vehicle directory, supplied by
    *  composition (AGENTS.md rule 7). */
   getVehicleCompanyId(vehicleId: string): Promise<string | null>;
+  /** Whether the driver has an active link with the company (P2-M2.8). For `jobs`' driver
+   *  directory, supplied by composition — replaces identity's old single `drivers.company_id`. */
+  isActiveDriverOfCompany(driverId: string, companyId: string): Promise<boolean>;
 }
 
 /**
@@ -91,6 +94,9 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
     async getVehicleCompanyId(vehicleId: string): Promise<string | null> {
       const vehicle = await repo.findById(makeId<'FleetVehicleId'>(vehicleId));
       return vehicle?.companyId ?? null;
+    },
+    isActiveDriverOfCompany(driverId: string, companyId: string): Promise<boolean> {
+      return links.isActive(makeId<'CompanyId'>(companyId), makeId<'DriverId'>(driverId));
     },
   };
 }

@@ -1,8 +1,8 @@
 # P2-M2 Driver links: joining a company
 
 Scoped 2026-10-02 from the Phase 2 tech design doc §3 (`FleetDriver`, `DriverJoinedFleet`,
-`DriverLeftFleet`, `VehicleAdded`) and the user's product direction below. **Status: planned, not
-started.** The vehicles half of P2-M2 shipped early (PR #48, `fleet` module).
+`DriverLeftFleet`, `VehicleAdded`) and the user's product direction below. **Status: done,
+2026-10-02** (M2.1-2.8). The vehicles half of P2-M2 shipped early (PR #48, `fleet` module).
 
 ## Decisions (user's calls, 2026-10-02)
 
@@ -47,30 +47,27 @@ started.** The vehicles half of P2-M2 shipped early (PR #48, `fleet` module).
 
 ## Plan
 
-**Done so far: M2.1 (contracts), M2.2 (domain), M2.3 (migration 0028), M2.4 (use cases and
-repositories), M2.5 (driver routes and proxy), M2.6 (staff routes and the Drivers page) and M2.7
-(driver app screens), 2026-10-02.** The link state machine and the company-code rules are pure and tested; the
-contracts are in `packages/contracts/src/fleet.ts`. Migration 0028 creates both tables with
-row-level security, backfills an active link for every driver already assigned a company (tested
-against pre-existing data), and leaves `drivers.company_id` for the cut-over.
+**All of M2.1-2.8 done, 2026-10-02.** The link state machine and the company-code rules are pure
+and tested; the contracts are in `packages/contracts/src/fleet.ts`. Migration 0028 creates both
+tables with row-level security and backfills an active link for every driver already assigned a
+company; migration 0029 (M2.8) then drops `drivers.company_id` itself, once nothing reads it any
+more.
 
-| #       | Task                                                                                                                                                                                  |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P2-M2.1 | Contracts: link and code DTOs, invite / request / respond / approve / reject / leave requests.                                                                                        |
-| P2-M2.2 | Domain: the link state machine (pure, exhaustively tested), code generation and normalisation.                                                                                        |
-| P2-M2.3 | Migration: `fleet.driver_links` and `fleet.company_codes` with RLS and grants; copy each existing `identity.drivers.company_id` across as an `active` link.                           |
-| P2-M2.4 | Use cases: invite, join with code, respond to an invitation, approve / reject, leave / remove, regenerate code, list. Events: `DriverJoinedFleet`, `DriverLeftFleet`, `VehicleAdded`. |
-| P2-M2.5 | Driver side in core: list my invitations, join with a code, respond, leave, list my companies (driver auth). Code attempts rate-limited. `driver-bff` proxies them.                   |
-| P2-M2.6 | ~~Staff routes and the dashboard **Drivers** page: invite, pending requests (approve / reject), active drivers (remove), the company code (show, regenerate).~~ Done.                 |
-| P2-M2.7 | ~~Driver app: "Join a company" (enter a code), invitations list, which companies I'm with, leave. JS-only, so it ships by `eas update`.~~ Done.                                       |
-| P2-M2.8 | Cut over: jobs' driver directory reads active links; the driver-accounts admin screen and `drivers.company_id` go; the RLS safety test loses its `identity.drivers` exception.        |
+| #       | Task                                                                                                                                                                                     |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2-M2.1 | Contracts: link and code DTOs, invite / request / respond / approve / reject / leave requests.                                                                                           |
+| P2-M2.2 | Domain: the link state machine (pure, exhaustively tested), code generation and normalisation.                                                                                           |
+| P2-M2.3 | Migration: `fleet.driver_links` and `fleet.company_codes` with RLS and grants; copy each existing `identity.drivers.company_id` across as an `active` link.                              |
+| P2-M2.4 | Use cases: invite, join with code, respond to an invitation, approve / reject, leave / remove, regenerate code, list. Events: `DriverJoinedFleet`, `DriverLeftFleet`, `VehicleAdded`.    |
+| P2-M2.5 | Driver side in core: list my invitations, join with a code, respond, leave, list my companies (driver auth). Code attempts rate-limited. `driver-bff` proxies them.                      |
+| P2-M2.6 | ~~Staff routes and the dashboard **Drivers** page: invite, pending requests (approve / reject), active drivers (remove), the company code (show, regenerate).~~ Done.                    |
+| P2-M2.7 | ~~Driver app: "Join a company" (enter a code), invitations list, which companies I'm with, leave. JS-only, so it ships by `eas update`.~~ Done.                                          |
+| P2-M2.8 | ~~Cut over: jobs' driver directory reads active links; the driver-accounts admin screen and `drivers.company_id` go; the RLS safety test loses its `identity.drivers` exception.~~ Done. |
 
 ## Open items
 
 - Driver app work (M2.7) is the first change to the app since the field-test builds; it still
   needs a JS-only `eas update` and a check on a real device — not done this session.
-- Whether the old `drivers.company_id` is dropped in the same release as the cut-over (M2.8) or a
-  release later. Leaning same release: only the admin screen and the jobs lookup use it.
 - Emailing or texting invitations: invites appear in the app only at first, matching how staff
   invites work today (nothing is sent). A notification when someone is invited is a later addition.
 
@@ -89,3 +86,13 @@ Staff routes folded into `fleet/interface/routes.ts` alongside vehicles (same `r
 ## M2.7 notes
 
 Driver app screens, under a new `app/companies/` route (mirroring `app/profiles/`): `companies/index.tsx` lists invitations (accept/decline), requests still waiting on staff (withdraw), and active companies (leave, with a confirm alert) — three sections over the one `GET /fleet/links` call, filtered client-side by status; declined/left links are fetched too (M2.5's `listForDriver` returns full history) but aren't shown, since there's nothing actionable about them. `companies/join.tsx` is the "enter a code" form (same shape as `feedback.tsx`'s single-field screen). Reached from `settings.tsx`'s new "My companies" button, next to "Vehicle profiles". `api/fleet.ts` + `api/use-fleet.ts` + a `fleetErrorMessage` in `lib/error-messages.ts` follow the exact pattern `api/routing.ts`/`api/use-vehicle-profiles.ts` set. No native config touched (JS-only, matches the M2.7 plan's `eas update` note) — not yet actually shipped by `eas update` or checked on a real device this session.
+
+## M2.8 notes
+
+The actual cut-over, closing out P2-M2:
+
+- **`jobs`'s driver directory** (`application/ports/directories.ts`'s `DriverDirectory.belongsToCompany`, the only thing `assignJob` checks) now runs on fleet: a new `DriverLinkRepository.isActive(companyId, driverId)` (a plain `exists(...)` query — `findLive` already covers invited/requested/active together, but assigning a job needs _active_ specifically) backs a new `FleetModule.isActiveDriverOfCompany`, mirroring `getVehicleCompanyId`'s shape. `compose-core.ts` swaps `drivers.belongsToCompany` from `identity.getDriverCompanyId(...) === companyId` to `fleet.isActiveDriverOfCompany(...)` — one line, but it's the whole point of the milestone. Proven for real (not just type-checked) by extending `composition/jobs-dispatch-end-to-end.test.ts` to wire the actual `fleet` module (not a stub) and add a case: a driver who only _requested_ to join (never approved) still gets `DriverNotInCompany` (400) on assign.
+- **Migration 0029** drops `identity.drivers.company_id` outright. `identity`'s `update-driver.ts` and `list-drivers.ts` (the whole reason that column existed — nothing else ever read or wrote it) are deleted, along with `GET /staff/drivers` and `PATCH /staff/drivers/:id`, `IdentityModule.getDriverCompanyId`, `DriverRepository.findAll`, and the `companyId` field on `Driver`/`driverSchema`. `driver-links-backfill.test.ts` (which seeds `drivers.company_id` the way production has it, then runs 0028) now also runs 0029 and checks the backfilled link survives the column actually going away.
+- **The dashboard's Driver Accounts page** is deleted (`pages/admin/DriverAccounts.tsx`, `api/identity.ts`, the nav entry) — the **Drivers** page (M2.6) replaced it days before this was wired up. `/admin/driver-accounts` now redirects to `/fleet/drivers` for anyone with it bookmarked. `staff-bff`'s matching forwards (`GET`/`PATCH /staff/drivers...`) go too.
+- **The RLS safety test** (`composition/row-level-security.test.ts`'s "every table with a `company_id` has RLS") loses its `identity.drivers` exception — the query now expects `[]`, since the one table that was never brought under row-level security (because it was always going to be replaced) is gone.
+- Every contract tied to the above (`listDriversResponseSchema`, `updateDriverRequestSchema`, `driverIdParamsSchema`, `driverSchema`'s `companyId` field) is removed from `packages/contracts/src/identity.ts`.

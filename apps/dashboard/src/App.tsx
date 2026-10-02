@@ -5,7 +5,6 @@ import { RequireStaff } from './components/RequireStaff';
 import { StaffLayout } from './components/StaffLayout';
 import { Companies } from './pages/admin/Companies';
 import { CongestionReports } from './pages/admin/CongestionReports';
-import { DriverAccounts } from './pages/admin/DriverAccounts';
 import { HazardReports } from './pages/admin/HazardReports';
 import { Drivers } from './pages/fleet/Drivers';
 import { FleetOverview } from './pages/fleet/Overview';
@@ -40,7 +39,12 @@ export function App() {
             <Route path="/admin/invite-codes" element={<InviteCodes />} />
             <Route path="/admin/hazard-reports" element={<HazardReports />} />
             <Route path="/admin/congestion-reports" element={<CongestionReports />} />
-            <Route path="/admin/driver-accounts" element={<DriverAccounts />} />
+            {/* P2-M2.8: the driver-accounts screen (assign one company) is gone — Drivers
+                (fleet.driver_links) replaced it. Old bookmarks still land somewhere useful. */}
+            <Route
+              path="/admin/driver-accounts"
+              element={<Navigate to="/fleet/drivers" replace />}
+            />
           </Route>
         </Route>
       </Routes>

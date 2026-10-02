@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { Kysely, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createFleetModule } from '../modules/fleet/api.js';
 import { createJobsModule, type Caller } from '../modules/jobs/api.js';
 import { runMigrations } from '../platform/migrations/run-migrations.js';
 import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
@@ -15,6 +16,7 @@ const migrationsDir = fileURLToPath(new URL('../../migrations', import.meta.url)
 const ACME = '11111111-1111-4111-8111-111111111111';
 const BETA = '22222222-2222-4222-8222-222222222222';
 const DRIVER = 'dddddddd-0000-4000-8000-000000000001';
+const UNLINKED_DRIVER = 'dddddddd-0000-4000-8000-000000000002';
 const VEHICLE = 'eeeeeeee-0000-4000-8000-000000000001';
 
 const callers: Record<string, Caller> = {
@@ -44,6 +46,15 @@ describe('jobs dispatch end to end (real RLS, real scopes)', () => {
     ownerPool = new Pool({ connectionString: container.getConnectionUri() });
     await runMigrations(ownerPool, migrationsDir);
     await ownerPool.query(`alter role wagonwise_app with login password 'app-password'`);
+    // DRIVER is an active member of ACME (P2-M2.8: what jobs' driver directory now checks, via
+    // fleet.driver_links, in place of the old single identity.drivers.company_id).
+    // UNLINKED_DRIVER exists but was never approved — assigning them must fail the same way.
+    await ownerPool.query(`
+      insert into fleet.driver_links (id, company_id, driver_id, status, created_at, decided_at)
+        values ('f1000000-0000-4000-8000-000000000001', '${ACME}', '${DRIVER}', 'active', now(), now());
+      insert into fleet.driver_links (id, company_id, driver_id, status, created_at)
+        values ('f1000000-0000-4000-8000-000000000002', '${ACME}', '${UNLINKED_DRIVER}', 'requested', now());
+    `);
 
     const url = new URL(container.getConnectionUri());
     url.username = 'wagonwise_app';
@@ -54,14 +65,24 @@ describe('jobs dispatch end to end (real RLS, real scopes)', () => {
       dialect: new PostgresDialect({ pool: scopes.pool }),
     });
 
+    const fleet = createFleetModule({
+      db,
+      ids: new SequentialIdGenerator(),
+      clock: new FakeClock('2026-10-01T09:00:00.000Z'),
+      dataScopes: scopes,
+      callers: { getCaller: () => Promise.resolve(null) },
+      driverIdentities: { getIdentifier: () => Promise.resolve(null) },
+      companyNames: { namesFor: () => Promise.resolve(new Map()) },
+    });
     const jobs = createJobsModule({
       db,
       ids: new SequentialIdGenerator(),
       clock: new FakeClock('2026-10-01T09:00:00.000Z'),
       dataScopes: scopes,
       callers: { getCaller: (staffId) => Promise.resolve(callers[staffId] ?? null) },
+      // Same wiring as compose-core.ts: jobs' driver directory is fleet's active links now.
       drivers: {
-        belongsToCompany: (id, company) => Promise.resolve(id === DRIVER && company === ACME),
+        belongsToCompany: (id, company) => fleet.isActiveDriverOfCompany(id, company),
       },
       vehicles: {
         belongsToCompany: (id, company) => Promise.resolve(id === VEHICLE && company === ACME),
@@ -142,6 +163,25 @@ describe('jobs dispatch end to end (real RLS, real scopes)', () => {
     });
     expect(got.json()).toMatchObject({ status: 'delivered', driverId: DRIVER });
     expect(got.json<{ stops: unknown[] }>().stops).toHaveLength(2);
+  });
+
+  it('refuses to assign a driver who only requested to join, never approved', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/companies/${ACME}/jobs`,
+      payload: { companyId: ACME, reference: 'E2E-UNLINKED', stops },
+      ...as('acme-dispatcher'),
+    });
+    const { id } = created.json<{ id: string }>();
+
+    const assigned = await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/${id}/assign`,
+      payload: { driverId: UNLINKED_DRIVER, vehicleId: VEHICLE },
+      ...as('acme-dispatcher'),
+    });
+    expect(assigned.statusCode).toBe(400);
+    expect(assigned.json()).toMatchObject({ tag: 'DriverNotInCompany' });
   });
 
   it("keeps one company's jobs from another's, in the database as well as the use case", async () => {
