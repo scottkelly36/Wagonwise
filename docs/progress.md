@@ -27,15 +27,16 @@ history file keeps the record.
 | P2-M2 Fleet                        | Done — 2026-10-02                       | `history/p2-m2-driver-links.md`        |
 | P2-M3 Jobs core                    | Done — 2026-10-02                       | below                                  |
 | P2-M4 Jobs in the portal           | Done — 2026-10-02                       | `history/p2-m4-portal-jobs.md`         |
-| P2-M5 Jobs in the driver app       | In progress — M5.1-5.2 done             | `history/p2-m5-driver-app-jobs.md`     |
+| P2-M5 Jobs in the driver app       | In progress — M5.1-5.3 done             | `history/p2-m5-driver-app-jobs.md`     |
 
 ## Next up
 
-1. **P2-M5.2 is done (2026-10-02).** The driver app now shows "my current job" — a banner on the
-   home map, a screen with the stops and status, one button for the single next step. No tab bar:
-   it fits the app's "map is the app" style instead (a banner, not a new tab). See
-   `history/p2-m5-driver-app-jobs.md`. Next up is **P2-M5.3**: hands-free voice status updates
-   ("loaded and leaving"), reusing the quick-voice-report shape from M7.
+1. **P2-M5.3 is done (2026-10-02).** The job screen now has a "Report by voice" button alongside
+   the tap-to-advance one: say the step ("loaded and leaving"), hear it read back, say yes —
+   reusing the quick-voice-report shape from M7 (local word matching, no server round trip),
+   since a job only ever has one legal next step to match against. See
+   `history/p2-m5-driver-app-jobs.md`. Next up is **P2-M5.4**: geofence nudges (an arrival prompt
+   the driver still has to confirm, never an automatic status change).
 
 ## Open items (verified against the code 2026-09-28)
 
@@ -126,6 +127,9 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-02: P2-M5.3 done: hands-free voice status updates on the job screen ("loaded and
+  leaving" → spoken confirm → advance), matching local word lists against the one legal next step
+  rather than a server parse call. See `history/p2-m5-driver-app-jobs.md`.
 - 2026-10-02: P2-M5.2 done: the driver app's "my current job" screen (reference, status, stops,
   one button for the single next step) and a banner on the home map while a job is active. No new
   store — unlike the active-trip pattern, a job doesn't gate any navigation decision, so it's a
