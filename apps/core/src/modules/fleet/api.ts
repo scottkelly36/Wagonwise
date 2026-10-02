@@ -1,15 +1,28 @@
 import type { FastifyInstance } from 'fastify';
 import { makeId } from '../../shared/brand.js';
+import type { Clock } from '../../shared/ports/clock.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { CallerDirectory } from './application/ports/caller-directory.js';
+import type {
+  CompanyNameDirectory,
+  DriverIdentityDirectory,
+} from './application/ports/directories.js';
 import type { UntypedDb } from './infrastructure/db.js';
+import { SlidingWindowAttemptLimiter } from './application/sliding-window-attempt-limiter.js';
+import { PostgresCompanyCodeRepository } from './infrastructure/postgres-company-code-repository.js';
+import { PostgresDriverLinkRepository } from './infrastructure/postgres-driver-link-repository.js';
 import { PostgresFleetVehicleRepository } from './infrastructure/postgres-fleet-vehicle-repository.js';
+import { registerFleetDriverRoutes } from './interface/driver-routes.js';
 import { registerFleetRoutes, type FleetRouteDeps } from './interface/routes.js';
 
 // Re-exported so composition/ can type its overrides without reaching past this facade into
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
 export type { UntypedDb } from './infrastructure/db.js';
+export type {
+  CompanyNameDirectory,
+  DriverIdentityDirectory,
+} from './application/ports/directories.js';
 export type { Caller, CallerDirectory } from './application/ports/caller-directory.js';
 
 export interface FleetModuleDeps {
@@ -20,6 +33,10 @@ export interface FleetModuleDeps {
   /** Who's calling (P2-M1.12c: a signed-in staff account). Supplied by composition over
    *  `companies`' `getStaffCaller`; fleet never imports `companies` (AGENTS.md rule 7). */
   readonly callers: CallerDirectory;
+  readonly clock: Clock;
+  /** For driver links (P2-M2): who a driver is, and company names, in fleet's own terms. */
+  readonly driverIdentities: DriverIdentityDirectory;
+  readonly companyNames: CompanyNameDirectory;
 }
 
 export interface FleetModule {
@@ -38,6 +55,9 @@ export interface FleetModule {
  */
 export function createFleetModule(deps: FleetModuleDeps): FleetModule {
   const repo = new PostgresFleetVehicleRepository(deps.db);
+  const links = new PostgresDriverLinkRepository(deps.db);
+  const codes = new PostgresCompanyCodeRepository(deps.db);
+  const limiter = new SlidingWindowAttemptLimiter(deps.clock);
 
   const routeDeps: FleetRouteDeps = {
     createFleetVehicle: { repo, ids: deps.ids },
@@ -51,6 +71,15 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
   return {
     registerRoutes(app: FastifyInstance): void {
       registerFleetRoutes(app, routeDeps);
+      registerFleetDriverRoutes(app, {
+        links,
+        joinWithCode: { links, codes, ids: deps.ids, clock: deps.clock, limiter },
+        respond: { links, ids: deps.ids, clock: deps.clock },
+        settle: { links, ids: deps.ids, clock: deps.clock },
+        identities: deps.driverIdentities,
+        companyNames: deps.companyNames,
+        dataScopes: deps.dataScopes,
+      });
     },
     async getVehicleCompanyId(vehicleId: string): Promise<string | null> {
       const vehicle = await repo.findById(makeId<'FleetVehicleId'>(vehicleId));
