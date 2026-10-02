@@ -1,5 +1,4 @@
 import type { StaffAccountDto } from '@wagonwise/contracts/staff';
-import type { CSSProperties } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { holds, isPlatform } from '../state/access';
 import { useStaffAuthStore } from '../state/staff-auth-store';
@@ -55,9 +54,12 @@ export function StaffLayout() {
   const staff = session?.staff;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <nav style={{ width: 220, borderRight: '1px solid #e5e7eb', padding: 16 }}>
-        <p style={{ fontWeight: 700, marginBottom: 16 }}>WagonWise</p>
+    <div className="shell">
+      <nav className="sidebar">
+        <div className="brand">
+          <span className="brand-mark" />
+          WagonWise
+        </div>
 
         {staff !== undefined &&
           SECTIONS.map((section) => {
@@ -65,51 +67,46 @@ export function StaffLayout() {
             if (items.length === 0) return null;
             return (
               <div key={section.title}>
-                <p style={navSectionStyle}>{section.title}</p>
+                <p className="nav-section">{section.title}</p>
                 {items.map((item) => (
-                  <NavLink key={item.to} to={item.to} end style={navLinkStyle}>
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end
+                    className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+                  >
                     {item.label}
                   </NavLink>
                 ))}
               </div>
             );
           })}
-
-        {staff !== undefined && (
-          <div style={{ marginTop: 32, borderTop: '1px solid #e5e7eb', paddingTop: 16 }}>
-            <p style={{ fontSize: 13, marginBottom: 2 }}>{staff.name}</p>
-            <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
-              {staff.kind === 'platform' ? 'WagonWise staff' : staff.email}
-            </p>
-            <button
-              onClick={() => {
-                void signOut().then(() => navigate('/staff/sign-in'));
-              }}
-            >
-              Sign out
-            </button>
-          </div>
-        )}
       </nav>
-      <main style={{ flex: 1, padding: 24 }}>
-        <Outlet />
-      </main>
+
+      <div className="main-column">
+        <header className="topbar">
+          {staff !== undefined && (
+            <>
+              <div className="who">
+                {staff.name}
+                <small>{staff.kind === 'platform' ? 'WagonWise staff' : staff.email}</small>
+              </div>
+              <span className="avatar">{staff.name.trim().charAt(0).toUpperCase()}</span>
+              <button
+                className="btn-light"
+                onClick={() => {
+                  void signOut().then(() => navigate('/staff/sign-in'));
+                }}
+              >
+                Sign out
+              </button>
+            </>
+          )}
+        </header>
+        <main className="content">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
-
-const navSectionStyle: CSSProperties = {
-  fontSize: 12,
-  fontWeight: 700,
-  color: '#6b7280',
-  textTransform: 'uppercase',
-  marginTop: 20,
-  marginBottom: 8,
-};
-
-const navLinkStyle: CSSProperties = {
-  display: 'block',
-  padding: '6px 0',
-  color: '#111827',
-  textDecoration: 'none',
-};
