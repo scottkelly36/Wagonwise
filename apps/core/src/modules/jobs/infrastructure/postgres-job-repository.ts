@@ -1,14 +1,18 @@
 import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
+import type { DomainEvent } from '../../../shared/domain-event.js';
 import type { JobRepository } from '../application/ports/job-repository.js';
-import type {
-  GeoPoint,
-  Job,
-  JobId,
-  JobStatus,
-  JobStop,
-  JobStopKind,
-  JobTimelineEntry,
+import {
+  ACTIVE_STATUSES,
+  type CompanyId,
+  type DriverId,
+  type GeoPoint,
+  type Job,
+  type JobId,
+  type JobStatus,
+  type JobStop,
+  type JobStopKind,
+  type JobTimelineEntry,
 } from '../domain/job.js';
 import type { UntypedDb } from './db.js';
 
@@ -107,14 +111,54 @@ export class PostgresJobRepository implements JobRepository {
     const jobRow = jobRows[0];
     if (!jobRow) return null;
 
-    const { rows: stopRows } = await sql<StopRow>`
-      select ${sql.raw(STOP_SELECT_COLUMNS)} from jobs.job_stops
-      where job_id = ${id} order by sequence
-    `.execute(this.db);
-    return jobFromRows(jobRow, stopRows);
+    const [job] = await this.#withStops([jobRow]);
+    return job ?? null;
   }
 
-  async save(job: Job): Promise<void> {
+  async findActiveForDriver(driverId: DriverId): Promise<Job | null> {
+    const { rows } = await sql<JobRow>`
+      select ${sql.raw(JOB_SELECT_COLUMNS)} from jobs.jobs
+      where driver_id = ${driverId} and status in (${sql.join(ACTIVE_STATUSES)})
+      limit 1
+    `.execute(this.db);
+    const [job] = await this.#withStops(rows);
+    return job ?? null;
+  }
+
+  async listForCompany(companyId: CompanyId): Promise<Job[]> {
+    const { rows } = await sql<JobRow>`
+      select ${sql.raw(JOB_SELECT_COLUMNS)} from jobs.jobs
+      where company_id = ${companyId} order by created_at desc, id
+    `.execute(this.db);
+    return this.#withStops(rows);
+  }
+
+  /** The jobs with their stops, in the order given: one query for all the stops, not one each. */
+  async #withStops(jobRows: readonly JobRow[]): Promise<Job[]> {
+    if (jobRows.length === 0) return [];
+    const { rows: stopRows } = await sql<StopRow & { job_id: string }>`
+      select job_id, ${sql.raw(STOP_SELECT_COLUMNS)} from jobs.job_stops
+      where job_id in (${sql.join(jobRows.map((j) => j.id))}) order by job_id, sequence
+    `.execute(this.db);
+    return jobRows.map((jobRow) =>
+      jobFromRows(
+        jobRow,
+        stopRows.filter((s) => s.job_id === jobRow.id),
+      ),
+    );
+  }
+
+  /** No `db.transaction()` here: the staff routes already run inside a `DataScopes.run`
+   *  transaction, which rejects a nested one (the bug fixed in
+   *  `PostgresStaffRecoveryCodeRepository.replaceAll`, docs/progress.md). The scope's own
+   *  transaction is what keeps the job and its outbox events atomic. */
+  async save(job: Job, events: readonly DomainEvent[] = []): Promise<void> {
+    for (const event of events) {
+      await sql`
+        insert into outbox.events (event_id, aggregate_type, aggregate_id, event_type, payload)
+        values (${event.eventId}, ${event.aggregateType}, ${event.aggregateId}, ${event.eventType}, ${JSON.stringify(event.payload)})
+      `.execute(this.db);
+    }
     await sql`
       insert into jobs.jobs
         (id, company_id, reference, status, driver_id, vehicle_id, route_plan_id, planned_start,
@@ -136,8 +180,8 @@ export class PostgresJobRepository implements JobRepository {
         timeline = excluded.timeline
     `.execute(this.db);
 
-    // Stops are replaced wholesale rather than diffed — this slice only ever creates a job once,
-    // never edits its stops after the fact (that's dispatch/edit-job work, not built yet).
+    // Stops are replaced wholesale rather than diffed: nothing edits them after creation, and
+    // a job has only a few.
     await sql`delete from jobs.job_stops where job_id = ${job.id}`.execute(this.db);
     for (const [index, stop] of job.stops.entries()) {
       await sql`

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createJobRequestSchema, jobSchema } from './jobs.js';
+import {
+  advanceJobStatusRequestSchema,
+  assignJobRequestSchema,
+  createJobRequestSchema,
+  failJobRequestSchema,
+  jobSchema,
+} from './jobs.js';
 
 const pickup = {
   kind: 'pickup' as const,
@@ -68,5 +74,25 @@ describe('jobSchema', () => {
       timeline: [{ status: 'draft', at: '2026-10-01T09:00:00.000Z' }],
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe('dispatch request schemas', () => {
+  it('accepts an assign request, a one-step status request with an optional position, and a bare fail', () => {
+    expect(assignJobRequestSchema.safeParse({ driverId: 'd1', vehicleId: 'v1' }).success).toBe(
+      true,
+    );
+    expect(
+      advanceJobStatusRequestSchema.safeParse({
+        status: 'loaded',
+        position: { lat: 54.9, lon: -2.1 },
+      }).success,
+    ).toBe(true);
+    expect(failJobRequestSchema.safeParse({}).success).toBe(true);
+  });
+
+  it('rejects an unknown status and a blank driver', () => {
+    expect(advanceJobStatusRequestSchema.safeParse({ status: 'flying' }).success).toBe(false);
+    expect(assignJobRequestSchema.safeParse({ driverId: '', vehicleId: 'v1' }).success).toBe(false);
   });
 });

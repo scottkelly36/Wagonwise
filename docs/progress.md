@@ -11,21 +11,21 @@ history file keeps the record.
 
 ## Status
 
-| Milestone                          | Status                                   | Detail                                 |
-| ---------------------------------- | ---------------------------------------- | -------------------------------------- |
-| M1 Foundations                     | Done — 2026-09-22                        | `history/m1-foundations.md`            |
-| M2 Routing core                    | Done — 2026-09-22                        | `history/m2-routing-core.md`           |
-| M3 Hazards core                    | Done — 2026-09-22                        | `history/m3-hazards-core.md`           |
-| M4 Driver BFF + auth               | Done — 2026-09-22                        | `history/m4-driver-bff-auth.md`        |
-| M5 Driver app                      | In progress — only M5.10 left            | `history/m5-driver-app.md`             |
-| M6 Alerts                          | Done — 2026-09-24                        | `history/m6-alerts.md`                 |
-| M7 Voice                           | Done — 2026-09-24                        | `history/m7-voice.md`                  |
-| M8 Field-ready                     | In progress — partly shipped 2026-09-25  | below (no breakdown written yet)       |
-| M9 Route options & safe parking    | Done — 2026-09-27                        | `history/m9-route-options-parking.md`  |
-| Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only   | below, and the Phase 2 tech design doc |
-| P2-M1 Orgs, roles, RLS, staff auth | Done — 2026-10-01                        | `history/p2-m1-organisations-auth.md`  |
-| P2-M2 Fleet (early slice)          | Vehicles + interim driver scopes, PR #48 | `history/p2-m1-organisations-auth.md`  |
-| P2-M3 Jobs core (first slice)      | Job domain model + "create job" only     | below                                  |
+| Milestone                          | Status                                       | Detail                                 |
+| ---------------------------------- | -------------------------------------------- | -------------------------------------- |
+| M1 Foundations                     | Done — 2026-09-22                            | `history/m1-foundations.md`            |
+| M2 Routing core                    | Done — 2026-09-22                            | `history/m2-routing-core.md`           |
+| M3 Hazards core                    | Done — 2026-09-22                            | `history/m3-hazards-core.md`           |
+| M4 Driver BFF + auth               | Done — 2026-09-22                            | `history/m4-driver-bff-auth.md`        |
+| M5 Driver app                      | In progress — only M5.10 left                | `history/m5-driver-app.md`             |
+| M6 Alerts                          | Done — 2026-09-24                            | `history/m6-alerts.md`                 |
+| M7 Voice                           | Done — 2026-09-24                            | `history/m7-voice.md`                  |
+| M8 Field-ready                     | In progress — partly shipped 2026-09-25      | below (no breakdown written yet)       |
+| M9 Route options & safe parking    | Done — 2026-09-27                            | `history/m9-route-options-parking.md`  |
+| Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only       | below, and the Phase 2 tech design doc |
+| P2-M1 Orgs, roles, RLS, staff auth | Done — 2026-10-01                            | `history/p2-m1-organisations-auth.md`  |
+| P2-M2 Fleet                        | Vehicles done (PR #48); driver links planned | `history/p2-m2-driver-links.md`        |
+| P2-M3 Jobs core                    | Done — 2026-10-02                            | below                                  |
 
 ## Next up
 
@@ -82,13 +82,20 @@ surface was needed straight away:
   migration 0019), Vehicle Profiles page. Its interim driver `scopes` were replaced by staff
   privileges at P2-M1.12c (migration 0025 drops them).
 
-- **Jobs — first slice of P2-M3 (2026-10-01):** `jobs` module (migration 0026), the `Job`/
-  `JobStop`/`JobStatus` domain model from the design doc's §3 sketch, and the one "create job" use
-  case (`POST /staff/jobs/companies/:companyId/jobs`) — a job starts `draft` with its stops, no
-  driver/vehicle/route plan until dispatch assigns it. Gated by the `dispatch` privilege
-  (`companies/domain/staff-account.ts`'s `PRIVILEGES`, defined since P2-M1 but unused until now).
-  No list/get endpoint, no dashboard UI, no status transitions past `draft` — that's the rest of
-  P2-M3 (dispatch use cases, events) and P2-M4 (portal job list/assign), not built yet.
+- **Jobs — P2-M3 (done 2026-10-02):** `jobs` module (migrations 0026-0027). The `Job` model with a
+  forward-only status machine (draft → assigned → accepted → at pickup → loaded → en route → at
+  delivery → delivered, plus cancel and fail), and create / list / get / assign / advance /
+  cancel / fail as use cases and staff routes under `/staff/jobs/*` (gated by the `dispatch`
+  privilege). A driver can be on one active job at a time (checked in `assignJob`, and backed by a
+  partial unique index). `JobCreated`, `JobAssigned`, `JobStatusChanged`, `JobCompleted` and
+  `JobCancelled` go to the outbox; nothing handles them yet (the push to the driver is M5).
+  Driver and vehicle must belong to the job's company, read through jobs' own directory ports
+  (driver via the existing `drivers.company_id`, which P2-M2's driver-company links will
+  replace). Deliberately **not** in M3: route planning from the vehicle's dimensions on assign
+  (routing only plans from a driver's own profile today, so it needs a routing change — done with
+  the portal in M4), the driver's own endpoints and the driver-bff proxy (M5), and any dashboard
+  screens (M4). `composition/jobs-dispatch-end-to-end.test.ts` runs the whole flow as
+  `wagonwise_app` under real RLS and `DataScopes`.
 
 Staff accounts, RLS, staff auth + 2FA are P2-M1 (above). Not built: the rest of Phase 2 (dispatch,
 live map, moderation, reports).
@@ -137,7 +144,8 @@ live map, moderation, reports).
   real HTTP route (like `composition/reroute-end-to-end.test.ts`) or a rule relaxation, neither
   done yet. `pnpm staff:bootstrap` (step 8) run for real after the fix: the first WagonWise admin
   signed in through the dashboard successfully. **P2-M1 is done.**
-- 2026-10-01: P2-M3 first slice: `jobs` module (migration 0026) — see "Phase 2" below.
+- 2026-10-02: P2-M3 finished: assign, status machine, cancel/fail, list/get, events, one active job
+  per driver — see "Phase 2" below. 2026-10-01: its first slice (model + create job).
 - 2026-09-28: active-trip screen gains one-tap voice **Traffic** and **Mark parking** buttons
   beside the hazard mic (spoken question/read-back, files only on a spoken "yes", declines are
   discarded, no offline queue). JS-only, so it ships by `eas update`. "Report parking" renamed
@@ -167,5 +175,6 @@ Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those no
 | `history/m7-voice.md`                 | M7                                                     | 91–107    |
 | `history/m9-route-options-parking.md` | M9                                                     | —         |
 | `history/environment-windows.md`      | Windows dev-machine notes, the 2026-09-21 reinstall    | —         |
-| `history/p2-m1-organisations-auth.md` | P2-M1 breakdown, model, open decisions (active)        | —         |
+| `history/p2-m1-organisations-auth.md` | P2-M1 breakdown, model, open decisions                 | —         |
+| `history/p2-m2-driver-links.md`       | P2-M2 driver links: plan and decisions (active)        | —         |
 | `ideas.md`                            | Field-testing ideas backlog (shipped and unscheduled)  | —         |

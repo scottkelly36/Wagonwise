@@ -1,15 +1,30 @@
-import type { Job, JobId } from '../../domain/job.js';
+import type { DomainEvent } from '../../../../shared/domain-event.js';
+import { isActive, type CompanyId, type DriverId, type Job, type JobId } from '../../domain/job.js';
 import type { JobRepository } from '../ports/job-repository.js';
 
 export class InMemoryJobRepository implements JobRepository {
   #byId = new Map<JobId, Job>();
+  /** Every event saved, in order, for tests to assert on. */
+  readonly events: DomainEvent[] = [];
 
   findById(id: JobId): Promise<Job | null> {
     return Promise.resolve(this.#byId.get(id) ?? null);
   }
 
-  save(job: Job): Promise<void> {
+  findActiveForDriver(driverId: DriverId): Promise<Job | null> {
+    const found = [...this.#byId.values()].find(
+      (j) => j.driverId === driverId && isActive(j.status),
+    );
+    return Promise.resolve(found ?? null);
+  }
+
+  listForCompany(companyId: CompanyId): Promise<Job[]> {
+    return Promise.resolve([...this.#byId.values()].filter((j) => j.companyId === companyId));
+  }
+
+  save(job: Job, events: readonly DomainEvent[] = []): Promise<void> {
     this.#byId.set(job.id, job);
+    this.events.push(...events);
     return Promise.resolve();
   }
 }

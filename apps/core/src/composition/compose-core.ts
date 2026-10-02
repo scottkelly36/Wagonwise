@@ -219,6 +219,14 @@ export function composeCore(
     clock,
     dataScopes,
     callers: { getCaller: staffCaller },
+    drivers: {
+      belongsToCompany: async (driverId, companyId) =>
+        (await identity.getDriverCompanyId(driverId)) === companyId,
+    },
+    vehicles: {
+      belongsToCompany: async (vehicleId, companyId) =>
+        (await fleet.getVehicleCompanyId(vehicleId)) === companyId,
+    },
   });
 
   const outboxDispatcher = new OutboxDispatcher(
