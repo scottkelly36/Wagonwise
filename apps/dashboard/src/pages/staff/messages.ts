@@ -21,6 +21,13 @@ const MESSAGES: Record<string, string> = {
   AlreadyLinked: 'That driver is already linked to this company.',
   LinkNotFound: 'That invitation or request could not be found.',
   InvalidLinkTransition: 'That has already been decided.',
+  InvalidReference: 'Enter a job reference.',
+  InvalidStops: 'A job needs at least one pickup and one delivery stop.',
+  InvalidTransition: "That job can't move to that status right now.",
+  JobNotFound: 'That job could not be found.',
+  DriverNotInCompany: "That driver doesn't belong to this company.",
+  VehicleNotInCompany: "That vehicle doesn't belong to this company.",
+  DriverBusy: 'That driver is already on another active job.',
 };
 
 export function staffErrorMessage(error: unknown): string {

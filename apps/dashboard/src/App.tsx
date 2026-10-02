@@ -7,6 +7,7 @@ import { Companies } from './pages/admin/Companies';
 import { CongestionReports } from './pages/admin/CongestionReports';
 import { HazardReports } from './pages/admin/HazardReports';
 import { Drivers } from './pages/fleet/Drivers';
+import { Jobs } from './pages/fleet/Jobs';
 import { FleetOverview } from './pages/fleet/Overview';
 import { LiveTrips } from './pages/fleet/LiveTrips';
 import { VehicleProfiles } from './pages/fleet/VehicleProfiles';
@@ -29,6 +30,7 @@ export function App() {
           <Route element={<StaffLayout />}>
             <Route index element={<Home />} />
             <Route path="/fleet" element={<FleetOverview />} />
+            <Route path="/fleet/jobs" element={<Jobs />} />
             <Route path="/fleet/live-trips" element={<LiveTrips />} />
             <Route path="/fleet/drivers" element={<Drivers />} />
             <Route path="/fleet/vehicle-profiles" element={<VehicleProfiles />} />
