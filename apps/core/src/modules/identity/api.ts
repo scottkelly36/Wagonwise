@@ -85,6 +85,9 @@ export interface IdentityModule {
   /** The company a driver belongs to, or null (no such driver, or no company). For '
    *  driver directory, supplied by composition. */
   getDriverCompanyId(driverId: string): Promise<string | null>;
+  /** A driver's normalised sign-in identifier (phone or email), or null. For fleet, which uses it
+   *  to match invitations to the driver (supplied by composition). */
+  getDriverIdentifier(driverId: string): Promise<string | null>;
   /** Delivers a one-time code by text (a phone number) or email, through the same senders drivers'
    *  sign-in codes use (ClickSend / Resend, or the console in local dev). Staff second factors
    *  (P2-M1.4) reach it through `companies`' own `CodeSender` port, so ClickSend/Resend accounts
@@ -166,6 +169,10 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
   return {
     registerRoutes(app: FastifyInstance): void {
       registerIdentityRoutes(app, routeDeps);
+    },
+    async getDriverIdentifier(driverId: string): Promise<string | null> {
+      const driver = await driverRepo.findById(makeId<'DriverId'>(driverId));
+      return driver?.identifier ?? null;
     },
     async getDriverCompanyId(driverId: string): Promise<string | null> {
       const driver = await driverRepo.findById(makeId<'DriverId'>(driverId));

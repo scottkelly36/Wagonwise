@@ -2,6 +2,7 @@ import { createAccessTokenVerifier } from './auth/access-token-verifier.js';
 import { ConfigError, loadConfig } from './config.js';
 import { registerCongestionRoutes } from './congestion-routes.js';
 import { createCoreClient } from './core-client.js';
+import { registerFleetRoutes } from './fleet-routes.js';
 import { registerFeedbackRoutes } from './feedback-routes.js';
 import { registerHazardsRoutes } from './hazards-routes.js';
 import { buildApp } from './host/build-app.js';
@@ -34,6 +35,7 @@ registerHazardsRoutes(app, routeDeps);
 registerFeedbackRoutes(app, routeDeps);
 registerCongestionRoutes(app, routeDeps);
 registerParkingRoutes(app, routeDeps);
+registerFleetRoutes(app, routeDeps);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {

@@ -47,7 +47,7 @@ started.** The vehicles half of P2-M2 shipped early (PR #48, `fleet` module).
 
 ## Plan
 
-**Done so far: M2.1 (contracts), M2.2 (domain), M2.3 (migration 0028) and M2.4 (use cases and repositories), 2026-10-02.** The link
+**Done so far: M2.1 (contracts), M2.2 (domain), M2.3 (migration 0028), M2.4 (use cases and repositories) and M2.5 (driver routes and proxy), 2026-10-02.** The link
 state machine and the company-code rules are pure and tested; the contracts are in
 `packages/contracts/src/fleet.ts`. Migration 0028 creates both tables with row-level security,
 backfills an active link for every driver already assigned a company (tested against pre-existing
@@ -76,3 +76,7 @@ data), and leaves `drivers.company_id` for the cut-over.
 ## M2.4 notes
 
 Use cases (all in the fleet module): invite a driver, join with a code, respond to an invitation, approve / decline / remove (company side), leave or withdraw (driver side), get and regenerate the company code, list links. Events written to the outbox: DriverJoinedFleet (on accept or approve) and DriverLeftFleet (by driver or by company). Postgres repositories write events without opening a transaction of their own, since the routes run inside a DataScopes transaction. **VehicleAdded is not raised yet**: nothing consumes it and it needs the vehicle repository to take events; it moves to whenever a consumer exists. No routes yet (M2.5 driver side, M2.6 staff side), and the code-guessing rate limit lives with the driver routes in M2.5.
+
+## M2.5 notes
+
+Driver routes in core (reachable only through driver-bff with a driver token; core's driver-auth now also gates /fleet/): GET /fleet/links (my links and invitations, with the company name), POST /fleet/links/join, POST /fleet/links/:id/respond, POST /fleet/links/:id/leave (also withdraws a pending request). Each runs in the new driver data scope. The driver's identifier comes from identity and company names from companies, both through fleet-owned ports supplied by composition. **Code guessing:** five wrong codes in 15 minutes blocks that driver (429) until the window passes; in memory per instance, which is enough for an 8-character code that admits nobody without approval. driver-bff proxies the four routes. Proven under real RLS by composition/driver-links-end-to-end.test.ts. The driver app screens are M2.7.

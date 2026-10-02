@@ -21,6 +21,7 @@ import {
   InMemoryCompanyCodeRepository,
   InMemoryDriverLinkRepository,
 } from './testing/in-memory-driver-links.js';
+import { InMemoryAttemptLimiter } from '../infrastructure/in-memory-attempt-limiter.js';
 
 const acme = makeId<'CompanyId'>('acme');
 const beta = makeId<'CompanyId'>('beta');
@@ -44,7 +45,16 @@ function world() {
   const ids = new SequentialIdGenerator();
   const clock = new FakeClock('2026-10-02T09:00:00.000Z');
   const generator = new FixedCodeGenerator(['ABCD2345', 'WXYZ6789']);
-  return { links, codes, ids, clock, generator, d: { links, codes, ids, clock, generator } };
+  const limiter = new InMemoryAttemptLimiter(clock);
+  return {
+    links,
+    codes,
+    ids,
+    clock,
+    generator,
+    limiter,
+    d: { links, codes, ids, clock, generator, limiter },
+  };
 }
 
 async function activeLink(w: ReturnType<typeof world>): Promise<DriverLinkId> {
@@ -299,5 +309,26 @@ describe('listing and the code', () => {
       ok: true,
       value: 'ABCD-2345',
     });
+  });
+});
+
+describe('guessing company codes', () => {
+  it('blocks a driver after five wrong codes, even for the right one, until the window passes', async () => {
+    const w = world();
+    await getCompanyCode(w.d, { caller: manager, companyId: acme });
+    for (let i = 0; i < 5; i += 1) {
+      expect(await joinWithCode(w.d, { actor: pat, code: 'ZZZZ2222' })).toEqual({
+        ok: false,
+        error: { tag: 'InvalidCode' },
+      });
+    }
+    expect(await joinWithCode(w.d, { actor: pat, code: 'ABCD2345' })).toEqual({
+      ok: false,
+      error: { tag: 'TooManyAttempts' },
+    });
+    // Other drivers are not affected, and the block lifts once the failures age out.
+    expect((await joinWithCode(w.d, { actor: sam, code: 'ABCD2345' })).ok).toBe(true);
+    w.clock.advance(16 * 60 * 1000);
+    expect((await joinWithCode(w.d, { actor: pat, code: 'ABCD2345' })).ok).toBe(true);
   });
 });

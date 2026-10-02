@@ -212,6 +212,9 @@ export function composeCore(
     ids,
     dataScopes,
     callers: { getCaller: staffCaller },
+    clock,
+    driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+    companyNames: { namesFor: (ids) => companies.getCompanyNames(ids) },
   });
   const jobs = createJobsModule({
     db: jobsDb,
