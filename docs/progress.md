@@ -26,16 +26,15 @@ history file keeps the record.
 | P2-M1 Orgs, roles, RLS, staff auth | Done — 2026-10-01                       | `history/p2-m1-organisations-auth.md`  |
 | P2-M2 Fleet                        | Done — 2026-10-02                       | `history/p2-m2-driver-links.md`        |
 | P2-M3 Jobs core                    | Done — 2026-10-02                       | below                                  |
+| P2-M4 Jobs in the portal           | Done — 2026-10-02                       | `history/p2-m4-portal-jobs.md`         |
 
 ## Next up
 
-1. **P2-M1 is done (2026-10-01).** P2-M1.12d (required config, deploy) applied for real:
-   `staff-bff` + the dashboard deployed on DigitalOcean App Platform, `wagonwise_app`/
-   `APP_DATABASE_URL` wired up, and the first WagonWise admin successfully onboarded through
-   `pnpm staff:bootstrap` and the dashboard's join flow (deployment-guide step 8) — five real
-   bugs fixed along the way, see the Recent log entry below. Phase 2's next real milestone is
-   **P2-M3 Jobs core**; its first slice (domain model + "create job") is already done — see
-   below — the rest (dispatch use cases, events, the full 2-week scope) isn't started.
+1. **P2-M4 is done (2026-10-02).** Jobs are now in the portal: `apps/dashboard`'s new Jobs page
+   (list, create, assign, cancel) over staff-bff forwards onto P2-M3's existing `/staff/jobs/*`
+   routes. See `history/p2-m4-portal-jobs.md`. Next up is **P2-M5** (driver app: jobs tab, status
+   buttons, voice status, POD, geofence nudges) or **P2-M6** (live fleet map, SSE) — whichever the
+   pilot firm's feedback makes more valuable first; neither is started.
 
 ## Open items (verified against the code 2026-09-28)
 
@@ -101,10 +100,16 @@ surface was needed straight away:
   Driver and vehicle must belong to the job's company, read through jobs' own directory ports
   (driver via `fleet.driver_links`' active status, since P2-M2.8; originally the single
   `drivers.company_id`). Deliberately **not** in M3: route planning from the vehicle's dimensions on assign
-  (routing only plans from a driver's own profile today, so it needs a routing change — done with
-  the portal in M4), the driver's own endpoints and the driver-bff proxy (M5), and any dashboard
-  screens (M4). `composition/jobs-dispatch-end-to-end.test.ts` runs the whole flow as
-  `wagonwise_app` under real RLS and `DataScopes`.
+  (routing only plans from a driver's own profile today, so it needs a routing change, still not
+  done), the driver's own endpoints and the driver-bff proxy (M5). `composition/jobs-dispatch-end-to-end.test.ts`
+  runs the whole flow as `wagonwise_app` under real RLS and `DataScopes`.
+
+- **Jobs in the portal — P2-M4 (done 2026-10-02):** the dashboard's new Jobs page
+  (`pages/fleet/Jobs.tsx`) — list, create (one pickup + one delivery stop), assign a driver and
+  vehicle, cancel — over five new staff-bff forwards onto P2-M3's existing routes. Anyone at the
+  company can see the list; creating, assigning and cancelling need `dispatch`. See
+  `history/p2-m4-portal-jobs.md`. Not done: route preview before assigning (design doc §5 step 2,
+  needs the routing change noted above), multi-stop jobs, a job detail/status-timeline view.
 
 Staff accounts, RLS, staff auth + 2FA are P2-M1 (above). Not built: the rest of Phase 2 (dispatch,
 live map, moderation, reports).
@@ -120,6 +125,8 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-02: P2-M4 done: the dashboard's Jobs page (list/create/assign/cancel) and the
+  staff-bff forwards onto P2-M3's `/staff/jobs/*` routes. See `history/p2-m4-portal-jobs.md`.
 - 2026-10-02: P2-M2.8 closes out P2-M2: jobs' driver directory reads `fleet.driver_links`
   (active status) instead of `identity.drivers.company_id`; migration 0029 drops that column;
   the dashboard's Driver Accounts screen, `GET`/`PATCH /staff/drivers...`, and everything that
@@ -198,4 +205,5 @@ Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those no
 | `history/environment-windows.md`      | Windows dev-machine notes, the 2026-09-21 reinstall    | —         |
 | `history/p2-m1-organisations-auth.md` | P2-M1 breakdown, model, open decisions                 | —         |
 | `history/p2-m2-driver-links.md`       | P2-M2 driver links: plan and decisions (active)        | —         |
+| `history/p2-m4-portal-jobs.md`        | P2-M4: jobs in the portal                              | —         |
 | `ideas.md`                            | Field-testing ideas backlog (shipped and unscheduled)  | —         |

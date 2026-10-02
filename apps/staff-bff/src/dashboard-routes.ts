@@ -8,6 +8,12 @@ import {
   updateFleetVehicleRequestSchema,
 } from '@wagonwise/contracts/fleet';
 import { hazardReportIdParamsSchema } from '@wagonwise/contracts/hazards';
+import {
+  assignJobRequestSchema,
+  createJobRequestSchema,
+  jobCompanyIdParamsSchema,
+  jobIdParamsSchema,
+} from '@wagonwise/contracts/jobs';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticateOrReject } from './auth/authenticate.js';
@@ -89,6 +95,27 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/fleet/companies/:companyId/code/regenerate',
     params: fleetCompanyIdParamsSchema,
   },
+  // Jobs core (P2-M3) surfaced in the portal (P2-M4): list/create for a company, assign/cancel
+  // for one job. Status advance/fail stay driver-app territory (M5).
+  {
+    method: 'GET',
+    path: '/staff/jobs/companies/:companyId/jobs',
+    params: jobCompanyIdParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/jobs/companies/:companyId/jobs',
+    params: jobCompanyIdParamsSchema,
+    body: createJobRequestSchema,
+  },
+  { method: 'GET', path: '/staff/jobs/:id', params: jobIdParamsSchema },
+  {
+    method: 'POST',
+    path: '/staff/jobs/:id/assign',
+    params: jobIdParamsSchema,
+    body: assignJobRequestSchema,
+  },
+  { method: 'POST', path: '/staff/jobs/:id/cancel', params: jobIdParamsSchema },
 ];
 
 function corePath(pattern: string, params: Record<string, string>): string {

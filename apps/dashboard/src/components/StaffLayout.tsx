@@ -19,6 +19,7 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
     title: 'Fleet',
     items: [
       { to: '/fleet', label: 'Overview', shows: everyone },
+      { to: '/fleet/jobs', label: 'Jobs', shows: everyone },
       { to: '/fleet/live-trips', label: 'Live trips', shows: everyone },
       { to: '/fleet/drivers', label: 'Drivers', shows: everyone },
       {

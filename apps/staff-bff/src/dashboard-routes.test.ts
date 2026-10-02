@@ -9,6 +9,9 @@ const ACME = '11111111-1111-4111-8111-111111111111';
 const ID = '22222222-2222-4222-8222-222222222222';
 const DIMENSIONS = { heightM: 4, widthM: 2.5, lengthM: 16, grossWeightT: 44 };
 const VEHICLE = { name: 'Unit 1', dimensions: DIMENSIONS };
+const PICKUP = { kind: 'pickup', name: 'Depot', location: { lat: 54.97, lon: -2.1 } };
+const DELIVERY = { kind: 'delivery', name: 'Site', location: { lat: 55.0, lon: -1.9 } };
+const JOB = { companyId: ACME, reference: 'J-1', stops: [PICKUP, DELIVERY] };
 
 function buildApp(): { app: FastifyInstance; core: FakeCoreClient } {
   const core = new FakeCoreClient();
@@ -37,6 +40,11 @@ const VALID = [
   ['POST', `/staff/fleet/driver-links/${ID}/remove`, undefined],
   ['GET', `/staff/fleet/companies/${ACME}/code`, undefined],
   ['POST', `/staff/fleet/companies/${ACME}/code/regenerate`, undefined],
+  ['GET', `/staff/jobs/companies/${ACME}/jobs`, undefined],
+  ['POST', `/staff/jobs/companies/${ACME}/jobs`, JOB],
+  ['GET', `/staff/jobs/${ID}`, undefined],
+  ['POST', `/staff/jobs/${ID}/assign`, { driverId: 'driver-1', vehicleId: 'vehicle-1' }],
+  ['POST', `/staff/jobs/${ID}/cancel`, undefined],
 ] as const;
 
 describe('the moved dashboard pages (P2-M1.12c)', () => {
@@ -89,6 +97,9 @@ describe('the moved dashboard pages (P2-M1.12c)', () => {
       { ...VEHICLE, dimensions: { ...DIMENSIONS, heightM: -1 } },
     ],
     ['POST', '/staff/companies', { name: 'No id' }],
+    ['GET', '/staff/jobs/companies/acme/jobs', undefined],
+    ['POST', `/staff/jobs/companies/${ACME}/jobs`, { ...JOB, stops: [] }],
+    ['POST', '/staff/jobs/not-a-uuid/assign', undefined],
   ] as const)('%s %s 400s a bad id or body without calling core', async (method, url, payload) => {
     const { app, core } = buildApp();
     const res = await app.inject({
