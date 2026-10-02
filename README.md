@@ -506,10 +506,13 @@ Console's internal-testing track by hand; later ones can use `eas submit --platf
   `--message` in the Expo dashboard, not by a version number.
 - The Android version code is incremented by EAS on every build (`autoIncrement`, remote version
   source); never set it by hand.
-- `runtimeVersion` uses the `fingerprint` policy: an update only reaches builds whose native code
-  matches, so JavaScript that needs a new native module can't reach (and crash) an older build.
-  An update published after a native change just isn't delivered to older builds, so if testers
-  aren't seeing a fix, check whether it touched native code and needs a store build.
+- `runtimeVersion` uses the `appVersion` policy (back from `fingerprint` as of 2026-10-02 — it
+  hashed `node_modules` file paths, and pnpm shortens those paths differently on Windows than on
+  EAS's Linux builders, so `eas update` run from a Windows machine computed a runtime version that
+  never matched a build EAS had just produced, and updates silently never reached it): an update
+  only reaches builds whose `version` matches exactly, so bump `version` on any native change
+  (new/upgraded native package, `plugins`/permissions, Expo SDK upgrade) as the table above says,
+  even though it's also the same string used for the store build number.
 - Always pass `--environment production` to `eas update`. Without it the update bundles whatever
   is in your local `.env`, which may point at your own machine instead of the real server.
 - Testers get an update the next time they fully close and reopen the app.
