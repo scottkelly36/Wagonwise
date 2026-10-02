@@ -19,14 +19,19 @@ const config: ExpoConfig = {
   // native build/reinstall — added 2026-09-25 so the post-weekend bug-fix pass doesn't have
   // to go through EAS Build's slow free-tier queue for every fix. Free-tier MAU limits
   // (1,000/month) comfortably cover Phase 1's test group.
-  // "fingerprint" (2026-09-28, was "appVersion"): runtime compatibility is a hash of the native
-  // project, so an update only reaches builds with the same native code, and `version` above is
-  // free to follow normal semver on each store build without stranding updates.
+  // "appVersion" (back from "fingerprint" as of 2026-10-02): fingerprint hashes node_modules
+  // file paths, and pnpm shortens those paths differently on Windows than on EAS's Linux
+  // builders (path-length limits) — same dependencies, different hash, so `eas update` run from
+  // this Windows machine kept computing a runtime version that didn't match the build EAS had
+  // just produced, silently dropping every update. `appVersion` ties compatibility to the
+  // `version` string above instead, which is identical everywhere `eas` runs. Trade-off: bump
+  // `version` by hand on any native change (new/upgraded native package, `plugins`, SDK upgrade),
+  // same as the table in README.md already says to do.
   updates: {
     url: 'https://u.expo.dev/5b6314ae-4cb1-4b28-aa7c-fad17e503c14',
   },
   runtimeVersion: {
-    policy: 'fingerprint',
+    policy: 'appVersion',
   },
   extra: {
     eas: {
