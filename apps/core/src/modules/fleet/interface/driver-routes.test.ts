@@ -8,7 +8,7 @@ import {
   InMemoryCompanyCodeRepository,
   InMemoryDriverLinkRepository,
 } from '../application/testing/in-memory-driver-links.js';
-import { InMemoryAttemptLimiter } from '../infrastructure/in-memory-attempt-limiter.js';
+import { SlidingWindowAttemptLimiter } from '../application/sliding-window-attempt-limiter.js';
 import { registerFleetDriverRoutes } from './driver-routes.js';
 
 const ACME = makeId<'CompanyId'>('11111111-1111-4111-8111-111111111111');
@@ -34,7 +34,7 @@ async function build() {
   });
   registerFleetDriverRoutes(app, {
     links,
-    joinWithCode: { links, codes, ids, clock, limiter: new InMemoryAttemptLimiter(clock) },
+    joinWithCode: { links, codes, ids, clock, limiter: new SlidingWindowAttemptLimiter(clock) },
     respond: { links, ids, clock },
     settle: { links, ids, clock },
     identities: { getIdentifier: (id) => Promise.resolve(IDENTITIES[id] ?? null) },

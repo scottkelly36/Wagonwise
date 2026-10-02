@@ -21,7 +21,7 @@ import {
   InMemoryCompanyCodeRepository,
   InMemoryDriverLinkRepository,
 } from './testing/in-memory-driver-links.js';
-import { InMemoryAttemptLimiter } from '../infrastructure/in-memory-attempt-limiter.js';
+import { SlidingWindowAttemptLimiter } from './sliding-window-attempt-limiter.js';
 
 const acme = makeId<'CompanyId'>('acme');
 const beta = makeId<'CompanyId'>('beta');
@@ -45,7 +45,7 @@ function world() {
   const ids = new SequentialIdGenerator();
   const clock = new FakeClock('2026-10-02T09:00:00.000Z');
   const generator = new FixedCodeGenerator(['ABCD2345', 'WXYZ6789']);
-  const limiter = new InMemoryAttemptLimiter(clock);
+  const limiter = new SlidingWindowAttemptLimiter(clock);
   return {
     links,
     codes,
