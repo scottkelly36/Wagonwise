@@ -3,7 +3,7 @@ import { PRIVILEGE_PRESETS, PRIVILEGES, type Privilege } from '@wagonwise/contra
 /** What each privilege lets someone do, in the words the Users screen shows. */
 export const PRIVILEGE_LABELS: Record<Privilege, string> = {
   manage_users: 'Manage users',
-  manage_fleet: 'Manage vehicles',
+  manage_fleet: 'Manage vehicles & drivers',
   dispatch: 'Dispatch jobs',
   view_live_map: 'See the live map',
   view_reports: 'See reports',

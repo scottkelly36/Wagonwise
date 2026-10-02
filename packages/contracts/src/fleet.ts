@@ -74,8 +74,13 @@ export const driverLinkSchema = z.object({
   companyId: companyIdSchema,
   /** Present for a request and once an invitation is accepted. */
   driverId: z.string().optional(),
+  /** The driver's own sign-in identifier, shown to staff once `driverId` is known. Absent if the
+   *  driver has since deleted their account. */
+  driverIdentifier: z.string().optional(),
   /** Present on an invitation: the phone or email it was made for. */
   invitedIdentifier: z.string().optional(),
+  /** The company's name, so a driver can see who an invitation or request is for. */
+  companyName: z.string().optional(),
   status: driverLinkStatusSchema,
   createdAt: z.iso.datetime(),
   decidedAt: z.iso.datetime().optional(),

@@ -1,8 +1,10 @@
 import { createCompanyRequestSchema } from '@wagonwise/contracts/companies';
 import {
   createFleetVehicleRequestSchema,
+  driverLinkIdParamsSchema,
   fleetCompanyIdParamsSchema,
   fleetVehicleIdParamsSchema,
+  inviteDriverRequestSchema,
   updateFleetVehicleRequestSchema,
 } from '@wagonwise/contracts/fleet';
 import { hazardReportIdParamsSchema } from '@wagonwise/contracts/hazards';
@@ -58,6 +60,43 @@ const FORWARDS: readonly Forward[] = [
     body: updateFleetVehicleRequestSchema,
   },
   { method: 'DELETE', path: '/staff/fleet/vehicles/:id', params: fleetVehicleIdParamsSchema },
+  // Driver links and the company code (P2-M2.6): a company's own roster, for "Manage fleet".
+  {
+    method: 'GET',
+    path: '/staff/fleet/companies/:companyId/driver-links',
+    params: fleetCompanyIdParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/fleet/companies/:companyId/driver-links',
+    params: fleetCompanyIdParamsSchema,
+    body: inviteDriverRequestSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/fleet/driver-links/:id/approve',
+    params: driverLinkIdParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/fleet/driver-links/:id/decline',
+    params: driverLinkIdParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/fleet/driver-links/:id/remove',
+    params: driverLinkIdParamsSchema,
+  },
+  {
+    method: 'GET',
+    path: '/staff/fleet/companies/:companyId/code',
+    params: fleetCompanyIdParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/fleet/companies/:companyId/code/regenerate',
+    params: fleetCompanyIdParamsSchema,
+  },
 ];
 
 function corePath(pattern: string, params: Record<string, string>): string {

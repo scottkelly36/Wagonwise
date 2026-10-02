@@ -16,6 +16,11 @@ const MESSAGES: Record<string, string> = {
   CodeNotSent: "We couldn't send the code just now. Please try again.",
   NotSignedIn: 'Please sign in again.',
   RefreshTokenInvalid: 'Your session has ended. Please sign in again.',
+  InvalidIdentifier: "That doesn't look like a phone number or email address.",
+  AlreadyInvited: 'There is already a pending invitation for that phone number or email.',
+  AlreadyLinked: 'That driver is already linked to this company.',
+  LinkNotFound: 'That invitation or request could not be found.',
+  InvalidLinkTransition: 'That has already been decided.',
 };
 
 export function staffErrorMessage(error: unknown): string {
