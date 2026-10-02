@@ -11,21 +11,21 @@ history file keeps the record.
 
 ## Status
 
-| Milestone                          | Status                                   | Detail                                 |
-| ---------------------------------- | ---------------------------------------- | -------------------------------------- |
-| M1 Foundations                     | Done — 2026-09-22                        | `history/m1-foundations.md`            |
-| M2 Routing core                    | Done — 2026-09-22                        | `history/m2-routing-core.md`           |
-| M3 Hazards core                    | Done — 2026-09-22                        | `history/m3-hazards-core.md`           |
-| M4 Driver BFF + auth               | Done — 2026-09-22                        | `history/m4-driver-bff-auth.md`        |
-| M5 Driver app                      | In progress — only M5.10 left            | `history/m5-driver-app.md`             |
-| M6 Alerts                          | Done — 2026-09-24                        | `history/m6-alerts.md`                 |
-| M7 Voice                           | Done — 2026-09-24                        | `history/m7-voice.md`                  |
-| M8 Field-ready                     | In progress — partly shipped 2026-09-25  | below (no breakdown written yet)       |
-| M9 Route options & safe parking    | Done — 2026-09-27                        | `history/m9-route-options-parking.md`  |
-| Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only   | below, and the Phase 2 tech design doc |
-| P2-M1 Orgs, roles, RLS, staff auth | Done — 2026-10-01                        | `history/p2-m1-organisations-auth.md`  |
-| P2-M2 Fleet (early slice)          | Vehicles + interim driver scopes, PR #48 | `history/p2-m1-organisations-auth.md`  |
-| P2-M3 Jobs core                    | Done — 2026-10-02                        | below                                  |
+| Milestone                          | Status                                       | Detail                                 |
+| ---------------------------------- | -------------------------------------------- | -------------------------------------- |
+| M1 Foundations                     | Done — 2026-09-22                            | `history/m1-foundations.md`            |
+| M2 Routing core                    | Done — 2026-09-22                            | `history/m2-routing-core.md`           |
+| M3 Hazards core                    | Done — 2026-09-22                            | `history/m3-hazards-core.md`           |
+| M4 Driver BFF + auth               | Done — 2026-09-22                            | `history/m4-driver-bff-auth.md`        |
+| M5 Driver app                      | In progress — only M5.10 left                | `history/m5-driver-app.md`             |
+| M6 Alerts                          | Done — 2026-09-24                            | `history/m6-alerts.md`                 |
+| M7 Voice                           | Done — 2026-09-24                            | `history/m7-voice.md`                  |
+| M8 Field-ready                     | In progress — partly shipped 2026-09-25      | below (no breakdown written yet)       |
+| M9 Route options & safe parking    | Done — 2026-09-27                            | `history/m9-route-options-parking.md`  |
+| Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only       | below, and the Phase 2 tech design doc |
+| P2-M1 Orgs, roles, RLS, staff auth | Done — 2026-10-01                            | `history/p2-m1-organisations-auth.md`  |
+| P2-M2 Fleet                        | Vehicles done (PR #48); driver links planned | `history/p2-m2-driver-links.md`        |
+| P2-M3 Jobs core                    | Done — 2026-10-02                            | below                                  |
 
 ## Next up
 
@@ -175,5 +175,6 @@ Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those no
 | `history/m7-voice.md`                 | M7                                                     | 91–107    |
 | `history/m9-route-options-parking.md` | M9                                                     | —         |
 | `history/environment-windows.md`      | Windows dev-machine notes, the 2026-09-21 reinstall    | —         |
-| `history/p2-m1-organisations-auth.md` | P2-M1 breakdown, model, open decisions (active)        | —         |
+| `history/p2-m1-organisations-auth.md` | P2-M1 breakdown, model, open decisions                 | —         |
+| `history/p2-m2-driver-links.md`       | P2-M2 driver links: plan and decisions (active)        | —         |
 | `ideas.md`                            | Field-testing ideas backlog (shipped and unscheduled)  | —         |
