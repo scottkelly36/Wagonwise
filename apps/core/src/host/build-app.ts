@@ -31,6 +31,7 @@ const DRIVER_AUTH_PREFIXES = [
   '/congestion/',
   '/parking/',
   '/fleet/',
+  '/jobs/',
   '/identity/devices/',
   '/identity/consent/',
   '/identity/account/',

@@ -3,16 +3,25 @@ import type { Clock } from '../../shared/ports/clock.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { CallerDirectory } from './application/ports/caller-directory.js';
-import type { DriverDirectory, VehicleDirectory } from './application/ports/directories.js';
+import type {
+  DriverDirectory,
+  DriverIdentityDirectory,
+  VehicleDirectory,
+} from './application/ports/directories.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresJobRepository } from './infrastructure/postgres-job-repository.js';
+import { registerJobsDriverRoutes, type JobsDriverRouteDeps } from './interface/driver-routes.js';
 import { registerJobsRoutes, type JobsRouteDeps } from './interface/routes.js';
 
 // Re-exported so composition/ can type its overrides without reaching past this facade into
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
 export type { UntypedDb } from './infrastructure/db.js';
 export type { Caller, CallerDirectory } from './application/ports/caller-directory.js';
-export type { DriverDirectory, VehicleDirectory } from './application/ports/directories.js';
+export type {
+  DriverDirectory,
+  DriverIdentityDirectory,
+  VehicleDirectory,
+} from './application/ports/directories.js';
 
 export interface JobsModuleDeps {
   readonly db: UntypedDb;
@@ -26,6 +35,9 @@ export interface JobsModuleDeps {
   /** Which company a driver / vehicle belongs to, in jobs' own terms (AGENTS.md rule 7). */
   readonly drivers: DriverDirectory;
   readonly vehicles: VehicleDirectory;
+  /** A driver's own identifier, for the `driver` data scope (P2-M5.1). Supplied by composition
+   *  over identity's `getDriverIdentifier`, same as fleet's own driver routes. */
+  readonly driverIdentities: DriverIdentityDirectory;
 }
 
 export interface JobsModule {
@@ -58,9 +70,17 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     dataScopes: deps.dataScopes,
   };
 
+  const driverRouteDeps: JobsDriverRouteDeps = {
+    currentJob: { repo },
+    changeStatus: { repo, ids: deps.ids, clock: deps.clock },
+    identities: deps.driverIdentities,
+    dataScopes: deps.dataScopes,
+  };
+
   return {
     registerRoutes(app: FastifyInstance): void {
       registerJobsRoutes(app, routeDeps);
+      registerJobsDriverRoutes(app, driverRouteDeps);
     },
   };
 }

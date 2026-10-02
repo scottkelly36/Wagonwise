@@ -82,6 +82,12 @@ export const listJobsResponseSchema = z.object({
 });
 export type ListJobsResponse = z.infer<typeof listJobsResponseSchema>;
 
+/** `GET /jobs/current` (P2-M5.1): the one job a driver is on right now, or `null`. */
+export const currentJobResponseSchema = z.object({
+  job: jobSchema.nullable(),
+});
+export type CurrentJobResponse = z.infer<typeof currentJobResponseSchema>;
+
 /** The driver and vehicle must both belong to the job's company; core checks. */
 export const assignJobRequestSchema = z.object({
   driverId: z.string().min(1),

@@ -27,14 +27,15 @@ history file keeps the record.
 | P2-M2 Fleet                        | Done — 2026-10-02                       | `history/p2-m2-driver-links.md`        |
 | P2-M3 Jobs core                    | Done — 2026-10-02                       | below                                  |
 | P2-M4 Jobs in the portal           | Done — 2026-10-02                       | `history/p2-m4-portal-jobs.md`         |
+| P2-M5 Jobs in the driver app       | In progress — M5.1 done                 | `history/p2-m5-driver-app-jobs.md`     |
 
 ## Next up
 
-1. **P2-M4 is done (2026-10-02).** Jobs are now in the portal: `apps/dashboard`'s new Jobs page
-   (list, create, assign, cancel) over staff-bff forwards onto P2-M3's existing `/staff/jobs/*`
-   routes. See `history/p2-m4-portal-jobs.md`. Next up is **P2-M5** (driver app: jobs tab, status
-   buttons, voice status, POD, geofence nudges) or **P2-M6** (live fleet map, SSE) — whichever the
-   pilot firm's feedback makes more valuable first; neither is started.
+1. **P2-M5.1 is done (2026-10-02).** The driver's own job routes exist in core now (see a job
+   assigned to them, advance its status, report it failed) plus the driver-bff proxy — backend
+   only, no app changes. See `history/p2-m5-driver-app-jobs.md`. Next up is **P2-M5.2**: the
+   driver app's own "my current job" screen with tap-to-advance, the first slice that's actually
+   visible to a driver.
 
 ## Open items (verified against the code 2026-09-28)
 
@@ -125,6 +126,11 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-02: P2-M5.1 done: driver job routes in core (`GET /jobs/current`,
+  `POST /jobs/:id/status`, `POST /jobs/:id/fail`) and the driver-bff proxy. Needed its own
+  migration (0030) — `jobs.jobs`'s RLS policy had no driver predicate yet, so a request in the
+  `driver` data scope would have seen zero rows despite the application layer already permitting
+  it. See `history/p2-m5-driver-app-jobs.md`.
 - 2026-10-02: P2-M4 done: the dashboard's Jobs page (list/create/assign/cancel) and the
   staff-bff forwards onto P2-M3's `/staff/jobs/*` routes. See `history/p2-m4-portal-jobs.md`.
 - 2026-10-02: P2-M2.8 closes out P2-M2: jobs' driver directory reads `fleet.driver_links`
@@ -206,4 +212,5 @@ Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those no
 | `history/p2-m1-organisations-auth.md` | P2-M1 breakdown, model, open decisions                 | —         |
 | `history/p2-m2-driver-links.md`       | P2-M2 driver links: plan and decisions (active)        | —         |
 | `history/p2-m4-portal-jobs.md`        | P2-M4: jobs in the portal                              | —         |
+| `history/p2-m5-driver-app-jobs.md`    | P2-M5: jobs in the driver app (active)                 | —         |
 | `ideas.md`                            | Field-testing ideas backlog (shipped and unscheduled)  | —         |
