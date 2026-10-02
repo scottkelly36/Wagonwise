@@ -4,6 +4,7 @@ import {
   fleetErrorMessage,
   hazardsErrorMessage,
   identityErrorMessage,
+  jobsErrorMessage,
   routingErrorMessage,
 } from './error-messages';
 
@@ -114,6 +115,29 @@ describe('fleetErrorMessage', () => {
 
   it('falls back to a network message for a non-ApiError', () => {
     expect(fleetErrorMessage(new TypeError('Network request failed'))).toBe(
+      "Couldn't reach the server. Check your connection.",
+    );
+  });
+});
+
+describe('jobsErrorMessage', () => {
+  it('maps a known tag to plain UK-English wording', () => {
+    expect(jobsErrorMessage(new ApiError('JobNotFound', 404))).toBe(
+      "That job isn't there any more.",
+    );
+    expect(jobsErrorMessage(new ApiError('InvalidTransition', 409))).toBe(
+      'That job has already moved on — pull to refresh.',
+    );
+  });
+
+  it('falls back to a generic message for an unrecognised tag', () => {
+    expect(jobsErrorMessage(new ApiError('SomeNewTag', 500))).toBe(
+      'Something went wrong. Try again.',
+    );
+  });
+
+  it('falls back to a network message for a non-ApiError', () => {
+    expect(jobsErrorMessage(new TypeError('Network request failed'))).toBe(
       "Couldn't reach the server. Check your connection.",
     );
   });

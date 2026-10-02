@@ -4,6 +4,7 @@ import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-na
 
 import { useNearbyCongestion } from '../api/use-congestion';
 import { useNearbyHazards } from '../api/use-hazards';
+import { useCurrentJob } from '../api/use-jobs';
 import { useNearbySafeParkingSpots } from '../api/use-parking';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
@@ -40,6 +41,9 @@ export default function HomeScreen() {
     NEARBY_RADIUS_M,
   );
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
+  // "Company vs personal" (design doc §5): outside an assigned job this is just absent, and the
+  // map works exactly as Phase 1 — no job-shaped chrome for a driver who isn't on one.
+  const currentJob = useCurrentJob();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -70,6 +74,16 @@ export default function HomeScreen() {
       >
         <Text style={styles.menuButtonText}>Menu</Text>
       </TouchableOpacity>
+
+      {currentJob.data && (
+        <TouchableOpacity
+          style={styles.jobBanner}
+          onPress={() => router.push('/job')}
+          testID="current-job-banner"
+        >
+          <Text style={styles.jobBannerText}>On job {currentJob.data.reference} →</Text>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.overlay} pointerEvents="box-none">
         {location.status === 'denied' && (
@@ -141,6 +155,23 @@ function createStyles(colors: ThemeColors) {
       fontSize: 15,
       fontWeight: '700',
       color: '#FFFFFF',
+    },
+    jobBanner: {
+      position: 'absolute',
+      top: 56,
+      left: 16,
+      right: 88,
+      minHeight: 48,
+      paddingHorizontal: 20,
+      borderRadius: 24,
+      backgroundColor: colors.accent,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    jobBannerText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.textOnAccent,
     },
     overlay: {
       position: 'absolute',
