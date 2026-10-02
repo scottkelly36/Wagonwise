@@ -42,6 +42,9 @@ started.** The vehicles half of P2-M2 shipped early (PR #48, `fleet` module).
 
 ## Plan
 
+**Done so far: M2.1 (contracts) and M2.2 (domain), 2026-10-02.** The link state machine and the
+company-code rules are pure and tested; the contracts are in `packages/contracts/src/fleet.ts`.
+
 | #       | Task                                                                                                                                                                                  |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | P2-M2.1 | Contracts: link and code DTOs, invite / request / respond / approve / reject / leave requests.                                                                                        |
