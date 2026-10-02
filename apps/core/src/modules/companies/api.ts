@@ -53,6 +53,9 @@ export interface CompaniesModule {
    * Runs its own scope, so call it outside any `DataScopes.run`.
    */
   getStaffCaller(staffId: string): Promise<StaffCallerView | null>;
+  /** Company names by id, for screens in other modules that show who a link is with (fleet's
+   *  driver links). Ids that match no company are simply absent. */
+  getCompanyNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>>;
 }
 
 /**
@@ -107,6 +110,12 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     },
     getStaffCaller(staffId: string) {
       return staffCallers.get(makeId<'StaffId'>(staffId));
+    },
+    async getCompanyNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>> {
+      // Few companies, and companies.companies carries no company-scoped RLS, so a driver can ask.
+      const wanted = new Set(ids);
+      const all = await repo.findAll();
+      return new Map(all.filter((c) => wanted.has(c.id)).map((c) => [c.id, c.name]));
     },
   };
 }

@@ -14,5 +14,8 @@ export type InvalidCode = TaggedError<'InvalidCode'>;
 /** The driver already has a live link (invited, requested or active) with that company. */
 export type AlreadyLinked = TaggedError<'AlreadyLinked'>;
 
+/** Too many wrong codes in a row: try again later. */
+export type TooManyAttempts = TaggedError<'TooManyAttempts'>;
+
 /** That phone or email already has a pending invitation from this company. */
 export type AlreadyInvited = TaggedError<'AlreadyInvited'>;
