@@ -48,8 +48,8 @@ started.** The vehicles half of P2-M2 shipped early (PR #48, `fleet` module).
 ## Plan
 
 **Done so far: M2.1 (contracts), M2.2 (domain), M2.3 (migration 0028), M2.4 (use cases and
-repositories), M2.5 (driver routes and proxy) and M2.6 (staff routes and the Drivers page),
-2026-10-02.** The link state machine and the company-code rules are pure and tested; the
+repositories), M2.5 (driver routes and proxy), M2.6 (staff routes and the Drivers page) and M2.7
+(driver app screens), 2026-10-02.** The link state machine and the company-code rules are pure and tested; the
 contracts are in `packages/contracts/src/fleet.ts`. Migration 0028 creates both tables with
 row-level security, backfills an active link for every driver already assigned a company (tested
 against pre-existing data), and leaves `drivers.company_id` for the cut-over.
@@ -62,13 +62,13 @@ against pre-existing data), and leaves `drivers.company_id` for the cut-over.
 | P2-M2.4 | Use cases: invite, join with code, respond to an invitation, approve / reject, leave / remove, regenerate code, list. Events: `DriverJoinedFleet`, `DriverLeftFleet`, `VehicleAdded`. |
 | P2-M2.5 | Driver side in core: list my invitations, join with a code, respond, leave, list my companies (driver auth). Code attempts rate-limited. `driver-bff` proxies them.                   |
 | P2-M2.6 | ~~Staff routes and the dashboard **Drivers** page: invite, pending requests (approve / reject), active drivers (remove), the company code (show, regenerate).~~ Done.                 |
-| P2-M2.7 | Driver app: "Join a company" (enter a code), invitations list, which companies I'm with, leave. JS-only, so it ships by `eas update`.                                                 |
+| P2-M2.7 | ~~Driver app: "Join a company" (enter a code), invitations list, which companies I'm with, leave. JS-only, so it ships by `eas update`.~~ Done.                                       |
 | P2-M2.8 | Cut over: jobs' driver directory reads active links; the driver-accounts admin screen and `drivers.company_id` go; the RLS safety test loses its `identity.drivers` exception.        |
 
 ## Open items
 
-- Driver app work (M2.7) is the first change to the app since the field-test builds; it needs a
-  JS-only `eas update` and a check on a real device.
+- Driver app work (M2.7) is the first change to the app since the field-test builds; it still
+  needs a JS-only `eas update` and a check on a real device — not done this session.
 - Whether the old `drivers.company_id` is dropped in the same release as the cut-over (M2.8) or a
   release later. Leaning same release: only the admin screen and the jobs lookup use it.
 - Emailing or texting invitations: invites appear in the app only at first, matching how staff
@@ -85,3 +85,7 @@ Driver routes in core (reachable only through driver-bff with a driver token; co
 ## M2.6 notes
 
 Staff routes folded into `fleet/interface/routes.ts` alongside vehicles (same `registerFleetRoutes`, same `requireStaffId`/`callerAndScope`/`DataScopes` pattern): GET/POST `/staff/fleet/companies/:companyId/driver-links` (list, invite), POST `/staff/fleet/driver-links/:id/{approve,decline,remove}` (the link carries its own company, so no `companyId` in the path — same shape as the vehicle routes), GET `/staff/fleet/companies/:companyId/code` and its `/regenerate`. Listing needs only `canViewFleet`; everything else needs `manage_fleet` — both already enforced by M2.4's use cases, this just wires them up. A real `CodeGenerator` (`CryptoCompanyCodeGenerator`, Node's CSPRNG) was added since M2.4 only had a `FixedCodeGenerator` test double — `getCompanyCode`/`regenerateCompanyCode` had never been reachable until now. The DTO adds `driverIdentifier` (resolved per distinct driver id through the same `DriverIdentityDirectory` port M2.5 uses) so staff can see who a request or active link is for, since fleet has no driver name, only their sign-in identifier. `staff-bff`'s `dashboard-routes.ts` forwards the seven routes (it's an explicit allowlist, not a generic proxy — easy to miss). The dashboard's **Drivers** page (`pages/fleet/Drivers.tsx`, replacing its placeholder) mirrors Vehicle Profiles' company-picker pattern: join code (show/regenerate), an invite form, and three lists (pending requests with approve/reject, pending invitations with cancel, active drivers with remove). Proven under real RLS by extending `composition/driver-links-end-to-end.test.ts` with a staff flow (invite/approve/decline/remove/code, plus a cross-company 403/404 check) alongside route-level tests in `fleet/interface/routes.test.ts` and `staff-bff/dashboard-routes.test.ts`.
+
+## M2.7 notes
+
+Driver app screens, under a new `app/companies/` route (mirroring `app/profiles/`): `companies/index.tsx` lists invitations (accept/decline), requests still waiting on staff (withdraw), and active companies (leave, with a confirm alert) — three sections over the one `GET /fleet/links` call, filtered client-side by status; declined/left links are fetched too (M2.5's `listForDriver` returns full history) but aren't shown, since there's nothing actionable about them. `companies/join.tsx` is the "enter a code" form (same shape as `feedback.tsx`'s single-field screen). Reached from `settings.tsx`'s new "My companies" button, next to "Vehicle profiles". `api/fleet.ts` + `api/use-fleet.ts` + a `fleetErrorMessage` in `lib/error-messages.ts` follow the exact pattern `api/routing.ts`/`api/use-vehicle-profiles.ts` set. No native config touched (JS-only, matches the M2.7 plan's `eas update` note) — not yet actually shipped by `eas update` or checked on a real device this session.

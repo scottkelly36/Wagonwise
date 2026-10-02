@@ -89,6 +89,14 @@ export default function SettingsScreen() {
 
         <TouchableOpacity
           style={styles.button}
+          onPress={() => router.push('/companies')}
+          testID="companies-button"
+        >
+          <Text style={styles.buttonText}>My companies</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.button}
           onPress={() => router.push('/voice-drafts')}
           testID="voice-drafts-button"
         >
