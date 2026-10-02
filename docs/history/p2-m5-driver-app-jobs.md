@@ -10,7 +10,7 @@ Split into session-sized slices rather than one pass, matching the project's usu
 | M5.1  | Driver job routes (core) + driver-bff proxy, no app changes | Done — 2026-10-02 |
 | M5.2  | Driver app: "my current job" screen, tap-to-advance         | Done — 2026-10-02 |
 | M5.3  | Voice status updates ("loaded and leaving")                 | Done — 2026-10-02 |
-| M5.4  | Geofence nudges (arrival confirm)                           | Not started       |
+| M5.4  | Geofence nudges (arrival confirm)                           | Done — 2026-10-02 |
 | M5.5  | Proof of delivery (photo/signature)                         | Not started       |
 
 ## M5.1: driver job routes + driver-bff proxy
@@ -148,3 +148,53 @@ directly, matching `use-quick-voice-report.ts`'s own precedent (the pure reducer
 logic; the hook is thin wiring). Not checked on a real device — speech recognition accuracy with
 genuine cab noise and local accents is an open question noted elsewhere in `docs/progress.md` and
 can only really be answered by field testing, not unit tests.
+
+## M5.4: geofence nudges (arrival confirm)
+
+**Foreground polling, not `expo-location`'s background geofencing API.** No geofencing precedent
+existed anywhere in this repo before this slice. The real choice was background geofencing (its
+own permission prompt, works while the app is closed) vs. checking proximity against the position
+`useLiveLocation` is already watching whenever the app's open (no extra permission, matches design
+doc §9's stance of only using location the app is already tracking for something else). Chose the
+latter: a driver is in the app checking the map while driving toward a stop anyway ("map is the
+app"), and a prompt that only fires while the app's in the foreground is a smaller, more honest
+ask than one that can wake the app up in the background for something this low-stakes.
+
+**Which stops are even geofenced.** Design doc §5 names exactly two: "Arrived at pickup?" and
+(implicitly) its delivery equivalent. Every other step in `NEXT_STEP` (accept, loaded, set off,
+delivered) isn't tied to a specific point on the map, so only `accepted` (→ pickup) and `en_route`
+(→ delivery) have an entry in `lib/job-arrival-geofence.ts`'s `ARRIVAL_STOP_KIND`.
+
+**What this slice added:**
+
+- `lib/geo-distance.ts` / `.test.ts`: `distanceMetres`, a plain two-point flat-plane distance (same
+  approximation `route-progress.ts`'s `routeProgress` already uses). Not route-relative like
+  `hazardsAheadWithinRange` — there's no route line to snap onto for a company job (no
+  `routePlanId` is ever set yet).
+- `lib/job-arrival-geofence.ts` / `.test.ts`: `arrivalNudgeFor`, the pure decision — given a job and
+  a position, is the driver within `ARRIVAL_RADIUS_M` (200m, a placeholder pending field data, not
+  a safety-critical value) of the relevant stop kind for the job's current status. Pulled out as a
+  pure function specifically so the geofence decision is unit-tested without a live location watch
+  or a mounted hook, same "extract the logic, leave the hook thin" split as `startWatchingPosition`
+  in `use-live-location.ts`.
+- `hooks/use-job-arrival-geofence.ts`: shows a native `Alert` ("Arrived at pickup?" / "Not yet" /
+  "Yes") when `arrivalNudgeFor` says to, and advances the job on "Yes" — a native alert reaches the
+  driver regardless of which screen they're on, unlike a screen-bound banner. Prompts at most once
+  per job per status: declining or dismissing doesn't ask again for the same arrival, since the
+  tap (M5.2) and voice (M5.3) buttons are always there as a fallback. Not unit tested directly
+  (same precedent as the other voice/geofence hooks in this app — the pure function carries the
+  logic).
+- `app/home.tsx`: mounted the hook, passing it the already-fetched `useCurrentJob()` data and
+  `useLiveLocation()` position — no new query or location watch. **Not** mounted on `/job`: `/home`
+  is the screen a driver is actually looking at while driving, so that's where the check runs.
+
+**Deliberately not done:** re-prompting after a decline (once dismissed, that arrival never asks
+again — worth revisiting with field feedback, but needs more state than this slice warranted),
+background geofencing for when the app isn't open, and any geofence around `at_pickup` → `loaded`
+or `loaded` → `en_route` (design doc doesn't tie either to a location, and they aren't).
+
+**Verified:** `pnpm --filter @wagonwise/driver-app typecheck/lint/test` green (364 tests — 10 new,
+covering the distance function and the full geofence decision table). Not checked on a real
+device — GPS accuracy and how close a stop's pin actually sits to where a driver parks are both
+open questions that only field testing can answer; `ARRIVAL_RADIUS_M` is a first guess, not a
+tuned value.

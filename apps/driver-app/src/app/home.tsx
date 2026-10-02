@@ -8,6 +8,7 @@ import { useCurrentJob } from '../api/use-jobs';
 import { useNearbySafeParkingSpots } from '../api/use-parking';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
+import { useJobArrivalGeofence } from '../hooks/use-job-arrival-geofence';
 import { useLiveLocation } from '../hooks/use-live-location';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 
@@ -44,6 +45,9 @@ export default function HomeScreen() {
   // "Company vs personal" (design doc §5): outside an assigned job this is just absent, and the
   // map works exactly as Phase 1 — no job-shaped chrome for a driver who isn't on one.
   const currentJob = useCurrentJob();
+  // M5.4: "Arrived at pickup?" / "Arrived?" once the driver's close enough to the job's next
+  // stop — a confirm, never an automatic status change.
+  useJobArrivalGeofence(currentJob.data, location.point);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 

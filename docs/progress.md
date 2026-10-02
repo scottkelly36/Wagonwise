@@ -27,16 +27,16 @@ history file keeps the record.
 | P2-M2 Fleet                        | Done — 2026-10-02                       | `history/p2-m2-driver-links.md`        |
 | P2-M3 Jobs core                    | Done — 2026-10-02                       | below                                  |
 | P2-M4 Jobs in the portal           | Done — 2026-10-02                       | `history/p2-m4-portal-jobs.md`         |
-| P2-M5 Jobs in the driver app       | In progress — M5.1-5.3 done             | `history/p2-m5-driver-app-jobs.md`     |
+| P2-M5 Jobs in the driver app       | In progress — M5.1-5.4 done             | `history/p2-m5-driver-app-jobs.md`     |
 
 ## Next up
 
-1. **P2-M5.3 is done (2026-10-02).** The job screen now has a "Report by voice" button alongside
-   the tap-to-advance one: say the step ("loaded and leaving"), hear it read back, say yes —
-   reusing the quick-voice-report shape from M7 (local word matching, no server round trip),
-   since a job only ever has one legal next step to match against. See
-   `history/p2-m5-driver-app-jobs.md`. Next up is **P2-M5.4**: geofence nudges (an arrival prompt
-   the driver still has to confirm, never an automatic status change).
+1. **P2-M5.4 is done (2026-10-02).** `/home` now prompts "Arrived at pickup?"/"Arrived?" once the
+   driver's live position is close enough to the job's next stop — a native alert the driver
+   confirms, never an automatic status change; foreground-only, against the position already
+   being watched for the map, not `expo-location`'s background geofencing API. See
+   `history/p2-m5-driver-app-jobs.md`. Next up is **P2-M5.5**: proof of delivery (photo/signature
+   at the final stop, via the offline queue), the last slice of P2-M5.
 
 ## Open items (verified against the code 2026-09-28)
 
@@ -127,6 +127,10 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-02: P2-M5.4 done: `/home` prompts an arrival confirm (native alert, foreground-only,
+  reusing the position already watched for the map) once the driver's near the job's next stop —
+  the driver still confirms; nothing advances on its own. See
+  `history/p2-m5-driver-app-jobs.md`.
 - 2026-10-02: P2-M5.3 done: hands-free voice status updates on the job screen ("loaded and
   leaving" → spoken confirm → advance), matching local word lists against the one legal next step
   rather than a server parse call. See `history/p2-m5-driver-app-jobs.md`.
