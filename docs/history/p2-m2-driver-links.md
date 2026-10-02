@@ -61,7 +61,7 @@ against pre-existing data), and leaves `drivers.company_id` for the cut-over.
 | P2-M2.3 | Migration: `fleet.driver_links` and `fleet.company_codes` with RLS and grants; copy each existing `identity.drivers.company_id` across as an `active` link.                           |
 | P2-M2.4 | Use cases: invite, join with code, respond to an invitation, approve / reject, leave / remove, regenerate code, list. Events: `DriverJoinedFleet`, `DriverLeftFleet`, `VehicleAdded`. |
 | P2-M2.5 | Driver side in core: list my invitations, join with a code, respond, leave, list my companies (driver auth). Code attempts rate-limited. `driver-bff` proxies them.                   |
-| P2-M2.6 | ~~Staff routes and the dashboard **Drivers** page: invite, pending requests (approve / reject), active drivers (remove), the company code (show, regenerate).~~ Done.                   |
+| P2-M2.6 | ~~Staff routes and the dashboard **Drivers** page: invite, pending requests (approve / reject), active drivers (remove), the company code (show, regenerate).~~ Done.                 |
 | P2-M2.7 | Driver app: "Join a company" (enter a code), invitations list, which companies I'm with, leave. JS-only, so it ships by `eas update`.                                                 |
 | P2-M2.8 | Cut over: jobs' driver directory reads active links; the driver-accounts admin screen and `drivers.company_id` go; the RLS safety test loses its `identity.drivers` exception.        |
 
