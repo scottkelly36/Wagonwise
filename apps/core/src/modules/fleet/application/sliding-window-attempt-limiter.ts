@@ -1,12 +1,12 @@
 import type { Clock } from '../../../shared/ports/clock.js';
-import type { AttemptLimiter } from '../application/ports/attempt-limiter.js';
+import type { AttemptLimiter } from './ports/attempt-limiter.js';
 
 /**
  * Failures per key in a sliding window; at the limit the key is blocked until the oldest one ages
  * out. In memory, so per instance and gone on a restart: fine for slowing guesses at an 8-character
  * code (about 31^8 possibilities) that admits nobody without the company's approval anyway.
  */
-export class InMemoryAttemptLimiter implements AttemptLimiter {
+export class SlidingWindowAttemptLimiter implements AttemptLimiter {
   readonly #failures = new Map<string, number[]>();
 
   constructor(

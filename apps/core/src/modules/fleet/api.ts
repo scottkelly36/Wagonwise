@@ -9,7 +9,7 @@ import type {
   DriverIdentityDirectory,
 } from './application/ports/directories.js';
 import type { UntypedDb } from './infrastructure/db.js';
-import { InMemoryAttemptLimiter } from './infrastructure/in-memory-attempt-limiter.js';
+import { SlidingWindowAttemptLimiter } from './application/sliding-window-attempt-limiter.js';
 import { PostgresCompanyCodeRepository } from './infrastructure/postgres-company-code-repository.js';
 import { PostgresDriverLinkRepository } from './infrastructure/postgres-driver-link-repository.js';
 import { PostgresFleetVehicleRepository } from './infrastructure/postgres-fleet-vehicle-repository.js';
@@ -57,7 +57,7 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
   const repo = new PostgresFleetVehicleRepository(deps.db);
   const links = new PostgresDriverLinkRepository(deps.db);
   const codes = new PostgresCompanyCodeRepository(deps.db);
-  const limiter = new InMemoryAttemptLimiter(deps.clock);
+  const limiter = new SlidingWindowAttemptLimiter(deps.clock);
 
   const routeDeps: FleetRouteDeps = {
     createFleetVehicle: { repo, ids: deps.ids },
