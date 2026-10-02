@@ -49,3 +49,18 @@ export function identityErrorMessage(error: unknown): string {
   }
   return "Couldn't reach the server. Check your connection.";
 }
+
+const FLEET_MESSAGES: Record<string, string> = {
+  InvalidCode: "That code isn't right. Check it with your company and try again.",
+  AlreadyLinked: "You're already linked to that company.",
+  TooManyAttempts: 'Too many wrong codes. Try again in 15 minutes.',
+  LinkNotFound: "That invitation or request isn't there any more.",
+  InvalidLinkTransition: 'That has already been decided.',
+};
+
+export function fleetErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    return FLEET_MESSAGES[error.tag] ?? 'Something went wrong. Try again.';
+  }
+  return "Couldn't reach the server. Check your connection.";
+}

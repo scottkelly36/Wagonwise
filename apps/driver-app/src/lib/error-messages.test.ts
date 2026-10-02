@@ -1,6 +1,7 @@
 import { ApiError } from '../api/errors';
 import {
   feedbackErrorMessage,
+  fleetErrorMessage,
   hazardsErrorMessage,
   identityErrorMessage,
   routingErrorMessage,
@@ -90,6 +91,29 @@ describe('identityErrorMessage', () => {
 
   it('falls back to a network message for a non-ApiError', () => {
     expect(identityErrorMessage(new TypeError('Network request failed'))).toBe(
+      "Couldn't reach the server. Check your connection.",
+    );
+  });
+});
+
+describe('fleetErrorMessage', () => {
+  it('maps a known tag to plain UK-English wording', () => {
+    expect(fleetErrorMessage(new ApiError('InvalidCode', 400))).toBe(
+      "That code isn't right. Check it with your company and try again.",
+    );
+    expect(fleetErrorMessage(new ApiError('TooManyAttempts', 429))).toBe(
+      'Too many wrong codes. Try again in 15 minutes.',
+    );
+  });
+
+  it('falls back to a generic message for an unrecognised tag', () => {
+    expect(fleetErrorMessage(new ApiError('SomeNewTag', 500))).toBe(
+      'Something went wrong. Try again.',
+    );
+  });
+
+  it('falls back to a network message for a non-ApiError', () => {
+    expect(fleetErrorMessage(new TypeError('Network request failed'))).toBe(
       "Couldn't reach the server. Check your connection.",
     );
   });
