@@ -9,7 +9,7 @@ Split into session-sized slices rather than one pass, matching the project's usu
 | ----- | ----------------------------------------------------------- | ----------------- |
 | M5.1  | Driver job routes (core) + driver-bff proxy, no app changes | Done — 2026-10-02 |
 | M5.2  | Driver app: "my current job" screen, tap-to-advance         | Done — 2026-10-02 |
-| M5.3  | Voice status updates ("loaded and leaving")                 | Not started       |
+| M5.3  | Voice status updates ("loaded and leaving")                 | Done — 2026-10-02 |
 | M5.4  | Geofence nudges (arrival confirm)                           | Not started       |
 | M5.5  | Proof of delivery (photo/signature)                         | Not started       |
 
@@ -109,3 +109,42 @@ vehicle's dimensions is a separate, not-yet-built change, design doc §5 step 2)
 files' worth). Not checked on a real device or simulator — same gap the rest of this app's UI work
 has (`docs/progress.md`'s "Real-device gaps" note); typecheck, lint and the API-layer unit tests
 are what this slice's verification actually covers.
+
+## M5.3: voice status updates ("loaded and leaving")
+
+**Which existing flow to copy, and why not the hazard one.** Two voice-report shapes already exist
+in this app: the hazard flow parses a transcript via a _server_ endpoint (an LLM call — right for
+something as open-ended as a hazard description, wrong for this); the quick-report flow (traffic/
+parking) parses locally with a small hand-written matcher and no network round trip. A job only
+ever has **one** legal next status at a time (`NEXT_STEP`), so there's nothing to disambiguate —
+the quick-report shape is the correct template, just with an extra leading "capture what the
+driver said" step in front of the confirm (parking's flow skips straight to confirming since it
+has no input to capture at all).
+
+**What this slice added:**
+
+- `lib/job-status.ts`: `STEP_TRIGGER_WORDS` — a short, per-status, hand-written word list (same
+  style as `yes-no-parser.ts`'s `YES_WORDS`/`NO_WORDS`), and `matchesJobStatusTrigger(transcript,
+status)`, a pure word-boundary match against the current status's own words only. The same word
+  ("arrived") appears under two different statuses here and that's fine — matching is never done
+  against more than one status's list at once, so there is no ambiguity to resolve.
+- `lib/job-status-voice-reducer.ts` / `.test.ts`: the pure state machine — capture the trigger
+  phrase → (no match: "didn't catch that," retry by tapping again) → read the matched step back
+  → capture yes/no → advance on yes. Only a clear "yes" advances anything; a "no," an unclear
+  reply, or a capture failure all leave the job exactly where it was. No draft concept, unlike
+  hazard reports — the tap button (M5.2) is always right there as a fallback, so a missed voice
+  update costs nothing.
+- `hooks/use-job-status-voice.ts`: wires `useVoiceReportCapture` (the same native speech-capture
+  hook every voice flow in this app shares), `expo-speech` prompts, and `useAdvanceJobStatus` to
+  the reducer — the same "effects at the edge, pure reducer tested directly" split as
+  `use-quick-voice-report.ts`.
+- `app/job.tsx`: a second button, "Report by voice," next to the tap-to-advance button, with a
+  spoken-prompt footnote while confirming. Tapping the tap button is disabled while the voice flow
+  is busy or listening, and vice versa, so the two can't race each other.
+
+**Verified:** `pnpm --filter @wagonwise/driver-app typecheck/lint/test` green (354 tests — 22 new,
+covering the matcher and the full reducer state machine). The hook itself isn't unit tested
+directly, matching `use-quick-voice-report.ts`'s own precedent (the pure reducer carries the real
+logic; the hook is thin wiring). Not checked on a real device — speech recognition accuracy with
+genuine cab noise and local accents is an open question noted elsewhere in `docs/progress.md` and
+can only really be answered by field testing, not unit tests.
