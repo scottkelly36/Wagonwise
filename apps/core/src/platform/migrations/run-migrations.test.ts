@@ -60,6 +60,7 @@ describe('runMigrations', () => {
       '0027_jobs_one_active_per_driver.sql',
       '0028_fleet_driver_links.sql',
       '0029_drop_identity_drivers_company_id.sql',
+      '0030_jobs_driver_rls.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -196,6 +197,7 @@ describe('runMigrations', () => {
       '0027_jobs_one_active_per_driver.sql',
       '0028_fleet_driver_links.sql',
       '0029_drop_identity_drivers_company_id.sql',
+      '0030_jobs_driver_rls.sql',
     ]);
   });
 });

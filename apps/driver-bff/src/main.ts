@@ -7,6 +7,7 @@ import { registerFeedbackRoutes } from './feedback-routes.js';
 import { registerHazardsRoutes } from './hazards-routes.js';
 import { buildApp } from './host/build-app.js';
 import { registerIdentityRoutes } from './identity-routes.js';
+import { registerJobsRoutes } from './jobs-routes.js';
 import { registerParkingRoutes } from './parking-routes.js';
 import { registerRoutingRoutes } from './routing-routes.js';
 
@@ -36,6 +37,7 @@ registerFeedbackRoutes(app, routeDeps);
 registerCongestionRoutes(app, routeDeps);
 registerParkingRoutes(app, routeDeps);
 registerFleetRoutes(app, routeDeps);
+registerJobsRoutes(app, routeDeps);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {

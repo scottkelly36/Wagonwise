@@ -321,6 +321,63 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
     });
   });
 
+  describe('jobs driver scope (migration 0030)', () => {
+    const JOB_DRIVER_1 = 'e1000000-0000-4000-8000-000000000001';
+    const JOB_DRIVER_2 = 'e2000000-0000-4000-8000-000000000002';
+    const ACME_JOB = 'c1000000-0000-4000-8000-000000000001';
+    const BETA_JOB = 'c2000000-0000-4000-8000-000000000002';
+
+    beforeAll(async () => {
+      await ownerPool.query(`
+        insert into jobs.jobs (id, company_id, reference, status, driver_id, created_at)
+          values ('${ACME_JOB}', '${ACME}', 'ACME-1', 'assigned', '${JOB_DRIVER_1}', now()),
+                 ('${BETA_JOB}', '${BETA}', 'BETA-1', 'assigned', '${JOB_DRIVER_2}', now());
+      `);
+    });
+
+    const jobIds = async () =>
+      (await sql<{ id: string }>`select id from jobs.jobs order by id`.execute(db)).rows.map(
+        (r) => r.id,
+      );
+
+    it('a company sees only its own jobs, and a driver sees only the job assigned to them', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await jobIds()).toEqual([ACME_JOB]);
+      });
+      await scopes.run(
+        { kind: 'driver', driverId: JOB_DRIVER_1, identifier: 'driver1@example.com' },
+        async () => {
+          expect(await jobIds()).toEqual([ACME_JOB]);
+        },
+      );
+      await scopes.run(
+        { kind: 'driver', driverId: JOB_DRIVER_2, identifier: 'driver2@example.com' },
+        async () => {
+          expect(await jobIds()).toEqual([BETA_JOB]);
+        },
+      );
+      expect(await jobIds()).toEqual([]); // outside any scope: nothing
+    });
+
+    it("a driver can update their own job's status but not reach another driver's", async () => {
+      const driver1 = {
+        kind: 'driver',
+        driverId: JOB_DRIVER_1,
+        identifier: 'driver1@example.com',
+      } as const;
+      await scopes.run(driver1, async () => {
+        const r =
+          await sql`update jobs.jobs set status = 'accepted' where id = ${ACME_JOB}`.execute(db);
+        expect(r.numAffectedRows).toBe(1n);
+      });
+      await scopes.run(driver1, async () => {
+        const r =
+          await sql`update jobs.jobs set status = 'accepted' where id = ${BETA_JOB}`.execute(db);
+        expect(r.numAffectedRows).toBe(0n);
+      });
+    });
+  });
+
   it('every table with a company_id has RLS', async () => {
     const { rows } = await ownerPool.query<{ name: string }>(`
       select c.table_schema || '.' || c.table_name as name

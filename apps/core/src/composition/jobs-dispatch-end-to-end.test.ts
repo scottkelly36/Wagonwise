@@ -87,11 +87,23 @@ describe('jobs dispatch end to end (real RLS, real scopes)', () => {
       vehicles: {
         belongsToCompany: (id, company) => Promise.resolve(id === VEHICLE && company === ACME),
       },
+      driverIdentities: {
+        getIdentifier: (id) =>
+          Promise.resolve(
+            id === DRIVER
+              ? 'driver@example.com'
+              : id === UNLINKED_DRIVER
+                ? 'unlinked@example.com'
+                : null,
+          ),
+      },
     });
     app = Fastify();
     app.addHook('onRequest', (request, _reply, done) => {
       const staffId = request.headers['x-test-staff-id'];
       if (typeof staffId === 'string') request.staffId = staffId;
+      const driverId = request.headers['x-test-driver-id'];
+      if (typeof driverId === 'string') request.driverId = driverId;
       done();
     });
     jobs.registerRoutes(app);
@@ -214,5 +226,70 @@ describe('jobs dispatch end to end (real RLS, real scopes)', () => {
       ...as('beta-dispatcher'),
     });
     expect(planted.statusCode).toBe(403);
+  });
+
+  describe('the driver on the job (P2-M5.1)', () => {
+    const asDriver = (driverId: string) => ({ headers: { 'x-test-driver-id': driverId } });
+
+    it('sees only the job assigned to them, and can move it forward themselves', async () => {
+      const created = await app.inject({
+        method: 'POST',
+        url: `/staff/jobs/companies/${ACME}/jobs`,
+        payload: { companyId: ACME, reference: 'E2E-DRIVER', stops },
+        ...as('acme-dispatcher'),
+      });
+      const { id } = created.json<{ id: string }>();
+      await app.inject({
+        method: 'POST',
+        url: `/staff/jobs/${id}/assign`,
+        payload: { driverId: DRIVER, vehicleId: VEHICLE },
+        ...as('acme-dispatcher'),
+      });
+
+      const current = await app.inject({
+        method: 'GET',
+        url: '/jobs/current',
+        ...asDriver(DRIVER),
+      });
+      expect(current.statusCode).toBe(200);
+      expect(current.json<{ job: { id: string; status: string } | null }>().job).toMatchObject({
+        id,
+        status: 'assigned',
+      });
+
+      const advanced = await app.inject({
+        method: 'POST',
+        url: `/jobs/${id}/status`,
+        payload: { status: 'accepted' },
+        ...asDriver(DRIVER),
+      });
+      expect(advanced.statusCode).toBe(200);
+      expect(advanced.json()).toMatchObject({ status: 'accepted' });
+
+      // RLS (migration 0030), not just the use case's own check: a driver with no link to this
+      // job can't even find the row to advance it.
+      const outsider = await app.inject({
+        method: 'POST',
+        url: `/jobs/${id}/status`,
+        payload: { status: 'at_pickup' },
+        ...asDriver(UNLINKED_DRIVER),
+      });
+      expect(outsider.statusCode).toBe(404);
+
+      // Assigning and cancelling stay dispatcher-only.
+      const cancelled = await app.inject({
+        method: 'POST',
+        url: `/jobs/${id}/cancel`,
+        ...asDriver(DRIVER),
+      });
+      expect(cancelled.statusCode).toBe(404); // no driver route exists for it at all
+
+      const noJob = await app.inject({
+        method: 'GET',
+        url: '/jobs/current',
+        ...asDriver(UNLINKED_DRIVER),
+      });
+      expect(noJob.json()).toEqual({ job: null });
+    });
   });
 });

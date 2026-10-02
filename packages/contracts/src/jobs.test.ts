@@ -3,6 +3,7 @@ import {
   advanceJobStatusRequestSchema,
   assignJobRequestSchema,
   createJobRequestSchema,
+  currentJobResponseSchema,
   failJobRequestSchema,
   jobSchema,
 } from './jobs.js';
@@ -74,6 +75,24 @@ describe('jobSchema', () => {
       timeline: [{ status: 'draft', at: '2026-10-01T09:00:00.000Z' }],
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe('currentJobResponseSchema', () => {
+  it('accepts a real job or null', () => {
+    expect(currentJobResponseSchema.safeParse({ job: null }).success).toBe(true);
+    expect(
+      currentJobResponseSchema.safeParse({
+        job: {
+          id: '11111111-1111-4111-8111-111111111111',
+          companyId: 'company-1',
+          reference: 'JOB-1',
+          stops: [pickup, delivery],
+          status: 'assigned',
+          timeline: [{ status: 'assigned', at: '2026-10-01T09:00:00.000Z' }],
+        },
+      }).success,
+    ).toBe(true);
   });
 });
 

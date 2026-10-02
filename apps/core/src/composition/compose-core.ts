@@ -229,6 +229,7 @@ export function composeCore(
       belongsToCompany: async (vehicleId, companyId) =>
         (await fleet.getVehicleCompanyId(vehicleId)) === companyId,
     },
+    driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
   });
 
   const outboxDispatcher = new OutboxDispatcher(

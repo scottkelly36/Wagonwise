@@ -1,5 +1,5 @@
 import { err, ok, type Result } from '../../../shared/result.js';
-import type { CompanyId, Job, JobId } from '../domain/job.js';
+import type { CompanyId, DriverId, Job, JobId } from '../domain/job.js';
 import { canViewJobs } from './authorization.js';
 import type { Forbidden, JobNotFound } from './errors.js';
 import type { Caller } from './ports/caller-directory.js';
@@ -32,4 +32,18 @@ export async function getJob(
     return err({ tag: 'JobNotFound' });
   }
   return ok(job);
+}
+
+export interface CurrentJobDeps {
+  readonly repo: Pick<JobRepository, 'findActiveForDriver'>;
+}
+
+/** The one job a driver is on right now, or `null` (P2-M5.1's Jobs tab). The query is already
+ *  scoped to `driverId`, and the `driver` data scope's RLS predicate (migration 0030) backs that
+ *  up, so there's no caller check to make here, unlike `getJob`/`listJobs`. */
+export function getCurrentJob(
+  deps: CurrentJobDeps,
+  input: { readonly driverId: DriverId },
+): Promise<Job | null> {
+  return deps.repo.findActiveForDriver(input.driverId);
 }

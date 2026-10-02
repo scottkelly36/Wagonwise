@@ -19,7 +19,8 @@ import {
 import { createJob, type CreateJobDeps } from '../application/create-job.js';
 import { getJob, listJobs, type GetJobDeps, type ListJobsDeps } from '../application/list-jobs.js';
 import type { Caller, CallerDirectory } from '../application/ports/caller-directory.js';
-import type { Job, JobStop } from '../domain/job.js';
+import type { JobStop } from '../domain/job.js';
+import { jobDto } from './dto.js';
 import { statusFor } from './error-mapping.js';
 
 export interface JobsRouteDeps {
@@ -33,37 +34,6 @@ export interface JobsRouteDeps {
   readonly callerDirectory: CallerDirectory;
   /** Row-Level Security scope per request (P2-M1.7, migration 0021). */
   readonly dataScopes: DataScopes;
-}
-
-function stopDto(stop: JobStop) {
-  return {
-    kind: stop.kind,
-    name: stop.name,
-    location: stop.location,
-    ...(stop.windowFrom === undefined ? {} : { windowFrom: stop.windowFrom.toISOString() }),
-    ...(stop.windowTo === undefined ? {} : { windowTo: stop.windowTo.toISOString() }),
-    ...(stop.notes === undefined ? {} : { notes: stop.notes }),
-  };
-}
-
-function jobDto(job: Job) {
-  return {
-    id: job.id,
-    companyId: job.companyId,
-    reference: job.reference,
-    stops: job.stops.map(stopDto),
-    status: job.status,
-    timeline: job.timeline.map((entry) => ({
-      status: entry.status,
-      at: entry.at.toISOString(),
-      ...(entry.position === undefined ? {} : { position: entry.position }),
-    })),
-    ...(job.driverId === undefined ? {} : { driverId: job.driverId }),
-    ...(job.vehicleId === undefined ? {} : { vehicleId: job.vehicleId }),
-    ...(job.routePlanId === undefined ? {} : { routePlanId: job.routePlanId }),
-    ...(job.plannedStart === undefined ? {} : { plannedStart: job.plannedStart.toISOString() }),
-    ...(job.dueBy === undefined ? {} : { dueBy: job.dueBy.toISOString() }),
-  };
 }
 
 /** The signed-in staff member, from `host/staff-auth.ts`. 401 if there isn't one — same pattern
