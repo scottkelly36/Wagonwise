@@ -95,3 +95,88 @@ export function validateStops(stops: readonly JobStop[]): Result<JobStop[], Inva
   }
   return ok([...stops]);
 }
+
+/** The statuses a driver is "on" a job in. A driver can be on at most one at a time (design doc §3). */
+export const ACTIVE_STATUSES: readonly JobStatus[] = [
+  'assigned',
+  'accepted',
+  'at_pickup',
+  'loaded',
+  'en_route',
+  'at_delivery',
+];
+
+const TERMINAL_STATUSES: readonly JobStatus[] = ['delivered', 'cancelled', 'failed'];
+
+export function isActive(status: JobStatus): boolean {
+  return ACTIVE_STATUSES.includes(status);
+}
+
+/** The one forward step from each status (`draft -> assigned` is `assignJobToDriver`'s, not this). */
+const NEXT: Readonly<Partial<Record<JobStatus, JobStatus>>> = {
+  assigned: 'accepted',
+  accepted: 'at_pickup',
+  at_pickup: 'loaded',
+  loaded: 'en_route',
+  en_route: 'at_delivery',
+  at_delivery: 'delivered',
+};
+
+export interface InvalidTransition extends TaggedError<'InvalidTransition'> {
+  readonly from: JobStatus;
+  readonly to: JobStatus;
+}
+
+function moved(job: Job, to: JobStatus, at: Date, position?: GeoPoint): Job {
+  return {
+    ...job,
+    status: to,
+    timeline: [
+      ...job.timeline,
+      { status: to, at, ...(position === undefined ? {} : { position }) },
+    ],
+  };
+}
+
+/** Dispatch: only a `draft` job can be assigned, and it goes straight to `assigned`. */
+export function assignJobToDriver(
+  job: Job,
+  driverId: DriverId,
+  vehicleId: VehicleId,
+  at: Date,
+): Result<Job, InvalidTransition> {
+  if (job.status !== 'draft') {
+    return err({ tag: 'InvalidTransition', from: job.status, to: 'assigned' });
+  }
+  return ok({ ...moved(job, 'assigned', at), driverId, vehicleId });
+}
+
+/** Status only moves forward, one step at a time; every change is timestamped, and stamped with
+ *  a GPS position when there is one (design doc §3). Cancel and fail have their own functions. */
+export function advanceStatus(
+  job: Job,
+  to: JobStatus,
+  at: Date,
+  position?: GeoPoint,
+): Result<Job, InvalidTransition> {
+  if (NEXT[job.status] !== to) {
+    return err({ tag: 'InvalidTransition', from: job.status, to });
+  }
+  return ok(moved(job, to, at, position));
+}
+
+/** Any job that isn't finished can be cancelled. */
+export function cancelJob(job: Job, at: Date): Result<Job, InvalidTransition> {
+  if (TERMINAL_STATUSES.includes(job.status)) {
+    return err({ tag: 'InvalidTransition', from: job.status, to: 'cancelled' });
+  }
+  return ok(moved(job, 'cancelled', at));
+}
+
+/** A job can only fail once it's with a driver. */
+export function failJob(job: Job, at: Date, position?: GeoPoint): Result<Job, InvalidTransition> {
+  if (!isActive(job.status)) {
+    return err({ tag: 'InvalidTransition', from: job.status, to: 'failed' });
+  }
+  return ok(moved(job, 'failed', at, position));
+}

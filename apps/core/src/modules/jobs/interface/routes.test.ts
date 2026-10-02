@@ -5,6 +5,10 @@ import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { RecordingDataScopes } from '../../../shared/testing/recording-data-scopes.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { Caller } from '../application/ports/caller-directory.js';
+import {
+  InMemoryDriverDirectory,
+  InMemoryVehicleDirectory,
+} from '../application/testing/in-memory-directories.js';
 import { InMemoryJobRepository } from '../application/testing/in-memory-job-repository.js';
 import { StubCallerDirectory } from '../application/testing/stub-caller-directory.js';
 import type { StaffId } from '../domain/job.js';
@@ -13,6 +17,8 @@ import { registerJobsRoutes, type JobsRouteDeps } from './routes.js';
 const companyA = '11111111-1111-4111-8111-111111111111';
 const companyB = '22222222-2222-4222-8222-222222222222';
 const STAFF_HEADER = 'x-test-staff-id';
+const DRIVER_A = 'driver-a';
+const VEHICLE_A = 'vehicle-a';
 const stops = [
   { kind: 'pickup', name: 'Hexham depot', location: { lat: 54.97, lon: -2.1 } },
   { kind: 'delivery', name: 'Newcastle port', location: { lat: 54.97, lon: -1.6 } },
@@ -42,8 +48,24 @@ function buildApp(): {
       { kind: 'fleet', companyId: makeId<'CompanyId'>(companyB), privileges: ['dispatch'] },
     ],
   ]);
+  const ids = new SequentialIdGenerator();
+  const clock = new FakeClock();
   const deps: JobsRouteDeps = {
-    createJob: { repo, ids: new SequentialIdGenerator(), clock: new FakeClock() },
+    createJob: { repo, ids, clock },
+    assignJob: {
+      repo,
+      drivers: new InMemoryDriverDirectory(
+        new Map([[makeId<'DriverId'>(DRIVER_A), makeId<'CompanyId'>(companyA)]]),
+      ),
+      vehicles: new InMemoryVehicleDirectory(
+        new Map([[makeId<'FleetVehicleId'>(VEHICLE_A), makeId<'CompanyId'>(companyA)]]),
+      ),
+      ids,
+      clock,
+    },
+    changeStatus: { repo, ids, clock },
+    listJobs: { repo },
+    getJob: { repo },
     callerDirectory: new StubCallerDirectory(callers),
     dataScopes: scopes,
   };
@@ -155,5 +177,113 @@ describe('POST /staff/jobs/companies/:companyId/jobs', () => {
       ...asStaff(DISPATCHER_ID),
     });
     expect(scopes.used).toEqual([{ kind: 'company', companyId: companyA }]);
+  });
+});
+
+async function createDraft(app: FastifyInstance): Promise<string> {
+  const created = await app.inject({
+    method: 'POST',
+    url: `/staff/jobs/companies/${companyA}/jobs`,
+    payload: { companyId: companyA, reference: 'JOB-1', stops },
+    ...asStaff(DISPATCHER_ID),
+  });
+  return created.json<{ id: string }>().id;
+}
+
+describe('dispatching a job', () => {
+  it('assigns, then steps through to delivered, each step kept on the timeline', async () => {
+    const { app } = buildApp();
+    const id = await createDraft(app);
+
+    const assigned = await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/${id}/assign`,
+      payload: { driverId: DRIVER_A, vehicleId: VEHICLE_A },
+      ...asStaff(DISPATCHER_ID),
+    });
+    expect(assigned.statusCode).toBe(200);
+    expect(assigned.json()).toMatchObject({ status: 'assigned', driverId: DRIVER_A });
+
+    for (const status of [
+      'accepted',
+      'at_pickup',
+      'loaded',
+      'en_route',
+      'at_delivery',
+      'delivered',
+    ]) {
+      const r = await app.inject({
+        method: 'POST',
+        url: `/staff/jobs/${id}/status`,
+        payload: { status, position: { lat: 54.9, lon: -2.1 } },
+        ...asStaff(DISPATCHER_ID),
+      });
+      expect(r.statusCode).toBe(200);
+    }
+    const job = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/${id}`,
+      ...asStaff(DISPATCHER_ID),
+    });
+    expect(job.json<{ timeline: unknown[] }>().timeline).toHaveLength(8);
+  });
+
+  it('409s a skipped step and a driver who is busy', async () => {
+    const { app } = buildApp();
+    const first = await createDraft(app);
+    const second = await createDraft(app);
+    const assign = (id: string) =>
+      app.inject({
+        method: 'POST',
+        url: `/staff/jobs/${id}/assign`,
+        payload: { driverId: DRIVER_A, vehicleId: VEHICLE_A },
+        ...asStaff(DISPATCHER_ID),
+      });
+    expect((await assign(first)).statusCode).toBe(200);
+    const busy = await assign(second);
+    expect(busy.statusCode).toBe(409);
+    expect(busy.json()).toMatchObject({ tag: 'DriverBusy' });
+
+    const skip = await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/${first}/status`,
+      payload: { status: 'loaded' },
+      ...asStaff(DISPATCHER_ID),
+    });
+    expect(skip.statusCode).toBe(409);
+  });
+
+  it("404s another company's job, 403s a viewer, and cancels", async () => {
+    const { app } = buildApp();
+    const id = await createDraft(app);
+    const get = (staff: string) =>
+      app.inject({ method: 'GET', url: `/staff/jobs/${id}`, ...asStaff(staff) });
+    expect((await get(OUTSIDER_ID)).statusCode).toBe(404);
+    expect((await get(VIEWER_ID)).statusCode).toBe(200);
+
+    const cancel = (staff: string) =>
+      app.inject({ method: 'POST', url: `/staff/jobs/${id}/cancel`, ...asStaff(staff) });
+    expect((await cancel(VIEWER_ID)).statusCode).toBe(403);
+    const done = await cancel(DISPATCHER_ID);
+    expect(done.statusCode).toBe(200);
+    expect(done.json()).toMatchObject({ status: 'cancelled' });
+  });
+
+  it('lists a company’s jobs, and 403s staff from another company', async () => {
+    const { app } = buildApp();
+    await createDraft(app);
+    const list = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/companies/${companyA}/jobs`,
+      ...asStaff(VIEWER_ID),
+    });
+    expect(list.statusCode).toBe(200);
+    expect(list.json<{ jobs: unknown[] }>().jobs).toHaveLength(1);
+    const other = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/companies/${companyA}/jobs`,
+      ...asStaff(OUTSIDER_ID),
+    });
+    expect(other.statusCode).toBe(403);
   });
 });

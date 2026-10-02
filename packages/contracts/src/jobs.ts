@@ -43,6 +43,9 @@ export const jobSchema = z.object({
   stops: z.array(jobStopSchema),
   status: jobStatusSchema,
   timeline: z.array(jobTimelineEntrySchema),
+  driverId: z.string().optional(),
+  vehicleId: z.string().optional(),
+  routePlanId: z.string().optional(),
   plannedStart: z.iso.datetime().optional(),
   dueBy: z.iso.datetime().optional(),
 });
@@ -73,3 +76,32 @@ export const jobsErrorResponseSchema = z.object({
   requestId: z.string(),
 });
 export type JobsErrorResponse = z.infer<typeof jobsErrorResponseSchema>;
+
+export const listJobsResponseSchema = z.object({
+  jobs: z.array(jobSchema),
+});
+export type ListJobsResponse = z.infer<typeof listJobsResponseSchema>;
+
+/** The driver and vehicle must both belong to the job's company; core checks. */
+export const assignJobRequestSchema = z.object({
+  driverId: z.string().min(1),
+  vehicleId: z.string().min(1),
+});
+export type AssignJobRequest = z.infer<typeof assignJobRequestSchema>;
+
+/** One step forward; `position` is the GPS fix to stamp on the change, when there is one. */
+export const advanceJobStatusRequestSchema = z.object({
+  status: jobStatusSchema,
+  position: geoPointSchema.optional(),
+});
+export type AdvanceJobStatusRequest = z.infer<typeof advanceJobStatusRequestSchema>;
+
+export const failJobRequestSchema = z.object({
+  position: geoPointSchema.optional(),
+});
+export type FailJobRequest = z.infer<typeof failJobRequestSchema>;
+
+export const jobIdParamsSchema = z.object({
+  id: z.uuid(),
+});
+export type JobIdParams = z.infer<typeof jobIdParamsSchema>;

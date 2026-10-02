@@ -1,4 +1,5 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { sql } from 'kysely';
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
@@ -86,5 +87,71 @@ describe('PostgresJobRepository', () => {
     };
     await repo().save(updated);
     expect(await repo().findById(j.id)).toEqual(updated);
+  });
+
+  it('finds the job a driver is currently on, and ignores finished ones', async () => {
+    const driverId = makeId<'DriverId'>('aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa');
+    const done = job({
+      id: makeId<'JobId'>('bbbbbbbb-1111-4111-8111-bbbbbbbbbbbb'),
+      status: 'delivered',
+      driverId,
+    });
+    const active = job({
+      id: makeId<'JobId'>('cccccccc-1111-4111-8111-cccccccccccc'),
+      status: 'en_route',
+      driverId,
+    });
+    await repo().save(done);
+    expect(await repo().findActiveForDriver(driverId)).toBeNull();
+    await repo().save(active);
+    expect((await repo().findActiveForDriver(driverId))?.id).toBe(active.id);
+  });
+
+  it('lists only a company’s own jobs, each with its stops', async () => {
+    const other = makeId<'CompanyId'>('99999999-0000-4000-8000-999999999999');
+    await repo().save(
+      job({ id: makeId<'JobId'>('dddddddd-1111-4111-8111-dddddddddddd'), companyId: other }),
+    );
+    const mine = await repo().listForCompany(companyId);
+    expect(mine.length).toBeGreaterThan(0);
+    expect(mine.every((j) => j.companyId === companyId)).toBe(true);
+    expect(mine.every((j) => j.stops.length === 2)).toBe(true);
+  });
+
+  it('writes events to the outbox with the job', async () => {
+    const j = job({ id: makeId<'JobId'>('eeeeeeee-1111-4111-8111-eeeeeeeeeeee') });
+    await repo().save(j, [
+      {
+        eventId: 'ffffffff-1111-4111-8111-ffffffffffff',
+        aggregateType: 'Job',
+        aggregateId: j.id,
+        eventType: 'JobCreated',
+        payload: { jobId: j.id },
+      },
+    ]);
+    const { rows } = await sql<{ event_type: string }>`
+      select event_type from outbox.events where aggregate_id = ${j.id}
+    `.execute(db);
+    expect(rows).toEqual([{ event_type: 'JobCreated' }]);
+  });
+
+  it('refuses, at the database, a second active job for the same driver', async () => {
+    const driverId = makeId<'DriverId'>('abababab-1111-4111-8111-abababababab');
+    await repo().save(
+      job({
+        id: makeId<'JobId'>('ab000000-1111-4111-8111-000000000001'),
+        status: 'assigned',
+        driverId,
+      }),
+    );
+    await expect(
+      repo().save(
+        job({
+          id: makeId<'JobId'>('ab000000-1111-4111-8111-000000000002'),
+          status: 'accepted',
+          driverId,
+        }),
+      ),
+    ).rejects.toThrow(/jobs_one_active_per_driver_idx/);
   });
 });

@@ -11,7 +11,8 @@ import {
   type Job,
   type JobStop,
 } from '../domain/job.js';
-import { canCreateJob } from './authorization.js';
+import { jobCreatedEvent } from '../domain/events.js';
+import { canDispatch } from './authorization.js';
 import type { Forbidden } from './errors.js';
 import type { Caller } from './ports/caller-directory.js';
 import type { JobRepository } from './ports/job-repository.js';
@@ -39,7 +40,7 @@ export async function createJob(
   deps: CreateJobDeps,
   input: CreateJobInput,
 ): Promise<Result<Job, CreateJobError>> {
-  if (!canCreateJob(input.caller, input.companyId)) return err({ tag: 'Forbidden' });
+  if (!canDispatch(input.caller, input.companyId)) return err({ tag: 'Forbidden' });
   const reference = validateReference(input.reference);
   if (!reference.ok) {
     return reference;
@@ -60,6 +61,6 @@ export async function createJob(
     ...(input.plannedStart === undefined ? {} : { plannedStart: input.plannedStart }),
     ...(input.dueBy === undefined ? {} : { dueBy: input.dueBy }),
   };
-  await deps.repo.save(job);
+  await deps.repo.save(job, [jobCreatedEvent(deps.ids.newId(), job)]);
   return ok(job);
 }

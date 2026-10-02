@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { makeId } from '../../shared/brand.js';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { UnitOfWork } from '../../shared/ports/unit-of-work.js';
@@ -81,6 +82,9 @@ export interface IdentityModule {
    *  strings, not `Device`s: nothing outside identity needs a device's id or timestamps, only
    *  what a `PushNotifier` actually sends to. Unconsumed until M6.4 gives it a real caller. */
   getPushTokensForDriver(driverId: DriverId): Promise<string[]>;
+  /** The company a driver belongs to, or null (no such driver, or no company). For '
+   *  driver directory, supplied by composition. */
+  getDriverCompanyId(driverId: string): Promise<string | null>;
   /** Delivers a one-time code by text (a phone number) or email, through the same senders drivers'
    *  sign-in codes use (ClickSend / Resend, or the console in local dev). Staff second factors
    *  (P2-M1.4) reach it through `companies`' own `CodeSender` port, so ClickSend/Resend accounts
@@ -162,6 +166,10 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
   return {
     registerRoutes(app: FastifyInstance): void {
       registerIdentityRoutes(app, routeDeps);
+    },
+    async getDriverCompanyId(driverId: string): Promise<string | null> {
+      const driver = await driverRepo.findById(makeId<'DriverId'>(driverId));
+      return driver?.companyId ?? null;
     },
     async getPushTokensForDriver(driverId: DriverId): Promise<string[]> {
       const devices = await deviceRepo.findByDriverId(driverId);

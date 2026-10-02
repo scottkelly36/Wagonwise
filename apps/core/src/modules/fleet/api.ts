@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { makeId } from '../../shared/brand.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { CallerDirectory } from './application/ports/caller-directory.js';
@@ -23,6 +24,9 @@ export interface FleetModuleDeps {
 
 export interface FleetModule {
   registerRoutes(app: FastifyInstance): void;
+  /** The company a vehicle belongs to, or null. For `jobs' vehicle directory, supplied by
+   *  composition (AGENTS.md rule 7). */
+  getVehicleCompanyId(vehicleId: string): Promise<string | null>;
 }
 
 /**
@@ -47,6 +51,10 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
   return {
     registerRoutes(app: FastifyInstance): void {
       registerFleetRoutes(app, routeDeps);
+    },
+    async getVehicleCompanyId(vehicleId: string): Promise<string | null> {
+      const vehicle = await repo.findById(makeId<'FleetVehicleId'>(vehicleId));
+      return vehicle?.companyId ?? null;
     },
   };
 }
