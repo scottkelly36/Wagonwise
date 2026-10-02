@@ -26,6 +26,14 @@ export class InMemoryDriverLinkRepository implements DriverLinkRepository {
     return Promise.resolve(found ?? null);
   }
 
+  isActive(companyId: CompanyId, driverId: DriverId): Promise<boolean> {
+    return Promise.resolve(
+      [...this.#byId.values()].some(
+        (l) => l.companyId === companyId && l.driverId === driverId && l.status === 'active',
+      ),
+    );
+  }
+
   findPendingInvite(companyId: CompanyId, identifier: string): Promise<DriverLink | null> {
     const found = [...this.#byId.values()].find(
       (l) =>

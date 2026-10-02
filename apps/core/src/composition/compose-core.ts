@@ -223,8 +223,7 @@ export function composeCore(
     dataScopes,
     callers: { getCaller: staffCaller },
     drivers: {
-      belongsToCompany: async (driverId, companyId) =>
-        (await identity.getDriverCompanyId(driverId)) === companyId,
+      belongsToCompany: (driverId, companyId) => fleet.isActiveDriverOfCompany(driverId, companyId),
     },
     vehicles: {
       belongsToCompany: async (vehicleId, companyId) =>

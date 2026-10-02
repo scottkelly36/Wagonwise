@@ -53,8 +53,8 @@ export interface IdentityModuleDeps {
   readonly ids: IdGenerator;
   readonly unitOfWork: UnitOfWork;
   readonly tokenSigner: TokenSigner;
-  /** Is a staff member a WagonWise admin? For the driver-account and invite-code screens
-   *  (P2-M1.12c). Supplied by composition over `companies`' `getStaffCaller`. */
+  /** Is a staff member a WagonWise admin? For the invite-code screen (P2-M1.12c). Supplied by
+   *  composition over `companies`' `getStaffCaller`. */
   readonly platformStaff: PlatformStaffDirectory;
   /** Both set wires `ClickSendOtpSender` for phone-identifier OTPs; either unset falls back to
    *  the local-dev `ConsoleOtpSender` for that channel — same "real adapter behind a config
@@ -82,9 +82,6 @@ export interface IdentityModule {
    *  strings, not `Device`s: nothing outside identity needs a device's id or timestamps, only
    *  what a `PushNotifier` actually sends to. Unconsumed until M6.4 gives it a real caller. */
   getPushTokensForDriver(driverId: DriverId): Promise<string[]>;
-  /** The company a driver belongs to, or null (no such driver, or no company). For '
-   *  driver directory, supplied by composition. */
-  getDriverCompanyId(driverId: string): Promise<string | null>;
   /** A driver's normalised sign-in identifier (phone or email), or null. For fleet, which uses it
    *  to match invitations to the driver (supplied by composition). */
   getDriverIdentifier(driverId: string): Promise<string | null>;
@@ -154,8 +151,6 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     registerDevice: { repo: deviceRepo, clock: deps.clock, ids: deps.ids },
     giveConsent: { driverRepo, clock: deps.clock },
     deleteAccount: { driverRepo, sessionRepo, deviceRepo, clock: deps.clock },
-    listDrivers: { driverRepo, staff: deps.platformStaff },
-    updateDriver: { driverRepo, staff: deps.platformStaff },
     createInviteCode: {
       repo: inviteCodeRepo,
       generator: inviteCodeGenerator,
@@ -173,10 +168,6 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     async getDriverIdentifier(driverId: string): Promise<string | null> {
       const driver = await driverRepo.findById(makeId<'DriverId'>(driverId));
       return driver?.identifier ?? null;
-    },
-    async getDriverCompanyId(driverId: string): Promise<string | null> {
-      const driver = await driverRepo.findById(makeId<'DriverId'>(driverId));
-      return driver?.companyId ?? null;
     },
     async getPushTokensForDriver(driverId: DriverId): Promise<string[]> {
       const devices = await deviceRepo.findByDriverId(driverId);

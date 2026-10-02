@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   deviceSchema,
-  driverIdParamsSchema,
   inviteCodeSchema,
-  listDriversResponseSchema,
   listInviteCodesResponseSchema,
   refreshTokenRequestSchema,
   registerDeviceRequestSchema,
   requestOtpRequestSchema,
   revokeSessionParamsSchema,
-  updateDriverRequestSchema,
   verifyOtpRequestSchema,
   verifyOtpResponseSchema,
 } from './identity.js';
@@ -98,79 +95,6 @@ describe('registerDeviceRequestSchema', () => {
       pushToken: 'ExponentPushToken[abc]',
     });
     expect(result.success).toBe(true);
-  });
-});
-
-describe('driverSchema (via verifyOtpResponseSchema)', () => {
-  it('accepts a companyId, and parses fine without one', () => {
-    const withCompany = verifyOtpResponseSchema.safeParse({
-      accessToken: 'a.b.c',
-      refreshToken: 'raw-token',
-      driver: {
-        id: 'driver-1',
-        identifier: 'a@example.com',
-        createdAt: '2026-09-22T09:24:27.168Z',
-        isAdmin: false,
-        scopes: [],
-        companyId: 'company-1',
-      },
-    });
-    expect(withCompany.success).toBe(true);
-
-    const withoutCompany = verifyOtpResponseSchema.safeParse({
-      accessToken: 'a.b.c',
-      refreshToken: 'raw-token',
-      driver: {
-        id: 'driver-1',
-        identifier: 'a@example.com',
-        createdAt: '2026-09-22T09:24:27.168Z',
-        isAdmin: false,
-        scopes: [],
-      },
-    });
-    expect(withoutCompany.success).toBe(true);
-  });
-});
-
-describe('listDriversResponseSchema', () => {
-  it('parses a list of drivers', () => {
-    const result = listDriversResponseSchema.safeParse({
-      drivers: [
-        {
-          id: 'driver-1',
-          identifier: 'a@example.com',
-          createdAt: '2026-09-22T09:24:27.168Z',
-          isAdmin: false,
-          scopes: [],
-        },
-      ],
-    });
-    expect(result.success).toBe(true);
-  });
-});
-
-describe('updateDriverRequestSchema', () => {
-  it('accepts an empty body: companyId is optional', () => {
-    expect(updateDriverRequestSchema.safeParse({}).success).toBe(true);
-  });
-
-  it('accepts a companyId, or null to clear an assignment', () => {
-    expect(updateDriverRequestSchema.safeParse({ companyId: 'company-1' }).success).toBe(true);
-    expect(updateDriverRequestSchema.safeParse({ companyId: null }).success).toBe(true);
-  });
-
-  it('drops the retired isAdmin and scopes fields, so they can never reach core', () => {
-    const parsed = updateDriverRequestSchema.parse({ isAdmin: true, scopes: ['manage_fleet'] });
-    expect(parsed).toEqual({});
-  });
-});
-
-describe('driverIdParamsSchema', () => {
-  it('requires a well-formed UUID', () => {
-    expect(driverIdParamsSchema.safeParse({ id: 'not-a-uuid' }).success).toBe(false);
-    expect(
-      driverIdParamsSchema.safeParse({ id: '11111111-1111-4111-8111-111111111111' }).success,
-    ).toBe(true);
   });
 });
 

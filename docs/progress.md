@@ -24,7 +24,7 @@ history file keeps the record.
 | M9 Route options & safe parking    | Done — 2026-09-27                       | `history/m9-route-options-parking.md`  |
 | Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only  | below, and the Phase 2 tech design doc |
 | P2-M1 Orgs, roles, RLS, staff auth | Done — 2026-10-01                       | `history/p2-m1-organisations-auth.md`  |
-| P2-M2 Fleet                        | Vehicles + driver links M2.1-2.7 done   | `history/p2-m2-driver-links.md`        |
+| P2-M2 Fleet                        | Done — 2026-10-02                       | `history/p2-m2-driver-links.md`        |
 | P2-M3 Jobs core                    | Done — 2026-10-02                       | below                                  |
 
 ## Next up
@@ -76,13 +76,20 @@ surface was needed straight away:
 
 - `apps/dashboard` (Vite + React). Since P2-M1.12c it uses staff accounts only (email,
   password, second factor) through `apps/staff-bff`.
-- `companies` module (own migration) and `Driver.companyId`.
-- Admin screens: Companies, Driver Accounts (assign company), Invite
-  Codes (generate/list), Hazard Reports (list/delete — replaced the driver app's delete button).
+- `companies` module (own migration).
+- Admin screens: Companies, Invite Codes (generate/list), Hazard Reports (list/delete —
+  replaced the driver app's delete button).
 
 - **Fleet vehicles (PR #48, early P2-M2):** `fleet` module (company vehicles with dimensions,
   migration 0019), Vehicle Profiles page. Its interim driver `scopes` were replaced by staff
   privileges at P2-M1.12c (migration 0025 drops them).
+
+- **Driver links (P2-M2.1-2.8, done 2026-10-02):** `fleet.driver_links` + `fleet.company_codes`
+  (migration 0028) — a driver joins a company by invite or company code, staff approve, and a
+  driver can be active with several companies at once. Staff routes + the dashboard's Drivers
+  page (M2.6), driver app screens (M2.7), and the cut-over (M2.8: jobs reads active links
+  instead of the old single `drivers.company_id`, which migration 0029 then drops, along with
+  the driver-accounts admin screen). See `history/p2-m2-driver-links.md`.
 
 - **Jobs — P2-M3 (done 2026-10-02):** `jobs` module (migrations 0026-0027). The `Job` model with a
   forward-only status machine (draft → assigned → accepted → at pickup → loaded → en route → at
@@ -92,8 +99,8 @@ surface was needed straight away:
   partial unique index). `JobCreated`, `JobAssigned`, `JobStatusChanged`, `JobCompleted` and
   `JobCancelled` go to the outbox; nothing handles them yet (the push to the driver is M5).
   Driver and vehicle must belong to the job's company, read through jobs' own directory ports
-  (driver via the existing `drivers.company_id`, which P2-M2's driver-company links will
-  replace). Deliberately **not** in M3: route planning from the vehicle's dimensions on assign
+  (driver via `fleet.driver_links`' active status, since P2-M2.8; originally the single
+  `drivers.company_id`). Deliberately **not** in M3: route planning from the vehicle's dimensions on assign
   (routing only plans from a driver's own profile today, so it needs a routing change — done with
   the portal in M4), the driver's own endpoints and the driver-bff proxy (M5), and any dashboard
   screens (M4). `composition/jobs-dispatch-end-to-end.test.ts` runs the whole flow as
@@ -113,10 +120,15 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-02: P2-M2.8 closes out P2-M2: jobs' driver directory reads `fleet.driver_links`
+  (active status) instead of `identity.drivers.company_id`; migration 0029 drops that column;
+  the dashboard's Driver Accounts screen, `GET`/`PATCH /staff/drivers...`, and everything that
+  only existed to serve them are deleted; the RLS safety test's `identity.drivers` exception is
+  gone. See `history/p2-m2-driver-links.md`'s M2.8 notes.
 - 2026-10-02: P2-M2.7: driver app screens for joining a company — "My companies" (invitations,
   requests, active, each with their action) and "Join a company" (enter a code), reached from
   Settings. JS-only; see `history/p2-m2-driver-links.md`'s M2.7 notes. Not yet shipped by
-  `eas update` or checked on a real device. Only M2.8 (cut-over) is left on P2-M2.
+  `eas update` or checked on a real device.
 - 2026-10-02: P2-M2.6: staff routes (invite, approve/decline/remove, the company code) and the
   dashboard's **Drivers** page, finishing the driver-links slice of P2-M2 (M2.1-2.6). See
   `history/p2-m2-driver-links.md`'s M2.6 notes.

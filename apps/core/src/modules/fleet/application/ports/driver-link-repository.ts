@@ -6,6 +6,10 @@ export interface DriverLinkRepository {
   findById(id: DriverLinkId): Promise<DriverLink | null>;
   /** The driver's invited, requested or active link with the company, if any. */
   findLive(companyId: CompanyId, driverId: DriverId): Promise<DriverLink | null>;
+  /** Whether the driver is an active (not merely invited or requested) member of the company —
+   *  P2-M2.8: what `jobs` checks before assigning them a job, replacing identity's old single
+   *  `drivers.company_id`. */
+  isActive(companyId: CompanyId, driverId: DriverId): Promise<boolean>;
   /** A pending invitation from the company to this (normalised) identifier, if any. */
   findPendingInvite(companyId: CompanyId, identifier: string): Promise<DriverLink | null>;
   /** Newest first. */

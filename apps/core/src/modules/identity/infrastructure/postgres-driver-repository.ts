@@ -11,7 +11,6 @@ interface DriverRow {
   readonly created_at: Date;
   readonly consented_at: Date | null;
   readonly deleted_at: Date | null;
-  readonly company_id: string | null;
 }
 
 function toDomain(row: DriverRow): Driver {
@@ -21,12 +20,11 @@ function toDomain(row: DriverRow): Driver {
     createdAt: row.created_at,
     consentedAt: row.consented_at ?? undefined,
     deletedAt: row.deleted_at ?? undefined,
-    companyId: row.company_id === null ? undefined : makeId<'CompanyId'>(row.company_id),
   };
 }
 
 const SELECT_COLUMNS = `
-  id, identifier, created_at, consented_at, deleted_at, company_id
+  id, identifier, created_at, consented_at, deleted_at
 `;
 
 /**
@@ -53,29 +51,20 @@ export class PostgresDriverRepository implements DriverRepository {
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
-  async findAll(): Promise<Driver[]> {
-    const { rows } = await sql<DriverRow>`
-      select ${sql.raw(SELECT_COLUMNS)} from identity.drivers order by created_at desc
-    `.execute(this.db);
-    return rows.map(toDomain);
-  }
-
-  /** Upsert (the port's contract, M8) — `consent()`/`anonymize()` re-save an existing row, and so
-   *  does `update-driver.ts`'s admin action (the company assignment). */
+  /** Upsert (the port's contract, M8) — `consent()`/`anonymize()` re-save an existing row. */
   async save(driver: Driver, tx?: Transaction): Promise<void> {
     const executor = tx ? (tx as unknown as UntypedDb) : this.db;
     await sql`
       insert into identity.drivers
-        (id, identifier, created_at, consented_at, deleted_at, company_id)
+        (id, identifier, created_at, consented_at, deleted_at)
       values (
         ${driver.id}, ${driver.identifier}, ${driver.createdAt},
-        ${driver.consentedAt ?? null}, ${driver.deletedAt ?? null}, ${driver.companyId ?? null}
+        ${driver.consentedAt ?? null}, ${driver.deletedAt ?? null}
       )
       on conflict (id) do update set
         identifier = excluded.identifier,
         consented_at = excluded.consented_at,
-        deleted_at = excluded.deleted_at,
-        company_id = excluded.company_id
+        deleted_at = excluded.deleted_at
     `.execute(executor);
   }
 }

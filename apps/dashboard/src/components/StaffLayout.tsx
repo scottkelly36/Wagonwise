@@ -42,7 +42,6 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
       { to: '/admin/invite-codes', label: 'Invite codes', shows: isPlatform },
       { to: '/admin/hazard-reports', label: 'Hazard reports', shows: isPlatform },
       { to: '/admin/congestion-reports', label: 'Congestion reports', shows: isPlatform },
-      { to: '/admin/driver-accounts', label: 'Driver accounts', shows: isPlatform },
     ],
   },
 ];

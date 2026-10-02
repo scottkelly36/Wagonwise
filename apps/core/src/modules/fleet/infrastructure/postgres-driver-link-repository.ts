@@ -57,6 +57,16 @@ export class PostgresDriverLinkRepository implements DriverLinkRepository {
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
+  async isActive(companyId: CompanyId, driverId: DriverId): Promise<boolean> {
+    const { rows } = await sql<{ exists: boolean }>`
+      select exists(
+        select 1 from fleet.driver_links
+        where company_id = ${companyId} and driver_id = ${driverId} and status = 'active'
+      )
+    `.execute(this.db);
+    return rows[0]?.exists ?? false;
+  }
+
   async findPendingInvite(companyId: CompanyId, identifier: string): Promise<DriverLink | null> {
     const { rows } = await sql<LinkRow>`
       select ${sql.raw(SELECT_COLUMNS)} from fleet.driver_links
