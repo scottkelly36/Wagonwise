@@ -21,6 +21,8 @@ function job(status: JobStatus = 'draft'): Job {
     stops: [],
     status,
     timeline: [{ status: 'draft', at: t(0) }],
+    requiresProofOfDelivery: false,
+    hasProofOfDelivery: false,
   };
 }
 

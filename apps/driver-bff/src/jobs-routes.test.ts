@@ -23,6 +23,11 @@ describe('jobs routes', () => {
       ['GET', '/jobs/current', undefined],
       ['POST', `/jobs/${JOB_ID}/status`, { status: 'accepted' }],
       ['POST', `/jobs/${JOB_ID}/fail`, undefined],
+      [
+        'POST',
+        `/jobs/${JOB_ID}/proof-of-delivery`,
+        { contentType: 'image/jpeg', dataBase64: 'YQ==' },
+      ],
     ] as const) {
       const response = await app.inject({ method, url, ...(payload ? { payload } : {}) });
       expect(response.statusCode).toBe(401);
@@ -64,6 +69,40 @@ describe('jobs routes', () => {
       headers: AUTH_HEADER,
     });
     expect(failed.statusCode).toBe(404);
+  });
+
+  it('forwards a proof-of-delivery photo, relaying core’s 204', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 204, body: undefined };
+    const payload = {
+      contentType: 'image/jpeg',
+      dataBase64: Buffer.from('a photo').toString('base64'),
+    };
+    const response = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/proof-of-delivery`,
+      payload,
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(204);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: `/jobs/${JOB_ID}/proof-of-delivery`,
+      body: payload,
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('400s a bad proof-of-delivery body without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/proof-of-delivery`,
+      payload: { contentType: 'image/jpeg', dataBase64: 'not base64!!' },
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
   });
 
   it('validates the body and the id before calling core', async () => {

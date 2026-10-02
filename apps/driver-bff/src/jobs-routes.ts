@@ -1,5 +1,6 @@
 import {
   advanceJobStatusRequestSchema,
+  attachProofOfDeliveryRequestSchema,
   failJobRequestSchema,
   jobIdParamsSchema,
 } from '@wagonwise/contracts/jobs';
@@ -52,5 +53,20 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
     return forward(request, reply, 'POST', `/jobs/${params.data.id}/fail`, parsed.data);
+  });
+
+  app.post('/jobs/:id/proof-of-delivery', (request, reply) => {
+    const params = jobIdParamsSchema.safeParse(request.params);
+    const parsed = attachProofOfDeliveryRequestSchema.safeParse(request.body);
+    if (!params.success || !parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    return forward(
+      request,
+      reply,
+      'POST',
+      `/jobs/${params.data.id}/proof-of-delivery`,
+      parsed.data,
+    );
   });
 }

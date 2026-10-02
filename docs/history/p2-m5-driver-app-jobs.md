@@ -11,7 +11,8 @@ Split into session-sized slices rather than one pass, matching the project's usu
 | M5.2  | Driver app: "my current job" screen, tap-to-advance         | Done — 2026-10-02 |
 | M5.3  | Voice status updates ("loaded and leaving")                 | Done — 2026-10-02 |
 | M5.4  | Geofence nudges (arrival confirm)                           | Done — 2026-10-02 |
-| M5.5  | Proof of delivery (photo/signature)                         | Not started       |
+| M5.5a | Proof of delivery: core + driver-bff + dashboard flag       | Done — 2026-10-03 |
+| M5.5b | Proof of delivery: driver app camera + offline queue        | Not started       |
 
 ## M5.1: driver job routes + driver-bff proxy
 
@@ -198,3 +199,52 @@ covering the distance function and the full geofence decision table). Not checke
 device — GPS accuracy and how close a stop's pin actually sits to where a driver parks are both
 open questions that only field testing can answer; `ARRIVAL_RADIUS_M` is a first guess, not a
 tuned value.
+
+## M5.5a: proof of delivery — backend, proxy and the dispatcher's flag
+
+Split in two like M5.1/M5.2: this slice is core + driver-bff + the dashboard checkbox; the driver
+app's camera and offline queue (a new native dependency, `expo-image-picker`) is M5.5b.
+
+**Decisions (user's calls, 2026-10-03):**
+
+- **Photo, not signature.** Design doc §5 says "photo and/or signature"; a signature pad needs a
+  drawing-canvas dependency this app doesn't have, so photo alone satisfies it.
+- **Postgres `bytea`, not S3/DigitalOcean Spaces.** Object storage needs an account, bucket and
+  keys that only the user can create, so it would block a feature with no real users yet. Same
+  "zero-config default, swap the real provider in later" habit as `ConsoleOtpSender`/
+  `NullHazardParser`. Revisit when photo volume, or a dashboard viewer for PODs, justifies it.
+  No `FileStore` port yet either — one implementation, so no abstraction.
+- **Optional to attach, but a job can require it.** Any driver can attach a photo to any job. A
+  dispatcher can also tick "Require proof of delivery" when creating a job
+  (`jobs.jobs.requires_proof_of_delivery`, default false).
+
+**Enforcement is in core, not the app.** `advanceJobStatus` refuses `→ delivered` with
+`ProofOfDeliveryRequired` (409) when the job requires proof and none has been attached — the same
+"don't trust the client alone" stance as RLS. Consequence worth knowing: a required-proof job in a
+dead zone can't be marked delivered until the photo has actually uploaded. That's what "required"
+means; soften it if field use shows it's too strict.
+
+**What this slice added:**
+
+- `migrations/0031_jobs_proof_of_delivery.sql`: the flag column, and `jobs.proof_of_delivery`
+  (one row per job, so retaking replaces; same "visible exactly when its job is" RLS as
+  `job_stops`).
+- `Job` gains `requiresProofOfDelivery` and a read-only `hasProofOfDelivery`, loaded in the same
+  batched query as the stops (`PostgresJobRepository.#withStops`) — the photo bytes themselves are
+  never loaded on a plain job read.
+- `application/attach-proof-of-delivery.ts` + `POST /jobs/:id/proof-of-delivery` (base64 over JSON,
+  204): driver-only — a staff actor is refused even for their own company's job.
+- `bodyLimit` raised to 10 MiB in core and driver-bff (Fastify's 1 MiB default would reject a
+  photo before it reached the route); the contract caps the base64 at 7,000,000 characters.
+- Contracts: `requiresProofOfDelivery`/`hasProofOfDelivery` on `jobSchema`, the optional flag on
+  `createJobRequestSchema`, `attachProofOfDeliveryRequestSchema`.
+- driver-bff proxy route; dashboard Jobs page gets the checkbox and a "Proof of delivery" column
+  ("—" / "Required — not yet received" / "Received"). The dashboard doesn't view the photo.
+
+**Verified:** `pnpm verify` green (1026 core tests, including `ProofOfDeliveryRequired` at the use
+case, over HTTP, and the Postgres round-trip incl. replace-on-retake), and the dashboard checked
+live: checkbox and column render, a job created with it ticked shows "Required — not yet
+received". Not exercised live end to end — nothing in the driver app can upload a photo yet (M5.5b).
+
+**Not done:** the driver-app capture/queue (M5.5b); viewing a photo anywhere; signatures; an
+S3-backed store.

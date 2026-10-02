@@ -3,6 +3,7 @@ import type {
   DriverNotInCompany,
   Forbidden,
   JobNotFound,
+  ProofOfDeliveryRequired,
   VehicleNotInCompany,
 } from '../application/errors.js';
 import type { InvalidReference, InvalidStops, InvalidTransition } from '../domain/job.js';
@@ -15,7 +16,8 @@ export type JobsError =
   | JobNotFound
   | DriverNotInCompany
   | VehicleNotInCompany
-  | DriverBusy;
+  | DriverBusy
+  | ProofOfDeliveryRequired;
 
 /** Tag -> HTTP status, in exactly one table (AGENTS.md rule 13), mirroring every other module's
  *  error-mapping.ts. `switch-exhaustiveness-check` means a new domain error tag breaks
@@ -33,6 +35,7 @@ export function statusFor(error: JobsError): number {
       return 404;
     case 'InvalidTransition':
     case 'DriverBusy':
+    case 'ProofOfDeliveryRequired':
       return 409;
   }
 }

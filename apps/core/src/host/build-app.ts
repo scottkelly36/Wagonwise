@@ -55,6 +55,10 @@ export function buildApp({
     // Honour an ID sent by the BFF so one request can be followed across services.
     requestIdHeader: REQUEST_ID_HEADER,
     genReqId: () => ids.newId(),
+    // Fastify's own default (1 MiB) is too small for a proof-of-delivery photo (P2-M5.5):
+    // base64-over-JSON, capped at 7MB of base64 by the contract schema, plus a little JSON
+    // overhead. Every other route's body is tiny, so this is generous for them, not risky.
+    bodyLimit: 10 * 1024 * 1024,
   });
 
   app.addHook('onSend', (request, reply, _payload, done) => {

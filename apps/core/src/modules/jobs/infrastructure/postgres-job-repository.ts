@@ -1,7 +1,7 @@
 import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
 import type { DomainEvent } from '../../../shared/domain-event.js';
-import type { JobRepository } from '../application/ports/job-repository.js';
+import type { JobRepository, ProofOfDeliveryPhoto } from '../application/ports/job-repository.js';
 import {
   ACTIVE_STATUSES,
   type CompanyId,
@@ -27,6 +27,7 @@ interface JobRow {
   readonly planned_start: Date | null;
   readonly due_by: Date | null;
   readonly timeline: unknown;
+  readonly requires_proof_of_delivery: boolean;
 }
 
 interface StopRow {
@@ -41,7 +42,7 @@ interface StopRow {
 
 const JOB_SELECT_COLUMNS = `
   id, company_id, reference, status, driver_id, vehicle_id, route_plan_id, planned_start, due_by,
-  timeline
+  timeline, requires_proof_of_delivery
 `;
 
 const STOP_SELECT_COLUMNS = `
@@ -81,7 +82,7 @@ function stopFromRow(row: StopRow): JobStop {
   };
 }
 
-function jobFromRows(job: JobRow, stops: readonly StopRow[]): Job {
+function jobFromRows(job: JobRow, stops: readonly StopRow[], hasProofOfDelivery: boolean): Job {
   return {
     id: makeId<'JobId'>(job.id),
     companyId: makeId<'CompanyId'>(job.company_id),
@@ -89,6 +90,8 @@ function jobFromRows(job: JobRow, stops: readonly StopRow[]): Job {
     stops: stops.map(stopFromRow),
     status: job.status,
     timeline: timelineFrom(job.timeline),
+    requiresProofOfDelivery: job.requires_proof_of_delivery,
+    hasProofOfDelivery,
     ...(job.driver_id === null ? {} : { driverId: makeId<'DriverId'>(job.driver_id) }),
     ...(job.vehicle_id === null ? {} : { vehicleId: makeId<'FleetVehicleId'>(job.vehicle_id) }),
     ...(job.route_plan_id === null
@@ -133,17 +136,26 @@ export class PostgresJobRepository implements JobRepository {
     return this.#withStops(rows);
   }
 
-  /** The jobs with their stops, in the order given: one query for all the stops, not one each. */
+  /** The jobs with their stops and proof-of-delivery status, in the order given: one query each
+   *  for all the stops and all the POD rows, not one per job. */
   async #withStops(jobRows: readonly JobRow[]): Promise<Job[]> {
     if (jobRows.length === 0) return [];
-    const { rows: stopRows } = await sql<StopRow & { job_id: string }>`
-      select job_id, ${sql.raw(STOP_SELECT_COLUMNS)} from jobs.job_stops
-      where job_id in (${sql.join(jobRows.map((j) => j.id))}) order by job_id, sequence
-    `.execute(this.db);
+    const ids = jobRows.map((j) => j.id);
+    const [{ rows: stopRows }, { rows: podRows }] = await Promise.all([
+      sql<StopRow & { job_id: string }>`
+        select job_id, ${sql.raw(STOP_SELECT_COLUMNS)} from jobs.job_stops
+        where job_id in (${sql.join(ids)}) order by job_id, sequence
+      `.execute(this.db),
+      sql<{ job_id: string }>`
+        select job_id from jobs.proof_of_delivery where job_id in (${sql.join(ids)})
+      `.execute(this.db),
+    ]);
+    const podJobIds = new Set(podRows.map((r) => r.job_id));
     return jobRows.map((jobRow) =>
       jobFromRows(
         jobRow,
         stopRows.filter((s) => s.job_id === jobRow.id),
+        podJobIds.has(jobRow.id),
       ),
     );
   }
@@ -162,12 +174,12 @@ export class PostgresJobRepository implements JobRepository {
     await sql`
       insert into jobs.jobs
         (id, company_id, reference, status, driver_id, vehicle_id, route_plan_id, planned_start,
-         due_by, created_at, timeline)
+         due_by, created_at, timeline, requires_proof_of_delivery)
       values (
         ${job.id}, ${job.companyId}, ${job.reference}, ${job.status},
         ${job.driverId ?? null}, ${job.vehicleId ?? null}, ${job.routePlanId ?? null},
         ${job.plannedStart ?? null}, ${job.dueBy ?? null}, now(),
-        ${JSON.stringify(job.timeline)}::jsonb
+        ${JSON.stringify(job.timeline)}::jsonb, ${job.requiresProofOfDelivery}
       )
       on conflict (id) do update set
         reference = excluded.reference,
@@ -177,7 +189,8 @@ export class PostgresJobRepository implements JobRepository {
         route_plan_id = excluded.route_plan_id,
         planned_start = excluded.planned_start,
         due_by = excluded.due_by,
-        timeline = excluded.timeline
+        timeline = excluded.timeline,
+        requires_proof_of_delivery = excluded.requires_proof_of_delivery
     `.execute(this.db);
 
     // Stops are replaced wholesale rather than diffed: nothing edits them after creation, and
@@ -194,5 +207,16 @@ export class PostgresJobRepository implements JobRepository {
         )
       `.execute(this.db);
     }
+  }
+
+  async saveProofOfDelivery(jobId: JobId, photo: ProofOfDeliveryPhoto): Promise<void> {
+    await sql`
+      insert into jobs.proof_of_delivery (job_id, content_type, data, captured_at)
+      values (${jobId}, ${photo.contentType}, ${photo.data}, now())
+      on conflict (job_id) do update set
+        content_type = excluded.content_type,
+        data = excluded.data,
+        captured_at = excluded.captured_at
+    `.execute(this.db);
   }
 }

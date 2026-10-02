@@ -30,6 +30,7 @@ export interface CreateJobInput {
   readonly stops: readonly JobStop[];
   readonly plannedStart?: Date | undefined;
   readonly dueBy?: Date | undefined;
+  readonly requiresProofOfDelivery?: boolean | undefined;
 }
 
 export type CreateJobError = Forbidden | InvalidReference | InvalidStops;
@@ -58,6 +59,8 @@ export async function createJob(
     stops: stops.value,
     status: 'draft',
     timeline: [{ status: 'draft', at: now }],
+    requiresProofOfDelivery: input.requiresProofOfDelivery ?? false,
+    hasProofOfDelivery: false,
     ...(input.plannedStart === undefined ? {} : { plannedStart: input.plannedStart }),
     ...(input.dueBy === undefined ? {} : { dueBy: input.dueBy }),
   };

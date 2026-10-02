@@ -14,7 +14,7 @@ import {
   type JobStatus,
 } from '../domain/job.js';
 import { canAdvance, canSeeJob, type JobActor } from './authorization.js';
-import type { Forbidden, JobNotFound } from './errors.js';
+import type { Forbidden, JobNotFound, ProofOfDeliveryRequired } from './errors.js';
 import type { JobRepository } from './ports/job-repository.js';
 
 export interface ChangeJobStatusDeps {
@@ -58,13 +58,23 @@ export interface AdvanceJobStatusInput {
 }
 
 /** Moves a job one step forward (accepted, at pickup, loaded, ...). The driver on the job or a
- *  dispatcher may do it; never a skip or a step back (domain `advanceStatus`). */
+ *  dispatcher may do it; never a skip or a step back (domain `advanceStatus`). Reaching
+ *  `delivered` on a job the dispatcher flagged as needing proof refuses without one
+ *  (P2-M5.5) — attaching the photo itself is a separate route
+ *  (`attach-proof-of-delivery.ts`), not part of this call. */
 export async function advanceJobStatus(
   deps: ChangeJobStatusDeps,
   input: AdvanceJobStatusInput,
-): Promise<Result<Job, ChangeJobStatusError>> {
+): Promise<Result<Job, ChangeJobStatusError | ProofOfDeliveryRequired>> {
   const loaded = await loadForAction(deps, input.actor, input.jobId);
   if (!loaded.ok) return loaded;
+  if (
+    input.to === 'delivered' &&
+    loaded.value.requiresProofOfDelivery &&
+    !loaded.value.hasProofOfDelivery
+  ) {
+    return err({ tag: 'ProofOfDeliveryRequired' });
+  }
   const next = advanceStatus(loaded.value, input.to, deps.clock.now(), input.position);
   if (!next.ok) return next;
   return commit(deps, loaded.value, next.value);

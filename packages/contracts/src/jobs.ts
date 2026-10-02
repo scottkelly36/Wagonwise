@@ -43,6 +43,9 @@ export const jobSchema = z.object({
   stops: z.array(jobStopSchema),
   status: jobStatusSchema,
   timeline: z.array(jobTimelineEntrySchema),
+  // P2-M5.5: the dispatcher's own call at creation, and whether one's actually been attached.
+  requiresProofOfDelivery: z.boolean(),
+  hasProofOfDelivery: z.boolean(),
   driverId: z.string().optional(),
   vehicleId: z.string().optional(),
   routePlanId: z.string().optional(),
@@ -61,6 +64,7 @@ export const createJobRequestSchema = z.object({
   stops: z.array(jobStopSchema).min(1),
   plannedStart: z.iso.datetime().optional(),
   dueBy: z.iso.datetime().optional(),
+  requiresProofOfDelivery: z.boolean().optional(),
 });
 export type CreateJobRequest = z.infer<typeof createJobRequestSchema>;
 
@@ -111,3 +115,12 @@ export const jobIdParamsSchema = z.object({
   id: z.uuid(),
 });
 export type JobIdParams = z.infer<typeof jobIdParamsSchema>;
+
+/** `POST /jobs/:id/proof-of-delivery` (P2-M5.5): base64 over JSON, same wire style as everything
+ *  else in this app — no multipart handling needed in the BFF or core. The max length is a rough
+ *  5MB-after-compression cap on the decoded photo (base64 runs ~1.37x the binary size). */
+export const attachProofOfDeliveryRequestSchema = z.object({
+  contentType: z.string().min(1),
+  dataBase64: z.base64().min(1).max(7_000_000),
+});
+export type AttachProofOfDeliveryRequest = z.infer<typeof attachProofOfDeliveryRequestSchema>;

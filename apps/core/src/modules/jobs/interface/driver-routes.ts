@@ -1,11 +1,16 @@
 import {
   advanceJobStatusRequestSchema,
+  attachProofOfDeliveryRequestSchema,
   failJobRequestSchema,
   jobIdParamsSchema,
 } from '@wagonwise/contracts/jobs';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId } from '../../../shared/brand.js';
 import type { DataScopes } from '../../../shared/ports/data-scope.js';
+import {
+  attachProofOfDelivery,
+  type AttachProofOfDeliveryDeps,
+} from '../application/attach-proof-of-delivery.js';
 import {
   advanceJobStatus,
   failJob,
@@ -20,6 +25,7 @@ import { statusFor, type JobsError } from './error-mapping.js';
 export interface JobsDriverRouteDeps {
   readonly currentJob: CurrentJobDeps;
   readonly changeStatus: ChangeJobStatusDeps;
+  readonly attachProofOfDelivery: AttachProofOfDeliveryDeps;
   readonly identities: DriverIdentityDirectory;
   /** Row-Level Security scope per request (migration 0030). */
   readonly dataScopes: DataScopes;
@@ -101,6 +107,23 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
         position: body.data.position,
       });
       return result.ok ? { status: 200, body: jobDto(result.value) } : failure(result.error);
+    }),
+  );
+
+  app.post('/jobs/:id/proof-of-delivery', (request, reply) =>
+    asDriver(request, reply, async (actor) => {
+      const params = jobIdParamsSchema.safeParse(request.params);
+      const body = attachProofOfDeliveryRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return INVALID;
+      const result = await attachProofOfDelivery(deps.attachProofOfDelivery, {
+        actor,
+        jobId: makeId<'JobId'>(params.data.id),
+        photo: {
+          contentType: body.data.contentType,
+          data: Buffer.from(body.data.dataBase64, 'base64'),
+        },
+      });
+      return result.ok ? { status: 204 } : failure(result.error);
     }),
   );
 }

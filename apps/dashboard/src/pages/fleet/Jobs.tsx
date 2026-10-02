@@ -20,13 +20,16 @@ const EMPTY_FORM = {
   deliveryName: '',
   deliveryLat: '',
   deliveryLon: '',
+  requiresProofOfDelivery: false,
 };
 
 /** Dispatch's "create a job, assign a driver and vehicle" slice (P2-M4, design doc §5 steps
  *  1-3). Anyone at the company can see jobs (`canViewJobs` needs no privilege); creating,
  *  assigning and cancelling need `dispatch`, same split as fleet's own pages. Multi-stop routes
  *  and the map pin picker are later nice-to-haves — one pickup and one delivery is enough for a
- *  first pilot firm's jobs. */
+ *  first pilot firm's jobs. "Require proof of delivery" (P2-M5.5) is the dispatcher's own call at
+ *  creation — core refuses the job's `delivered` step until the driver attaches a photo when it's
+ *  set; this page only shows whether one's arrived, it doesn't view the photo itself. */
 export function Jobs() {
   const me = useStaffAuthStore((s) => s.session?.staff);
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
@@ -86,6 +89,7 @@ export function Jobs() {
               location: { lat: Number(form.deliveryLat), lon: Number(form.deliveryLon) },
             },
           ],
+          requiresProofOfDelivery: form.requiresProofOfDelivery,
         }),
       ),
     onSuccess: () => {
@@ -222,6 +226,16 @@ export function Jobs() {
                   placeholder="Delivery lon"
                   style={{ width: 90 }}
                 />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, height: 36 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.requiresProofOfDelivery}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, requiresProofOfDelivery: e.target.checked }))
+                    }
+                  />
+                  Require proof of delivery
+                </label>
                 <button type="submit" disabled={createJob.isPending}>
                   {createJob.isPending ? 'Creating…' : 'Create job'}
                 </button>
@@ -242,6 +256,7 @@ export function Jobs() {
                     <th>Reference</th>
                     <th>Stops</th>
                     <th>Status</th>
+                    <th>Proof of delivery</th>
                     {canDispatch && <th />}
                   </tr>
                 </thead>
@@ -253,6 +268,13 @@ export function Jobs() {
                         <td>{job.reference}</td>
                         <td>{job.stops.map((s) => s.name).join(' → ')}</td>
                         <td>{job.status}</td>
+                        <td>
+                          {job.requiresProofOfDelivery
+                            ? job.hasProofOfDelivery
+                              ? 'Received'
+                              : 'Required — not yet received'
+                            : '—'}
+                        </td>
                         {canDispatch && (
                           <td>
                             {job.status === 'draft' && (
