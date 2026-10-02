@@ -8,7 +8,7 @@ Split into session-sized slices rather than one pass, matching the project's usu
 | Slice | Scope                                                       | Status            |
 | ----- | ----------------------------------------------------------- | ----------------- |
 | M5.1  | Driver job routes (core) + driver-bff proxy, no app changes | Done — 2026-10-02 |
-| M5.2  | Driver app: "my current job" screen, tap-to-advance         | Not started       |
+| M5.2  | Driver app: "my current job" screen, tap-to-advance         | Done — 2026-10-02 |
 | M5.3  | Voice status updates ("loaded and leaving")                 | Not started       |
 | M5.4  | Geofence nudges (arrival confirm)                           | Not started       |
 | M5.5  | Proof of delivery (photo/signature)                         | Not started       |
@@ -66,3 +66,46 @@ design doc's "Jobs tab: today's **and upcoming** jobs" (plural) isn't backed by 
 either way: a driver can only ever have one active job (`ACTIVE_STATUSES`/`DriverBusy`), so M5.2's
 screen will show "my current job," not a list — worth a decision-log entry once that slice starts,
 not a correction to the design doc itself.
+
+## M5.2: "my current job" screen, tap-to-advance
+
+**No tab bar to add it to.** The driver app isn't built around tabs — "map is the app" (decision,
+2026-09-24): a driver lands on a full-screen map, and everything else sits behind the small
+"Menu" icon. A literal "Jobs tab" doesn't fit that. Instead: a banner reading "On job {reference}
+→" appears over the map on `/home` only while a job is active, opening `/job`; outside an assigned
+job nothing job-shaped shows at all ("company vs personal," design doc §5).
+
+**No store, unlike the active-trip pattern.** `current-active-trip-store.ts` exists because
+`app/index.tsx`'s relaunch gate has to decide _before rendering_ whether to redirect straight back
+into a trip — that decision needs the data eagerly, outside any one screen. A job doesn't gate any
+navigation decision: `/home` always renders, and showing its banner (or not) is just what
+`useCurrentJob()` returns on an ordinary TanStack Query cache, the same as `useNearbyHazards` or
+any other read. So `api/jobs.ts` + `api/use-jobs.ts` is a plain query/mutation pair, no new
+zustand store, and `app/index.tsx`'s gate is untouched.
+
+**What this slice added:**
+
+- `api/jobs.ts` / `api/jobs.test.ts`: `getCurrentJob` (`GET /jobs/current`), `advanceJobStatus`
+  (`POST /jobs/:id/status`) — thin wrappers over `http.ts`, same shape as `api/fleet.ts`.
+- `api/use-jobs.ts`: `useCurrentJob()` (query) and `useAdvanceJobStatus()` (mutation,
+  invalidates the current-job query on success).
+- `lib/job-status.ts`: `JOB_STATUS_LABELS` (plain words for the status line) and `NEXT_STEP` — the
+  single next-step button's target status and label per current status. Design doc §5's sequence
+  is "Arrived at pickup" → "Loaded" → "Set off" → "Arrived" → "Delivered"; it doesn't name a step
+  for `assigned → accepted`, so that one step is labelled "Accept job." This table is presentation
+  only — core's `advanceStatus` is what actually validates a transition either way.
+- `lib/error-messages.ts`: `jobsErrorMessage` for `JobNotFound`/`InvalidTransition`.
+- `app/job.tsx`: the screen — reference, status line, stops (kind, name, notes), and one button
+  for the single next step (hidden once there's no next step, i.e. `delivered`). Redirects to
+  `/home` if there's no current job (a stale deep link, or just-delivered elsewhere).
+- `app/home.tsx`: the "On job {reference} →" banner, shown only while `useCurrentJob()` has data.
+
+**Deliberately not done:** voice status updates (M5.3), geofence nudges (M5.4), proof of delivery
+(M5.5), a "report a problem" (fail) action from this screen, multi-stop ordering or a map/route
+view on the job screen itself (no `routePlanId` is ever set yet — routing a company job from the
+vehicle's dimensions is a separate, not-yet-built change, design doc §5 step 2).
+
+**Verified:** `pnpm --filter @wagonwise/driver-app typecheck/lint/test` green (338 tests, 3 new
+files' worth). Not checked on a real device or simulator — same gap the rest of this app's UI work
+has (`docs/progress.md`'s "Real-device gaps" note); typecheck, lint and the API-layer unit tests
+are what this slice's verification actually covers.

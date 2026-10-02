@@ -64,3 +64,15 @@ export function fleetErrorMessage(error: unknown): string {
   }
   return "Couldn't reach the server. Check your connection.";
 }
+
+const JOBS_MESSAGES: Record<string, string> = {
+  JobNotFound: "That job isn't there any more.",
+  InvalidTransition: 'That job has already moved on — pull to refresh.',
+};
+
+export function jobsErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    return JOBS_MESSAGES[error.tag] ?? 'Something went wrong. Try again.';
+  }
+  return "Couldn't reach the server. Check your connection.";
+}
