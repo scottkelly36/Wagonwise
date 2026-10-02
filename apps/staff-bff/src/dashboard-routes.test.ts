@@ -32,6 +32,13 @@ const VALID = [
   ['POST', `/staff/fleet/companies/${ACME}/vehicles`, { ...VEHICLE, companyId: ACME }],
   ['PUT', `/staff/fleet/vehicles/${ID}`, VEHICLE],
   ['DELETE', `/staff/fleet/vehicles/${ID}`, undefined],
+  ['GET', `/staff/fleet/companies/${ACME}/driver-links`, undefined],
+  ['POST', `/staff/fleet/companies/${ACME}/driver-links`, { identifier: 'pat@example.com' }],
+  ['POST', `/staff/fleet/driver-links/${ID}/approve`, undefined],
+  ['POST', `/staff/fleet/driver-links/${ID}/decline`, undefined],
+  ['POST', `/staff/fleet/driver-links/${ID}/remove`, undefined],
+  ['GET', `/staff/fleet/companies/${ACME}/code`, undefined],
+  ['POST', `/staff/fleet/companies/${ACME}/code/regenerate`, undefined],
 ] as const;
 
 describe('the moved dashboard pages (P2-M1.12c)', () => {
@@ -77,6 +84,8 @@ describe('the moved dashboard pages (P2-M1.12c)', () => {
     ['DELETE', '/staff/hazard-reports/1', undefined],
     ['GET', '/staff/fleet/companies/acme/vehicles', undefined],
     ['POST', `/staff/fleet/companies/${ACME}/vehicles`, { companyId: ACME, name: 'No sizes' }],
+    ['POST', `/staff/fleet/companies/${ACME}/driver-links`, { identifier: '' }],
+    ['POST', '/staff/fleet/driver-links/not-a-uuid/approve', undefined],
     [
       'PUT',
       `/staff/fleet/vehicles/${ID}`,

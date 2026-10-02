@@ -10,6 +10,7 @@ import type {
 } from './application/ports/directories.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { SlidingWindowAttemptLimiter } from './application/sliding-window-attempt-limiter.js';
+import { CryptoCompanyCodeGenerator } from './infrastructure/crypto-company-code-generator.js';
 import { PostgresCompanyCodeRepository } from './infrastructure/postgres-company-code-repository.js';
 import { PostgresDriverLinkRepository } from './infrastructure/postgres-driver-link-repository.js';
 import { PostgresFleetVehicleRepository } from './infrastructure/postgres-fleet-vehicle-repository.js';
@@ -58,12 +59,18 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
   const links = new PostgresDriverLinkRepository(deps.db);
   const codes = new PostgresCompanyCodeRepository(deps.db);
   const limiter = new SlidingWindowAttemptLimiter(deps.clock);
+  const codeGenerator = new CryptoCompanyCodeGenerator();
 
   const routeDeps: FleetRouteDeps = {
     createFleetVehicle: { repo, ids: deps.ids },
     updateFleetVehicle: { repo },
     deleteFleetVehicle: { repo },
     listFleetVehicles: { repo },
+    inviteDriver: { links, ids: deps.ids, clock: deps.clock },
+    listDriverLinks: { links },
+    settleDriverLink: { links, ids: deps.ids, clock: deps.clock },
+    companyCode: { codes, generator: codeGenerator, clock: deps.clock },
+    driverIdentities: deps.driverIdentities,
     callerDirectory: deps.callers,
     dataScopes: deps.dataScopes,
   };

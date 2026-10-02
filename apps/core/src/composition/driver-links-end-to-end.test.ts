@@ -4,19 +4,35 @@ import { fileURLToPath } from 'node:url';
 import { Kysely, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createFleetModule } from '../modules/fleet/api.js';
+import { createFleetModule, type Caller } from '../modules/fleet/api.js';
 import { runMigrations } from '../platform/migrations/run-migrations.js';
 import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
+import { makeId } from '../shared/brand.js';
 import { FakeClock } from '../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../shared/testing/sequential-id-generator.js';
 
 const migrationsDir = fileURLToPath(new URL('../../migrations', import.meta.url));
 
 const ACME = '11111111-1111-4111-8111-111111111111';
+const BETA = '22222222-2222-4222-8222-222222222222';
 const PAT = 'a0000000-0000-4000-8000-000000000001';
 const SAM = 'b0000000-0000-4000-8000-000000000002';
 const IDENTITIES: Record<string, string> = { [PAT]: 'pat@example.com', [SAM]: 'sam@example.com' };
 const INVITE = 'c0000000-0000-4000-8000-000000000003';
+const ACME_MANAGER = 'acme-manager';
+const BETA_MANAGER = 'beta-manager';
+const CALLERS: Record<string, Caller> = {
+  [ACME_MANAGER]: {
+    kind: 'fleet',
+    companyId: makeId<'CompanyId'>(ACME),
+    privileges: ['manage_fleet'],
+  },
+  [BETA_MANAGER]: {
+    kind: 'fleet',
+    companyId: makeId<'CompanyId'>(BETA),
+    privileges: ['manage_fleet'],
+  },
+};
 
 /**
  * P2-M2.5's proof that a driver joins a company the way production runs it: through the real
@@ -56,7 +72,7 @@ describe('driver links end to end (real RLS, driver scope)', () => {
       ids: new SequentialIdGenerator(),
       clock: new FakeClock('2026-10-02T09:00:00.000Z'),
       dataScopes: scopes,
-      callers: { getCaller: () => Promise.resolve(null) },
+      callers: { getCaller: (staffId) => Promise.resolve(CALLERS[staffId] ?? null) },
       driverIdentities: { getIdentifier: (id) => Promise.resolve(IDENTITIES[id] ?? null) },
       companyNames: { namesFor: () => Promise.resolve(new Map([[ACME, 'Acme Haulage']])) },
     });
@@ -64,6 +80,8 @@ describe('driver links end to end (real RLS, driver scope)', () => {
     app.addHook('onRequest', (request, _reply, done) => {
       const driver = request.headers['x-test-driver-id'];
       if (typeof driver === 'string') request.driverId = driver;
+      const staffId = request.headers['x-test-staff-id'];
+      if (typeof staffId === 'string') request.staffId = staffId;
       done();
     });
     fleet.registerRoutes(app);
@@ -142,5 +160,108 @@ describe('driver links end to end (real RLS, driver scope)', () => {
       [INVITE],
     );
     expect(rows.map((r) => r.event_type)).toEqual(['DriverJoinedFleet', 'DriverLeftFleet']);
+  });
+
+  const asStaff = (staffId: string) => ({ headers: { 'x-test-staff-id': staffId } });
+
+  it('staff invite, approve, remove and manage the company code, scoped to their own company', async () => {
+    // PAT's request from the first test is still sitting there, waiting on staff.
+    const listed = await app.inject({
+      method: 'GET',
+      url: `/staff/fleet/companies/${ACME}/driver-links`,
+      ...asStaff(ACME_MANAGER),
+    });
+    expect(listed.statusCode).toBe(200);
+    const { links } = listed.json<{ links: { id: string; status: string }[] }>();
+    const request = links.find((l) => l.status === 'requested');
+    expect(request).toBeDefined();
+    const requestId = request?.id as string;
+
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: `/staff/fleet/companies/${ACME}/driver-links`,
+          ...asStaff(BETA_MANAGER),
+        })
+      ).statusCode,
+    ).toBe(403);
+
+    const approved = await app.inject({
+      method: 'POST',
+      url: `/staff/fleet/driver-links/${requestId}/approve`,
+      ...asStaff(ACME_MANAGER),
+    });
+    expect(approved.json()).toMatchObject({
+      status: 'active',
+      driverIdentifier: 'pat@example.com',
+    });
+
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/staff/fleet/driver-links/${requestId}/approve`,
+          ...asStaff(BETA_MANAGER),
+        })
+      ).statusCode,
+    ).toBe(404); // not their company, same as an unknown id
+
+    const removed = await app.inject({
+      method: 'POST',
+      url: `/staff/fleet/driver-links/${requestId}/remove`,
+      ...asStaff(ACME_MANAGER),
+    });
+    expect(removed.json()).toMatchObject({ status: 'left' });
+
+    const invited = await app.inject({
+      method: 'POST',
+      url: `/staff/fleet/companies/${ACME}/driver-links`,
+      payload: { identifier: 'alex@example.com' },
+      ...asStaff(ACME_MANAGER),
+    });
+    expect(invited.statusCode).toBe(201);
+    expect(invited.json()).toMatchObject({
+      status: 'invited',
+      invitedIdentifier: 'alex@example.com',
+    });
+    const declined = await app.inject({
+      method: 'POST',
+      url: `/staff/fleet/driver-links/${invited.json<{ id: string }>().id}/decline`,
+      ...asStaff(ACME_MANAGER),
+    });
+    expect(declined.json()).toMatchObject({ status: 'declined' });
+
+    const code = await app.inject({
+      method: 'GET',
+      url: `/staff/fleet/companies/${ACME}/code`,
+      ...asStaff(ACME_MANAGER),
+    });
+    expect(code.json()).toEqual({ code: 'ABCD-2345' }); // seeded in beforeAll
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: `/staff/fleet/companies/${ACME}/code`,
+          ...asStaff(BETA_MANAGER),
+        })
+      ).statusCode,
+    ).toBe(403);
+
+    const regenerated = await app.inject({
+      method: 'POST',
+      url: `/staff/fleet/companies/${ACME}/code/regenerate`,
+      ...asStaff(ACME_MANAGER),
+    });
+    expect(regenerated.json()).not.toEqual({ code: 'ABCD-2345' });
+
+    // The old code stops working for a driver asking to join.
+    const stale = await app.inject({
+      method: 'POST',
+      url: '/fleet/links/join',
+      payload: { code: 'ABCD-2345' },
+      ...as(SAM),
+    });
+    expect(stale.statusCode).toBe(400);
   });
 });

@@ -24,7 +24,7 @@ history file keeps the record.
 | M9 Route options & safe parking    | Done — 2026-09-27                            | `history/m9-route-options-parking.md`  |
 | Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only       | below, and the Phase 2 tech design doc |
 | P2-M1 Orgs, roles, RLS, staff auth | Done — 2026-10-01                            | `history/p2-m1-organisations-auth.md`  |
-| P2-M2 Fleet                        | Vehicles done (PR #48); driver links planned | `history/p2-m2-driver-links.md`        |
+| P2-M2 Fleet                        | Vehicles + driver links M2.1-2.6 done         | `history/p2-m2-driver-links.md`        |
 | P2-M3 Jobs core                    | Done — 2026-10-02                            | below                                  |
 
 ## Next up
@@ -111,6 +111,10 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-02: P2-M2.6: staff routes (invite, approve/decline/remove, the company code) and the
+  dashboard's **Drivers** page, finishing the driver-links slice of P2-M2 (M2.1-2.6). See
+  `history/p2-m2-driver-links.md`'s M2.6 notes. M2.7 (driver app screens) and M2.8 (cut-over) are
+  still open.
 - 2026-10-01: P2-M1.12d applied for real: `staff-bff` + the dashboard (static site) deployed on
   DigitalOcean App Platform, `wagonwise_app` given a password and `APP_DATABASE_URL`/
   `STAFF_SECRET_KEY` set on `core`. Five real bugs hit getting there, beyond the ones already in
