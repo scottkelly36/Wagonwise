@@ -58,6 +58,7 @@ describe('runMigrations', () => {
       '0025_drop_driver_admin_scopes.sql',
       '0026_jobs.sql',
       '0027_jobs_one_active_per_driver.sql',
+      '0028_fleet_driver_links.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -191,6 +192,7 @@ describe('runMigrations', () => {
       '0025_drop_driver_admin_scopes.sql',
       '0026_jobs.sql',
       '0027_jobs_one_active_per_driver.sql',
+      '0028_fleet_driver_links.sql',
     ]);
   });
 });

@@ -37,13 +37,21 @@ started.** The vehicles half of P2-M2 shipped early (PR #48, `fleet` module).
   in the app for whoever signs in with that identifier, and `driverId` is filled when they accept.
 - One live link per company and driver (a partial unique index on invited/requested/active).
   Declined and left rows stay as history.
-- `company_codes` (`fleet.company_codes`): the current code per company, stored hashed, with the
-  time it was made.
+- `company_codes` (`fleet.company_codes`): the current code per company, with the time it was
+  made. **Stored as typed, not hashed** (changed from the first draft of this plan): staff have to
+  read it out to drivers, and it admits nobody by itself since every request needs approval. A
+  driver turns a typed code into a company through `fleet.company_for_code()`, a definer function
+  that answers only for the exact code given, so a driver can't read anyone's codes.
+- A new **`driver` data scope** (`app.driver_id` / `app.driver_identifier`) lets a driver see their
+  own links and the invitations made for their identifier, and ask to join for themselves only.
 
 ## Plan
 
-**Done so far: M2.1 (contracts) and M2.2 (domain), 2026-10-02.** The link state machine and the
-company-code rules are pure and tested; the contracts are in `packages/contracts/src/fleet.ts`.
+**Done so far: M2.1 (contracts), M2.2 (domain) and M2.3 (migration 0028), 2026-10-02.** The link
+state machine and the company-code rules are pure and tested; the contracts are in
+`packages/contracts/src/fleet.ts`. Migration 0028 creates both tables with row-level security,
+backfills an active link for every driver already assigned a company (tested against pre-existing
+data), and leaves `drivers.company_id` for the cut-over.
 
 | #       | Task                                                                                                                                                                                  |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
