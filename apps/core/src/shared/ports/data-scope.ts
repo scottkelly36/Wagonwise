@@ -9,11 +9,15 @@
  * - `staff-auth`: the staff tables only, for the steps that must find an account before anyone's
  *   company is known (sign-in, second factor, refresh, accepting an invite, and loading the
  *   signed-in account on each request). Used by those steps and nothing else.
+ * - `driver`: one driver's own driver links, and the invitations made for their identifier
+ *   (P2-M2): joining a company with its code, answering an invitation, leaving. No company is in
+ *   play yet at that point, so it can't be a `company` scope.
  */
 export type DataScope =
   | { readonly kind: 'company'; readonly companyId: string }
   | { readonly kind: 'platform' }
-  | { readonly kind: 'staff-auth' };
+  | { readonly kind: 'staff-auth' }
+  | { readonly kind: 'driver'; readonly driverId: string; readonly identifier: string };
 
 /**
  * Runs `work` in one database transaction with `scope` applied. Commits when `work` resolves

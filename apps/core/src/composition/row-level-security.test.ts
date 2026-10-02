@@ -224,6 +224,103 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
     expect(rows[0]?.name).toBe('Beta 1');
   });
 
+  describe('driver links (migration 0028)', () => {
+    const DRIVER_1 = 'd1000000-0000-4000-8000-000000000001';
+    const DRIVER_2 = 'd2000000-0000-4000-8000-000000000002';
+    const insertLink = (id: string, company: string, driver: string | null, ident: string | null) =>
+      sql`insert into fleet.driver_links
+            (id, company_id, driver_id, invited_identifier, status, created_at)
+          values (${id}, ${company}, ${driver}, ${ident},
+                  ${driver === null ? 'invited' : 'requested'}, now())`.execute(db);
+    const linkIds = async () =>
+      (
+        await sql<{ id: string }>`select id from fleet.driver_links order by id`.execute(db)
+      ).rows.map((r) => r.id);
+
+    beforeAll(async () => {
+      await ownerPool.query(`
+        insert into fleet.driver_links (id, company_id, driver_id, invited_identifier, status, created_at)
+          values ('a1000000-0000-4000-8000-000000000001', '${ACME}', '${DRIVER_1}', null, 'active', now()),
+                 ('a1000000-0000-4000-8000-000000000002', '${BETA}', '${DRIVER_2}', null, 'active', now()),
+                 ('a1000000-0000-4000-8000-000000000003', '${BETA}', null, 'pat@example.com', 'invited', now()),
+                 ('a1000000-0000-4000-8000-000000000004', '${ACME}', null, 'sam@example.com', 'invited', now());
+        insert into fleet.company_codes (company_id, code, created_at)
+          values ('${ACME}', 'ABCD2345', now()), ('${BETA}', 'WXYZ6789', now());
+      `);
+    });
+
+    it('a company sees only its own links, and a driver sees theirs plus invitations for them', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await linkIds()).toEqual([
+          'a1000000-0000-4000-8000-000000000001',
+          'a1000000-0000-4000-8000-000000000004',
+        ]);
+      });
+      await scopes.run(
+        { kind: 'driver', driverId: DRIVER_1, identifier: 'pat@example.com' },
+        async () => {
+          expect(await linkIds()).toEqual([
+            'a1000000-0000-4000-8000-000000000001',
+            'a1000000-0000-4000-8000-000000000003',
+          ]);
+        },
+      );
+      expect(await linkIds()).toEqual([]); // outside any scope: nothing
+    });
+
+    it("a driver can ask to join for themselves, not for someone else, and can't touch others' links", async () => {
+      const driver = { kind: 'driver', driverId: DRIVER_1, identifier: 'pat@example.com' } as const;
+      await scopes.run(driver, () =>
+        insertLink('a1000000-0000-4000-8000-000000000005', BETA, DRIVER_1, null),
+      );
+      await expect(
+        scopes.run(driver, () =>
+          insertLink('a1000000-0000-4000-8000-000000000006', BETA, DRIVER_2, null),
+        ),
+      ).rejects.toThrow(/row-level security/);
+      await scopes.run(driver, async () => {
+        const r = await sql`update fleet.driver_links set status = 'left'
+                            where id = 'a1000000-0000-4000-8000-000000000002'`.execute(db);
+        expect(r.numAffectedRows).toBe(0n);
+      });
+    });
+
+    it('company codes are the company’s alone, but a driver can turn an exact code into a company', async () => {
+      const driver = { kind: 'driver', driverId: DRIVER_1, identifier: 'pat@example.com' } as const;
+      await scopes.run(driver, async () => {
+        const all = await sql`select code from fleet.company_codes`.execute(db);
+        expect(all.rows).toEqual([]);
+        const hit = await sql<{
+          c: string | null;
+        }>`select fleet.company_for_code('ABCD2345') as c`.execute(db);
+        expect(hit.rows[0]?.c).toBe(ACME);
+        const miss = await sql<{
+          c: string | null;
+        }>`select fleet.company_for_code('NOPE2345') as c`.execute(db);
+        expect(miss.rows[0]?.c).toBeNull();
+      });
+      await scopes.run({ kind: 'company', companyId: BETA }, async () => {
+        const mine = await sql<{ code: string }>`select code from fleet.company_codes`.execute(db);
+        expect(mine.rows).toEqual([{ code: 'WXYZ6789' }]);
+      });
+    });
+
+    it('allows one live link per company and driver, and one pending invite per identifier', async () => {
+      await expect(
+        ownerPool.query(
+          `insert into fleet.driver_links (id, company_id, driver_id, status, created_at)
+           values ('a1000000-0000-4000-8000-000000000007', '${ACME}', '${DRIVER_1}', 'requested', now())`,
+        ),
+      ).rejects.toThrow(/driver_links_live_driver_idx/);
+      await expect(
+        ownerPool.query(
+          `insert into fleet.driver_links (id, company_id, invited_identifier, status, created_at)
+           values ('a1000000-0000-4000-8000-000000000008', '${ACME}', 'sam@example.com', 'invited', now())`,
+        ),
+      ).rejects.toThrow(/driver_links_pending_invite_idx/);
+    });
+  });
+
   it('every table with a company_id has RLS, except those knowingly left for later', async () => {
     const { rows } = await ownerPool.query<{ name: string }>(`
       select c.table_schema || '.' || c.table_name as name

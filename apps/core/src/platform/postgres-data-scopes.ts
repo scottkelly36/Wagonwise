@@ -3,15 +3,26 @@ import type { PostgresPool, PostgresPoolClient } from 'kysely';
 import type { Pool, PoolClient } from 'pg';
 import type { DataScope, DataScopes } from '../shared/ports/data-scope.js';
 
-/** The three settings migration 0021's policies read. Always all three, so none can linger. */
-function settingsFor(scope: DataScope): [companyId: string, platform: string, staffAuth: string] {
+type Settings = [
+  companyId: string,
+  platform: string,
+  staffAuth: string,
+  driverId: string,
+  driverIdentifier: string,
+];
+
+/** The settings the policies read (migrations 0021 and 0028). Always all of them, so none can
+ *  linger. */
+function settingsFor(scope: DataScope): Settings {
   switch (scope.kind) {
     case 'company':
-      return [scope.companyId, '', ''];
+      return [scope.companyId, '', '', '', ''];
     case 'platform':
-      return ['', 'on', ''];
+      return ['', 'on', '', '', ''];
     case 'staff-auth':
-      return ['', '', 'on'];
+      return ['', '', 'on', '', ''];
+    case 'driver':
+      return ['', '', '', scope.driverId, scope.identifier];
   }
 }
 
@@ -65,7 +76,9 @@ export class PostgresDataScopes implements DataScopes {
       await client.query(
         `select set_config('app.company_id', $1, true),
                 set_config('app.platform_staff', $2, true),
-                set_config('app.staff_auth', $3, true)`,
+                set_config('app.staff_auth', $3, true),
+                set_config('app.driver_id', $4, true),
+                set_config('app.driver_identifier', $5, true)`,
         settingsFor(scope),
       );
       const value = await this.#current.run(client, work);
