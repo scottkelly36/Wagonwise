@@ -170,8 +170,10 @@ how long the job is for it, or that it cannot be done.
   no route; the message is advice, and routing data can be wrong or incomplete), doesn't show the
   route on a map, and doesn't consider the driver's start position.
 
-## Still to do
+## Deferred
 
-- **M6.4c: reroute-alert indicator.** Reroute detection (Phase 1) reacts to hazard events for drivers
-  on an active _trip_ with a stored route plan. Jobs have neither, so this needs reroute detection
-  written for jobs first, then something to show. Judge whether it earns its place before building it.
+- **M6.4c: reroute-alert indicator** (owner's call, 2026-10-03: push back for now). Reroute
+  detection (Phase 1) reacts to hazard events for drivers on an active _trip_ with a stored route
+  plan. Jobs have neither, so it needs reroute detection written for jobs first, then something to
+  show. A dispatcher can already see lateness and position from the ETA and the map. Revisit if the
+  pilot firm asks for it. P2-M6 is otherwise complete.

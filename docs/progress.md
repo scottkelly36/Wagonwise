@@ -28,7 +28,7 @@ history file keeps the record.
 | P2-M3 Jobs core                    | Done — 2026-10-02                        | below                                  |
 | P2-M4 Jobs in the portal           | Done — 2026-10-02                        | `history/p2-m4-portal-jobs.md`         |
 | P2-M5 Jobs in the driver app       | Code-complete 2026-10-03 — needs a build | `history/p2-m5-driver-app-jobs.md`     |
-| P2-M6 Live fleet map               | In progress — M6.1-6.4b done             | `history/p2-m6-live-map.md`            |
+| P2-M6 Live fleet map               | Done — 2026-10-03 (M6.4c deferred)       | `history/p2-m6-live-map.md`            |
 
 ## Next up
 
@@ -42,6 +42,10 @@ history file keeps the record.
 
 ## Open items (verified against the code 2026-09-28)
 
+- **Deferred, P2-M6.4c**: a reroute-alert indicator on the live map. Needs reroute detection written
+  for company jobs first (it only exists for Phase 1 trips). Revisit if the pilot firm wants it.
+  Also open from M6: no retention sweeper for `jobs.job_positions` (same decision as the hazard
+  expiry poller), and no Valhalla-backed check of the ETA and route preview yet.
 - **M5.10**: Android real-device run done 2026-09-25. iOS real-device run and EAS Build →
   TestFlight + Play internal still open, blocked on the Apple/Google developer accounts.
 - **M8 Field-ready**: shipped 2026-09-25 (commit `6f8fa52`, never written up here at the time):
