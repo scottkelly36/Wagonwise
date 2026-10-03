@@ -1,4 +1,4 @@
-import { advanceJobStatus, getCurrentJob } from './jobs';
+import { advanceJobStatus, attachProofOfDelivery, getCurrentJob } from './jobs';
 import { ApiError } from './errors';
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -78,5 +78,33 @@ describe('advanceJobStatus', () => {
     await expect(advanceJobStatus('token-1', job.id, { status: 'loaded' })).rejects.toBeInstanceOf(
       ApiError,
     );
+  });
+});
+
+describe('attachProofOfDelivery', () => {
+  const photo = { contentType: 'image/jpeg', dataBase64: 'aGVsbG8=' };
+
+  it('posts the photo as base64 JSON with the bearer token and accepts the 204', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(204, undefined));
+    globalThis.fetch = fetchMock;
+
+    await expect(attachProofOfDelivery('token-1', job.id, photo)).resolves.toBeUndefined();
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(new RegExp(`/jobs/${job.id}/proof-of-delivery$`));
+    expect(init.method).toBe('POST');
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer token-1');
+    expect(JSON.parse(init.body as string)).toEqual(photo);
+  });
+
+  it('throws an ApiError when the job is not there', async () => {
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(404, { tag: 'JobNotFound', requestId: 'r1' }));
+
+    await expect(attachProofOfDelivery('token-1', job.id, photo)).rejects.toMatchObject({
+      tag: 'JobNotFound',
+      status: 404,
+    });
   });
 });

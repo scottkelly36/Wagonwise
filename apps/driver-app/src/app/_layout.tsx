@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 
 import { queryClient } from '../api/query-client';
 import { useHazardQueueFlush } from '../hooks/use-hazard-queue-flush';
+import { useProofOfDeliveryQueueFlush } from '../hooks/use-proof-of-delivery-queue-flush';
 import { useOpportunisticRefresh } from '../hooks/use-opportunistic-refresh';
 import { useRegisterPushToken } from '../hooks/use-register-push-token';
 import { useRerouteNotifications } from '../hooks/use-reroute-notifications';
@@ -23,6 +24,7 @@ export default function RootLayout() {
 
   useOpportunisticRefresh();
   useHazardQueueFlush();
+  useProofOfDeliveryQueueFlush();
   useRegisterPushToken();
   useRerouteNotifications();
 

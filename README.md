@@ -602,6 +602,18 @@ trying items after a failure would only waste time on what's very likely the sam
 condition. The client-generated idempotency id (already in place since M5.7) is exactly what
 makes this retry-safe: a report resent after a flaky connection never creates a duplicate.
 
+**Proof of delivery (P2-M5.5b)**: at the delivery stop `/job` shows a "Proof of delivery" card with
+a "Take photo" button (`src/hooks/use-proof-of-delivery.ts`, `expo-image-picker`). The photo is
+saved to a second offline queue first (`src/db/proof-of-delivery-queue.ts`, one row per job — a
+retake replaces it) and uploaded straight away if there's signal; otherwise
+`use-proof-of-delivery-queue-flush.ts` retries on app start and every return to the foreground.
+Unlike the hazard queue, a photo the server will never accept (4xx other than 401/408/429 — the job
+was cancelled or reassigned) is dropped instead of blocking the queue. On a job the dispatcher
+marked "Require proof of delivery", the Delivered button (and its voice equivalent) stays disabled
+until the photo has reached the server. **This added a native dependency and the camera permission
+(app `version` 1.0.1 → 1.1.0), so it needs a fresh `eas build` before it works on a device — an
+`eas update` alone won't carry it.**
+
 **Feedback (M5.9)**: `/feedback` — a free-text note plus "Send", with app version
 (`Constants.expoConfig.version`) and device info (RN's built-in `Platform.OS`/`Platform.Version`,
 no new native dependency) attached automatically (`src/lib/app-info.ts`). Closed the last
