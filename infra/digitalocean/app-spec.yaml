@@ -196,3 +196,10 @@ static_sites:
       - key: VITE_STAFF_BFF_URL
         scope: BUILD_TIME
         value: https://api.wagon-wise.co.uk
+      # The live map's tiles (P2-M6.2). Optional: unset, the map falls back to MapLibre's keyless
+      # demo style (country outlines only). The key is public once built in, like the driver
+      # app's — so restrict it to https://dashboard.wagon-wise.co.uk in MapTiler's console. Not
+      # committed: add it in the DigitalOcean console (BUILD_TIME scope), then redeploy.
+      #   - key: VITE_MAPTILER_API_KEY
+      #     scope: BUILD_TIME
+      #     value: <the MapTiler key>

@@ -2,11 +2,13 @@ import {
   assignJobRequestSchema,
   createJobRequestSchema,
   jobSchema,
+  listJobPositionsResponseSchema,
   listJobsResponseSchema,
   proofOfDeliveryResponseSchema,
   type AssignJobRequest,
   type CreateJobRequest,
   type JobDto,
+  type JobPositionDto,
   type ProofOfDeliveryResponse,
 } from '@wagonwise/contracts/jobs';
 
@@ -66,4 +68,18 @@ export async function getProofOfDelivery(
   });
   throwUnlessSuccess(status, json, [200]);
   return proofOfDeliveryResponseSchema.parse(json);
+}
+
+/** The latest position of each of the company's jobs that is on the road (P2-M6.1). */
+export async function listJobPositions(
+  accessToken: string,
+  companyId: string,
+): Promise<JobPositionDto[]> {
+  const { status, json } = await requestJson(
+    'GET',
+    `/staff/jobs/companies/${companyId}/positions`,
+    { authorization: `Bearer ${accessToken}` },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return listJobPositionsResponseSchema.parse(json).positions;
 }

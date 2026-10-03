@@ -441,6 +441,11 @@ decides every request. Point the dashboard at it with `VITE_STAFF_BFF_URL` (defa
 --dashboard-url http://localhost:5173` and open the link it prints (it refuses once a WagonWise
 admin exists).
 
+The Live trips page (P2-M6.2) shows vehicles on a job on a map. It works with no set-up (MapLibre's
+keyless demo style, country outlines only); `VITE_MAPTILER_API_KEY` switches it to real MapTiler
+street tiles. Set it in `apps/dashboard/.env` locally and as a `BUILD_TIME` variable on the
+dashboard in DigitalOcean.
+
 ## Driver app
 
 `apps/driver-app` (M5, in progress — M5.1 skeleton, M5.2 sign-in, M5.3 vehicle profiles, M5.4 plan

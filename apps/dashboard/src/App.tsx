@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { holds } from './state/access';
 import { useStaffAuthStore } from './state/staff-auth-store';
@@ -9,13 +10,18 @@ import { HazardReports } from './pages/admin/HazardReports';
 import { Drivers } from './pages/fleet/Drivers';
 import { Jobs } from './pages/fleet/Jobs';
 import { FleetOverview } from './pages/fleet/Overview';
-import { LiveTrips } from './pages/fleet/LiveTrips';
+
 import { VehicleProfiles } from './pages/fleet/VehicleProfiles';
 import { InviteCodes } from './pages/admin/InviteCodes';
 import { Activity } from './pages/staff/Activity';
 import { Join } from './pages/staff/Join';
 import { StaffSignIn } from './pages/staff/StaffSignIn';
 import { Users } from './pages/staff/Users';
+
+// The live map pulls in MapLibre (a large library), so it loads only when that page is opened.
+const LiveTrips = lazy(() =>
+  import('./pages/fleet/LiveTrips').then((module) => ({ default: module.LiveTrips })),
+);
 
 export function App() {
   return (
@@ -31,7 +37,14 @@ export function App() {
             <Route index element={<Home />} />
             <Route path="/fleet" element={<FleetOverview />} />
             <Route path="/fleet/jobs" element={<Jobs />} />
-            <Route path="/fleet/live-trips" element={<LiveTrips />} />
+            <Route
+              path="/fleet/live-trips"
+              element={
+                <Suspense fallback={<p>Loading…</p>}>
+                  <LiveTrips />
+                </Suspense>
+              }
+            />
             <Route path="/fleet/drivers" element={<Drivers />} />
             <Route path="/fleet/vehicle-profiles" element={<VehicleProfiles />} />
             <Route path="/staff" element={<Navigate to="/staff/users" replace />} />
