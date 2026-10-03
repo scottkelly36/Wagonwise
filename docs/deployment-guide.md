@@ -389,3 +389,18 @@ infra/digitalocean/app-spec.yaml` directly** — it will re-wipe any App-Level e
 real `POST /identity/otp/request` (driver-app request shape, a temporary test invite code
 inserted directly via SQL and removed after) round-tripped `driver-bff` → `core` over the
 private VPC → Postgres → a real ClickSend SMS, delivered to a real phone.
+
+## 8. Valhalla: lift the trace limits (after the 2026-10-03 routing change)
+
+Each route is now chosen with `/route` and then timed with `/trace_route` (README, "How a route is
+chosen and timed"). Valhalla's defaults only let `/trace_route` take a path up to 200 km and 16,000
+points (`service_limits.trace.max_distance` and `max_shape` in `valhalla.json`). Beyond that the
+time silently falls back to the uncapped time times 1.17, which is fine but less accurate, and
+lorry journeys are often longer than 200 km. On the Valhalla droplet, in the `valhalla.json` the
+container uses, set for example:
+
+```json
+"service_limits": { "trace": { "max_distance": 1000000, "max_shape": 100000 } }
+```
+
+Then restart the container. Nothing breaks if this is skipped.

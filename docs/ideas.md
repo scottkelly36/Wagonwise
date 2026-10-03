@@ -6,7 +6,7 @@
 Things worth building later, raised while actually using the app rather than planning it —
 not attached to a milestone yet.
 
-- **2026-10-03: routing quality, and Google-Maps-style route choice (investigate).** The owner
+- **2026-10-03: routing quality, and Google-Maps-style route choice (cause found 2026-10-03, see below).** The owner
   planned Hexham to Hebburn and got back roads instead of the A69 and the A1, which makes no sense
   for a lorry. Aim: understand how routing really behaves, then offer several routes to pick from
   like Google Maps. **Nothing here is verified yet**; these are the first things to check, roughly
@@ -179,3 +179,13 @@ update --spec` (used once to add the job) wiped `core`'s App-Level `DATABASE_URL
   A truck route that avoids the A69 and A1 while the car route uses them points at the truck
   costing or a restriction; a car route that also avoids them points at the data; a truck route
   that uses them once the 55 mph cap is removed points at that cap.
+
+  **Cause found (2026-10-03), against the local Northumberland Valhalla:** the 55 mph `top_speed`
+  cap, not the vehicle width (a 4 m width made no difference to the road chosen). Sent to `/route`,
+  the cap flattens the speed difference between roads, so a faster A-road loses its edge: Hexham to
+  Heddon-on-the-Wall went A68 + the Military Road (B6318), 25.7 km, instead of the A69, 24.1 km, and
+  the A69 route was quicker even when timed with the same cap. Raising the cap to 96 or 105 km/h did not reliably fix it, and neither did
+  setting `use_highways`. Fix: choose the route with no cap, then time that road with
+  the cap via `/trace_route` (`valhalla-routing-engine.ts`). For the future route
+  picker: judge the alternatives and "shortest" on the same fair footing. Not yet re-checked
+  on the real Hexham to Hebburn route, because the local tiles stop at the Northumberland border.

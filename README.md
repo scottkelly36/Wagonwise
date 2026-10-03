@@ -241,6 +241,15 @@ vehicle genuinely can't get there. `avoidedRestrictions` and `hazardsOnRoute` ar
 now — the avoided-restriction explanation needs real OSM restriction data core doesn't ingest yet
 (docs/progress.md, decision 54), and community-hazard avoidance needs the `hazards` module (M3).
 
+**How a route is chosen and timed (2026-10-03):** two Valhalla calls per route. `/route` chooses
+the road with no speed cap, then `/trace_route` walks that exact road with a 55 mph HGV cap to get
+a realistic time. The cap is deliberately _not_ used when choosing, because it flattens the speed
+difference between roads and was sending trucks along back roads instead of the A69 (the owner's
+Hexham to Hebburn report). If a route can't be re-timed, its time is the uncapped time times 1.17.
+Valhalla's default limits make that happen for any route over 200 km or 16,000 shape points
+(`service_limits.trace` in its `valhalla.json`), so on the droplet raise `trace.max_distance` and
+`trace.max_shape` (for example to 1,000,000 and 100,000); `docs/deployment-guide.md` has the step.
+
 **Golden-route tests (M2.6):** real requests against a real, tile-built Valhalla instance — not
 part of `pnpm test`/`pnpm verify` (building tiles takes minutes, too slow for every push per
 decision 13). Bring up `valhalla` (above) first, then:
