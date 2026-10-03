@@ -96,3 +96,51 @@ export function vehicleProfileFormValuesFrom(profile: {
       profile.fuelConsumptionL100km === undefined ? '' : String(profile.fuelConsumptionL100km),
   };
 }
+
+export type DimensionField = 'heightM' | 'widthM' | 'lengthM' | 'grossWeightT' | 'axleWeightT';
+
+/**
+ * Gentle checks on a profile that parses fine but looks unusual for a UK lorry. These only warn,
+ * never block: wide, long and heavy loads are exactly what part of this product is for. They exist
+ * because routing treats the numbers literally. A 4 m wide vehicle is routed round every road with a
+ * width restriction and ends up on back roads, and nothing else tells the driver why (found by the
+ * owner, 2026-10-03, from a test profile with a slipped width).
+ *
+ * Limits are the UK's standard maxima: 2.55 m wide (2.6 m for a refrigerated body), 16.5 m for an
+ * articulated lorry and 18.75 m for a road train, 44 tonnes gross, 11.5 tonnes on a drive axle.
+ * There is no legal height limit; 4.95 m is simply taller than almost any UK lorry.
+ */
+export function dimensionWarnings(
+  values: VehicleProfileFormValues,
+): Partial<Record<DimensionField, string>> {
+  const warnings: Partial<Record<DimensionField, string>> = {};
+  const read = (text: string): number | undefined => {
+    if (text.trim() === '') return undefined;
+    const n = Number(text.trim());
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const width = read(values.widthM);
+  const height = read(values.heightM);
+  const length = read(values.lengthM);
+  const weight = read(values.grossWeightT);
+  const axle = read(values.axleWeightT);
+
+  if (width !== undefined && width > 2.6) {
+    warnings.widthM =
+      'A normal lorry is up to 2.55 m wide (2.6 m for a fridge body). Routes will avoid roads with width limits. Only keep this if the vehicle really is that wide.';
+  }
+  if (height !== undefined && height > 4.95) {
+    warnings.heightM = 'That is taller than almost any UK lorry. Check the figure.';
+  }
+  if (length !== undefined && length > 18.75) {
+    warnings.lengthM = 'Longer than a road train (18.75 m). Check the figure.';
+  }
+  if (weight !== undefined && weight > 44) {
+    warnings.grossWeightT = 'Over 44 tonnes, the normal UK maximum. Check the figure.';
+  }
+  if (axle !== undefined && axle > 11.5) {
+    warnings.axleWeightT =
+      'Over 11.5 tonnes, the normal UK limit for a drive axle. Check the figure.';
+  }
+  return warnings;
+}

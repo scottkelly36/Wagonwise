@@ -33,6 +33,8 @@ export interface ThemeColors {
   /** Errors. Deliberately a different shade per theme (see `lightColors`) — the dark theme's
    *  soft red doesn't have enough contrast against a light background. */
   readonly danger: string;
+  /** Amber: something to double-check, not an error. */
+  readonly warning: string;
 }
 
 // The app's whole colour palette before the light/dark feature was these ten-odd hex values,
@@ -53,6 +55,7 @@ export const darkColors: ThemeColors = {
   accentBlue: '#38BDF8',
   accentGreen: '#34D399',
   danger: '#F87171',
+  warning: '#FBBF24',
 };
 
 // A close-to-systematic swap of the dark palette (dark's `surface` becomes light's
@@ -73,6 +76,7 @@ export const lightColors: ThemeColors = {
   accentBlue: '#38BDF8',
   accentGreen: '#34D399',
   danger: '#DC2626',
+  warning: '#B45309',
 };
 
 /** The app's map (`components/route-map.tsx`) and its pins/hazard markers are deliberately left

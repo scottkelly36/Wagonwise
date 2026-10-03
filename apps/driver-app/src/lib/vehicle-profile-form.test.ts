@@ -1,4 +1,6 @@
 import {
+  dimensionWarnings,
+  EMPTY_VEHICLE_PROFILE_FORM,
   parseVehicleProfileForm,
   vehicleProfileFormValuesFrom,
   type VehicleProfileFormValues,
@@ -125,5 +127,50 @@ describe('vehicleProfileFormValuesFrom', () => {
       dimensions: { heightM: 2.2, widthM: 1.8, lengthM: 5, grossWeightT: 3.5 },
     });
     expect(withoutConsumption.fuelConsumptionL100km).toBe('');
+  });
+});
+
+describe('dimensionWarnings', () => {
+  const ok = {
+    ...EMPTY_VEHICLE_PROFILE_FORM,
+    name: 'Artic',
+    heightM: '4',
+    widthM: '2.55',
+    lengthM: '16.5',
+    grossWeightT: '44',
+    axleWeightT: '10.5',
+  };
+
+  it('says nothing about an ordinary UK artic, or about blank fields', () => {
+    expect(dimensionWarnings(ok)).toEqual({});
+    expect(dimensionWarnings(EMPTY_VEHICLE_PROFILE_FORM)).toEqual({});
+  });
+
+  it('allows a 2.6 m fridge body but warns about the 4 m width that sent a route down back roads', () => {
+    expect(dimensionWarnings({ ...ok, widthM: '2.6' }).widthM).toBeUndefined();
+    expect(dimensionWarnings({ ...ok, widthM: '4' }).widthM).toMatch(/2\.55 m/);
+  });
+
+  it('warns on height, length, weight and axle weight beyond normal UK maxima', () => {
+    expect(dimensionWarnings({ ...ok, heightM: '5.5' }).heightM).toBeDefined();
+    expect(dimensionWarnings({ ...ok, lengthM: '25' }).lengthM).toBeDefined();
+    expect(dimensionWarnings({ ...ok, grossWeightT: '60' }).grossWeightT).toBeDefined();
+    expect(dimensionWarnings({ ...ok, axleWeightT: '13' }).axleWeightT).toBeDefined();
+  });
+
+  it('does not warn at the limits themselves', () => {
+    expect(
+      dimensionWarnings({
+        ...ok,
+        heightM: '4.95',
+        lengthM: '18.75',
+        grossWeightT: '44',
+        axleWeightT: '11.5',
+      }),
+    ).toEqual({});
+  });
+
+  it('ignores text that is not a number (the submit check handles that)', () => {
+    expect(dimensionWarnings({ ...ok, widthM: 'abc' })).toEqual({});
   });
 });
