@@ -187,3 +187,18 @@ export function failJob(job: Job, at: Date, position?: GeoPoint): Result<Job, In
   }
   return ok(moved(job, 'failed', at, position));
 }
+
+/** The statuses in which the driver is actually out doing the job, so the app reports position
+ *  and the dispatcher's live map shows it (P2-M6). Not `assigned` — the driver hasn't taken the job
+ *  yet, so there's no reason to know where they are. */
+export const TRACKED_STATUSES: readonly JobStatus[] = [
+  'accepted',
+  'at_pickup',
+  'loaded',
+  'en_route',
+  'at_delivery',
+];
+
+export function isTracked(status: JobStatus): boolean {
+  return TRACKED_STATUSES.includes(status);
+}

@@ -3,6 +3,7 @@ import {
   attachProofOfDeliveryRequestSchema,
   currentJobResponseSchema,
   jobSchema,
+  reportJobPositionRequestSchema,
   type AdvanceJobStatusRequest,
   type AttachProofOfDeliveryRequest,
   type JobDto,
@@ -50,6 +51,21 @@ export async function attachProofOfDelivery(
 ): Promise<void> {
   const body = attachProofOfDeliveryRequestSchema.parse(input);
   const { status, json } = await requestJson('POST', `/jobs/${jobId}/proof-of-delivery`, {
+    body,
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [204]);
+}
+
+/** Where the driver is right now (`POST /jobs/:id/position`, 204). Core refuses (409 `NotTracking`)
+ *  unless the job is being driven; the caller treats any failure as "skip this one". */
+export async function reportJobPosition(
+  accessToken: string,
+  jobId: string,
+  location: { readonly lat: number; readonly lon: number },
+): Promise<void> {
+  const body = reportJobPositionRequestSchema.parse({ location });
+  const { status, json } = await requestJson('POST', `/jobs/${jobId}/position`, {
     body,
     authorization: bearer(accessToken),
   });

@@ -9,6 +9,7 @@ import type {
   VehicleDirectory,
 } from './application/ports/directories.js';
 import type { UntypedDb } from './infrastructure/db.js';
+import { PostgresJobPositionRepository } from './infrastructure/postgres-job-position-repository.js';
 import { PostgresJobRepository } from './infrastructure/postgres-job-repository.js';
 import { registerJobsDriverRoutes, type JobsDriverRouteDeps } from './interface/driver-routes.js';
 import { registerJobsRoutes, type JobsRouteDeps } from './interface/routes.js';
@@ -53,6 +54,7 @@ export interface JobsModule {
  */
 export function createJobsModule(deps: JobsModuleDeps): JobsModule {
   const repo = new PostgresJobRepository(deps.db);
+  const positions = new PostgresJobPositionRepository(deps.db);
 
   const routeDeps: JobsRouteDeps = {
     createJob: { repo, ids: deps.ids, clock: deps.clock },
@@ -67,6 +69,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     listJobs: { repo },
     getJob: { repo },
     getProofOfDelivery: { repo },
+    listPositions: { positions },
     callerDirectory: deps.callers,
     dataScopes: deps.dataScopes,
   };
@@ -75,6 +78,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     currentJob: { repo },
     changeStatus: { repo, ids: deps.ids, clock: deps.clock },
     attachProofOfDelivery: { repo },
+    recordPosition: { repo, positions, clock: deps.clock },
     identities: deps.driverIdentities,
     dataScopes: deps.dataScopes,
   };

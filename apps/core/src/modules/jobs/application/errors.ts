@@ -18,3 +18,7 @@ export type ProofOfDeliveryRequired = TaggedError<'ProofOfDeliveryRequired'>;
 
 /** The job exists and is visible, but no driver has attached a photo to it. */
 export type ProofOfDeliveryNotFound = TaggedError<'ProofOfDeliveryNotFound'>;
+
+/** A position was reported for a job that isn't being driven right now (not yet accepted, or
+ *  already finished). Nothing is stored. */
+export type NotTracking = TaggedError<'NotTracking'>;

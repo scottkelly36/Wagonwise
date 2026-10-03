@@ -71,7 +71,7 @@ const config: ExpoConfig = {
       'expo-location',
       {
         locationWhenInUsePermission:
-          'WagonWise uses your location to set your starting point when planning a route.',
+          'WagonWise uses your location to plan routes and warn you about hazards ahead. If you accept a job from a company, it also shares your position with that company while the job is on the road.',
       },
     ],
     [

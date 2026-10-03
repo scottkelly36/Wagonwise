@@ -376,6 +376,42 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
         expect(r.numAffectedRows).toBe(0n);
       });
     });
+
+    it('positions are visible, and writable, exactly to the job’s own company and driver', async () => {
+      const driver1 = {
+        kind: 'driver',
+        driverId: JOB_DRIVER_1,
+        identifier: 'driver1@example.com',
+      } as const;
+      const insertFor = (jobId: string) =>
+        sql`insert into jobs.job_positions (job_id, recorded_at, location)
+            values (${jobId}, now(), ST_SetSRID(ST_MakePoint(-2.1, 54.9), 4326)::geography)`.execute(
+          db,
+        );
+      const count = async () =>
+        Number(
+          (await sql<{ n: string }>`select count(*) as n from jobs.job_positions`.execute(db))
+            .rows[0]?.n,
+        );
+
+      await scopes.run(driver1, async () => {
+        await insertFor(ACME_JOB); // their own job: allowed
+        expect(await count()).toBe(1);
+      });
+      // Its own scope: a refused insert aborts the transaction it runs in.
+      await expect(
+        scopes.run(driver1, async () => {
+          await insertFor(BETA_JOB);
+        }),
+      ).rejects.toThrow(/row-level security/);
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await count()).toBe(1);
+      });
+      await scopes.run({ kind: 'company', companyId: BETA }, async () => {
+        expect(await count()).toBe(0);
+      });
+      expect(await count()).toBe(0); // outside any scope: nothing
+    });
   });
 
   it('every table with a company_id has RLS', async () => {

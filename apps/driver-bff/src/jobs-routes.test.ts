@@ -23,6 +23,7 @@ describe('jobs routes', () => {
       ['GET', '/jobs/current', undefined],
       ['POST', `/jobs/${JOB_ID}/status`, { status: 'accepted' }],
       ['POST', `/jobs/${JOB_ID}/fail`, undefined],
+      ['POST', `/jobs/${JOB_ID}/position`, { location: { lat: 54.9, lon: -2.1 } }],
       [
         'POST',
         `/jobs/${JOB_ID}/proof-of-delivery`,
@@ -91,6 +92,45 @@ describe('jobs routes', () => {
       body: payload,
       authorization: `Bearer ${VALID_TOKEN}`,
     });
+  });
+
+  it('forwards a position report, relaying core’s 204 and its NotTracking refusal', async () => {
+    const { app, coreClient } = buildApp();
+    const payload = { location: { lat: 54.9, lon: -2.1 } };
+    coreClient.nextResponse = { status: 204, body: undefined };
+    const ok = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/position`,
+      payload,
+      headers: AUTH_HEADER,
+    });
+    expect(ok.statusCode).toBe(204);
+    expect(coreClient.calls[0]).toMatchObject({
+      path: `/jobs/${JOB_ID}/position`,
+      body: payload,
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+    coreClient.nextResponse = { status: 409, body: { tag: 'NotTracking' } };
+    const refused = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/position`,
+      payload,
+      headers: AUTH_HEADER,
+    });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toMatchObject({ tag: 'NotTracking' });
+  });
+
+  it('400s an off-planet position without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/position`,
+      payload: { location: { lat: 95, lon: 0 } },
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
   });
 
   it('400s a bad proof-of-delivery body without calling core', async () => {
