@@ -6,6 +6,20 @@
 Things worth building later, raised while actually using the app rather than planning it —
 not attached to a milestone yet.
 
+- **2026-10-03: what3words for job stops (not scheduled).** Raised right after the Jobs form
+  moved from latitude/longitude to postcodes (`history/p2-m4-portal-jobs.md`): a postcode is no
+  help for a farm gate, a quarry, a field entrance or a big yard where the right gate matters, and
+  a what3words address (`filled.count.soap`) pins a 3 m square. Shape if built: a stop's location
+  input accepts either a postcode or three words; the dashboard's `lib/postcodes.ts` +
+  `hooks/use-postcode.ts` are the pattern to copy (live hint showing the resolved place, resolve
+  again at submit). **Blocked on the owner:** what3words' API needs an account and a key, and its
+  terms/pricing for commercial use should be read before committing to it. Put the key on the
+  server side (a `staff-bff` route that does the lookup, key read only in that app's `config.ts`
+  and added to `passThroughEnv` in `turbo.json`), not in the browser bundle like the keyless
+  postcodes.io call. The same lookup could serve the driver app's destination search later. Alternatives
+  if the cost or licence is a problem: a map pin picker (Phase 2 design doc), or MapTiler address
+  search, which the driver app already has a key for.
+
 - **2026-09-26: admin-only hazard delete — shipped same day.** Field-testing request: "give my
   account the ability to remove hazards, I've been making some as tests." Dismiss ("not there")
   already existed and already hides a hazard from every driver-facing query — but it's a soft
