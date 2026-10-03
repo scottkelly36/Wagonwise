@@ -27,16 +27,16 @@ history file keeps the record.
 | P2-M2 Fleet                        | Done — 2026-10-02                       | `history/p2-m2-driver-links.md`        |
 | P2-M3 Jobs core                    | Done — 2026-10-02                       | below                                  |
 | P2-M4 Jobs in the portal           | Done — 2026-10-02                       | `history/p2-m4-portal-jobs.md`         |
-| P2-M5 Jobs in the driver app       | In progress — M5.1-5.4 done             | `history/p2-m5-driver-app-jobs.md`     |
+| P2-M5 Jobs in the driver app       | In progress — M5.1-5.5a done            | `history/p2-m5-driver-app-jobs.md`     |
 
 ## Next up
 
-1. **P2-M5.4 is done (2026-10-02).** `/home` now prompts "Arrived at pickup?"/"Arrived?" once the
-   driver's live position is close enough to the job's next stop — a native alert the driver
-   confirms, never an automatic status change; foreground-only, against the position already
-   being watched for the map, not `expo-location`'s background geofencing API. See
-   `history/p2-m5-driver-app-jobs.md`. Next up is **P2-M5.5**: proof of delivery (photo/signature
-   at the final stop, via the offline queue), the last slice of P2-M5.
+1. **P2-M5.5a is done (2026-10-03).** Proof of delivery, backend half: a dispatcher can tick
+   "Require proof of delivery" on a job, drivers can attach a photo (`POST /jobs/:id/proof-of-
+delivery`, stored in Postgres, not S3 yet), and core refuses `→ delivered` on a required job
+   until one exists. See `history/p2-m5-driver-app-jobs.md`. Next up is **P2-M5.5b**: the driver
+   app's camera button and offline upload queue (new native dependency `expo-image-picker`, so it
+   needs a fresh `eas build` before it works on a device), the last slice of P2-M5.
 
 ## Open items (verified against the code 2026-09-28)
 
@@ -127,6 +127,10 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-03: P2-M5.5a done: proof of delivery, backend half (migration 0031, a "requires proof"
+  flag set at job creation, driver-only photo upload route, `ProofOfDeliveryRequired` enforced in
+  core at `→ delivered`, dashboard checkbox + column). Photo bytes live in Postgres for now; S3
+  deferred. See `history/p2-m5-driver-app-jobs.md`.
 - 2026-10-02: P2-M5.4 done: `/home` prompts an arrival confirm (native alert, foreground-only,
   reusing the position already watched for the map) once the driver's near the job's next stop —
   the driver still confirms; nothing advances on its own. See

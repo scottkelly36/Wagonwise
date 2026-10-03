@@ -24,6 +24,8 @@ export function jobDto(job: Job) {
       at: entry.at.toISOString(),
       ...(entry.position === undefined ? {} : { position: entry.position }),
     })),
+    requiresProofOfDelivery: job.requiresProofOfDelivery,
+    hasProofOfDelivery: job.hasProofOfDelivery,
     ...(job.driverId === undefined ? {} : { driverId: job.driverId }),
     ...(job.vehicleId === undefined ? {} : { vehicleId: job.vehicleId }),
     ...(job.routePlanId === undefined ? {} : { routePlanId: job.routePlanId }),

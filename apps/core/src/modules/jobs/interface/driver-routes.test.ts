@@ -34,6 +34,7 @@ function buildApp(): {
   const deps: JobsDriverRouteDeps = {
     currentJob: { repo },
     changeStatus: { repo, ids: new SequentialIdGenerator(), clock: new FakeClock() },
+    attachProofOfDelivery: { repo },
     identities: new FakeDriverIdentities(),
     dataScopes: scopes,
   };
@@ -57,6 +58,8 @@ const JOB: Job = {
   status: 'assigned',
   driverId: DRIVER,
   timeline: [{ status: 'assigned', at: new Date('2026-10-01T09:00:00.000Z') }],
+  requiresProofOfDelivery: false,
+  hasProofOfDelivery: false,
 };
 
 describe('GET /jobs/current', () => {
@@ -143,6 +146,79 @@ describe('POST /jobs/:id/status', () => {
     });
     expect([badId.statusCode, badBody.statusCode]).toEqual([400, 400]);
     expect((await repo.findById(JOB_ID))?.status).toBe('assigned');
+  });
+});
+
+describe('POST /jobs/:id/proof-of-delivery', () => {
+  it('204s and records the photo for the driver on it', async () => {
+    const { app, repo } = buildApp();
+    await repo.save({ ...JOB, status: 'at_delivery', requiresProofOfDelivery: true });
+    const response = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/proof-of-delivery`,
+      payload: { contentType: 'image/jpeg', dataBase64: Buffer.from('a photo').toString('base64') },
+      ...asDriver(DRIVER),
+    });
+    expect(response.statusCode).toBe(204);
+    expect((await repo.findById(JOB_ID))?.hasProofOfDelivery).toBe(true);
+    expect(repo.proofOfDelivery.get(JOB_ID)).toMatchObject({ contentType: 'image/jpeg' });
+  });
+
+  it('lets the delivered step through once proof is attached, and refuses it before that', async () => {
+    const { app, repo } = buildApp();
+    await repo.save({ ...JOB, status: 'at_delivery', requiresProofOfDelivery: true });
+    const tooSoon = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/status`,
+      payload: { status: 'delivered' },
+      ...asDriver(DRIVER),
+    });
+    expect(tooSoon.statusCode).toBe(409);
+    expect(tooSoon.json()).toMatchObject({ tag: 'ProofOfDeliveryRequired' });
+
+    await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/proof-of-delivery`,
+      payload: { contentType: 'image/jpeg', dataBase64: Buffer.from('a photo').toString('base64') },
+      ...asDriver(DRIVER),
+    });
+    const now = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/status`,
+      payload: { status: 'delivered' },
+      ...asDriver(DRIVER),
+    });
+    expect(now.statusCode).toBe(200);
+  });
+
+  it("404s for a driver who isn't on the job", async () => {
+    const { app, repo } = buildApp();
+    await repo.save(JOB);
+    const response = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/proof-of-delivery`,
+      payload: { contentType: 'image/jpeg', dataBase64: Buffer.from('a photo').toString('base64') },
+      ...asDriver(OTHER_DRIVER),
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('400s a blank content type or non-base64 data', async () => {
+    const { app, repo } = buildApp();
+    await repo.save(JOB);
+    const badContentType = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/proof-of-delivery`,
+      payload: { contentType: '', dataBase64: 'YQ==' },
+      ...asDriver(DRIVER),
+    });
+    const badData = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/proof-of-delivery`,
+      payload: { contentType: 'image/jpeg', dataBase64: 'not base64!!' },
+      ...asDriver(DRIVER),
+    });
+    expect([badContentType.statusCode, badData.statusCode]).toEqual([400, 400]);
   });
 });
 

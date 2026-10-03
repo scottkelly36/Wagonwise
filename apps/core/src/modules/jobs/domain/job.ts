@@ -52,7 +52,12 @@ export interface JobTimelineEntry {
 }
 
 /** A dispatcher's job (design doc §3). `driverId`/`vehicleId`/`routePlanId` are set once dispatch
- *  (not built yet) assigns the job — every job starts `draft` with none of them. */
+ *  (not built yet) assigns the job — every job starts `draft` with none of them.
+ *  `requiresProofOfDelivery` is the dispatcher's own call at creation (P2-M5.5): most jobs don't
+ *  need it, but some do, and that's company policy, not something the driver decides. `delivered`
+ *  refuses to be reached without a photo when it's set (`application/change-job-status.ts`).
+ *  `hasProofOfDelivery` is a read-only fact computed from `jobs.proof_of_delivery` — attaching a
+ *  photo is always allowed, regardless of whether one's required. */
 export interface Job {
   readonly id: JobId;
   readonly companyId: CompanyId;
@@ -65,6 +70,8 @@ export interface Job {
   readonly timeline: readonly JobTimelineEntry[];
   readonly plannedStart?: Date | undefined;
   readonly dueBy?: Date | undefined;
+  readonly requiresProofOfDelivery: boolean;
+  readonly hasProofOfDelivery: boolean;
 }
 
 export type InvalidReference = TaggedError<'InvalidReference'>;

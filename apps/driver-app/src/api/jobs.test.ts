@@ -19,6 +19,8 @@ const job = {
   ],
   status: 'assigned' as const,
   timeline: [{ status: 'assigned' as const, at: '2026-10-02T09:00:00.000Z' }],
+  requiresProofOfDelivery: false,
+  hasProofOfDelivery: false,
 };
 
 afterEach(() => {

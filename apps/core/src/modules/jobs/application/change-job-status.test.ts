@@ -18,7 +18,10 @@ const jobId = makeId<'JobId'>('job-1');
 const ADMIN: JobActor = { kind: 'platform' };
 const DRIVER: JobActor = { kind: 'driver', driverId: driver };
 
-async function setup(status: JobStatus) {
+async function setup(
+  status: JobStatus,
+  pod: { requiresProofOfDelivery?: boolean; hasProofOfDelivery?: boolean } = {},
+) {
   const repo = new InMemoryJobRepository();
   const job: Job = {
     id: jobId,
@@ -28,6 +31,8 @@ async function setup(status: JobStatus) {
     status,
     driverId: driver,
     timeline: [{ status: 'draft', at: new Date('2026-10-01T09:00:00.000Z') }],
+    requiresProofOfDelivery: pod.requiresProofOfDelivery ?? false,
+    hasProofOfDelivery: pod.hasProofOfDelivery ?? false,
   };
   await repo.save(job);
   const deps: ChangeJobStatusDeps = {
@@ -85,6 +90,27 @@ describe('advanceJobStatus', () => {
     expect((await advanceJobStatus(deps, { actor: dispatcher, jobId, to: 'accepted' })).ok).toBe(
       true,
     );
+  });
+
+  it('refuses to reach delivered without proof when the job requires one', async () => {
+    const { deps } = await setup('at_delivery', { requiresProofOfDelivery: true });
+    expect(await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'delivered' })).toEqual({
+      ok: false,
+      error: { tag: 'ProofOfDeliveryRequired' },
+    });
+  });
+
+  it('reaches delivered once proof is attached', async () => {
+    const { deps } = await setup('at_delivery', {
+      requiresProofOfDelivery: true,
+      hasProofOfDelivery: true,
+    });
+    expect((await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'delivered' })).ok).toBe(true);
+  });
+
+  it("doesn't require proof when the job doesn't ask for it", async () => {
+    const { deps } = await setup('at_delivery');
+    expect((await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'delivered' })).ok).toBe(true);
   });
 });
 

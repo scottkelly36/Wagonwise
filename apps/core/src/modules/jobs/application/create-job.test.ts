@@ -40,6 +40,8 @@ describe('createJob', () => {
       stops: stops(),
       status: 'draft',
       timeline: [{ status: 'draft', at: new Date('2026-10-01T09:00:00.000Z') }],
+      requiresProofOfDelivery: false,
+      hasProofOfDelivery: false,
     });
 
     expect(await repo.findById(result.value.id)).toEqual(result.value);
@@ -61,6 +63,27 @@ describe('createJob', () => {
     if (!result.ok) return;
     expect(result.value.plannedStart).toEqual(plannedStart);
     expect(result.value.dueBy).toEqual(dueBy);
+  });
+
+  it('defaults requiresProofOfDelivery to false, but carries it through when given', async () => {
+    const repo = new InMemoryJobRepository();
+    const defaulted = await createJob(buildDeps(repo), {
+      caller: ADMIN,
+      companyId,
+      reference: 'JOB-4',
+      stops: stops(),
+    });
+    expect(defaulted.ok && defaulted.value.requiresProofOfDelivery).toBe(false);
+
+    const required = await createJob(buildDeps(repo), {
+      caller: ADMIN,
+      companyId,
+      reference: 'JOB-5',
+      stops: stops(),
+      requiresProofOfDelivery: true,
+    });
+    expect(required.ok && required.value.requiresProofOfDelivery).toBe(true);
+    expect(required.ok && required.value.hasProofOfDelivery).toBe(false);
   });
 
   it('rejects a blank reference without touching the repository', async () => {

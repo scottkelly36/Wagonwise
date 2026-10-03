@@ -36,6 +36,8 @@ describe('PostgresJobRepository', () => {
       reference: 'JOB-1',
       status: 'draft',
       timeline: [{ status: 'draft', at: new Date('2026-10-01T09:00:00.000Z') }],
+      requiresProofOfDelivery: false,
+      hasProofOfDelivery: false,
       stops: [
         { kind: 'pickup', name: 'Hexham depot', location: { lat: 54.97, lon: -2.1 } },
         {
@@ -87,6 +89,33 @@ describe('PostgresJobRepository', () => {
     };
     await repo().save(updated);
     expect(await repo().findById(j.id)).toEqual(updated);
+  });
+
+  it('round-trips requiresProofOfDelivery, and reflects saveProofOfDelivery via hasProofOfDelivery', async () => {
+    const j = job({
+      id: makeId<'JobId'>('aaaaaaaa-0000-4000-8000-aaaaaaaaaaaa'),
+      requiresProofOfDelivery: true,
+    });
+    await repo().save(j);
+    expect((await repo().findById(j.id))?.hasProofOfDelivery).toBe(false);
+
+    await repo().saveProofOfDelivery(j.id, {
+      contentType: 'image/jpeg',
+      data: Buffer.from('a photo'),
+    });
+    const withProof = await repo().findById(j.id);
+    expect(withProof?.requiresProofOfDelivery).toBe(true);
+    expect(withProof?.hasProofOfDelivery).toBe(true);
+
+    // Retaking replaces, rather than appending a second row.
+    await repo().saveProofOfDelivery(j.id, {
+      contentType: 'image/png',
+      data: Buffer.from('a different photo'),
+    });
+    const { rows } = await sql<{ content_type: string }>`
+      select content_type from jobs.proof_of_delivery where job_id = ${j.id}
+    `.execute(db);
+    expect(rows).toEqual([{ content_type: 'image/png' }]);
   });
 
   it('finds the job a driver is currently on, and ignores finished ones', async () => {

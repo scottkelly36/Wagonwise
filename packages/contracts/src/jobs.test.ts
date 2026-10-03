@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   advanceJobStatusRequestSchema,
   assignJobRequestSchema,
+  attachProofOfDeliveryRequestSchema,
   createJobRequestSchema,
   currentJobResponseSchema,
   failJobRequestSchema,
@@ -49,7 +50,7 @@ describe('createJobRequestSchema', () => {
     ).toBe(false);
   });
 
-  it('accepts optional plannedStart, dueBy and stop windows/notes', () => {
+  it('accepts optional plannedStart, dueBy, requiresProofOfDelivery and stop windows/notes', () => {
     const result = createJobRequestSchema.safeParse({
       companyId: 'company-1',
       reference: 'JOB-1',
@@ -59,40 +60,63 @@ describe('createJobRequestSchema', () => {
       ],
       plannedStart: '2026-10-02T07:00:00.000Z',
       dueBy: '2026-10-02T18:00:00.000Z',
+      requiresProofOfDelivery: true,
     });
     expect(result.success).toBe(true);
   });
 });
 
+const job = {
+  id: '11111111-1111-4111-8111-111111111111',
+  companyId: 'company-1',
+  reference: 'JOB-1',
+  stops: [pickup, delivery],
+  status: 'draft' as const,
+  timeline: [{ status: 'draft' as const, at: '2026-10-01T09:00:00.000Z' }],
+  requiresProofOfDelivery: false,
+  hasProofOfDelivery: false,
+};
+
 describe('jobSchema', () => {
   it('parses a real response shape', () => {
-    const result = jobSchema.safeParse({
-      id: '11111111-1111-4111-8111-111111111111',
-      companyId: 'company-1',
-      reference: 'JOB-1',
-      stops: [pickup, delivery],
-      status: 'draft',
-      timeline: [{ status: 'draft', at: '2026-10-01T09:00:00.000Z' }],
-    });
-    expect(result.success).toBe(true);
+    expect(jobSchema.safeParse(job).success).toBe(true);
+  });
+
+  it('requires requiresProofOfDelivery and hasProofOfDelivery', () => {
+    const { requiresProofOfDelivery: _r, ...withoutRequires } = job;
+    expect(jobSchema.safeParse(withoutRequires).success).toBe(false);
+    const { hasProofOfDelivery: _h, ...withoutHas } = job;
+    expect(jobSchema.safeParse(withoutHas).success).toBe(false);
   });
 });
 
 describe('currentJobResponseSchema', () => {
   it('accepts a real job or null', () => {
     expect(currentJobResponseSchema.safeParse({ job: null }).success).toBe(true);
+    expect(currentJobResponseSchema.safeParse({ job }).success).toBe(true);
+  });
+});
+
+describe('attachProofOfDeliveryRequestSchema', () => {
+  it('accepts a content type and base64 data', () => {
     expect(
-      currentJobResponseSchema.safeParse({
-        job: {
-          id: '11111111-1111-4111-8111-111111111111',
-          companyId: 'company-1',
-          reference: 'JOB-1',
-          stops: [pickup, delivery],
-          status: 'assigned',
-          timeline: [{ status: 'assigned', at: '2026-10-01T09:00:00.000Z' }],
-        },
+      attachProofOfDeliveryRequestSchema.safeParse({
+        contentType: 'image/jpeg',
+        dataBase64: Buffer.from('a photo').toString('base64'),
       }).success,
     ).toBe(true);
+  });
+
+  it('rejects a blank content type or non-base64 data', () => {
+    expect(
+      attachProofOfDeliveryRequestSchema.safeParse({ contentType: '', dataBase64: 'YQ==' }).success,
+    ).toBe(false);
+    expect(
+      attachProofOfDeliveryRequestSchema.safeParse({
+        contentType: 'image/jpeg',
+        dataBase64: 'not base64!!',
+      }).success,
+    ).toBe(false);
   });
 });
 

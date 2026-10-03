@@ -116,6 +116,9 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
           ? {}
           : { plannedStart: new Date(body.data.plannedStart) }),
         ...(body.data.dueBy === undefined ? {} : { dueBy: new Date(body.data.dueBy) }),
+        ...(body.data.requiresProofOfDelivery === undefined
+          ? {}
+          : { requiresProofOfDelivery: body.data.requiresProofOfDelivery }),
       });
       return result.ok ? { status: 201, body: jobDto(result.value) } : failure(result.error);
     }),

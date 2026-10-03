@@ -11,3 +11,7 @@ export type VehicleNotInCompany = TaggedError<'VehicleNotInCompany'>;
 
 /** One active job per driver (design doc §3). */
 export type DriverBusy = TaggedError<'DriverBusy'>;
+
+/** `delivered` refused: the job's dispatcher marked it as needing proof of delivery, and none has
+ *  been attached yet (P2-M5.5). */
+export type ProofOfDeliveryRequired = TaggedError<'ProofOfDeliveryRequired'>;

@@ -99,7 +99,20 @@ describe('POST /staff/jobs/companies/:companyId/jobs', () => {
       companyId: companyA,
       reference: 'JOB-1',
       status: 'draft',
+      requiresProofOfDelivery: false,
+      hasProofOfDelivery: false,
     });
+  });
+
+  it('carries requiresProofOfDelivery through when set', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/companies/${companyA}/jobs`,
+      payload: { companyId: companyA, reference: 'JOB-POD', stops, requiresProofOfDelivery: true },
+      ...asStaff(ADMIN_ID),
+    });
+    expect(response.json()).toMatchObject({ requiresProofOfDelivery: true });
   });
 
   it('201s for a dispatcher in their own company', async () => {

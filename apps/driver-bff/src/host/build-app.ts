@@ -20,6 +20,10 @@ export function buildApp(config: Config): FastifyInstance {
     // trace, so a single direct crypto.randomUUID() call is proportionate (unlike core, which
     // needs the port for actual domain IDs across many use cases).
     genReqId: () => randomUUID(),
+    // Matches core's own bump (host/build-app.ts): a proof-of-delivery photo (P2-M5.5) passes
+    // through this BFF on its way to core, so it needs the same headroom over Fastify's 1 MiB
+    // default.
+    bodyLimit: 10 * 1024 * 1024,
   });
 
   app.addHook('onSend', (request, reply, _payload, done) => {

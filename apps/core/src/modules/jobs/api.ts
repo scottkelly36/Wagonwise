@@ -73,6 +73,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
   const driverRouteDeps: JobsDriverRouteDeps = {
     currentJob: { repo },
     changeStatus: { repo, ids: deps.ids, clock: deps.clock },
+    attachProofOfDelivery: { repo },
     identities: deps.driverIdentities,
     dataScopes: deps.dataScopes,
   };
