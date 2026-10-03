@@ -63,6 +63,7 @@ describe('runMigrations', () => {
       '0030_jobs_driver_rls.sql',
       '0031_jobs_proof_of_delivery.sql',
       '0032_jobs_positions.sql',
+      '0033_hazards_moderation.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -114,7 +115,7 @@ describe('runMigrations', () => {
       `select table_name from information_schema.tables
        where table_schema = 'hazards' order by table_name`,
     );
-    expect(hazardsTables.map((row) => row.table_name)).toEqual(['reports']);
+    expect(hazardsTables.map((row) => row.table_name)).toEqual(['moderation_decisions', 'reports']);
 
     const { rows: feedbackTables } = await pool.query<{ table_name: string }>(
       `select table_name from information_schema.tables
@@ -202,6 +203,7 @@ describe('runMigrations', () => {
       '0030_jobs_driver_rls.sql',
       '0031_jobs_proof_of_delivery.sql',
       '0032_jobs_positions.sql',
+      '0033_hazards_moderation.sql',
     ]);
   });
 });

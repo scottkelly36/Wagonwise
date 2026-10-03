@@ -109,3 +109,60 @@ export const hazardsErrorResponseSchema = z.object({
   requestId: z.string(),
 });
 export type HazardsErrorResponse = z.infer<typeof hazardsErrorResponseSchema>;
+
+// ---- Moderation (P2-M7.1) ---------------------------------------------------------------
+
+const moderationNote = z.string().trim().max(500).optional();
+
+/** `POST /staff/hazard-reports/:id/moderate`: what a WagonWise moderator does to a report. */
+export const moderateHazardRequestSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('approve'), note: moderationNote }),
+  z.object({ action: z.literal('reject'), note: moderationNote }),
+  z.object({
+    action: z.literal('edit'),
+    type: hazardTypeSchema.optional(),
+    /** `null` removes the measurement; leaving it out leaves it alone. */
+    measurement: measurementSchema.nullable().optional(),
+    note: moderationNote,
+  }),
+  z.object({
+    action: z.literal('set_lifetime'),
+    lifetime: z.enum(['permanent', 'temporary']),
+    note: moderationNote,
+  }),
+]);
+export type ModerateHazardRequest = z.infer<typeof moderateHazardRequestSchema>;
+
+export const queueReasonSchema = z.enum(['blocking_unreviewed', 'disputed']);
+export type QueueReasonDto = z.infer<typeof queueReasonSchema>;
+
+/** `GET /staff/hazard-reports/moderation-queue`. */
+export const moderationQueueResponseSchema = z.object({
+  items: z.array(z.object({ hazard: hazardReportSchema, reasons: z.array(queueReasonSchema) })),
+});
+export type ModerationQueueResponse = z.infer<typeof moderationQueueResponseSchema>;
+
+const moderatedFieldsSchema = z.object({
+  type: hazardTypeSchema,
+  measurement: measurementSchema.optional(),
+  status: hazardStatusSchema,
+  expiresAt: z.iso.datetime().optional(),
+});
+
+export const moderationDecisionSchema = z.object({
+  id: z.string(),
+  hazardId: hazardReportIdSchema,
+  moderatorId: z.string(),
+  action: z.enum(['approve', 'reject', 'edit', 'set_lifetime']),
+  note: z.string().optional(),
+  before: moderatedFieldsSchema,
+  after: moderatedFieldsSchema,
+  decidedAt: z.iso.datetime(),
+});
+export type ModerationDecisionDto = z.infer<typeof moderationDecisionSchema>;
+
+/** `GET /staff/hazard-reports/:id/decisions`. */
+export const moderationDecisionsResponseSchema = z.object({
+  decisions: z.array(moderationDecisionSchema),
+});
+export type ModerationDecisionsResponse = z.infer<typeof moderationDecisionsResponseSchema>;
