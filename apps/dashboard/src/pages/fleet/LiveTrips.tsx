@@ -5,7 +5,14 @@ import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import * as jobsApi from '../../api/jobs';
 import { FleetMap, type MapMarker } from '../../components/FleetMap';
-import { isOnTheRoad, lastSeen, nextStop, type Freshness } from '../../lib/live-map';
+import {
+  formatMiles,
+  isOnTheRoad,
+  lastSeen,
+  nextStop,
+  straightLineMetres,
+  type Freshness,
+} from '../../lib/live-map';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
@@ -87,13 +94,18 @@ export function LiveTrips() {
         const position = positionByJob.get(job.id);
         const driver = drivers.data?.find((link) => link.driverId === job.driverId);
         const vehicle = vehicles.data?.find((v) => v.id === job.vehicleId);
+        const next = nextStop(job);
         return {
           job,
           position,
           seen: position === undefined ? undefined : lastSeen(position.recordedAt, now),
           driverName: driver?.driverIdentifier ?? undefined,
           vehicleName: vehicle?.name,
-          next: nextStop(job),
+          next,
+          distanceM:
+            position !== undefined && next !== undefined
+              ? straightLineMetres(position.location, next.location)
+              : undefined,
         };
       });
   }, [jobs.data, positions.data, drivers.data, vehicles.data, now]);
@@ -208,6 +220,9 @@ export function LiveTrips() {
                       {row.next && (
                         <div style={{ color: '#6b7280' }}>
                           Heading for {row.next.kind}: {row.next.name}
+                          {row.distanceM !== undefined && (
+                            <> — {formatMiles(row.distanceM)} away, as the crow flies</>
+                          )}
                         </div>
                       )}
                       <div

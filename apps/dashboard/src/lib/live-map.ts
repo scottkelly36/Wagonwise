@@ -54,3 +54,32 @@ export function mapStyleUrl(maptilerApiKey: string | undefined): string {
   if (!maptilerApiKey) return MAPLIBRE_DEMO_STYLE_URL;
   return `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerApiKey}`;
 }
+
+interface LatLon {
+  readonly lat: number;
+  readonly lon: number;
+}
+
+const EARTH_RADIUS_M = 6_371_000;
+
+/** Great-circle distance between two points, in metres. As the crow flies — roads are longer, often
+ *  much longer, so it is shown as "as the crow flies" and never turned into a time. */
+export function straightLineMetres(a: LatLon, b: LatLon): number {
+  const rad = (degrees: number) => (degrees * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLon = rad(b.lon - a.lon);
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+const METRES_PER_MILE = 1609.344;
+
+/** Miles, which is what a UK haulage office and its drivers think in. */
+export function formatMiles(metres: number): string {
+  const miles = metres / METRES_PER_MILE;
+  if (miles < 0.1) return 'under 0.1 mi';
+  // Round first, then choose the format, so 9.99 reads "10 mi" and not "10.0 mi".
+  const tenths = Math.round(miles * 10) / 10;
+  return tenths < 10 ? `${tenths.toFixed(1)} mi` : `${Math.round(miles)} mi`;
+}

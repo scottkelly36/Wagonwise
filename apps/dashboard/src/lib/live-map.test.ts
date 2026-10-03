@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { isOnTheRoad, lastSeen, mapStyleUrl, nextStop } from './live-map';
+import {
+  formatMiles,
+  isOnTheRoad,
+  lastSeen,
+  mapStyleUrl,
+  nextStop,
+  straightLineMetres,
+} from './live-map';
 
 const pickup = { kind: 'pickup' as const, name: 'Depot', location: { lat: 54.9, lon: -2.1 } };
 const delivery = { kind: 'delivery' as const, name: 'Port', location: { lat: 55, lon: -1.6 } };
@@ -57,5 +64,37 @@ describe('mapStyleUrl', () => {
     expect(mapStyleUrl('abc')).toBe('https://api.maptiler.com/maps/streets-v2/style.json?key=abc');
     expect(mapStyleUrl(undefined)).toBe('https://demotiles.maplibre.org/style.json');
     expect(mapStyleUrl('')).toBe('https://demotiles.maplibre.org/style.json');
+  });
+});
+
+describe('straightLineMetres', () => {
+  it('is zero for the same point', () => {
+    expect(straightLineMetres({ lat: 54.97, lon: -2.1 }, { lat: 54.97, lon: -2.1 })).toBe(0);
+  });
+
+  it('matches a known distance: Hexham to Newcastle is about 33 km as the crow flies', () => {
+    const hexham = { lat: 54.9735, lon: -2.1019 };
+    const newcastle = { lat: 54.9783, lon: -1.6178 };
+    const km = straightLineMetres(hexham, newcastle) / 1000;
+    expect(km).toBeGreaterThan(30);
+    expect(km).toBeLessThan(33);
+  });
+
+  it('is symmetric', () => {
+    const a = { lat: 51.5, lon: -0.12 };
+    const b = { lat: 53.48, lon: -2.24 };
+    expect(straightLineMetres(a, b)).toBeCloseTo(straightLineMetres(b, a), 6);
+  });
+});
+
+describe('formatMiles', () => {
+  it.each([
+    [50, 'under 0.1 mi'],
+    [1609.344, '1.0 mi'],
+    [8000, '5.0 mi'],
+    [16093, '10 mi'],
+    [100_000, '62 mi'],
+  ])('%d m reads %s', (metres, label) => {
+    expect(formatMiles(metres)).toBe(label);
   });
 });
