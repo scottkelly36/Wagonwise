@@ -2,11 +2,12 @@
 
 Scoped 2026-10-03 from the Phase 2 tech design doc §6. Sliced like P2-M5.
 
-| Slice | Scope                                                             | Status            |
-| ----- | ----------------------------------------------------------------- | ----------------- |
-| M6.1  | Driver app reports position during a job; core stores + serves it | Done — 2026-10-03 |
-| M6.2  | The map on the dashboard's Live trips page (polling, not SSE)     | Done — 2026-10-03 |
-| M6.3  | ETA, "last seen" ageing, reroute-alert indicator                  | Not started       |
+| Slice | Scope                                                                  | Status            |
+| ----- | ---------------------------------------------------------------------- | ----------------- |
+| M6.1  | Driver app reports position during a job; core stores + serves it      | Done — 2026-10-03 |
+| M6.2  | The map on the dashboard's Live trips page (polling, not SSE)          | Done — 2026-10-03 |
+| M6.3  | "Last seen" ageing (done in M6.2) and distance to the next stop        | Done — 2026-10-03 |
+| M6.4  | Route planning for jobs: real ETA, route line, reroute-alert indicator | Not started       |
 
 ## Privacy and store review (read before touching tracking)
 
@@ -91,3 +92,26 @@ reviewer pushes back.
   pane against sample data. **Not** seen with real positions: that needs a driver on a job with the
   app, and the key set for real tiles.
 - **Not done:** ETA, the reroute-alert indicator, trails (M6.3), route lines on the map.
+
+## M6.3: distance to the next stop, and why ETA moved to M6.4
+
+The design doc's M6.3 had three parts. "Last seen" ageing was already done in M6.2. The other two
+cannot be done honestly without something that does not exist yet:
+
+- **ETA** needs a route from the driver's position to the next stop, planned for the job's
+  vehicle (its dimensions, so it avoids what that lorry cannot clear). Company jobs have no route
+  plan: `routePlanId` is never set, and `routing` only plans from a driver's own vehicle profile.
+  A time from the straight-line distance would mislead a dispatcher (roads wind), so it is not shown.
+- **The reroute-alert indicator** reads Phase 1's reroute alerts, which hang off a driver's active
+  trip. A company job has no trip, so there is nothing to show.
+
+Both come with route planning for jobs, which is also the deferred "route preview before assigning"
+(`history/p2-m4-portal-jobs.md`). That is M6.4. It needs: a port in `jobs` for "travel time and
+route between two points for this vehicle", an adapter onto `routing`'s facade (a new method there),
+the vehicle's dimensions read from `fleet` through a jobs-owned port, and caching so Valhalla is
+asked every few minutes, not on every dashboard poll (design doc §6).
+
+**What M6.3 added:** the Live trips list says how far each vehicle is from the stop it is heading
+for, in miles, labelled "as the crow flies" (`straightLineMetres`, `formatMiles` in
+`lib/live-map.ts`, tested including the rounding edge at 10 mi). Dashboard only; nothing in core or
+the app changed.

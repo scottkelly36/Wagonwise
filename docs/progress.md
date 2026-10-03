@@ -28,7 +28,7 @@ history file keeps the record.
 | P2-M3 Jobs core                    | Done — 2026-10-02                        | below                                  |
 | P2-M4 Jobs in the portal           | Done — 2026-10-02                        | `history/p2-m4-portal-jobs.md`         |
 | P2-M5 Jobs in the driver app       | Code-complete 2026-10-03 — needs a build | `history/p2-m5-driver-app-jobs.md`     |
-| P2-M6 Live fleet map               | In progress — M6.1-6.2 done              | `history/p2-m6-live-map.md`            |
+| P2-M6 Live fleet map               | In progress — M6.1-6.3 done, M6.4 next   | `history/p2-m6-live-map.md`            |
 
 ## Next up
 
@@ -129,6 +129,10 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-03: P2-M6.3 done, narrower than the design doc: the Live trips list shows each vehicle's
+  straight-line distance to its next stop. ETA and the reroute-alert indicator moved to a new M6.4
+  (route planning for jobs): they need a planned route per company job, which doesn't exist yet and
+  is also the parked "route preview". See `history/p2-m6-live-map.md`.
 - 2026-10-03: P2-M6.2 done: the dashboard's Live trips page, a MapLibre map plus a list of jobs on
   the road with driver, vehicle, next stop and "last seen" (polling every 10 s, not the design
   doc's SSE). Set `VITE_MAPTILER_API_KEY` on the dashboard in DigitalOcean for real map tiles. See
