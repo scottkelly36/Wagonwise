@@ -9,6 +9,7 @@ import {
   InMemoryDriverDirectory,
   InMemoryVehicleDirectory,
 } from '../application/testing/in-memory-directories.js';
+import { InMemoryJobPositionRepository } from '../application/testing/in-memory-job-position-repository.js';
 import { InMemoryJobRepository } from '../application/testing/in-memory-job-repository.js';
 import { StubCallerDirectory } from '../application/testing/stub-caller-directory.js';
 import type { StaffId } from '../domain/job.js';
@@ -32,9 +33,11 @@ const OUTSIDER_ID = makeId<'StaffId'>('outsider'); // companyB, dispatch
 function buildApp(): {
   app: FastifyInstance;
   repo: InMemoryJobRepository;
+  positions: InMemoryJobPositionRepository;
   scopes: RecordingDataScopes;
 } {
   const repo = new InMemoryJobRepository();
+  const positions = new InMemoryJobPositionRepository(repo);
   const scopes = new RecordingDataScopes();
   const callers = new Map<StaffId, Caller>([
     [ADMIN_ID, { kind: 'platform' }],
@@ -67,6 +70,7 @@ function buildApp(): {
     listJobs: { repo },
     getJob: { repo },
     getProofOfDelivery: { repo },
+    listPositions: { positions },
     callerDirectory: new StubCallerDirectory(callers),
     dataScopes: scopes,
   };
@@ -79,7 +83,7 @@ function buildApp(): {
     done();
   });
   registerJobsRoutes(app, deps);
-  return { app, repo, scopes };
+  return { app, repo, positions, scopes };
 }
 
 function asStaff(staffId: string): { headers: Record<string, string> } {
@@ -366,5 +370,58 @@ describe('GET /staff/jobs/:id/proof-of-delivery', () => {
         })
       ).statusCode,
     ).toBe(400);
+  });
+});
+
+describe('GET /staff/jobs/companies/:companyId/positions', () => {
+  const list = (app: FastifyInstance, staff: string) =>
+    app.inject({
+      method: 'GET',
+      url: `/staff/jobs/companies/${companyA}/positions`,
+      ...asStaff(staff),
+    });
+
+  it('lists the latest position of each job being driven, to anyone in the company', async () => {
+    const { app, repo, positions } = buildApp();
+    const id = makeId<'JobId'>(await createDraft(app));
+    const job = await repo.findById(id);
+    await repo.save({ ...job!, status: 'en_route' });
+    await positions.record({
+      jobId: id,
+      location: { lat: 54.9, lon: -2.1 },
+      recordedAt: new Date('2026-10-03T10:00:00Z'),
+    });
+    await positions.record({
+      jobId: id,
+      location: { lat: 54.95, lon: -2.05 },
+      recordedAt: new Date('2026-10-03T10:01:00Z'),
+    });
+
+    const response = await list(app, VIEWER_ID);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      positions: [
+        { jobId: id, location: { lat: 54.95, lon: -2.05 }, recordedAt: '2026-10-03T10:01:00.000Z' },
+      ],
+    });
+  });
+
+  it('leaves out a job that is no longer being driven', async () => {
+    const { app, repo, positions } = buildApp();
+    const id = makeId<'JobId'>(await createDraft(app));
+    const job = await repo.findById(id);
+    await repo.save({ ...job!, status: 'delivered' });
+    await positions.record({
+      jobId: id,
+      location: { lat: 54.9, lon: -2.1 },
+      recordedAt: new Date(),
+    });
+    expect((await list(app, VIEWER_ID)).json()).toEqual({ positions: [] });
+  });
+
+  it('403s staff from another company', async () => {
+    const { app } = buildApp();
+    expect((await list(app, OUTSIDER_ID)).statusCode).toBe(403);
   });
 });

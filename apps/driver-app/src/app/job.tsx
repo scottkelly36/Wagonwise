@@ -14,6 +14,7 @@ import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
 import { useJobStatusVoice } from '../hooks/use-job-status-voice';
 import { useProofOfDeliveryCapture } from '../hooks/use-proof-of-delivery';
 import { jobsErrorMessage } from '../lib/error-messages';
+import { isTrackedStatus } from '../lib/job-position-reporting';
 import { JOB_STATUS_LABELS, NEXT_STEP } from '../lib/job-status';
 import {
   isBusy as isVoiceBusy,
@@ -94,6 +95,11 @@ export default function JobScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.reference}>{current.reference}</Text>
         <Text style={styles.status}>{JOB_STATUS_LABELS[current.status]}</Text>
+        {isTrackedStatus(current.status) && (
+          <Text style={styles.notice} testID="job-tracking-notice">
+            Your company can see where you are while this job is on the road.
+          </Text>
+        )}
 
         <View style={styles.section}>
           {current.stops.map((stop, index) => (
@@ -195,6 +201,10 @@ function createStyles(colors: ThemeColors) {
       fontSize: 16,
       fontWeight: '600',
       color: colors.accentBlue,
+    },
+    notice: {
+      fontSize: 14,
+      color: colors.textSecondary,
     },
     section: {
       gap: 12,

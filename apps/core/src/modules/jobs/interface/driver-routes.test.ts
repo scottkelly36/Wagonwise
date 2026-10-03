@@ -4,6 +4,7 @@ import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { RecordingDataScopes } from '../../../shared/testing/recording-data-scopes.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
+import { InMemoryJobPositionRepository } from '../application/testing/in-memory-job-position-repository.js';
 import { InMemoryJobRepository } from '../application/testing/in-memory-job-repository.js';
 import type { DriverIdentityDirectory } from '../application/ports/directories.js';
 import type { Job } from '../domain/job.js';
@@ -27,14 +28,17 @@ class FakeDriverIdentities implements DriverIdentityDirectory {
 function buildApp(): {
   app: FastifyInstance;
   repo: InMemoryJobRepository;
+  positions: InMemoryJobPositionRepository;
   scopes: RecordingDataScopes;
 } {
   const repo = new InMemoryJobRepository();
+  const positions = new InMemoryJobPositionRepository(repo);
   const scopes = new RecordingDataScopes();
   const deps: JobsDriverRouteDeps = {
     currentJob: { repo },
     changeStatus: { repo, ids: new SequentialIdGenerator(), clock: new FakeClock() },
     attachProofOfDelivery: { repo },
+    recordPosition: { repo, positions, clock: new FakeClock() },
     identities: new FakeDriverIdentities(),
     dataScopes: scopes,
   };
@@ -45,7 +49,7 @@ function buildApp(): {
     done();
   });
   registerJobsDriverRoutes(app, deps);
-  return { app, repo, scopes };
+  return { app, repo, positions, scopes };
 }
 
 const asDriver = (driverId: string) => ({ headers: { [DRIVER_HEADER]: driverId } });
@@ -250,5 +254,58 @@ describe('assign and cancel stay staff-only', () => {
       ...asDriver(DRIVER),
     });
     expect([assign.statusCode, cancel.statusCode]).toEqual([404, 404]);
+  });
+});
+
+describe('POST /jobs/:id/position', () => {
+  const position = { location: { lat: 54.97, lon: -2.1 } };
+  const report = (app: FastifyInstance, driver: string, payload: unknown = position) =>
+    app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/position`,
+      payload: payload as object,
+      ...asDriver(driver),
+    });
+
+  it('204s and stores the position while the job is being driven', async () => {
+    const { app, repo, positions } = buildApp();
+    await repo.save({ ...JOB, status: 'en_route' });
+    expect((await report(app, DRIVER)).statusCode).toBe(204);
+    expect(positions.recorded).toHaveLength(1);
+    expect(positions.recorded[0]).toMatchObject({ jobId: JOB_ID, location: position.location });
+  });
+
+  it('refuses, and stores nothing, before the driver has accepted the job and after it ends', async () => {
+    for (const status of ['assigned', 'delivered', 'cancelled'] as const) {
+      const { app, repo, positions } = buildApp();
+      await repo.save({ ...JOB, status });
+      const response = await report(app, DRIVER);
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({ tag: 'NotTracking' });
+      expect(positions.recorded).toHaveLength(0);
+    }
+  });
+
+  it("404s for a driver who isn't on the job", async () => {
+    const { app, repo, positions } = buildApp();
+    await repo.save({ ...JOB, status: 'en_route' });
+    expect((await report(app, OTHER_DRIVER)).statusCode).toBe(404);
+    expect(positions.recorded).toHaveLength(0);
+  });
+
+  it('400s on coordinates that are not on Earth, and 401s without a driver', async () => {
+    const { app, repo } = buildApp();
+    await repo.save({ ...JOB, status: 'en_route' });
+    expect((await report(app, DRIVER, { location: { lat: 91, lon: 0 } })).statusCode).toBe(400);
+    expect((await report(app, DRIVER, { location: { lat: 0, lon: 181 } })).statusCode).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/jobs/${JOB_ID}/position`,
+          payload: position,
+        })
+      ).statusCode,
+    ).toBe(401);
   });
 });

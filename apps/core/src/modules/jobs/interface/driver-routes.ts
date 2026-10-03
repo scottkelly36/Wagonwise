@@ -3,6 +3,7 @@ import {
   attachProofOfDeliveryRequestSchema,
   failJobRequestSchema,
   jobIdParamsSchema,
+  reportJobPositionRequestSchema,
 } from '@wagonwise/contracts/jobs';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId } from '../../../shared/brand.js';
@@ -18,6 +19,10 @@ import {
 } from '../application/change-job-status.js';
 import type { JobActor } from '../application/authorization.js';
 import { getCurrentJob, type CurrentJobDeps } from '../application/list-jobs.js';
+import {
+  recordJobPosition,
+  type RecordJobPositionDeps,
+} from '../application/record-job-position.js';
 import type { DriverIdentityDirectory } from '../application/ports/directories.js';
 import { jobDto } from './dto.js';
 import { statusFor, type JobsError } from './error-mapping.js';
@@ -26,6 +31,7 @@ export interface JobsDriverRouteDeps {
   readonly currentJob: CurrentJobDeps;
   readonly changeStatus: ChangeJobStatusDeps;
   readonly attachProofOfDelivery: AttachProofOfDeliveryDeps;
+  readonly recordPosition: RecordJobPositionDeps;
   readonly identities: DriverIdentityDirectory;
   /** Row-Level Security scope per request (migration 0030). */
   readonly dataScopes: DataScopes;
@@ -122,6 +128,22 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
           contentType: body.data.contentType,
           data: Buffer.from(body.data.dataBase64, 'base64'),
         },
+      });
+      return result.ok ? { status: 204 } : failure(result.error);
+    }),
+  );
+
+  // Where the driver is, while they're out on the job (P2-M6.1). 204 on success; 409 `NotTracking`
+  // when the job isn't being driven — the app just stops reporting, nothing is stored.
+  app.post('/jobs/:id/position', (request, reply) =>
+    asDriver(request, reply, async (actor) => {
+      const params = jobIdParamsSchema.safeParse(request.params);
+      const body = reportJobPositionRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return INVALID;
+      const result = await recordJobPosition(deps.recordPosition, {
+        actor,
+        jobId: makeId<'JobId'>(params.data.id),
+        location: body.data.location,
       });
       return result.ok ? { status: 204 } : failure(result.error);
     }),

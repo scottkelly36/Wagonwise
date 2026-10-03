@@ -28,6 +28,7 @@ history file keeps the record.
 | P2-M3 Jobs core                    | Done — 2026-10-02                        | below                                  |
 | P2-M4 Jobs in the portal           | Done — 2026-10-02                        | `history/p2-m4-portal-jobs.md`         |
 | P2-M5 Jobs in the driver app       | Code-complete 2026-10-03 — needs a build | `history/p2-m5-driver-app-jobs.md`     |
+| P2-M6 Live fleet map               | In progress — M6.1 done                  | `history/p2-m6-live-map.md`            |
 
 ## Next up
 
@@ -128,6 +129,10 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-03: P2-M6.1 done: the driver app reports position every 30 s while a job is on the road
+  (foreground only, no background permission), core stores it (`jobs.job_positions`, migration 0032) and serves the latest per job to staff. Built narrow on purpose after the owner's warning
+  about Apple blocking an employer's tracking app; privacy and review notes in
+  `history/p2-m6-live-map.md`. No retention sweeper yet.
 - 2026-10-03: dispatchers can now view the proof-of-delivery photo: `GET /staff/jobs/:id/proof-of-
 delivery` in core, a staff-bff forward, and a "View photo" overlay on the dashboard's Jobs page.
   Upload content types are restricted to `image/*`. No driver-app native change. A production
@@ -227,20 +232,21 @@ delivery` in core, a staff-bff forward, and a "View photo" overlay on the dashbo
 
 Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those now live here:
 
-| File                                  | Contents                                               | Decisions |
-| ------------------------------------- | ------------------------------------------------------ | --------- |
-| `history/foundations.md`              | Pre-coding decisions, architecture review (2026-09-21) | 1–14      |
-| `history/m1-foundations.md`           | M1 breakdown, decisions, deviations                    | 15–43     |
-| `history/m2-routing-core.md`          | M2, plus the pre-push verification hook                | 44–56     |
-| `history/m3-hazards-core.md`          | M3                                                     | 57–70     |
-| `history/m4-driver-bff-auth.md`       | M4 breakdown, and the old post-M4 "Next session" notes | —         |
-| `history/m5-driver-app.md`            | M5 (its numbering restarts at 53, overlapping M2/M3)   | 53–64     |
-| `history/m6-alerts.md`                | M6                                                     | 65–90     |
-| `history/m7-voice.md`                 | M7                                                     | 91–107    |
-| `history/m9-route-options-parking.md` | M9                                                     | —         |
-| `history/environment-windows.md`      | Windows dev-machine notes, the 2026-09-21 reinstall    | —         |
-| `history/p2-m1-organisations-auth.md` | P2-M1 breakdown, model, open decisions                 | —         |
-| `history/p2-m2-driver-links.md`       | P2-M2 driver links: plan and decisions (active)        | —         |
-| `history/p2-m4-portal-jobs.md`        | P2-M4: jobs in the portal                              | —         |
-| `history/p2-m5-driver-app-jobs.md`    | P2-M5: jobs in the driver app (active)                 | —         |
-| `ideas.md`                            | Field-testing ideas backlog (shipped and unscheduled)  | —         |
+| File                                  | Contents                                                            | Decisions |
+| ------------------------------------- | ------------------------------------------------------------------- | --------- |
+| `history/foundations.md`              | Pre-coding decisions, architecture review (2026-09-21)              | 1–14      |
+| `history/m1-foundations.md`           | M1 breakdown, decisions, deviations                                 | 15–43     |
+| `history/m2-routing-core.md`          | M2, plus the pre-push verification hook                             | 44–56     |
+| `history/m3-hazards-core.md`          | M3                                                                  | 57–70     |
+| `history/m4-driver-bff-auth.md`       | M4 breakdown, and the old post-M4 "Next session" notes              | —         |
+| `history/m5-driver-app.md`            | M5 (its numbering restarts at 53, overlapping M2/M3)                | 53–64     |
+| `history/m6-alerts.md`                | M6                                                                  | 65–90     |
+| `history/m7-voice.md`                 | M7                                                                  | 91–107    |
+| `history/m9-route-options-parking.md` | M9                                                                  | —         |
+| `history/environment-windows.md`      | Windows dev-machine notes, the 2026-09-21 reinstall                 | —         |
+| `history/p2-m1-organisations-auth.md` | P2-M1 breakdown, model, open decisions                              | —         |
+| `history/p2-m2-driver-links.md`       | P2-M2 driver links: plan and decisions (active)                     | —         |
+| `history/p2-m4-portal-jobs.md`        | P2-M4: jobs in the portal                                           | —         |
+| `history/p2-m5-driver-app-jobs.md`    | P2-M5: jobs in the driver app (active)                              | —         |
+| `history/p2-m6-live-map.md`           | P2-M6: live fleet map, and the tracking/store-review notes (active) | —         |
+| `ideas.md`                            | Field-testing ideas backlog (shipped and unscheduled)               | —         |

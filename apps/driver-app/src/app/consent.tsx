@@ -48,6 +48,11 @@ export default function ConsentScreen() {
           ahead and help with debugging — never longer than 30 days, and only for active trips.
         </Text>
         <Text style={styles.paragraph}>
+          If you drive for a company and accept one of their jobs, that company can see where you
+          are while the job is on the road. This only happens while the app is open, and never when
+          you’re not on a job.
+        </Text>
+        <Text style={styles.paragraph}>
           Hazard reports you file are shared with other drivers without your name attached.
         </Text>
         <Text style={styles.paragraph}>

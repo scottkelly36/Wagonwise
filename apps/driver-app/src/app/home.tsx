@@ -9,6 +9,7 @@ import { useNearbySafeParkingSpots } from '../api/use-parking';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
 import { useJobArrivalGeofence } from '../hooks/use-job-arrival-geofence';
+import { useJobPositionReporting } from '../hooks/use-job-position-reporting';
 import { useLiveLocation } from '../hooks/use-live-location';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 
@@ -48,6 +49,8 @@ export default function HomeScreen() {
   // M5.4: "Arrived at pickup?" / "Arrived?" once the driver's close enough to the job's next
   // stop — a confirm, never an automatic status change.
   useJobArrivalGeofence(currentJob.data, location.point);
+  // P2-M6.1: the company's live map. Same position, same screen, only while the job is on the road.
+  useJobPositionReporting(currentJob.data, location.point);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 

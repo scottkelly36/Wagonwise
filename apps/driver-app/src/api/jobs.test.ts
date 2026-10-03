@@ -1,4 +1,4 @@
-import { advanceJobStatus, attachProofOfDelivery, getCurrentJob } from './jobs';
+import { advanceJobStatus, attachProofOfDelivery, getCurrentJob, reportJobPosition } from './jobs';
 import { ApiError } from './errors';
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -106,5 +106,30 @@ describe('attachProofOfDelivery', () => {
       tag: 'JobNotFound',
       status: 404,
     });
+  });
+});
+
+describe('reportJobPosition', () => {
+  it('posts the location with the bearer token and accepts the 204', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(204, undefined));
+    globalThis.fetch = fetchMock;
+
+    await expect(
+      reportJobPosition('token-1', job.id, { lat: 54.97, lon: -2.1 }),
+    ).resolves.toBeUndefined();
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(new RegExp(`/jobs/${job.id}/position$`));
+    expect(JSON.parse(init.body as string)).toEqual({ location: { lat: 54.97, lon: -2.1 } });
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer token-1');
+  });
+
+  it('throws NotTracking when core says the job is not being driven', async () => {
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(409, { tag: 'NotTracking', requestId: 'r1' }));
+    await expect(
+      reportJobPosition('token-1', job.id, { lat: 54.97, lon: -2.1 }),
+    ).rejects.toMatchObject({ tag: 'NotTracking', status: 409 });
   });
 });

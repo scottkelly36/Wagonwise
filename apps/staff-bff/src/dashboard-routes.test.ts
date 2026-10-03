@@ -42,6 +42,7 @@ const VALID = [
   ['POST', `/staff/fleet/companies/${ACME}/code/regenerate`, undefined],
   ['GET', `/staff/jobs/companies/${ACME}/jobs`, undefined],
   ['POST', `/staff/jobs/companies/${ACME}/jobs`, JOB],
+  ['GET', `/staff/jobs/companies/${ACME}/positions`, undefined],
   ['GET', `/staff/jobs/${ID}`, undefined],
   ['GET', `/staff/jobs/${ID}/proof-of-delivery`, undefined],
   ['POST', `/staff/jobs/${ID}/assign`, { driverId: 'driver-1', vehicleId: 'vehicle-1' }],

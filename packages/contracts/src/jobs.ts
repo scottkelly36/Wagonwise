@@ -138,3 +138,23 @@ export const proofOfDeliveryResponseSchema = z.object({
   capturedAt: z.iso.datetime(),
 });
 export type ProofOfDeliveryResponse = z.infer<typeof proofOfDeliveryResponseSchema>;
+
+/** `POST /jobs/:id/position` (P2-M6.1): where the driver is right now. The server stamps the time. */
+export const reportJobPositionRequestSchema = z.object({
+  // Range-checked, unlike the general point: this one is written straight into a PostGIS column.
+  location: z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) }),
+});
+export type ReportJobPositionRequest = z.infer<typeof reportJobPositionRequestSchema>;
+
+export const jobPositionSchema = z.object({
+  jobId: jobIdSchema,
+  location: geoPointSchema,
+  recordedAt: z.iso.datetime(),
+});
+export type JobPositionDto = z.infer<typeof jobPositionSchema>;
+
+/** `GET /staff/jobs/companies/:companyId/positions`: the latest position of each job being driven. */
+export const listJobPositionsResponseSchema = z.object({
+  positions: z.array(jobPositionSchema),
+});
+export type ListJobPositionsResponse = z.infer<typeof listJobPositionsResponseSchema>;

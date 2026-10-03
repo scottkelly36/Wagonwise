@@ -3,6 +3,7 @@ import {
   attachProofOfDeliveryRequestSchema,
   failJobRequestSchema,
   jobIdParamsSchema,
+  reportJobPositionRequestSchema,
 } from '@wagonwise/contracts/jobs';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { AccessTokenVerifier } from './auth/access-token-verifier.js';
@@ -68,5 +69,14 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
       `/jobs/${params.data.id}/proof-of-delivery`,
       parsed.data,
     );
+  });
+
+  app.post('/jobs/:id/position', (request, reply) => {
+    const params = jobIdParamsSchema.safeParse(request.params);
+    const parsed = reportJobPositionRequestSchema.safeParse(request.body);
+    if (!params.success || !parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    return forward(request, reply, 'POST', `/jobs/${params.data.id}/position`, parsed.data);
   });
 }

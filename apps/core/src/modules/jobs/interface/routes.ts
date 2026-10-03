@@ -21,6 +21,7 @@ import {
   getProofOfDelivery,
   type GetProofOfDeliveryDeps,
 } from '../application/get-proof-of-delivery.js';
+import { listJobPositions, type ListJobPositionsDeps } from '../application/list-job-positions.js';
 import { getJob, listJobs, type GetJobDeps, type ListJobsDeps } from '../application/list-jobs.js';
 import type { Caller, CallerDirectory } from '../application/ports/caller-directory.js';
 import type { JobStop } from '../domain/job.js';
@@ -34,6 +35,7 @@ export interface JobsRouteDeps {
   readonly listJobs: ListJobsDeps;
   readonly getJob: GetJobDeps;
   readonly getProofOfDelivery: GetProofOfDeliveryDeps;
+  readonly listPositions: ListJobPositionsDeps;
   /** Resolves who's calling, for the use cases' own permission checks
    *  (`application/authorization.ts`) and for the request's RLS scope. */
   readonly callerDirectory: CallerDirectory;
@@ -139,6 +141,29 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
       });
       return result.ok
         ? { status: 200, body: { jobs: result.value.map(jobDto) } }
+        : failure(result.error);
+    }),
+  );
+
+  app.get('/staff/jobs/companies/:companyId/positions', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = jobCompanyIdParamsSchema.safeParse(request.params);
+      if (!params.success) return INVALID;
+      const result = await listJobPositions(deps.listPositions, {
+        caller,
+        companyId: makeId<'CompanyId'>(params.data.companyId),
+      });
+      return result.ok
+        ? {
+            status: 200,
+            body: {
+              positions: result.value.map((p) => ({
+                jobId: p.jobId,
+                location: p.location,
+                recordedAt: p.recordedAt.toISOString(),
+              })),
+            },
+          }
         : failure(result.error);
     }),
   );
