@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   slug: 'wagonwise-driver-app',
   // Store-build version, bumped by hand on each `eas build` (README: "Versions and updates").
   // OTA updates can't change it — it's baked into the binary.
-  version: '1.0.1',
+  version: '1.1.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'wagonwise',
@@ -57,6 +57,14 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-secure-store',
     'expo-sqlite',
+    [
+      'expo-image-picker',
+      {
+        cameraPermission: 'WagonWise uses the camera to take proof-of-delivery photos.',
+        // Photos only — nothing here records video, so no microphone prompt.
+        microphonePermission: false,
+      },
+    ],
     '@maplibre/maplibre-react-native',
     '@react-native-community/datetimepicker',
     [

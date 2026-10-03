@@ -68,6 +68,7 @@ export function fleetErrorMessage(error: unknown): string {
 const JOBS_MESSAGES: Record<string, string> = {
   JobNotFound: "That job isn't there any more.",
   InvalidTransition: 'That job has already moved on — pull to refresh.',
+  ProofOfDeliveryRequired: 'Take a photo of the delivery first — this job needs one.',
 };
 
 export function jobsErrorMessage(error: unknown): string {

@@ -1,8 +1,10 @@
 import {
   advanceJobStatusRequestSchema,
+  attachProofOfDeliveryRequestSchema,
   currentJobResponseSchema,
   jobSchema,
   type AdvanceJobStatusRequest,
+  type AttachProofOfDeliveryRequest,
   type JobDto,
 } from '@wagonwise/contracts/jobs';
 
@@ -36,4 +38,20 @@ export async function advanceJobStatus(
   });
   throwUnlessSuccess(status, json, [200]);
   return jobSchema.parse(json);
+}
+
+/** Uploads the delivery photo (`POST /jobs/:id/proof-of-delivery`, 204). A retake replaces the
+ *  earlier photo on the server, so calling this twice for one job is harmless — which is what lets
+ *  the offline queue retry an upload whose response never arrived. */
+export async function attachProofOfDelivery(
+  accessToken: string,
+  jobId: string,
+  input: AttachProofOfDeliveryRequest,
+): Promise<void> {
+  const body = attachProofOfDeliveryRequestSchema.parse(input);
+  const { status, json } = await requestJson('POST', `/jobs/${jobId}/proof-of-delivery`, {
+    body,
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [204]);
 }

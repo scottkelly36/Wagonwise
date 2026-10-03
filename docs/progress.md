@@ -11,32 +11,33 @@ history file keeps the record.
 
 ## Status
 
-| Milestone                          | Status                                  | Detail                                 |
-| ---------------------------------- | --------------------------------------- | -------------------------------------- |
-| M1 Foundations                     | Done — 2026-09-22                       | `history/m1-foundations.md`            |
-| M2 Routing core                    | Done — 2026-09-22                       | `history/m2-routing-core.md`           |
-| M3 Hazards core                    | Done — 2026-09-22                       | `history/m3-hazards-core.md`           |
-| M4 Driver BFF + auth               | Done — 2026-09-22                       | `history/m4-driver-bff-auth.md`        |
-| M5 Driver app                      | In progress — only M5.10 left           | `history/m5-driver-app.md`             |
-| M6 Alerts                          | Done — 2026-09-24                       | `history/m6-alerts.md`                 |
-| M7 Voice                           | Done — 2026-09-24                       | `history/m7-voice.md`                  |
-| M8 Field-ready                     | In progress — partly shipped 2026-09-25 | below (no breakdown written yet)       |
-| M9 Route options & safe parking    | Done — 2026-09-27                       | `history/m9-route-options-parking.md`  |
-| Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only  | below, and the Phase 2 tech design doc |
-| P2-M1 Orgs, roles, RLS, staff auth | Done — 2026-10-01                       | `history/p2-m1-organisations-auth.md`  |
-| P2-M2 Fleet                        | Done — 2026-10-02                       | `history/p2-m2-driver-links.md`        |
-| P2-M3 Jobs core                    | Done — 2026-10-02                       | below                                  |
-| P2-M4 Jobs in the portal           | Done — 2026-10-02                       | `history/p2-m4-portal-jobs.md`         |
-| P2-M5 Jobs in the driver app       | In progress — M5.1-5.5a done            | `history/p2-m5-driver-app-jobs.md`     |
+| Milestone                          | Status                                   | Detail                                 |
+| ---------------------------------- | ---------------------------------------- | -------------------------------------- |
+| M1 Foundations                     | Done — 2026-09-22                        | `history/m1-foundations.md`            |
+| M2 Routing core                    | Done — 2026-09-22                        | `history/m2-routing-core.md`           |
+| M3 Hazards core                    | Done — 2026-09-22                        | `history/m3-hazards-core.md`           |
+| M4 Driver BFF + auth               | Done — 2026-09-22                        | `history/m4-driver-bff-auth.md`        |
+| M5 Driver app                      | In progress — only M5.10 left            | `history/m5-driver-app.md`             |
+| M6 Alerts                          | Done — 2026-09-24                        | `history/m6-alerts.md`                 |
+| M7 Voice                           | Done — 2026-09-24                        | `history/m7-voice.md`                  |
+| M8 Field-ready                     | In progress — partly shipped 2026-09-25  | below (no breakdown written yet)       |
+| M9 Route options & safe parking    | Done — 2026-09-27                        | `history/m9-route-options-parking.md`  |
+| Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only   | below, and the Phase 2 tech design doc |
+| P2-M1 Orgs, roles, RLS, staff auth | Done — 2026-10-01                        | `history/p2-m1-organisations-auth.md`  |
+| P2-M2 Fleet                        | Done — 2026-10-02                        | `history/p2-m2-driver-links.md`        |
+| P2-M3 Jobs core                    | Done — 2026-10-02                        | below                                  |
+| P2-M4 Jobs in the portal           | Done — 2026-10-02                        | `history/p2-m4-portal-jobs.md`         |
+| P2-M5 Jobs in the driver app       | Code-complete 2026-10-03 — needs a build | `history/p2-m5-driver-app-jobs.md`     |
 
 ## Next up
 
-1. **P2-M5.5a is done (2026-10-03).** Proof of delivery, backend half: a dispatcher can tick
-   "Require proof of delivery" on a job, drivers can attach a photo (`POST /jobs/:id/proof-of-
-delivery`, stored in Postgres, not S3 yet), and core refuses `→ delivered` on a required job
-   until one exists. See `history/p2-m5-driver-app-jobs.md`. Next up is **P2-M5.5b**: the driver
-   app's camera button and offline upload queue (new native dependency `expo-image-picker`, so it
-   needs a fresh `eas build` before it works on a device), the last slice of P2-M5.
+1. **P2-M5 is code-complete (2026-10-03).** M5.5b added the driver app's "Take photo" card at the
+   delivery stop and an offline upload queue. It brings a new native dependency
+   (`expo-image-picker`) and the camera permission, so app `version` is now 1.1.0 and it **needs a
+   fresh `eas build`** before it works on a device (`eas update` won't carry it). Not yet run on a
+   real device, and the dispatcher still can't view the photo (deliberately deferred). See
+   `history/p2-m5-driver-app-jobs.md`. Not built yet in Phase 2: dispatch, live
+   map, moderation, reports.
 
 ## Open items (verified against the code 2026-09-28)
 
@@ -127,6 +128,10 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-03: P2-M5.5b done: proof of delivery, driver app half (camera button at the delivery stop,
+  offline photo queue keyed by job, "Delivered" held back while a required photo hasn't reached the
+  server). New native dependency, so app `version` 1.1.0 and a fresh `eas build` is needed. Closes
+  P2-M5 in code. See `history/p2-m5-driver-app-jobs.md`.
 - 2026-10-03: P2-M5.5a done: proof of delivery, backend half (migration 0031, a "requires proof"
   flag set at job creation, driver-only photo upload route, `ProofOfDeliveryRequired` enforced in
   core at `→ delivered`, dashboard checkbox + column). Photo bytes live in Postgres for now; S3

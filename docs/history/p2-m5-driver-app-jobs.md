@@ -12,7 +12,7 @@ Split into session-sized slices rather than one pass, matching the project's usu
 | M5.3  | Voice status updates ("loaded and leaving")                 | Done — 2026-10-02 |
 | M5.4  | Geofence nudges (arrival confirm)                           | Done — 2026-10-02 |
 | M5.5a | Proof of delivery: core + driver-bff + dashboard flag       | Done — 2026-10-03 |
-| M5.5b | Proof of delivery: driver app camera + offline queue        | Not started       |
+| M5.5b | Proof of delivery: driver app camera + offline queue        | Done — 2026-10-03 |
 
 ## M5.1: driver job routes + driver-bff proxy
 
@@ -248,3 +248,50 @@ received". Not exercised live end to end — nothing in the driver app can uploa
 
 **Not done:** the driver-app capture/queue (M5.5b); viewing a photo anywhere; signatures; an
 S3-backed store.
+
+## M5.5b: proof of delivery — the driver app's camera and offline queue
+
+**Decisions:**
+
+- **Photo is saved to the phone before it is uploaded.** A delivery drop is where signal is worst,
+  and a required-proof job can't be marked delivered until the photo is on the server (M5.5a). So
+  `takePhoto` enqueues first, then tries to upload; the queue is retried on app start and every
+  return to the foreground (same opportunistic shape as `useHazardQueueFlush`, no NetInfo).
+- **The base64 is stored in SQLite, not the camera's file path.** The OS can clear the picker's
+  cache file before an upload ever succeeds. One row per job (`insert or replace`), because a job
+  has one proof photo and core replaces on a retake.
+- **A permanent rejection is dropped; everything else stays queued.** The hazard queue stops at any
+  failure and would wedge forever on a report the server never takes. A photo is tied to a job that
+  can disappear (cancelled, reassigned), so a 4xx other than 401/408/429 discards that photo and the
+  pass carries on; network failures and 5xx stop the pass and keep the rest.
+  `lib/proof-of-delivery-flush.ts`. The cost: a photo for a job cancelled before the upload landed is
+  silently lost. Acceptable — there is no delivery left to prove.
+- **Delivered is held back in the app too.** `isDeliveryBlockedByProof` disables the Delivered
+  button _and_ the voice button while a required photo hasn't reached the server — a spoken
+  "delivered" that core is certain to refuse would only say "couldn't save that". Core remains the
+  enforcer. A photo still in the local queue deliberately does **not** unblock it, only the
+  server's `hasProofOfDelivery` does.
+- **The photo section only appears at `at_delivery`.** Optional photos are offered there too, not
+  just on required jobs.
+- **Size.** JPEG quality 0.5, no EXIF (it carries GPS — more location than the privacy rules want
+  stored). `prepareProofPhoto` validates against the contract's own schema (including the
+  7,000,000-character cap) before anything is queued, since a photo the server would reject would
+  only be rejected again, permanently. No resize step (would need `expo-image-manipulator`); if very
+  high-resolution phones trip the cap in the field, that is the next thing to add.
+
+**What this slice added:** `expo-image-picker` (plugin in `app.config.ts`: camera permission text,
+microphone prompt off; `version` 1.0.1 → 1.1.0 because it is a native change), `api/jobs.ts`
+`attachProofOfDelivery`, `db/proof-of-delivery-queue.ts`, `lib/proof-of-delivery.ts` and
+`lib/proof-of-delivery-flush.ts` (pure logic), `hooks/use-proof-of-delivery.ts` (camera + enqueue),
+`hooks/use-proof-of-delivery-queue-flush.ts` (sync + mount in `_layout.tsx`), the `/job` card, and a
+`ProofOfDeliveryRequired` message.
+
+**Verified:** `pnpm --filter @wagonwise/driver-app typecheck/lint/test` green (386 tests, 22 new:
+photo preparation, status/blocking rules, the flush including drop-and-continue, the SQLite queue
+against an in-memory stand-in, the API call). `expo config` resolves with the plugin. **Not run on a
+device**: it needs a new native build (`eas build`), and the camera, the permission prompt and a
+real offline→online upload are all unexercised. The hooks aren't unit tested directly, same
+precedent as the other device-bound hooks.
+
+**Not done:** viewing a photo anywhere (dashboard or app); signatures; S3-backed storage; a visible
+"photo lost" notice when a queued photo is discarded.

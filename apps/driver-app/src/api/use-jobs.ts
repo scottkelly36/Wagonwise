@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAccessToken } from '../hooks/use-access-token';
 import * as jobsApi from './jobs';
 
-const CURRENT_JOB_KEY = ['current-job'] as const;
+export const CURRENT_JOB_KEY = ['current-job'] as const;
 
 export function useCurrentJob() {
   const accessToken = useAccessToken();

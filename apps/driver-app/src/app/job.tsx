@@ -12,12 +12,18 @@ import {
 
 import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
 import { useJobStatusVoice } from '../hooks/use-job-status-voice';
+import { useProofOfDeliveryCapture } from '../hooks/use-proof-of-delivery';
 import { jobsErrorMessage } from '../lib/error-messages';
 import { JOB_STATUS_LABELS, NEXT_STEP } from '../lib/job-status';
 import {
   isBusy as isVoiceBusy,
   isListening as isVoiceListening,
 } from '../lib/job-status-voice-reducer';
+import {
+  isDeliveryBlockedByProof,
+  PROOF_STATUS_MESSAGES,
+  proofOfDeliveryStatus,
+} from '../lib/proof-of-delivery';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 const STOP_KIND_LABELS = { pickup: 'Pickup', delivery: 'Delivery' } as const;
@@ -41,7 +47,9 @@ const VOICE_LABEL: Record<string, string> = {
  * job (just delivered it elsewhere, or a stale deep link) sends the driver back there rather than
  * rendering a dead screen. Hands-free status updates by voice (M5.3, "loaded and leaving") sit
  * alongside the tap button, reusing the Phase 1 voice pipeline with a spoken confirm — geofence
- * nudges (M5.4) and proof of delivery (M5.5) aren't built yet.
+ * nudges (M5.4) arrive as an alert on `/home`. At the delivery stop, proof of delivery (M5.5) adds a
+ * photo section (`useProofOfDeliveryCapture`); a job that requires one can't be marked delivered
+ * until the photo has reached the server.
  */
 export default function JobScreen() {
   const job = useCurrentJob();
@@ -49,6 +57,7 @@ export default function JobScreen() {
   // Hooks can't be conditional, so this is wired up before `job.data` is known to exist — it does
   // nothing (and the button that would start it isn't rendered) until there's a real job.
   const voice = useJobStatusVoice(job.data?.id ?? '', job.data?.status ?? 'draft');
+  const proof = useProofOfDeliveryCapture(job.data?.id ?? '');
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -68,9 +77,15 @@ export default function JobScreen() {
   const nextStep = NEXT_STEP[current.status];
   const voiceBusy = isVoiceBusy(voice.state);
   const voiceListening = isVoiceListening(voice.state);
+  // The photo is taken at the drop, so the section only exists once the driver has arrived.
+  const showProof = current.status === 'at_delivery';
+  const proofStatus = proofOfDeliveryStatus(current, proof.queuedLocally);
+  // Core refuses "Delivered" without the photo on the server, so don't offer a button (or a spoken
+  // "delivered") that is certain to fail — the photo section says why.
+  const blockedByProof = nextStep?.to === 'delivered' && isDeliveryBlockedByProof(current);
 
   function handleAdvance(): void {
-    if (!nextStep || advance.isPending) return;
+    if (!nextStep || advance.isPending || blockedByProof) return;
     advance.mutate({ jobId: current.id, status: nextStep.to });
   }
 
@@ -90,6 +105,32 @@ export default function JobScreen() {
           ))}
         </View>
 
+        {showProof && (
+          <View style={styles.proof} testID="job-proof-section">
+            <Text style={styles.proofTitle}>Proof of delivery</Text>
+            <Text style={styles.proofMessage} testID="job-proof-message">
+              {PROOF_STATUS_MESSAGES[proofStatus]}
+            </Text>
+            {proof.error !== undefined && <Text style={styles.error}>{proof.error}</Text>}
+            <TouchableOpacity
+              style={[styles.proofButton, proof.busy && styles.buttonDisabled]}
+              disabled={proof.busy}
+              onPress={() => void proof.takePhoto()}
+              testID="job-proof-button"
+            >
+              {proof.busy ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <Text style={styles.proofButtonText}>
+                  {proofStatus === 'optional' || proofStatus === 'required'
+                    ? 'Take photo'
+                    : 'Retake photo'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
         {advance.isError && <Text style={styles.error}>{jobsErrorMessage(advance.error)}</Text>}
         {voice.state.phase === 'confirming' && (
           <Text style={styles.voiceFootnote} testID="job-voice-prompt">
@@ -103,9 +144,10 @@ export default function JobScreen() {
           <TouchableOpacity
             style={[
               styles.button,
-              (advance.isPending || voiceBusy || voiceListening) && styles.buttonDisabled,
+              (advance.isPending || voiceBusy || voiceListening || blockedByProof) &&
+                styles.buttonDisabled,
             ]}
-            disabled={advance.isPending || voiceBusy || voiceListening}
+            disabled={advance.isPending || voiceBusy || voiceListening || blockedByProof}
             onPress={handleAdvance}
             testID="job-advance-button"
           >
@@ -120,9 +162,9 @@ export default function JobScreen() {
             style={[
               styles.voiceButton,
               voiceListening && styles.voiceButtonListening,
-              advance.isPending && styles.buttonDisabled,
+              (advance.isPending || blockedByProof) && styles.buttonDisabled,
             ]}
-            disabled={advance.isPending}
+            disabled={advance.isPending || blockedByProof}
             onPress={voiceListening ? voice.cancel : voice.start}
             testID="job-voice-button"
           >
@@ -188,6 +230,34 @@ function createStyles(colors: ThemeColors) {
       color: colors.textSecondary,
       textAlign: 'center',
       fontStyle: 'italic',
+    },
+    proof: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      gap: 12,
+    },
+    proofTitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+    },
+    proofMessage: {
+      fontSize: 16,
+      color: colors.text,
+    },
+    proofButton: {
+      minHeight: 56,
+      borderRadius: 28,
+      backgroundColor: colors.background,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    proofButtonText: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
     },
     footer: {
       padding: 16,
