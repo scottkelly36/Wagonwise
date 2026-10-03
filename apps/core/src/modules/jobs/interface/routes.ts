@@ -21,6 +21,7 @@ import {
   getProofOfDelivery,
   type GetProofOfDeliveryDeps,
 } from '../application/get-proof-of-delivery.js';
+import { listJobEtas, type ListJobEtasDeps } from '../application/list-job-etas.js';
 import { listJobPositions, type ListJobPositionsDeps } from '../application/list-job-positions.js';
 import { getJob, listJobs, type GetJobDeps, type ListJobsDeps } from '../application/list-jobs.js';
 import type { Caller, CallerDirectory } from '../application/ports/caller-directory.js';
@@ -36,6 +37,7 @@ export interface JobsRouteDeps {
   readonly getJob: GetJobDeps;
   readonly getProofOfDelivery: GetProofOfDeliveryDeps;
   readonly listPositions: ListJobPositionsDeps;
+  readonly listEtas: ListJobEtasDeps;
   /** Resolves who's calling, for the use cases' own permission checks
    *  (`application/authorization.ts`) and for the request's RLS scope. */
   readonly callerDirectory: CallerDirectory;
@@ -161,6 +163,32 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
                 jobId: p.jobId,
                 location: p.location,
                 recordedAt: p.recordedAt.toISOString(),
+              })),
+            },
+          }
+        : failure(result.error);
+    }),
+  );
+
+  app.get('/staff/jobs/companies/:companyId/etas', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = jobCompanyIdParamsSchema.safeParse(request.params);
+      if (!params.success) return INVALID;
+      const result = await listJobEtas(deps.listEtas, {
+        caller,
+        companyId: makeId<'CompanyId'>(params.data.companyId),
+      });
+      return result.ok
+        ? {
+            status: 200,
+            body: {
+              etas: result.value.map((eta) => ({
+                jobId: eta.jobId,
+                stopKind: eta.stopKind,
+                distanceKm: eta.distanceKm,
+                durationMin: eta.durationMin,
+                geometry: eta.geometry,
+                fromRecordedAt: eta.fromRecordedAt.toISOString(),
               })),
             },
           }

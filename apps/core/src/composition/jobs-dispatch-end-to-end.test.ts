@@ -8,6 +8,7 @@ import { createFleetModule } from '../modules/fleet/api.js';
 import { createJobsModule, type Caller } from '../modules/jobs/api.js';
 import { runMigrations } from '../platform/migrations/run-migrations.js';
 import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
+import { ok } from '../shared/result.js';
 import { FakeClock } from '../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../shared/testing/sequential-id-generator.js';
 
@@ -86,6 +87,11 @@ describe('jobs dispatch end to end (real RLS, real scopes)', () => {
       },
       vehicles: {
         belongsToCompany: (id, company) => Promise.resolve(id === VEHICLE && company === ACME),
+      },
+      // A fixed answer: what is under test here is jobs' own use of the estimator, not Valhalla.
+      routes: {
+        estimate: () =>
+          Promise.resolve(ok({ distanceKm: 40, durationMin: 50, geometry: 'a-line' })),
       },
       driverIdentities: {
         getIdentifier: (id) =>
@@ -175,6 +181,83 @@ describe('jobs dispatch end to end (real RLS, real scopes)', () => {
     });
     expect(got.json()).toMatchObject({ status: 'delivered', driverId: DRIVER });
     expect(got.json<{ stops: unknown[] }>().stops).toHaveLength(2);
+  });
+
+  it('shows where a driver on the road is and how long they have to go', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/companies/${ACME}/jobs`,
+      payload: { companyId: ACME, reference: 'E2E-LIVE', stops },
+      ...as('acme-dispatcher'),
+    });
+    const { id } = created.json<{ id: string }>();
+    await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/${id}/assign`,
+      payload: { driverId: DRIVER, vehicleId: VEHICLE },
+      ...as('acme-dispatcher'),
+    });
+    const asDriver = { headers: { 'x-test-driver-id': DRIVER } };
+    const position = { location: { lat: 54.97, lon: -2.0 } };
+
+    // Not yet accepted: nothing is stored.
+    const early = await app.inject({
+      method: 'POST',
+      url: `/jobs/${id}/position`,
+      payload: position,
+      ...asDriver,
+    });
+    expect(early.statusCode).toBe(409);
+
+    for (const status of ['accepted', 'at_pickup', 'loaded', 'en_route']) {
+      await app.inject({
+        method: 'POST',
+        url: `/jobs/${id}/status`,
+        payload: { status },
+        ...asDriver,
+      });
+    }
+    const sent = await app.inject({
+      method: 'POST',
+      url: `/jobs/${id}/position`,
+      payload: position,
+      ...asDriver,
+    });
+    expect(sent.statusCode).toBe(204);
+
+    const positions = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/companies/${ACME}/positions`,
+      ...as('acme-dispatcher'),
+    });
+    expect(
+      positions.json<{ positions: { jobId: string }[] }>().positions.map((p) => p.jobId),
+    ).toEqual([id]);
+
+    const etas = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/companies/${ACME}/etas`,
+      ...as('acme-dispatcher'),
+    });
+    expect(etas.statusCode).toBe(200);
+    expect(etas.json()).toMatchObject({
+      etas: [{ jobId: id, stopKind: 'delivery', durationMin: 50, geometry: 'a-line' }],
+    });
+
+    // Another company sees none of it.
+    const other = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/companies/${ACME}/etas`,
+      ...as('beta-dispatcher'),
+    });
+    expect(other.statusCode).toBe(403);
+
+    // Leave the driver free: other tests in this file assign the same driver.
+    await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/${id}/cancel`,
+      ...as('acme-dispatcher'),
+    });
   });
 
   it('refuses to assign a driver who only requested to join, never approved', async () => {

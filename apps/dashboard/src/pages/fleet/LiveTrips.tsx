@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import * as jobsApi from '../../api/jobs';
+import { decodePolyline6 } from '../../lib/polyline';
 import { FleetMap, type MapMarker } from '../../components/FleetMap';
 import {
+  etaText,
   formatMiles,
   isOnTheRoad,
   lastSeen,
@@ -65,6 +67,12 @@ export function LiveTrips() {
     enabled: companyId !== undefined,
     refetchInterval: POLL_MS,
   });
+  const etas = useQuery({
+    queryKey: ['job-etas', companyId],
+    queryFn: () => withAccessToken((token) => jobsApi.listJobEtas(token, companyId as string)),
+    enabled: companyId !== undefined,
+    refetchInterval: POLL_MS,
+  });
   const drivers = useQuery({
     queryKey: ['driver-links', companyId],
     queryFn: () => withAccessToken((token) => fleetApi.listDriverLinks(token, companyId as string)),
@@ -95,10 +103,15 @@ export function LiveTrips() {
         const driver = drivers.data?.find((link) => link.driverId === job.driverId);
         const vehicle = vehicles.data?.find((v) => v.id === job.vehicleId);
         const next = nextStop(job);
+        const seen = position === undefined ? undefined : lastSeen(position.recordedAt, now);
+        const eta = etas.data?.find((e) => e.jobId === job.id);
         return {
           job,
           position,
-          seen: position === undefined ? undefined : lastSeen(position.recordedAt, now),
+          seen,
+          eta,
+          etaLabel:
+            eta !== undefined && seen !== undefined ? etaText(eta, seen.freshness, now) : undefined,
           driverName: driver?.driverIdentifier ?? undefined,
           vehicleName: vehicle?.name,
           next,
@@ -108,7 +121,13 @@ export function LiveTrips() {
               : undefined,
         };
       });
-  }, [jobs.data, positions.data, drivers.data, vehicles.data, now]);
+  }, [jobs.data, positions.data, etas.data, drivers.data, vehicles.data, now]);
+
+  // The selected vehicle's route to where it is heading, drawn on the map.
+  const routeLine = useMemo(() => {
+    const eta = rows.find((row) => row.job.id === selectedJobId)?.eta;
+    return eta === undefined ? undefined : decodePolyline6(eta.geometry);
+  }, [rows, selectedJobId]);
 
   const markers = useMemo<MapMarker[]>(() => {
     const result: MapMarker[] = [];
@@ -187,7 +206,12 @@ export function LiveTrips() {
               overflow: 'hidden',
             }}
           >
-            <FleetMap markers={markers} selectedId={selectedJobId} onSelect={setSelectedJobId} />
+            <FleetMap
+              markers={markers}
+              selectedId={selectedJobId}
+              onSelect={setSelectedJobId}
+              line={routeLine}
+            />
           </div>
 
           <div style={{ flex: '1 1 280px', maxHeight: 520, overflowY: 'auto' }}>
@@ -225,6 +249,7 @@ export function LiveTrips() {
                           )}
                         </div>
                       )}
+                      {row.etaLabel && <div>{row.etaLabel}</div>}
                       <div
                         style={{
                           color: row.seen ? COLOURS[row.seen.freshness] : '#6b7280',

@@ -83,3 +83,32 @@ export function formatMiles(metres: number): string {
   const tenths = Math.round(miles * 10) / 10;
   return tenths < 10 ? `${tenths.toFixed(1)} mi` : `${Math.round(miles)} mi`;
 }
+
+/** "50 min", "1 h 20 min", "2 h". */
+export function formatDuration(minutes: number): string {
+  const total = Math.max(1, Math.round(minutes));
+  if (total < 60) return `${total} min`;
+  const hours = Math.floor(total / 60);
+  const rest = total % 60;
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
+}
+
+/**
+ * What the list says about a vehicle's ETA. The estimate runs from the last place the vehicle was
+ * heard from (`fromRecordedAt`), so the arrival time is that moment plus the journey — valid if the
+ * driver has kept going since, which is why it is shown as "around". Once the position is old
+ * enough to be lost, no clock time is claimed at all: the driver may have stopped, or the app may
+ * simply be closed.
+ */
+export function etaText(
+  eta: { readonly durationMin: number; readonly fromRecordedAt: string },
+  freshness: Freshness,
+  now: Date,
+): string {
+  const journey = formatDuration(eta.durationMin);
+  if (freshness === 'lost') return `${journey} from where they were last seen`;
+  const arrival = new Date(new Date(eta.fromRecordedAt).getTime() + eta.durationMin * 60_000);
+  if (arrival.getTime() <= now.getTime()) return `${journey} journey · due about now`;
+  const clock = arrival.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return `${journey} journey · around ${clock}`;
+}

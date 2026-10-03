@@ -9,6 +9,7 @@ import type {
   DriverIdentityDirectory,
 } from './application/ports/directories.js';
 import type { UntypedDb } from './infrastructure/db.js';
+import type { Dimensions as VehicleDimensions } from './domain/vehicle.js';
 import { SlidingWindowAttemptLimiter } from './application/sliding-window-attempt-limiter.js';
 import { CryptoCompanyCodeGenerator } from './infrastructure/crypto-company-code-generator.js';
 import { PostgresCompanyCodeRepository } from './infrastructure/postgres-company-code-repository.js';
@@ -25,6 +26,9 @@ export type {
   DriverIdentityDirectory,
 } from './application/ports/directories.js';
 export type { Caller, CallerDirectory } from './application/ports/caller-directory.js';
+
+/** A vehicle's measurements as `fleet` records them (metres and tonnes). */
+export type { Dimensions as VehicleDimensions } from './domain/vehicle.js';
 
 export interface FleetModuleDeps {
   readonly db: UntypedDb;
@@ -45,6 +49,9 @@ export interface FleetModule {
   /** The company a vehicle belongs to, or null. For `jobs' vehicle directory, supplied by
    *  composition (AGENTS.md rule 7). */
   getVehicleCompanyId(vehicleId: string): Promise<string | null>;
+  /** A vehicle's measurements, or null. For `jobs` ETA (P2-M6.4): a job is routed for the company
+   *  vehicle it is assigned to, not a driver's personal profile. Supplied by composition. */
+  getVehicleDimensions(vehicleId: string): Promise<VehicleDimensions | null>;
   /** Whether the driver has an active link with the company (P2-M2.8). For `jobs`' driver
    *  directory, supplied by composition — replaces identity's old single `drivers.company_id`. */
   isActiveDriverOfCompany(driverId: string, companyId: string): Promise<boolean>;
@@ -94,6 +101,10 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
     async getVehicleCompanyId(vehicleId: string): Promise<string | null> {
       const vehicle = await repo.findById(makeId<'FleetVehicleId'>(vehicleId));
       return vehicle?.companyId ?? null;
+    },
+    async getVehicleDimensions(vehicleId: string): Promise<VehicleDimensions | null> {
+      const vehicle = await repo.findById(makeId<'FleetVehicleId'>(vehicleId));
+      return vehicle?.dimensions ?? null;
     },
     isActiveDriverOfCompany(driverId: string, companyId: string): Promise<boolean> {
       return links.isActive(makeId<'CompanyId'>(companyId), makeId<'DriverId'>(driverId));

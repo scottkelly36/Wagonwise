@@ -2,12 +2,14 @@
 
 Scoped 2026-10-03 from the Phase 2 tech design doc §6. Sliced like P2-M5.
 
-| Slice | Scope                                                                  | Status            |
-| ----- | ---------------------------------------------------------------------- | ----------------- |
-| M6.1  | Driver app reports position during a job; core stores + serves it      | Done — 2026-10-03 |
-| M6.2  | The map on the dashboard's Live trips page (polling, not SSE)          | Done — 2026-10-03 |
-| M6.3  | "Last seen" ageing (done in M6.2) and distance to the next stop        | Done — 2026-10-03 |
-| M6.4  | Route planning for jobs: real ETA, route line, reroute-alert indicator | Not started       |
+| Slice | Scope                                                                    | Status            |
+| ----- | ------------------------------------------------------------------------ | ----------------- |
+| M6.1  | Driver app reports position during a job; core stores + serves it        | Done — 2026-10-03 |
+| M6.2  | The map on the dashboard's Live trips page (polling, not SSE)            | Done — 2026-10-03 |
+| M6.3  | "Last seen" ageing (done in M6.2) and distance to the next stop          | Done — 2026-10-03 |
+| M6.4a | Route estimates for jobs: core + staff-bff, dashboard ETA and route line | Done — 2026-10-03 |
+| M6.4b | Route preview when assigning a job (needs the same estimator)            | Not started       |
+| M6.4c | Reroute-alert indicator for jobs (needs reroute detection for jobs)      | Not started       |
 
 ## Privacy and store review (read before touching tracking)
 
@@ -115,3 +117,43 @@ asked every few minutes, not on every dashboard poll (design doc §6).
 for, in miles, labelled "as the crow flies" (`straightLineMetres`, `formatMiles` in
 `lib/live-map.ts`, tested including the rounding edge at 10 mi). Dashboard only; nothing in core or
 the app changed.
+
+## M6.4a: route estimates for jobs
+
+Split M6.4 further: the estimate itself (done here), the route preview when assigning (b), and the
+reroute-alert indicator (c, below).
+
+- **Routing:** `estimateRoute` (facade method and use case): distance, time and line between two
+  points for given dimensions. Unpersisted and hazard-agnostic (`avoid: []`), like `previewRouteOptions`,
+  so it can be a little optimistic when a community hazard would force a detour. Not a plan.
+- **Fleet:** `getVehicleDimensions(vehicleId)` on its facade.
+- **Jobs:** a `JobRouteEstimator` port in jobs' own terms (`vehicleId`, two points, a result or
+  `RouteUnavailable`); the adapter is in `composition/compose-core.ts`, where fleet's dimensions meet
+  routing's `estimateRoute` (AGENTS.md rule 7). `CachingRouteEstimator` (in jobs) remembers each
+  answer for 5 minutes, keyed by vehicle and the two points rounded to about 110 m, including "no
+  route", but not a thrown fault. That is the design doc's "refreshed every few minutes, not on
+  every ping", so the dashboard's 10 s polling doesn't plan a route per vehicle per poll. In memory
+  and per process; a second core instance would just compute its own.
+- **`GET /staff/jobs/companies/:companyId/etas`** (`listJobEtas`): for each job on the road with a
+  vehicle, a heard-from position and a next stop (`nextStopFor`: the pickup until the load is on, then
+  the delivery) it returns distance, minutes, the route line and `fromRecordedAt`. Jobs without any of
+  those are absent. A failing estimate, or the routing engine being down, leaves that job out rather
+  than failing the request, so the map and positions still work. staff-bff forwards it.
+- **Dashboard:** each job in the list shows "50 min journey · around 14:35", or, once the position
+  is over 10 minutes old, only "50 min from where they were last seen" (no clock time claimed). The
+  selected job's route is drawn on the map. A decoder for polyline6 was copied from the driver app.
+- **Verified:** use-case, cache, route and end-to-end (real Postgres, RLS, a stubbed estimator)
+  tests; typecheck, lint; the route line drawing in the browser pane. **Not** run against a real
+  Valhalla: there is no Valhalla in the local test setup, so the Valhalla leg of the chain is covered
+  only by routing's existing engine tests, not by this feature end to end.
+- **Known limits:** the estimate ignores live traffic and community hazards (it uses whatever speeds
+  the routing engine is configured with, including its 55 mph HGV cap); positions are
+  foreground-only, so the start point can be old.
+
+## Still to do in M6.4
+
+- **b: route preview when assigning** (design doc §5 step 2): `estimateRoute` from pickup to delivery
+  for the chosen vehicle, shown in the Jobs page before "Assign". Same estimator, new route, new UI.
+- **c: reroute-alert indicator.** Reroute detection (Phase 1) reacts to hazard events for drivers on
+  an active _trip_ with a stored route plan. Jobs have neither, so this needs reroute detection
+  written for jobs first, then something to show. Judge whether it earns its place before building.
