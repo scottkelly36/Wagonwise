@@ -8,7 +8,9 @@ import type {
   DriverIdentityDirectory,
   VehicleDirectory,
 } from './application/ports/directories.js';
+import type { JobRouteEstimator } from './application/ports/route-estimator.js';
 import type { UntypedDb } from './infrastructure/db.js';
+import { CachingRouteEstimator } from './infrastructure/caching-route-estimator.js';
 import { PostgresJobPositionRepository } from './infrastructure/postgres-job-position-repository.js';
 import { PostgresJobRepository } from './infrastructure/postgres-job-repository.js';
 import { registerJobsDriverRoutes, type JobsDriverRouteDeps } from './interface/driver-routes.js';
@@ -18,6 +20,11 @@ import { registerJobsRoutes, type JobsRouteDeps } from './interface/routes.js';
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
 export type { UntypedDb } from './infrastructure/db.js';
 export type { Caller, CallerDirectory } from './application/ports/caller-directory.js';
+export type {
+  JobRouteEstimator,
+  RouteEstimate,
+  RouteUnavailable,
+} from './application/ports/route-estimator.js';
 export type {
   DriverDirectory,
   DriverIdentityDirectory,
@@ -39,6 +46,9 @@ export interface JobsModuleDeps {
   /** A driver's own identifier, for the `driver` data scope (P2-M5.1). Supplied by composition
    *  over identity's `getDriverIdentifier`, same as fleet's own driver routes. */
   readonly driverIdentities: DriverIdentityDirectory;
+  /** Travel estimates for a company vehicle (P2-M6.4). Supplied by composition over `fleet`'s
+   *  dimensions and `routing`'s `estimateRoute`; this module caches them. */
+  readonly routes: JobRouteEstimator;
 }
 
 export interface JobsModule {
@@ -55,6 +65,7 @@ export interface JobsModule {
 export function createJobsModule(deps: JobsModuleDeps): JobsModule {
   const repo = new PostgresJobRepository(deps.db);
   const positions = new PostgresJobPositionRepository(deps.db);
+  const routes = new CachingRouteEstimator(deps.routes, deps.clock);
 
   const routeDeps: JobsRouteDeps = {
     createJob: { repo, ids: deps.ids, clock: deps.clock },
@@ -70,6 +81,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     getJob: { repo },
     getProofOfDelivery: { repo },
     listPositions: { positions },
+    listEtas: { repo, positions, routes },
     callerDirectory: deps.callers,
     dataScopes: deps.dataScopes,
   };

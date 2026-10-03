@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  etaText,
+  formatDuration,
   formatMiles,
   isOnTheRoad,
   lastSeen,
@@ -96,5 +98,43 @@ describe('formatMiles', () => {
     [100_000, '62 mi'],
   ])('%d m reads %s', (metres, label) => {
     expect(formatMiles(metres)).toBe(label);
+  });
+});
+
+describe('formatDuration', () => {
+  it.each([
+    [0.2, '1 min'],
+    [50, '50 min'],
+    [59.6, '1 h'],
+    [60, '1 h'],
+    [80, '1 h 20 min'],
+    [125, '2 h 5 min'],
+  ])('%d minutes reads %s', (minutes, label) => {
+    expect(formatDuration(minutes)).toBe(label);
+  });
+});
+
+describe('etaText', () => {
+  const now = new Date('2026-10-03T12:00:00.000Z');
+  const eta = { durationMin: 50, fromRecordedAt: '2026-10-03T11:59:00.000Z' };
+
+  it('gives the journey and an arrival time from the last position', () => {
+    const text = etaText(eta, 'live', now);
+    expect(text.startsWith('50 min journey · around ')).toBe(true);
+    // 11:59Z + 50 min = 12:49Z, which is 13:49 in London (BST) — formatted in the viewer's zone.
+    expect(text).toMatch(/around \d{2}:\d{2}$/);
+  });
+
+  it('still gives a clock time for a stale position', () => {
+    expect(etaText(eta, 'stale', now)).toMatch(/around \d{2}:\d{2}$/);
+  });
+
+  it('claims no clock time once the position is lost', () => {
+    expect(etaText(eta, 'lost', now)).toBe('50 min from where they were last seen');
+  });
+
+  it('says due about now when the arrival has passed', () => {
+    const old = { durationMin: 10, fromRecordedAt: '2026-10-03T11:30:00.000Z' };
+    expect(etaText(old, 'stale', now)).toBe('10 min journey · due about now');
   });
 });

@@ -20,9 +20,13 @@ interface Props {
   readonly markers: readonly MapMarker[];
   readonly selectedId: string | undefined;
   readonly onSelect: (id: string) => void;
+  /** The selected vehicle's route to its next stop, as [lon, lat] pairs; none draws nothing. */
+  readonly line?: readonly [number, number][] | undefined;
 }
 
 // A UK-wide view until there is something to fit to.
+const ROUTE_SOURCE = 'selected-route';
+
 const UK_CENTRE: [number, number] = [-2.5, 54.5];
 
 function markerElement(marker: MapMarker, onSelect: (id: string) => void): HTMLElement {
@@ -46,7 +50,7 @@ function markerElement(marker: MapMarker, onSelect: (id: string) => void): HTMLE
 /** The dispatcher's map (P2-M6.2): one marker per vehicle on the road, plus the selected job's
  *  stops. Imperative MapLibre inside one effect each for creating the map and for syncing markers —
  *  React owns the data, MapLibre owns the pixels. */
-export function FleetMap({ markers, selectedId, onSelect }: Props) {
+export function FleetMap({ markers, selectedId, onSelect, line }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const live = useRef(new Map<string, maplibregl.Marker>());
@@ -109,6 +113,34 @@ export function FleetMap({ markers, selectedId, onSelect }: Props) {
       instance.fitBounds(bounds, { padding: 80, maxZoom: 11, duration: 0 });
     }
   }, [markers]);
+
+  useEffect(() => {
+    const instance = map.current;
+    if (instance === null) return;
+    const data = {
+      type: 'Feature' as const,
+      properties: {},
+      geometry: { type: 'LineString' as const, coordinates: (line ?? []) as [number, number][] },
+    };
+    const apply = () => {
+      const source = instance.getSource(ROUTE_SOURCE) as maplibregl.GeoJSONSource | undefined;
+      if (source !== undefined) {
+        source.setData(data);
+        return;
+      }
+      instance.addSource(ROUTE_SOURCE, { type: 'geojson', data });
+      instance.addLayer({
+        id: ROUTE_SOURCE,
+        type: 'line',
+        source: ROUTE_SOURCE,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#2563eb', 'line-width': 5, 'line-opacity': 0.8 },
+      });
+    };
+    // The style may still be loading when the first line arrives.
+    if (instance.isStyleLoaded()) apply();
+    else instance.once('load', apply);
+  }, [line]);
 
   useEffect(() => {
     const target = markers.find((m) => m.kind === 'vehicle' && m.id === selectedId);

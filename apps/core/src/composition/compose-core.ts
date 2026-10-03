@@ -1,3 +1,4 @@
+import { err, ok } from '../shared/result.js';
 import type { FastifyInstance } from 'fastify';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
@@ -230,6 +231,22 @@ export function composeCore(
         (await fleet.getVehicleCompanyId(vehicleId)) === companyId,
     },
     driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+    // A job is routed for the company vehicle it is assigned to (fleet's dimensions), not a
+    // driver's own profile; composition is where those two modules meet (AGENTS.md rule 7).
+    routes: {
+      estimate: async ({ vehicleId, from, to }) => {
+        const dimensions = await fleet.getVehicleDimensions(vehicleId);
+        if (dimensions === null) return err({ tag: 'RouteUnavailable' });
+        const route = await routing.estimateRoute({ origin: from, destination: to, dimensions });
+        return route.ok
+          ? ok({
+              distanceKm: route.value.distanceKm,
+              durationMin: route.value.durationMin,
+              geometry: route.value.geometry,
+            })
+          : err({ tag: 'RouteUnavailable' });
+      },
+    },
   });
 
   const outboxDispatcher = new OutboxDispatcher(

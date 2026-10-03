@@ -202,3 +202,11 @@ export const TRACKED_STATUSES: readonly JobStatus[] = [
 export function isTracked(status: JobStatus): boolean {
   return TRACKED_STATUSES.includes(status);
 }
+
+/** The stop a driver on this job is heading for: the pickup until the load is on, the delivery
+ *  after (P2-M6.4's ETA, and the dashboard's "heading for"). Undefined for a job with no such
+ *  stop. */
+export function nextStopFor(job: Pick<Job, 'status' | 'stops'>): JobStop | undefined {
+  const kind = job.status === 'accepted' || job.status === 'at_pickup' ? 'pickup' : 'delivery';
+  return job.stops.find((stop) => stop.kind === kind);
+}

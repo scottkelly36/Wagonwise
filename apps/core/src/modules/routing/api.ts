@@ -18,6 +18,7 @@ import { PostgresRerouteAlertRepository } from './infrastructure/postgres-rerout
 import { PostgresRestrictionOverrideRepository } from './infrastructure/postgres-restriction-override-repository.js';
 import { PostgresRoutePlanRepository } from './infrastructure/postgres-route-plan-repository.js';
 import { PostgresVehicleProfileRepository } from './infrastructure/postgres-vehicle-profile-repository.js';
+import { estimateRoute, type EstimateRouteInput } from './application/estimate-route.js';
 import { ValhallaRoutingEngine } from './infrastructure/valhalla-routing-engine.js';
 import { registerRoutingRoutes, type RoutingRouteDeps } from './interface/routes.js';
 
@@ -55,8 +56,15 @@ export interface RoutingModuleDeps {
   readonly pushNotifier?: PushNotifier | undefined;
 }
 
+export type { EstimateRouteInput } from './application/estimate-route.js';
+export type { NoRouteFound, RouteResult } from './application/ports/routing-engine.js';
+
 export interface RoutingModule {
   registerRoutes(app: FastifyInstance): void;
+  /** Distance, time and line between two points for a vehicle of the given dimensions: for
+   *  `jobs`' ETA (P2-M6.4), wired by composition. Unpersisted and hazard-agnostic, so an
+   *  estimate and not a plan. */
+  estimateRoute(input: EstimateRouteInput): ReturnType<typeof estimateRoute>;
   /** For `composition/`'s `OutboxDispatcher` (design doc §6's alert trigger) — one handler per
    *  event type this module reacts to. Empty in Phase 1 for every module except this one (M6.1's
    *  "no module has one yet" is no longer true as of M6.4). */
@@ -130,6 +138,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
     registerRoutes(app: FastifyInstance): void {
       registerRoutingRoutes(app, routeDeps);
     },
+    estimateRoute: (input) => estimateRoute({ routingEngine }, input),
     eventHandlers,
   };
 }

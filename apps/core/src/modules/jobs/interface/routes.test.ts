@@ -9,6 +9,7 @@ import {
   InMemoryDriverDirectory,
   InMemoryVehicleDirectory,
 } from '../application/testing/in-memory-directories.js';
+import { FakeJobRouteEstimator } from '../application/testing/fake-job-route-estimator.js';
 import { InMemoryJobPositionRepository } from '../application/testing/in-memory-job-position-repository.js';
 import { InMemoryJobRepository } from '../application/testing/in-memory-job-repository.js';
 import { StubCallerDirectory } from '../application/testing/stub-caller-directory.js';
@@ -71,6 +72,7 @@ function buildApp(): {
     getJob: { repo },
     getProofOfDelivery: { repo },
     listPositions: { positions },
+    listEtas: { repo, positions, routes: new FakeJobRouteEstimator() },
     callerDirectory: new StubCallerDirectory(callers),
     dataScopes: scopes,
   };

@@ -158,3 +158,22 @@ export const listJobPositionsResponseSchema = z.object({
   positions: z.array(jobPositionSchema),
 });
 export type ListJobPositionsResponse = z.infer<typeof listJobPositionsResponseSchema>;
+
+/** One job's ETA for the live map (P2-M6.4): from the vehicle's last heard position to the stop it
+ *  is heading for, for that vehicle's own dimensions. `geometry` is an encoded polyline6 line.
+ *  Hazard-agnostic, so a guide to travel time rather than a plan the driver follows. */
+export const jobEtaSchema = z.object({
+  jobId: jobIdSchema,
+  stopKind: z.enum(['pickup', 'delivery']),
+  distanceKm: z.number(),
+  durationMin: z.number(),
+  geometry: z.string(),
+  fromRecordedAt: z.iso.datetime(),
+});
+export type JobEtaDto = z.infer<typeof jobEtaSchema>;
+
+/** `GET /staff/jobs/companies/:companyId/etas`. */
+export const listJobEtasResponseSchema = z.object({
+  etas: z.array(jobEtaSchema),
+});
+export type ListJobEtasResponse = z.infer<typeof listJobEtasResponseSchema>;

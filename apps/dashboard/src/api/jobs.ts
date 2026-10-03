@@ -2,11 +2,13 @@ import {
   assignJobRequestSchema,
   createJobRequestSchema,
   jobSchema,
+  listJobEtasResponseSchema,
   listJobPositionsResponseSchema,
   listJobsResponseSchema,
   proofOfDeliveryResponseSchema,
   type AssignJobRequest,
   type CreateJobRequest,
+  type JobEtaDto,
   type JobDto,
   type JobPositionDto,
   type ProofOfDeliveryResponse,
@@ -82,4 +84,14 @@ export async function listJobPositions(
   );
   throwUnlessSuccess(status, json, [200]);
   return listJobPositionsResponseSchema.parse(json).positions;
+}
+
+/** ETA, distance and route line for each job on the road that has a vehicle, a position and a
+ *  route (P2-M6.4). A job missing from the list simply has none. */
+export async function listJobEtas(accessToken: string, companyId: string): Promise<JobEtaDto[]> {
+  const { status, json } = await requestJson('GET', `/staff/jobs/companies/${companyId}/etas`, {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return listJobEtasResponseSchema.parse(json).etas;
 }
