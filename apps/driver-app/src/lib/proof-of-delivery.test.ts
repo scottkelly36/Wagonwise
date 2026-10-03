@@ -18,6 +18,10 @@ describe('prepareProofPhoto', () => {
     );
   });
 
+  it('refuses a camera result whose type is not an image', () => {
+    expect(prepareProofPhoto({ base64: 'aGVsbG8=', mimeType: 'text/html' })).toBeUndefined();
+  });
+
   it('refuses a photo with no data', () => {
     expect(prepareProofPhoto({})).toBeUndefined();
     expect(prepareProofPhoto({ base64: null })).toBeUndefined();

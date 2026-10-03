@@ -109,6 +109,7 @@ const FORWARDS: readonly Forward[] = [
     body: createJobRequestSchema,
   },
   { method: 'GET', path: '/staff/jobs/:id', params: jobIdParamsSchema },
+  { method: 'GET', path: '/staff/jobs/:id/proof-of-delivery', params: jobIdParamsSchema },
   {
     method: 'POST',
     path: '/staff/jobs/:id/assign',

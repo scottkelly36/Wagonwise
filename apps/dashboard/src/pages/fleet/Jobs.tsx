@@ -1,7 +1,7 @@
 import { companyIdSchema } from '@wagonwise/contracts/companies';
-import type { JobDto } from '@wagonwise/contracts/jobs';
+import type { JobDto, ProofOfDeliveryResponse } from '@wagonwise/contracts/jobs';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import * as jobsApi from '../../api/jobs';
@@ -99,6 +99,17 @@ export function Jobs() {
     },
   });
 
+  const [viewing, setViewing] = useState<{ id: string; reference: string } | undefined>();
+
+  const proofPhoto = useQuery({
+    queryKey: ['proof-of-delivery', viewing?.id],
+    queryFn: () =>
+      withAccessToken((token) => jobsApi.getProofOfDelivery(token, viewing?.id as string)),
+    enabled: viewing !== undefined,
+    retry: false,
+    // A retake replaces the photo, so don't show a stale one from an earlier look.
+    staleTime: 0,
+  });
   const [assigning, setAssigning] = useState<
     Record<string, { driverId: string; vehicleId: string }>
   >({});
@@ -170,6 +181,14 @@ export function Jobs() {
       )}
 
       {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
+
+      {viewing !== undefined && (
+        <ProofPhotoDialog
+          reference={viewing.reference}
+          photo={proofPhoto}
+          onClose={() => setViewing(undefined)}
+        />
+      )}
 
       {companyId === undefined ? (
         <p style={{ color: '#6b7280' }}>
@@ -260,11 +279,21 @@ export function Jobs() {
                         <td>{job.stops.map((s) => s.name).join(' → ')}</td>
                         <td>{job.status}</td>
                         <td>
-                          {job.requiresProofOfDelivery
-                            ? job.hasProofOfDelivery
-                              ? 'Received'
-                              : 'Required — not yet received'
-                            : '—'}
+                          {job.hasProofOfDelivery ? (
+                            <>
+                              Received{' '}
+                              <button
+                                type="button"
+                                onClick={() => setViewing({ id: job.id, reference: job.reference })}
+                              >
+                                View photo
+                              </button>
+                            </>
+                          ) : job.requiresProofOfDelivery ? (
+                            'Required — not yet received'
+                          ) : (
+                            '—'
+                          )}
                         </td>
                         {canDispatch && (
                           <td>
@@ -375,5 +404,81 @@ function PostcodeField({
       />
       <small style={{ color: hint?.color, minHeight: 16 }}>{hint?.text}</small>
     </span>
+  );
+}
+
+/** The delivery photo a driver attached, full size over the page. Fetched when opened (photos are
+ *  megabytes, so the job list never carries them) and shown from a `data:` URL — the response's
+ *  content type is validated as `image/*` by the contract, so it can't be a web page. */
+function ProofPhotoDialog({
+  reference,
+  photo,
+  onClose,
+}: {
+  reference: string;
+  photo: UseQueryResult<ProofOfDeliveryResponse>;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent): void {
+      if (event.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Proof of delivery for ${reference}`}
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        zIndex: 1000,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          color: '#111827',
+          borderRadius: 8,
+          padding: 16,
+          maxWidth: '90vw',
+          maxHeight: '90vh',
+          overflow: 'auto',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+          <strong>Proof of delivery — {reference}</strong>
+          <button type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        {photo.isPending ? (
+          <p>Loading…</p>
+        ) : photo.data === undefined ? (
+          <p style={{ color: '#dc2626' }}>{staffErrorMessage(photo.error)}</p>
+        ) : (
+          <>
+            <img
+              src={`data:${photo.data.contentType};base64,${photo.data.dataBase64}`}
+              alt={`Proof of delivery for ${reference}`}
+              style={{ display: 'block', maxWidth: '100%', maxHeight: '75vh', marginTop: 12 }}
+            />
+            <p style={{ color: '#6b7280', marginBottom: 0 }}>
+              Taken {new Date(photo.data.capturedAt).toLocaleString('en-GB')}
+            </p>
+          </>
+        )}
+      </div>
+    </div>
   );
 }

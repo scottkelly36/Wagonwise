@@ -3,6 +3,7 @@ import type {
   DriverNotInCompany,
   Forbidden,
   JobNotFound,
+  ProofOfDeliveryNotFound,
   ProofOfDeliveryRequired,
   VehicleNotInCompany,
 } from '../application/errors.js';
@@ -17,6 +18,7 @@ export type JobsError =
   | DriverNotInCompany
   | VehicleNotInCompany
   | DriverBusy
+  | ProofOfDeliveryNotFound
   | ProofOfDeliveryRequired;
 
 /** Tag -> HTTP status, in exactly one table (AGENTS.md rule 13), mirroring every other module's
@@ -32,6 +34,7 @@ export function statusFor(error: JobsError): number {
     case 'Forbidden':
       return 403;
     case 'JobNotFound':
+    case 'ProofOfDeliveryNotFound':
       return 404;
     case 'InvalidTransition':
     case 'DriverBusy':

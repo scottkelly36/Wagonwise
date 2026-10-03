@@ -3,9 +3,11 @@ import {
   createJobRequestSchema,
   jobSchema,
   listJobsResponseSchema,
+  proofOfDeliveryResponseSchema,
   type AssignJobRequest,
   type CreateJobRequest,
   type JobDto,
+  type ProofOfDeliveryResponse,
 } from '@wagonwise/contracts/jobs';
 
 import { requestJson, throwUnlessSuccess } from './http';
@@ -52,4 +54,16 @@ export async function cancelJob(accessToken: string, id: string): Promise<JobDto
   });
   throwUnlessSuccess(status, json, [200]);
   return jobSchema.parse(json);
+}
+
+/** The delivery photo a driver attached to a job (404 `ProofOfDeliveryNotFound` if none). */
+export async function getProofOfDelivery(
+  accessToken: string,
+  id: string,
+): Promise<ProofOfDeliveryResponse> {
+  const { status, json } = await requestJson('GET', `/staff/jobs/${id}/proof-of-delivery`, {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return proofOfDeliveryResponseSchema.parse(json);
 }

@@ -17,6 +17,10 @@ import {
   type ChangeJobStatusDeps,
 } from '../application/change-job-status.js';
 import { createJob, type CreateJobDeps } from '../application/create-job.js';
+import {
+  getProofOfDelivery,
+  type GetProofOfDeliveryDeps,
+} from '../application/get-proof-of-delivery.js';
 import { getJob, listJobs, type GetJobDeps, type ListJobsDeps } from '../application/list-jobs.js';
 import type { Caller, CallerDirectory } from '../application/ports/caller-directory.js';
 import type { JobStop } from '../domain/job.js';
@@ -29,6 +33,7 @@ export interface JobsRouteDeps {
   readonly changeStatus: ChangeJobStatusDeps;
   readonly listJobs: ListJobsDeps;
   readonly getJob: GetJobDeps;
+  readonly getProofOfDelivery: GetProofOfDeliveryDeps;
   /** Resolves who's calling, for the use cases' own permission checks
    *  (`application/authorization.ts`) and for the request's RLS scope. */
   readonly callerDirectory: CallerDirectory;
@@ -144,6 +149,27 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
       if (!params.success) return INVALID;
       const result = await getJob(deps.getJob, { caller, jobId: makeId<'JobId'>(params.data.id) });
       return result.ok ? { status: 200, body: jobDto(result.value) } : failure(result.error);
+    }),
+  );
+
+  app.get('/staff/jobs/:id/proof-of-delivery', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = jobIdParamsSchema.safeParse(request.params);
+      if (!params.success) return INVALID;
+      const result = await getProofOfDelivery(deps.getProofOfDelivery, {
+        caller,
+        jobId: makeId<'JobId'>(params.data.id),
+      });
+      return result.ok
+        ? {
+            status: 200,
+            body: {
+              contentType: result.value.contentType,
+              dataBase64: result.value.data.toString('base64'),
+              capturedAt: result.value.capturedAt.toISOString(),
+            },
+          }
+        : failure(result.error);
     }),
   );
 
