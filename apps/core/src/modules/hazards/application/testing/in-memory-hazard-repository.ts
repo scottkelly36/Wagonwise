@@ -6,6 +6,7 @@ import {
   type HazardReportId,
 } from '../../domain/hazard-report.js';
 import { DISPUTED_MIN_EACH, type ModerationDecision } from '../../domain/moderation.js';
+import { NO_RECORD, type ReporterRecord } from '../../domain/trust.js';
 import type { HazardRepository } from '../ports/hazard-repository.js';
 
 /** Flat-earth distance, good enough for a fake used only in unit tests — the real spatial query
@@ -96,6 +97,39 @@ export class InMemoryHazardRepository implements HazardRepository {
     this.decisions.push(decision);
     this.emittedEvents.push(...events);
     return Promise.resolve();
+  }
+
+  findReporterRecords(
+    reporterIds: readonly string[],
+  ): Promise<ReadonlyMap<string, ReporterRecord>> {
+    const rejected = new Set(
+      this.decisions.filter((d) => d.action === 'reject').map((d) => d.hazardId),
+    );
+    const approved = new Set(
+      this.decisions.filter((d) => d.action === 'approve').map((d) => d.hazardId),
+    );
+    const records = new Map<string, ReporterRecord>();
+    for (const r of this.#byId.values()) {
+      if (!reporterIds.includes(r.reporterId)) continue;
+      const before = records.get(r.reporterId) ?? NO_RECORD;
+      records.set(r.reporterId, {
+        approved: before.approved + (approved.has(r.id) ? 1 : 0),
+        rejected: before.rejected + (rejected.has(r.id) ? 1 : 0),
+        communityDismissed:
+          before.communityDismissed + (r.status === 'dismissed' && !rejected.has(r.id) ? 1 : 0),
+      });
+    }
+    return Promise.resolve(records);
+  }
+
+  findApprovedIds(hazardIds: readonly string[]): Promise<ReadonlySet<string>> {
+    return Promise.resolve(
+      new Set(
+        this.decisions
+          .filter((d) => d.action === 'approve' && hazardIds.includes(d.hazardId))
+          .map((d) => d.hazardId),
+      ),
+    );
   }
 
   findDecisions(hazardId: HazardReportId): Promise<ModerationDecision[]> {

@@ -1,6 +1,7 @@
 import type { DomainEvent } from '../../../../shared/domain-event.js';
 import type { GeoPoint, HazardReport, HazardReportId } from '../../domain/hazard-report.js';
 import type { ModerationDecision } from '../../domain/moderation.js';
+import type { ReporterRecord } from '../../domain/trust.js';
 
 export interface HazardRepository {
   findById(id: HazardReportId): Promise<HazardReport | null>;
@@ -39,6 +40,11 @@ export interface HazardRepository {
     decision: ModerationDecision,
     events: readonly DomainEvent[],
   ): Promise<void>;
+  /** How each reporter's past reports turned out (P2-M7.2). A reporter with no reports is absent
+   *  from the map; callers treat that as `NO_RECORD`. */
+  findReporterRecords(reporterIds: readonly string[]): Promise<ReadonlyMap<string, ReporterRecord>>;
+  /** Of these reports, the ids a moderator has approved. */
+  findApprovedIds(hazardIds: readonly string[]): Promise<ReadonlySet<string>>;
   /** What moderators have decided about a report, oldest first. */
   findDecisions(hazardId: HazardReportId): Promise<ModerationDecision[]>;
   /** True removal, unlike `save`'s upsert — the row is gone, not just re-statused. Only

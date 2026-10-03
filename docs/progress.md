@@ -133,6 +133,12 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-03: P2-M7.2 done: reporter trust (derived from approved, rejected and dismissed reports;
+  new reporters are neutral) and the routing hold. A blocking report is now ignored by routing only
+  if its reporter has a poor record AND it has no measurement, no confirmations and no moderator
+  approval. The "major road" condition was dropped (no road class in core). The moderation queue
+  shows trust and which reports are held back. This is the only place routing got less cautious. See
+  `history/p2-m7-moderation.md`.
 - 2026-10-03: routing now chooses the road with no speed cap and times it with the 55 mph cap
   (`/route` then `/trace_route`). The cap was making trucks take back roads instead of the A69, found
   from the owner's Hexham to Hebburn report; width was not the cause. Golden routes re-recorded and a
@@ -146,8 +152,7 @@ live map, moderation, reports).
 - 2026-10-03: P2-M7.1 done: the hazard moderation queue. WagonWise staff see new blocking-type and
   disputed reports on a new **Moderation** page and can approve, reject, edit or set permanent/
   temporary, each recorded with who and what changed (migration 0033). Routing is unchanged. M7.2
-  (trust score and the "hold doubtful reports" routing rule, owner chose "hybrid by severity") is
-  next; its "major road" condition needs data we don't have. See `history/p2-m7-moderation.md`.
+  (see above) followed. See `history/p2-m7-moderation.md`.
 - 2026-10-03: P2-M6.4b done: on the Jobs page, choosing a vehicle for a draft job now shows how far
   and how long the job is for that vehicle, or that it has no route (`POST /staff/jobs/:id/route-preview`).
   Advice only; assigning is not blocked. Not yet checked against a real Valhalla. Only the reroute

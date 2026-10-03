@@ -5,7 +5,7 @@ Scoped 2026-10-03 from the Phase 2 tech design doc §7. Sliced like the other Ph
 | Slice | Scope                                                             | Status            |
 | ----- | ----------------------------------------------------------------- | ----------------- |
 | M7.1  | Moderation queue, decisions with an audit trail, dashboard page   | Done — 2026-10-03 |
-| M7.2  | Reporter trust score, "trusted reporter" signal, the routing rule | Not started       |
+| M7.2  | Reporter trust score, "trusted reporter" signal, the routing rule | Done — 2026-10-03 |
 
 ## Decisions (owner, 2026-10-03)
 
@@ -20,6 +20,38 @@ Scoped 2026-10-03 from the Phase 2 tech design doc §7. Sliced like the other Ph
 - **Build the queue first.** It is useful immediately and is needed whichever policy applies.
 - **WagonWise staff moderate, to begin with** (design doc: "in the early months, you are the
   moderator"). Company staff or trusted drivers can come later.
+
+- **M7.2 decisions (owner, 2026-10-03):** the "major road" condition is **dropped** (no road class
+  in core; adding it means a Valhalla lookup per report), and a reporter with no history is
+  **neutral**, never low.
+
+## M7.2: trust score and the routing hold
+
+**This is the one place routing becomes less cautious.** Everything else in M7 only adds caution.
+
+- **Trust** (`domain/trust.ts`) is derived, never stored: score = approved − 2 × moderator-rejected −
+  community-dismissed, counted from the reporter's reports and `moderation_decisions`. `low` at
+  −3 or below (two rejections; a rejection and a dismissal; three dismissals), `high` at +3 or
+  above, otherwise `neutral`. No history is `neutral`. Thresholds are guesses; revisit with pilot data.
+- **The hold** (`isHeldBackFromRouting`): a blocking report is left out of routing only when the
+  reporter is `low` AND it has no measurement AND no confirmations AND no moderator approval. It is
+  applied in `hazards`' `findAvoidanceCandidates` (`api.ts`), so routing is untouched and still only
+  sees its own `ReportedObstruction`. `findHazardIdsNear` (the on-route display list) is not
+  filtered: a held-back report still shows on the map and the route's hazard list.
+- **Cost:** `assessReports` (`application/trust.ts`) looks up a reporter only for reports that
+  could be held (unmeasured, unconfirmed), so a normal route query adds no queries when every
+  blocking report is measured or confirmed.
+- **Queue:** each item now carries `trust` and `heldBackFromRouting`; the dashboard shows the
+  reporter's standing and a red note on held-back reports. Approving one puts it back into routing.
+- **Not touched:** official restrictions and `routing.restriction_overrides` never pass through
+  this rule.
+- **Known gaps:** a reporter's history misses reports an admin hard-deleted. A reporter who is
+  rejected twice can only recover by getting reports approved or confirmed.
+- **Verified:** domain tests (12), use-case tests against the in-memory fake (7), the SQL against a
+  real Postgres (3), and `hazards/api.test.ts` drives `findAvoidanceCandidates` through the real
+  facade on PostGIS (5: held back, new reporter still routed, measured routed, approved routed,
+  still on the hazard list). Not run against real routing/Valhalla, and the dashboard change has not
+  been looked at in a browser.
 
 ## M7.1: the moderation queue
 
