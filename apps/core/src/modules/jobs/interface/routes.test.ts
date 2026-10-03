@@ -36,10 +36,15 @@ function buildApp(): {
   repo: InMemoryJobRepository;
   positions: InMemoryJobPositionRepository;
   scopes: RecordingDataScopes;
+  estimator: FakeJobRouteEstimator;
 } {
   const repo = new InMemoryJobRepository();
   const positions = new InMemoryJobPositionRepository(repo);
   const scopes = new RecordingDataScopes();
+  const estimator = new FakeJobRouteEstimator();
+  const vehicleDirectory = new InMemoryVehicleDirectory(
+    new Map([[makeId<'FleetVehicleId'>(VEHICLE_A), makeId<'CompanyId'>(companyA)]]),
+  );
   const callers = new Map<StaffId, Caller>([
     [ADMIN_ID, { kind: 'platform' }],
     [
@@ -61,9 +66,7 @@ function buildApp(): {
       drivers: new InMemoryDriverDirectory(
         new Map([[makeId<'DriverId'>(DRIVER_A), makeId<'CompanyId'>(companyA)]]),
       ),
-      vehicles: new InMemoryVehicleDirectory(
-        new Map([[makeId<'FleetVehicleId'>(VEHICLE_A), makeId<'CompanyId'>(companyA)]]),
-      ),
+      vehicles: vehicleDirectory,
       ids,
       clock,
     },
@@ -72,7 +75,8 @@ function buildApp(): {
     getJob: { repo },
     getProofOfDelivery: { repo },
     listPositions: { positions },
-    listEtas: { repo, positions, routes: new FakeJobRouteEstimator() },
+    listEtas: { repo, positions, routes: estimator },
+    previewRoute: { repo, vehicles: vehicleDirectory, routes: estimator },
     callerDirectory: new StubCallerDirectory(callers),
     dataScopes: scopes,
   };
@@ -85,7 +89,7 @@ function buildApp(): {
     done();
   });
   registerJobsRoutes(app, deps);
-  return { app, repo, positions, scopes };
+  return { app, repo, positions, scopes, estimator };
 }
 
 function asStaff(staffId: string): { headers: Record<string, string> } {
@@ -425,5 +429,58 @@ describe('GET /staff/jobs/companies/:companyId/positions', () => {
   it('403s staff from another company', async () => {
     const { app } = buildApp();
     expect((await list(app, OUTSIDER_ID)).statusCode).toBe(403);
+  });
+});
+
+describe('POST /staff/jobs/:id/route-preview', () => {
+  const preview = (app: FastifyInstance, id: string, staff: string, vehicleId = VEHICLE_A) =>
+    app.inject({
+      method: 'POST',
+      url: `/staff/jobs/${id}/route-preview`,
+      payload: { vehicleId },
+      ...asStaff(staff),
+    });
+
+  it('returns the legs and totals for a dispatcher choosing a vehicle of their company', async () => {
+    const { app, estimator } = buildApp();
+    const id = await createDraft(app);
+
+    const response = await preview(app, id, DISPATCHER_ID);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      legs: [
+        { fromName: 'Hexham depot', toName: 'Newcastle port', distanceKm: 40, durationMin: 50 },
+      ],
+      distanceKm: 40,
+      durationMin: 50,
+    });
+    expect(estimator.requests).toHaveLength(1);
+    expect(estimator.requests[0]?.vehicleId).toBe(VEHICLE_A);
+  });
+
+  it('409s NoRouteForVehicle when the vehicle cannot get between the stops', async () => {
+    const { app, estimator } = buildApp();
+    const id = await createDraft(app);
+    estimator.result = { ok: false, error: { tag: 'RouteUnavailable' } };
+    const response = await preview(app, id, DISPATCHER_ID);
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ tag: 'NoRouteForVehicle' });
+  });
+
+  it('refuses a vehicle from another company without routing it', async () => {
+    const { app, estimator } = buildApp();
+    const id = await createDraft(app);
+    const response = await preview(app, id, DISPATCHER_ID, 'someone-elses-vehicle');
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ tag: 'VehicleNotInCompany' });
+    expect(estimator.requests).toHaveLength(0);
+  });
+
+  it('needs the dispatch privilege, and hides the job from other companies', async () => {
+    const { app } = buildApp();
+    const id = await createDraft(app);
+    expect((await preview(app, id, VIEWER_ID)).statusCode).toBe(403);
+    expect((await preview(app, id, OUTSIDER_ID)).statusCode).toBe(404);
   });
 });

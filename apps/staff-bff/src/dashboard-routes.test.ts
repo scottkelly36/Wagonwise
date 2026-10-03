@@ -46,6 +46,7 @@ const VALID = [
   ['GET', `/staff/jobs/companies/${ACME}/etas`, undefined],
   ['GET', `/staff/jobs/${ID}`, undefined],
   ['GET', `/staff/jobs/${ID}/proof-of-delivery`, undefined],
+  ['POST', `/staff/jobs/${ID}/route-preview`, { vehicleId: 'vehicle-1' }],
   ['POST', `/staff/jobs/${ID}/assign`, { driverId: 'driver-1', vehicleId: 'vehicle-1' }],
   ['POST', `/staff/jobs/${ID}/cancel`, undefined],
 ] as const;

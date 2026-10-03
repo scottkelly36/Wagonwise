@@ -150,10 +150,28 @@ reroute-alert indicator (c, below).
   the routing engine is configured with, including its 55 mph HGV cap); positions are
   foreground-only, so the start point can be old.
 
-## Still to do in M6.4
+## M6.4b: route preview when assigning
 
-- **b: route preview when assigning** (design doc §5 step 2): `estimateRoute` from pickup to delivery
-  for the chosen vehicle, shown in the Jobs page before "Assign". Same estimator, new route, new UI.
-- **c: reroute-alert indicator.** Reroute detection (Phase 1) reacts to hazard events for drivers on
-  an active _trip_ with a stored route plan. Jobs have neither, so this needs reroute detection
-  written for jobs first, then something to show. Judge whether it earns its place before building.
+Design doc §5 step 2: choose a vehicle on the Jobs page and, before pressing Assign, see how far and
+how long the job is for it, or that it cannot be done.
+
+- **`POST /staff/jobs/:id/route-preview`** `{ vehicleId }` (`previewJobRoute`): the job's stops are
+  routed in order, one estimate per leg, and summed; returns the legs and totals. Needs the `dispatch`
+  privilege (it is part of the assign decision); a vehicle from another company is refused with
+  `VehicleNotInCompany` before anything is routed; a leg the vehicle cannot drive gives
+  `NoRouteForVehicle` (409). Same cached estimator as the live ETA. A routing-engine outage here is a
+  plain server error (unlike the ETAs, which degrade), because the preview is the thing being asked for.
+- **Dashboard:** picking a vehicle on a draft job shows "40 mi, about 1 h 5 min for this vehicle
+  (estimate)", or the reason it cannot be done, under the Assign controls. Fetched on selection.
+- **Verified:** use-case tests (multi-leg sum, no route, single stop), route tests (200, 409, other
+  company's vehicle, no privilege, other company's job), staff-bff forward, typecheck, lint. **Not**
+  run against a real Valhalla, as with M6.4a.
+- **Not done:** the preview doesn't stop an assignment (a dispatcher can still assign a vehicle with
+  no route; the message is advice, and routing data can be wrong or incomplete), doesn't show the
+  route on a map, and doesn't consider the driver's start position.
+
+## Still to do
+
+- **M6.4c: reroute-alert indicator.** Reroute detection (Phase 1) reacts to hazard events for drivers
+  on an active _trip_ with a stored route plan. Jobs have neither, so this needs reroute detection
+  written for jobs first, then something to show. Judge whether it earns its place before building it.

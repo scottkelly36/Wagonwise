@@ -5,6 +5,7 @@ import {
   failJobRequestSchema,
   jobCompanyIdParamsSchema,
   jobIdParamsSchema,
+  previewJobRouteRequestSchema,
 } from '@wagonwise/contracts/jobs';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
@@ -21,6 +22,7 @@ import {
   getProofOfDelivery,
   type GetProofOfDeliveryDeps,
 } from '../application/get-proof-of-delivery.js';
+import { previewJobRoute, type PreviewJobRouteDeps } from '../application/preview-job-route.js';
 import { listJobEtas, type ListJobEtasDeps } from '../application/list-job-etas.js';
 import { listJobPositions, type ListJobPositionsDeps } from '../application/list-job-positions.js';
 import { getJob, listJobs, type GetJobDeps, type ListJobsDeps } from '../application/list-jobs.js';
@@ -38,6 +40,7 @@ export interface JobsRouteDeps {
   readonly getProofOfDelivery: GetProofOfDeliveryDeps;
   readonly listPositions: ListJobPositionsDeps;
   readonly listEtas: ListJobEtasDeps;
+  readonly previewRoute: PreviewJobRouteDeps;
   /** Resolves who's calling, for the use cases' own permission checks
    *  (`application/authorization.ts`) and for the request's RLS scope. */
   readonly callerDirectory: CallerDirectory;
@@ -223,6 +226,20 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
             },
           }
         : failure(result.error);
+    }),
+  );
+
+  app.post('/staff/jobs/:id/route-preview', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = jobIdParamsSchema.safeParse(request.params);
+      const body = previewJobRouteRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return INVALID;
+      const result = await previewJobRoute(deps.previewRoute, {
+        caller,
+        jobId: makeId<'JobId'>(params.data.id),
+        vehicleId: makeId<'FleetVehicleId'>(body.data.vehicleId),
+      });
+      return result.ok ? { status: 200, body: result.value } : failure(result.error);
     }),
   );
 
