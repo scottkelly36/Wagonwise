@@ -13,6 +13,7 @@ import {
   createJobRequestSchema,
   jobCompanyIdParamsSchema,
   jobIdParamsSchema,
+  previewJobRouteRequestSchema,
 } from '@wagonwise/contracts/jobs';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -119,6 +120,12 @@ const FORWARDS: readonly Forward[] = [
     params: jobCompanyIdParamsSchema,
   },
   { method: 'GET', path: '/staff/jobs/:id', params: jobIdParamsSchema },
+  {
+    method: 'POST',
+    path: '/staff/jobs/:id/route-preview',
+    params: jobIdParamsSchema,
+    body: previewJobRouteRequestSchema,
+  },
   { method: 'GET', path: '/staff/jobs/:id/proof-of-delivery', params: jobIdParamsSchema },
   {
     method: 'POST',

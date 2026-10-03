@@ -177,3 +177,24 @@ export const listJobEtasResponseSchema = z.object({
   etas: z.array(jobEtaSchema),
 });
 export type ListJobEtasResponse = z.infer<typeof listJobEtasResponseSchema>;
+
+/** `POST /staff/jobs/:id/route-preview` (P2-M6.4b): how far and how long the job is for a chosen
+ *  vehicle, before assigning it. */
+export const previewJobRouteRequestSchema = z.object({
+  vehicleId: z.string().min(1),
+});
+export type PreviewJobRouteRequest = z.infer<typeof previewJobRouteRequestSchema>;
+
+export const jobRouteLegSchema = z.object({
+  fromName: z.string(),
+  toName: z.string(),
+  distanceKm: z.number(),
+  durationMin: z.number(),
+});
+
+export const jobRoutePreviewSchema = z.object({
+  legs: z.array(jobRouteLegSchema),
+  distanceKm: z.number(),
+  durationMin: z.number(),
+});
+export type JobRoutePreviewDto = z.infer<typeof jobRoutePreviewSchema>;

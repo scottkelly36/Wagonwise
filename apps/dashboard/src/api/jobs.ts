@@ -2,13 +2,16 @@ import {
   assignJobRequestSchema,
   createJobRequestSchema,
   jobSchema,
+  jobRoutePreviewSchema,
   listJobEtasResponseSchema,
   listJobPositionsResponseSchema,
   listJobsResponseSchema,
+  previewJobRouteRequestSchema,
   proofOfDeliveryResponseSchema,
   type AssignJobRequest,
   type CreateJobRequest,
   type JobEtaDto,
+  type JobRoutePreviewDto,
   type JobDto,
   type JobPositionDto,
   type ProofOfDeliveryResponse,
@@ -94,4 +97,20 @@ export async function listJobEtas(accessToken: string, companyId: string): Promi
   });
   throwUnlessSuccess(status, json, [200]);
   return listJobEtasResponseSchema.parse(json).etas;
+}
+
+/** How far and how long a job is for a chosen vehicle, before assigning it (P2-M6.4b). Rejects with
+ *  `NoRouteForVehicle` when that vehicle cannot get between the stops. */
+export async function previewJobRoute(
+  accessToken: string,
+  id: string,
+  vehicleId: string,
+): Promise<JobRoutePreviewDto> {
+  const body = previewJobRouteRequestSchema.parse({ vehicleId });
+  const { status, json } = await requestJson('POST', `/staff/jobs/${id}/route-preview`, {
+    body,
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return jobRoutePreviewSchema.parse(json);
 }

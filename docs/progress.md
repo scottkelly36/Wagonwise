@@ -28,7 +28,7 @@ history file keeps the record.
 | P2-M3 Jobs core                    | Done — 2026-10-02                        | below                                  |
 | P2-M4 Jobs in the portal           | Done — 2026-10-02                        | `history/p2-m4-portal-jobs.md`         |
 | P2-M5 Jobs in the driver app       | Code-complete 2026-10-03 — needs a build | `history/p2-m5-driver-app-jobs.md`     |
-| P2-M6 Live fleet map               | In progress — M6.1-6.4a done             | `history/p2-m6-live-map.md`            |
+| P2-M6 Live fleet map               | In progress — M6.1-6.4b done             | `history/p2-m6-live-map.md`            |
 
 ## Next up
 
@@ -129,6 +129,10 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-03: P2-M6.4b done: on the Jobs page, choosing a vehicle for a draft job now shows how far
+  and how long the job is for that vehicle, or that it has no route (`POST /staff/jobs/:id/route-preview`).
+  Advice only; assigning is not blocked. Not yet checked against a real Valhalla. Only the reroute
+  indicator (M6.4c) is left in M6. See `history/p2-m6-live-map.md`.
 - 2026-10-03: P2-M6.4a done: route estimates for company jobs. `routing.estimateRoute`,
   `fleet.getVehicleDimensions`, a cached `JobRouteEstimator` in jobs, `GET .../etas`, and the Live
   trips list now shows each vehicle's journey time and arrival, with its route drawn on the map.

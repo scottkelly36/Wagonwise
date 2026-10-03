@@ -6,6 +6,7 @@ import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import * as jobsApi from '../../api/jobs';
 import { resolvePostcode, usePostcode } from '../../hooks/use-postcode';
+import { formatDuration, formatMiles } from '../../lib/live-map';
 import { PostcodeNotFoundError, type ResolvedPostcode } from '../../lib/postcodes';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -298,50 +299,55 @@ export function Jobs() {
                         {canDispatch && (
                           <td>
                             {job.status === 'draft' && (
-                              <span style={{ display: 'inline-flex', gap: 4 }}>
-                                <select
-                                  value={picked.driverId}
-                                  onChange={(e) =>
-                                    setAssigning((a) => ({
-                                      ...a,
-                                      [job.id]: { ...picked, driverId: e.target.value },
-                                    }))
-                                  }
-                                >
-                                  <option value="">Driver…</option>
-                                  {activeDrivers.map((link) => (
-                                    <option key={link.id} value={link.driverId}>
-                                      {link.driverIdentifier ?? link.driverId}
-                                    </option>
-                                  ))}
-                                </select>
-                                <select
-                                  value={picked.vehicleId}
-                                  onChange={(e) =>
-                                    setAssigning((a) => ({
-                                      ...a,
-                                      [job.id]: { ...picked, vehicleId: e.target.value },
-                                    }))
-                                  }
-                                >
-                                  <option value="">Vehicle…</option>
-                                  {vehicles.data?.map((vehicle) => (
-                                    <option key={vehicle.id} value={vehicle.id}>
-                                      {vehicle.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                <button
-                                  onClick={() => assign.mutate(job.id)}
-                                  disabled={
-                                    assign.isPending ||
-                                    picked.driverId === '' ||
-                                    picked.vehicleId === ''
-                                  }
-                                >
-                                  Assign
-                                </button>
-                              </span>
+                              <>
+                                <span style={{ display: 'inline-flex', gap: 4 }}>
+                                  <select
+                                    value={picked.driverId}
+                                    onChange={(e) =>
+                                      setAssigning((a) => ({
+                                        ...a,
+                                        [job.id]: { ...picked, driverId: e.target.value },
+                                      }))
+                                    }
+                                  >
+                                    <option value="">Driver…</option>
+                                    {activeDrivers.map((link) => (
+                                      <option key={link.id} value={link.driverId}>
+                                        {link.driverIdentifier ?? link.driverId}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    value={picked.vehicleId}
+                                    onChange={(e) =>
+                                      setAssigning((a) => ({
+                                        ...a,
+                                        [job.id]: { ...picked, vehicleId: e.target.value },
+                                      }))
+                                    }
+                                  >
+                                    <option value="">Vehicle…</option>
+                                    {vehicles.data?.map((vehicle) => (
+                                      <option key={vehicle.id} value={vehicle.id}>
+                                        {vehicle.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    onClick={() => assign.mutate(job.id)}
+                                    disabled={
+                                      assign.isPending ||
+                                      picked.driverId === '' ||
+                                      picked.vehicleId === ''
+                                    }
+                                  >
+                                    Assign
+                                  </button>
+                                </span>
+                                {picked.vehicleId !== '' && (
+                                  <RoutePreview jobId={job.id} vehicleId={picked.vehicleId} />
+                                )}
+                              </>
                             )}
                             {!TERMINAL.includes(job.status) && (
                               <button
@@ -480,5 +486,30 @@ function ProofPhotoDialog({
         )}
       </div>
     </div>
+  );
+}
+
+/** The assign step's route preview (design doc §5 step 2): as soon as a vehicle is picked, how far
+ *  and how long the job is for that vehicle, or that it can't be done at all. Checked before
+ *  assigning, not after the driver has been told. An estimate: it ignores traffic and hazards. */
+function RoutePreview({ jobId, vehicleId }: { jobId: string; vehicleId: string }) {
+  const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
+  const preview = useQuery({
+    queryKey: ['job-route-preview', jobId, vehicleId],
+    queryFn: () => withAccessToken((token) => jobsApi.previewJobRoute(token, jobId, vehicleId)),
+    retry: false,
+    staleTime: 5 * 60_000,
+  });
+  const style = { display: 'block', marginTop: 4, fontSize: 13 } as const;
+  if (preview.isPending)
+    return <small style={{ ...style, color: '#6b7280' }}>Checking the route…</small>;
+  if (preview.data === undefined) {
+    return <small style={{ ...style, color: '#dc2626' }}>{staffErrorMessage(preview.error)}</small>;
+  }
+  return (
+    <small style={{ ...style, color: '#374151' }}>
+      {formatMiles(preview.data.distanceKm * 1000)}, about{' '}
+      {formatDuration(preview.data.durationMin)} for this vehicle (estimate)
+    </small>
   );
 }

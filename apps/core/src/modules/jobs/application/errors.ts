@@ -22,3 +22,6 @@ export type ProofOfDeliveryNotFound = TaggedError<'ProofOfDeliveryNotFound'>;
 /** A position was reported for a job that isn't being driven right now (not yet accepted, or
  *  already finished). Nothing is stored. */
 export type NotTracking = TaggedError<'NotTracking'>;
+
+/** The chosen vehicle cannot get between the job's stops: no route exists for its dimensions. */
+export type NoRouteForVehicle = TaggedError<'NoRouteForVehicle'>;

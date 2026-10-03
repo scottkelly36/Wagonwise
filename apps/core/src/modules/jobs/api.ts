@@ -82,6 +82,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     getProofOfDelivery: { repo },
     listPositions: { positions },
     listEtas: { repo, positions, routes },
+    previewRoute: { repo, vehicles: deps.vehicles, routes },
     callerDirectory: deps.callers,
     dataScopes: deps.dataScopes,
   };
