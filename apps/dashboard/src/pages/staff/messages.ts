@@ -30,6 +30,8 @@ const MESSAGES: Record<string, string> = {
   VehicleNotInCompany: "That vehicle doesn't belong to this company.",
   DriverBusy: 'That driver is already on another active job.',
   ProofOfDeliveryNotFound: 'No photo has been received for that job yet.',
+  HazardReportNotFound: 'That hazard report is not there any more.',
+  InvalidMeasurement: 'A measurement has to be a number above zero.',
   NoRouteForVehicle:
     'No route found for that vehicle between the stops. It may be too tall, wide or heavy for the roads.',
 };

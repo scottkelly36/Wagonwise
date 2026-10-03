@@ -1,5 +1,11 @@
 import type { DomainEvent } from '../../../../shared/domain-event.js';
-import type { GeoPoint, HazardReport, HazardReportId } from '../../domain/hazard-report.js';
+import {
+  isBlocking,
+  type GeoPoint,
+  type HazardReport,
+  type HazardReportId,
+} from '../../domain/hazard-report.js';
+import { DISPUTED_MIN_EACH, type ModerationDecision } from '../../domain/moderation.js';
 import type { HazardRepository } from '../ports/hazard-repository.js';
 
 /** Flat-earth distance, good enough for a fake used only in unit tests — the real spatial query
@@ -61,6 +67,39 @@ export class InMemoryHazardRepository implements HazardRepository {
     this.#byId.set(report.id, report);
     this.emittedEvents.push(...events);
     return Promise.resolve();
+  }
+
+  /** Moderation decisions, by report, in the order they were made. */
+  readonly decisions: ModerationDecision[] = [];
+
+  findAwaitingReview(): Promise<HazardReport[]> {
+    const approved = new Set(
+      this.decisions.filter((d) => d.action === 'approve').map((d) => d.hazardId),
+    );
+    return Promise.resolve(
+      [...this.#byId.values()].filter(
+        (r) =>
+          r.status === 'active' &&
+          !approved.has(r.id) &&
+          (isBlocking(r.type) ||
+            (r.confirmations >= DISPUTED_MIN_EACH && r.dismissals >= DISPUTED_MIN_EACH)),
+      ),
+    );
+  }
+
+  saveModerated(
+    report: HazardReport,
+    decision: ModerationDecision,
+    events: readonly DomainEvent[],
+  ): Promise<void> {
+    this.#byId.set(report.id, report);
+    this.decisions.push(decision);
+    this.emittedEvents.push(...events);
+    return Promise.resolve();
+  }
+
+  findDecisions(hazardId: HazardReportId): Promise<ModerationDecision[]> {
+    return Promise.resolve(this.decisions.filter((d) => d.hazardId === hazardId));
   }
 
   deleteById(id: HazardReportId): Promise<void> {

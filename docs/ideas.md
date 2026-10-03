@@ -6,6 +6,33 @@
 Things worth building later, raised while actually using the app rather than planning it —
 not attached to a milestone yet.
 
+- **2026-10-03: routing quality, and Google-Maps-style route choice (investigate).** The owner
+  planned Hexham to Hebburn and got back roads instead of the A69 and the A1, which makes no sense
+  for a lorry. Aim: understand how routing really behaves, then offer several routes to pick from
+  like Google Maps. **Nothing here is verified yet**; these are the first things to check, roughly
+  in order of likelihood:
+  1. **Map coverage.** The README's Valhalla set-up suggests a county extract (Northumberland).
+     Hebburn is in Tyne and Wear, outside it. With tiles that stop at the county edge, the engine
+     can only use whatever roads exist inside, and near the boundary that can mean odd back roads.
+     UK-wide Valhalla is a known deferred item (see `progress.md`). Check which extract the
+     deployed Valhalla was built from before anything else.
+  2. **Costing.** The request is `truck` costing with only a 55 mph `top_speed` cap
+     (`valhalla-routing-engine.ts`). No highway preference is set, so Valhalla's own defaults decide
+     how much it favours A-roads and dual carriageways. Valhalla has options for this
+     (`use_highways`, `use_trucks`, etc.). Tune against real routes, and re-record the golden
+     routes afterwards (`progress.md`, standing rules).
+  3. **Restrictions and hazards.** A real height, weight or width restriction (or a driver-reported
+     hazard) on the A-road would push the route off it correctly. If the dashboard or app shows
+     "avoided restrictions" for that route, that is the answer. Check the route plan's
+     `avoidedRestrictions` and the hazards near the A69 and A1.
+  4. **The two alternatives that exist already.** M9 offers fastest and shortest (with fuel cost).
+     "Shortest" is a likely source of back-road routes if that was the one picked.
+     First step when picking this up: reproduce the exact request against the deployed Valhalla, look
+     at the primary and alternate routes and their geometry, and compare against a UK-wide extract
+     locally. A proper multi-route picker (more alternatives, each labelled by what makes it
+     different, shown on the map) comes after the cause is known, so it isn't built on top of a bad
+     base route.
+
 - **2026-10-03: what3words for job stops (not scheduled).** Raised right after the Jobs form
   moved from latitude/longitude to postcodes (`history/p2-m4-portal-jobs.md`): a postcode is no
   help for a farm gate, a quarry, a field entrance or a big yard where the right gate matters, and

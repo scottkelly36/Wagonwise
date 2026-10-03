@@ -7,7 +7,10 @@ import {
   inviteDriverRequestSchema,
   updateFleetVehicleRequestSchema,
 } from '@wagonwise/contracts/fleet';
-import { hazardReportIdParamsSchema } from '@wagonwise/contracts/hazards';
+import {
+  hazardReportIdParamsSchema,
+  moderateHazardRequestSchema,
+} from '@wagonwise/contracts/hazards';
 import {
   assignJobRequestSchema,
   createJobRequestSchema,
@@ -39,6 +42,19 @@ const FORWARDS: readonly Forward[] = [
   { method: 'GET', path: '/staff/invite-codes', params: noParams },
   { method: 'POST', path: '/staff/invite-codes', params: noParams },
   { method: 'GET', path: '/staff/hazard-reports', params: noParams },
+  // Moderation (P2-M7.1): the queue, a decision, and a report's audit trail.
+  { method: 'GET', path: '/staff/hazard-reports/moderation-queue', params: noParams },
+  {
+    method: 'POST',
+    path: '/staff/hazard-reports/:id/moderate',
+    params: hazardReportIdParamsSchema,
+    body: moderateHazardRequestSchema,
+  },
+  {
+    method: 'GET',
+    path: '/staff/hazard-reports/:id/decisions',
+    params: hazardReportIdParamsSchema,
+  },
   { method: 'DELETE', path: '/staff/hazard-reports/:id', params: hazardReportIdParamsSchema },
   // A company's own vehicles, for "Manage fleet" (or any company, for WagonWise admins).
   {

@@ -276,4 +276,113 @@ describe('PostgresHazardRepository', () => {
       expect(rows).toEqual([]);
     });
   });
+
+  describe('moderation (P2-M7.1)', () => {
+    const MOD = makeId<'StaffId'>('99999999-9999-4999-8999-999999999999');
+    const id = (n: number) => makeId<'HazardReportId'>(`a0a0a0a0-0000-4000-8000-00000000000${n}`);
+    const decision = (hazardId: HazardReport['id'], n: number, action: 'approve' | 'reject') => ({
+      id: makeId<'ModerationDecisionId'>(`d0d0d0d0-0000-4000-8000-00000000000${n}`),
+      hazardId,
+      moderatorId: MOD,
+      action,
+      note: 'checked',
+      before: { type: 'low_bridge' as const, status: 'active' as const },
+      after: {
+        type: 'low_bridge' as const,
+        status: action === 'reject' ? ('dismissed' as const) : ('active' as const),
+      },
+      decidedAt: new Date(`2026-06-02T12:0${n}:00.000Z`),
+    });
+
+    it('queues active blocking or disputed reports that have no approval, oldest first', async () => {
+      const blockingOld = report({ id: id(1), createdAt: new Date('2026-06-01T10:00:00.000Z') });
+      const blockingNew = report({ id: id(2), createdAt: new Date('2026-06-01T11:00:00.000Z') });
+      const approved = report({ id: id(3) });
+      const advisoryQuiet = report({ id: id(4), type: 'tight_bend' });
+      const advisoryDisputed = report({
+        id: id(5),
+        type: 'roadworks',
+        confirmations: 1,
+        dismissals: 1,
+        createdAt: new Date('2026-06-01T12:00:00.000Z'),
+      });
+      const dismissed = report({ id: id(6), status: 'dismissed' });
+      for (const r of [
+        blockingNew,
+        blockingOld,
+        approved,
+        advisoryQuiet,
+        advisoryDisputed,
+        dismissed,
+      ]) {
+        await repo().save(r);
+      }
+      await repo().saveModerated(approved, decision(approved.id, 1, 'approve'), []);
+
+      const ours = new Set([1, 2, 3, 4, 5, 6].map(id));
+      const queue = (await repo().findAwaitingReview()).filter((r) => ours.has(r.id));
+
+      expect(queue.map((r) => r.id)).toEqual([id(1), id(2), id(5)]);
+    });
+
+    it('applies a decision atomically: the changed report, the audit row and the event', async () => {
+      const original = report({
+        id: id(7),
+        measurement: { kind: 'height', value: 4, unit: 'm' },
+      });
+      await repo().save(original);
+      const changed = { ...original, status: 'dismissed' as const };
+
+      await repo().saveModerated(changed, decision(original.id, 2, 'reject'), [
+        {
+          eventId: 'e0e0e0e0-0000-4000-8000-000000000001',
+          aggregateType: 'HazardReport',
+          aggregateId: original.id,
+          eventType: 'HazardModerated',
+          payload: { hazardId: original.id },
+        },
+      ]);
+
+      expect((await repo().findById(original.id))?.status).toBe('dismissed');
+      const decisions = await repo().findDecisions(original.id);
+      expect(decisions).toHaveLength(1);
+      expect(decisions[0]).toMatchObject({
+        action: 'reject',
+        moderatorId: MOD,
+        note: 'checked',
+        before: { status: 'active' },
+        after: { status: 'dismissed' },
+      });
+      const { rows } = await pool.query(
+        `select event_type from outbox.events where aggregate_id = $1`,
+        [original.id],
+      );
+      expect(rows).toEqual([{ event_type: 'HazardModerated' }]);
+    });
+
+    it('keeps the audit record after the report itself is deleted', async () => {
+      const r = report({ id: id(8) });
+      await repo().save(r);
+      await repo().saveModerated(r, decision(r.id, 3, 'approve'), []);
+      await repo().deleteById(r.id);
+      expect(await repo().findDecisions(r.id)).toHaveLength(1);
+    });
+
+    it('round-trips a snapshot with a measurement and an expiry', async () => {
+      const r = report({ id: id(9) });
+      await repo().save(r);
+      const withDetail = {
+        ...decision(r.id, 4, 'approve'),
+        before: {
+          type: 'low_bridge' as const,
+          status: 'active' as const,
+          measurement: { kind: 'height' as const, value: 4, unit: 'm' as const },
+          expiresAt: new Date('2026-06-08T12:00:00.000Z'),
+        },
+      };
+      await repo().saveModerated(r, withDetail, []);
+      const [stored] = await repo().findDecisions(r.id);
+      expect(stored?.before).toEqual(withDetail.before);
+    });
+  });
 });

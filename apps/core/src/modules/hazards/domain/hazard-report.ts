@@ -74,12 +74,13 @@ export function validateMeasurement(m: Measurement): Result<Measurement, Invalid
  * nothing else fit), so it defaults to advisory: nothing here knows it's safe to route a vehicle
  * around, unlike the four restriction types the design doc names explicitly.
  */
-const BLOCKING_TYPES: ReadonlySet<HazardType> = new Set([
+export const BLOCKING_HAZARD_TYPES: readonly HazardType[] = [
   'low_bridge',
   'weight_limit',
   'width_restriction',
   'no_hgv',
-]);
+];
+const BLOCKING_TYPES: ReadonlySet<HazardType> = new Set(BLOCKING_HAZARD_TYPES);
 
 export function isBlocking(type: HazardType): boolean {
   return BLOCKING_TYPES.has(type);

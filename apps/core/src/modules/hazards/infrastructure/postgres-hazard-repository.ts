@@ -2,15 +2,22 @@ import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
 import type { DomainEvent } from '../../../shared/domain-event.js';
 import type { HazardRepository } from '../application/ports/hazard-repository.js';
-import type {
-  GeoPoint,
-  HazardReport,
-  HazardReportId,
-  HazardStatus,
-  HazardType,
-  MeasurementKind,
-  MeasurementUnit,
-  ReportSource,
+import {
+  DISPUTED_MIN_EACH,
+  type ModerationDecision,
+  type ModeratedFields,
+} from '../domain/moderation.js';
+import {
+  BLOCKING_HAZARD_TYPES,
+  type GeoPoint,
+  type HazardReport,
+  type HazardReportId,
+  type HazardStatus,
+  type HazardType,
+  type MeasurementKind,
+  type Measurement,
+  type MeasurementUnit,
+  type ReportSource,
 } from '../domain/hazard-report.js';
 import type { UntypedDb } from './db.js';
 
@@ -58,6 +65,43 @@ function toDomain(row: HazardReportRow): HazardReport {
     status: row.status,
     expiresAt: row.expires_at ?? undefined,
     createdAt: row.created_at,
+  };
+}
+
+interface DecisionRow {
+  readonly id: string;
+  readonly hazard_id: string;
+  readonly moderator_id: string;
+  readonly action: ModerationDecision['action'];
+  readonly note: string | null;
+  readonly before: unknown;
+  readonly after: unknown;
+  readonly decided_at: Date;
+}
+
+/** The audit snapshot as stored: plain JSON, dates as ISO strings. */
+function snapshot(fields: ModeratedFields): Record<string, unknown> {
+  return {
+    type: fields.type,
+    measurement: fields.measurement ?? null,
+    status: fields.status,
+    expiresAt: fields.expiresAt?.toISOString() ?? null,
+  };
+}
+
+/** Reads a stored snapshot back, trusting nothing about its shape beyond what it can check. */
+function fieldsFrom(value: unknown): ModeratedFields {
+  const raw = (value ?? {}) as {
+    type?: HazardType;
+    measurement?: Measurement | null;
+    status?: HazardStatus;
+    expiresAt?: string | null;
+  };
+  return {
+    type: raw.type ?? 'other',
+    measurement: raw.measurement ?? undefined,
+    status: raw.status ?? 'active',
+    expiresAt: raw.expiresAt ? new Date(raw.expiresAt) : undefined,
   };
 }
 
@@ -120,6 +164,66 @@ export class PostgresHazardRepository implements HazardRepository {
       select ${sql.raw(SELECT_COLUMNS)} from hazards.reports order by created_at desc
     `.execute(this.db);
     return rows.map(toDomain);
+  }
+
+  async findAwaitingReview(): Promise<HazardReport[]> {
+    const { rows } = await sql<HazardReportRow>`
+      select ${sql.raw(SELECT_COLUMNS)} from hazards.reports r
+      where r.status = 'active'
+        and not exists (
+          select 1 from hazards.moderation_decisions d
+          where d.hazard_id = r.id and d.action = 'approve'
+        )
+        and (
+          r.type in (${sql.join([...BLOCKING_HAZARD_TYPES])})
+          or (r.confirmations >= ${DISPUTED_MIN_EACH} and r.dismissals >= ${DISPUTED_MIN_EACH})
+        )
+      order by r.created_at asc
+    `.execute(this.db);
+    return rows.map(toDomain);
+  }
+
+  async saveModerated(
+    report: HazardReport,
+    decision: ModerationDecision,
+    events: readonly DomainEvent[],
+  ): Promise<void> {
+    await this.db.transaction().execute(async (trx) => {
+      await this.#upsert(report, trx);
+      await sql`
+        insert into hazards.moderation_decisions
+          (id, hazard_id, moderator_id, action, note, before, after, decided_at)
+        values (
+          ${decision.id}, ${decision.hazardId}, ${decision.moderatorId}, ${decision.action},
+          ${decision.note ?? null}, ${JSON.stringify(snapshot(decision.before))}::jsonb,
+          ${JSON.stringify(snapshot(decision.after))}::jsonb, ${decision.decidedAt}
+        )
+      `.execute(trx);
+      for (const event of events) {
+        await sql`
+          insert into outbox.events (event_id, aggregate_type, aggregate_id, event_type, payload)
+          values (${event.eventId}, ${event.aggregateType}, ${event.aggregateId}, ${event.eventType}, ${JSON.stringify(event.payload)})
+        `.execute(trx);
+      }
+    });
+  }
+
+  async findDecisions(hazardId: HazardReportId): Promise<ModerationDecision[]> {
+    const { rows } = await sql<DecisionRow>`
+      select id, hazard_id, moderator_id, action, note, before, after, decided_at
+      from hazards.moderation_decisions where hazard_id = ${hazardId}
+      order by decided_at asc, id asc
+    `.execute(this.db);
+    return rows.map((row) => ({
+      id: makeId<'ModerationDecisionId'>(row.id),
+      hazardId: makeId<'HazardReportId'>(row.hazard_id),
+      moderatorId: makeId<'StaffId'>(row.moderator_id),
+      action: row.action,
+      note: row.note ?? undefined,
+      before: fieldsFrom(row.before),
+      after: fieldsFrom(row.after),
+      decidedAt: row.decided_at,
+    }));
   }
 
   async deleteById(id: HazardReportId): Promise<void> {
