@@ -23,6 +23,12 @@ const REASON_LABELS = {
   disputed: 'Drivers disagree (confirmed and dismissed)',
 } as const;
 
+const TRUST_LABELS = {
+  low: 'poor record',
+  neutral: 'no strong record',
+  high: 'trusted reporter',
+} as const;
+
 const UNIT_FOR_KIND = { height: 'm', width: 'm', weight: 't' } as const;
 
 function measurementText(hazard: HazardReportDto): string {
@@ -67,7 +73,8 @@ export function Moderation() {
       <h1>Moderation</h1>
       <p style={{ color: '#6b7280' }}>
         New low bridge, weight, width and no-HGV reports, and reports drivers disagree about. A
-        report waiting here still affects routes; rejecting it is what takes it away.
+        report waiting here still affects routes, unless it says routing is ignoring it; rejecting
+        it is what takes it away.
       </p>
 
       {(queue.error ?? decide.error) !== null && (
@@ -80,7 +87,7 @@ export function Moderation() {
         <p style={{ color: '#6b7280' }}>Nothing waiting for review.</p>
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
-          {queue.data?.map(({ hazard, reasons }) => (
+          {queue.data?.map(({ hazard, reasons, trust, heldBackFromRouting }) => (
             <section
               key={hazard.id}
               style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}
@@ -93,7 +100,7 @@ export function Moderation() {
                 </span>
                 <span style={{ color: '#6b7280' }}>
                   reported {new Date(hazard.createdAt).toLocaleString('en-GB')} · driver{' '}
-                  {hazard.reporterId.slice(0, 8)}
+                  {hazard.reporterId.slice(0, 8)} ({TRUST_LABELS[trust]})
                 </span>
                 <a href={mapLink(hazard)} target="_blank" rel="noreferrer">
                   View on map
@@ -104,6 +111,12 @@ export function Moderation() {
                   <li key={reason}>{REASON_LABELS[reason]}</li>
                 ))}
               </ul>
+              {heldBackFromRouting && (
+                <p style={{ margin: '6px 0', color: '#b91c1c' }}>
+                  Routing is ignoring this report until you approve it: the reporter has a poor
+                  record, and it has no measurement and no confirmations.
+                </p>
+              )}
               {hazard.note && <p style={{ margin: '6px 0' }}>“{hazard.note}”</p>}
 
               {editing === hazard.id ? (

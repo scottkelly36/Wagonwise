@@ -385,4 +385,57 @@ describe('PostgresHazardRepository', () => {
       expect(stored?.before).toEqual(withDetail.before);
     });
   });
+
+  describe('reporter records (P2-M7.2)', () => {
+    const MOD = makeId<'StaffId'>('99999999-9999-4999-8999-999999999999');
+    const REPORTER = makeId<'DriverId'>('c1c1c1c1-0000-4000-8000-000000000001');
+    const NEWCOMER = makeId<'DriverId'>('c1c1c1c1-0000-4000-8000-000000000002');
+    const id = (n: number) => makeId<'HazardReportId'>(`b0b0b0b0-0000-4000-8000-00000000000${n}`);
+    const decision = (hazardId: HazardReport['id'], n: number, action: 'approve' | 'reject') => ({
+      id: makeId<'ModerationDecisionId'>(`e0e0e0e0-0000-4000-8000-00000000000${n}`),
+      hazardId,
+      moderatorId: MOD,
+      action,
+      before: { type: 'low_bridge' as const, status: 'active' as const },
+      after: { type: 'low_bridge' as const, status: 'active' as const },
+      decidedAt: new Date(`2026-06-02T12:0${n}:00.000Z`),
+    });
+
+    it('counts approved, moderator-rejected and community-dismissed reports per reporter', async () => {
+      const approved = report({ id: id(1), reporterId: REPORTER });
+      const rejected = report({ id: id(2), reporterId: REPORTER, status: 'dismissed' });
+      const communityDismissed = report({ id: id(3), reporterId: REPORTER, status: 'dismissed' });
+      const untouched = report({ id: id(4), reporterId: REPORTER });
+      for (const r of [approved, rejected, communityDismissed, untouched]) {
+        await repo().save(r);
+      }
+      await repo().saveModerated(approved, decision(approved.id, 1, 'approve'), []);
+      await repo().saveModerated(rejected, decision(rejected.id, 2, 'reject'), []);
+
+      const records = await repo().findReporterRecords([REPORTER, NEWCOMER]);
+
+      expect(records.get(REPORTER)).toEqual({
+        approved: 1,
+        rejected: 1,
+        communityDismissed: 1,
+      });
+      expect(records.has(NEWCOMER)).toBe(false);
+    });
+
+    it('returns nothing for an empty list of reporters', async () => {
+      expect((await repo().findReporterRecords([])).size).toBe(0);
+    });
+
+    it('finds which of some reports a moderator approved', async () => {
+      const approved = report({ id: id(5), reporterId: REPORTER });
+      const other = report({ id: id(6), reporterId: REPORTER });
+      await repo().save(other);
+      await repo().saveModerated(approved, decision(approved.id, 5, 'approve'), []);
+
+      const found = await repo().findApprovedIds([approved.id, other.id]);
+
+      expect([...found]).toEqual([approved.id]);
+      expect((await repo().findApprovedIds([])).size).toBe(0);
+    });
+  });
 });

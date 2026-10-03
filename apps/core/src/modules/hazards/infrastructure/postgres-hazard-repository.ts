@@ -7,6 +7,7 @@ import {
   type ModerationDecision,
   type ModeratedFields,
 } from '../domain/moderation.js';
+import type { ReporterRecord } from '../domain/trust.js';
 import {
   BLOCKING_HAZARD_TYPES,
   type GeoPoint,
@@ -181,6 +182,53 @@ export class PostgresHazardRepository implements HazardRepository {
       order by r.created_at asc
     `.execute(this.db);
     return rows.map(toDomain);
+  }
+
+  async findReporterRecords(
+    reporterIds: readonly string[],
+  ): Promise<ReadonlyMap<string, ReporterRecord>> {
+    const records = new Map<string, ReporterRecord>();
+    if (reporterIds.length === 0) return records;
+    const { rows } = await sql<{
+      reporter_id: string;
+      approved: string;
+      rejected: string;
+      community_dismissed: string;
+    }>`
+      select
+        r.reporter_id,
+        count(*) filter (where a.hazard_id is not null) as approved,
+        count(*) filter (where j.hazard_id is not null) as rejected,
+        count(*) filter (where r.status = 'dismissed' and j.hazard_id is null) as community_dismissed
+      from hazards.reports r
+      left join lateral (
+        select hazard_id from hazards.moderation_decisions
+        where hazard_id = r.id and action = 'approve' limit 1
+      ) a on true
+      left join lateral (
+        select hazard_id from hazards.moderation_decisions
+        where hazard_id = r.id and action = 'reject' limit 1
+      ) j on true
+      where r.reporter_id in (${sql.join([...reporterIds])})
+      group by r.reporter_id
+    `.execute(this.db);
+    for (const row of rows) {
+      records.set(row.reporter_id, {
+        approved: Number(row.approved),
+        rejected: Number(row.rejected),
+        communityDismissed: Number(row.community_dismissed),
+      });
+    }
+    return records;
+  }
+
+  async findApprovedIds(hazardIds: readonly string[]): Promise<ReadonlySet<string>> {
+    if (hazardIds.length === 0) return new Set();
+    const { rows } = await sql<{ hazard_id: string }>`
+      select distinct hazard_id from hazards.moderation_decisions
+      where action = 'approve' and hazard_id in (${sql.join([...hazardIds])})
+    `.execute(this.db);
+    return new Set(rows.map((row) => row.hazard_id));
   }
 
   async saveModerated(

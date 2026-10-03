@@ -12,6 +12,8 @@ import {
   type QueueReason,
 } from '../domain/moderation.js';
 import { makeId } from '../../../shared/brand.js';
+import type { ReporterTrust } from '../domain/trust.js';
+import { assessReports } from './trust.js';
 import { requireHazardAdmin, type Forbidden } from './authorization.js';
 import type { HazardReportNotFound } from './errors.js';
 import type { AdminDirectory, StaffId } from './ports/admin-directory.js';
@@ -20,10 +22,18 @@ import type { HazardRepository } from './ports/hazard-repository.js';
 export interface QueuedHazard {
   readonly report: HazardReport;
   readonly reasons: readonly QueueReason[];
+  /** The reporter's trust (P2-M7.2). */
+  readonly trust: ReporterTrust;
+  /** True while routing is ignoring this report: low-trust reporter, no measurement, unconfirmed.
+   *  Approving it puts it back into routing. */
+  readonly heldBackFromRouting: boolean;
 }
 
 export interface ListModerationQueueDeps {
-  readonly repo: Pick<HazardRepository, 'findAwaitingReview'>;
+  readonly repo: Pick<
+    HazardRepository,
+    'findAwaitingReview' | 'findReporterRecords' | 'findApprovedIds'
+  >;
   readonly admins: AdminDirectory;
 }
 
@@ -40,9 +50,15 @@ export async function listModerationQueue(
   const allowed = await requireHazardAdmin(deps.admins, input.callerId);
   if (!allowed.ok) return allowed;
   const candidates = await deps.repo.findAwaitingReview();
+  const assessments = await assessReports(deps.repo, candidates, { forDisplay: true });
   const queue = candidates
     // The repository already excluded approved reports, so `approved` is false for all of them.
-    .map((report) => ({ report, reasons: queueReasons(report, false) }))
+    .map((report) => ({
+      report,
+      reasons: queueReasons(report, false),
+      trust: assessments.get(report.id)?.trust ?? ('neutral' as const),
+      heldBackFromRouting: assessments.get(report.id)?.heldBackFromRouting ?? false,
+    }))
     .filter((entry) => entry.reasons.length > 0)
     .sort((a, b) => a.report.createdAt.getTime() - b.report.createdAt.getTime());
   return ok(queue);

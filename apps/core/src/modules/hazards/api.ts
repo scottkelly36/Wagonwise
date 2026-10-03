@@ -4,6 +4,7 @@ import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { HazardParser } from './application/ports/hazard-parser.js';
 import { isExpired, type GeoPoint, type HazardType } from './domain/hazard-report.js';
 import { findNearbyHazards } from './application/find-nearby-hazards.js';
+import { assessReports } from './application/trust.js';
 import { AnthropicHazardParser } from './infrastructure/anthropic-hazard-parser.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import type { AdminDirectory } from './application/ports/admin-directory.js';
@@ -134,9 +135,14 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
     ): Promise<AvoidanceCandidate[]> {
       const now = deps.clock.now();
       const nearby = await repo.findNearbyLine(corridor, radiusM);
+      const live = nearby.filter(
+        (r) => r.status === 'active' && !isExpired(r, now) && AVOIDANCE_KIND[r.type] !== undefined,
+      );
+      // P2-M7.2: the one place routing is made less cautious. See `isHeldBackFromRouting`.
+      const assessments = await assessReports(repo, live, { forDisplay: false });
       const candidates: AvoidanceCandidate[] = [];
-      for (const report of nearby) {
-        if (report.status !== 'active' || isExpired(report, now)) {
+      for (const report of live) {
+        if (assessments.get(report.id)?.heldBackFromRouting === true) {
           continue;
         }
         const kind = AVOIDANCE_KIND[report.type];

@@ -137,8 +137,20 @@ export const queueReasonSchema = z.enum(['blocking_unreviewed', 'disputed']);
 export type QueueReasonDto = z.infer<typeof queueReasonSchema>;
 
 /** `GET /staff/hazard-reports/moderation-queue`. */
+export const reporterTrustSchema = z.enum(['low', 'neutral', 'high']);
+export type ReporterTrustDto = z.infer<typeof reporterTrustSchema>;
+
 export const moderationQueueResponseSchema = z.object({
-  items: z.array(z.object({ hazard: hazardReportSchema, reasons: z.array(queueReasonSchema) })),
+  items: z.array(
+    z.object({
+      hazard: hazardReportSchema,
+      reasons: z.array(queueReasonSchema),
+      /** The reporter's trust, from how their past reports turned out (P2-M7.2). */
+      trust: reporterTrustSchema,
+      /** True while routing ignores this report (low-trust reporter, no measurement, unconfirmed). */
+      heldBackFromRouting: z.boolean(),
+    }),
+  ),
 });
 export type ModerationQueueResponse = z.infer<typeof moderationQueueResponseSchema>;
 

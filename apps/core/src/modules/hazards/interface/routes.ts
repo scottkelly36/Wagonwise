@@ -225,9 +225,14 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
-    return reply
-      .status(200)
-      .send({ items: result.value.map((i) => ({ hazard: i.report, reasons: i.reasons })) });
+    return reply.status(200).send({
+      items: result.value.map((i) => ({
+        hazard: i.report,
+        reasons: i.reasons,
+        trust: i.trust,
+        heldBackFromRouting: i.heldBackFromRouting,
+      })),
+    });
   });
 
   app.post('/staff/hazard-reports/:id/moderate', async (request, reply) => {
