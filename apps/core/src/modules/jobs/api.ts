@@ -66,6 +66,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     changeStatus: { repo, ids: deps.ids, clock: deps.clock },
     listJobs: { repo },
     getJob: { repo },
+    getProofOfDelivery: { repo },
     callerDirectory: deps.callers,
     dataScopes: deps.dataScopes,
   };

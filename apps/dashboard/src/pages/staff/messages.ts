@@ -29,6 +29,7 @@ const MESSAGES: Record<string, string> = {
   DriverNotInCompany: "That driver doesn't belong to this company.",
   VehicleNotInCompany: "That vehicle doesn't belong to this company.",
   DriverBusy: 'That driver is already on another active job.',
+  ProofOfDeliveryNotFound: 'No photo has been received for that job yet.',
 };
 
 export function staffErrorMessage(error: unknown): string {

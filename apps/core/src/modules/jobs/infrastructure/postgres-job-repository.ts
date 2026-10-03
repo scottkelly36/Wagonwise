@@ -1,7 +1,11 @@
 import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
 import type { DomainEvent } from '../../../shared/domain-event.js';
-import type { JobRepository, ProofOfDeliveryPhoto } from '../application/ports/job-repository.js';
+import type {
+  JobRepository,
+  ProofOfDeliveryPhoto,
+  StoredProofOfDelivery,
+} from '../application/ports/job-repository.js';
 import {
   ACTIVE_STATUSES,
   type CompanyId,
@@ -218,5 +222,15 @@ export class PostgresJobRepository implements JobRepository {
         data = excluded.data,
         captured_at = excluded.captured_at
     `.execute(this.db);
+  }
+
+  async findProofOfDelivery(jobId: JobId): Promise<StoredProofOfDelivery | null> {
+    const { rows } = await sql<{ content_type: string; data: Buffer; captured_at: Date }>`
+      select content_type, data, captured_at from jobs.proof_of_delivery where job_id = ${jobId}
+    `.execute(this.db);
+    const row = rows[0];
+    return row === undefined
+      ? null
+      : { contentType: row.content_type, data: row.data, capturedAt: row.captured_at };
   }
 }

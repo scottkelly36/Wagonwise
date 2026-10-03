@@ -9,6 +9,11 @@ export interface ProofOfDeliveryPhoto {
   readonly data: Buffer;
 }
 
+/** A stored photo as read back, with when the driver took it. */
+export interface StoredProofOfDelivery extends ProofOfDeliveryPhoto {
+  readonly capturedAt: Date;
+}
+
 export interface JobRepository {
   findById(id: JobId): Promise<Job | null>;
   /** The job a driver is currently on, if any (assigned up to at_delivery). */
@@ -19,4 +24,6 @@ export interface JobRepository {
   save(job: Job, events?: readonly DomainEvent[]): Promise<void>;
   /** Replaces any existing photo for this job — one at a time, retaking replaces, not appends. */
   saveProofOfDelivery(jobId: JobId, photo: ProofOfDeliveryPhoto): Promise<void>;
+  /** The photo itself, or `null` if none was attached. Never loaded by the plain job reads. */
+  findProofOfDelivery(jobId: JobId): Promise<StoredProofOfDelivery | null>;
 }

@@ -15,3 +15,6 @@ export type DriverBusy = TaggedError<'DriverBusy'>;
 /** `delivered` refused: the job's dispatcher marked it as needing proof of delivery, and none has
  *  been attached yet (P2-M5.5). */
 export type ProofOfDeliveryRequired = TaggedError<'ProofOfDeliveryRequired'>;
+
+/** The job exists and is visible, but no driver has attached a photo to it. */
+export type ProofOfDeliveryNotFound = TaggedError<'ProofOfDeliveryNotFound'>;

@@ -66,6 +66,7 @@ function buildApp(): {
     changeStatus: { repo, ids, clock },
     listJobs: { repo },
     getJob: { repo },
+    getProofOfDelivery: { repo },
     callerDirectory: new StubCallerDirectory(callers),
     dataScopes: scopes,
   };
@@ -298,5 +299,72 @@ describe('dispatching a job', () => {
       ...asStaff(OUTSIDER_ID),
     });
     expect(other.statusCode).toBe(403);
+  });
+});
+
+describe('GET /staff/jobs/:id/proof-of-delivery', () => {
+  const photo = { contentType: 'image/jpeg', data: Buffer.from('a delivery photo') };
+
+  it('returns the photo to staff in the job’s company, with no privilege needed', async () => {
+    const { app, repo } = buildApp();
+    const id = await createDraft(app);
+    await repo.saveProofOfDelivery(makeId<'JobId'>(id), photo);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/${id}/proof-of-delivery`,
+      ...asStaff(VIEWER_ID),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      contentType: 'image/jpeg',
+      dataBase64: photo.data.toString('base64'),
+    });
+    expect(Number.isNaN(Date.parse(response.json<{ capturedAt: string }>().capturedAt))).toBe(
+      false,
+    );
+  });
+
+  it('404s when no photo has been attached', async () => {
+    const { app } = buildApp();
+    const id = await createDraft(app);
+    const response = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/${id}/proof-of-delivery`,
+      ...asStaff(DISPATCHER_ID),
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'ProofOfDeliveryNotFound' });
+  });
+
+  it('404s as JobNotFound for staff from another company, so ids can’t be probed', async () => {
+    const { app, repo } = buildApp();
+    const id = await createDraft(app);
+    await repo.saveProofOfDelivery(makeId<'JobId'>(id), photo);
+    const response = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/${id}/proof-of-delivery`,
+      ...asStaff(OUTSIDER_ID),
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'JobNotFound' });
+  });
+
+  it('401s without a signed-in staff member and 400s on a malformed id', async () => {
+    const { app } = buildApp();
+    const id = await createDraft(app);
+    expect(
+      (await app.inject({ method: 'GET', url: `/staff/jobs/${id}/proof-of-delivery` })).statusCode,
+    ).toBe(401);
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/staff/jobs/not-a-uuid/proof-of-delivery',
+          ...asStaff(ADMIN_ID),
+        })
+      ).statusCode,
+    ).toBe(400);
   });
 });

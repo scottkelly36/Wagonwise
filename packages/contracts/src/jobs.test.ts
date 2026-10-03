@@ -7,6 +7,7 @@ import {
   currentJobResponseSchema,
   failJobRequestSchema,
   jobSchema,
+  proofOfDeliveryResponseSchema,
 } from './jobs.js';
 
 const pickup = {
@@ -137,5 +138,34 @@ describe('dispatch request schemas', () => {
   it('rejects an unknown status and a blank driver', () => {
     expect(advanceJobStatusRequestSchema.safeParse({ status: 'flying' }).success).toBe(false);
     expect(assignJobRequestSchema.safeParse({ driverId: '', vehicleId: 'v1' }).success).toBe(false);
+  });
+});
+
+describe('proof-of-delivery content types', () => {
+  const dataBase64 = Buffer.from('a photo').toString('base64');
+
+  it('accepts only image types, so a data: URL built from one can’t be a web page', () => {
+    for (const contentType of ['text/html', 'application/javascript', 'image/', 'image/jpeg;x=1']) {
+      expect(
+        attachProofOfDeliveryRequestSchema.safeParse({ contentType, dataBase64 }).success,
+      ).toBe(false);
+    }
+    for (const contentType of ['image/jpeg', 'image/png', 'image/heic', 'image/svg+xml']) {
+      expect(
+        attachProofOfDeliveryRequestSchema.safeParse({ contentType, dataBase64 }).success,
+      ).toBe(true);
+    }
+  });
+
+  it('applies the same rule to the response the dashboard receives', () => {
+    const capturedAt = '2026-10-03T10:00:00.000Z';
+    expect(
+      proofOfDeliveryResponseSchema.safeParse({ contentType: 'image/jpeg', dataBase64, capturedAt })
+        .success,
+    ).toBe(true);
+    expect(
+      proofOfDeliveryResponseSchema.safeParse({ contentType: 'text/html', dataBase64, capturedAt })
+        .success,
+    ).toBe(false);
   });
 });

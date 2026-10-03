@@ -118,6 +118,21 @@ describe('PostgresJobRepository', () => {
     expect(rows).toEqual([{ content_type: 'image/png' }]);
   });
 
+  it('reads a photo back with its type and time, and null when there is none', async () => {
+    const j = job({ id: makeId<'JobId'>('aaaaaaaa-2222-4222-8222-aaaaaaaaaaaa') });
+    await repo().save(j);
+    expect(await repo().findProofOfDelivery(j.id)).toBeNull();
+
+    await repo().saveProofOfDelivery(j.id, {
+      contentType: 'image/jpeg',
+      data: Buffer.from([0xff, 0xd8, 0xff, 0x00, 0x10]),
+    });
+    const stored = await repo().findProofOfDelivery(j.id);
+    expect(stored?.contentType).toBe('image/jpeg');
+    expect(stored?.data.equals(Buffer.from([0xff, 0xd8, 0xff, 0x00, 0x10]))).toBe(true);
+    expect(stored?.capturedAt).toBeInstanceOf(Date);
+  });
+
   it('finds the job a driver is currently on, and ignores finished ones', async () => {
     const driverId = makeId<'DriverId'>('aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa');
     const done = job({

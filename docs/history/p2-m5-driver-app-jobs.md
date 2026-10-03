@@ -295,3 +295,24 @@ precedent as the other device-bound hooks.
 
 **Not done:** viewing a photo anywhere (dashboard or app); signatures; S3-backed storage; a visible
 "photo lost" notice when a queued photo is discarded.
+
+## Follow-up: dispatchers can view the photo (2026-10-03)
+
+Closes the "dashboard doesn't view the photo" gap left by M5.5a/b.
+
+- **Core:** `GET /staff/jobs/:id/proof-of-delivery` (`application/get-proof-of-delivery.ts`). Anyone
+  who can see the company's jobs can see its photos — no privilege, same as the job list — and
+  another company's job is `JobNotFound`, as for `getJob`. A visible job with no photo is the new
+  `ProofOfDeliveryNotFound` (404). The photo is read on request only, never with the job list.
+  Returned as base64 JSON, like the upload; `JobRepository.findProofOfDelivery` is the new port
+  method (Postgres + in-memory), tested over HTTP and against real Postgres.
+- **staff-bff:** one more forward in `dashboard-routes.ts`.
+- **Dashboard:** the "Proof of delivery" column now says "Received" with a **View photo** button
+  (also for jobs that didn't require one but got a photo). It opens a full-size overlay (Escape or
+  a click outside closes it) with when it was taken. Fetched only when opened.
+- **Content types are now restricted to `image/*`** in the contract, on upload and on the way
+  back. The dashboard builds a `data:` URL from the stored type, so an arbitrary string there
+  would be a way to serve a web page from it. The driver app already sends the camera's own type,
+  and refuses a non-image locally.
+- **Not done:** download, zoom, a photo history (a retake replaces), signatures, and photos in any
+  email or report.

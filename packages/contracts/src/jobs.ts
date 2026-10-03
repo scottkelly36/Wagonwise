@@ -116,11 +116,25 @@ export const jobIdParamsSchema = z.object({
 });
 export type JobIdParams = z.infer<typeof jobIdParamsSchema>;
 
+/** An image type and nothing else: the dashboard shows the photo from a `data:` URL built with
+ *  this, so it must not be able to carry `text/html` or the like. Enforced on upload and again on
+ *  the way back out. */
+const imageContentTypeSchema = z.string().regex(/^image\/[a-z0-9.+-]+$/i);
+
 /** `POST /jobs/:id/proof-of-delivery` (P2-M5.5): base64 over JSON, same wire style as everything
  *  else in this app — no multipart handling needed in the BFF or core. The max length is a rough
  *  5MB-after-compression cap on the decoded photo (base64 runs ~1.37x the binary size). */
 export const attachProofOfDeliveryRequestSchema = z.object({
-  contentType: z.string().min(1),
+  contentType: imageContentTypeSchema,
   dataBase64: z.base64().min(1).max(7_000_000),
 });
 export type AttachProofOfDeliveryRequest = z.infer<typeof attachProofOfDeliveryRequestSchema>;
+
+/** `GET /staff/jobs/:id/proof-of-delivery`: the photo a dispatcher looks at, base64 over JSON like
+ *  the upload. */
+export const proofOfDeliveryResponseSchema = z.object({
+  contentType: imageContentTypeSchema,
+  dataBase64: z.base64().min(1).max(7_000_000),
+  capturedAt: z.iso.datetime(),
+});
+export type ProofOfDeliveryResponse = z.infer<typeof proofOfDeliveryResponseSchema>;

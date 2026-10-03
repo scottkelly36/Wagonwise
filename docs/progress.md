@@ -35,7 +35,7 @@ history file keeps the record.
    delivery stop and an offline upload queue. It brings a new native dependency
    (`expo-image-picker`) and the camera permission, so app `version` is now 1.1.0 and it **needs a
    fresh `eas build`** before it works on a device (`eas update` won't carry it). Not yet run on a
-   real device, and the dispatcher still can't view the photo (deliberately deferred). See
+   real device. See
    `history/p2-m5-driver-app-jobs.md`. Not built yet in Phase 2: dispatch, live
    map, moderation, reports.
 
@@ -128,6 +128,11 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-03: dispatchers can now view the proof-of-delivery photo: `GET /staff/jobs/:id/proof-of-
+delivery` in core, a staff-bff forward, and a "View photo" overlay on the dashboard's Jobs page.
+  Upload content types are restricted to `image/*`. No driver-app native change. A production
+  `eas build` of app 1.1.0 (versionCode 5) was started the same day. See
+  `history/p2-m5-driver-app-jobs.md`.
 - 2026-10-03: dashboard Jobs form takes a **postcode** per stop instead of latitude/longitude
   (dispatchers don't have coordinates). Looked up in the browser against postcodes.io (free, no
   key), with the resolved place shown under the field. what3words not done: it needs a paid API key

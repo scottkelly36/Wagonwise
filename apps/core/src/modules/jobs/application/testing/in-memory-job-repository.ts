@@ -1,13 +1,17 @@
 import type { DomainEvent } from '../../../../shared/domain-event.js';
 import { isActive, type CompanyId, type DriverId, type Job, type JobId } from '../../domain/job.js';
-import type { JobRepository, ProofOfDeliveryPhoto } from '../ports/job-repository.js';
+import type {
+  JobRepository,
+  ProofOfDeliveryPhoto,
+  StoredProofOfDelivery,
+} from '../ports/job-repository.js';
 
 export class InMemoryJobRepository implements JobRepository {
   #byId = new Map<JobId, Job>();
   /** Every event saved, in order, for tests to assert on. */
   readonly events: DomainEvent[] = [];
   /** Every photo saved, by job id, for tests to assert on. */
-  readonly proofOfDelivery = new Map<JobId, ProofOfDeliveryPhoto>();
+  readonly proofOfDelivery = new Map<JobId, StoredProofOfDelivery>();
 
   findById(id: JobId): Promise<Job | null> {
     return Promise.resolve(this.#byId.get(id) ?? null);
@@ -31,9 +35,13 @@ export class InMemoryJobRepository implements JobRepository {
   }
 
   saveProofOfDelivery(jobId: JobId, photo: ProofOfDeliveryPhoto): Promise<void> {
-    this.proofOfDelivery.set(jobId, photo);
+    this.proofOfDelivery.set(jobId, { ...photo, capturedAt: new Date() });
     const job = this.#byId.get(jobId);
     if (job) this.#byId.set(jobId, { ...job, hasProofOfDelivery: true });
     return Promise.resolve();
+  }
+
+  findProofOfDelivery(jobId: JobId): Promise<StoredProofOfDelivery | null> {
+    return Promise.resolve(this.proofOfDelivery.get(jobId) ?? null);
   }
 }
