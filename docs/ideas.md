@@ -11,27 +11,24 @@ not attached to a milestone yet.
   for a lorry. Aim: understand how routing really behaves, then offer several routes to pick from
   like Google Maps. **Nothing here is verified yet**; these are the first things to check, roughly
   in order of likelihood:
-  1. **Map coverage.** The README's Valhalla set-up suggests a county extract (Northumberland).
-     Hebburn is in Tyne and Wear, outside it. With tiles that stop at the county edge, the engine
-     can only use whatever roads exist inside, and near the boundary that can mean odd back roads.
-     UK-wide Valhalla is a known deferred item (see `progress.md`). Check which extract the
-     deployed Valhalla was built from before anything else.
-  2. **Costing.** The request is `truck` costing with only a 55 mph `top_speed` cap
-     (`valhalla-routing-engine.ts`). No highway preference is set, so Valhalla's own defaults decide
-     how much it favours A-roads and dual carriageways. Valhalla has options for this
-     (`use_highways`, `use_trucks`, etc.). Tune against real routes, and re-record the golden
-     routes afterwards (`progress.md`, standing rules).
-  3. **Restrictions and hazards.** A real height, weight or width restriction (or a driver-reported
-     hazard) on the A-road would push the route off it correctly. If the dashboard or app shows
-     "avoided restrictions" for that route, that is the answer. Check the route plan's
-     `avoidedRestrictions` and the hazards near the A69 and A1.
-  4. **The two alternatives that exist already.** M9 offers fastest and shortest (with fuel cost).
-     "Shortest" is a likely source of back-road routes if that was the one picked.
-     First step when picking this up: reproduce the exact request against the deployed Valhalla, look
-     at the primary and alternate routes and their geometry, and compare against a UK-wide extract
-     locally. A proper multi-route picker (more alternatives, each labelled by what makes it
-     different, shown on the map) comes after the cause is known, so it isn't built on top of a bad
-     base route.
+
+1. **Map coverage (now unlikely).** The live Valhalla covers Northumberland, Tyne and Wear and Cumbria (expanded 2026-09-26, `docs/deployment-guide.md`), so Hexham and Hebburn are both inside it. Still worth ruling out: confirm the tiles were rebuilt after the expansion, and that the A69 and A1 are in them.
+2. **Costing.** The request is `truck` costing with only a 55 mph `top_speed` cap
+   (`valhalla-routing-engine.ts`). No highway preference is set, so Valhalla's own defaults decide
+   how much it favours A-roads and dual carriageways. Valhalla has options for this
+   (`use_highways`, `use_trucks`, etc.). Tune against real routes, and re-record the golden
+   routes afterwards (`progress.md`, standing rules).
+3. **Restrictions and hazards.** A real height, weight or width restriction (or a driver-reported
+   hazard) on the A-road would push the route off it correctly. If the dashboard or app shows
+   "avoided restrictions" for that route, that is the answer. Check the route plan's
+   `avoidedRestrictions` and the hazards near the A69 and A1.
+4. **The two alternatives that exist already.** M9 offers fastest and shortest (with fuel cost).
+   "Shortest" is a likely source of back-road routes if that was the one picked.
+   First step when picking this up: reproduce the exact request against the deployed Valhalla, look
+   at the primary and alternate routes and their geometry, and compare against a UK-wide extract
+   locally. A proper multi-route picker (more alternatives, each labelled by what makes it
+   different, shown on the map) comes after the cause is known, so it isn't built on top of a bad
+   base route.
 
 - **2026-10-03: what3words for job stops (not scheduled).** Raised right after the Jobs form
   moved from latitude/longitude to postcodes (`history/p2-m4-portal-jobs.md`): a postcode is no
@@ -177,3 +174,8 @@ update --spec` (used once to add the job) wiped `core`'s App-Level `DATABASE_URL
 - **2026-09-27: route choice — multiple options (shortest / fastest / most economical) — scoped
   into M9, same day.** See M9 task breakdown below for the scoped shape, including why "most
   economical" is deferred.
+  **Diagnostic, run on the Valhalla droplet** (core reaches it over a private address, so it cannot
+  be queried from outside): the same Hexham to Hebburn request three ways, listing the roads used.
+  A truck route that avoids the A69 and A1 while the car route uses them points at the truck
+  costing or a restriction; a car route that also avoids them points at the data; a truck route
+  that uses them once the 55 mph cap is removed points at that cap.
