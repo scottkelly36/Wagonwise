@@ -16,7 +16,10 @@ import { ValhallaRoutingEngine } from './valhalla-routing-engine.js';
  * catch is a *materially* different route — broken tile data, or a real restriction that changed
  * which way is genuinely fastest — not routine data churn.
  *
- * Golden values re-recorded 2026-09-28 against Geofabrik's `northumberland-latest.osm.pbf` of
+ * Golden values re-recorded 2026-10-03 after the route is chosen without the speed cap and only
+ * timed with it (see TOP_SPEED_KPH): the capped search had been sending trucks along back roads
+ * instead of the A69, so the Corbridge and Newcastle routes changed distance as well as time.
+ * Previously re-recorded 2026-09-28 against Geofabrik's `northumberland-latest.osm.pbf` of
  * that date, after the 55mph truck `top_speed` cap (PR #38) made the original 2026-09-22 values
  * stale: slower trunk-road timing changes which way is fastest, not just how long it takes. If
  * these start failing after a deliberate routing change or extract refresh, every run prints the
@@ -73,8 +76,8 @@ describe('golden routes (real Valhalla, Northumberland extract)', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     report('hexham-corbridge', result.value);
-    expectWithinTolerance(result.value.distanceKm, 7.637, 0.1);
-    expectWithinTolerance(result.value.durationMin, 10.7669, 0.15);
+    expectWithinTolerance(result.value.distanceKm, 8.038, 0.1);
+    expectWithinTolerance(result.value.durationMin, 9.0946, 0.15);
     expectWithinSpeedCap(result.value);
     expect(result.value.geometry.length).toBeGreaterThan(100);
   });
@@ -89,8 +92,25 @@ describe('golden routes (real Valhalla, Northumberland extract)', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     report('hexham-newcastle', result.value);
-    expectWithinTolerance(result.value.distanceKm, 18.438, 0.1);
-    expectWithinTolerance(result.value.durationMin, 18.753683333333335, 0.15);
+    expectWithinTolerance(result.value.distanceKm, 15.947, 0.1);
+    expectWithinTolerance(result.value.durationMin, 13.7814, 0.15);
+    expectWithinSpeedCap(result.value);
+  });
+
+  // Regression (2026-10-03): with the 55mph cap in the route search itself, Hexham to Heddon-on-the-
+  // Wall went A68 + the Military Road (B6318), 25.7 km, instead of the A69, 24.1 km, which is also
+  // quicker. The back-road route is the longer one, so a distance under 25 km means the A69.
+  it('Hexham → Heddon-on-the-Wall: stays on the A69 rather than the back roads', async () => {
+    const result = await engine.route({
+      origin: { lat: 54.9707, lon: -2.1013 },
+      destination: { lat: 54.9895, lon: -1.803 },
+      dimensions,
+      avoid: [],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    report('hexham-heddon', result.value);
+    expect(result.value.distanceKm).toBeLessThan(25);
     expectWithinSpeedCap(result.value);
   });
 

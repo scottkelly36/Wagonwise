@@ -1,5 +1,6 @@
 import { err, ok, type Result } from '../../../shared/result.js';
-import type { GeoPoint, GeoPolygon } from '../domain/geo.js';
+import { decodePolyline, type GeoPoint, type GeoPolygon } from '../domain/geo.js';
+import type { Dimensions } from '../domain/vehicle-profile.js';
 import type {
   NoRouteFound,
   RouteRequest,
@@ -59,8 +60,20 @@ function toValhallaPolygon(polygon: GeoPolygon): [number, number][] {
  *  current coverage don't have one, so without this cap a truck was timed as if it could travel
  *  at a car's full posted speed limit everywhere. Imperfect in both directions (still overstates
  *  a single carriageway, understates a motorway) — the real fix is `maxspeed:hgv` tagging in
- *  OpenStreetMap itself, out of scope for now. */
+ *  OpenStreetMap itself, out of scope for now.
+ *
+ *  **Used for timing only, never for choosing the route** (2026-10-03). Sent to `/route`, the cap
+ *  flattens the speed difference between roads, so a faster A-road loses its advantage and the
+ *  engine picks a shorter back road: Hexham to Heddon-on-the-Wall went A68 + the Military Road
+ *  (B6318) instead of the A69, and the A69 route was in fact quicker even when timed with the same
+ *  cap. So the route is chosen without it and then timed along that exact road by `retime`. */
 const TOP_SPEED_KPH = 88;
+
+/** Used when a route can't be re-timed (Valhalla refuses the trace, e.g. a shape longer than its
+ *  point limit): the uncapped time scaled by roughly what the cap added on the Northumberland test
+ *  routes (1.16 to 1.17, 2026-10-03). Better to be a little pessimistic than to show a truck
+ *  moving at car speeds. */
+export const FALLBACK_TIME_FACTOR = 1.17;
 
 /** How many alternates to ask Valhalla for on top of its primary route (M9) — two is enough to
  *  give a driver a genuine second option without inflating Valhalla's own routing cost much. */
@@ -78,11 +91,33 @@ function toRouteResult(trip: ValhallaTrip): RouteResult {
   };
 }
 
+/** Valhalla's truck costing options for a vehicle. `topSpeedKph` is for timing only: see
+ *  `TOP_SPEED_KPH`. */
+function truckCosting(dimensions: Dimensions, topSpeedKph?: number): Record<string, unknown> {
+  return {
+    costing: 'truck',
+    costing_options: {
+      truck: {
+        height: dimensions.heightM,
+        width: dimensions.widthM,
+        length: dimensions.lengthM,
+        weight: dimensions.grossWeightT,
+        ...(dimensions.axleWeightT === undefined ? {} : { axle_load: dimensions.axleWeightT }),
+        ...(topSpeedKph === undefined ? {} : { top_speed: topSpeedKph }),
+      },
+    },
+  };
+}
+
 /**
  * Truck-aware routing via a self-hosted Valhalla instance (design doc §4), behind the
  * `RoutingEngine` port. Talks to Valhalla's `/route` action directly over HTTP — no client
  * library; the request/response shape is small enough that hand-rolling it (decision 6's "hand-
  * roll small, well-understood things") beats a dependency for a handful of fields.
+ *
+ * Two steps per route: `/route` chooses the road (no speed cap, so a faster A-road keeps its
+ * advantage), then `/trace_route` walks that exact road with the 55mph cap to get a realistic
+ * time. See `TOP_SPEED_KPH`.
  */
 export class ValhallaRoutingEngine implements RoutingEngine {
   constructor(private readonly baseUrl: string) {}
@@ -90,19 +125,7 @@ export class ValhallaRoutingEngine implements RoutingEngine {
   private requestBody(req: RouteRequest, alternates: number | undefined): Record<string, unknown> {
     return {
       locations: [toValhallaLocation(req.origin), toValhallaLocation(req.destination)],
-      costing: 'truck',
-      costing_options: {
-        truck: {
-          height: req.dimensions.heightM,
-          width: req.dimensions.widthM,
-          length: req.dimensions.lengthM,
-          weight: req.dimensions.grossWeightT,
-          top_speed: TOP_SPEED_KPH,
-          ...(req.dimensions.axleWeightT === undefined
-            ? {}
-            : { axle_load: req.dimensions.axleWeightT }),
-        },
-      },
+      ...truckCosting(req.dimensions),
       ...(req.avoid.length === 0 ? {} : { exclude_polygons: req.avoid.map(toValhallaPolygon) }),
       ...(alternates === undefined ? {} : { alternates }),
     };
@@ -129,12 +152,43 @@ export class ValhallaRoutingEngine implements RoutingEngine {
     return ok(parsed as ValhallaSuccessResponse);
   }
 
+  /** The time, in seconds, to drive `trip`'s exact road at the HGV speed cap. Falls back to the
+   *  uncapped time scaled by `FALLBACK_TIME_FACTOR` if Valhalla can't walk the shape — a failure to
+   *  re-time never fails the route itself. */
+  private async retime(trip: ValhallaTrip, dimensions: Dimensions): Promise<number> {
+    const shape = trip.legs[0]?.shape;
+    const fallback = trip.summary.time * FALLBACK_TIME_FACTOR;
+    if (shape === undefined) return fallback;
+    try {
+      const response = await fetch(`${this.baseUrl}/trace_route`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          shape: decodePolyline(shape).map(toValhallaLocation),
+          shape_match: 'edge_walk',
+          ...truckCosting(dimensions, TOP_SPEED_KPH),
+        }),
+      });
+      if (!response.ok) return fallback;
+      const parsed = (await response.json()) as { trip?: { summary?: { time?: unknown } } };
+      const time = parsed.trip?.summary?.time;
+      return typeof time === 'number' && time > 0 ? time : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  private async toRouteResult(trip: ValhallaTrip, dimensions: Dimensions): Promise<RouteResult> {
+    const result = toRouteResult(trip);
+    return { ...result, durationMin: (await this.retime(trip, dimensions)) / 60 };
+  }
+
   async route(req: RouteRequest): Promise<Result<RouteResult, NoRouteFound>> {
     const result = await this.post(this.requestBody(req, undefined));
     if (!result.ok) {
       return result;
     }
-    return ok(toRouteResult(result.value.trip));
+    return ok(await this.toRouteResult(result.value.trip, req.dimensions));
   }
 
   async routeAlternatives(
@@ -145,6 +199,7 @@ export class ValhallaRoutingEngine implements RoutingEngine {
       return result;
     }
     const alternateTrips = result.value.alternates?.map((a) => a.trip) ?? [];
-    return ok([result.value.trip, ...alternateTrips].map(toRouteResult));
+    const trips = [result.value.trip, ...alternateTrips];
+    return ok(await Promise.all(trips.map((trip) => this.toRouteResult(trip, req.dimensions))));
   }
 }

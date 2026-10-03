@@ -133,6 +133,11 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-03: routing now chooses the road with no speed cap and times it with the 55 mph cap
+  (`/route` then `/trace_route`). The cap was making trucks take back roads instead of the A69, found
+  from the owner's Hexham to Hebburn report; width was not the cause. Golden routes re-recorded and a
+  Heddon-on-the-Wall regression test added. Needs the droplet's Valhalla trace limits raised for
+  routes over 200 km (`docs/deployment-guide.md` section 8). Check Hexham to Hebburn after deploy.
 - 2026-10-03: vehicle profile form warns (never blocks) about figures unusual for a UK lorry: width
   over 2.6 m, height over 4.95 m, length over 18.75 m, weight over 44 t, axle over 11.5 t. Prompted
   by a Hexham to Hebburn route on back roads from a test profile with a 4 m width, which routing

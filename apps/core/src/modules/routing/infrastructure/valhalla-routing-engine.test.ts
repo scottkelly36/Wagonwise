@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Dimensions } from '../domain/vehicle-profile.js';
-import { ValhallaRoutingEngine } from './valhalla-routing-engine.js';
+import { FALLBACK_TIME_FACTOR, ValhallaRoutingEngine } from './valhalla-routing-engine.js';
 
 interface ReceivedRequest {
   readonly body: Record<string, unknown>;
@@ -18,8 +18,14 @@ describe('ValhallaRoutingEngine', () => {
   let server: Server;
   let baseUrl: string;
   let nextRequest: Promise<ReceivedRequest>;
+  // What the fake answers to /trace_route (the re-timing step). Defaults to a refusal, which makes
+  // the engine use its fallback, so tests about route choice don't each need to script it.
+  let traceReply: { status: number; body: unknown };
+  let traceRequests: Record<string, unknown>[];
 
   beforeEach(async () => {
+    traceReply = { status: 400, body: { error_code: 442, error: 'No path could be found' } };
+    traceRequests = [];
     nextRequest = new Promise<ReceivedRequest>((resolveRequest) => {
       server = createServer((request: IncomingMessage, response) => {
         const chunks: Buffer[] = [];
@@ -29,6 +35,12 @@ describe('ValhallaRoutingEngine', () => {
             string,
             unknown
           >;
+          if (request.url === '/trace_route') {
+            traceRequests.push(body);
+            response.writeHead(traceReply.status, { 'content-type': 'application/json' });
+            response.end(JSON.stringify(traceReply.body));
+            return;
+          }
           resolveRequest({
             body,
             respond(responseBody: unknown, status: number): void {
@@ -68,7 +80,11 @@ describe('ValhallaRoutingEngine', () => {
 
     expect(result).toEqual({
       ok: true,
-      value: { geometry: 'encoded-shape', distanceKm: 8.038, durationMin: 475.465 / 60 },
+      value: {
+        geometry: 'encoded-shape',
+        distanceKm: 8.038,
+        durationMin: (475.465 * FALLBACK_TIME_FACTOR) / 60,
+      },
     });
   });
 
@@ -86,16 +102,127 @@ describe('ValhallaRoutingEngine', () => {
     expect(received.body.exclude_polygons).toBeUndefined();
   });
 
-  it('caps top_speed at 55mph (88kph) — a UK HGV limit isn’t always tagged on the road itself', async () => {
-    const engine = new ValhallaRoutingEngine(baseUrl);
-    const resultPromise = engine.route({ origin, destination, dimensions, avoid: [] });
-    const received = await nextRequest;
-    received.respond(successBody, 200);
-    await resultPromise;
+  describe('choosing the road versus timing it (2026-10-03)', () => {
+    // A real polyline6 of two known points, so the engine can decode it for the re-timing request.
+    // The encoder is test-only and separate from the shipped decoder, so a bug shared by both
+    // couldn't hide behind a round trip.
+    const encodeValue = (value: number): string => {
+      let shifted = value < 0 ? ~(value << 1) : value << 1;
+      let chars = '';
+      while (shifted >= 0x20) {
+        chars += String.fromCharCode((shifted & 0x1f) + 0x20 + 63);
+        shifted >>= 5;
+      }
+      return chars + String.fromCharCode(shifted + 63);
+    };
+    const line = [
+      { lat: 54.9707, lon: -2.1013 },
+      { lat: 54.9738, lon: -2.0165 },
+    ];
+    const shape = line
+      .map((p, i) => {
+        const prev = line[i - 1] ?? { lat: 0, lon: 0 };
+        return (
+          encodeValue(Math.round(p.lat * 1e6) - Math.round(prev.lat * 1e6)) +
+          encodeValue(Math.round(p.lon * 1e6) - Math.round(prev.lon * 1e6))
+        );
+      })
+      .join('');
 
-    expect(
-      (received.body.costing_options as { truck: Record<string, unknown> }).truck.top_speed,
-    ).toBe(88);
+    it('does not cap speed when choosing the route: the cap flattens road speeds and picked the back road over the A69', async () => {
+      const engine = new ValhallaRoutingEngine(baseUrl);
+      const resultPromise = engine.route({ origin, destination, dimensions, avoid: [] });
+      const received = await nextRequest;
+      received.respond(successBody, 200);
+      await resultPromise;
+
+      expect(
+        (received.body.costing_options as { truck: Record<string, unknown> }).truck.top_speed,
+      ).toBeUndefined();
+    });
+
+    it('times the chosen road with the 55mph cap (88kph), walking its exact shape', async () => {
+      traceReply = { status: 200, body: { trip: { summary: { time: 900, length: 8.038 } } } };
+      const engine = new ValhallaRoutingEngine(baseUrl);
+      const resultPromise = engine.route({
+        origin,
+        destination,
+        dimensions: { ...dimensions, axleWeightT: 10 },
+        avoid: [],
+      });
+      (await nextRequest).respond(
+        { trip: { summary: { time: 475.465, length: 8.038 }, legs: [{ shape }] } },
+        200,
+      );
+      const result = await resultPromise;
+
+      expect(result).toEqual({
+        ok: true,
+        value: { geometry: shape, distanceKm: 8.038, durationMin: 15 },
+      });
+      expect(traceRequests).toHaveLength(1);
+      expect(traceRequests[0]).toMatchObject({
+        shape_match: 'edge_walk',
+        costing: 'truck',
+        costing_options: {
+          truck: {
+            height: 4.2,
+            width: 2.6,
+            length: 16.5,
+            weight: 32,
+            axle_load: 10,
+            top_speed: 88,
+          },
+        },
+      });
+      expect(traceRequests[0]?.shape).toEqual(line);
+    });
+
+    it('falls back to the scaled uncapped time when Valhalla cannot walk the shape (e.g. over its distance limit)', async () => {
+      const engine = new ValhallaRoutingEngine(baseUrl);
+      const resultPromise = engine.route({ origin, destination, dimensions, avoid: [] });
+      (await nextRequest).respond(
+        { trip: { summary: { time: 600, length: 8 }, legs: [{ shape }] } },
+        200,
+      );
+      const result = await resultPromise;
+
+      expect(result.ok && result.value.durationMin).toBeCloseTo((600 * FALLBACK_TIME_FACTOR) / 60);
+    });
+
+    it('also falls back, rather than failing the route, when the re-timing answer is unusable', async () => {
+      traceReply = { status: 200, body: { trip: { summary: {} } } };
+      const engine = new ValhallaRoutingEngine(baseUrl);
+      const resultPromise = engine.route({ origin, destination, dimensions, avoid: [] });
+      (await nextRequest).respond(
+        { trip: { summary: { time: 600, length: 8 }, legs: [{ shape }] } },
+        200,
+      );
+      const result = await resultPromise;
+
+      expect(result.ok && result.value.durationMin).toBeCloseTo((600 * FALLBACK_TIME_FACTOR) / 60);
+    });
+
+    it('re-times each alternative separately', async () => {
+      traceReply = { status: 200, body: { trip: { summary: { time: 1200, length: 1 } } } };
+      const engine = new ValhallaRoutingEngine(baseUrl);
+      const resultPromise = engine.routeAlternatives({
+        origin,
+        destination,
+        dimensions,
+        avoid: [],
+      });
+      (await nextRequest).respond(
+        {
+          trip: { summary: { time: 400, length: 8 }, legs: [{ shape }] },
+          alternates: [{ trip: { summary: { time: 500, length: 9 }, legs: [{ shape }] } }],
+        },
+        200,
+      );
+      await resultPromise;
+
+      expect(traceRequests).toHaveLength(2);
+    });
   });
 
   it('sends axle_load only when axleWeightT is present', async () => {
@@ -230,8 +357,16 @@ describe('ValhallaRoutingEngine', () => {
       expect(result).toEqual({
         ok: true,
         value: [
-          { geometry: 'primary-shape', distanceKm: 8.038, durationMin: 475.465 / 60 },
-          { geometry: 'alternate-shape', distanceKm: 6, durationMin: 10 },
+          {
+            geometry: 'primary-shape',
+            distanceKm: 8.038,
+            durationMin: (475.465 * FALLBACK_TIME_FACTOR) / 60,
+          },
+          {
+            geometry: 'alternate-shape',
+            distanceKm: 6,
+            durationMin: (600 * FALLBACK_TIME_FACTOR) / 60,
+          },
         ],
       });
     });
@@ -249,7 +384,13 @@ describe('ValhallaRoutingEngine', () => {
 
       expect(result).toEqual({
         ok: true,
-        value: [{ geometry: 'encoded-shape', distanceKm: 8.038, durationMin: 475.465 / 60 }],
+        value: [
+          {
+            geometry: 'encoded-shape',
+            distanceKm: 8.038,
+            durationMin: (475.465 * FALLBACK_TIME_FACTOR) / 60,
+          },
+        ],
       });
     });
 
