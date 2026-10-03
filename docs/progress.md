@@ -128,6 +128,10 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-03: dashboard Jobs form takes a **postcode** per stop instead of latitude/longitude
+  (dispatchers don't have coordinates). Looked up in the browser against postcodes.io (free, no
+  key), with the resolved place shown under the field. what3words not done: it needs a paid API key
+  and account. See `history/p2-m4-portal-jobs.md`.
 - 2026-10-03: P2-M5.5b done: proof of delivery, driver app half (camera button at the delivery stop,
   offline photo queue keyed by job, "Delivered" held back while a required photo hasn't reached the
   server). New native dependency, so app `version` 1.1.0 and a fresh `eas build` is needed. Closes

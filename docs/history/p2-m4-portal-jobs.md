@@ -44,3 +44,21 @@ actually added.
 - Route preview (restrictions/hazards shown before assigning) — design doc §5 step 2; needs
   routing wired to a company vehicle's dimensions, not scoped here.
 - Job detail view, status timeline, or any status-advance/fail actions from the portal.
+
+## Follow-up: postcodes instead of coordinates (2026-10-03)
+
+The first version asked the dispatcher for each stop's latitude and longitude, which nobody at a
+haulage firm has to hand. The form now takes a **postcode** per stop (stop name stays separate).
+
+- **postcodes.io**, free and keyless, called from the browser the same way the driver app calls
+  MapTiler (`lib/postcodes.ts`, `hooks/use-postcode.ts`). It returns the centre of the postcode's
+  few dozen addresses, enough to route to a yard, not a gate-level pin.
+- **A live hint under each field** shows the resolved place ("✓ Hexham, Northumberland") so a typo
+  that is itself a real postcode gets noticed before a driver is sent there. Submit resolves both
+  postcodes again (cached, so free) rather than trusting the hint, so a quick click can't outrun it.
+- **The dashboard gets its first test runner** (`vitest`, `pnpm --filter @wagonwise/dashboard
+test`) for the pure lookup logic.
+- **Not done:** what3words (paid API key and an account only the owner can create; worth it for
+  farms and quarries without a useful postcode), address search like the driver app's (would need a
+  MapTiler key in the dashboard), and a map pin picker. A postcode with no point, or a stop with no
+  postcode at all, can't be entered.

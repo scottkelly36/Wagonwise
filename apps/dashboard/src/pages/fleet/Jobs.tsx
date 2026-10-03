@@ -1,10 +1,12 @@
 import { companyIdSchema } from '@wagonwise/contracts/companies';
 import type { JobDto } from '@wagonwise/contracts/jobs';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import * as jobsApi from '../../api/jobs';
+import { resolvePostcode, usePostcode } from '../../hooks/use-postcode';
+import { PostcodeNotFoundError, type ResolvedPostcode } from '../../lib/postcodes';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
@@ -15,11 +17,9 @@ const TERMINAL: readonly JobDto['status'][] = ['delivered', 'cancelled', 'failed
 const EMPTY_FORM = {
   reference: '',
   pickupName: '',
-  pickupLat: '',
-  pickupLon: '',
+  pickupPostcode: '',
   deliveryName: '',
-  deliveryLat: '',
-  deliveryLon: '',
+  deliveryPostcode: '',
   requiresProofOfDelivery: false,
 };
 
@@ -71,27 +71,28 @@ export function Jobs() {
   const refreshJobs = () => void queryClient.invalidateQueries({ queryKey: jobsKey });
 
   const [form, setForm] = useState(EMPTY_FORM);
+  const pickupPostcode = usePostcode(form.pickupPostcode);
+  const deliveryPostcode = usePostcode(form.deliveryPostcode);
   const createJob = useMutation({
-    mutationFn: () =>
-      withAccessToken((token) =>
+    mutationFn: async () => {
+      // Resolved here rather than trusting the live hint's state, so a fast click on Create can't
+      // outrun the lookup; the cache makes it free when the hint has already got the answer.
+      const [pickup, delivery] = await Promise.all([
+        resolvePostcode(queryClient, form.pickupPostcode),
+        resolvePostcode(queryClient, form.deliveryPostcode),
+      ]);
+      return withAccessToken((token) =>
         jobsApi.createJob(token, companyId as string, {
           companyId: companyIdSchema.parse(companyId),
           reference: form.reference,
           stops: [
-            {
-              kind: 'pickup',
-              name: form.pickupName,
-              location: { lat: Number(form.pickupLat), lon: Number(form.pickupLon) },
-            },
-            {
-              kind: 'delivery',
-              name: form.deliveryName,
-              location: { lat: Number(form.deliveryLat), lon: Number(form.deliveryLon) },
-            },
+            { kind: 'pickup', name: form.pickupName, location: pickup.location },
+            { kind: 'delivery', name: form.deliveryName, location: delivery.location },
           ],
           requiresProofOfDelivery: form.requiresProofOfDelivery,
         }),
-      ),
+      );
+    },
     onSuccess: () => {
       setForm(EMPTY_FORM);
       refreshJobs();
@@ -122,6 +123,8 @@ export function Jobs() {
       form.reference.trim() === '' ||
       form.pickupName.trim() === '' ||
       form.deliveryName.trim() === '' ||
+      form.pickupPostcode.trim() === '' ||
+      form.deliveryPostcode.trim() === '' ||
       companyId === undefined
     ) {
       return;
@@ -196,17 +199,11 @@ export function Jobs() {
                   placeholder="Pickup name"
                   style={{ width: 140 }}
                 />
-                <input
-                  value={form.pickupLat}
-                  onChange={(e) => setForm((f) => ({ ...f, pickupLat: e.target.value }))}
-                  placeholder="Pickup lat"
-                  style={{ width: 90 }}
-                />
-                <input
-                  value={form.pickupLon}
-                  onChange={(e) => setForm((f) => ({ ...f, pickupLon: e.target.value }))}
-                  placeholder="Pickup lon"
-                  style={{ width: 90 }}
+                <PostcodeField
+                  value={form.pickupPostcode}
+                  onChange={(value) => setForm((f) => ({ ...f, pickupPostcode: value }))}
+                  placeholder="Pickup postcode"
+                  lookup={pickupPostcode}
                 />
                 <input
                   value={form.deliveryName}
@@ -214,17 +211,11 @@ export function Jobs() {
                   placeholder="Delivery name"
                   style={{ width: 140 }}
                 />
-                <input
-                  value={form.deliveryLat}
-                  onChange={(e) => setForm((f) => ({ ...f, deliveryLat: e.target.value }))}
-                  placeholder="Delivery lat"
-                  style={{ width: 90 }}
-                />
-                <input
-                  value={form.deliveryLon}
-                  onChange={(e) => setForm((f) => ({ ...f, deliveryLon: e.target.value }))}
-                  placeholder="Delivery lon"
-                  style={{ width: 90 }}
+                <PostcodeField
+                  value={form.deliveryPostcode}
+                  onChange={(value) => setForm((f) => ({ ...f, deliveryPostcode: value }))}
+                  placeholder="Delivery postcode"
+                  lookup={deliveryPostcode}
                 />
                 <label style={{ display: 'flex', alignItems: 'center', gap: 4, height: 36 }}>
                   <input
@@ -347,5 +338,42 @@ export function Jobs() {
         </>
       )}
     </div>
+  );
+}
+
+/** A postcode box with the place it resolves to underneath, so a typo that happens to be another
+ *  real postcode ("NE46" vs "NE45") is caught by the dispatcher before the driver is sent there. */
+function PostcodeField({
+  value,
+  onChange,
+  placeholder,
+  lookup,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  lookup: UseQueryResult<ResolvedPostcode>;
+}) {
+  let hint: { text: string; color: string } | undefined;
+  if (lookup.isFetching) {
+    hint = { text: 'Looking up…', color: '#6b7280' };
+  } else if (lookup.data !== undefined) {
+    hint = { text: `✓ ${lookup.data.place}`, color: '#15803d' };
+  } else if (lookup.error instanceof PostcodeNotFoundError) {
+    hint = { text: "Can't find that postcode", color: '#dc2626' };
+  } else if (lookup.error !== null) {
+    hint = { text: "Couldn't check it just now", color: '#b45309' };
+  }
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete="off"
+        style={{ width: 130, textTransform: 'uppercase' }}
+      />
+      <small style={{ color: hint?.color, minHeight: 16 }}>{hint?.text}</small>
+    </span>
   );
 }
