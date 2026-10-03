@@ -129,6 +129,11 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-03: vehicle profile form warns (never blocks) about figures unusual for a UK lorry: width
+  over 2.6 m, height over 4.95 m, length over 18.75 m, weight over 44 t, axle over 11.5 t. Prompted
+  by a Hexham to Hebburn route on back roads from a test profile with a 4 m width, which routing
+  treats literally. JS-only, so `eas update`. Cause of that route not yet confirmed; see the routing
+  note in `docs/ideas.md` once the moderation PR is merged.
 - 2026-10-03: P2-M6.4b done: on the Jobs page, choosing a vehicle for a draft job now shows how far
   and how long the job is for that vehicle, or that it has no route (`POST /staff/jobs/:id/route-preview`).
   Advice only; assigning is not blocked. Not yet checked against a real Valhalla. Only the reroute

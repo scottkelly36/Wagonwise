@@ -10,6 +10,7 @@ import {
 
 import { formatHeightWithFeetInches } from '../lib/units';
 import {
+  dimensionWarnings,
   parseVehicleProfileForm,
   type ParsedVehicleProfile,
   type VehicleProfileFormValues,
@@ -56,6 +57,7 @@ export function VehicleProfileForm({
   }
 
   const heightPreview = formatHeightWithFeetInches(Number(values.heightM));
+  const warnings = dimensionWarnings(values);
   const displayedError = validationError ?? errorMessage;
 
   return (
@@ -80,6 +82,11 @@ export function VehicleProfileForm({
         keyboardType="decimal-pad"
         testID="profile-height-input"
       />
+      {warnings.heightM !== undefined && (
+        <Text style={styles.warning} testID="profile-height-warning">
+          {warnings.heightM}
+        </Text>
+      )}
       {heightPreview !== '' && <Text style={styles.hint}>{heightPreview}</Text>}
 
       <Text style={styles.label}>Width (metres)</Text>
@@ -92,6 +99,11 @@ export function VehicleProfileForm({
         keyboardType="decimal-pad"
         testID="profile-width-input"
       />
+      {warnings.widthM !== undefined && (
+        <Text style={styles.warning} testID="profile-width-warning">
+          {warnings.widthM}
+        </Text>
+      )}
 
       <Text style={styles.label}>Length (metres)</Text>
       <TextInput
@@ -103,6 +115,11 @@ export function VehicleProfileForm({
         keyboardType="decimal-pad"
         testID="profile-length-input"
       />
+      {warnings.lengthM !== undefined && (
+        <Text style={styles.warning} testID="profile-length-warning">
+          {warnings.lengthM}
+        </Text>
+      )}
 
       <Text style={styles.label}>Gross weight (tonnes)</Text>
       <TextInput
@@ -114,6 +131,11 @@ export function VehicleProfileForm({
         keyboardType="decimal-pad"
         testID="profile-weight-input"
       />
+      {warnings.grossWeightT !== undefined && (
+        <Text style={styles.warning} testID="profile-weight-warning">
+          {warnings.grossWeightT}
+        </Text>
+      )}
 
       <Text style={styles.label}>Axle weight (tonnes, optional)</Text>
       <TextInput
@@ -125,6 +147,11 @@ export function VehicleProfileForm({
         keyboardType="decimal-pad"
         testID="profile-axle-weight-input"
       />
+      {warnings.axleWeightT !== undefined && (
+        <Text style={styles.warning} testID="profile-axle-weight-warning">
+          {warnings.axleWeightT}
+        </Text>
+      )}
 
       <Text style={styles.label}>Fuel consumption (L/100km, optional)</Text>
       <TextInput
@@ -174,6 +201,11 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 12,
       paddingHorizontal: 16,
       marginTop: 8,
+    },
+    warning: {
+      fontSize: 14,
+      color: colors.warning,
+      marginTop: 4,
     },
     hint: {
       fontSize: 14,
