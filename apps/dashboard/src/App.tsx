@@ -7,6 +7,7 @@ import { StaffLayout } from './components/StaffLayout';
 import { Companies } from './pages/admin/Companies';
 import { CongestionReports } from './pages/admin/CongestionReports';
 import { HazardReports } from './pages/admin/HazardReports';
+import { Moderation } from './pages/admin/Moderation';
 import { Drivers } from './pages/fleet/Drivers';
 import { Jobs } from './pages/fleet/Jobs';
 import { FleetOverview } from './pages/fleet/Overview';
@@ -52,6 +53,7 @@ export function App() {
             <Route path="/staff/activity" element={<Activity />} />
             <Route path="/admin/companies" element={<Companies />} />
             <Route path="/admin/invite-codes" element={<InviteCodes />} />
+            <Route path="/admin/moderation" element={<Moderation />} />
             <Route path="/admin/hazard-reports" element={<HazardReports />} />
             <Route path="/admin/congestion-reports" element={<CongestionReports />} />
             {/* P2-M2.8: the driver-accounts screen (assign one company) is gone — Drivers

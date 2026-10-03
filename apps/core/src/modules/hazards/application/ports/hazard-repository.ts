@@ -1,5 +1,6 @@
 import type { DomainEvent } from '../../../../shared/domain-event.js';
 import type { GeoPoint, HazardReport, HazardReportId } from '../../domain/hazard-report.js';
+import type { ModerationDecision } from '../../domain/moderation.js';
 
 export interface HazardRepository {
   findById(id: HazardReportId): Promise<HazardReport | null>;
@@ -27,6 +28,19 @@ export interface HazardRepository {
    *  decision 4 — `reportHazard`/`confirmHazard` are the only callers that ever pass any;
    *  dismiss/expire pass none, since nothing consumes those events yet. */
   save(report: HazardReport, events?: readonly DomainEvent[]): Promise<void>;
+  /** Active reports no moderator has approved that are blocking-type or disputed: what the
+   *  moderation queue (P2-M7.1) works through. A superset-safe query; `queueReasons` (domain) is
+   *  the authority on why each one is there. */
+  findAwaitingReview(): Promise<HazardReport[]>;
+  /** A moderator's decision applied atomically: the changed report, the audit record, and the
+   *  events, in one transaction — so there is never a decision with no change, or the reverse. */
+  saveModerated(
+    report: HazardReport,
+    decision: ModerationDecision,
+    events: readonly DomainEvent[],
+  ): Promise<void>;
+  /** What moderators have decided about a report, oldest first. */
+  findDecisions(hazardId: HazardReportId): Promise<ModerationDecision[]>;
   /** True removal, unlike `save`'s upsert — the row is gone, not just re-statused. Only
    *  `application/delete-hazard.ts` calls this, and only ever behind an admin check
    *  (interface/routes.ts) — this port itself enforces nothing about who's allowed to call it. */

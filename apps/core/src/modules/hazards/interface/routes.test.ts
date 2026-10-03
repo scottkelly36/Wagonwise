@@ -18,7 +18,11 @@ const DRIVER_HEADER = 'x-test-driver-id';
 const STAFF_HEADER = 'x-test-staff-id';
 const ADMIN_STAFF_ID = makeId<'StaffId'>('admin-staff');
 
-function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
+function buildApp(): {
+  app: FastifyInstance;
+  deps: HazardsRouteDeps;
+  repo: InMemoryHazardRepository;
+} {
   const repo = new InMemoryHazardRepository();
   const clock = new FakeClock(now);
   const ids = new SequentialIdGenerator();
@@ -32,6 +36,9 @@ function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
     listHazards: { repo, admins },
     parseVoiceReport: { parser: new StubHazardParser() },
     findNearbyHazards: { repo, clock },
+    moderationQueue: { repo, admins },
+    moderateHazard: { repo, admins, clock, ids },
+    moderationDecisions: { repo, admins },
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {
@@ -46,7 +53,7 @@ function buildApp(): { app: FastifyInstance; deps: HazardsRouteDeps } {
     done();
   });
   registerHazardsRoutes(app, deps);
-  return { app, deps };
+  return { app, deps, repo };
 }
 
 function asDriver(driverId: string): { headers: Record<string, string> } {
@@ -539,5 +546,136 @@ describe('GET /staff/hazard-reports', () => {
     const { app } = buildApp();
     const response = await app.inject({ method: 'GET', url: '/staff/hazard-reports' });
     expect(response.statusCode).toBe(401);
+  });
+});
+
+describe('moderation (P2-M7.1)', () => {
+  const REPORT_ID = '11111111-1111-4111-8111-111111111111';
+  const report = (overrides: Record<string, unknown> = {}) => ({
+    id: makeId<'HazardReportId'>(REPORT_ID),
+    reporterId: makeId<'DriverId'>('driver-1'),
+    type: 'low_bridge' as const,
+    location,
+    source: 'tap' as const,
+    confirmations: 0,
+    dismissals: 0,
+    status: 'active' as const,
+    createdAt: now,
+    ...overrides,
+  });
+  const moderate = (app: FastifyInstance, payload: unknown, staff = ADMIN_STAFF_ID as string) =>
+    app.inject({
+      method: 'POST',
+      url: `/staff/hazard-reports/${REPORT_ID}/moderate`,
+      payload: payload as object,
+      ...asStaff(staff),
+    });
+
+  it('lists blocking and disputed reports in the queue, and not quiet advisory ones', async () => {
+    const { app, repo } = buildApp();
+    await repo.save(report());
+    await repo.save(
+      report({
+        id: makeId<'HazardReportId'>('22222222-2222-4222-8222-222222222222'),
+        type: 'tight_bend',
+      }),
+    );
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/staff/hazard-reports/moderation-queue',
+      ...asStaff(ADMIN_STAFF_ID),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const { items } = response.json<{ items: { hazard: { id: string }; reasons: string[] }[] }>();
+    expect(items.map((i) => i.hazard.id)).toEqual([REPORT_ID]);
+    expect(items[0]?.reasons).toEqual(['blocking_unreviewed']);
+  });
+
+  it('approving takes a report out of the queue and records who decided', async () => {
+    const { app, repo } = buildApp();
+    await repo.save(report());
+
+    const response = await moderate(app, { action: 'approve', note: 'Checked on street view' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      action: 'approve',
+      moderatorId: ADMIN_STAFF_ID,
+      note: 'Checked on street view',
+    });
+    const queue = await app.inject({
+      method: 'GET',
+      url: '/staff/hazard-reports/moderation-queue',
+      ...asStaff(ADMIN_STAFF_ID),
+    });
+    expect(queue.json()).toEqual({ items: [] });
+    expect(repo.emittedEvents.map((e) => e.eventType)).toEqual(['HazardModerated']);
+  });
+
+  it('rejecting dismisses the report and the audit trail shows before and after', async () => {
+    const { app, repo } = buildApp();
+    await repo.save(report());
+
+    expect((await moderate(app, { action: 'reject' })).statusCode).toBe(200);
+
+    expect((await repo.findById(makeId<'HazardReportId'>(REPORT_ID)))?.status).toBe('dismissed');
+    const trail = await app.inject({
+      method: 'GET',
+      url: `/staff/hazard-reports/${REPORT_ID}/decisions`,
+      ...asStaff(ADMIN_STAFF_ID),
+    });
+    expect(trail.json()).toMatchObject({
+      decisions: [
+        { action: 'reject', before: { status: 'active' }, after: { status: 'dismissed' } },
+      ],
+    });
+  });
+
+  it('edits a measurement, and refuses one that is not positive', async () => {
+    const { app, repo } = buildApp();
+    await repo.save(report());
+
+    const fixed = await moderate(app, {
+      action: 'edit',
+      measurement: { kind: 'height', value: 3.5, unit: 'm' },
+    });
+    expect(fixed.statusCode).toBe(200);
+    expect((await repo.findById(makeId<'HazardReportId'>(REPORT_ID)))?.measurement?.value).toBe(
+      3.5,
+    );
+
+    const bad = await moderate(app, {
+      action: 'edit',
+      measurement: { kind: 'height', value: -1, unit: 'm' },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
+
+  it('is for WagonWise admins only, and says nothing about whether an id exists', async () => {
+    const { app, repo } = buildApp();
+    await repo.save(report());
+    expect((await moderate(app, { action: 'reject' }, 'someone-else')).statusCode).toBe(403);
+    expect((await repo.findById(makeId<'HazardReportId'>(REPORT_ID)))?.status).toBe('active');
+    const unknown = await app.inject({
+      method: 'POST',
+      url: '/staff/hazard-reports/99999999-9999-4999-8999-999999999999/moderate',
+      payload: { action: 'reject' },
+      ...asStaff('someone-else'),
+    });
+    expect(unknown.statusCode).toBe(403);
+    const queue = await app.inject({
+      method: 'GET',
+      url: '/staff/hazard-reports/moderation-queue',
+      ...asStaff('someone-else'),
+    });
+    expect(queue.statusCode).toBe(403);
+  });
+
+  it('404s an unknown report for an admin, and 400s an unknown action', async () => {
+    const { app } = buildApp();
+    expect((await moderate(app, { action: 'approve' })).statusCode).toBe(404);
+    expect((await moderate(app, { action: 'banish' })).statusCode).toBe(400);
   });
 });

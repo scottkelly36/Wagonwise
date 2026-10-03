@@ -4,6 +4,7 @@ import {
   hazardReportSchema,
   hazardTypeSchema,
   measurementSchema,
+  moderateHazardRequestSchema,
   parseVoiceHazardReportRequestSchema,
   parsedVoiceHazardReportSchema,
   reportHazardRequestSchema,
@@ -144,5 +145,37 @@ describe('hazardReportSchema', () => {
       createdAt: '2026-06-15T08:00:00.000Z',
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe('moderateHazardRequestSchema', () => {
+  const parse = (body: unknown) => moderateHazardRequestSchema.safeParse(body);
+
+  it('accepts each action in its own shape', () => {
+    expect(parse({ action: 'approve' }).success).toBe(true);
+    expect(parse({ action: 'reject', note: 'duplicate of another report' }).success).toBe(true);
+    expect(parse({ action: 'set_lifetime', lifetime: 'permanent' }).success).toBe(true);
+    expect(
+      parse({
+        action: 'edit',
+        type: 'weight_limit',
+        measurement: { kind: 'weight', value: 7.5, unit: 't' },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('lets an edit remove the measurement with null, and leave it alone by omitting it', () => {
+    expect(parse({ action: 'edit', measurement: null }).success).toBe(true);
+    expect(parse({ action: 'edit' }).success).toBe(true);
+  });
+
+  it('refuses an unknown action, a missing lifetime, a bad measurement or an over-long note', () => {
+    expect(parse({ action: 'banish' }).success).toBe(false);
+    expect(parse({ action: 'set_lifetime' }).success).toBe(false);
+    expect(parse({ action: 'set_lifetime', lifetime: 'forever' }).success).toBe(false);
+    expect(
+      parse({ action: 'edit', measurement: { kind: 'height', value: 0, unit: 'm' } }).success,
+    ).toBe(false);
+    expect(parse({ action: 'approve', note: 'x'.repeat(501) }).success).toBe(false);
   });
 });

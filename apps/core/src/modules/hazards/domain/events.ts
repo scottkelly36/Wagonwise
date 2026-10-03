@@ -1,5 +1,6 @@
 import type { DomainEvent } from '../../../shared/domain-event.js';
 import type { GeoPoint, HazardReport, HazardType, Measurement } from './hazard-report.js';
+import type { ModerationDecision } from './moderation.js';
 
 /**
  * `HazardReported`/`HazardConfirmed` (design doc §3's event list; §6 names both as the alert
@@ -66,6 +67,36 @@ export function hazardConfirmedEvent(
       type: report.type,
       measurement: report.measurement,
       location: report.location,
+    },
+  };
+}
+
+/** A WagonWise moderator acted on a report (design doc §3's `HazardModerated`). Nothing consumes it
+ *  yet; reporter trust (M7.2) and the per-driver hazard reports (Phase 2 reporting) will. The full
+ *  before/after lives in `hazards.moderation_decisions`, so the event carries only what a
+ *  subscriber needs to react to. */
+export interface HazardModeratedPayload {
+  readonly hazardId: string;
+  readonly reporterId: string;
+  readonly moderatorId: string;
+  readonly action: ModerationDecision['action'];
+}
+
+export function hazardModeratedEvent(
+  eventId: string,
+  report: HazardReport,
+  decision: ModerationDecision,
+): DomainEvent<HazardModeratedPayload> {
+  return {
+    eventId,
+    aggregateType: 'HazardReport',
+    aggregateId: report.id,
+    eventType: 'HazardModerated',
+    payload: {
+      hazardId: report.id,
+      reporterId: report.reporterId,
+      moderatorId: decision.moderatorId,
+      action: decision.action,
     },
   };
 }

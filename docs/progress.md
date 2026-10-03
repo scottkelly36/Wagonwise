@@ -129,6 +129,11 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-03: P2-M7.1 done: the hazard moderation queue. WagonWise staff see new blocking-type and
+  disputed reports on a new **Moderation** page and can approve, reject, edit or set permanent/
+  temporary, each recorded with who and what changed (migration 0033). Routing is unchanged. M7.2
+  (trust score and the "hold doubtful reports" routing rule, owner chose "hybrid by severity") is
+  next; its "major road" condition needs data we don't have. See `history/p2-m7-moderation.md`.
 - 2026-10-03: P2-M6.4b done: on the Jobs page, choosing a vehicle for a draft job now shows how far
   and how long the job is for that vehicle, or that it has no route (`POST /staff/jobs/:id/route-preview`).
   Advice only; assigning is not blocked. Not yet checked against a real Valhalla. Only the reroute
@@ -265,5 +270,6 @@ Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those no
 | `history/p2-m2-driver-links.md`       | P2-M2 driver links: plan and decisions (active)                     | —         |
 | `history/p2-m4-portal-jobs.md`        | P2-M4: jobs in the portal                                           | —         |
 | `history/p2-m5-driver-app-jobs.md`    | P2-M5: jobs in the driver app (active)                              | —         |
+| `history/p2-m7-moderation.md`         | P2-M7: hazard moderation and trust scoring (active)                 | —         |
 | `history/p2-m6-live-map.md`           | P2-M6: live fleet map, and the tracking/store-review notes (active) | —         |
 | `ideas.md`                            | Field-testing ideas backlog (shipped and unscheduled)               | —         |

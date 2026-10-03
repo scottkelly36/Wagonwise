@@ -1,6 +1,7 @@
 import {
   findNearbyHazardsRequestSchema,
   hazardReportIdParamsSchema,
+  moderateHazardRequestSchema,
   parseVoiceHazardReportRequestSchema,
   reportHazardRequestSchema,
 } from '@wagonwise/contracts/hazards';
@@ -15,6 +16,15 @@ import {
 } from '../application/find-nearby-hazards.js';
 import { getHazard, type GetHazardDeps } from '../application/get-hazard.js';
 import { listHazards, type ListHazardsDeps } from '../application/list-hazards.js';
+import {
+  listModerationDecisions,
+  listModerationQueue,
+  moderateHazard,
+  type ListModerationDecisionsDeps,
+  type ListModerationQueueDeps,
+  type ModerateHazardDeps,
+} from '../application/moderation.js';
+import type { ModerationAction } from '../domain/moderation.js';
 import { parseVoiceReport, type ParseVoiceReportDeps } from '../application/parse-voice-report.js';
 import { reportHazard, type ReportHazardDeps } from '../application/report-hazard.js';
 import { statusFor } from './error-mapping.js';
@@ -28,6 +38,9 @@ export interface HazardsRouteDeps {
   readonly listHazards: ListHazardsDeps;
   readonly parseVoiceReport: ParseVoiceReportDeps;
   readonly findNearbyHazards: FindNearbyHazardsDeps;
+  readonly moderationQueue: ListModerationQueueDeps;
+  readonly moderateHazard: ModerateHazardDeps;
+  readonly moderationDecisions: ListModerationDecisionsDeps;
 }
 
 /**
@@ -200,5 +213,64 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(200).send({ hazards: result.value });
+  });
+
+  // ---- Moderation (P2-M7.1): WagonWise admins only; each use case makes the admin check itself,
+  // before looking anything up, so a non-admin learns nothing. ----
+
+  app.get('/staff/hazard-reports/moderation-queue', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
+    const result = await listModerationQueue(deps.moderationQueue, { callerId: staffId });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply
+      .status(200)
+      .send({ items: result.value.map((i) => ({ hazard: i.report, reasons: i.reasons })) });
+  });
+
+  app.post('/staff/hazard-reports/:id/moderate', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
+    const params = hazardReportIdParamsSchema.safeParse(request.params);
+    const body = moderateHazardRequestSchema.safeParse(request.body);
+    if (!params.success || !body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const input = body.data;
+    const action: ModerationAction =
+      input.action === 'edit'
+        ? { kind: 'edit', type: input.type, measurement: input.measurement }
+        : input.action === 'set_lifetime'
+          ? { kind: 'set_lifetime', lifetime: input.lifetime }
+          : { kind: input.action };
+    const result = await moderateHazard(deps.moderateHazard, {
+      callerId: staffId,
+      id: makeId<'HazardReportId'>(params.data.id),
+      action,
+      note: input.note,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send(result.value);
+  });
+
+  app.get('/staff/hazard-reports/:id/decisions', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
+    const params = hazardReportIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await listModerationDecisions(deps.moderationDecisions, {
+      callerId: staffId,
+      id: makeId<'HazardReportId'>(params.data.id),
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send({ decisions: result.value });
   });
 }
