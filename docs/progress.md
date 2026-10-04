@@ -133,6 +133,14 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-04: automated driver app releases. A GitHub Actions workflow (`driver-app-release.yml`) runs after CI
+  passes on main: a JavaScript-only app change publishes `eas update` (after waiting for the live server to have the
+  routes the app needs, from `.github/release/api-checks.txt`); a raised `version` on a PR labelled
+  `release-android` builds and uploads to Play internal testing; anything else does nothing and says why. Rules are
+  in tested scripts (`pnpm test:ci-scripts`, now in CI and `pnpm verify`). **Needs the owner's one-off setup before it
+  can run:** the `EXPO_TOKEN` and `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` secrets and the `release-android` label
+  (`docs/deployment-guide.md` section 9). Not run for real yet: the first run is the "check" mode.
+
 - 2026-10-04: driver app redesign, to match the owner's mock: a Map / Jobs / Saved / More tab bar, a new
   Home (job card, round recentre and layers buttons, icon quick actions, a Where-to sheet), lifted
   cards and icons on every screen, a back button on pushed screens, and a deeper brand blue. Also

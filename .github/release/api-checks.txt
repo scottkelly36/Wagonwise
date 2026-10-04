@@ -1,0 +1,10 @@
+# Server routes the driver app depends on, checked before an over-the-air update is published.
+#
+#   METHOD /path EXPECTED_STATUS
+#
+# These are unauthenticated calls, so a route that exists answers 401 (a missing one answers 404).
+# Add a line whenever an app change needs a new server route, so the update waits for the deploy.
+
+GET  /health                                                      200
+GET  /jobs/current                                                401
+POST /jobs/00000000-0000-4000-8000-000000000000/navigation-profile 401

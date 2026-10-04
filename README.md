@@ -517,6 +517,11 @@ Console's internal-testing track by hand; later ones can use `eas submit --platf
 | JavaScript only (screens, logic, text, styling) — most fixes                     | `eas update --channel production --environment production --message "…"`. No version bump, no new build, no Play upload. |
 | Native (new/upgraded native package, `plugins` or permissions, Expo SDK upgrade) | Bump `version` in `app.config.ts`, `eas build --platform android --profile production`, upload the `.aab` to Play.       |
 
+**These now run themselves.** On every merge to `main` the "Driver app release" workflow publishes the
+JavaScript update, or (for a raised `version` on a pull request labelled `release-android`) builds and uploads to
+Play internal testing. The commands above remain for running by hand. How it decides, the secrets it needs and the
+server-route check are in `docs/deployment-guide.md`, section 9.
+
 - `version` follows semver **per store build** (1.0.1 fixes, 1.1.0 features, 2.0.0 major). An update
   can't change it — it's baked into the binary — so over-the-air fixes are identified by their
   `--message` in the Expo dashboard, not by a version number.

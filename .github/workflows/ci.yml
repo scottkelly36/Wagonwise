@@ -44,6 +44,10 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # The release workflow's own rules and checks (.github/scripts), tested like any other code.
+      - name: CI script tests
+        run: pnpm test:ci-scripts
+
       - name: Architecture rules
         run: pnpm arch
 

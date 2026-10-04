@@ -1,0 +1,198 @@
+name: Driver app release
+
+# Gets a merged driver app change onto phones without anyone running eas by hand.
+#
+#   - A JavaScript-only change publishes an over-the-air update (eas update) to the production channel.
+#   - A native change (the version in apps/driver-app/app.config.ts was raised, and the pull request
+#     carries the release-android label) builds the Android app and uploads it to Google Play's
+#     internal testing track. Promoting it to a wider track stays a deliberate step in Play Console.
+#   - Anything else does nothing, and the run summary says why.
+#
+# It only runs after CI has passed on main (workflow_run), so nothing unverified reaches phones. It can
+# also be run by hand (Actions, Driver app release, Run workflow): "check" proves the secrets work
+# without publishing anything. Rules are in .github/scripts/release-decision.mjs and are tested.
+#
+# Secrets needed (see docs/deployment-guide.md, "Automated app releases"):
+#   EXPO_TOKEN                        an Expo access token
+#   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON  the Google Play service account key (the whole JSON)
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: check (prove the secrets work, publish nothing), update (publish an over-the-air update), build (build and upload to Play internal testing)
+        type: choice
+        options: [check, update, build]
+        default: check
+
+permissions:
+  contents: read
+  pull-requests: read
+
+# One release at a time, and never cancel one halfway through a build or an upload.
+concurrency:
+  group: driver-app-release
+  cancel-in-progress: false
+
+env:
+  # The commit that was tested. For a manual run, the commit the run was started on.
+  RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  decide:
+    # CI must have passed. A manual run needs no CI.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      kind: ${{ steps.decide.outputs.kind }}
+      # Until the owner has added the secrets, a release is skipped with a note, not failed.
+      configured: ${{ steps.configured.outputs.configured }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+      - name: Decide what to release
+        id: decide
+        run: node .github/scripts/decide-release.mjs
+        env:
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
+          HEAD_SHA: ${{ env.RELEASE_SHA }}
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Is the release set up?
+        id: configured
+        run: |
+          if [ -n "$EXPO_TOKEN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            if [ "${{ steps.decide.outputs.kind }}" = "update" ] || [ "${{ steps.decide.outputs.kind }}" = "build" ]; then
+              echo "> **Not published:** the EXPO_TOKEN secret is not set yet, so nothing was released. See docs/deployment-guide.md, section 9." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+  check:
+    needs: decide
+    if: needs.decide.outputs.kind == 'check'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Check the release setup
+        run: node .github/scripts/check-release-setup.mjs
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+
+  update:
+    needs: decide
+    if: needs.decide.outputs.kind == 'update' && needs.decide.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: pnpm install --frozen-lockfile
+
+      # The server deploys separately and may finish after CI. Publishing an app that calls a route
+      # that is not live yet would break it for every driver, so wait for the routes it needs.
+      - name: Wait for the server to have what the app needs
+        run: node .github/scripts/wait-for-api.mjs
+
+      - name: Publish the over-the-air update
+        working-directory: apps/driver-app
+        run: |
+          eas update --channel production --environment production --non-interactive \
+            --message "$(git log -1 --format=%s "$RELEASE_SHA")"
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Summary
+        run: |
+          {
+            echo "## Over-the-air update published"
+            echo
+            echo "Commit \`${RELEASE_SHA::7}\` is on the production channel. Phones pick it up the next time the app opens (it may apply on the launch after that)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: decide
+    if: needs.decide.outputs.kind == 'build' && needs.decide.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: pnpm install --frozen-lockfile
+
+      # Fail early, in plain words, if the Google key is missing or malformed, rather than after a
+      # twenty-minute build.
+      - name: Check the Google Play key before building
+        run: node .github/scripts/check-release-setup.mjs
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+
+      # The key is written for the build's own upload step and removed afterwards. The file is
+      # git-ignored and referenced by eas.json's submit profile.
+      - name: Write the Google Play key
+        working-directory: apps/driver-app
+        run: |
+          umask 077
+          printf '%s' "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" > google-play-service-account.json
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+
+      - name: Build the Android app and upload it to Play internal testing
+        working-directory: apps/driver-app
+        run: eas build --platform android --profile production --non-interactive --wait --auto-submit
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Remove the Google Play key
+        if: always()
+        working-directory: apps/driver-app
+        run: rm -f google-play-service-account.json
+
+      - name: Summary
+        run: |
+          {
+            echo "## Android build uploaded to Play internal testing"
+            echo
+            echo "Commit \`${RELEASE_SHA::7}\`. Open Play Console, Testing, Internal testing, check the new release, and promote it when you are happy."
+          } >> "$GITHUB_STEP_SUMMARY"
