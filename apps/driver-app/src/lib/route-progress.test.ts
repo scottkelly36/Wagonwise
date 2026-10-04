@@ -54,12 +54,50 @@ describe('routeProgress', () => {
       remainingMetres: 0,
       totalMetres: 0,
       remainingFraction: 0,
+      offRouteMetres: 0,
     });
     expect(routeProgress([[0, 0]], { lat: 0, lon: 0 })).toEqual({
       traveledMetres: 0,
       remainingMetres: 0,
       totalMetres: 0,
       remainingFraction: 0,
+      offRouteMetres: 0,
     });
+  });
+
+  it('reports how far off the route a position is, and zero on the line', () => {
+    // A straight line north along longitude 0, roughly 1.1 km long
+    const line: [number, number][] = [
+      [0, 54],
+      [0, 54.01],
+    ];
+    expect(routeProgress(line, { lat: 54.005, lon: 0 }).offRouteMetres).toBeCloseTo(0, 0);
+    // About 100 m east at this latitude (0.0015 degrees of longitude is ~98 m)
+    const east = routeProgress(line, { lat: 54.005, lon: 0.0015 }).offRouteMetres;
+    expect(east).toBeGreaterThan(90);
+    expect(east).toBeLessThan(105);
+  });
+
+  it('can be limited to a stretch of the route, so a route passing near itself does not confuse it', () => {
+    // An out-and-back along one street: the same point is on the route at 0.55 km and at 1.65 km
+    const line: [number, number][] = [
+      [0, 54],
+      [0, 54.01],
+      [0.0001, 54.01],
+      [0.0001, 54],
+    ];
+    const spot = { lat: 54.005, lon: 0.00005 };
+    const outbound = routeProgress(line, spot, {
+      aroundMetres: 500,
+      behindMetres: 100,
+      aheadMetres: 600,
+    });
+    const inbound = routeProgress(line, spot, {
+      aroundMetres: 1700,
+      behindMetres: 100,
+      aheadMetres: 600,
+    });
+    expect(outbound.traveledMetres).toBeLessThan(700);
+    expect(inbound.traveledMetres).toBeGreaterThan(1500);
   });
 });

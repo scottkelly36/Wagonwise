@@ -17,6 +17,7 @@ export class FakeRoutingEngine implements RoutingEngine {
     geometry: 'fake-geometry',
     distanceKm: 10,
     durationMin: 15,
+    maneuvers: [],
   });
   results: Result<RouteResult, NoRouteFound>[] = [];
   readonly requests: RouteRequest[] = [];
@@ -25,7 +26,7 @@ export class FakeRoutingEngine implements RoutingEngine {
    *  a test may exercise both methods in one plan (`planRoute`'s `strategy: 'shortest'` path calls
    *  `routeAlternatives` first, then `route` again for the hazard-avoidance pass). */
   alternativesResult: Result<readonly RouteResult[], NoRouteFound> = ok([
-    { geometry: 'fake-geometry', distanceKm: 10, durationMin: 15 },
+    { geometry: 'fake-geometry', distanceKm: 10, durationMin: 15, maneuvers: [] },
   ]);
   alternativesResults: Result<readonly RouteResult[], NoRouteFound>[] = [];
   readonly alternativesRequests: RouteRequest[] = [];

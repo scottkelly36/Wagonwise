@@ -10,6 +10,9 @@ export interface RouteProgress {
   /** 1 at the origin, 0 at the destination — clamped, so GPS noise or a position that's
    *  drifted slightly past either end can't push it outside [0, 1]. */
   readonly remainingFraction: number;
+  /** How far the position is from the route's line, in metres (0 on the line). A driver who has
+   *  taken a wrong turn is far from it; ordinary GPS noise is a few metres to a few tens. */
+  readonly offRouteMetres: number;
 }
 
 // Metres per degree of latitude is near-constant; longitude shrinks with cos(latitude) — the
@@ -32,6 +35,15 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
+/** Limits the search to the part of the route near where the driver last was, so a route that comes
+ *  back close to itself (a loop, a roundabout approached twice) cannot snap the driver onto the wrong
+ *  stretch. */
+export interface ProgressWindow {
+  readonly aroundMetres: number;
+  readonly behindMetres: number;
+  readonly aheadMetres: number;
+}
+
 /**
  * Where `position` is along `routeLine` (Valhalla's decoded [lon, lat] geometry, origin first)
  * — snaps to the nearest point on the route's own line rather than the nearest vertex, so a
@@ -43,9 +55,16 @@ function clamp01(value: number): number {
 export function routeProgress(
   routeLine: readonly (readonly [number, number])[],
   position: RoutePoint,
+  window?: ProgressWindow,
 ): RouteProgress {
   if (routeLine.length < 2) {
-    return { traveledMetres: 0, remainingMetres: 0, totalMetres: 0, remainingFraction: 0 };
+    return {
+      traveledMetres: 0,
+      remainingMetres: 0,
+      totalMetres: 0,
+      remainingFraction: 0,
+      offRouteMetres: 0,
+    };
   }
 
   const refLat = routeLine[0][1];
@@ -63,6 +82,17 @@ export function routeProgress(
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const segmentLengthSq = dx * dx + dy * dy;
+
+    const segmentStartMetres = cumulativeMetres;
+    const segmentEndMetres = cumulativeMetres + Math.sqrt(segmentLengthSq);
+    if (
+      window !== undefined &&
+      (segmentEndMetres < window.aroundMetres - window.behindMetres ||
+        segmentStartMetres > window.aroundMetres + window.aheadMetres)
+    ) {
+      cumulativeMetres = segmentEndMetres;
+      continue;
+    }
 
     const t =
       segmentLengthSq === 0
@@ -84,5 +114,30 @@ export function routeProgress(
   const remainingMetres = Math.max(0, totalMetres - traveledMetres);
   const remainingFraction = totalMetres === 0 ? 0 : clamp01(remainingMetres / totalMetres);
 
-  return { traveledMetres, remainingMetres, totalMetres, remainingFraction };
+  return {
+    traveledMetres,
+    remainingMetres,
+    totalMetres,
+    remainingFraction,
+    offRouteMetres: Math.sqrt(closestDistanceSq),
+  };
+}
+
+/**
+ * Metres along the route at each of its vertices (index 0 is 0), measured the same way
+ * `routeProgress` measures, so a turn's position along the route and the driver's position along it
+ * are directly comparable.
+ */
+export function routeVertexOffsets(routeLine: readonly (readonly [number, number])[]): number[] {
+  if (routeLine.length === 0) return [];
+  const refLat = routeLine[0][1];
+  const metresPerDegreeLon = METRES_PER_DEGREE_LAT * Math.cos((refLat * Math.PI) / 180);
+  const local = routeLine.map(([lon, lat]) => toLocalMetres({ lat, lon }, metresPerDegreeLon));
+  const offsets = [0];
+  for (let i = 1; i < local.length; i++) {
+    offsets.push(
+      offsets[i - 1] + Math.hypot(local[i].x - local[i - 1].x, local[i].y - local[i - 1].y),
+    );
+  }
+  return offsets;
 }

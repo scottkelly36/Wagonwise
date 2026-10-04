@@ -32,6 +32,8 @@ history file keeps the record.
 
 ## Next up
 
+0. **P2-M10 spoken turn-by-turn is code-complete (2026-10-04, branch `claude/spoken-directions`).** Server stores maneuvers (migration 0035), the app speaks them and shows a turn card. Deploy core first, then the app. Needs a real-device drive test. See `history/p2-m10-spoken-directions.md`.
+
 1. **P2-M5 is code-complete (2026-10-03).** M5.5b added the driver app's "Take photo" card at the
    delivery stop and an offline upload queue. It brings a new native dependency
    (`expo-image-picker`) and the camera permission, so app `version` is now 1.1.0 and it **needs a
@@ -357,4 +359,5 @@ Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those no
 | `history/p2-m7-moderation.md`         | P2-M7: hazard moderation and trust scoring (active)                    | —         |
 | `history/p2-m6-live-map.md`           | P2-M6: live fleet map, and the tracking/store-review notes (active)    | —         |
 | `history/driver-app-redesign.md`      | Driver app redesign to the owner's mock, and the Android safe-area fix | —         |
+| `history/p2-m10-spoken-directions.md` | P2-M10: spoken turn-by-turn directions                                 | —         |
 | `ideas.md`                            | Field-testing ideas backlog (shipped and unscheduled)                  | —         |

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Dimensions } from '../domain/vehicle-profile.js';
@@ -84,6 +85,7 @@ describe('ValhallaRoutingEngine', () => {
         geometry: 'encoded-shape',
         distanceKm: 8.038,
         durationMin: (475.465 * FALLBACK_TIME_FACTOR) / 60,
+        maneuvers: [],
       },
     });
   });
@@ -158,7 +160,7 @@ describe('ValhallaRoutingEngine', () => {
 
       expect(result).toEqual({
         ok: true,
-        value: { geometry: shape, distanceKm: 8.038, durationMin: 15 },
+        value: { geometry: shape, distanceKm: 8.038, durationMin: 15, maneuvers: [] },
       });
       expect(traceRequests).toHaveLength(1);
       expect(traceRequests[0]).toMatchObject({
@@ -361,11 +363,13 @@ describe('ValhallaRoutingEngine', () => {
             geometry: 'primary-shape',
             distanceKm: 8.038,
             durationMin: (475.465 * FALLBACK_TIME_FACTOR) / 60,
+            maneuvers: [],
           },
           {
             geometry: 'alternate-shape',
             distanceKm: 6,
             durationMin: (600 * FALLBACK_TIME_FACTOR) / 60,
+            maneuvers: [],
           },
         ],
       });
@@ -389,6 +393,7 @@ describe('ValhallaRoutingEngine', () => {
             geometry: 'encoded-shape',
             distanceKm: 8.038,
             durationMin: (475.465 * FALLBACK_TIME_FACTOR) / 60,
+            maneuvers: [],
           },
         ],
       });
@@ -407,5 +412,156 @@ describe('ValhallaRoutingEngine', () => {
 
       expect(result).toEqual({ ok: false, error: { tag: 'NoRouteFound' } });
     });
+  });
+});
+
+describe('turn-by-turn directions (P2-M10)', () => {
+  let server: Server;
+  let baseUrl: string;
+  let lastBody: Record<string, unknown> | undefined;
+  let reply: unknown;
+
+  beforeEach(async () => {
+    lastBody = undefined;
+    server = createServer((request, response) => {
+      const chunks: Buffer[] = [];
+      request.on('data', (chunk: Buffer) => chunks.push(chunk));
+      request.on('end', () => {
+        const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>;
+        if (request.url !== '/trace_route') lastBody = body;
+        // The re-timing step is refused, which makes the engine use its fallback: not under test.
+        const status = request.url === '/trace_route' ? 400 : 200;
+        response.writeHead(status, { 'content-type': 'application/json' });
+        response.end(
+          JSON.stringify(request.url === '/trace_route' ? { error_code: 442, error: 'no' } : reply),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (address === null || typeof address === 'string') throw new Error('no address');
+    baseUrl = `http://127.0.0.1:${address.port}`;
+  });
+
+  afterEach(async () => {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  });
+
+  const dimensions: Dimensions = { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32 };
+  const origin = { lat: 54.9708, lon: -2.1013 };
+  const destination = { lat: 54.9735, lon: -1.541 };
+  // A real Valhalla answer for Hexham to Hebburn (recorded 2026-10-04): 30 steps, mostly
+  // roundabouts, which is exactly what spoken directions have to get right.
+  const recorded = JSON.parse(
+    readFileSync(new URL('./testing/valhalla-hexham-hebburn.json', import.meta.url), 'utf8'),
+  ) as { trip: { summary: { length: number }; legs: { maneuvers: unknown[] }[] } };
+
+  it('asks for British English directions in kilometres', async () => {
+    reply = recorded;
+    await new ValhallaRoutingEngine(baseUrl).route({ origin, destination, dimensions, avoid: [] });
+    expect(lastBody?.directions_options).toEqual({ units: 'kilometers', language: 'en-GB' });
+  });
+
+  it('turns the recorded route into steps, each with its kind, wording and distance', async () => {
+    reply = recorded;
+    const result = await new ValhallaRoutingEngine(baseUrl).route({
+      origin,
+      destination,
+      dimensions,
+      avoid: [],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const steps = result.value.maneuvers;
+
+    expect(steps).toHaveLength(30);
+    expect(steps[0]).toMatchObject({ kind: 'depart', beginShapeIndex: 0 });
+    expect(steps.at(-1)).toMatchObject({ kind: 'arrive' });
+
+    // A left turn keeps its spoken wording (no distance in it) and its road numbers
+    const hencotes = steps.find((s) => s.speech.includes('Hencotes'));
+    expect(hencotes).toMatchObject({
+      kind: 'left',
+      speech: 'Turn left onto Hencotes, B6305.',
+      streetNames: ['B6305'],
+    });
+
+    // A roundabout carries which exit to take
+    const roundabout = steps.find((s) => s.kind === 'roundabout');
+    expect(roundabout).toMatchObject({
+      speech: 'Enter the roundabout and take the 3rd exit onto A6079.',
+      roundaboutExit: 3,
+    });
+  });
+
+  it('gives lengths in whole metres that add up to the route', async () => {
+    reply = recorded;
+    const result = await new ValhallaRoutingEngine(baseUrl).route({
+      origin,
+      destination,
+      dimensions,
+      avoid: [],
+    });
+    if (!result.ok) throw new Error('route failed');
+    const totalM = result.value.maneuvers.reduce((sum, s) => sum + s.lengthM, 0);
+    expect(Number.isInteger(result.value.maneuvers[1]?.lengthM)).toBe(true);
+    // Within 1% of the route's own length (each step is rounded to a metre)
+    expect(
+      Math.abs(totalM - result.value.distanceKm * 1000) / (result.value.distanceKm * 1000),
+    ).toBeLessThan(0.01);
+  });
+
+  it('keeps step order, and begins each one later along the route than the last', async () => {
+    reply = recorded;
+    const result = await new ValhallaRoutingEngine(baseUrl).route({
+      origin,
+      destination,
+      dimensions,
+      avoid: [],
+    });
+    if (!result.ok) throw new Error('route failed');
+    const indexes = result.value.maneuvers.map((s) => s.beginShapeIndex);
+    expect(indexes).toEqual([...indexes].sort((a, b) => a - b));
+  });
+
+  it('maps unknown turn types to "straight" rather than failing', async () => {
+    reply = {
+      trip: {
+        summary: { time: 60, length: 1 },
+        legs: [
+          {
+            shape: 'x',
+            maneuvers: [
+              { type: 8, instruction: 'Continue.', length: 1, begin_shape_index: 0 },
+              { type: 999, instruction: 'Something new.', length: 0, begin_shape_index: 3 },
+            ],
+          },
+        ],
+      },
+    };
+    const result = await new ValhallaRoutingEngine(baseUrl).route({
+      origin,
+      destination,
+      dimensions,
+      avoid: [],
+    });
+    if (!result.ok) throw new Error('route failed');
+    expect(result.value.maneuvers.map((s) => s.kind)).toEqual(['straight', 'straight']);
+    // With no spoken version supplied, the display text is used
+    expect(result.value.maneuvers[0]?.speech).toBe('Continue.');
+  });
+
+  it('gives no steps when the engine gave none', async () => {
+    reply = { trip: { summary: { time: 60, length: 1 }, legs: [{ shape: 'x' }] } };
+    const result = await new ValhallaRoutingEngine(baseUrl).route({
+      origin,
+      destination,
+      dimensions,
+      avoid: [],
+    });
+    if (!result.ok) throw new Error('route failed');
+    expect(result.value.maneuvers).toEqual([]);
   });
 });

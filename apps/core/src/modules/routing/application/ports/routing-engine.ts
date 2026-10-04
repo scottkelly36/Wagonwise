@@ -1,5 +1,6 @@
 import type { Result, TaggedError } from '../../../../shared/result.js';
 import type { GeoLine, GeoPoint, GeoPolygon } from '../../domain/geo.js';
+import type { Maneuver } from '../../domain/maneuver.js';
 import type { Dimensions } from '../../domain/vehicle-profile.js';
 
 export interface RouteRequest {
@@ -15,6 +16,8 @@ export interface RouteResult {
   readonly geometry: GeoLine;
   readonly distanceKm: number;
   readonly durationMin: number;
+  /** Turn-by-turn steps along `geometry` (P2-M10). Empty if the engine gave none. */
+  readonly maneuvers: readonly Maneuver[];
 }
 
 /** The vehicle genuinely cannot get there — every path is blocked by its own dimensions, the

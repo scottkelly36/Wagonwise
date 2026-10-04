@@ -15,7 +15,7 @@ describe('estimateRoute', () => {
 
     expect(result).toEqual({
       ok: true,
-      value: { geometry: 'fake-geometry', distanceKm: 10, durationMin: 15 },
+      value: { geometry: 'fake-geometry', distanceKm: 10, durationMin: 15, maneuvers: [] },
     });
     expect(routingEngine.requests).toEqual([{ origin, destination, dimensions, avoid: [] }]);
   });

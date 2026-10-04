@@ -6,6 +6,7 @@ import { applies } from '../domain/avoidance-policy.js';
 import { decodePolyline, ON_ROUTE_RADIUS_M, type GeoPoint } from '../domain/geo.js';
 import { describeAvoidedOverride, toReportedObstruction } from '../domain/restriction-override.js';
 import { estimateFuelCostGBP } from '../domain/route-option.js';
+import type { Maneuver } from '../domain/maneuver.js';
 import type { RoutePlan } from '../domain/route-plan.js';
 import type { DriverId, VehicleProfileId } from '../domain/vehicle-profile.js';
 import type { VehicleProfileNotFound } from './errors.js';
@@ -78,6 +79,7 @@ export async function planRoute(
   let firstPassGeometry: string;
   let firstPassDistanceKm: number;
   let firstPassDurationMin: number;
+  let firstPassManeuvers: readonly Maneuver[];
   if (input.strategy === 'shortest') {
     const alternatives = await deps.routingEngine.routeAlternatives({
       origin: input.origin,
@@ -94,6 +96,7 @@ export async function planRoute(
     firstPassGeometry = shortest.geometry;
     firstPassDistanceKm = shortest.distanceKm;
     firstPassDurationMin = shortest.durationMin;
+    firstPassManeuvers = shortest.maneuvers;
   } else {
     const firstPass = await deps.routingEngine.route({
       origin: input.origin,
@@ -107,6 +110,7 @@ export async function planRoute(
     firstPassGeometry = firstPass.value.geometry;
     firstPassDistanceKm = firstPass.value.distanceKm;
     firstPassDurationMin = firstPass.value.durationMin;
+    firstPassManeuvers = firstPass.value.maneuvers;
   }
 
   const hazardCandidates = await deps.hazardAvoidanceQuery.activeNear(firstPassGeometry);
@@ -123,6 +127,7 @@ export async function planRoute(
     geometry: firstPassGeometry,
     distanceKm: firstPassDistanceKm,
     durationMin: firstPassDurationMin,
+    maneuvers: firstPassManeuvers,
   };
   if (blocking.length > 0) {
     const secondPass = await deps.routingEngine.route({
@@ -157,6 +162,7 @@ export async function planRoute(
     distanceKm: routed.distanceKm,
     durationMin: routed.durationMin,
     avoidedRestrictions,
+    maneuvers: routed.maneuvers,
     hazardsOnRoute,
     createdAt: deps.clock.now(),
     estimatedFuelCostGBP: estimateFuelCostGBP(

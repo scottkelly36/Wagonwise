@@ -36,8 +36,8 @@ describe('previewRouteOptions', () => {
     (deps.routingEngine as FakeRoutingEngine).alternativesResult = {
       ok: true,
       value: [
-        { geometry: 'fast-geometry', distanceKm: 120, durationMin: 90 },
-        { geometry: 'short-geometry', distanceKm: 80, durationMin: 110 },
+        { geometry: 'fast-geometry', distanceKm: 120, durationMin: 90, maneuvers: [] },
+        { geometry: 'short-geometry', distanceKm: 80, durationMin: 110, maneuvers: [] },
       ],
     };
 

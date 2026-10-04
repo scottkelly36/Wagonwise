@@ -214,6 +214,7 @@ export async function detectReroute(
       distanceKm: routed.value.distanceKm,
       durationMin: routed.value.durationMin,
       avoidedRestrictions: [],
+      maneuvers: routed.value.maneuvers,
       hazardsOnRoute: [trigger.hazardId],
       createdAt: deps.clock.now(),
     };

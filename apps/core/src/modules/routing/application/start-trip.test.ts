@@ -22,6 +22,7 @@ function plan(overrides: Partial<RoutePlan> = {}): RoutePlan {
     distanceKm: 8.038,
     durationMin: 7.9,
     avoidedRestrictions: [],
+    maneuvers: [],
     hazardsOnRoute: [],
     createdAt: now,
     ...overrides,

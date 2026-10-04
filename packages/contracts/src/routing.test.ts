@@ -211,6 +211,60 @@ describe('routeOptionSchema', () => {
 });
 
 describe('routePlanSchema', () => {
+  const basePlan = {
+    id: '11111111-1111-4111-8111-111111111111',
+    driverId: 'driver-1',
+    profileId: '22222222-2222-4222-8222-222222222222',
+    origin: { lat: 54.9707, lon: -2.1013 },
+    destination: { lat: 54.9738, lon: -2.0165 },
+    geometry: 'encoded-polyline',
+    distanceKm: 8.038,
+    durationMin: 7.9,
+    avoidedRestrictions: [],
+    hazardsOnRoute: [],
+    createdAt: '2026-06-15T08:00:00.000Z',
+  };
+
+  it('treats a plan with no maneuvers (made before spoken directions) as having none', () => {
+    const result = routePlanSchema.parse(basePlan);
+    expect(result.maneuvers).toEqual([]);
+  });
+
+  it('parses turn-by-turn steps, with a roundabout exit', () => {
+    const result = routePlanSchema.parse({
+      ...basePlan,
+      maneuvers: [
+        {
+          kind: 'roundabout',
+          text: 'Enter the roundabout and take the 3rd exit onto A6079.',
+          speech: 'Enter the roundabout and take the 3rd exit onto A6079.',
+          streetNames: ['A6079'],
+          lengthM: 23,
+          beginShapeIndex: 87,
+          roundaboutExit: 3,
+        },
+      ],
+    });
+    expect(result.maneuvers[0]?.roundaboutExit).toBe(3);
+  });
+
+  it('refuses a step of a kind it does not know, rather than guessing an arrow for it', () => {
+    const result = routePlanSchema.safeParse({
+      ...basePlan,
+      maneuvers: [
+        {
+          kind: 'teleport',
+          text: 'x',
+          speech: 'x',
+          streetNames: [],
+          lengthM: 1,
+          beginShapeIndex: 0,
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('parses a real response shape, including empty avoidedRestrictions/hazardsOnRoute', () => {
     const result = routePlanSchema.safeParse({
       id: '11111111-1111-4111-8111-111111111111',

@@ -151,6 +151,7 @@ describe('planRoute', () => {
     durationMin: 12.5,
     avoidedRestrictions: [],
     hazardsOnRoute: [],
+    maneuvers: [],
     createdAt: '2026-01-01T00:00:00.000Z',
   };
 
@@ -235,6 +236,7 @@ describe('getRoutePlan', () => {
     durationMin: 9,
     avoidedRestrictions: [],
     hazardsOnRoute: ['hazard-1'],
+    maneuvers: [],
     createdAt: '2026-01-01T00:00:00.000Z',
   };
 

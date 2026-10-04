@@ -55,6 +55,7 @@ describe('planRoute', () => {
         distanceKm: 10,
         durationMin: 15,
         avoidedRestrictions: [],
+        maneuvers: [],
         hazardsOnRoute: [],
         createdAt: now,
       },
@@ -152,14 +153,25 @@ describe('planRoute', () => {
 
     const engine = deps.routingEngine as FakeRoutingEngine;
     engine.results = [
-      { ok: true, value: { geometry: 'first-pass', distanceKm: 8, durationMin: 12 } },
-      { ok: true, value: { geometry: 'rerouted', distanceKm: 9.5, durationMin: 14 } },
+      {
+        ok: true,
+        value: { geometry: 'first-pass', distanceKm: 8, durationMin: 12, maneuvers: [] },
+      },
+      {
+        ok: true,
+        value: { geometry: 'rerouted', distanceKm: 9.5, durationMin: 14, maneuvers: [] },
+      },
     ];
 
     const result = await planRoute(deps, { driverId, profileId, origin, destination });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value).toMatchObject({ geometry: 'rerouted', distanceKm: 9.5, durationMin: 14 });
+    expect(result.value).toMatchObject({
+      geometry: 'rerouted',
+      distanceKm: 9.5,
+      durationMin: 14,
+      maneuvers: [],
+    });
 
     expect(engine.requests).toHaveLength(2);
     expect(engine.requests[0]?.avoid).toEqual([]);
@@ -192,8 +204,14 @@ describe('planRoute', () => {
     ];
     const engine = deps.routingEngine as FakeRoutingEngine;
     engine.results = [
-      { ok: true, value: { geometry: 'first-pass', distanceKm: 8, durationMin: 12 } },
-      { ok: true, value: { geometry: 'rerouted', distanceKm: 9.5, durationMin: 14 } },
+      {
+        ok: true,
+        value: { geometry: 'first-pass', distanceKm: 8, durationMin: 12, maneuvers: [] },
+      },
+      {
+        ok: true,
+        value: { geometry: 'rerouted', distanceKm: 9.5, durationMin: 14, maneuvers: [] },
+      },
     ];
 
     await planRoute(deps, { driverId, profileId, origin, destination });
@@ -218,8 +236,14 @@ describe('planRoute', () => {
 
     const engine = deps.routingEngine as FakeRoutingEngine;
     engine.results = [
-      { ok: true, value: { geometry: 'first-pass', distanceKm: 8, durationMin: 12 } },
-      { ok: true, value: { geometry: 'rerouted', distanceKm: 9.5, durationMin: 14 } },
+      {
+        ok: true,
+        value: { geometry: 'first-pass', distanceKm: 8, durationMin: 12, maneuvers: [] },
+      },
+      {
+        ok: true,
+        value: { geometry: 'rerouted', distanceKm: 9.5, durationMin: 14, maneuvers: [] },
+      },
     ];
 
     const result = await planRoute(deps, { driverId, profileId, origin, destination });
@@ -266,7 +290,10 @@ describe('planRoute', () => {
 
     const engine = deps.routingEngine as FakeRoutingEngine;
     engine.results = [
-      { ok: true, value: { geometry: 'first-pass', distanceKm: 8, durationMin: 12 } },
+      {
+        ok: true,
+        value: { geometry: 'first-pass', distanceKm: 8, durationMin: 12, maneuvers: [] },
+      },
       { ok: false, error: { tag: 'NoRouteFound' } },
     ];
 
@@ -298,7 +325,7 @@ describe('planRoute', () => {
     });
     (deps.routingEngine as FakeRoutingEngine).result = {
       ok: true,
-      value: { geometry: 'g', distanceKm: 100, durationMin: 90 },
+      value: { geometry: 'g', distanceKm: 100, durationMin: 90, maneuvers: [] },
     };
 
     const result = await planRoute(deps, { driverId, profileId, origin, destination });
@@ -313,8 +340,8 @@ describe('planRoute', () => {
     engine.alternativesResult = {
       ok: true,
       value: [
-        { geometry: 'fast-geometry', distanceKm: 120, durationMin: 90 },
-        { geometry: 'short-geometry', distanceKm: 80, durationMin: 110 },
+        { geometry: 'fast-geometry', distanceKm: 120, durationMin: 90, maneuvers: [] },
+        { geometry: 'short-geometry', distanceKm: 80, durationMin: 110, maneuvers: [] },
       ],
     };
 

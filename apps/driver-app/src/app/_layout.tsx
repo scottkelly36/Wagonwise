@@ -10,17 +10,20 @@ import { useOpportunisticRefresh } from '../hooks/use-opportunistic-refresh';
 import { useRegisterPushToken } from '../hooks/use-register-push-token';
 import { useRerouteNotifications } from '../hooks/use-reroute-notifications';
 import { useAuthStore } from '../state/auth-store';
+import { useGuidanceStore } from '../state/guidance-store';
 import { useThemeStore } from '../state/theme-store';
 
 export default function RootLayout() {
   const mode = useThemeStore((s) => s.mode);
   const restoreAuth = useAuthStore((s) => s.restore);
   const restoreTheme = useThemeStore((s) => s.restore);
+  const restoreGuidance = useGuidanceStore((s) => s.restore);
 
   useEffect(() => {
     void restoreAuth();
     void restoreTheme();
-  }, [restoreAuth, restoreTheme]);
+    void restoreGuidance();
+  }, [restoreAuth, restoreTheme, restoreGuidance]);
 
   useOpportunisticRefresh();
   useHazardQueueFlush();
