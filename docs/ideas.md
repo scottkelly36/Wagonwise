@@ -189,3 +189,9 @@ update --spec` (used once to add the job) wiped `core`'s App-Level `DATABASE_URL
   the cap via `/trace_route` (`valhalla-routing-engine.ts`). For the future route
   picker: judge the alternatives and "shortest" on the same fair footing. Not yet re-checked
   on the real Hexham to Hebburn route, because the local tiles stop at the Northumberland border.
+
+- **2026-10-04: saved places (not scheduled).** From the redesign mock's Saved tab: places a driver
+  routes to often (home, the depot, a regular delivery), saved by name and started with one tap from
+  Where to? The tab holds saved voice reports until this exists. Needs a store (local first, or synced
+  with the account so it follows a driver to a new phone), a way to save a place from a search result
+  or the map, and a decision on whether a company can push shared places (depots) to its drivers.

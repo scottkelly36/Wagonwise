@@ -15,7 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useLeaveLink, useMyLinks, useRespondToInvitation } from '../../api/use-fleet';
 import { fleetErrorMessage } from '../../lib/error-messages';
+import { Icon } from '../../components/ui/icon';
+import { ScreenHeader } from '../../components/ui/screen-header';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
+import { cardStyle, radius } from '../../theme/tokens';
 
 /** P2-M2.7: which companies a driver is invited by, waiting on, or working for, and leaving one.
  *  A driver can be active with several at once (agency drivers) — the company always decides who
@@ -48,16 +51,21 @@ export default function CompaniesScreen() {
           <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
         }
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>My companies</Text>
-          <TouchableOpacity
-            style={styles.joinButton}
-            onPress={() => router.push('/companies/join')}
-            testID="join-company-button"
-          >
-            <Text style={styles.joinButtonText}>Join</Text>
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title="My companies"
+          fallbackHref="/more"
+          right={
+            <TouchableOpacity
+              style={styles.joinButton}
+              onPress={() => router.push('/companies/join')}
+              accessibilityRole="button"
+              testID="join-company-button"
+            >
+              <Icon name="plus" size={22} color={colors.textOnAccent} />
+              <Text style={styles.joinButtonText}>Join</Text>
+            </TouchableOpacity>
+          }
+        />
 
         {actionError !== null && <Text style={styles.error}>{fleetErrorMessage(actionError)}</Text>}
 
@@ -150,7 +158,12 @@ function Section(props: {
       ) : (
         props.items.map((link) => (
           <View key={link.id} style={styles.row} testID={`company-row-${link.id}`}>
-            <Text style={styles.rowName}>{link.companyName ?? 'A company'}</Text>
+            <View style={styles.rowTop}>
+              <View style={styles.badge}>
+                <Icon name="office-building-outline" size={26} color={styles.badgeIcon.color} />
+              </View>
+              <Text style={styles.rowName}>{link.companyName ?? 'A company'}</Text>
+            </View>
             {props.renderActions(link)}
           </View>
         ))
@@ -166,26 +179,16 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.background,
     },
     content: {
-      padding: 24,
+      padding: 16,
       gap: 8,
     },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 8,
-    },
-    title: {
-      fontSize: 28,
-      fontWeight: '700',
-      color: colors.text,
-    },
     joinButton: {
-      minHeight: 44,
-      minWidth: 44,
+      minHeight: 48,
       paddingHorizontal: 16,
       backgroundColor: colors.accent,
-      borderRadius: 12,
+      borderRadius: 24,
+      flexDirection: 'row',
+      gap: 6,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -217,51 +220,63 @@ function createStyles(colors: ThemeColors) {
       marginBottom: 8,
     },
     row: {
-      minHeight: 56,
+      ...cardStyle(colors),
+      padding: 14,
+      marginBottom: 12,
+      gap: 12,
+    },
+    rowTop: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      backgroundColor: colors.surface,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      marginBottom: 8,
-      gap: 8,
+      gap: 12,
+    },
+    badge: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.badge,
+      backgroundColor: colors.accentSoft,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    badgeIcon: {
+      color: colors.accent,
     },
     rowName: {
-      fontSize: 17,
-      fontWeight: '600',
+      fontSize: 19,
+      fontWeight: '700',
       color: colors.text,
-      flexShrink: 1,
+      flex: 1,
     },
     actionsRow: {
       flexDirection: 'row',
-      gap: 8,
+      gap: 10,
     },
     acceptButton: {
-      minHeight: 40,
+      flex: 1,
+      minHeight: 52,
       paddingHorizontal: 14,
       backgroundColor: colors.accent,
-      borderRadius: 10,
+      borderRadius: 26,
       justifyContent: 'center',
       alignItems: 'center',
     },
     acceptButtonText: {
-      fontSize: 14,
+      fontSize: 17,
       fontWeight: '700',
       color: colors.textOnAccent,
     },
     declineButton: {
-      minHeight: 40,
+      flex: 1,
+      minHeight: 52,
       paddingHorizontal: 14,
-      borderWidth: 1,
+      borderWidth: 2,
       borderColor: colors.danger,
-      borderRadius: 10,
+      borderRadius: 26,
       justifyContent: 'center',
       alignItems: 'center',
     },
     declineButtonText: {
-      fontSize: 14,
+      fontSize: 17,
       fontWeight: '600',
       color: colors.danger,
     },

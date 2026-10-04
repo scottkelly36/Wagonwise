@@ -1,7 +1,7 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useRoutePlan } from '../../api/use-route-plan';
 import { RouteMap } from '../../components/route-map';
@@ -9,7 +9,9 @@ import { routingErrorMessage } from '../../lib/error-messages';
 import { decodePolyline6 } from '../../lib/polyline';
 import { useCurrentActiveTripStore } from '../../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../../state/current-route-plan-store';
+import { Icon } from '../../components/ui/icon';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
+import { cardStyle, radius } from '../../theme/tokens';
 
 /**
  * Design doc §6: "Opening the notification shows old vs new route; driver accepts or keeps the
@@ -30,6 +32,7 @@ export default function RerouteScreen() {
   const setPlan = useCurrentRoutePlanStore((s) => s.setPlan);
   const trip = useCurrentActiveTripStore((s) => s.trip);
   const { data: newPlan, isLoading, isError, error } = useRoutePlan(id);
+  const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -62,7 +65,7 @@ export default function RerouteScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <RouteMap
         origin={currentPlan.origin}
         destination={currentPlan.destination}
@@ -76,8 +79,11 @@ export default function RerouteScreen() {
         color={colors.text}
       />
 
-      <View style={styles.panel}>
-        <Text style={styles.title}>A new route avoids a hazard ahead</Text>
+      <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
+        <View style={styles.titleRow}>
+          <Icon name="directions-fork" size={30} color={colors.accent} />
+          <Text style={styles.title}>A new route avoids a hazard ahead</Text>
+        </View>
 
         {isError && <Text style={styles.error}>{routingErrorMessage(error)}</Text>}
 
@@ -106,7 +112,7 @@ export default function RerouteScreen() {
           <Text style={[styles.buttonText, styles.keepButtonText]}>Keep current route</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -126,15 +132,25 @@ function createStyles(colors: ThemeColors) {
       display: 'none',
     },
     panel: {
-      padding: 16,
+      ...cardStyle(colors),
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      borderTopLeftRadius: radius.sheet,
+      borderTopRightRadius: radius.sheet,
+      paddingHorizontal: 16,
+      paddingTop: 16,
       gap: 12,
-      backgroundColor: colors.background,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
     },
     title: {
+      flex: 1,
       fontSize: 20,
-      fontWeight: '700',
+      fontWeight: '800',
       color: colors.text,
-      textAlign: 'center',
     },
     comparison: {
       fontSize: 16,
@@ -142,8 +158,8 @@ function createStyles(colors: ThemeColors) {
       textAlign: 'center',
     },
     button: {
-      minHeight: 56,
-      borderRadius: 12,
+      minHeight: 64,
+      borderRadius: 32,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -152,7 +168,7 @@ function createStyles(colors: ThemeColors) {
     },
     keepButton: {
       backgroundColor: colors.surface,
-      borderWidth: 1,
+      borderWidth: 2,
       borderColor: colors.textDim,
     },
     buttonDisabled: {

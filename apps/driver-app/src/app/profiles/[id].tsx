@@ -17,6 +17,7 @@ import {
   useUpdateVehicleProfile,
   useVehicleProfile,
 } from '../../api/use-vehicle-profiles';
+import { ScreenHeader } from '../../components/ui/screen-header';
 import { VehicleProfileForm } from '../../components/vehicle-profile-form';
 import { routingErrorMessage } from '../../lib/error-messages';
 import { vehicleProfileFormValuesFrom } from '../../lib/vehicle-profile-form';
@@ -71,7 +72,7 @@ export default function EditVehicleProfileScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>{profile.name}</Text>
+          <ScreenHeader title={profile.name} subtitle="Edit this vehicle" />
           <VehicleProfileForm
             initialValues={vehicleProfileFormValuesFrom(profile)}
             submitLabel="Save changes"
@@ -113,13 +114,8 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
     },
     content: {
-      padding: 24,
-    },
-    title: {
-      fontSize: 28,
-      fontWeight: '700',
-      color: colors.text,
-      marginBottom: 8,
+      padding: 16,
+      gap: 8,
     },
     loading: {
       marginTop: 48,
@@ -133,9 +129,9 @@ function createStyles(colors: ThemeColors) {
     },
     deleteButton: {
       minHeight: 56,
-      borderWidth: 1,
+      borderWidth: 2,
       borderColor: colors.danger,
-      borderRadius: 12,
+      borderRadius: 28,
       justifyContent: 'center',
       alignItems: 'center',
       marginTop: 32,

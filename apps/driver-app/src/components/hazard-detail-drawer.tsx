@@ -9,11 +9,16 @@ import {
   View,
 } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { useConfirmHazard, useDismissHazard, useHazard } from '../api/use-hazards';
 import { hazardsErrorMessage } from '../lib/error-messages';
 import { formatDateTime } from '../lib/format-date';
 import { formatMeasurement, HAZARD_STATUS_LABELS, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
+import { HAZARD_TYPE_ICONS } from '../lib/hazard-icons';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
+import { radius } from '../theme/tokens';
+import { Icon } from './ui/icon';
 
 interface Props {
   readonly hazardId: string | undefined;
@@ -40,6 +45,7 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
       ? hazardsErrorMessage(dismissMutation.error)
       : undefined;
   const actionPending = confirmMutation.isPending || dismissMutation.isPending;
+  const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -61,7 +67,7 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
           <View style={styles.backdrop} />
         </TouchableWithoutFeedback>
 
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 24 }]}>
           {isLoading ? (
             <ActivityIndicator style={styles.loading} size="large" color={colors.text} />
           ) : isError || hazard === undefined ? (
@@ -69,10 +75,17 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
           ) : (
             <>
               <View style={styles.handle} />
-              <Text style={styles.title}>{HAZARD_TYPE_LABELS[hazard.type]}</Text>
-              <Text style={styles.status}>
-                {HAZARD_STATUS_LABELS[hazard.status] ?? hazard.status}
-              </Text>
+              <View style={styles.titleRow}>
+                <View style={styles.badge}>
+                  <Icon name={HAZARD_TYPE_ICONS[hazard.type]} size={30} color={colors.warning} />
+                </View>
+                <View style={styles.titleText}>
+                  <Text style={styles.title}>{HAZARD_TYPE_LABELS[hazard.type]}</Text>
+                  <Text style={styles.status}>
+                    {HAZARD_STATUS_LABELS[hazard.status] ?? hazard.status}
+                  </Text>
+                </View>
+              </View>
 
               {hazard.measurement !== undefined && (
                 <Text style={styles.detail}>{formatMeasurement(hazard.measurement)}</Text>
@@ -150,12 +163,28 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     sheet: {
-      backgroundColor: colors.background,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      padding: 24,
-      paddingBottom: 40,
+      backgroundColor: colors.card,
+      borderTopLeftRadius: radius.sheet,
+      borderTopRightRadius: radius.sheet,
+      paddingHorizontal: 20,
+      paddingTop: 12,
       gap: 4,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
+    badge: {
+      width: 52,
+      height: 52,
+      borderRadius: radius.badge,
+      backgroundColor: colors.accentSoft,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    titleText: {
+      flex: 1,
     },
     handle: {
       alignSelf: 'center',
@@ -206,8 +235,8 @@ function createStyles(colors: ThemeColors) {
     },
     button: {
       flex: 1,
-      minHeight: 56,
-      borderRadius: 12,
+      minHeight: 60,
+      borderRadius: 30,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -216,7 +245,7 @@ function createStyles(colors: ThemeColors) {
     },
     dismissButton: {
       backgroundColor: colors.surface,
-      borderWidth: 1,
+      borderWidth: 2,
       borderColor: colors.textDim,
     },
     buttonDisabled: {

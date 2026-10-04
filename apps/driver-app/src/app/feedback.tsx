@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSubmitFeedback } from '../api/use-feedback';
 import { feedbackErrorMessage } from '../lib/error-messages';
 import { getAppVersion, getDeviceInfo } from '../lib/app-info';
+import { ScreenHeader } from '../components/ui/screen-header';
+import { Icon } from '../components/ui/icon';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 /**
@@ -42,6 +44,7 @@ export default function FeedbackScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.sentContent}>
+          <Icon name="check-circle-outline" size={72} color={colors.accentGreen} />
           <Text style={styles.title}>Thanks</Text>
           <Text style={styles.hint}>Your note has been sent.</Text>
           <TouchableOpacity
@@ -63,7 +66,7 @@ export default function FeedbackScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Feedback</Text>
+          <ScreenHeader title="Feedback" />
           <Text style={styles.hint}>Tell us what’s working, what’s not, or what’s missing.</Text>
 
           <TextInput
@@ -116,8 +119,8 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
     },
     content: {
-      padding: 24,
-      gap: 8,
+      padding: 16,
+      gap: 12,
     },
     sentContent: {
       flexGrow: 1,
@@ -141,7 +144,7 @@ function createStyles(colors: ThemeColors) {
       fontSize: 18,
       color: colors.text,
       backgroundColor: colors.surface,
-      borderRadius: 12,
+      borderRadius: 16,
       paddingHorizontal: 16,
       paddingTop: 16,
       textAlignVertical: 'top',
@@ -152,9 +155,9 @@ function createStyles(colors: ThemeColors) {
       marginTop: 16,
     },
     button: {
-      minHeight: 56,
+      minHeight: 64,
       backgroundColor: colors.accent,
-      borderRadius: 12,
+      borderRadius: 32,
       justifyContent: 'center',
       alignItems: 'center',
       marginTop: 24,

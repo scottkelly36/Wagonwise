@@ -54,7 +54,7 @@ export default function ConsentScreen() {
           each time.
         </Text>
         <Text style={styles.paragraph}>
-          You can delete your account and everything tied to it at any time from Settings.
+          You can delete your account and everything tied to it at any time from the More tab.
         </Text>
 
         <Text style={styles.heading}>Before you rely on this app</Text>
@@ -121,9 +121,9 @@ function createStyles(colors: ThemeColors) {
       marginTop: 20,
     },
     button: {
-      minHeight: 56,
+      minHeight: 64,
       backgroundColor: colors.accent,
-      borderRadius: 12,
+      borderRadius: 32,
       justifyContent: 'center',
       alignItems: 'center',
       marginTop: 32,

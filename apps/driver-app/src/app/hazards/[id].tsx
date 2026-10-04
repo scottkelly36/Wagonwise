@@ -11,7 +11,11 @@ import {
   HAZARD_STATUS_LABELS,
   HAZARD_TYPE_LABELS,
 } from '../../lib/hazard-labels';
+import { Icon } from '../../components/ui/icon';
+import { ScreenHeader } from '../../components/ui/screen-header';
+import { HAZARD_TYPE_ICONS } from '../../lib/hazard-icons';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
+import { cardStyle } from '../../theme/tokens';
 
 /**
  * Hazard detail (design doc §8): "What, when, confirmations; Confirm / Not there". Reached after
@@ -53,19 +57,23 @@ export default function HazardDetailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>{HAZARD_TYPE_LABELS[hazard.type]}</Text>
-        <Text style={styles.status}>{HAZARD_STATUS_LABELS[hazard.status] ?? hazard.status}</Text>
+        <ScreenHeader
+          title={HAZARD_TYPE_LABELS[hazard.type]}
+          subtitle={HAZARD_STATUS_LABELS[hazard.status] ?? hazard.status}
+        />
 
-        {hazard.measurement !== undefined && (
-          <Text style={styles.detail}>{formatMeasurement(hazard.measurement)}</Text>
-        )}
-        {hazard.note !== undefined && <Text style={styles.detail}>{hazard.note}</Text>}
-
-        <Text style={styles.meta}>Reported {formatDateTime(hazard.createdAt)}</Text>
-        <Text style={styles.meta}>
-          {hazard.confirmations} confirmation{hazard.confirmations === 1 ? '' : 's'} ·{' '}
-          {hazard.dismissals} said not there
-        </Text>
+        <View style={styles.card}>
+          <Icon name={HAZARD_TYPE_ICONS[hazard.type]} size={40} color={colors.warning} />
+          {hazard.measurement !== undefined && (
+            <Text style={styles.detail}>{formatMeasurement(hazard.measurement)}</Text>
+          )}
+          {hazard.note !== undefined && <Text style={styles.detail}>{hazard.note}</Text>}
+          <Text style={styles.meta}>Reported {formatDateTime(hazard.createdAt)}</Text>
+          <Text style={styles.meta}>
+            {hazard.confirmations} confirmation{hazard.confirmations === 1 ? '' : 's'} ·{' '}
+            {hazard.dismissals} said not there
+          </Text>
+        </View>
 
         {actionError !== undefined && <Text style={styles.error}>{actionError}</Text>}
 
@@ -108,18 +116,13 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.background,
     },
     content: {
-      padding: 24,
-      gap: 8,
+      padding: 16,
+      gap: 12,
     },
-    title: {
-      fontSize: 28,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    status: {
-      fontSize: 16,
-      color: colors.textMuted,
-      textTransform: 'uppercase',
+    card: {
+      ...cardStyle(colors),
+      padding: 18,
+      gap: 6,
     },
     detail: {
       fontSize: 18,
@@ -153,8 +156,8 @@ function createStyles(colors: ThemeColors) {
     },
     button: {
       flex: 1,
-      minHeight: 56,
-      borderRadius: 12,
+      minHeight: 60,
+      borderRadius: 30,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -163,7 +166,7 @@ function createStyles(colors: ThemeColors) {
     },
     dismissButton: {
       backgroundColor: colors.surface,
-      borderWidth: 1,
+      borderWidth: 2,
       borderColor: colors.textDim,
     },
     buttonDisabled: {
