@@ -133,6 +133,11 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-04: dashboard company pickers. WagonWise staff choose a company by name from a dropdown
+  (`CompanySelect`) when inviting a user, and in the company filters on Users and Activity, instead of
+  pasting a company id. The Users "Account" column shows the company name. Jobs, Drivers and Vehicles
+  already had a dropdown. Dashboard only; not checked against a live backend.
+
 - 2026-10-04: dashboard on a phone, and owners who also drive. Under 800 px the menu is a drawer
   opened from a button in the top bar; under 700 px each list row becomes a labelled card (sorting
   moves to a dropdown), Assign and Cancel are full-width, Live trips stacks map over list, and
