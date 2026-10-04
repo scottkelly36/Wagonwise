@@ -56,6 +56,9 @@ export function DataTable<T>({
   }, [rows, query, searchText, sort, sortColumn]);
 
   const { rows: pageRows, page, pageCount } = paginate(visible, requestedPage, pageSize);
+  const sortable = columns.filter(
+    (column) => column.sortValue !== undefined && column.header !== '',
+  );
 
   // A new search, sort or page starts at the top, so the first result is never scrolled out of sight.
   useEffect(() => {
@@ -64,9 +67,37 @@ export function DataTable<T>({
 
   return (
     <div className="card data-table-card">
-      {(searchText !== undefined || toolbar !== undefined) && (
+      {(searchText !== undefined || toolbar !== undefined || sortable.length > 0) && (
         <div className="data-table-toolbar">
           <div>{toolbar}</div>
+          {/* Headers are not tappable once rows become cards on a phone, so sorting moves here. */}
+          {sortable.length > 0 && (
+            <label className="data-table-sort-mobile">
+              Sort
+              <select
+                value={sort === undefined ? '' : `${sort.columnKey}:${sort.direction}`}
+                onChange={(e) => {
+                  const [columnKey, direction] = e.target.value.split(':');
+                  setSort(
+                    columnKey === undefined || columnKey === ''
+                      ? undefined
+                      : { columnKey, direction: direction === 'desc' ? 'desc' : 'asc' },
+                  );
+                  setRequestedPage(1);
+                }}
+              >
+                <option value="">Default order</option>
+                {sortable.flatMap((column) => [
+                  <option key={`${column.key}:asc`} value={`${column.key}:asc`}>
+                    {column.header} (A to Z)
+                  </option>,
+                  <option key={`${column.key}:desc`} value={`${column.key}:desc`}>
+                    {column.header} (Z to A)
+                  </option>,
+                ])}
+              </select>
+            </label>
+          )}
           {searchText !== undefined && (
             <label className="data-table-search">
               Search
@@ -124,7 +155,11 @@ export function DataTable<T>({
             {pageRows.map((row) => (
               <tr key={rowKey(row)}>
                 {columns.map((column) => (
-                  <td key={column.key} style={{ textAlign: column.align ?? 'left' }}>
+                  <td
+                    key={column.key}
+                    data-label={column.header}
+                    style={{ textAlign: column.align ?? 'left' }}
+                  >
                     {column.cell(row)}
                   </td>
                 ))}

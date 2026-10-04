@@ -296,19 +296,80 @@ td {
   background: #fef2f2;
 }
 
+/* The menu button is only for phones */
+.menu-button {
+  display: none;
+  margin-right: auto;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  place-items: center;
+  font-size: 22px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.menu-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.nav-backdrop {
+  display: none;
+}
+
 @media (max-width: 800px) {
-  .sidebar {
-    position: static;
-    width: 100%;
-    inset: auto;
+  .menu-button {
+    display: inline-grid;
   }
 
-  .shell {
-    flex-direction: column;
+  /* The menu becomes a drawer over the page, closed until the menu button opens it */
+  .sidebar {
+    z-index: 30;
+    width: min(290px, 86vw);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 0.2s ease,
+      visibility 0s linear 0.2s;
+  }
+
+  .sidebar.open {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.2s ease;
+  }
+
+  .nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgba(11, 18, 34, 0.5);
+  }
+
+  .nav-link {
+    padding: 13px 12px;
   }
 
   .main-column {
     margin-left: 0;
+  }
+
+  .topbar {
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  .topbar .who {
+    display: none;
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  h1 {
+    font-size: 21px;
+    margin-bottom: 14px;
   }
 }
 
@@ -562,4 +623,179 @@ select[aria-invalid='true']:focus {
 
 .icon-danger:hover:not(:disabled) {
   background: #fbd5d5;
+}
+
+/* Lists on a phone: each row becomes a card, with the column name beside each value */
+.data-table-sort-mobile {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .data-table-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .data-table-search,
+  .data-table-sort-mobile {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .data-table-search input {
+    width: 100%;
+  }
+
+  .data-table thead {
+    display: none;
+  }
+
+  .data-table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .data-table tr {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .data-table tbody tr:first-child {
+    border-top: 0;
+  }
+
+  .data-table td,
+  .data-table tbody tr:first-child td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 5px 0;
+    border: 0;
+    text-align: right !important;
+  }
+
+  .data-table td::before {
+    content: attr(data-label);
+    flex: 0 0 34%;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+  }
+
+  /* The actions column has no heading: it is the card's footer */
+  .data-table td[data-label=''] {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    padding-top: 10px;
+  }
+
+  .data-table td[data-label='']::before {
+    display: none;
+  }
+
+  .data-table td[data-label=''] > div {
+    width: 100%;
+    text-align: left;
+  }
+
+  .data-table-pages {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .data-table-pages .muted {
+    width: 100%;
+    text-align: center;
+    margin: 0 0 6px;
+  }
+
+  /* Big enough for a thumb */
+  button,
+  select,
+  input:not([type='checkbox']) {
+    min-height: 44px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* anything smaller makes iPhones zoom in on focus */
+  }
+
+  .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* Live trips: the map beside the list on a desktop, the map above the list on a phone */
+.live-layout {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.live-map-box {
+  flex: 2 1 420px;
+  height: 520px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+.live-list {
+  flex: 1 1 280px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.assign-controls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+@media (max-width: 700px) {
+  .live-map-box {
+    flex-basis: 100%;
+    height: 55vh;
+    min-height: 300px;
+  }
+
+  .live-list {
+    flex-basis: 100%;
+    max-height: none;
+  }
+
+  .assign-controls {
+    display: flex;
+    width: 100%;
+  }
+
+  .assign-controls select {
+    flex: 1 1 100%;
+  }
+
+  .assign-controls button {
+    flex: 1 1 100%;
+  }
+}
+
+/* A field given a fixed width on a wide screen must never be wider than a phone */
+input,
+select,
+textarea {
+  max-width: 100%;
 }

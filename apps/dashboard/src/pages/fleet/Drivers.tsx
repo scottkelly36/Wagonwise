@@ -53,9 +53,9 @@ export function Drivers() {
   const [showIdentifierError, setShowIdentifierError] = useState(false);
   const driverError = identifierError(identifier);
   const invite = useMutation({
-    mutationFn: () =>
+    mutationFn: (who: string) =>
       withAccessToken((token) =>
-        fleetApi.inviteDriver(token, companyId as string, { identifier: identifier.trim() }),
+        fleetApi.inviteDriver(token, companyId as string, { identifier: who.trim() }),
       ),
     onSuccess: () => {
       setIdentifier('');
@@ -107,6 +107,18 @@ export function Drivers() {
   const requested = links.data?.filter((l) => l.status === 'requested') ?? [];
   const invited = links.data?.filter((l) => l.status === 'invited') ?? [];
   const active = links.data?.filter((l) => l.status === 'active') ?? [];
+
+  // An owner or dispatcher who also drives. Their staff sign-in and their driver sign-in are
+  // separate accounts, matched by email: this finds the driver link made for their own email.
+  const myEmail = me?.kind === 'fleet' ? me.email.trim().toLowerCase() : undefined;
+  const myLink =
+    myEmail === undefined
+      ? undefined
+      : links.data?.find(
+          (l) =>
+            (l.invitedIdentifier ?? l.driverIdentifier ?? '').toLowerCase() === myEmail &&
+            (l.status === 'invited' || l.status === 'requested' || l.status === 'active'),
+        );
 
   return (
     <div>
@@ -165,6 +177,43 @@ export function Drivers() {
             </button>
           </section>
 
+          {myEmail !== undefined && (
+            <section style={{ marginBottom: 24 }}>
+              <h2>Do you drive too?</h2>
+              {myLink === undefined ? (
+                <>
+                  <p style={{ color: '#6b7280', marginTop: 0 }}>
+                    Sends an invitation to your own email ({myEmail}) so you can be given jobs like
+                    any other driver. Then open the WagonWise driver app, sign in with that email
+                    and accept under Settings, My companies. If you have not used the app before,
+                    you will need an invite code from WagonWise for your first sign-in.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => invite.mutate(myEmail)}
+                    disabled={invite.isPending}
+                  >
+                    {invite.isPending ? 'Sending…' : 'Add me as a driver'}
+                  </button>
+                </>
+              ) : myLink.status === 'active' ? (
+                <p style={{ margin: 0 }}>
+                  You are set up as a driver here. You will show as "(you)" when assigning jobs.
+                </p>
+              ) : myLink.status === 'invited' ? (
+                <p style={{ margin: 0 }}>
+                  Invitation sent to {myEmail}. Open the driver app, sign in with that email and
+                  accept it under Settings, My companies.
+                </p>
+              ) : (
+                <p style={{ margin: 0 }}>
+                  You have asked to join as a driver. Approve your own request under Pending
+                  requests below.
+                </p>
+              )}
+            </section>
+          )}
+
           <section style={{ marginBottom: 24 }}>
             <h2>Invite a driver</h2>
             <form
@@ -174,7 +223,7 @@ export function Drivers() {
                   setShowIdentifierError(true);
                   return;
                 }
-                invite.mutate();
+                invite.mutate(identifier);
               }}
               noValidate
               style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}
