@@ -4,13 +4,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import * as staffApi from '../../api/staff';
 import { DataTable, IconButton, type Column } from '../../components/DataTable';
+import { CompanySelect } from '../../components/CompanySelect';
 import { FieldError } from '../../components/FieldError';
+import { useCompanies } from '../../hooks/use-companies';
 import { focusFirstInvalid, hasErrors, isEmail, type FieldErrors } from '../../lib/forms';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from './messages';
 import { PRESET_LABELS, PRIVILEGE_LABELS, PRIVILEGE_PRESETS, PRIVILEGES } from './privileges';
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Users (P2-M1.10). A company's managers (`manage_users`) see and manage their own company's
@@ -31,10 +31,14 @@ export function Users() {
   // WagonWise admins can narrow the list to one company; a manager always sees their own.
   const [companyFilter, setCompanyFilter] = useState('');
   const listCompanyId = isPlatform
-    ? UUID.test(companyFilter.trim())
-      ? companyFilter.trim()
-      : undefined
+    ? companyFilter === ''
+      ? undefined
+      : companyFilter
     : me?.companyId;
+  const companies = useCompanies(isPlatform);
+  const companyNames = new Map<string, string>(
+    (companies.data ?? []).map((company) => [company.id, company.name]),
+  );
   const membersKey = ['staff-members', listCompanyId ?? 'everyone'] as const;
 
   const members = useQuery({
@@ -92,9 +96,13 @@ export function Users() {
             key: 'account',
             header: 'Account',
             sortValue: (member: StaffAccountDto) =>
-              member.kind === 'platform' ? 'WagonWise staff' : (member.companyId ?? ''),
+              member.kind === 'platform'
+                ? 'WagonWise staff'
+                : (companyNames.get(member.companyId ?? '') ?? ''),
             cell: (member: StaffAccountDto) =>
-              member.kind === 'platform' ? 'WagonWise staff' : `Company ${member.companyId ?? ''}`,
+              member.kind === 'platform'
+                ? 'WagonWise staff'
+                : (companyNames.get(member.companyId ?? '') ?? 'A company'),
           },
         ]
       : []),
@@ -143,18 +151,15 @@ export function Users() {
       <InviteForm isPlatform={isPlatform} myPrivileges={myPrivileges} myCompanyId={me.companyId} />
 
       {isPlatform && (
-        <p>
-          <label htmlFor="company-filter">
-            Show one company (company id), or leave blank for everyone:{' '}
-          </label>
-          <input
+        <div className="field" style={{ maxWidth: 320, marginBottom: 16 }}>
+          <label htmlFor="company-filter">Show</label>
+          <CompanySelect
             id="company-filter"
             value={companyFilter}
-            onChange={(e) => setCompanyFilter(e.target.value)}
-            placeholder="Everyone"
-            style={{ width: 320 }}
+            onChange={setCompanyFilter}
+            emptyLabel="Everyone, every company"
           />
-        </p>
+        </div>
       )}
 
       {error !== null && <p className="error">{staffErrorMessage(error)}</p>}
@@ -286,11 +291,8 @@ function InviteForm(props: {
   if (email.trim() === '') errors.email = 'Enter their email address.';
   else if (!isEmail(email))
     errors.email = 'That does not look like an email address. Check it is like name@company.co.uk.';
-  if (kind === 'fleet' && props.isPlatform && !UUID.test(companyId.trim())) {
-    errors.companyId =
-      companyId.trim() === ''
-        ? 'Enter the id of the company they work for (copy it from the Companies page).'
-        : 'That is not a company id. It is a long code like 3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90.';
+  if (kind === 'fleet' && props.isPlatform && companyId === '') {
+    errors.companyId = 'Choose the company they work for.';
   }
   const shown = (field: keyof typeof errors): string | undefined =>
     showErrors ? errors[field] : undefined;
@@ -353,13 +355,14 @@ function InviteForm(props: {
         </div>
         {kind === 'fleet' && props.isPlatform && (
           <div className="field" style={{ marginBottom: 12 }}>
-            <label htmlFor="invite-company">Company id</label>
-            <input
+            <label htmlFor="invite-company">Company</label>
+            <CompanySelect
               id="invite-company"
               value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
-              aria-invalid={shown('companyId') !== undefined}
-              aria-describedby="invite-company-error"
+              onChange={setCompanyId}
+              emptyLabel="Choose a company"
+              invalid={shown('companyId') !== undefined}
+              describedBy="invite-company-error"
             />
             <FieldError id="invite-company-error" message={shown('companyId')} />
           </div>

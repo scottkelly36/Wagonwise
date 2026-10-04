@@ -2,12 +2,11 @@ import type { Privilege, StaffAuditEntryDto } from '@wagonwise/contracts/staff';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as staffApi from '../../api/staff';
+import { CompanySelect } from '../../components/CompanySelect';
 import { DataTable, type Column } from '../../components/DataTable';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from './messages';
 import { PRIVILEGE_LABELS } from './privileges';
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function privilegeList(value: string | readonly string[] | undefined): string {
   const list = typeof value === 'string' ? [value] : (value ?? []);
@@ -57,11 +56,7 @@ export function Activity() {
   const canView = isPlatform || (me?.kind === 'fleet' && me.privileges.includes('manage_users'));
 
   const [companyFilter, setCompanyFilter] = useState('');
-  const companyId = isPlatform
-    ? UUID.test(companyFilter.trim())
-      ? companyFilter.trim()
-      : undefined
-    : me?.companyId;
+  const companyId = isPlatform ? (companyFilter === '' ? undefined : companyFilter) : me?.companyId;
 
   const entries = useQuery({
     queryKey: ['staff-audit', companyId ?? 'everyone'],
@@ -115,18 +110,15 @@ export function Activity() {
       </p>
 
       {isPlatform && (
-        <p>
-          <label htmlFor="company-filter">
-            One company (company id), or blank for everything:{' '}
-          </label>
-          <input
+        <div className="field" style={{ maxWidth: 320, marginBottom: 16 }}>
+          <label htmlFor="company-filter">Show</label>
+          <CompanySelect
             id="company-filter"
             value={companyFilter}
-            onChange={(e) => setCompanyFilter(e.target.value)}
-            placeholder="Everything"
-            style={{ width: 320 }}
+            onChange={setCompanyFilter}
+            emptyLabel="Everything, every company"
           />
-        </p>
+        </div>
       )}
 
       {entries.error !== null && (
