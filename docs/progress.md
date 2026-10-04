@@ -133,6 +133,13 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-04: driver app **Start**: accept the job, tap Start, and the app plans a route for the
+  assigned company vehicle (never a profile the driver picked) and opens the trip screen; **Set off**
+  does the same to the delivery; the trip screen has the arrival button. New endpoint
+  `POST /jobs/:id/navigation-profile` and migration 0034 (a driver may read only the vehicle on their
+  own unfinished job), so **core must deploy before `eas update`**. No new job status. See
+  `history/p2-m5-driver-app-jobs.md`.
+
 - 2026-10-04: driver app checks for its job. The app asked for "my current job" once on opening
   and never again (no timer, no refresh on return, and push is still off), so a job assigned while
   the app was open did not appear until a full restart, and a failed check showed nothing. Now it

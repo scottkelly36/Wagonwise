@@ -4,11 +4,13 @@ import type {
   Forbidden,
   JobNotFound,
   NoRouteForVehicle,
+  NoVehicleAssigned,
   NotTracking,
   ProofOfDeliveryNotFound,
   ProofOfDeliveryRequired,
   VehicleNotInCompany,
 } from '../application/errors.js';
+import type { VehicleUnavailable } from '../application/ports/navigation-profile.js';
 import type { InvalidReference, InvalidStops, InvalidTransition } from '../domain/job.js';
 
 export type JobsError =
@@ -18,6 +20,8 @@ export type JobsError =
   | Forbidden
   | JobNotFound
   | NoRouteForVehicle
+  | NoVehicleAssigned
+  | VehicleUnavailable
   | NotTracking
   | DriverNotInCompany
   | VehicleNotInCompany
@@ -43,6 +47,8 @@ export function statusFor(error: JobsError): number {
     case 'InvalidTransition':
     case 'DriverBusy':
     case 'NoRouteForVehicle':
+    case 'NoVehicleAssigned':
+    case 'VehicleUnavailable':
     case 'NotTracking':
     case 'ProofOfDeliveryRequired':
       return 409;

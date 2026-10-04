@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { brandedId } from './brand.js';
 import { companyIdSchema } from './companies.js';
-import { geoPointSchema } from './routing.js';
+import { geoPointSchema, vehicleProfileIdSchema } from './routing.js';
 
 export const jobIdSchema = brandedId<'JobId'>();
 export type JobId = z.infer<typeof jobIdSchema>;
@@ -91,6 +91,15 @@ export const currentJobResponseSchema = z.object({
   job: jobSchema.nullable(),
 });
 export type CurrentJobResponse = z.infer<typeof currentJobResponseSchema>;
+
+/** `POST /jobs/:id/navigation-profile`: the routing profile to navigate a job with. It carries the
+ *  measurements of the company vehicle the job is assigned to, never a profile the driver picked.
+ *  Plan the route with `profileId`. */
+export const navigationProfileResponseSchema = z.object({
+  profileId: vehicleProfileIdSchema,
+  vehicleName: z.string(),
+});
+export type NavigationProfileResponse = z.infer<typeof navigationProfileResponseSchema>;
 
 /** The driver and vehicle must both belong to the job's company; core checks. */
 export const assignJobRequestSchema = z.object({

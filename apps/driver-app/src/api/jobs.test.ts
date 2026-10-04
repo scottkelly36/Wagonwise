@@ -1,4 +1,10 @@
-import { advanceJobStatus, attachProofOfDelivery, getCurrentJob, reportJobPosition } from './jobs';
+import {
+  advanceJobStatus,
+  attachProofOfDelivery,
+  getCurrentJob,
+  getNavigationProfile,
+  reportJobPosition,
+} from './jobs';
 import { ApiError } from './errors';
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -131,5 +137,32 @@ describe('reportJobPosition', () => {
     await expect(
       reportJobPosition('token-1', job.id, { lat: 54.97, lon: -2.1 }),
     ).rejects.toMatchObject({ tag: 'NotTracking', status: 409 });
+  });
+});
+
+describe('getNavigationProfile', () => {
+  it('posts for the job with the bearer token and parses the profile', async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { profileId: 'p-1', vehicleName: 'Scania R450' }));
+    globalThis.fetch = fetchMock;
+
+    const result = await getNavigationProfile('token-1', job.id);
+
+    expect(result).toEqual({ profileId: 'p-1', vehicleName: 'Scania R450' });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(new RegExp(`/jobs/${job.id}/navigation-profile$`));
+    expect(init.method).toBe('POST');
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer token-1');
+  });
+
+  it('throws NoVehicleAssigned when dispatch has not chosen a vehicle', async () => {
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(409, { tag: 'NoVehicleAssigned', requestId: 'r1' }));
+    await expect(getNavigationProfile('token-1', job.id)).rejects.toMatchObject({
+      tag: 'NoVehicleAssigned',
+      status: 409,
+    });
   });
 });

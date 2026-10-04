@@ -52,6 +52,11 @@ export interface FleetModule {
   /** A vehicle's measurements, or null. For `jobs` ETA (P2-M6.4): a job is routed for the company
    *  vehicle it is assigned to, not a driver's personal profile. Supplied by composition. */
   getVehicleDimensions(vehicleId: string): Promise<VehicleDimensions | null>;
+  /** A vehicle's name and measurements, or null. For navigating a job: the driver is given a routing
+   *  profile named after the company's lorry. Supplied by composition. */
+  getVehicle(
+    vehicleId: string,
+  ): Promise<{ readonly name: string; readonly dimensions: VehicleDimensions } | null>;
   /** Whether the driver has an active link with the company (P2-M2.8). For `jobs`' driver
    *  directory, supplied by composition — replaces identity's old single `drivers.company_id`. */
   isActiveDriverOfCompany(driverId: string, companyId: string): Promise<boolean>;
@@ -105,6 +110,12 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
     async getVehicleDimensions(vehicleId: string): Promise<VehicleDimensions | null> {
       const vehicle = await repo.findById(makeId<'FleetVehicleId'>(vehicleId));
       return vehicle?.dimensions ?? null;
+    },
+    async getVehicle(
+      vehicleId: string,
+    ): Promise<{ readonly name: string; readonly dimensions: VehicleDimensions } | null> {
+      const vehicle = await repo.findById(makeId<'FleetVehicleId'>(vehicleId));
+      return vehicle === null ? null : { name: vehicle.name, dimensions: vehicle.dimensions };
     },
     isActiveDriverOfCompany(driverId: string, companyId: string): Promise<boolean> {
       return links.isActive(makeId<'CompanyId'>(companyId), makeId<'DriverId'>(driverId));

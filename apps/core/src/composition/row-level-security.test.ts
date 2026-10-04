@@ -429,4 +429,69 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
     // replaced by fleet.driver_links, which does have RLS (migration 0028).
     expect(rows.map((r) => r.name)).toEqual([]);
   });
+
+  describe('a driver reading the vehicle on their own job (migration 0034)', () => {
+    const VD_ACTIVE = 'f1000000-0000-4000-8000-000000000001';
+    const VD_FINISHED = 'f2000000-0000-4000-8000-000000000002';
+    const VD_NO_JOB = 'f3000000-0000-4000-8000-000000000003';
+    const as = (driverId: string) =>
+      ({ kind: 'driver', driverId, identifier: `${driverId}@example.com` }) as const;
+
+    beforeAll(async () => {
+      await ownerPool.query(`
+        insert into jobs.jobs (id, company_id, reference, status, driver_id, vehicle_id, created_at)
+          values ('f1100000-0000-4000-8000-000000000001', '${ACME}', 'VD-1', 'en_route', '${VD_ACTIVE}', '${ACME_VEHICLE}', now()),
+                 ('f2200000-0000-4000-8000-000000000002', '${BETA}', 'VD-2', 'delivered', '${VD_FINISHED}', '${BETA_VEHICLE}', now());
+      `);
+    });
+
+    // By id: an earlier test in this file renames Acme's vehicle.
+    const vehicleIds = async () =>
+      (await sql<{ id: string }>`select id from fleet.vehicles order by id`.execute(db)).rows.map(
+        (r) => r.id,
+      );
+
+    it('sees the vehicle assigned to their own unfinished job, and only that one', async () => {
+      await scopes.run(as(VD_ACTIVE), async () => {
+        expect(await vehicleIds()).toEqual([ACME_VEHICLE]);
+      });
+    });
+
+    it('sees nothing once the job is over, and nothing without a job', async () => {
+      await scopes.run(as(VD_FINISHED), async () => {
+        expect(await vehicleIds()).toEqual([]);
+      });
+      await scopes.run(as(VD_NO_JOB), async () => {
+        expect(await vehicleIds()).toEqual([]);
+      });
+    });
+
+    it('can read it but never change or delete a vehicle', async () => {
+      await scopes.run(as(VD_ACTIVE), async () => {
+        const updated = await sql`update fleet.vehicles set height_m = 1`.execute(db);
+        expect(updated.numAffectedRows).toBe(0n);
+        const deleted = await sql`delete from fleet.vehicles`.execute(db);
+        expect(deleted.numAffectedRows).toBe(0n);
+      });
+      const { rows } = await ownerPool.query('select height_m from fleet.vehicles where id = $1', [
+        ACME_VEHICLE,
+      ]);
+      expect(rows[0]).toEqual({ height_m: 4 });
+    });
+
+    it('cannot add a vehicle', async () => {
+      await expect(
+        scopes.run(as(VD_ACTIVE), () =>
+          sql`insert into fleet.vehicles (id, company_id, name, height_m, width_m, length_m, gross_weight_t)
+              values (gen_random_uuid(), ${ACME}, 'x', 4, 2.5, 16, 44)`.execute(db),
+        ),
+      ).rejects.toThrow(/row-level security/);
+    });
+
+    it('leaves a company scope as it was', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await vehicleIds()).toEqual([ACME_VEHICLE]);
+      });
+    });
+  });
 });

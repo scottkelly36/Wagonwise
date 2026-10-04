@@ -9,7 +9,7 @@ import { createJobsModule, type Caller } from '../modules/jobs/api.js';
 import { runMigrations } from '../platform/migrations/run-migrations.js';
 import { attachPoolErrorHandler } from '../platform/db.js';
 import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
-import { ok } from '../shared/result.js';
+import { err, ok } from '../shared/result.js';
 import { FakeClock } from '../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../shared/testing/sequential-id-generator.js';
 
@@ -95,6 +95,10 @@ describe('jobs dispatch end to end (real RLS, real scopes)', () => {
       routes: {
         estimate: () =>
           Promise.resolve(ok({ distanceKm: 40, durationMin: 50, geometry: 'a-line' })),
+      },
+      // Not exercised here: the navigation profile has its own tests.
+      navigationProfiles: {
+        provision: () => Promise.resolve(err({ tag: 'VehicleUnavailable' })),
       },
       driverIdentities: {
         getIdentifier: (id) =>

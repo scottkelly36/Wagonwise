@@ -19,6 +19,10 @@ import { PostgresRestrictionOverrideRepository } from './infrastructure/postgres
 import { PostgresRoutePlanRepository } from './infrastructure/postgres-route-plan-repository.js';
 import { PostgresVehicleProfileRepository } from './infrastructure/postgres-vehicle-profile-repository.js';
 import { estimateRoute, type EstimateRouteInput } from './application/estimate-route.js';
+import {
+  upsertVehicleProfile,
+  type UpsertVehicleProfileInput,
+} from './application/upsert-vehicle-profile.js';
 import { ValhallaRoutingEngine } from './infrastructure/valhalla-routing-engine.js';
 import { registerRoutingRoutes, type RoutingRouteDeps } from './interface/routes.js';
 
@@ -57,6 +61,7 @@ export interface RoutingModuleDeps {
 }
 
 export type { EstimateRouteInput } from './application/estimate-route.js';
+export type { UpsertVehicleProfileInput } from './application/upsert-vehicle-profile.js';
 export type { NoRouteFound, RouteResult } from './application/ports/routing-engine.js';
 
 export interface RoutingModule {
@@ -65,6 +70,9 @@ export interface RoutingModule {
    *  `jobs`' ETA (P2-M6.4), wired by composition. Unpersisted and hazard-agnostic, so an
    *  estimate and not a plan. */
   estimateRoute(input: EstimateRouteInput): ReturnType<typeof estimateRoute>;
+  /** Creates or refreshes a driver's routing profile from a company vehicle's measurements, so a
+   *  job can be navigated for the lorry it is assigned to. Supplied to `jobs` by composition. */
+  upsertVehicleProfile(input: UpsertVehicleProfileInput): ReturnType<typeof upsertVehicleProfile>;
   /** For `composition/`'s `OutboxDispatcher` (design doc §6's alert trigger) — one handler per
    *  event type this module reacts to. Empty in Phase 1 for every module except this one (M6.1's
    *  "no module has one yet" is no longer true as of M6.4). */
@@ -139,6 +147,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
       registerRoutingRoutes(app, routeDeps);
     },
     estimateRoute: (input) => estimateRoute({ routingEngine }, input),
+    upsertVehicleProfile: (input) => upsertVehicleProfile({ repo: vehicleProfileRepo }, input),
     eventHandlers,
   };
 }

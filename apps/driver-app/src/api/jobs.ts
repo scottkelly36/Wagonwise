@@ -3,10 +3,12 @@ import {
   attachProofOfDeliveryRequestSchema,
   currentJobResponseSchema,
   jobSchema,
+  navigationProfileResponseSchema,
   reportJobPositionRequestSchema,
   type AdvanceJobStatusRequest,
   type AttachProofOfDeliveryRequest,
   type JobDto,
+  type NavigationProfileResponse,
 } from '@wagonwise/contracts/jobs';
 
 import { requestJson, throwUnlessSuccess } from './http';
@@ -39,6 +41,20 @@ export async function advanceJobStatus(
   });
   throwUnlessSuccess(status, json, [200]);
   return jobSchema.parse(json);
+}
+
+/** The routing profile to navigate this job with: built on the server from the company vehicle the
+ *  job is assigned to, never from a profile the driver picked. Fails with NoVehicleAssigned when
+ *  dispatch has not chosen a vehicle. */
+export async function getNavigationProfile(
+  accessToken: string,
+  jobId: string,
+): Promise<NavigationProfileResponse> {
+  const { status, json } = await requestJson('POST', `/jobs/${jobId}/navigation-profile`, {
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return navigationProfileResponseSchema.parse(json);
 }
 
 /** Uploads the delivery photo (`POST /jobs/:id/proof-of-delivery`, 204). A retake replaces the
