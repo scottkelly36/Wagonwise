@@ -11,9 +11,16 @@ import {
 } from 'react-native';
 
 import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
+import { useJobNavigation } from '../hooks/use-job-navigation';
 import { useJobStatusVoice } from '../hooks/use-job-status-voice';
 import { useProofOfDeliveryCapture } from '../hooks/use-proof-of-delivery';
-import { jobsErrorMessage } from '../lib/error-messages';
+import { jobNavigationErrorMessage, jobsErrorMessage } from '../lib/error-messages';
+import {
+  isTripToTarget,
+  jobActions,
+  navigationTarget,
+  type JobAction,
+} from '../lib/job-navigation';
 import { isTrackedStatus } from '../lib/job-position-reporting';
 import { JOB_STATUS_LABELS, NEXT_STEP } from '../lib/job-status';
 import {
@@ -25,6 +32,8 @@ import {
   PROOF_STATUS_MESSAGES,
   proofOfDeliveryStatus,
 } from '../lib/proof-of-delivery';
+import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
+import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 const STOP_KIND_LABELS = { pickup: 'Pickup', delivery: 'Delivery' } as const;
@@ -55,6 +64,9 @@ const VOICE_LABEL: Record<string, string> = {
 export default function JobScreen() {
   const job = useCurrentJob();
   const advance = useAdvanceJobStatus();
+  const navigation = useJobNavigation();
+  const trip = useCurrentActiveTripStore((s) => s.trip);
+  const plan = useCurrentRoutePlanStore((s) => s.plan);
   // Hooks can't be conditional, so this is wired up before `job.data` is known to exist — it does
   // nothing (and the button that would start it isn't rendered) until there's a real job.
   const voice = useJobStatusVoice(job.data?.id ?? '', job.data?.status ?? 'draft');
@@ -83,12 +95,32 @@ export default function JobScreen() {
   const proofStatus = proofOfDeliveryStatus(current, proof.queuedLocally);
   // Core refuses "Delivered" without the photo on the server, so don't offer a button (or a spoken
   // "delivered") that is certain to fail — the photo section says why.
-  const blockedByProof = nextStep?.to === 'delivered' && isDeliveryBlockedByProof(current);
+  const target = navigationTarget(current);
+  const tripToTarget =
+    trip !== undefined &&
+    plan !== undefined &&
+    target !== undefined &&
+    isTripToTarget(plan.destination, target);
+  const actions = jobActions(current.status, tripToTarget);
+  const noVehicle = current.vehicleId === undefined;
+  const blockedByProof =
+    actions?.primary.kind === 'advance' &&
+    actions.primary.to === 'delivered' &&
+    isDeliveryBlockedByProof(current);
+  const working = advance.isPending || navigation.isPending;
 
-  function handleAdvance(): void {
-    if (!nextStep || advance.isPending || blockedByProof) return;
-    advance.mutate({ jobId: current.id, status: nextStep.to });
+  function handleAction(action: JobAction): void {
+    if (working || blockedByProof) return;
+    if (action.kind === 'advance') {
+      advance.mutate({ jobId: current.id, status: action.to });
+    } else {
+      navigation.mutate({ job: current, advanceFirst: action.advanceFirst });
+    }
   }
+
+  // "Start" needs the vehicle the dispatcher assigned. Without one it is held back with the reason,
+  // rather than letting the driver be routed for a vehicle nobody chose.
+  const navigationBlocked = (action: JobAction): boolean => action.kind === 'navigate' && noVehicle;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -138,6 +170,17 @@ export default function JobScreen() {
         )}
 
         {advance.isError && <Text style={styles.error}>{jobsErrorMessage(advance.error)}</Text>}
+        {navigation.isError && (
+          <Text style={styles.error} testID="job-navigation-error">
+            {jobNavigationErrorMessage(navigation.error)}
+          </Text>
+        )}
+        {actions?.primary.kind === 'navigate' && noVehicle && (
+          <Text style={styles.error} testID="job-no-vehicle">
+            No vehicle has been assigned to this job yet. Ask dispatch to assign one before you
+            start.
+          </Text>
+        )}
         {voice.state.phase === 'confirming' && (
           <Text style={styles.voiceFootnote} testID="job-voice-prompt">
             “{voice.state.step.label} — is that right?”
@@ -145,37 +188,60 @@ export default function JobScreen() {
         )}
       </ScrollView>
 
-      {nextStep && (
+      {actions && (
         <View style={styles.footer}>
           <TouchableOpacity
             style={[
               styles.button,
-              (advance.isPending || voiceBusy || voiceListening || blockedByProof) &&
+              (working ||
+                voiceBusy ||
+                voiceListening ||
+                blockedByProof ||
+                navigationBlocked(actions.primary)) &&
                 styles.buttonDisabled,
             ]}
-            disabled={advance.isPending || voiceBusy || voiceListening || blockedByProof}
-            onPress={handleAdvance}
+            disabled={
+              working ||
+              voiceBusy ||
+              voiceListening ||
+              blockedByProof ||
+              navigationBlocked(actions.primary)
+            }
+            onPress={() => handleAction(actions.primary)}
             testID="job-advance-button"
           >
-            {advance.isPending ? (
+            {working ? (
               <ActivityIndicator color={colors.textOnAccent} />
             ) : (
-              <Text style={styles.buttonText}>{nextStep.label}</Text>
+              <Text style={styles.buttonText}>{actions.primary.label}</Text>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.voiceButton,
-              voiceListening && styles.voiceButtonListening,
-              (advance.isPending || blockedByProof) && styles.buttonDisabled,
-            ]}
-            disabled={advance.isPending || blockedByProof}
-            onPress={voiceListening ? voice.cancel : voice.start}
-            testID="job-voice-button"
-          >
-            <Text style={styles.voiceButtonText}>{VOICE_LABEL[voice.state.phase]}</Text>
-          </TouchableOpacity>
+          {actions.secondary && (
+            <TouchableOpacity
+              style={[styles.secondaryButton, working && styles.buttonDisabled]}
+              disabled={working || voiceBusy || voiceListening}
+              onPress={() => actions.secondary && handleAction(actions.secondary)}
+              testID="job-secondary-button"
+            >
+              <Text style={styles.secondaryButtonText}>{actions.secondary.label}</Text>
+            </TouchableOpacity>
+          )}
+
+          {nextStep && (
+            <TouchableOpacity
+              style={[
+                styles.voiceButton,
+                voiceListening && styles.voiceButtonListening,
+                (working || blockedByProof) && styles.buttonDisabled,
+              ]}
+              disabled={working || blockedByProof}
+              onPress={voiceListening ? voice.cancel : voice.start}
+              testID="job-voice-button"
+            >
+              <Text style={styles.voiceButtonText}>{VOICE_LABEL[voice.state.phase]}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </SafeAreaView>
@@ -287,6 +353,19 @@ function createStyles(colors: ThemeColors) {
       fontSize: 20,
       fontWeight: '700',
       color: colors.textOnAccent,
+    },
+    secondaryButton: {
+      minHeight: 56,
+      borderRadius: 28,
+      borderWidth: 2,
+      borderColor: colors.accent,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    secondaryButtonText: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
     },
     voiceButton: {
       minHeight: 56,

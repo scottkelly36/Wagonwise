@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { useEndTrip } from '../api/use-active-trip';
+import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
 import { useNearbyHazards } from '../api/use-hazards';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
@@ -19,7 +20,8 @@ import { useLiveLocation } from '../hooks/use-live-location';
 import { useQuickVoiceReport } from '../hooks/use-quick-voice-report';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
 import { computeEta } from '../lib/eta';
-import { routingErrorMessage } from '../lib/error-messages';
+import { arrivalStep } from '../lib/job-navigation';
+import { jobsErrorMessage, routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
 import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import {
@@ -101,6 +103,11 @@ export default function ActiveTripScreen() {
   const clearPlan = useCurrentRoutePlanStore((s) => s.clear);
   const location = useLiveLocation();
   const endTrip = useEndTrip();
+  // A company job being driven (the "Start" on the job screen): the arrival is confirmed from here,
+  // so a driver never has to leave the navigation to tell dispatch they have got there.
+  const job = useCurrentJob();
+  const advanceJob = useAdvanceJobStatus();
+  const arrival = job.data ? arrivalStep(job.data.status) : undefined;
   const voiceFlow = useVoiceHazardReportFlow(location.point);
   const quickReport = useQuickVoiceReport(location.point);
 
@@ -169,6 +176,25 @@ export default function ActiveTripScreen() {
   // rendering a blank screen.
   if (!trip || !plan) {
     return <Redirect href="/plan-route" />;
+  }
+
+  function handleArrived(): void {
+    if (!job.data || !arrival || advanceJob.isPending || endTrip.isPending) return;
+    advanceJob.mutate(
+      { jobId: job.data.id, status: arrival.to },
+      {
+        onSuccess: () => {
+          // Arrived: the trip to this stop is over. The job screen has the next step.
+          const finish = () => {
+            clearTrip();
+            clearPlan();
+            router.replace('/job');
+          };
+          if (trip) endTrip.mutate(trip.id, { onSuccess: finish });
+          else finish();
+        },
+      },
+    );
   }
 
   function handleEndTrip(): void {
@@ -320,6 +346,30 @@ export default function ActiveTripScreen() {
           )}
         </View>
 
+        {job.data && arrival && (
+          <View style={styles.jobBar} testID="trip-job-bar">
+            <Text style={styles.jobBarText}>Job {job.data.reference}</Text>
+            {advanceJob.isError && (
+              <Text style={styles.error}>{jobsErrorMessage(advanceJob.error)}</Text>
+            )}
+            <TouchableOpacity
+              style={[
+                styles.button,
+                (advanceJob.isPending || endTrip.isPending) && styles.buttonDisabled,
+              ]}
+              disabled={advanceJob.isPending || endTrip.isPending}
+              onPress={handleArrived}
+              testID="trip-arrived-button"
+            >
+              {advanceJob.isPending ? (
+                <ActivityIndicator color={colors.textOnAccent} />
+              ) : (
+                <Text style={styles.buttonText}>{arrival.label}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
         {endTrip.isError && <Text style={styles.error}>{routingErrorMessage(endTrip.error)}</Text>}
 
         <TouchableOpacity
@@ -428,6 +478,14 @@ function createStyles(colors: ThemeColors) {
       fontSize: 16,
       fontWeight: '700',
       color: '#0B1220',
+    },
+    jobBar: {
+      gap: 8,
+    },
+    jobBarText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textSecondary,
     },
     button: {
       minHeight: 56,

@@ -316,3 +316,35 @@ Closes the "dashboard doesn't view the photo" gap left by M5.5a/b.
   and refuses a non-image locally.
 - **Not done:** download, zoom, a photo history (a retake replaces), signatures, and photos in any
   email or report.
+
+## Follow-up: Start, and navigation for the job (2026-10-04)
+
+The driver accepts the job, taps **Start**, and the app plans a route and opens the trip screen.
+
+- **The vehicle is the company's, never the driver's pick.** Routing only plans from a profile, and
+  a wrong height or weight is what puts a lorry under a low bridge. `POST /jobs/:id/navigation-profile`
+  (`jobs/application/get-navigation-profile.ts`) builds a routing profile for the job's driver from the
+  vehicle the dispatcher assigned, through a jobs port (`NavigationProfileProvisioner`) that composition
+  implements over `fleet.getVehicle` and `routing.upsertVehicleProfile`. Only the job's own driver, only
+  while the job is being driven (`isTracked`), and a job with no vehicle is refused (`NoVehicleAssigned`,
+  409), not guessed at. The profile id is `deterministicUuid(driver, vehicle)`, so starting twice
+  refreshes one profile and a corrected vehicle applies from the next start. It appears in the
+  driver's own vehicle list as "Company: <vehicle>"; editing it there is undone at the next Start.
+- **Migration 0034** lets a driver read a vehicle, and only while it is on one of their own unfinished
+  jobs (a second, SELECT-only policy). Found by `composition/job-navigation-end-to-end.test.ts`, which
+  runs as `wagonwise_app`: the `driver` data scope saw no vehicle at all, so the endpoint answered 409.
+- **App:** the job screen's buttons come from `lib/job-navigation.ts` (`jobActions`): Accept, then
+  **Start** (Arrived at pickup stays as the manual choice), Loaded, **Set off** (moves the job to En
+  route, then navigates to the delivery), then Start navigation or Arrived, Delivered.
+  `hooks/use-job-navigation.ts` runs the sequence: find the position, end an earlier leg's trip, get the
+  profile, plan, start the trip, open `/active-trip`. Every navigation begins with the driver's tap, so
+  no route is switched silently. A trip already running to the next stop shows "Continue navigation".
+  The trip screen has a job bar with the arrival button, which advances the job and ends the trip.
+- **Start adds no new job status.** The dispatcher already sees the driver on the live map from
+  Accepted. A real "heading to pickup" status would touch core, the dashboard and the voice commands.
+- **Not done:** turn-by-turn spoken directions (the trip screen shows the route, hazards and reroute
+  offers, as in Phase 1); the arrival nudge is still on the home screen only; a spoken "leaving" moves
+  the job on but does not start navigation (the next screen offers Start navigation); multi-stop jobs.
+- **Verified:** use case, routes over HTTP, driver-bff forward, app logic and API, and the whole
+  chain against real Postgres as `wagonwise_app` (profile created and refreshed, a route planned with
+  it). Not run on a phone, and no real Valhalla behind it.

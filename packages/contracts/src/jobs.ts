@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { brandedId } from './brand.js';
 import { companyIdSchema } from './companies.js';
-import { geoPointSchema } from './routing.js';
+import { geoPointSchema, vehicleProfileIdSchema } from './routing.js';
 
 export const jobIdSchema = brandedId<'JobId'>();
 export type JobId = z.infer<typeof jobIdSchema>;
@@ -96,7 +96,7 @@ export type CurrentJobResponse = z.infer<typeof currentJobResponseSchema>;
  *  measurements of the company vehicle the job is assigned to, never a profile the driver picked.
  *  Plan the route with `profileId`. */
 export const navigationProfileResponseSchema = z.object({
-  profileId: z.string().min(1),
+  profileId: vehicleProfileIdSchema,
   vehicleName: z.string(),
 });
 export type NavigationProfileResponse = z.infer<typeof navigationProfileResponseSchema>;

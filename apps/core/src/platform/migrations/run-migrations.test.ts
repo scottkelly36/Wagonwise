@@ -64,6 +64,7 @@ describe('runMigrations', () => {
       '0031_jobs_proof_of_delivery.sql',
       '0032_jobs_positions.sql',
       '0033_hazards_moderation.sql',
+      '0034_fleet_vehicles_assigned_driver_read.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -204,6 +205,7 @@ describe('runMigrations', () => {
       '0031_jobs_proof_of_delivery.sql',
       '0032_jobs_positions.sql',
       '0033_hazards_moderation.sql',
+      '0034_fleet_vehicles_assigned_driver_read.sql',
     ]);
   });
 });

@@ -71,6 +71,37 @@ const JOBS_MESSAGES: Record<string, string> = {
   ProofOfDeliveryRequired: 'Take a photo of the delivery first — this job needs one.',
 };
 
+/** Raised when "Start" cannot get a position to plan the route from. */
+export class LocationUnavailableError extends Error {
+  constructor() {
+    super('location unavailable');
+  }
+}
+
+const NAVIGATION_MESSAGES: Record<string, string> = {
+  NoVehicleAssigned: 'No vehicle has been assigned to this job yet. Ask dispatch to assign one.',
+  VehicleUnavailable: "This job's vehicle can't be used. Ask dispatch to check it.",
+  NotTracking: 'Accept the job first.',
+  NoRouteFound: 'No route found for this vehicle. It may not fit the roads. Ask dispatch.',
+  TripAlreadyActive: 'You already have a trip in progress. End it first.',
+};
+
+/** What went wrong starting navigation for a job: the position, the vehicle, or planning the route. */
+export function jobNavigationErrorMessage(error: unknown): string {
+  if (error instanceof LocationUnavailableError) {
+    return "Can't get your location. Turn location on and try again.";
+  }
+  if (error instanceof ApiError) {
+    return (
+      NAVIGATION_MESSAGES[error.tag] ??
+      ROUTING_MESSAGES[error.tag] ??
+      JOBS_MESSAGES[error.tag] ??
+      'Something went wrong. Try again.'
+    );
+  }
+  return "Couldn't reach the server. Check your connection.";
+}
+
 export function jobsErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     return JOBS_MESSAGES[error.tag] ?? 'Something went wrong. Try again.';

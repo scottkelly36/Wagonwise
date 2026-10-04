@@ -313,7 +313,11 @@ describe('POST /jobs/:id/position', () => {
 });
 
 describe('POST /jobs/:id/navigation-profile', () => {
-  const driving: Job = { ...JOB, status: 'accepted', vehicleId: makeId<'FleetVehicleId'>('vehicle-1') };
+  const driving: Job = {
+    ...JOB,
+    status: 'accepted',
+    vehicleId: makeId<'FleetVehicleId'>('vehicle-1'),
+  };
   const url = `/jobs/${JOB_ID}/navigation-profile`;
 
   it('200s with the profile for the assigned vehicle, for the driver on the job', async () => {
