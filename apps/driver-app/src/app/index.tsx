@@ -1,6 +1,7 @@
 import { Redirect } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useResumeActiveTrip } from '../api/use-active-trip';
 import { useAuthStore } from '../state/auth-store';

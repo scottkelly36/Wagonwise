@@ -4,16 +4,17 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useJoinWithCode } from '../../api/use-fleet';
 import { fleetErrorMessage } from '../../lib/error-messages';
+import { ScreenHeader } from '../../components/ui/screen-header';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
 
 /** P2-M2.7: a driver asks to join with the code their company gave them. This only makes a
@@ -38,7 +39,7 @@ export default function JoinCompanyScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Join a company</Text>
+          <ScreenHeader title="Join a company" />
           <Text style={styles.hint}>
             Ask them for their join code. Entering it only sends a request — they still have to
             approve it.
@@ -91,13 +92,8 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
     },
     content: {
-      padding: 24,
-      gap: 8,
-    },
-    title: {
-      fontSize: 28,
-      fontWeight: '700',
-      color: colors.text,
+      padding: 16,
+      gap: 12,
     },
     hint: {
       fontSize: 14,
@@ -111,7 +107,7 @@ function createStyles(colors: ThemeColors) {
       letterSpacing: 2,
       color: colors.text,
       backgroundColor: colors.surface,
-      borderRadius: 12,
+      borderRadius: 16,
       paddingHorizontal: 16,
       textAlign: 'center',
     },
@@ -122,9 +118,9 @@ function createStyles(colors: ThemeColors) {
       textAlign: 'center',
     },
     button: {
-      minHeight: 56,
+      minHeight: 64,
       backgroundColor: colors.accent,
-      borderRadius: 12,
+      borderRadius: 32,
       justifyContent: 'center',
       alignItems: 'center',
       marginTop: 24,

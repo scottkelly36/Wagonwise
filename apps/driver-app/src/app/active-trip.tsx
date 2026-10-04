@@ -1,14 +1,8 @@
 import { useKeepAwake } from 'expo-keep-awake';
 import { Redirect, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useEndTrip } from '../api/use-active-trip';
 import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
@@ -36,7 +30,9 @@ import { decodePolyline6 } from '../lib/polyline';
 import { routeProgress } from '../lib/route-progress';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { Icon, type IconName } from '../components/ui/icon';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
+import { cardStyle, radius } from '../theme/tokens';
 
 const VOICE_FLOW_LABEL: Record<string, string> = {
   idle: 'Report hazard',
@@ -50,6 +46,11 @@ const VOICE_FLOW_LABEL: Record<string, string> = {
   queued: 'Report hazard',
   'draft-saved': 'Report hazard',
   error: 'Tap to try again',
+};
+
+const QUICK_REPORT_ICON: Record<QuickReportKind, IconName> = {
+  traffic: 'alert',
+  parking: 'parking',
 };
 
 const QUICK_REPORT_LABEL: Record<QuickReportKind, string> = {
@@ -118,6 +119,7 @@ export default function ActiveTripScreen() {
   const nearbyHazards = useNearbyHazards(corridor, ON_ROUTE_HAZARD_RADIUS_M);
   const nearbyHazardsData = nearbyHazards.data;
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
+  const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -209,7 +211,7 @@ export default function ActiveTripScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.mapArea}>
         <RouteMap
           origin={plan.origin}
@@ -223,6 +225,16 @@ export default function ActiveTripScreen() {
           }))}
           onHazardPress={setSelectedHazardId}
         />
+
+        {eta && (
+          <View style={[styles.etaCard, { top: insets.top + 8 }]} testID="active-trip-eta">
+            <Icon name="clock-outline" size={26} color={colors.accent} />
+            <View>
+              <Text style={styles.etaTime}>ETA {formatTime(eta)}</Text>
+              <Text style={styles.etaDistance}>{remainingKm?.toFixed(1)} km left</Text>
+            </View>
+          </View>
+        )}
 
         <HazardDetailDrawer
           hazardId={selectedHazardId}
@@ -289,9 +301,16 @@ export default function ActiveTripScreen() {
                   onPress={() => (ownListening ? quickReport.cancel() : quickReport.start(kind))}
                   testID={`quick-report-${kind}`}
                 >
-                  <Text style={styles.micButtonText}>
-                    {quickReportButtonLabel(kind, quickReport.state)}
-                  </Text>
+                  <View style={styles.micButtonContent}>
+                    <Icon
+                      name={QUICK_REPORT_ICON[kind]}
+                      size={24}
+                      color={ownListening ? '#FFFFFF' : colors.text}
+                    />
+                    <Text style={[styles.micButtonText, ownListening && styles.micButtonTextOn]}>
+                      {quickReportButtonLabel(kind, quickReport.state)}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -307,22 +326,21 @@ export default function ActiveTripScreen() {
             onPress={micActive ? voiceFlow.reset : voiceFlow.start}
             testID="voice-report-button"
           >
-            <Text style={styles.micButtonText}>{VOICE_FLOW_LABEL[voiceFlow.state.phase]}</Text>
+            <View style={styles.micButtonContent}>
+              <Icon name="microphone" size={24} color={micActive ? '#FFFFFF' : colors.text} />
+              <Text style={[styles.micButtonText, micActive && styles.micButtonTextOn]}>
+                {VOICE_FLOW_LABEL[voiceFlow.state.phase]}
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.panel}>
+      <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
         {location.status === 'denied' && (
           <Text style={styles.hint}>
             Location access is off, so the map won’t follow you — road signs and your own judgement
             still apply.
-          </Text>
-        )}
-
-        {eta && (
-          <Text style={styles.eta} testID="active-trip-eta">
-            ETA {formatTime(eta)} · {remainingKm?.toFixed(1)} km left
           </Text>
         )}
 
@@ -337,10 +355,13 @@ export default function ActiveTripScreen() {
                 onPress={() => setSelectedHazardId(hazard.id)}
                 testID={`hazard-list-item-${hazard.id}`}
               >
-                <Text style={styles.sectionItem}>
-                  {HAZARD_TYPE_LABELS[hazard.type]}
-                  {hazard.measurement ? ` · ${formatMeasurement(hazard.measurement)}` : ''}
-                </Text>
+                <View style={styles.hazardRow}>
+                  <Icon name="alert-outline" size={22} color={colors.warning} />
+                  <Text style={styles.sectionItem}>
+                    {HAZARD_TYPE_LABELS[hazard.type]}
+                    {hazard.measurement ? ` · ${formatMeasurement(hazard.measurement)}` : ''}
+                  </Text>
+                </View>
               </TouchableOpacity>
             ))
           )}
@@ -373,19 +394,19 @@ export default function ActiveTripScreen() {
         {endTrip.isError && <Text style={styles.error}>{routingErrorMessage(endTrip.error)}</Text>}
 
         <TouchableOpacity
-          style={[styles.button, endTrip.isPending && styles.buttonDisabled]}
+          style={[styles.endButton, endTrip.isPending && styles.buttonDisabled]}
           disabled={endTrip.isPending}
           onPress={handleEndTrip}
           testID="end-trip-button"
         >
           {endTrip.isPending ? (
-            <ActivityIndicator color={colors.textOnAccent} />
+            <ActivityIndicator color={colors.danger} />
           ) : (
-            <Text style={styles.buttonText}>End trip</Text>
+            <Text style={styles.endButtonText}>End trip</Text>
           )}
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -420,19 +441,31 @@ function createStyles(colors: ThemeColors) {
       padding: 10,
     },
     panel: {
-      padding: 16,
+      ...cardStyle(colors),
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      borderTopLeftRadius: radius.sheet,
+      borderTopRightRadius: radius.sheet,
+      paddingHorizontal: 16,
+      paddingTop: 16,
       gap: 12,
-      backgroundColor: colors.background,
     },
+    etaCard: {
+      ...cardStyle(colors),
+      position: 'absolute',
+      left: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+    },
+    etaTime: { fontSize: 20, fontWeight: '800', color: colors.text },
+    etaDistance: { fontSize: 14, color: colors.textMuted },
+    hazardRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     hint: {
       fontSize: 14,
       color: colors.textMuted,
-      textAlign: 'center',
-    },
-    eta: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: colors.accentBlue,
       textAlign: 'center',
     },
     section: {
@@ -453,12 +486,17 @@ function createStyles(colors: ThemeColors) {
       color: colors.textSecondary,
     },
     micButton: {
+      ...cardStyle(colors),
       minHeight: 56,
-      paddingHorizontal: 24,
-      backgroundColor: 'rgba(56, 189, 248, 0.55)',
+      paddingHorizontal: 20,
       borderRadius: 28,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    micButtonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
     },
     quickReportRow: {
       flexDirection: 'row',
@@ -472,12 +510,15 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 12,
     },
     micButtonListening: {
-      backgroundColor: 'rgba(248, 113, 113, 0.8)',
+      backgroundColor: colors.danger,
     },
     micButtonText: {
       fontSize: 16,
       fontWeight: '700',
-      color: '#0B1220',
+      color: colors.text,
+    },
+    micButtonTextOn: {
+      color: '#FFFFFF',
     },
     jobBar: {
       gap: 8,
@@ -488,11 +529,24 @@ function createStyles(colors: ThemeColors) {
       color: colors.textSecondary,
     },
     button: {
-      minHeight: 56,
+      minHeight: 60,
       backgroundColor: colors.accent,
-      borderRadius: 12,
+      borderRadius: 30,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    endButton: {
+      minHeight: 52,
+      borderRadius: 26,
+      borderWidth: 2,
+      borderColor: colors.danger,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    endButtonText: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.danger,
     },
     buttonDisabled: {
       opacity: 0.5,

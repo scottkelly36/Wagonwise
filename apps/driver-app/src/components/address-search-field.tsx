@@ -134,11 +134,11 @@ function createStyles(colors: ThemeColors) {
     },
     input: {
       flex: 1,
-      minHeight: 48,
+      minHeight: 52,
       fontSize: 16,
       color: colors.text,
       backgroundColor: colors.surface,
-      borderRadius: 12,
+      borderRadius: 16,
       paddingHorizontal: 16,
     },
     spinner: {
@@ -147,7 +147,7 @@ function createStyles(colors: ThemeColors) {
     },
     suggestions: {
       backgroundColor: colors.surface,
-      borderRadius: 12,
+      borderRadius: 16,
       overflow: 'hidden',
     },
     suggestion: {

@@ -4,12 +4,12 @@ import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useStartTrip } from '../api/use-active-trip';
 import { useNearbyHazards } from '../api/use-hazards';
@@ -22,7 +22,10 @@ import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { Icon } from '../components/ui/icon';
+import { RoundButton } from '../components/ui/round-button';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
+import { cardStyle, radius } from '../theme/tokens';
 
 // "On your route" (design decision, 2026-09-24), same radius and reasoning as active-trip.tsx's
 // own on-route hazard query — wider than a routing-avoidance check (30m, design doc §5), since
@@ -42,6 +45,7 @@ export default function RouteOverviewScreen() {
   const [leaveAt, setLeaveAt] = useState<Date | undefined>(undefined);
   const [showPicker, setShowPicker] = useState(false);
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
+  const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -106,7 +110,7 @@ export default function RouteOverviewScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <RouteMap
         origin={plan.origin}
         destination={plan.destination}
@@ -124,7 +128,16 @@ export default function RouteOverviewScreen() {
         onClose={() => setSelectedHazardId(undefined)}
       />
 
-      <View style={styles.panel}>
+      <View style={[styles.backOverlay, { top: insets.top + 8 }]} pointerEvents="box-none">
+        <RoundButton
+          icon="chevron-left"
+          label="Back"
+          onPress={handlePlanAnother}
+          testID="back-button"
+        />
+      </View>
+
+      <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
         <Text style={styles.distance}>
           {plan.distanceKm.toFixed(1)} km · {Math.round(plan.durationMin)} min
           {plan.estimatedFuelCostGBP !== undefined
@@ -170,9 +183,10 @@ export default function RouteOverviewScreen() {
             <Text style={styles.sectionEmpty}>None on this route.</Text>
           ) : (
             plan.avoidedRestrictions.map((restriction, index) => (
-              <Text key={index} style={styles.sectionItem}>
-                {restriction.description}
-              </Text>
+              <View key={index} style={styles.itemRow}>
+                <Icon name="shield-check-outline" size={22} color={colors.accentGreen} />
+                <Text style={styles.sectionItem}>{restriction.description}</Text>
+              </View>
             ))
           )}
         </View>
@@ -188,10 +202,13 @@ export default function RouteOverviewScreen() {
                 onPress={() => setSelectedHazardId(hazard.id)}
                 testID={`hazard-list-item-${hazard.id}`}
               >
-                <Text style={styles.sectionItem}>
-                  {HAZARD_TYPE_LABELS[hazard.type]}
-                  {hazard.measurement ? ` · ${formatMeasurement(hazard.measurement)}` : ''}
-                </Text>
+                <View style={styles.itemRow}>
+                  <Icon name="alert-outline" size={22} color={colors.warning} />
+                  <Text style={styles.sectionItem}>
+                    {HAZARD_TYPE_LABELS[hazard.type]}
+                    {hazard.measurement ? ` · ${formatMeasurement(hazard.measurement)}` : ''}
+                  </Text>
+                </View>
               </TouchableOpacity>
             ))
           )}
@@ -214,7 +231,10 @@ export default function RouteOverviewScreen() {
           {startTrip.isPending ? (
             <ActivityIndicator color={colors.textOnAccent} />
           ) : (
-            <Text style={styles.buttonText}>Start trip</Text>
+            <View style={styles.buttonContent}>
+              <Icon name="navigation-variant" size={26} color={colors.textOnAccent} />
+              <Text style={styles.buttonText}>Start trip</Text>
+            </View>
           )}
         </TouchableOpacity>
 
@@ -226,7 +246,7 @@ export default function RouteOverviewScreen() {
           <Text style={styles.linkText}>Plan a different route</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -237,9 +257,28 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.background,
     },
     panel: {
-      padding: 16,
+      ...cardStyle(colors),
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      borderTopLeftRadius: radius.sheet,
+      borderTopRightRadius: radius.sheet,
+      paddingHorizontal: 16,
+      paddingTop: 16,
       gap: 12,
-      backgroundColor: colors.background,
+    },
+    backOverlay: {
+      position: 'absolute',
+      left: 16,
+    },
+    itemRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    buttonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
     },
     distance: {
       fontSize: 24,
@@ -266,7 +305,7 @@ function createStyles(colors: ThemeColors) {
     pickerWrap: {
       alignItems: 'center',
       backgroundColor: colors.surface,
-      borderRadius: 12,
+      borderRadius: radius.badge,
       padding: 8,
     },
     section: {
@@ -292,9 +331,9 @@ function createStyles(colors: ThemeColors) {
       textAlign: 'center',
     },
     button: {
-      minHeight: 56,
+      minHeight: 64,
       backgroundColor: colors.accent,
-      borderRadius: 12,
+      borderRadius: 32,
       justifyContent: 'center',
       alignItems: 'center',
     },

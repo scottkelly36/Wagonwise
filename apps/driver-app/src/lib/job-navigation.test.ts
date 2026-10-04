@@ -1,6 +1,12 @@
 import type { JobDto } from '@wagonwise/contracts/jobs';
 
-import { arrivalStep, isTripToTarget, jobActions, navigationTarget } from './job-navigation';
+import {
+  arrivalStep,
+  isTripToTarget,
+  jobActions,
+  jobSubtitle,
+  navigationTarget,
+} from './job-navigation';
 
 const PICKUP = { kind: 'pickup', name: 'Quarry', location: { lat: 54.97, lon: -2.1 } } as const;
 const DELIVERY = { kind: 'delivery', name: 'Depot', location: { lat: 54.96, lon: -1.5 } } as const;
@@ -124,5 +130,23 @@ describe('arrivalStep', () => {
     for (const status of ['assigned', 'at_pickup', 'loaded', 'at_delivery', 'delivered'] as const) {
       expect(arrivalStep(status)).toBeUndefined();
     }
+  });
+});
+
+describe('jobSubtitle', () => {
+  it('names the pickup until the load is on, and the delivery after', () => {
+    expect(jobSubtitle({ status: 'assigned', stops })).toBe('Quarry');
+    expect(jobSubtitle({ status: 'accepted', stops })).toBe('Quarry');
+    expect(jobSubtitle({ status: 'loaded', stops })).toBe('Depot');
+    expect(jobSubtitle({ status: 'en_route', stops })).toBe('Depot');
+  });
+
+  it('says "At" a stop once the driver is there', () => {
+    expect(jobSubtitle({ status: 'at_pickup', stops })).toBe('At Quarry');
+    expect(jobSubtitle({ status: 'at_delivery', stops })).toBe('At Depot');
+  });
+
+  it('is nothing for a job with no stops', () => {
+    expect(jobSubtitle({ status: 'accepted', stops: [] })).toBeUndefined();
   });
 });

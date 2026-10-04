@@ -4,20 +4,20 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { useReportSafeParkingSpot } from '../api/use-parking';
 import { RouteMap, type MapPoint } from '../components/route-map';
 import { useCurrentLocation } from '../hooks/use-current-location';
+import { Icon } from '../components/ui/icon';
+import { MapSheet } from '../components/ui/map-sheet';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
+import { radius } from '../theme/tokens';
 
 const NOTE_MAX_LENGTH = 280;
 
@@ -61,51 +61,49 @@ export default function ReportSafeParkingSpotScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+    <MapSheet
+      map={
         <RouteMap
           origin={pin}
           destination={undefined}
           onMapPress={setPin}
           currentPosition={location.point}
         />
+      }
+    >
+      <View style={styles.titleRow}>
+        <Icon name="parking" size={34} color="#1A73E8" />
+        <Text style={styles.title}>Mark safe parking</Text>
+      </View>
+      <Text style={styles.hint}>Tap the map to drop a pin where it is.</Text>
 
-        <ScrollView style={styles.panel} contentContainerStyle={styles.panelContent}>
-          <Text style={styles.title}>Mark safe parking</Text>
-          <Text style={styles.hint}>Tap the map to drop a pin where it is.</Text>
+      <Text style={styles.label}>Note (optional)</Text>
+      <TextInput
+        style={styles.input}
+        value={note}
+        onChangeText={setNote}
+        placeholder="e.g. flat layby, room for a 44-tonner"
+        placeholderTextColor={colors.textDim}
+        maxLength={NOTE_MAX_LENGTH}
+        multiline
+        testID="parking-note-input"
+      />
 
-          <Text style={styles.label}>Note (optional)</Text>
-          <TextInput
-            style={styles.input}
-            value={note}
-            onChangeText={setNote}
-            placeholder="e.g. flat layby, room for a 44-tonner"
-            placeholderTextColor={colors.textDim}
-            maxLength={NOTE_MAX_LENGTH}
-            multiline
-            testID="parking-note-input"
-          />
+      {validationError !== undefined && <Text style={styles.error}>{validationError}</Text>}
 
-          {validationError !== undefined && <Text style={styles.error}>{validationError}</Text>}
-
-          <TouchableOpacity
-            style={[styles.button, reportSpot.isPending && styles.buttonDisabled]}
-            disabled={reportSpot.isPending}
-            onPress={() => void handleSubmit()}
-            testID="report-parking-spot-submit-button"
-          >
-            {reportSpot.isPending ? (
-              <ActivityIndicator color={colors.textOnAccent} />
-            ) : (
-              <Text style={styles.buttonText}>Mark parking spot</Text>
-            )}
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      <TouchableOpacity
+        style={[styles.button, reportSpot.isPending && styles.buttonDisabled]}
+        disabled={reportSpot.isPending}
+        onPress={() => void handleSubmit()}
+        testID="report-parking-spot-submit-button"
+      >
+        {reportSpot.isPending ? (
+          <ActivityIndicator color={colors.textOnAccent} />
+        ) : (
+          <Text style={styles.buttonText}>Mark parking spot</Text>
+        )}
+      </TouchableOpacity>
+    </MapSheet>
   );
 }
 
@@ -115,19 +113,14 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       backgroundColor: colors.background,
     },
-    flex: {
-      flex: 1,
-    },
-    panel: {
-      maxHeight: '55%',
-    },
-    panelContent: {
-      padding: 16,
-      gap: 8,
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
     },
     title: {
-      fontSize: 24,
-      fontWeight: '700',
+      fontSize: 26,
+      fontWeight: '800',
       color: colors.text,
     },
     hint: {
@@ -144,7 +137,7 @@ function createStyles(colors: ThemeColors) {
       minHeight: 56,
       marginTop: 8,
       padding: 12,
-      borderRadius: 12,
+      borderRadius: radius.badge,
       backgroundColor: colors.surface,
       color: colors.text,
       fontSize: 16,
@@ -156,9 +149,9 @@ function createStyles(colors: ThemeColors) {
       marginTop: 16,
     },
     button: {
-      minHeight: 56,
+      minHeight: 64,
       backgroundColor: colors.accent,
-      borderRadius: 12,
+      borderRadius: 32,
       justifyContent: 'center',
       alignItems: 'center',
       marginTop: 24,
