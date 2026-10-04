@@ -1,5 +1,6 @@
 import type { Id } from '../../../shared/brand.js';
 import type { GeoLine, GeoPoint } from './geo.js';
+import type { Maneuver } from './maneuver.js';
 import type { DriverId, VehicleProfileId } from './vehicle-profile.js';
 
 export type RoutePlanId = Id<'RoutePlanId'>;
@@ -30,6 +31,8 @@ export interface RoutePlan {
   readonly distanceKm: number;
   readonly durationMin: number;
   readonly avoidedRestrictions: readonly AvoidedRestriction[];
+  /** Turn-by-turn steps (P2-M10), for spoken directions. Empty for plans made before they existed. */
+  readonly maneuvers: readonly Maneuver[];
   /** Opaque ids from the hazards module (AGENTS.md rule 7 — routing never sees a `HazardReport`).
    *  Always empty until M3 gives routing a hazards read-model port to query. */
   readonly hazardsOnRoute: readonly string[];

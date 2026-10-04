@@ -1,0 +1,356 @@
+{
+  "trip": {
+    "summary": { "length": 29.702, "time": 1891.792 },
+    "legs": [
+      {
+        "shape": "cqczgBtuh_C{Jf`@xI|KpL~NnQxT`EhFbOw@\\}ZCgDI}BMoCoA{RqCag@SsDOkC}@_PMoBKoB_A{Pc@yH{Ai[kAeQy@gOE_AMwCEiCKsEGaDGeEMgK[aVSkOo@se@C}BUwJE_CI}CCyAUsEmAiWkC_BsCyFc@_Aa@}@aEiJk@wAi@qAuCuFyDcJgCkH_CkK}C_TqBq`@SwC]oBa@kAe@s@{@s@cA_@qCi@}XqEU?iOg@sIg@iCe@iCm@iAQgACiC?wBk@wBrCcD~@eCfAuC`BoCrByAlAsArAkAzAoAdCkA|C{@fCiBfGkB~FoXt}@uChM_AlDa@jB_BfDCP[zAi@jAu@p@y@R}@IUKu@u@k@oA[cBGmBJmB@Q_EyPU_@kL_RcKaOoHkKyJ_J}IoHeIk@s@`@u@Bq@Wk@s@a@gAKk@gH}LmN_IkMiH{A}@m~Am`A_LiHwJsDsNY_CGaF?}EP{Fj@yEp@{D^aEHmOsBeGq@}LiB_F_AqQeFqQuFiCa@qCGcCFmCVsBj@{C~AyDnCu@bAmB~AmBdAmBj@{ANeBIiBU{Cq@oOyDeBe@iC_AwAw@cAu@k@o@i@_AQi@sBgJYcCSoCKmCAyCDkDDgA^uCf@qCt@gCz@_Cz@gBxAoBLMxE{Kl@kBb@aB^gBZiBV}BvFkm@~H_kAtDsn@jCsi@fG_uAbC_m@`FoeAhBsrArBimBvAucDSspD_@ekA}AckBgEmpCkGytCoGwhCsEanBeDsbCy@guBf@}hCnBckBtC_aBfEw}AfLm~DdE}bBjAkdAX_x@u@oqAqA{w@aD{fA}IckBuRsuDcW}{EiHw{AgDkp@aHypAwKsqByY}zFuCqg@qM}hCaKspBsHmzA_Eix@kDgv@iFemAmEyoAuAec@kAkg@sA_r@_Ayl@y@ct@u@qwBV}dBr@}u@t@sp@r@wg@bD}sAdBsm@hCev@pBoc@hDcu@rJebB~KaaBvB}W|QulBfGah@~F{b@rRwgAbSk{@pMsd@`L{]dSoj@pQma@lTsd@b\\{j@dEaGfNyRnWm\\bZs[tf@{a@bOoKzg@k_@jt@ki@b_@g[~XaXzV{WvZ{]f`@ig@r\\gg@lYid@lTo`@xRq`@bQo_@|Tih@hUkk@nUop@dTqo@vWo}@~Uk}@bR_y@lM}l@dLwo@zFc`@zGwg@nTgsBtPogBpFqu@zD{t@fBei@hAcm@CcPe@aKoA_KmCwJaBaMScMbBqR~C}JxDmF~DkO~AoHlAmKVaGdAk^`E{nBhA_jAl@mkAEcdA]gbAcAif@oB}k@mCcn@sCkd@kFmm@sCoYsHgm@kJyn@eS}hA}RiiAmNyu@iRyeAuTmlAkFcZuVquAqO}z@a[keBqc@acC}g@{oCgi@qqCir@}pDyUslAuWyrAii@ekCuSsbA}M_k@eTiw@_Tmq@wWmw@}HcUws@exB_Nkb@}IwYyF}S}EmRcA_EmE}RmFiVaBwHyGe^eEaWuHch@us@cuFaP_lAq@mFOaA_Gqb@wQgrAixBsqOcH{g@qW_kBig@{tDyc@kmDyTylBkQycBqKkhA{JgkAyLe}A{IoqAgBqYsE}s@mKubB_KueBgMeaCwNymCcSogEgJehBoD_l@yCsc@cHwz@aHgw@uIwx@oJqz@sNmjAsNwfAsXinB_]u~BuWymBcRivAcTifBwP_zAcNknAuLsnAwFwm@kQymBsWigDyC_`@sIupAsH{lAcLmrBmI_zAyHevAuHenAwJyyAeL}zA}Fes@qGgq@eKgbAmMagAqCsS_Ikk@uJsn@yFk_@aNiw@{TmlA}Ru`AiSw_Aw\\oyAe\\ktAmZcoAc]gwA_]gvA}^u~Ae`@wgBqW}oAwZs_BoTonAsN}x@qR}nAgT_wAqSszAwMycAiV{sB}O_zAmOq|A_Ja~@yR}cCgGiy@yFo{@yEiu@wDyr@aFaeAyCww@aBai@{Aem@uAow@iAc_A]ci@[olA@cIPe{@|@omA|AugA~BcdAdIsaCzDoaA|EenAnD_{@~EqmA|Dk|@zAs^zDo{@v]_vHbMkdEhAyyAIkv@KeLc@yGyAmIyAoEeDeIeAgAcDsBkDsAuCk@iD[qMm@mp@_CilABwaCDkbC@gzDyJ}Lo@g|@wEmxBiLjSakIyj@}TmuBcKo|@tAqp@tCaz@d@}jAGkmAsJwl@_Aqf@tCuLTmPrAsa@jDolBz]kX~DsRuAuUuGyc@gVg@[_t@e_@yZkNsKoEgPiD{ViBah@uAc^wGum@}UcU}Pa`@oXqe@kZucD_aBw]mJe\\kEgi@uG_SkI_PqGaA~AkAx@w@Ns@?y@Su@g@iOhBuLGc@?{GKaIJuGh@{L`BkFjB{TfJcKfEc\\rHiIuG{{@ucAmGqHcKaLaMaNcXaZk\\{^sUoWyAaBeKeGeSqLeRkH{RuHsUoLgCqA{JyFgMuFuJaDmKkDu^uL{DiAmYoIqZuJeg@eMa@K}ZeCMtKFdWF`Er@xNzAvL_EjGoDzDwCrBwDjA_D^}@JyQBoLc@qK_@qUVaWvCu@Joa@hGiGz@gTvC__@bDqQjCyR`Bgj@|DwGj@cQpFyHrGyCfCcCqE}DuEiEsD}IiD{No@qPB}^qAuTeA}VwD{kA}Quh@kH{\\oDwQ{E_NqFcMqHcHuFeJ}I}FwHeJkNiGyKcRsf@sn@{gByJq[sDcNiJcd@gJu`@eKu_@{KeY}LeT{FkJqKwMyNeNeOuIyOgGoEo@owAeSinAwh@u_@oEsTuBiXmBkd@{Bwl@_@{xAzCc^}@eQaEgNsHcLwKwKiQyLsZ}GuZyH_n@_CuYqBeWgHq{@MeBwEyp@w@aXMqYbAa_@rFiw@f@e`@BqCAcd@e@ub@eC}tAkAqs@sDuwBi@k}@_@gsB]oyBhAkhHQmcAh@ilA|AqhCx@ehEHaPRg`@`AwkBbBqoCvB}yDJgH\\uJd@uHd@qF`AiI`BqJfBeIdB_H~AkGpByFbCkGpTei@lDsIlD{KrBkIpBcK~AeKnAuLt@kJZoGPwG@eAD_E?sDEaDKgEYaH}@eQmE}j@}Dyf@mNmjBoIybAyCkZgE{Z_Iyb@qPc{@{Oa{@iMwz@}PipAgKut@uRihBai@a{EgSmhBwn@}uFof@kmE_\\msCcIex@wGqx@sBi]qEgv@wCwm@mAgn@q@oXqAq{@mEkrBgCghAm@srAq@wvAoBkbAaG}eAwHgrAmA_HxeDqaCdtGwjD|iA_k@fQsKbMgKbM{MnGeJrCkE`F{HtHwPtHaSpX_vAdFuOvGiMvE{I|FgGvFoD`HgCpJoBhJk@nIuAdJ{BbLkGtJyGll@oo@lLaPvH{LvFwL~DqKbEsMrIm^dUe_AvCqNf@cChAuFt@wGNaEJsFCqDs@mCq@uEa@yFEiHDqCXyFl@sFx@sE\\gAbCoPz@qH^{H@oG[gIoVezCaZm}DeXwzDsJgqBuJoyCwEutC_Cs~BS_kCjAiiEGaiJrAgsHYe{Af@s~BtBceCbFifCnLmlDfO_yChQybChBoTpSgwBnA_Nb@mJCeEQ{D_AkHgBmKkBmAiBwAm@y@uBwDwAoD_AkEq@{FY}GAcCbAgNbAkFfBmEdCeFlDcFtP}RxR{^tDcJ|D}K`BoHpPw|@xD}P~Lal@xNcl@t[qkAb[k}@f_@ecA~Rwd@nS{b@jg@o_A`c@cr@l`@wj@fmAm_BtPyTzt@w`An_BsvBtpBgnCjtBwnC|eBa}Bbp@qs@~_@m\\~_@kZ~p@id@pJ_G~iAag@v~@gk@",
+        "maneuvers": [
+          {
+            "type": 1,
+            "instruction": "Drive northwest on Saint Mary's Wynd.",
+            "verbal_pre_transition_instruction": "Drive northwest on Saint Mary's Wynd. Then Turn left onto Beaumont Street.",
+            "verbal_post_transition_instruction": "Continue for 100 feet.",
+            "street_names": ["Saint Mary's Wynd"],
+            "length": 0.024,
+            "time": 5.76,
+            "begin_shape_index": 0,
+            "end_shape_index": 1
+          },
+          {
+            "type": 15,
+            "instruction": "Turn left onto Beaumont Street.",
+            "verbal_pre_transition_instruction": "Turn left onto Beaumont Street.",
+            "verbal_post_transition_instruction": "Continue for 400 feet.",
+            "verbal_transition_alert_instruction": "Turn left onto Beaumont Street.",
+            "street_names": ["Beaumont Street"],
+            "length": 0.083,
+            "time": 17.112,
+            "begin_shape_index": 1,
+            "end_shape_index": 6
+          },
+          {
+            "type": 15,
+            "instruction": "Turn left onto Hencotes/B6305. Continue on B6305.",
+            "verbal_pre_transition_instruction": "Turn left onto Hencotes, B6305.",
+            "verbal_post_transition_instruction": "Continue on B6305 for a quarter mile.",
+            "verbal_transition_alert_instruction": "Turn left onto Hencotes.",
+            "street_names": ["B6305"],
+            "length": 0.259,
+            "time": 43.146,
+            "begin_shape_index": 6,
+            "end_shape_index": 39
+          },
+          {
+            "type": 15,
+            "instruction": "Turn left onto Priestpopple/A6079.",
+            "verbal_pre_transition_instruction": "Turn left onto Priestpopple, A6079.",
+            "verbal_post_transition_instruction": "Continue for 600 feet.",
+            "verbal_transition_alert_instruction": "Turn left onto Priestpopple.",
+            "street_names": ["Priestpopple", "A6079"],
+            "length": 0.108,
+            "time": 19.887,
+            "begin_shape_index": 39,
+            "end_shape_index": 56
+          },
+          {
+            "type": 15,
+            "instruction": "Turn left onto Station Road/A6079.",
+            "verbal_pre_transition_instruction": "Turn left onto Station Road, A6079.",
+            "verbal_post_transition_instruction": "Continue for a quarter mile.",
+            "verbal_transition_alert_instruction": "Turn left onto Station Road.",
+            "street_names": ["Station Road", "A6079"],
+            "length": 0.224,
+            "time": 26.442,
+            "begin_shape_index": 56,
+            "end_shape_index": 87
+          },
+          {
+            "type": 26,
+            "instruction": "Enter the roundabout and take the 3rd exit onto A6079.",
+            "verbal_pre_transition_instruction": "Enter the roundabout and take the 3rd exit onto A6079.",
+            "verbal_transition_alert_instruction": "Enter the roundabout and take the 3rd exit onto A6079.",
+            "length": 0.023,
+            "time": 5.439,
+            "begin_shape_index": 87,
+            "end_shape_index": 100,
+            "roundabout_exit_count": 3
+          },
+          {
+            "type": 27,
+            "instruction": "Exit the roundabout onto A6079.",
+            "verbal_pre_transition_instruction": "Exit the roundabout onto A6079.",
+            "verbal_post_transition_instruction": "Continue for 500 feet.",
+            "street_names": ["A6079"],
+            "length": 0.103,
+            "time": 18.838,
+            "begin_shape_index": 100,
+            "end_shape_index": 108
+          },
+          {
+            "type": 26,
+            "instruction": "Enter the roundabout and take the 2nd exit onto Rotary Way/A6079.",
+            "verbal_pre_transition_instruction": "Enter the roundabout and take the 2nd exit onto Rotary Way, A6079.",
+            "verbal_transition_alert_instruction": "Enter the roundabout and take the 2nd exit onto Rotary Way.",
+            "length": 0.01,
+            "time": 2.258,
+            "begin_shape_index": 108,
+            "end_shape_index": 114,
+            "roundabout_exit_count": 2
+          },
+          {
+            "type": 27,
+            "instruction": "Exit the roundabout onto Rotary Way/A6079.",
+            "verbal_pre_transition_instruction": "Exit the roundabout onto Rotary Way, A6079.",
+            "verbal_post_transition_instruction": "Continue for a half mile.",
+            "street_names": ["Rotary Way", "A6079"],
+            "length": 0.39,
+            "time": 41.32,
+            "begin_shape_index": 114,
+            "end_shape_index": 142
+          },
+          {
+            "type": 26,
+            "instruction": "Enter Bridge End Roundabout and take the 4th exit onto A69.",
+            "verbal_pre_transition_instruction": "Enter Bridge End Roundabout and take the 4th exit onto A69.",
+            "verbal_transition_alert_instruction": "Enter Bridge End Roundabout and take the 4th exit onto A69.",
+            "street_names": ["Bridge End Roundabout"],
+            "length": 0.113,
+            "time": 7.267,
+            "begin_shape_index": 142,
+            "end_shape_index": 172,
+            "roundabout_exit_count": 4
+          },
+          {
+            "type": 27,
+            "instruction": "Exit the roundabout onto A69/E 18.",
+            "verbal_pre_transition_instruction": "Exit the roundabout onto A69, E 18.",
+            "verbal_post_transition_instruction": "Continue for 6 miles.",
+            "street_names": ["A69", "E 18"],
+            "length": 5.53,
+            "time": 283.687,
+            "begin_shape_index": 172,
+            "end_shape_index": 291
+          },
+          {
+            "type": 26,
+            "instruction": "Enter Styford Roundabout and take the 3rd exit onto A69/E 18.",
+            "verbal_pre_transition_instruction": "Enter Styford Roundabout and take the 3rd exit onto A69, E 18.",
+            "verbal_transition_alert_instruction": "Enter Styford Roundabout and take the 3rd exit onto A69.",
+            "street_names": ["Styford Roundabout"],
+            "length": 0.057,
+            "time": 3.354,
+            "begin_shape_index": 291,
+            "end_shape_index": 297,
+            "roundabout_exit_count": 3
+          },
+          {
+            "type": 27,
+            "instruction": "Exit the roundabout onto A69/E 18.",
+            "verbal_pre_transition_instruction": "Exit the roundabout onto A69, E 18.",
+            "verbal_post_transition_instruction": "Continue for 8 miles.",
+            "street_names": ["A69", "E 18"],
+            "length": 8.469,
+            "time": 434.575,
+            "begin_shape_index": 297,
+            "end_shape_index": 460
+          },
+          {
+            "type": 21,
+            "instruction": "Take the Throckley Interchange exit.",
+            "verbal_pre_transition_instruction": "Take the Throckley Interchange exit.",
+            "verbal_transition_alert_instruction": "Take the Throckley Interchange exit.",
+            "street_names": ["A69"],
+            "length": 0.254,
+            "time": 13.038,
+            "begin_shape_index": 460,
+            "end_shape_index": 468
+          },
+          {
+            "type": 26,
+            "instruction": "Enter Throckley Interchange and take the 1st exit onto Ponteland Road/B6323.",
+            "verbal_pre_transition_instruction": "Enter Throckley Interchange and take the 1st exit onto Ponteland Road, B6323.",
+            "verbal_transition_alert_instruction": "Enter Throckley Interchange and take the 1st exit onto Ponteland Road.",
+            "street_names": ["Throckley Interchange"],
+            "length": 0.003,
+            "time": 0.496,
+            "begin_shape_index": 468,
+            "end_shape_index": 469,
+            "roundabout_exit_count": 1
+          },
+          {
+            "type": 27,
+            "instruction": "Exit the roundabout onto Ponteland Road/B6323.",
+            "verbal_pre_transition_instruction": "Exit the roundabout onto Ponteland Road, B6323.",
+            "verbal_post_transition_instruction": "Continue for 1 mile.",
+            "street_names": ["Ponteland Road", "B6323"],
+            "length": 0.895,
+            "time": 86.538,
+            "begin_shape_index": 469,
+            "end_shape_index": 482
+          },
+          {
+            "type": 10,
+            "instruction": "Turn right onto Stamfordham Road/B6323.",
+            "verbal_pre_transition_instruction": "Turn right onto Stamfordham Road, B6323.",
+            "verbal_post_transition_instruction": "Continue for a quarter mile.",
+            "verbal_transition_alert_instruction": "Turn right onto Stamfordham Road.",
+            "street_names": ["Stamfordham Road", "B6323"],
+            "length": 0.211,
+            "time": 26.081,
+            "begin_shape_index": 482,
+            "end_shape_index": 483
+          },
+          {
+            "type": 15,
+            "instruction": "Turn left onto Callerton Lane/B6323.",
+            "verbal_pre_transition_instruction": "Turn left onto Callerton Lane, B6323.",
+            "verbal_post_transition_instruction": "Continue for 1.5 miles.",
+            "verbal_transition_alert_instruction": "Turn left onto Callerton Lane.",
+            "street_names": ["Callerton Lane", "B6323"],
+            "length": 1.703,
+            "time": 104.351,
+            "begin_shape_index": 483,
+            "end_shape_index": 518
+          },
+          {
+            "type": 26,
+            "instruction": "Enter the roundabout and take the 2nd exit onto Callerton Lane/B6323.",
+            "verbal_pre_transition_instruction": "Enter the roundabout and take the 2nd exit onto Callerton Lane, B6323.",
+            "verbal_transition_alert_instruction": "Enter the roundabout and take the 2nd exit onto Callerton Lane.",
+            "length": 0.013,
+            "time": 2.169,
+            "begin_shape_index": 518,
+            "end_shape_index": 524,
+            "roundabout_exit_count": 2
+          },
+          {
+            "type": 27,
+            "instruction": "Exit the roundabout onto Callerton Lane/B6323.",
+            "verbal_pre_transition_instruction": "Exit the roundabout onto Callerton Lane, B6323.",
+            "verbal_post_transition_instruction": "Continue for 1 mile.",
+            "street_names": ["Callerton Lane", "B6323"],
+            "length": 0.759,
+            "time": 92.272,
+            "begin_shape_index": 524,
+            "end_shape_index": 561
+          },
+          {
+            "type": 15,
+            "instruction": "Turn left onto A696/Cheviot View. Continue on A696.",
+            "verbal_pre_transition_instruction": "Turn left onto A696, Cheviot View. Then Turn right onto North Road.",
+            "verbal_post_transition_instruction": "Continue on A696 for 200 feet.",
+            "verbal_transition_alert_instruction": "Turn left onto A696.",
+            "street_names": ["A696"],
+            "length": 0.046,
+            "time": 9.845,
+            "begin_shape_index": 561,
+            "end_shape_index": 566
+          },
+          {
+            "type": 10,
+            "instruction": "Turn right onto North Road.",
+            "verbal_pre_transition_instruction": "Turn right onto North Road.",
+            "verbal_post_transition_instruction": "Continue for a half mile.",
+            "verbal_transition_alert_instruction": "Turn right onto North Road.",
+            "street_names": ["North Road"],
+            "length": 0.385,
+            "time": 49.288,
+            "begin_shape_index": 566,
+            "end_shape_index": 589
+          },
+          {
+            "type": 10,
+            "instruction": "Turn right onto Berwick Hill Road.",
+            "verbal_pre_transition_instruction": "Turn right onto Berwick Hill Road.",
+            "verbal_post_transition_instruction": "Continue for 5 miles.",
+            "verbal_transition_alert_instruction": "Turn right onto Berwick Hill Road.",
+            "street_names": ["Berwick Hill Road"],
+            "length": 4.865,
+            "time": 302.583,
+            "begin_shape_index": 589,
+            "end_shape_index": 731
+          },
+          {
+            "type": 10,
+            "instruction": "Turn right.",
+            "verbal_pre_transition_instruction": "Turn right.",
+            "verbal_post_transition_instruction": "Continue for 1 mile.",
+            "verbal_transition_alert_instruction": "Turn right.",
+            "length": 1.175,
+            "time": 74.926,
+            "begin_shape_index": 731,
+            "end_shape_index": 770
+          },
+          {
+            "type": 26,
+            "instruction": "Enter Seaton Burn Roundabout and take the 2nd exit towards A19/Tyne Tunnel/Ashington.",
+            "verbal_pre_transition_instruction": "Enter Seaton Burn Roundabout and take the 2nd exit towards A19, Tyne Tunnel.",
+            "verbal_transition_alert_instruction": "Enter Seaton Burn Roundabout and take the 2nd exit towards A19.",
+            "street_names": ["Seaton Burn Roundabout"],
+            "length": 0.038,
+            "time": 2.643,
+            "begin_shape_index": 770,
+            "end_shape_index": 779,
+            "roundabout_exit_count": 2
+          },
+          {
+            "type": 27,
+            "instruction": "Exit the roundabout towards A19/Tyne Tunnel/Ashington.",
+            "verbal_pre_transition_instruction": "Exit the roundabout towards A19, Tyne Tunnel.",
+            "verbal_post_transition_instruction": "Continue for 2 miles.",
+            "street_names": ["A19"],
+            "length": 1.996,
+            "time": 102.96,
+            "begin_shape_index": 779,
+            "end_shape_index": 803
+          },
+          {
+            "type": 23,
+            "instruction": "Keep right to stay on A19.",
+            "verbal_pre_transition_instruction": "Keep right to stay on A19. Then Enter Moor Farm Roundabout and take the 3rd exit onto A19.",
+            "verbal_post_transition_instruction": "Continue for 600 feet.",
+            "verbal_transition_alert_instruction": "Keep right to stay on A19.",
+            "street_names": ["A19"],
+            "length": 0.119,
+            "time": 10.856,
+            "begin_shape_index": 803,
+            "end_shape_index": 810
+          },
+          {
+            "type": 26,
+            "instruction": "Enter Moor Farm Roundabout and take the 3rd exit onto A19.",
+            "verbal_pre_transition_instruction": "Enter Moor Farm Roundabout and take the 3rd exit onto A19.",
+            "verbal_transition_alert_instruction": "Enter Moor Farm Roundabout and take the 3rd exit onto A19.",
+            "street_names": ["Moor Farm Roundabout"],
+            "length": 0.096,
+            "time": 11.126,
+            "begin_shape_index": 810,
+            "end_shape_index": 825,
+            "roundabout_exit_count": 3
+          },
+          {
+            "type": 27,
+            "instruction": "Exit the roundabout onto A19.",
+            "verbal_pre_transition_instruction": "Exit the roundabout onto A19.",
+            "verbal_post_transition_instruction": "Continue for 1.5 miles.",
+            "street_names": ["A19"],
+            "length": 1.736,
+            "time": 93.521,
+            "begin_shape_index": 825,
+            "end_shape_index": 855
+          },
+          {
+            "type": 4,
+            "instruction": "You have arrived at your destination.",
+            "verbal_pre_transition_instruction": "You have arrived at your destination.",
+            "verbal_transition_alert_instruction": "You will arrive at your destination.",
+            "length": 0,
+            "time": 0,
+            "begin_shape_index": 855,
+            "end_shape_index": 855
+          }
+        ]
+      }
+    ]
+  }
+}

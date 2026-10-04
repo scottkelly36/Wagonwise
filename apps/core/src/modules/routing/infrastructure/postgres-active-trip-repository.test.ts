@@ -129,6 +129,7 @@ describe('PostgresActiveTripRepository', () => {
         distanceKm: 8.038,
         durationMin: 7.9,
         avoidedRestrictions: [],
+        maneuvers: [],
         hazardsOnRoute: [],
         createdAt: new Date('2026-06-15T08:00:00.000Z'),
         ...overrides,

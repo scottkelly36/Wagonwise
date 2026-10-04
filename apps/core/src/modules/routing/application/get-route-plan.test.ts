@@ -18,6 +18,7 @@ const plan: RoutePlan = {
   distanceKm: 7.6,
   durationMin: 12,
   avoidedRestrictions: [],
+  maneuvers: [],
   hazardsOnRoute: [],
   createdAt: new Date('2026-09-24T09:00:00Z'),
 };

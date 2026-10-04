@@ -63,7 +63,7 @@ not attached to a milestone yet.
 
 - **2026-09-25: text-to-speech for navigation — hazard-ahead half shipped 2026-09-26.** Split in
   two when scoped: spoken turn-by-turn directions, and a spoken warning as a hazard on the route
-  approaches. The user's own call: warnings now, turn-by-turn "maybe phase 3" — full turn-by-turn
+  approaches. The user's own call at the time: warnings now, turn-by-turn "maybe phase 3" (later brought into Phase 2 as P2-M10, see below) — full turn-by-turn
   needs live maneuver detection off the route geometry, which is a sat-nav's job this app doesn't
   need to duplicate, whereas a hazard warning is novel to this app (a sat-nav has no idea about a
   driver-reported low bridge) and cheap given what M7.3 already built.
@@ -75,7 +75,7 @@ not attached to a milestone yet.
   native module), tracked in a `Set` that lives for one `active-trip.tsx` mount, i.e. one trip.
   Muted while the voice hazard-report flow is itself listening or speaking, so a warning never
   talks over that. Complements M7's voice _input_ (speech-to-text for reporting) with voice
-  _output_. **Turn-by-turn directions remain unscoped and unattempted.**
+  _output_. **Turn-by-turn directions: shipped 2026-10-04 as P2-M10** (`docs/history/p2-m10-spoken-directions.md`). The server stores Valhalla's maneuvers on the plan; the app speaks them in yards and miles, with a turn card, mute toggle and a tap-only "Re-plan from here".
 - **2026-09-25: break suggestions** — UK HGV drivers have a statutory break requirement (45
   minutes after 4.5 hours' driving, tachograph rules), so a spoken nudge ("your break's due in
   15 minutes, there's a layby 5 minutes ahead") could genuinely help, not just be a nice-to-have.

@@ -38,6 +38,7 @@ describe('PostgresRoutePlanRepository', () => {
       distanceKm: 8.038,
       durationMin: 7.9,
       avoidedRestrictions: [],
+      maneuvers: [],
       hazardsOnRoute: [],
       createdAt: new Date('2026-06-15T08:00:00.000Z'),
       ...overrides,
@@ -58,6 +59,46 @@ describe('PostgresRoutePlanRepository', () => {
     });
     await repo().save(p);
     expect(await repo().findById(p.id)).toEqual(p);
+  });
+
+  it('round-trips turn-by-turn steps, including a roundabout exit (P2-M10)', async () => {
+    const p = plan({
+      id: makeId<'RoutePlanId'>('c0de0001-0000-4000-8000-000000000001'),
+      maneuvers: [
+        {
+          kind: 'left',
+          text: 'Turn left onto Hencotes (B6305).',
+          speech: 'Turn left onto Hencotes, B6305.',
+          streetNames: ['Hencotes', 'B6305'],
+          lengthM: 259,
+          beginShapeIndex: 6,
+        },
+        {
+          kind: 'roundabout',
+          text: 'Enter the roundabout and take the 3rd exit onto A6079.',
+          speech: 'Enter the roundabout and take the 3rd exit onto A6079.',
+          streetNames: [],
+          lengthM: 23,
+          beginShapeIndex: 87,
+          roundaboutExit: 3,
+        },
+      ],
+    });
+    await repo().save(p);
+    expect(await repo().findById(p.id)).toEqual(p);
+  });
+
+  it('reads a plan made before turn-by-turn existed as having no steps', async () => {
+    const id = 'c0de0002-0000-4000-8000-000000000002';
+    // The column's default is what every earlier row has: insert without naming it.
+    await pool.query(
+      `insert into routing.route_plans
+         (id, driver_id, profile_id, origin_lat, origin_lon, destination_lat, destination_lon,
+          geometry, distance_km, duration_min, created_at)
+       values ($1, $2, $3, 54.9, -2.1, 54.97, -2.0, 'x', 1, 1, now())`,
+      [id, '22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333'],
+    );
+    expect((await repo().findById(makeId<'RoutePlanId'>(id)))?.maneuvers).toEqual([]);
   });
 
   it('returns null for an unknown id', async () => {

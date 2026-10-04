@@ -8,10 +8,14 @@ import { useEndTrip } from '../api/use-active-trip';
 import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
 import { useNearbyHazards } from '../api/use-hazards';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
+import { TurnBanner } from '../components/turn-banner';
 import { RouteMap } from '../components/route-map';
 import { useHazardVoiceWarnings } from '../hooks/use-hazard-voice-warnings';
 import { useLiveLocation } from '../hooks/use-live-location';
 import { useQuickVoiceReport } from '../hooks/use-quick-voice-report';
+import { useReplanFromHere } from '../hooks/use-replan-from-here';
+import { useTurnAnnouncements } from '../hooks/use-turn-announcements';
+import { useTurnGuidance } from '../hooks/use-turn-guidance';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
 import { computeEta } from '../lib/eta';
 import { arrivalStep } from '../lib/job-navigation';
@@ -30,6 +34,7 @@ import { decodePolyline6 } from '../lib/polyline';
 import { routeProgress } from '../lib/route-progress';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { useGuidanceStore } from '../state/guidance-store';
 import { Icon, type IconName } from '../components/ui/icon';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle, radius } from '../theme/tokens';
@@ -172,6 +177,14 @@ export default function ActiveTripScreen() {
     !micBusy && !micActive && !quickInFlight,
   );
 
+  // Spoken turns and the turn card (P2-M10). Muted by the driver's toggle, and while a voice report
+  // is listening or speaking, for the same reason as the hazard warnings above.
+  const guidance = useTurnGuidance(routeLine, plan?.maneuvers, location.point);
+  const voiceMuted = useGuidanceStore((s) => s.muted);
+  const setVoiceMuted = useGuidanceStore((s) => s.setMuted);
+  const replan = useReplanFromHere();
+  useTurnAnnouncements(guidance.utterance, !voiceMuted && !micBusy && !micActive && !quickInFlight);
+
   // Reachable with no current trip/plan only by navigating here directly, or after an app
   // relaunch mid-trip — the trip store is ephemeral (docs/progress.md, M5.6 deviations) and
   // doesn't survive one. Nothing to show, so send the driver back to plan a route rather than
@@ -226,8 +239,26 @@ export default function ActiveTripScreen() {
           onHazardPress={setSelectedHazardId}
         />
 
+        <View style={[styles.turnBanner, { top: insets.top + 8 }]} pointerEvents="box-none">
+          <TurnBanner
+            next={guidance.next}
+            offRoute={guidance.offRoute}
+            muted={voiceMuted}
+            replanning={replan.isPending}
+            replanFailed={replan.isError}
+            onToggleMute={() => void setVoiceMuted(!voiceMuted)}
+            onReplan={() => replan.mutate()}
+          />
+        </View>
+
         {eta && (
-          <View style={[styles.etaCard, { top: insets.top + 8 }]} testID="active-trip-eta">
+          <View
+            style={[
+              styles.etaCard,
+              { top: insets.top + (guidance.next || guidance.offRoute ? 96 : 8) },
+            ]}
+            testID="active-trip-eta"
+          >
             <Icon name="clock-outline" size={26} color={colors.accent} />
             <View>
               <Text style={styles.etaTime}>ETA {formatTime(eta)}</Text>
@@ -450,6 +481,7 @@ function createStyles(colors: ThemeColors) {
       paddingTop: 16,
       gap: 12,
     },
+    turnBanner: { position: 'absolute', left: 16, right: 16 },
     etaCard: {
       ...cardStyle(colors),
       position: 'absolute',

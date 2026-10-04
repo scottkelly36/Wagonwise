@@ -144,6 +144,7 @@ describe('detectReroute', () => {
       distanceKm: 8,
       durationMin: 10,
       avoidedRestrictions: [],
+      maneuvers: [],
       hazardsOnRoute: [],
       createdAt: b.clock.now(),
     };
@@ -183,6 +184,7 @@ describe('detectReroute', () => {
       distanceKm: 8,
       durationMin: 10,
       avoidedRestrictions: [],
+      maneuvers: [],
       hazardsOnRoute: [],
       createdAt: b.clock.now(),
     };
@@ -221,6 +223,7 @@ describe('detectReroute', () => {
       distanceKm: 8,
       durationMin: 10,
       avoidedRestrictions: [],
+      maneuvers: [],
       hazardsOnRoute: [],
       createdAt: b.clock.now(),
     };
@@ -250,6 +253,7 @@ describe('detectReroute', () => {
       distanceKm: 8,
       durationMin: 10,
       avoidedRestrictions: [],
+      maneuvers: [],
       hazardsOnRoute: [],
       createdAt: b.clock.now(),
     };
@@ -278,6 +282,7 @@ describe('detectReroute', () => {
       distanceKm: 8,
       durationMin: 10,
       avoidedRestrictions: [],
+      maneuvers: [],
       hazardsOnRoute: [],
       createdAt: b.clock.now(),
     };
@@ -307,6 +312,7 @@ describe('detectReroute', () => {
       distanceKm: 8,
       durationMin: 10,
       avoidedRestrictions: [],
+      maneuvers: [],
       hazardsOnRoute: [],
       createdAt: b.clock.now(),
     };
@@ -346,6 +352,7 @@ describe('detectReroute', () => {
       distanceKm: 8,
       durationMin: 10,
       avoidedRestrictions: [],
+      maneuvers: [],
       hazardsOnRoute: [],
       createdAt: b.clock.now(),
     });
@@ -373,6 +380,7 @@ describe('detectReroute', () => {
       distanceKm: 8,
       durationMin: 10,
       avoidedRestrictions: [],
+      maneuvers: [],
       hazardsOnRoute: [],
       createdAt: b.clock.now(),
     };
@@ -415,6 +423,7 @@ describe('detectReroute', () => {
       distanceKm: 8,
       durationMin: 10,
       avoidedRestrictions: [],
+      maneuvers: [],
       hazardsOnRoute: [],
       createdAt: b.clock.now(),
     };

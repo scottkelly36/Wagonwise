@@ -117,6 +117,46 @@ export const avoidedRestrictionSchema = z.object({
 });
 export type AvoidedRestrictionDto = z.infer<typeof avoidedRestrictionSchema>;
 
+/** What kind of turn a step is, for the arrow and the wording (P2-M10). Our own list, not the routing
+ *  engine's numbering. */
+export const maneuverKindSchema = z.enum([
+  'depart',
+  'arrive',
+  'straight',
+  'slight_left',
+  'left',
+  'sharp_left',
+  'slight_right',
+  'right',
+  'sharp_right',
+  'u_turn',
+  'keep_left',
+  'keep_right',
+  'exit_left',
+  'exit_right',
+  'merge',
+  'roundabout',
+  'roundabout_exit',
+  'ferry',
+]);
+export type ManeuverKindDto = z.infer<typeof maneuverKindSchema>;
+
+/** One step of turn-by-turn guidance along a route's geometry. */
+export const maneuverSchema = z.object({
+  kind: maneuverKindSchema,
+  /** To show: "Turn left onto Hencotes (B6305)." */
+  text: z.string(),
+  /** To say, without a distance (the app adds "In 300 yards,"). */
+  speech: z.string(),
+  streetNames: z.array(z.string()),
+  /** Metres from this step to the next. */
+  lengthM: z.number().nonnegative(),
+  /** Index of the point in the decoded route geometry where this step begins. */
+  beginShapeIndex: z.number().int().nonnegative(),
+  roundaboutExit: z.number().int().positive().optional(),
+});
+export type ManeuverDto = z.infer<typeof maneuverSchema>;
+
 export const routePlanSchema = z.object({
   id: routePlanIdSchema,
   driverId: driverIdSchema,
@@ -127,6 +167,8 @@ export const routePlanSchema = z.object({
   distanceKm: z.number(),
   durationMin: z.number(),
   avoidedRestrictions: z.array(avoidedRestrictionSchema),
+  /** Empty for a plan made before spoken directions existed, so such a plan stays silent. */
+  maneuvers: z.array(maneuverSchema).default([]),
   hazardsOnRoute: z.array(z.string()),
   createdAt: z.iso.datetime(),
   estimatedFuelCostGBP: z.number().optional(),
