@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { PlanRouteRequest, RouteOptionDto } from '@wagonwise/contracts/routing';
 
@@ -32,7 +32,10 @@ import {
   type VehicleProfileFormValues,
 } from '../lib/vehicle-profile-form';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { Icon } from '../components/ui/icon';
+import { RoundButton } from '../components/ui/round-button';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
+import { cardStyle, radius } from '../theme/tokens';
 
 type PointMode = 'origin' | 'destination';
 type VehicleMode = 'profile' | 'manual';
@@ -85,6 +88,7 @@ export default function PlanRouteScreen() {
   const [destination, setDestination] = useState<MapPoint | undefined>(undefined);
   const [pointMode, setPointMode] = useState<PointMode>('destination');
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
+  const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -224,7 +228,7 @@ export default function PlanRouteScreen() {
           : undefined);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         style={styles.flex}
         // The map (flex: 1, above the panel) is what shrinks when the keyboard appears — the
@@ -252,7 +256,16 @@ export default function PlanRouteScreen() {
           onClose={() => setSelectedHazardId(undefined)}
         />
 
-        <View style={styles.panel}>
+        <View style={[styles.backOverlay, { top: insets.top + 8 }]} pointerEvents="box-none">
+          <RoundButton
+            icon="chevron-left"
+            label="Back"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
+            testID="back-button"
+          />
+        </View>
+
+        <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
           <View style={styles.vehicleModeRow}>
             <TouchableOpacity
               style={[
@@ -374,7 +387,10 @@ export default function PlanRouteScreen() {
               {pendingCompare ? (
                 <ActivityIndicator color={colors.textOnAccent} />
               ) : (
-                <Text style={styles.buttonText}>Plan route</Text>
+                <View style={styles.buttonContent}>
+                  <Icon name="navigation-variant" size={26} color={colors.textOnAccent} />
+                  <Text style={styles.buttonText}>Plan route</Text>
+                </View>
               )}
             </TouchableOpacity>
           ) : (
@@ -388,17 +404,27 @@ export default function PlanRouteScreen() {
                   onPress={() => handleConfirmOption(option)}
                   testID={`route-option-${index}`}
                 >
-                  <Text style={styles.optionLabel}>
-                    {option.labels
-                      .map((l) => (l === 'fastest' ? 'Fastest' : 'Shortest'))
-                      .join(' & ')}
-                  </Text>
-                  <Text style={styles.optionDetail}>
-                    {option.distanceKm.toFixed(1)} km · {Math.round(option.durationMin)} min
-                    {option.estimatedFuelCostGBP !== undefined
-                      ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
-                      : ''}
-                  </Text>
+                  <View style={styles.optionIcon}>
+                    <Icon
+                      name={option.labels.includes('fastest') ? 'lightning-bolt' : 'ruler'}
+                      size={26}
+                      color={colors.accent}
+                    />
+                  </View>
+                  <View style={styles.optionText}>
+                    <Text style={styles.optionLabel}>
+                      {option.labels
+                        .map((l) => (l === 'fastest' ? 'Fastest' : 'Shortest'))
+                        .join(' & ')}
+                    </Text>
+                    <Text style={styles.optionDetail}>
+                      {option.distanceKm.toFixed(1)} km · {Math.round(option.durationMin)} min
+                      {option.estimatedFuelCostGBP !== undefined
+                        ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
+                        : ''}
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={26} color={colors.textMuted} />
                 </TouchableOpacity>
               ))}
               <TouchableOpacity
@@ -411,7 +437,7 @@ export default function PlanRouteScreen() {
           )}
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -425,9 +451,23 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
     },
     panel: {
-      padding: 16,
+      ...cardStyle(colors),
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      borderTopLeftRadius: radius.sheet,
+      borderTopRightRadius: radius.sheet,
+      paddingHorizontal: 16,
+      paddingTop: 16,
       gap: 12,
-      backgroundColor: colors.background,
+    },
+    backOverlay: {
+      position: 'absolute',
+      left: 16,
+    },
+    buttonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
     },
     vehicleModeRow: {
       flexDirection: 'row',
@@ -442,9 +482,9 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.surface,
     },
     vehicleModeTabActive: {
-      backgroundColor: colors.surfaceStrong,
+      backgroundColor: colors.accentSoft,
       borderWidth: 2,
-      borderColor: colors.accentBlue,
+      borderColor: colors.accent,
     },
     vehicleModeTabText: {
       fontSize: 15,
@@ -487,11 +527,11 @@ function createStyles(colors: ThemeColors) {
       marginTop: 8,
     },
     input: {
-      minHeight: 48,
+      minHeight: 52,
       fontSize: 18,
       color: colors.text,
       backgroundColor: colors.surface,
-      borderRadius: 12,
+      borderRadius: radius.badge,
       paddingHorizontal: 16,
       marginTop: 4,
     },
@@ -504,13 +544,13 @@ function createStyles(colors: ThemeColors) {
       minHeight: 56,
       justifyContent: 'center',
       alignItems: 'center',
-      borderRadius: 12,
+      borderRadius: radius.badge,
       backgroundColor: colors.surface,
     },
     modeButtonActive: {
-      backgroundColor: colors.surfaceStrong,
+      backgroundColor: colors.accentSoft,
       borderWidth: 2,
-      borderColor: colors.accentBlue,
+      borderColor: colors.accent,
     },
     modeButtonText: {
       fontSize: 15,
@@ -518,9 +558,9 @@ function createStyles(colors: ThemeColors) {
       color: colors.text,
     },
     button: {
-      minHeight: 56,
+      minHeight: 64,
       backgroundColor: colors.accent,
-      borderRadius: 12,
+      borderRadius: 32,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -540,21 +580,34 @@ function createStyles(colors: ThemeColors) {
       gap: 8,
     },
     optionCard: {
-      minHeight: 64,
-      justifyContent: 'center',
-      borderRadius: 12,
-      paddingHorizontal: 16,
+      minHeight: 72,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      borderRadius: radius.card,
+      paddingHorizontal: 14,
       paddingVertical: 10,
-      backgroundColor: colors.accent,
+      backgroundColor: colors.surface,
+    },
+    optionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.badge,
+      backgroundColor: colors.accentSoft,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    optionText: {
+      flex: 1,
     },
     optionLabel: {
-      fontSize: 17,
+      fontSize: 18,
       fontWeight: '700',
-      color: colors.textOnAccent,
+      color: colors.text,
     },
     optionDetail: {
-      fontSize: 14,
-      color: colors.textOnAccent,
+      fontSize: 15,
+      color: colors.textMuted,
       marginTop: 2,
     },
     editLink: {

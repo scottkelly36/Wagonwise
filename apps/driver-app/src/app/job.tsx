@@ -34,7 +34,10 @@ import {
 } from '../lib/proof-of-delivery';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { Icon } from '../components/ui/icon';
+import { ScreenHeader } from '../components/ui/screen-header';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
+import { cardStyle, radius } from '../theme/tokens';
 
 const STOP_KIND_LABELS = { pickup: 'Pickup', delivery: 'Delivery' } as const;
 
@@ -125,20 +128,31 @@ export default function JobScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.reference}>{current.reference}</Text>
-        <Text style={styles.status}>{JOB_STATUS_LABELS[current.status]}</Text>
+        <ScreenHeader title={current.reference} subtitle={JOB_STATUS_LABELS[current.status]} />
         {isTrackedStatus(current.status) && (
-          <Text style={styles.notice} testID="job-tracking-notice">
-            Your company can see where you are while this job is on the road.
-          </Text>
+          <View style={styles.notice}>
+            <Icon name="map-marker-radius-outline" size={22} color={colors.accent} />
+            <Text style={styles.noticeText} testID="job-tracking-notice">
+              Your company can see where you are while this job is on the road.
+            </Text>
+          </View>
         )}
 
         <View style={styles.section}>
           {current.stops.map((stop, index) => (
             <View key={index} style={styles.stop}>
-              <Text style={styles.stopKind}>{STOP_KIND_LABELS[stop.kind]}</Text>
-              <Text style={styles.stopName}>{stop.name}</Text>
-              {stop.notes !== undefined && <Text style={styles.stopNotes}>{stop.notes}</Text>}
+              <View style={styles.stopBadge}>
+                <Icon
+                  name={stop.kind === 'pickup' ? 'package-variant' : 'flag-checkered'}
+                  size={26}
+                  color={colors.accent}
+                />
+              </View>
+              <View style={styles.stopText}>
+                <Text style={styles.stopKind}>{STOP_KIND_LABELS[stop.kind]}</Text>
+                <Text style={styles.stopName}>{stop.name}</Text>
+                {stop.notes !== undefined && <Text style={styles.stopNotes}>{stop.notes}</Text>}
+              </View>
             </View>
           ))}
         </View>
@@ -213,7 +227,12 @@ export default function JobScreen() {
             {working ? (
               <ActivityIndicator color={colors.textOnAccent} />
             ) : (
-              <Text style={styles.buttonText}>{actions.primary.label}</Text>
+              <View style={styles.buttonContent}>
+                {actions.primary.kind === 'navigate' && (
+                  <Icon name="navigation-variant" size={26} color={colors.textOnAccent} />
+                )}
+                <Text style={styles.buttonText}>{actions.primary.label}</Text>
+              </View>
             )}
           </TouchableOpacity>
 
@@ -239,7 +258,10 @@ export default function JobScreen() {
               onPress={voiceListening ? voice.cancel : voice.start}
               testID="job-voice-button"
             >
-              <Text style={styles.voiceButtonText}>{VOICE_LABEL[voice.state.phase]}</Text>
+              <View style={styles.buttonContent}>
+                <Icon name="microphone" size={22} color={colors.text} />
+                <Text style={styles.voiceButtonText}>{VOICE_LABEL[voice.state.phase]}</Text>
+              </View>
             </TouchableOpacity>
           )}
         </View>
@@ -258,17 +280,16 @@ function createStyles(colors: ThemeColors) {
       padding: 16,
       gap: 16,
     },
-    reference: {
-      fontSize: 28,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    status: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.accentBlue,
-    },
     notice: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 12,
+      borderRadius: radius.badge,
+      backgroundColor: colors.accentSoft,
+    },
+    noticeText: {
+      flex: 1,
       fontSize: 14,
       color: colors.textSecondary,
     },
@@ -276,10 +297,23 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
     },
     stop: {
-      backgroundColor: colors.surface,
-      borderRadius: 12,
-      padding: 16,
-      gap: 4,
+      ...cardStyle(colors),
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      padding: 14,
+    },
+    stopBadge: {
+      width: 52,
+      height: 52,
+      borderRadius: radius.badge,
+      backgroundColor: colors.accentSoft,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    stopText: {
+      flex: 1,
+      gap: 2,
     },
     stopKind: {
       fontSize: 13,
@@ -308,8 +342,7 @@ function createStyles(colors: ThemeColors) {
       fontStyle: 'italic',
     },
     proof: {
-      backgroundColor: colors.surface,
-      borderRadius: 12,
+      ...cardStyle(colors),
       padding: 16,
       gap: 12,
     },
@@ -326,7 +359,7 @@ function createStyles(colors: ThemeColors) {
     proofButton: {
       minHeight: 56,
       borderRadius: 28,
-      backgroundColor: colors.background,
+      backgroundColor: colors.accentSoft,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -336,8 +369,17 @@ function createStyles(colors: ThemeColors) {
       color: colors.text,
     },
     footer: {
-      padding: 16,
+      ...cardStyle(colors),
+      borderRadius: radius.sheet,
+      marginHorizontal: 12,
+      marginBottom: 12,
+      padding: 14,
       gap: 12,
+    },
+    buttonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
     },
     button: {
       minHeight: 64,
@@ -370,7 +412,7 @@ function createStyles(colors: ThemeColors) {
     voiceButton: {
       minHeight: 56,
       borderRadius: 28,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.accentSoft,
       justifyContent: 'center',
       alignItems: 'center',
     },
