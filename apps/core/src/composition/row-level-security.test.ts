@@ -4,6 +4,7 @@ import { Kysely, PostgresDialect, sql } from 'kysely';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runMigrations } from '../platform/migrations/run-migrations.js';
+import { attachPoolErrorHandler } from '../platform/db.js';
 import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
 
 const migrationsDir = fileURLToPath(new URL('../../migrations', import.meta.url));
@@ -33,6 +34,7 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgis/postgis:16-3.4').start();
     ownerPool = new Pool({ connectionString: container.getConnectionUri() });
+    attachPoolErrorHandler(ownerPool, () => undefined); // a pool is torn down with its container
     await runMigrations(ownerPool, migrationsDir);
     await ownerPool.query(`alter role wagonwise_app with login password 'app-password'`);
 
@@ -41,6 +43,7 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
     url.password = 'app-password';
     // One connection, so every test also shows a scope's settings don't outlive it.
     appPool = new Pool({ connectionString: url.toString(), max: 1 });
+    attachPoolErrorHandler(appPool, () => undefined); // a pool is torn down with its container
     scopes = new PostgresDataScopes(appPool);
     db = new Kysely({ dialect: new PostgresDialect({ pool: scopes.pool }) });
 

@@ -18,7 +18,27 @@ export interface Database {}
  * connection limit. `composition/` owns its lifetime (creates it once, closes it on shutdown).
  */
 export function createPool(databaseUrl: string): Pool {
-  return new Pool({ connectionString: databaseUrl });
+  const pool = new Pool({ connectionString: databaseUrl });
+  attachPoolErrorHandler(pool);
+  return pool;
+}
+
+function logPoolError(error: Error): void {
+  console.error(`database pool: an idle connection failed (${error.message}); it will be replaced`);
+}
+
+/**
+ * node-postgres re-emits an error on an idle connection (the server restarted, a network blip, a
+ * managed database's maintenance) as an 'error' event on the pool. With no listener Node treats
+ * that as an uncaught exception and the whole process dies, so every pool needs one. The pool
+ * drops the dead connection and opens a new one on the next query, so logging is all that is left
+ * to do. Errors on a query in flight are not affected: those still reject that query.
+ */
+export function attachPoolErrorHandler(
+  pool: Pool,
+  onError: (error: Error) => void = logPoolError,
+): void {
+  pool.on('error', onError);
 }
 
 /** `pool` is usually `PostgresDataScopes.pool`, so queries inside a scope join its transaction. */
