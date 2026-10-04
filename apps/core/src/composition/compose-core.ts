@@ -41,6 +41,7 @@ import {
   type UntypedDb as RoutingUntypedDb,
 } from '../modules/routing/api.js';
 import { createDb, createPool } from '../platform/db.js';
+import { deterministicUuid } from '../platform/deterministic-id.js';
 import { OutboxDispatcher, type OutboxEventHandler } from '../platform/outbox-dispatcher.js';
 import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
 import { PostgresUnitOfWork } from '../platform/postgres-unit-of-work.js';
@@ -233,6 +234,23 @@ export function composeCore(
     driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
     // A job is routed for the company vehicle it is assigned to (fleet's dimensions), not a
     // driver's own profile; composition is where those two modules meet (AGENTS.md rule 7).
+    navigationProfiles: {
+      // The same company vehicle always lands on the same profile for a given driver, so starting a
+      // job twice refreshes one profile rather than piling up copies.
+      provision: async ({ driverId, vehicleId }) => {
+        const vehicle = await fleet.getVehicle(vehicleId);
+        if (vehicle === null) return err({ tag: 'VehicleUnavailable' });
+        const saved = await routing.upsertVehicleProfile({
+          id: deterministicUuid('company-vehicle-profile', driverId, vehicleId),
+          driverId,
+          name: `Company: ${vehicle.name}`,
+          dimensions: vehicle.dimensions,
+        });
+        return saved.ok
+          ? ok({ profileId: saved.value.id, vehicleName: vehicle.name })
+          : err({ tag: 'VehicleUnavailable' });
+      },
+    },
     routes: {
       estimate: async ({ vehicleId, from, to }) => {
         const dimensions = await fleet.getVehicleDimensions(vehicleId);

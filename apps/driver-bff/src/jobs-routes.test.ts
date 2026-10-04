@@ -121,6 +121,44 @@ describe('jobs routes', () => {
     expect(refused.json()).toMatchObject({ tag: 'NotTracking' });
   });
 
+  it('forwards a navigation-profile request, relaying the profile and the refusals', async () => {
+    const { app, coreClient } = buildApp();
+    const url = `/jobs/${JOB_ID}/navigation-profile`;
+    coreClient.nextResponse = {
+      status: 200,
+      body: { profileId: 'profile-1', vehicleName: 'Scania R450' },
+    };
+    const ok = await app.inject({ method: 'POST', url, headers: AUTH_HEADER });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json()).toEqual({ profileId: 'profile-1', vehicleName: 'Scania R450' });
+    expect(coreClient.calls[0]).toMatchObject({
+      path: `/jobs/${JOB_ID}/navigation-profile`,
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+
+    coreClient.nextResponse = { status: 409, body: { tag: 'NoVehicleAssigned' } };
+    const refused = await app.inject({ method: 'POST', url, headers: AUTH_HEADER });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toMatchObject({ tag: 'NoVehicleAssigned' });
+  });
+
+  it('401s a navigation-profile request with no token, and 400s a bad id, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    expect(
+      (await app.inject({ method: 'POST', url: `/jobs/${JOB_ID}/navigation-profile` })).statusCode,
+    ).toBe(401);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/jobs/not-a-uuid/navigation-profile',
+          headers: AUTH_HEADER,
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+
   it('400s an off-planet position without calling core', async () => {
     const { app, coreClient } = buildApp();
     const response = await app.inject({

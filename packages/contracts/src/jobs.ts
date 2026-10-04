@@ -92,6 +92,15 @@ export const currentJobResponseSchema = z.object({
 });
 export type CurrentJobResponse = z.infer<typeof currentJobResponseSchema>;
 
+/** `POST /jobs/:id/navigation-profile`: the routing profile to navigate a job with. It carries the
+ *  measurements of the company vehicle the job is assigned to, never a profile the driver picked.
+ *  Plan the route with `profileId`. */
+export const navigationProfileResponseSchema = z.object({
+  profileId: z.string().min(1),
+  vehicleName: z.string(),
+});
+export type NavigationProfileResponse = z.infer<typeof navigationProfileResponseSchema>;
+
 /** The driver and vehicle must both belong to the job's company; core checks. */
 export const assignJobRequestSchema = z.object({
   driverId: z.string().min(1),

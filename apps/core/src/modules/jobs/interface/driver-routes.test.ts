@@ -4,6 +4,7 @@ import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { RecordingDataScopes } from '../../../shared/testing/recording-data-scopes.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
+import { FakeNavigationProfileProvisioner } from '../application/testing/fake-navigation-profile-provisioner.js';
 import { InMemoryJobPositionRepository } from '../application/testing/in-memory-job-position-repository.js';
 import { InMemoryJobRepository } from '../application/testing/in-memory-job-repository.js';
 import type { DriverIdentityDirectory } from '../application/ports/directories.js';
@@ -39,6 +40,7 @@ function buildApp(): {
     changeStatus: { repo, ids: new SequentialIdGenerator(), clock: new FakeClock() },
     attachProofOfDelivery: { repo },
     recordPosition: { repo, positions, clock: new FakeClock() },
+    navigationProfile: { repo, profiles: new FakeNavigationProfileProvisioner() },
     identities: new FakeDriverIdentities(),
     dataScopes: scopes,
   };
@@ -307,5 +309,53 @@ describe('POST /jobs/:id/position', () => {
         })
       ).statusCode,
     ).toBe(401);
+  });
+});
+
+describe('POST /jobs/:id/navigation-profile', () => {
+  const driving: Job = { ...JOB, status: 'accepted', vehicleId: makeId<'FleetVehicleId'>('vehicle-1') };
+  const url = `/jobs/${JOB_ID}/navigation-profile`;
+
+  it('200s with the profile for the assigned vehicle, for the driver on the job', async () => {
+    const { app, repo } = buildApp();
+    await repo.save(driving);
+    const response = await app.inject({ method: 'POST', url, ...asDriver(DRIVER) });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      profileId: 'profile-driver-1-vehicle-1',
+      vehicleName: 'Scania R450',
+    });
+  });
+
+  it('409s before the job is accepted, and when no vehicle is assigned', async () => {
+    const { app, repo } = buildApp();
+    await repo.save({ ...driving, status: 'assigned' });
+    const notYet = await app.inject({ method: 'POST', url, ...asDriver(DRIVER) });
+    expect(notYet.statusCode).toBe(409);
+    expect(notYet.json()).toMatchObject({ tag: 'NotTracking' });
+
+    await repo.save({ ...driving, vehicleId: undefined });
+    const noVehicle = await app.inject({ method: 'POST', url, ...asDriver(DRIVER) });
+    expect(noVehicle.statusCode).toBe(409);
+    expect(noVehicle.json()).toMatchObject({ tag: 'NoVehicleAssigned' });
+  });
+
+  it("404s for a driver who isn't on the job, and 401s without a driver", async () => {
+    const { app, repo } = buildApp();
+    await repo.save(driving);
+    const other = await app.inject({ method: 'POST', url, ...asDriver(OTHER_DRIVER) });
+    expect(other.statusCode).toBe(404);
+    const anonymous = await app.inject({ method: 'POST', url });
+    expect(anonymous.statusCode).toBe(401);
+  });
+
+  it('400s a bad job id', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/jobs/not-a-uuid/navigation-profile',
+      ...asDriver(DRIVER),
+    });
+    expect(response.statusCode).toBe(400);
   });
 });

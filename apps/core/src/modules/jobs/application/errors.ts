@@ -23,5 +23,9 @@ export type ProofOfDeliveryNotFound = TaggedError<'ProofOfDeliveryNotFound'>;
  *  already finished). Nothing is stored. */
 export type NotTracking = TaggedError<'NotTracking'>;
 
+/** The job has no vehicle assigned, so there is nothing to navigate it for: the dispatcher has to
+ *  assign one. */
+export type NoVehicleAssigned = TaggedError<'NoVehicleAssigned'>;
+
 /** The chosen vehicle cannot get between the job's stops: no route exists for its dimensions. */
 export type NoRouteForVehicle = TaggedError<'NoRouteForVehicle'>;

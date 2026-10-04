@@ -71,6 +71,15 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
     );
   });
 
+  // The routing profile for the company vehicle this job is assigned to, for the app's "Start".
+  app.post('/jobs/:id/navigation-profile', (request, reply) => {
+    const params = jobIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    return forward(request, reply, 'POST', `/jobs/${params.data.id}/navigation-profile`);
+  });
+
   app.post('/jobs/:id/position', (request, reply) => {
     const params = jobIdParamsSchema.safeParse(request.params);
     const parsed = reportJobPositionRequestSchema.safeParse(request.body);

@@ -18,6 +18,10 @@ import {
   type ChangeJobStatusDeps,
 } from '../application/change-job-status.js';
 import type { JobActor } from '../application/authorization.js';
+import {
+  getNavigationProfile,
+  type GetNavigationProfileDeps,
+} from '../application/get-navigation-profile.js';
 import { getCurrentJob, type CurrentJobDeps } from '../application/list-jobs.js';
 import {
   recordJobPosition,
@@ -32,6 +36,7 @@ export interface JobsDriverRouteDeps {
   readonly changeStatus: ChangeJobStatusDeps;
   readonly attachProofOfDelivery: AttachProofOfDeliveryDeps;
   readonly recordPosition: RecordJobPositionDeps;
+  readonly navigationProfile: GetNavigationProfileDeps;
   readonly identities: DriverIdentityDirectory;
   /** Row-Level Security scope per request (migration 0030). */
   readonly dataScopes: DataScopes;
@@ -130,6 +135,20 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
         },
       });
       return result.ok ? { status: 204 } : failure(result.error);
+    }),
+  );
+
+  // The routing profile to navigate this job with, built from the assigned company vehicle. Called
+  // by the driver app's "Start"; 409 `NoVehicleAssigned` when dispatch has not picked a vehicle.
+  app.post('/jobs/:id/navigation-profile', (request, reply) =>
+    asDriver(request, reply, async (actor) => {
+      const params = jobIdParamsSchema.safeParse(request.params);
+      if (!params.success) return INVALID;
+      const result = await getNavigationProfile(deps.navigationProfile, {
+        actor,
+        jobId: makeId<'JobId'>(params.data.id),
+      });
+      return result.ok ? { status: 200, body: result.value } : failure(result.error);
     }),
   );
 

@@ -8,6 +8,7 @@ import type {
   DriverIdentityDirectory,
   VehicleDirectory,
 } from './application/ports/directories.js';
+import type { NavigationProfileProvisioner } from './application/ports/navigation-profile.js';
 import type { JobRouteEstimator } from './application/ports/route-estimator.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { CachingRouteEstimator } from './infrastructure/caching-route-estimator.js';
@@ -49,6 +50,9 @@ export interface JobsModuleDeps {
   /** Travel estimates for a company vehicle (P2-M6.4). Supplied by composition over `fleet`'s
    *  dimensions and `routing`'s `estimateRoute`; this module caches them. */
   readonly routes: JobRouteEstimator;
+  /** A routing profile carrying the assigned company vehicle's measurements, for the driver app's
+   *  "Start". Supplied by composition over `fleet` and `routing`. */
+  readonly navigationProfiles: NavigationProfileProvisioner;
 }
 
 export interface JobsModule {
@@ -92,6 +96,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     changeStatus: { repo, ids: deps.ids, clock: deps.clock },
     attachProofOfDelivery: { repo },
     recordPosition: { repo, positions, clock: deps.clock },
+    navigationProfile: { repo, profiles: deps.navigationProfiles },
     identities: deps.driverIdentities,
     dataScopes: deps.dataScopes,
   };
