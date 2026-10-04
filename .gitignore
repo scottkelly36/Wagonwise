@@ -29,3 +29,7 @@ infra/docker/custom_files/
 # committed, a fresh clone would see the npm-import fixtures as unresolvable instead.
 !packages/architecture/fixtures/**/node_modules/
 !packages/architecture/fixtures/**/dist/
+
+# The Google Play service account key, written by the release workflow only
+google-play-service-account.json
+*service-account*.json
