@@ -17,8 +17,8 @@ export interface ThemeColors {
   readonly textMuted: string;
   /** Footnotes and other de-emphasised text; also doubles as an outline-button border. */
   readonly textDim: string;
-  /** Text sat on top of an accent-coloured button or chip — stays dark in both themes since the
-   *  accent colours themselves don't change with theme. */
+  /** Text sat on top of an accent-coloured button or chip — white in both themes, since the accent
+   *  (a deeper blue, 2026-10-04, to match the redesign mock) doesn't change with theme. */
   readonly textOnAccent: string;
   /** Brand blue, sampled from the app icon's road/arrow (2026-09-26, replacing the earlier
    *  orange) — primary actions (buttons, selected chips). Constant across themes. Distinct from
@@ -35,6 +35,11 @@ export interface ThemeColors {
   readonly danger: string;
   /** Amber: something to double-check, not an error. */
   readonly warning: string;
+  /** Floating cards and sheets (the job card, quick actions, bottom sheet, tab bar): lifted off the
+   *  screen or map behind them with a shadow, unlike `surface`, which is a flat fill. */
+  readonly card: string;
+  /** A pale tint of the brand blue, behind an icon badge. */
+  readonly accentSoft: string;
 }
 
 // The app's whole colour palette before the light/dark feature was these ten-odd hex values,
@@ -50,12 +55,14 @@ export const darkColors: ThemeColors = {
   textSecondary: '#E5E7EB',
   textMuted: '#9CA3AF',
   textDim: '#6B7280',
-  textOnAccent: '#0B1220',
-  accent: '#00A4FE',
+  textOnAccent: '#FFFFFF',
+  accent: '#1A73E8',
   accentBlue: '#38BDF8',
   accentGreen: '#34D399',
   danger: '#F87171',
   warning: '#FBBF24',
+  card: '#162033',
+  accentSoft: '#0F3550',
 };
 
 // A close-to-systematic swap of the dark palette (dark's `surface` becomes light's
@@ -71,12 +78,14 @@ export const lightColors: ThemeColors = {
   textSecondary: '#1F2937',
   textMuted: '#4B5563',
   textDim: '#6B7280',
-  textOnAccent: '#0B1220',
-  accent: '#00A4FE',
+  textOnAccent: '#FFFFFF',
+  accent: '#1A73E8',
   accentBlue: '#38BDF8',
   accentGreen: '#34D399',
   danger: '#DC2626',
   warning: '#B45309',
+  card: '#FFFFFF',
+  accentSoft: '#E0F2FE',
 };
 
 /** The app's map (`components/route-map.tsx`) and its pins/hazard markers are deliberately left

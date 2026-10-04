@@ -91,3 +91,23 @@ export function arrivalStep(status: JobStatus): { to: JobStatus; label: string }
   if (status === 'en_route') return { to: 'at_delivery', label: 'Arrived' };
   return undefined;
 }
+
+/**
+ * Where the job is, in a few words for a card: the stop being driven to, or "At <stop>" once there.
+ * Before the job starts it is the pickup, since that is where the day begins.
+ */
+export function jobSubtitle(job: Pick<JobDto, 'status' | 'stops'>): string | undefined {
+  const named = (kind: 'pickup' | 'delivery'): string | undefined =>
+    job.stops.find((s) => s.kind === kind)?.name;
+  switch (job.status) {
+    case 'at_pickup':
+      return named('pickup') === undefined ? undefined : `At ${named('pickup')}`;
+    case 'at_delivery':
+      return named('delivery') === undefined ? undefined : `At ${named('delivery')}`;
+    case 'loaded':
+    case 'en_route':
+      return named('delivery');
+    default:
+      return named('pickup');
+  }
+}

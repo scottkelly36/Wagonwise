@@ -10,7 +10,7 @@ import {
   type ViewStateChangeEvent,
 } from '@maplibre/maplibre-react-native';
 import type { HazardTypeDto } from '@wagonwise/contracts/hazards';
-import { useState } from 'react';
+import { useImperativeHandle, useState, type Ref } from 'react';
 import type { NativeSyntheticEvent } from 'react-native';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -96,6 +96,21 @@ interface Props {
   /** Fired when a parking-spot marker is tapped — no drawer yet, same reasoning as
    *  `onCongestionPress`. */
   readonly onParkingSpotPress?: (parkingSpotId: string) => void;
+  /** Zoom while following `currentPosition`. A street-level 16 suits driving; the home map wants a
+   *  wider, town-level view. */
+  readonly followZoom?: number;
+  /** Tells the parent whether the camera is following the position or has been panned away, so it
+   *  can draw its own recentre control. Called from the gesture itself, never from an effect. */
+  readonly onFollowingChange?: (following: boolean) => void;
+  /** Hide the built-in "Recenter" button when the screen draws its own (via `ref`). */
+  readonly hideRecenterButton?: boolean;
+  /** Lets the parent put the camera back on the position: `ref.current?.recenter()`. */
+  readonly ref?: Ref<RouteMapHandle>;
+}
+
+export interface RouteMapHandle {
+  /** Resume following the live position after the driver has panned away. */
+  recenter(): void;
 }
 
 function toLngLat(point: MapPoint): LngLat {
@@ -143,12 +158,21 @@ export function RouteMap({
   onCongestionPress,
   parkingSpots,
   onParkingSpotPress,
+  followZoom = 16,
+  onFollowingChange,
+  hideRecenterButton = false,
+  ref,
 }: Props) {
   // Whether the camera is actively tracking `currentPosition` — true until the driver manually
   // pans/zooms (see `handleRegionWillChange`), at which point it stays false (their view stays
   // put) until they tap "Recenter". Meaningless when there's no `currentPosition` at all, but
   // harmless to keep around either way — nothing reads it in that case.
-  const [following, setFollowing] = useState(true);
+  const [following, setFollowingState] = useState(true);
+  function setFollowing(next: boolean): void {
+    setFollowingState(next);
+    onFollowingChange?.(next);
+  }
+  useImperativeHandle(ref, () => ({ recenter: () => setFollowing(true) }));
 
   // Priority: a live position always wins (active-trip following) over any bounds fit; then a
   // planned route's own line — small route zooms in, big route zooms out, rather than a fixed
@@ -172,7 +196,7 @@ export function RouteMap({
   const center = currentPosition ?? origin ?? destination;
   // A closer, street-level zoom while following a live position or a single point — a bounds fit
   // (above) picks its own zoom, so this only applies when there's no box to fit around yet.
-  const zoom = currentPosition ? 16 : 12;
+  const zoom = currentPosition ? followZoom : 12;
   // Once out of following, this component simply stops issuing camera stops at all — passing no
   // `center`/`zoom` leaves the map exactly where the driver's own gesture left it, rather than
   // fighting it every time `currentPosition` ticks (every ~3s/10m, `useLiveLocation`).
@@ -293,7 +317,7 @@ export function RouteMap({
           </ViewAnnotation>
         ))}
       </MapLibreMap>
-      {isFreeLooking && (
+      {isFreeLooking && !hideRecenterButton && (
         <TouchableOpacity
           style={styles.recenterButton}
           onPress={() => setFollowing(true)}

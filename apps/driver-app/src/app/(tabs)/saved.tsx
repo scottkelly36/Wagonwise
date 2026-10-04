@@ -9,13 +9,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useDiscardVoiceDraft, useFileVoiceDraft, useVoiceDrafts } from '../api/use-voice-drafts';
-import type { VoiceHazardDraft } from '../db/voice-draft-queue';
-import { useCurrentLocation } from '../hooks/use-current-location';
-import { formatDateTime } from '../lib/format-date';
-import { HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
-import { formatHeightWithFeetInches } from '../lib/units';
-import { useThemeColors, type ThemeColors } from '../theme/colors';
+import {
+  useDiscardVoiceDraft,
+  useFileVoiceDraft,
+  useVoiceDrafts,
+} from '../../api/use-voice-drafts';
+import type { VoiceHazardDraft } from '../../db/voice-draft-queue';
+import { useCurrentLocation } from '../../hooks/use-current-location';
+import { formatDateTime } from '../../lib/format-date';
+import { HAZARD_TYPE_LABELS } from '../../lib/hazard-labels';
+import { formatHeightWithFeetInches } from '../../lib/units';
+import { Icon } from '../../components/ui/icon';
+import { useThemeColors, type ThemeColors } from '../../theme/colors';
+import { cardStyle } from '../../theme/tokens';
 
 function formatMeasurement(measurement: {
   readonly kind: 'height' | 'width' | 'weight';
@@ -107,23 +113,32 @@ export default function VoiceDraftsScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Saved reports</Text>
+        <Text style={styles.title}>Saved</Text>
+        <Text style={styles.subtitle}>Reports to check and send when you are parked.</Text>
       </View>
 
       {isLoading ? (
         <ActivityIndicator style={styles.loading} size="large" color={colors.text} />
       ) : isError ? (
-        <Text style={styles.message}>Couldn’t load saved reports. Pull down to try again.</Text>
+        <View style={styles.empty}>
+          <Icon name="cloud-alert-outline" size={52} color={colors.textMuted} />
+          <Text style={styles.message}>Couldn’t load saved reports. Pull down to try again.</Text>
+        </View>
       ) : data === undefined || data.length === 0 ? (
-        <Text style={styles.message}>
-          No saved reports — anything you don’t confirm by voice while driving shows up here.
-        </Text>
+        <View style={styles.empty}>
+          <Icon name="bookmark-outline" size={52} color={colors.textMuted} />
+          <Text style={styles.emptyTitle}>Nothing saved</Text>
+          <Text style={styles.message}>
+            Anything you don’t confirm by voice while driving shows up here.
+          </Text>
+        </View>
       ) : (
         <FlatList
           data={data}
           keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
           refreshing={isRefetching}
           onRefresh={() => void refetch()}
           renderItem={({ item }) => <DraftRow draft={item} fallbackOrigin={location.point} />}
@@ -140,10 +155,32 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.background,
     },
     header: {
-      padding: 24,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      gap: 4,
     },
     title: {
-      fontSize: 28,
+      fontSize: 32,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    subtitle: {
+      fontSize: 16,
+      color: colors.textMuted,
+    },
+    list: {
+      padding: 16,
+      gap: 12,
+    },
+    empty: {
+      ...cardStyle(colors),
+      margin: 16,
+      padding: 28,
+      alignItems: 'center',
+      gap: 10,
+    },
+    emptyTitle: {
+      fontSize: 20,
       fontWeight: '700',
       color: colors.text,
     },
@@ -154,15 +191,11 @@ function createStyles(colors: ThemeColors) {
       fontSize: 16,
       color: colors.textMuted,
       textAlign: 'center',
-      marginTop: 48,
-      paddingHorizontal: 24,
     },
     row: {
+      ...cardStyle(colors),
       gap: 4,
-      paddingHorizontal: 24,
-      paddingVertical: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.divider,
+      padding: 16,
     },
     rowType: {
       fontSize: 20,
@@ -196,8 +229,8 @@ function createStyles(colors: ThemeColors) {
     },
     button: {
       flex: 1,
-      minHeight: 48,
-      borderRadius: 12,
+      minHeight: 52,
+      borderRadius: 26,
       justifyContent: 'center',
       alignItems: 'center',
     },
