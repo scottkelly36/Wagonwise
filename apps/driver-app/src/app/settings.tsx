@@ -3,13 +3,13 @@ import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDeleteAccount } from '../api/use-identity';
 import { useCurrentJob } from '../api/use-jobs';

@@ -6,13 +6,13 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useReportSafeParkingSpot } from '../api/use-parking';
 import { RouteMap, type MapPoint } from '../components/route-map';

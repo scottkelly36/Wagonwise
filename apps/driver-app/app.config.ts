@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   slug: 'wagonwise-driver-app',
   // Store-build version, bumped by hand on each `eas build` (README: "Versions and updates").
   // OTA updates can't change it — it's baked into the binary.
-  version: '1.1.0',
+  version: '1.2.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'wagonwise',
@@ -55,6 +55,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     'expo-router',
+    'expo-font',
     'expo-secure-store',
     'expo-sqlite',
     [

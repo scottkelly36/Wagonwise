@@ -4,12 +4,12 @@ import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useStartTrip } from '../api/use-active-trip';
 import { useNearbyHazards } from '../api/use-hazards';

@@ -1,13 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCreateVehicleProfile } from '../../api/use-vehicle-profiles';
 import { VehicleProfileForm } from '../../components/vehicle-profile-form';

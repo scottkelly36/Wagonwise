@@ -1,13 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import {
-  ActivityIndicator,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useGiveConsent } from '../api/use-identity';
 import { PRODUCT_NAME } from '../product';

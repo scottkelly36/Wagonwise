@@ -2,13 +2,13 @@ import { Redirect } from 'expo-router';
 import { useMemo } from 'react';
 import {
   ActivityIndicator,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
 import { useJobNavigation } from '../hooks/use-job-navigation';

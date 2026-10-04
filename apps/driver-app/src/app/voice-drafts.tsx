@@ -2,12 +2,12 @@ import { useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDiscardVoiceDraft, useFileVoiceDraft, useVoiceDrafts } from '../api/use-voice-drafts';
 import type { VoiceHazardDraft } from '../db/voice-draft-queue';

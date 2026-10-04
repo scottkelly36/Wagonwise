@@ -6,13 +6,13 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useReportCongestion } from '../api/use-congestion';
 import { RouteMap, type MapPoint } from '../components/route-map';

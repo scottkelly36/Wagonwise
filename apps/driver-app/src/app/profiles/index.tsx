@@ -3,12 +3,12 @@ import { useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useVehicleProfiles } from '../../api/use-vehicle-profiles';
 import { formatHeightWithFeetInches } from '../../lib/units';
