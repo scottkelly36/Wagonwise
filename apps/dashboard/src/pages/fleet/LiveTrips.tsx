@@ -196,17 +196,8 @@ export function LiveTrips() {
           {everyCompany ? 'Choose a company above.' : 'No company assigned to your account.'}
         </p>
       ) : (
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'stretch' }}>
-          <div
-            style={{
-              flex: '2 1 420px',
-              height: 520,
-              border: '1px solid #e5e7eb',
-              borderRadius: 8,
-              overflow: 'hidden',
-              position: 'relative',
-            }}
-          >
+        <div className="live-layout">
+          <div className="live-map-box">
             {!markers.some((m) => m.kind === 'vehicle') && (
               <p className="map-empty">No vehicles on the road right now.</p>
             )}
@@ -218,7 +209,7 @@ export function LiveTrips() {
             />
           </div>
 
-          <div style={{ flex: '1 1 280px', maxHeight: 520, overflowY: 'auto' }}>
+          <div className="live-list">
             {jobs.isPending ? (
               <p>Loading…</p>
             ) : rows.length === 0 ? (

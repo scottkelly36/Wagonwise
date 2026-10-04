@@ -48,6 +48,7 @@ export function Jobs() {
   const me = useStaffAuthStore((s) => s.session?.staff);
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
   const everyCompany = isPlatform(me);
+  const myEmail = me?.kind === 'fleet' ? me.email.trim().toLowerCase() : undefined;
   const canDispatch = holds(me, 'dispatch');
   const queryClient = useQueryClient();
 
@@ -249,7 +250,7 @@ export function Jobs() {
                 <div>
                   {job.status === 'draft' && (
                     <>
-                      <span style={{ display: 'inline-flex', gap: 4 }}>
+                      <span className="assign-controls">
                         <select
                           aria-label={`Driver for ${job.reference}`}
                           value={picked.driverId}
@@ -264,6 +265,10 @@ export function Jobs() {
                           {activeDrivers.map((link) => (
                             <option key={link.id} value={link.driverId}>
                               {link.driverIdentifier ?? link.driverId}
+                              {myEmail !== undefined &&
+                              link.driverIdentifier?.toLowerCase() === myEmail
+                                ? ' (you)'
+                                : ''}
                             </option>
                           ))}
                         </select>

@@ -1,4 +1,5 @@
 import type { StaffAccountDto } from '@wagonwise/contracts/staff';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { holds, isPlatform } from '../state/access';
 import { useStaffAuthStore } from '../state/staff-auth-store';
@@ -54,9 +55,20 @@ export function StaffLayout() {
   const signOut = useStaffAuthStore((s) => s.signOut);
   const staff = session?.staff;
 
+  // On a phone the menu is a drawer. It closes when a page is chosen, and on Escape.
+  const [navOpen, setNavOpen] = useState(false);
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setNavOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navOpen]);
+
   return (
     <div className="shell">
-      <nav className="sidebar">
+      <nav id="main-nav" className={navOpen ? 'sidebar open' : 'sidebar'} aria-label="Main">
         <div className="brand">
           <span className="brand-mark" />
           WagonWise
@@ -74,6 +86,7 @@ export function StaffLayout() {
                     key={item.to}
                     to={item.to}
                     end
+                    onClick={() => setNavOpen(false)}
                     className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
                   >
                     {item.label}
@@ -84,8 +97,20 @@ export function StaffLayout() {
           })}
       </nav>
 
+      {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
+
       <div className="main-column">
         <header className="topbar">
+          <button
+            type="button"
+            className="menu-button"
+            aria-label={navOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={navOpen}
+            aria-controls="main-nav"
+            onClick={() => setNavOpen((open) => !open)}
+          >
+            <span aria-hidden="true">{navOpen ? '✕' : '☰'}</span>
+          </button>
           {staff !== undefined && (
             <>
               <div className="who">

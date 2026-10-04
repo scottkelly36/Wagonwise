@@ -133,6 +133,16 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-04: dashboard on a phone, and owners who also drive. Under 800 px the menu is a drawer
+  opened from a button in the top bar; under 700 px each list row becomes a labelled card (sorting
+  moves to a dropdown), Assign and Cancel are full-width, Live trips stacks map over list, and
+  controls are at least 44 px with 16 px text. Drivers page gains "Add me as a driver" for fleet
+  staff: it invites their own email through the existing invite route (no backend change). The
+  owner still accepts it in the driver app, because accepting needs their driver account, which is
+  separate from their staff sign-in and may not exist yet (a first app sign-in needs an invite
+  code from WagonWise). They show as "(you)" in the Assign list. Not done: one sign-in for both
+  accounts. Checked on a throwaway page at 375 px wide with mock data, not against a live backend.
+
 - 2026-10-04: dashboard polish, from the owner's first look. Create forms (invite a user, Jobs,
   Vehicles, Companies, invite a driver) no longer just disable their button: it stays clickable and
   each missing or wrong field gets a message under it, with the first one focused. The Jobs form is a
