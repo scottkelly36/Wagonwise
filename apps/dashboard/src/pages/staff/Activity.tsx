@@ -2,6 +2,7 @@ import type { Privilege, StaffAuditEntryDto } from '@wagonwise/contracts/staff';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as staffApi from '../../api/staff';
+import { DataTable, type Column } from '../../components/DataTable';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from './messages';
 import { PRIVILEGE_LABELS } from './privileges';
@@ -88,6 +89,24 @@ export function Activity() {
   const who = (id: string | undefined) =>
     id === undefined ? 'Someone' : id === me.id ? 'You' : (names.get(id) ?? 'Someone');
 
+  const columns: Column<StaffAuditEntryDto>[] = [
+    {
+      key: 'when',
+      header: 'When',
+      sortValue: (entry) => entry.at,
+      cell: (entry) => new Date(entry.at).toLocaleString('en-GB'),
+    },
+    {
+      key: 'what',
+      header: 'What happened',
+      cell: (entry) => (
+        <span style={{ color: WARNING_ACTIONS.has(entry.action) ? '#b45309' : undefined }}>
+          {describe(entry, who)}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div>
       <h1>Activity</h1>
@@ -116,31 +135,14 @@ export function Activity() {
 
       {entries.isPending ? (
         <p>Loading…</p>
-      ) : entries.data?.length === 0 ? (
-        <p style={{ color: '#6b7280' }}>Nothing yet.</p>
       ) : (
-        <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={{ width: 200 }}>When</th>
-              <th>What happened</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.data?.map((entry) => (
-              <tr
-                key={entry.id}
-                style={{
-                  borderTop: '1px solid #e5e7eb',
-                  color: WARNING_ACTIONS.has(entry.action) ? '#b45309' : undefined,
-                }}
-              >
-                <td>{new Date(entry.at).toLocaleString()}</td>
-                <td>{describe(entry, who)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable
+          columns={columns}
+          rows={entries.data ?? []}
+          rowKey={(entry) => entry.id}
+          searchText={(entry) => describe(entry, who)}
+          emptyText="Nothing yet."
+        />
       )}
     </div>
   );

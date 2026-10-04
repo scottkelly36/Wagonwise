@@ -133,6 +133,16 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-04: dashboard polish, from the owner's first look. Create forms (invite a user, Jobs,
+  Vehicles, Companies, invite a driver) no longer just disable their button: it stays clickable and
+  each missing or wrong field gets a message under it, with the first one focused. The Jobs form is a
+  labelled grid, so the postcode look-up line no longer shifts things. Every list is now one shared
+  `DataTable`: sortable headers that stay pinned while rows scroll, search, paging past 25 rows, and
+  round edit and delete buttons. Live trips opens on the whole of the UK and says when no vehicle is on
+  the road. The "cream square" on Live trips is the keyless demo map, which has no roads: it needs
+  `VITE_MAPTILER_API_KEY`, still not set. Dashboard only, no backend change. Not looked at against a
+  live backend (only a throwaway page with mock data).
+
 - 2026-10-03: P2-M7.2 done: reporter trust (derived from approved, rejected and dismissed reports;
   new reporters are neutral) and the routing hold. A blocking report is now ignored by routing only
   if its reporter has a poor record AND it has no measurement, no confirmations and no moderator

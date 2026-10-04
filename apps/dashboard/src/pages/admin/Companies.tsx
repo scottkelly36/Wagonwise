@@ -1,11 +1,23 @@
-import { companyIdSchema } from '@wagonwise/contracts/companies';
+import { companyIdSchema, type CompanyDto } from '@wagonwise/contracts/companies';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as companiesApi from '../../api/companies';
+import { DataTable, type Column } from '../../components/DataTable';
+import { FieldError } from '../../components/FieldError';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
 
 const COMPANIES_KEY = ['companies'] as const;
+
+const COLUMNS: Column<CompanyDto>[] = [
+  { key: 'name', header: 'Name', sortValue: (company) => company.name, cell: (c) => c.name },
+  {
+    key: 'created',
+    header: 'Created',
+    sortValue: (company) => company.createdAt,
+    cell: (company) => new Date(company.createdAt).toLocaleDateString('en-GB'),
+  },
+];
 
 export function Companies() {
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
@@ -29,9 +41,20 @@ export function Companies() {
 
   const [name, setName] = useState('');
 
+  const [showError, setShowError] = useState(false);
+  const nameError = name.trim().length === 0 ? 'Enter the company name.' : undefined;
+
   function handleSubmit(): void {
-    if (name.trim().length === 0) return;
-    createCompany.mutate(name.trim(), { onSuccess: () => setName('') });
+    if (nameError !== undefined) {
+      setShowError(true);
+      return;
+    }
+    createCompany.mutate(name.trim(), {
+      onSuccess: () => {
+        setName('');
+        setShowError(false);
+      },
+    });
   }
 
   const error = companies.error ?? createCompany.error;
@@ -45,10 +68,22 @@ export function Companies() {
           e.preventDefault();
           handleSubmit();
         }}
-        style={{ display: 'flex', gap: 8, marginBottom: 24 }}
+        noValidate
+        style={{ display: 'flex', gap: 8, marginBottom: 24, alignItems: 'flex-start' }}
       >
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Company name" />
-        <button type="submit" disabled={createCompany.isPending || name.trim().length === 0}>
+        <div className="field">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Company name"
+            aria-label="Company name"
+            aria-invalid={showError && nameError !== undefined}
+            aria-describedby="company-name-error"
+            autoFocus={showError}
+          />
+          <FieldError id="company-name-error" message={showError ? nameError : undefined} />
+        </div>
+        <button type="submit" disabled={createCompany.isPending}>
           {createCompany.isPending ? 'Adding…' : 'Add company'}
         </button>
       </form>
@@ -57,25 +92,14 @@ export function Companies() {
 
       {companies.isPending ? (
         <p>Loading…</p>
-      ) : companies.data?.length === 0 ? (
-        <p style={{ color: '#6b7280' }}>No companies yet.</p>
       ) : (
-        <table style={{ width: '100%', textAlign: 'left' }}>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {companies.data?.map((company) => (
-              <tr key={company.id}>
-                <td>{company.name}</td>
-                <td>{new Date(company.createdAt).toLocaleDateString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable
+          columns={COLUMNS}
+          rows={companies.data ?? []}
+          rowKey={(company) => company.id}
+          searchText={(company) => company.name}
+          emptyText="No companies yet."
+        />
       )}
     </div>
   );

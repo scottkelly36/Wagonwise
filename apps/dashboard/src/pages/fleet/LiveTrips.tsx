@@ -204,8 +204,12 @@ export function LiveTrips() {
               border: '1px solid #e5e7eb',
               borderRadius: 8,
               overflow: 'hidden',
+              position: 'relative',
             }}
           >
+            {!markers.some((m) => m.kind === 'vehicle') && (
+              <p className="map-empty">No vehicles on the road right now.</p>
+            )}
             <FleetMap
               markers={markers}
               selectedId={selectedJobId}

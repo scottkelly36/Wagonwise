@@ -24,10 +24,11 @@ interface Props {
   readonly line?: readonly [number, number][] | undefined;
 }
 
-// A UK-wide view until there is something to fit to.
 const ROUTE_SOURCE = 'selected-route';
 
-const UK_CENTRE: [number, number] = [-2.5, 54.5];
+// The whole of Great Britain and the top of Northern Ireland, as [west, south, east, north]. The
+// view until there is a vehicle to fit to; fitted to the box, so it fits whatever size it is.
+const UK_BOUNDS: [number, number, number, number] = [-8.7, 49.8, 1.9, 60.9];
 
 function markerElement(marker: MapMarker, onSelect: (id: string) => void): HTMLElement {
   const el = document.createElement('div');
@@ -65,8 +66,8 @@ export function FleetMap({ markers, selectedId, onSelect, line }: Props) {
     const instance = new maplibregl.Map({
       container: container.current,
       style: mapStyleUrl(maptilerApiKey),
-      center: UK_CENTRE,
-      zoom: 5,
+      bounds: UK_BOUNDS,
+      fitBoundsOptions: { padding: 16 },
     });
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     map.current = instance;
