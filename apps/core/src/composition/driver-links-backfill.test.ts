@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { attachPoolErrorHandler } from '../platform/db.js';
 
 const migrationsDir = fileURLToPath(new URL('../../migrations', import.meta.url));
 const BACKFILL = '0028_fleet_driver_links.sql';
@@ -25,6 +26,7 @@ describe('migration 0028 backfills driver links from drivers.company_id', () => 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgis/postgis:16-3.4').start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
+    attachPoolErrorHandler(pool, () => undefined); // a pool is torn down with its container
     const files = readdirSync(migrationsDir)
       .filter((f) => f.endsWith('.sql'))
       .sort();

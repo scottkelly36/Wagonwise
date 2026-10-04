@@ -133,6 +133,15 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-04: database pools now have an error handler. CI failed once on a dashboard-only PR with
+  two "unhandled errors" (`terminating connection due to administrator command`, from
+  `row-level-security.test.ts`) although every test passed. node-postgres re-emits an idle
+  connection's failure on the pool, and with no listener Node treats it as an uncaught exception.
+  The production pool (`platform/db.ts` `createPool`) had the same gap, so a database restart or
+  dropped idle connection could have crashed core. `attachPoolErrorHandler` logs it and carries on;
+  the composition tests that build their own pools use it too. Test-only pools inside modules
+  (`*/infrastructure/testing/db-for-tests.ts`) still have none: modules may not import `platform/`.
+
 - 2026-10-04: dashboard company pickers. WagonWise staff choose a company by name from a dropdown
   (`CompanySelect`) when inviting a user, and in the company filters on Users and Activity, instead of
   pasting a company id. The Users "Account" column shows the company name. Jobs, Drivers and Vehicles

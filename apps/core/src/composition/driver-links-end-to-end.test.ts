@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createFleetModule, type Caller } from '../modules/fleet/api.js';
 import { runMigrations } from '../platform/migrations/run-migrations.js';
+import { attachPoolErrorHandler } from '../platform/db.js';
 import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
 import { makeId } from '../shared/brand.js';
 import { FakeClock } from '../shared/testing/fake-clock.js';
@@ -49,6 +50,7 @@ describe('driver links end to end (real RLS, driver scope)', () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgis/postgis:16-3.4').start();
     ownerPool = new Pool({ connectionString: container.getConnectionUri() });
+    attachPoolErrorHandler(ownerPool, () => undefined); // a pool is torn down with its container
     await runMigrations(ownerPool, migrationsDir);
     await ownerPool.query(`alter role wagonwise_app with login password 'app-password'`);
     await ownerPool.query(`
@@ -62,6 +64,7 @@ describe('driver links end to end (real RLS, driver scope)', () => {
     url.username = 'wagonwise_app';
     url.password = 'app-password';
     appPool = new Pool({ connectionString: url.toString(), max: 1 });
+    attachPoolErrorHandler(appPool, () => undefined); // a pool is torn down with its container
     const scopes = new PostgresDataScopes(appPool);
     const db = new Kysely<Record<string, unknown>>({
       dialect: new PostgresDialect({ pool: scopes.pool }),
