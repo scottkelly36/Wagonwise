@@ -1,18 +1,31 @@
 import { companyIdSchema } from '@wagonwise/contracts/companies';
 import type { JobDto, ProofOfDeliveryResponse } from '@wagonwise/contracts/jobs';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import * as jobsApi from '../../api/jobs';
+import { DataTable, type Column } from '../../components/DataTable';
+import { FieldError } from '../../components/FieldError';
 import { resolvePostcode, usePostcode } from '../../hooks/use-postcode';
+import { focusFirstInvalid, hasErrors, type FieldErrors } from '../../lib/forms';
 import { formatDuration, formatMiles } from '../../lib/live-map';
-import { PostcodeNotFoundError, type ResolvedPostcode } from '../../lib/postcodes';
+import {
+  normalisePostcode,
+  PostcodeNotFoundError,
+  type ResolvedPostcode,
+} from '../../lib/postcodes';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
 
 const COMPANIES_KEY = ['companies'] as const;
+/** A job's status as a person reads it: "at pickup", not "at_pickup". */
+function statusLabel(status: JobDto['status']): string {
+  const text = status.replaceAll('_', ' ');
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 const TERMINAL: readonly JobDto['status'][] = ['delivered', 'cancelled', 'failed'];
 
 const EMPTY_FORM = {
@@ -96,9 +109,32 @@ export function Jobs() {
     },
     onSuccess: () => {
       setForm(EMPTY_FORM);
+      setShowErrors(false);
       refreshJobs();
     },
   });
+
+  const [showErrors, setShowErrors] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const errors: FieldErrors<
+    'reference' | 'pickupName' | 'pickupPostcode' | 'deliveryName' | 'deliveryPostcode'
+  > = {};
+  if (form.reference.trim() === '') errors.reference = 'Enter a reference, like the order number.';
+  if (form.pickupName.trim() === '') errors.pickupName = 'Enter where the load is collected from.';
+  if (form.deliveryName.trim() === '') errors.deliveryName = 'Enter where the load is going.';
+  const postcodeProblem = (text: string, which: string): string | undefined => {
+    if (text.trim() === '') return `Enter the ${which} postcode.`;
+    if (normalisePostcode(text) === undefined) {
+      return 'That does not look like a UK postcode. It should be like NE46 3JA.';
+    }
+    return undefined;
+  };
+  const pickupPostcodeProblem = postcodeProblem(form.pickupPostcode, 'pickup');
+  if (pickupPostcodeProblem !== undefined) errors.pickupPostcode = pickupPostcodeProblem;
+  const deliveryPostcodeProblem = postcodeProblem(form.deliveryPostcode, 'delivery');
+  if (deliveryPostcodeProblem !== undefined) errors.deliveryPostcode = deliveryPostcodeProblem;
+  const shown = (field: keyof typeof errors): string | undefined =>
+    showErrors ? errors[field] : undefined;
 
   const [viewing, setViewing] = useState<{ id: string; reference: string } | undefined>();
 
@@ -131,22 +167,159 @@ export function Jobs() {
   });
 
   function handleCreate(): void {
-    if (
-      form.reference.trim() === '' ||
-      form.pickupName.trim() === '' ||
-      form.deliveryName.trim() === '' ||
-      form.pickupPostcode.trim() === '' ||
-      form.deliveryPostcode.trim() === '' ||
-      companyId === undefined
-    ) {
+    if (companyId === undefined) return;
+    if (hasErrors(errors)) {
+      setShowErrors(true);
+      focusFirstInvalid(formRef.current);
       return;
     }
     createJob.mutate();
   }
 
+  // Assign stays clickable; if a driver or vehicle is missing it says so under the controls.
+  const [assignHint, setAssignHint] = useState<Record<string, string>>({});
+  function handleAssign(jobId: string, picked: { driverId: string; vehicleId: string }): void {
+    if (picked.driverId === '' || picked.vehicleId === '') {
+      setAssignHint((h) => ({
+        ...h,
+        [jobId]:
+          picked.driverId === '' && picked.vehicleId === ''
+            ? 'Choose a driver and a vehicle first.'
+            : picked.driverId === ''
+              ? 'Choose a driver first.'
+              : 'Choose a vehicle first.',
+      }));
+      return;
+    }
+    setAssignHint((h) => Object.fromEntries(Object.entries(h).filter(([id]) => id !== jobId)));
+    assign.mutate(jobId);
+  }
+
   const activeDrivers = (drivers.data ?? []).filter(
     (link) => link.status === 'active' && link.driverId !== undefined,
   );
+
+  const jobColumns: Column<JobDto>[] = [
+    {
+      key: 'reference',
+      header: 'Reference',
+      sortValue: (j) => j.reference,
+      cell: (j) => j.reference,
+    },
+    {
+      key: 'stops',
+      header: 'Stops',
+      sortValue: (j) => j.stops.map((stop) => stop.name).join(' '),
+      cell: (j) => j.stops.map((stop) => stop.name).join(' → '),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortValue: (j) => statusLabel(j.status),
+      cell: (j) => statusLabel(j.status),
+    },
+    {
+      key: 'proof',
+      header: 'Proof of delivery',
+      cell: (job) =>
+        job.hasProofOfDelivery ? (
+          <>
+            Received{' '}
+            <button
+              type="button"
+              onClick={() => setViewing({ id: job.id, reference: job.reference })}
+            >
+              View photo
+            </button>
+          </>
+        ) : job.requiresProofOfDelivery ? (
+          'Required — not yet received'
+        ) : (
+          '—'
+        ),
+    },
+    ...(canDispatch
+      ? [
+          {
+            key: 'actions',
+            header: '',
+            cell: (job: JobDto) => {
+              const picked = assigning[job.id] ?? { driverId: '', vehicleId: '' };
+              return (
+                <div>
+                  {job.status === 'draft' && (
+                    <>
+                      <span style={{ display: 'inline-flex', gap: 4 }}>
+                        <select
+                          aria-label={`Driver for ${job.reference}`}
+                          value={picked.driverId}
+                          onChange={(e) =>
+                            setAssigning((a) => ({
+                              ...a,
+                              [job.id]: { ...picked, driverId: e.target.value },
+                            }))
+                          }
+                        >
+                          <option value="">Driver…</option>
+                          {activeDrivers.map((link) => (
+                            <option key={link.id} value={link.driverId}>
+                              {link.driverIdentifier ?? link.driverId}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          aria-label={`Vehicle for ${job.reference}`}
+                          value={picked.vehicleId}
+                          onChange={(e) =>
+                            setAssigning((a) => ({
+                              ...a,
+                              [job.id]: { ...picked, vehicleId: e.target.value },
+                            }))
+                          }
+                        >
+                          <option value="">Vehicle…</option>
+                          {vehicles.data?.map((vehicle) => (
+                            <option key={vehicle.id} value={vehicle.id}>
+                              {vehicle.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleAssign(job.id, picked)}
+                          disabled={assign.isPending}
+                        >
+                          Assign
+                        </button>
+                      </span>
+                      {assignHint[job.id] !== undefined && (
+                        <p className="field-error" role="alert" style={{ margin: '4px 0 0' }}>
+                          {assignHint[job.id]}
+                        </p>
+                      )}
+                      {picked.vehicleId !== '' && (
+                        <RoutePreview jobId={job.id} vehicleId={picked.vehicleId} />
+                      )}
+                    </>
+                  )}
+                  {!TERMINAL.includes(job.status) && (
+                    <button
+                      className="btn-danger"
+                      onClick={() => {
+                        if (window.confirm('Cancel this job?')) cancel.mutate(job.id);
+                      }}
+                      disabled={cancel.isPending}
+                      style={{ marginTop: job.status === 'draft' ? 6 : 0 }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              );
+            },
+          },
+        ]
+      : []),
+  ];
 
   const error =
     companies.error ??
@@ -201,55 +374,81 @@ export function Jobs() {
             <section style={{ marginBottom: 24 }}>
               <h2>Create a job</h2>
               <form
+                ref={formRef}
+                noValidate
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleCreate();
                 }}
-                style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}
+                className="job-form"
               >
-                <input
-                  value={form.reference}
-                  onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))}
-                  placeholder="Reference"
-                  style={{ width: 120 }}
-                />
-                <input
-                  value={form.pickupName}
-                  onChange={(e) => setForm((f) => ({ ...f, pickupName: e.target.value }))}
-                  placeholder="Pickup name"
-                  style={{ width: 140 }}
-                />
+                <div className="field">
+                  <label htmlFor="job-reference">Reference</label>
+                  <input
+                    id="job-reference"
+                    value={form.reference}
+                    onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))}
+                    aria-invalid={shown('reference') !== undefined}
+                    aria-describedby="job-reference-error"
+                  />
+                  <FieldError id="job-reference-error" message={shown('reference')} />
+                </div>
+                <div className="job-form-break" />
+                <div className="field">
+                  <label htmlFor="job-pickup-name">Pickup name</label>
+                  <input
+                    id="job-pickup-name"
+                    value={form.pickupName}
+                    onChange={(e) => setForm((f) => ({ ...f, pickupName: e.target.value }))}
+                    placeholder="e.g. Hexham Quarry"
+                    aria-invalid={shown('pickupName') !== undefined}
+                    aria-describedby="job-pickup-name-error"
+                  />
+                  <FieldError id="job-pickup-name-error" message={shown('pickupName')} />
+                </div>
                 <PostcodeField
+                  id="job-pickup-postcode"
+                  label="Pickup postcode"
                   value={form.pickupPostcode}
                   onChange={(value) => setForm((f) => ({ ...f, pickupPostcode: value }))}
-                  placeholder="Pickup postcode"
                   lookup={pickupPostcode}
+                  error={shown('pickupPostcode')}
                 />
-                <input
-                  value={form.deliveryName}
-                  onChange={(e) => setForm((f) => ({ ...f, deliveryName: e.target.value }))}
-                  placeholder="Delivery name"
-                  style={{ width: 140 }}
-                />
+                <div className="field">
+                  <label htmlFor="job-delivery-name">Delivery name</label>
+                  <input
+                    id="job-delivery-name"
+                    value={form.deliveryName}
+                    onChange={(e) => setForm((f) => ({ ...f, deliveryName: e.target.value }))}
+                    placeholder="e.g. Hebburn depot"
+                    aria-invalid={shown('deliveryName') !== undefined}
+                    aria-describedby="job-delivery-name-error"
+                  />
+                  <FieldError id="job-delivery-name-error" message={shown('deliveryName')} />
+                </div>
                 <PostcodeField
+                  id="job-delivery-postcode"
+                  label="Delivery postcode"
                   value={form.deliveryPostcode}
                   onChange={(value) => setForm((f) => ({ ...f, deliveryPostcode: value }))}
-                  placeholder="Delivery postcode"
                   lookup={deliveryPostcode}
+                  error={shown('deliveryPostcode')}
                 />
-                <label style={{ display: 'flex', alignItems: 'center', gap: 4, height: 36 }}>
-                  <input
-                    type="checkbox"
-                    checked={form.requiresProofOfDelivery}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, requiresProofOfDelivery: e.target.checked }))
-                    }
-                  />
-                  Require proof of delivery
-                </label>
-                <button type="submit" disabled={createJob.isPending}>
-                  {createJob.isPending ? 'Creating…' : 'Create job'}
-                </button>
+                <div className="job-form-actions">
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={form.requiresProofOfDelivery}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, requiresProofOfDelivery: e.target.checked }))
+                      }
+                    />
+                    Require proof of delivery
+                  </label>
+                  <button type="submit" disabled={createJob.isPending}>
+                    {createJob.isPending ? 'Creating…' : 'Create job'}
+                  </button>
+                </div>
               </form>
             </section>
           )}
@@ -258,116 +457,17 @@ export function Jobs() {
             <h2>All jobs</h2>
             {jobs.isPending ? (
               <p>Loading…</p>
-            ) : jobs.data?.length === 0 ? (
-              <p style={{ color: '#6b7280' }}>No jobs yet.</p>
             ) : (
-              <table style={{ width: '100%', textAlign: 'left' }}>
-                <thead>
-                  <tr>
-                    <th>Reference</th>
-                    <th>Stops</th>
-                    <th>Status</th>
-                    <th>Proof of delivery</th>
-                    {canDispatch && <th />}
-                  </tr>
-                </thead>
-                <tbody>
-                  {jobs.data?.map((job) => {
-                    const picked = assigning[job.id] ?? { driverId: '', vehicleId: '' };
-                    return (
-                      <tr key={job.id}>
-                        <td>{job.reference}</td>
-                        <td>{job.stops.map((s) => s.name).join(' → ')}</td>
-                        <td>{job.status}</td>
-                        <td>
-                          {job.hasProofOfDelivery ? (
-                            <>
-                              Received{' '}
-                              <button
-                                type="button"
-                                onClick={() => setViewing({ id: job.id, reference: job.reference })}
-                              >
-                                View photo
-                              </button>
-                            </>
-                          ) : job.requiresProofOfDelivery ? (
-                            'Required — not yet received'
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        {canDispatch && (
-                          <td>
-                            {job.status === 'draft' && (
-                              <>
-                                <span style={{ display: 'inline-flex', gap: 4 }}>
-                                  <select
-                                    value={picked.driverId}
-                                    onChange={(e) =>
-                                      setAssigning((a) => ({
-                                        ...a,
-                                        [job.id]: { ...picked, driverId: e.target.value },
-                                      }))
-                                    }
-                                  >
-                                    <option value="">Driver…</option>
-                                    {activeDrivers.map((link) => (
-                                      <option key={link.id} value={link.driverId}>
-                                        {link.driverIdentifier ?? link.driverId}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <select
-                                    value={picked.vehicleId}
-                                    onChange={(e) =>
-                                      setAssigning((a) => ({
-                                        ...a,
-                                        [job.id]: { ...picked, vehicleId: e.target.value },
-                                      }))
-                                    }
-                                  >
-                                    <option value="">Vehicle…</option>
-                                    {vehicles.data?.map((vehicle) => (
-                                      <option key={vehicle.id} value={vehicle.id}>
-                                        {vehicle.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button
-                                    onClick={() => assign.mutate(job.id)}
-                                    disabled={
-                                      assign.isPending ||
-                                      picked.driverId === '' ||
-                                      picked.vehicleId === ''
-                                    }
-                                  >
-                                    Assign
-                                  </button>
-                                </span>
-                                {picked.vehicleId !== '' && (
-                                  <RoutePreview jobId={job.id} vehicleId={picked.vehicleId} />
-                                )}
-                              </>
-                            )}
-                            {!TERMINAL.includes(job.status) && (
-                              <button
-                                className="btn-danger"
-                                onClick={() => {
-                                  if (window.confirm('Cancel this job?')) cancel.mutate(job.id);
-                                }}
-                                disabled={cancel.isPending}
-                                style={{ marginLeft: 4 }}
-                              >
-                                Cancel
-                              </button>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <DataTable
+                columns={jobColumns}
+                rows={jobs.data ?? []}
+                rowKey={(job) => job.id}
+                searchText={(job) =>
+                  `${job.reference} ${job.stops.map((stop) => stop.name).join(' ')} ${statusLabel(job.status)}`
+                }
+                emptyText="No jobs yet."
+                maxHeight="70vh"
+              />
             )}
           </section>
         </>
@@ -379,37 +479,53 @@ export function Jobs() {
 /** A postcode box with the place it resolves to underneath, so a typo that happens to be another
  *  real postcode ("NE46" vs "NE45") is caught by the dispatcher before the driver is sent there. */
 function PostcodeField({
+  id,
+  label,
   value,
   onChange,
-  placeholder,
   lookup,
+  error,
 }: {
+  id: string;
+  label: string;
   value: string;
   onChange: (value: string) => void;
-  placeholder: string;
   lookup: UseQueryResult<ResolvedPostcode>;
+  /** A problem found on submit; shown in place of the live lookup's hint. */
+  error: string | undefined;
 }) {
   let hint: { text: string; color: string } | undefined;
   if (lookup.isFetching) {
-    hint = { text: 'Looking up…', color: '#6b7280' };
+    hint = { text: 'Looking up…', color: 'var(--text-muted)' };
   } else if (lookup.data !== undefined) {
-    hint = { text: `✓ ${lookup.data.place}`, color: '#15803d' };
+    hint = { text: `✓ ${lookup.data.place}`, color: 'var(--success)' };
   } else if (lookup.error instanceof PostcodeNotFoundError) {
-    hint = { text: "Can't find that postcode", color: '#dc2626' };
+    hint = { text: "Can't find that postcode", color: 'var(--danger)' };
   } else if (lookup.error !== null) {
     hint = { text: "Couldn't check it just now", color: '#b45309' };
   }
   return (
-    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
       <input
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder="e.g. NE46 3JA"
         autoComplete="off"
-        style={{ width: 130, textTransform: 'uppercase' }}
+        style={{ textTransform: 'uppercase' }}
+        aria-invalid={error !== undefined}
+        aria-describedby={`${id}-note`}
       />
-      <small style={{ color: hint?.color, minHeight: 16 }}>{hint?.text}</small>
-    </span>
+      {/* One fixed-height line under the field, so a lookup result never moves what is below it. */}
+      <div className="field-note" id={`${id}-note`}>
+        {error !== undefined ? (
+          <FieldError id={`${id}-error`} message={error} />
+        ) : (
+          <small style={{ color: hint?.color }}>{hint?.text}</small>
+        )}
+      </div>
+    </div>
   );
 }
 

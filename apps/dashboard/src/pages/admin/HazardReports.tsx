@@ -1,5 +1,7 @@
+import type { HazardReportDto } from '@wagonwise/contracts/hazards';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as hazardsApi from '../../api/hazards';
+import { DataTable, IconButton, type Column } from '../../components/DataTable';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
 
@@ -24,6 +26,52 @@ export function HazardReports() {
 
   const error = hazards.error ?? deleteHazard.error;
 
+  const columns: Column<HazardReportDto>[] = [
+    {
+      key: 'type',
+      header: 'Type',
+      sortValue: (h) => h.type,
+      cell: (h) => h.type.replaceAll('_', ' '),
+    },
+    { key: 'status', header: 'Status', sortValue: (h) => h.status, cell: (h) => h.status },
+    {
+      key: 'confirmations',
+      header: 'Confirmations',
+      sortValue: (h) => h.confirmations,
+      cell: (h) => h.confirmations,
+    },
+    {
+      key: 'dismissals',
+      header: 'Dismissals',
+      sortValue: (h) => h.dismissals,
+      cell: (h) => h.dismissals,
+    },
+    {
+      key: 'reported',
+      header: 'Reported',
+      sortValue: (h) => h.createdAt,
+      cell: (h) => new Date(h.createdAt).toLocaleDateString('en-GB'),
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      cell: (h) => (
+        <IconButton
+          icon="delete"
+          danger
+          label="Delete this hazard report"
+          disabled={deleteHazard.isPending && deleteHazard.variables === h.id}
+          onClick={() => {
+            if (confirm('Delete this hazard report? This cannot be undone.')) {
+              deleteHazard.mutate(h.id);
+            }
+          }}
+        />
+      ),
+    },
+  ];
+
   return (
     <div>
       <h1>Hazard reports</h1>
@@ -32,47 +80,14 @@ export function HazardReports() {
 
       {hazards.isPending ? (
         <p>Loading…</p>
-      ) : hazards.data?.length === 0 ? (
-        <p style={{ color: '#6b7280' }}>No hazard reports.</p>
       ) : (
-        <table style={{ width: '100%', textAlign: 'left' }}>
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Confirmations</th>
-              <th>Dismissals</th>
-              <th>Reported</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {hazards.data?.map((hazard) => {
-              const deleting = deleteHazard.isPending && deleteHazard.variables === hazard.id;
-              return (
-                <tr key={hazard.id}>
-                  <td>{hazard.type}</td>
-                  <td>{hazard.status}</td>
-                  <td>{hazard.confirmations}</td>
-                  <td>{hazard.dismissals}</td>
-                  <td>{new Date(hazard.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    <button
-                      onClick={() => {
-                        if (confirm('Delete this hazard report? This cannot be undone.')) {
-                          deleteHazard.mutate(hazard.id);
-                        }
-                      }}
-                      disabled={deleting}
-                    >
-                      {deleting ? 'Deleting…' : 'Delete'}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <DataTable
+          columns={columns}
+          rows={hazards.data ?? []}
+          rowKey={(hazard) => hazard.id}
+          searchText={(hazard) => `${hazard.type.replaceAll('_', ' ')} ${hazard.status}`}
+          emptyText="No hazard reports."
+        />
       )}
     </div>
   );

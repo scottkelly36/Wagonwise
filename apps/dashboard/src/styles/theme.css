@@ -311,3 +311,255 @@ td {
     margin-left: 0;
   }
 }
+
+/* A note laid over the map, e.g. when no vehicle is on the road */
+.map-empty {
+  position: absolute;
+  z-index: 1;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text-muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+/* Forms: a label above its field, and what is wrong shown right under it */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field > label,
+.field > .label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+input[aria-invalid='true'],
+select[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+input[aria-invalid='true']:focus,
+select[aria-invalid='true']:focus {
+  outline-color: var(--danger);
+}
+
+/* A form laid out as one wrapping row of labelled fields, with the button level with the inputs */
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.form-row-button {
+  /* Sits level with the inputs, not the labels above them: label height plus its gap */
+  margin-top: 25px;
+}
+
+/* Create-a-job form: labelled fields on a grid, so the postcode look-up lines never push things out of place */
+.job-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px 16px;
+  max-width: 920px;
+  align-items: start;
+}
+
+.job-form-break {
+  grid-column: 1 / -1;
+  height: 0;
+}
+
+.job-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.field-note {
+  min-height: 20px;
+  font-size: 13px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Lists: a card with a blue top edge, sticky sortable headers, search and paging */
+.data-table-card {
+  padding: 0;
+  border-top: 4px solid var(--blue-500);
+  overflow: hidden;
+}
+
+.data-table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.data-table-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.data-table-search input {
+  width: 220px;
+}
+
+.data-table-scroll {
+  overflow: auto;
+}
+
+.data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 3px solid var(--border);
+  padding: 12px 16px;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.data-table tbody tr:first-child td {
+  border-top: 0;
+}
+
+.data-table tbody tr:hover {
+  background: var(--bg);
+}
+
+.sort-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.sort-button:hover:not(:disabled) {
+  background: none;
+  color: var(--blue-700);
+}
+
+.sort-off {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.sort-on {
+  color: var(--blue-700);
+}
+
+.data-table-empty {
+  margin: 0;
+  padding: 24px 16px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.data-table-pages {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.data-table-pages .muted {
+  margin-right: auto;
+  font-size: 14px;
+}
+
+.page-button {
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 6px 14px;
+  margin-left: -1px;
+}
+
+.page-button:hover:not(:disabled) {
+  background: var(--bg);
+}
+
+.page-current,
+.page-current:hover:not(:disabled) {
+  background: var(--blue-600);
+  border-color: var(--blue-600);
+  color: #fff;
+  opacity: 1;
+}
+
+.icon-button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8ecf3;
+  color: #0e8a9b;
+  margin-left: 6px;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: #dbe2ee;
+}
+
+.icon-danger {
+  color: var(--danger);
+  background: #fde8e8;
+}
+
+.icon-danger:hover:not(:disabled) {
+  background: #fbd5d5;
+}

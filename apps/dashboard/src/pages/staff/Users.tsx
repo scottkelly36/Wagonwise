@@ -1,8 +1,11 @@
 import { companyIdSchema } from '@wagonwise/contracts/companies';
 import type { Privilege, StaffAccountDto } from '@wagonwise/contracts/staff';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import * as staffApi from '../../api/staff';
+import { DataTable, IconButton, type Column } from '../../components/DataTable';
+import { FieldError } from '../../components/FieldError';
+import { focusFirstInvalid, hasErrors, isEmail, type FieldErrors } from '../../lib/forms';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from './messages';
 import { PRESET_LABELS, PRIVILEGE_LABELS, PRIVILEGE_PRESETS, PRIVILEGES } from './privileges';
@@ -70,6 +73,69 @@ export function Users() {
 
   const error = members.error ?? setPrivileges.error ?? remove.error;
 
+  const columns: Column<StaffAccountDto>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      sortValue: (member) => member.name,
+      cell: (member) => (
+        <>
+          {member.name}
+          {member.id === me.id && <span className="muted"> (you)</span>}
+        </>
+      ),
+    },
+    { key: 'email', header: 'Email', sortValue: (member) => member.email, cell: (m) => m.email },
+    ...(isPlatform
+      ? [
+          {
+            key: 'account',
+            header: 'Account',
+            sortValue: (member: StaffAccountDto) =>
+              member.kind === 'platform' ? 'WagonWise staff' : (member.companyId ?? ''),
+            cell: (member: StaffAccountDto) =>
+              member.kind === 'platform' ? 'WagonWise staff' : `Company ${member.companyId ?? ''}`,
+          },
+        ]
+      : []),
+    {
+      key: 'privileges',
+      header: 'Privileges',
+      cell: (member) => (
+        <PrivilegesCell
+          member={member}
+          myPrivileges={myPrivileges}
+          saving={setPrivileges.isPending}
+          onSave={(privileges) => setPrivileges.mutate({ staffId: member.id, privileges })}
+        />
+      ),
+    },
+    {
+      key: 'factor',
+      header: 'Sign-in check',
+      sortValue: (member) => FACTOR_LABELS[member.secondFactorMethod],
+      cell: (member) => FACTOR_LABELS[member.secondFactorMethod],
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      cell: (member) =>
+        member.id !== me.id && (member.kind === 'fleet' || isPlatform) ? (
+          <IconButton
+            icon="delete"
+            danger
+            label={`Remove ${member.name}`}
+            onClick={() => {
+              if (window.confirm(`Remove ${member.name}? They'll be signed out straight away.`)) {
+                remove.mutate(member.id);
+              }
+            }}
+          />
+        ) : null,
+    },
+  ];
+
   return (
     <div>
       <h1>Users</h1>
@@ -95,43 +161,14 @@ export function Users() {
 
       {members.isPending ? (
         <p>Loading…</p>
-      ) : members.data?.length === 0 ? (
-        <p className="muted">No users yet.</p>
       ) : (
-        <div className="card table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                {isPlatform && <th>Account</th>}
-                <th>Privileges</th>
-                <th>Sign-in check</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {members.data?.map((member) => (
-                <MemberRow
-                  key={member.id}
-                  member={member}
-                  isSelf={member.id === me.id}
-                  isPlatform={isPlatform}
-                  myPrivileges={myPrivileges}
-                  saving={setPrivileges.isPending}
-                  onSave={(privileges) => setPrivileges.mutate({ staffId: member.id, privileges })}
-                  onRemove={() => {
-                    if (
-                      window.confirm(`Remove ${member.name}? They'll be signed out straight away.`)
-                    ) {
-                      remove.mutate(member.id);
-                    }
-                  }}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={columns}
+          rows={members.data ?? []}
+          rowKey={(member) => member.id}
+          searchText={(member) => `${member.name} ${member.email}`}
+          emptyText="No users yet."
+        />
       )}
     </div>
   );
@@ -139,55 +176,31 @@ export function Users() {
 
 const FACTOR_LABELS = { totp: 'Authenticator app', sms: 'Text message', email: 'Email' } as const;
 
-function MemberRow(props: {
+/** The privileges column: the ticks, and a Save button once something is changed. A component of
+ *  its own because each row keeps its own unsaved ticks. */
+function PrivilegesCell(props: {
   member: StaffAccountDto;
-  isSelf: boolean;
-  isPlatform: boolean;
   myPrivileges: readonly Privilege[];
   saving: boolean;
   onSave: (privileges: readonly Privilege[]) => void;
-  onRemove: () => void;
 }) {
   const { member } = props;
   const [draft, setDraft] = useState<readonly Privilege[]>(member.privileges);
   const changed =
     draft.length !== member.privileges.length || draft.some((p) => !member.privileges.includes(p));
 
+  if (member.kind === 'platform') {
+    return <span className="muted">Everything, every company</span>;
+  }
   return (
-    <tr style={{ verticalAlign: 'top' }}>
-      <td>
-        {member.name}
-        {props.isSelf && <span className="muted"> (you)</span>}
-      </td>
-      <td>{member.email}</td>
-      {props.isPlatform && (
-        <td>
-          {member.kind === 'platform' ? 'WagonWise staff' : `Company ${member.companyId ?? ''}`}
-        </td>
+    <>
+      <PrivilegeChecklist value={draft} allowed={props.myPrivileges} onChange={setDraft} />
+      {changed && (
+        <button disabled={props.saving} onClick={() => props.onSave(draft)}>
+          {props.saving ? 'Saving…' : 'Save'}
+        </button>
       )}
-      <td>
-        {member.kind === 'platform' ? (
-          <span className="muted">Everything, every company</span>
-        ) : (
-          <>
-            <PrivilegeChecklist value={draft} allowed={props.myPrivileges} onChange={setDraft} />
-            {changed && (
-              <button disabled={props.saving} onClick={() => props.onSave(draft)}>
-                {props.saving ? 'Saving…' : 'Save'}
-              </button>
-            )}
-          </>
-        )}
-      </td>
-      <td>{FACTOR_LABELS[member.secondFactorMethod]}</td>
-      <td>
-        {!props.isSelf && (member.kind === 'fleet' || props.isPlatform) && (
-          <button className="btn-danger" onClick={props.onRemove}>
-            Remove
-          </button>
-        )}
-      </td>
-    </tr>
+    </>
   );
 }
 
@@ -260,21 +273,41 @@ function InviteForm(props: {
       setLink(`${window.location.origin}/join?token=${encodeURIComponent(result.inviteToken)}`);
       setName('');
       setEmail('');
+      setShowErrors(false);
       void queryClient.invalidateQueries({ queryKey: ['staff-members'] });
     },
   });
 
-  const ready =
-    name.trim() !== '' &&
-    email.includes('@') &&
-    (kind === 'platform' || !props.isPlatform || UUID.test(companyId.trim()));
+  const [showErrors, setShowErrors] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const errors: FieldErrors<'name' | 'email' | 'companyId'> = {};
+  if (name.trim() === '') errors.name = 'Enter their name.';
+  if (email.trim() === '') errors.email = 'Enter their email address.';
+  else if (!isEmail(email))
+    errors.email = 'That does not look like an email address. Check it is like name@company.co.uk.';
+  if (kind === 'fleet' && props.isPlatform && !UUID.test(companyId.trim())) {
+    errors.companyId =
+      companyId.trim() === ''
+        ? 'Enter the id of the company they work for (copy it from the Companies page).'
+        : 'That is not a company id. It is a long code like 3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90.';
+  }
+  const shown = (field: keyof typeof errors): string | undefined =>
+    showErrors ? errors[field] : undefined;
 
   return (
     <section className="card" style={{ maxWidth: 560 }}>
       <h2>Invite someone</h2>
       <form
+        ref={formRef}
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
+          if (hasErrors(errors)) {
+            setShowErrors(true);
+            focusFirstInvalid(formRef.current);
+            return;
+          }
           setLink(undefined);
           invite.mutate();
         }}
@@ -295,22 +328,41 @@ function InviteForm(props: {
             </label>
           </p>
         )}
-        <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />{' '}
-        <input
-          placeholder="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <div className="field" style={{ marginBottom: 12 }}>
+          <label htmlFor="invite-name">Name</label>
+          <input
+            id="invite-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            aria-invalid={shown('name') !== undefined}
+            aria-describedby="invite-name-error"
+          />
+          <FieldError id="invite-name-error" message={shown('name')} />
+        </div>
+        <div className="field" style={{ marginBottom: 12 }}>
+          <label htmlFor="invite-email">Email</label>
+          <input
+            id="invite-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            aria-invalid={shown('email') !== undefined}
+            aria-describedby="invite-email-error"
+          />
+          <FieldError id="invite-email-error" message={shown('email')} />
+        </div>
         {kind === 'fleet' && props.isPlatform && (
-          <p>
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label htmlFor="invite-company">Company id</label>
             <input
-              placeholder="Company id"
+              id="invite-company"
               value={companyId}
               onChange={(e) => setCompanyId(e.target.value)}
-              style={{ width: 320 }}
+              aria-invalid={shown('companyId') !== undefined}
+              aria-describedby="invite-company-error"
             />
-          </p>
+            <FieldError id="invite-company-error" message={shown('companyId')} />
+          </div>
         )}
         {kind === 'fleet' && (
           <div style={{ margin: '12px 0' }}>
@@ -341,7 +393,7 @@ function InviteForm(props: {
             />
           </div>
         )}
-        <button type="submit" disabled={invite.isPending || !ready}>
+        <button type="submit" disabled={invite.isPending}>
           {invite.isPending ? 'Creating…' : 'Create invite link'}
         </button>
       </form>

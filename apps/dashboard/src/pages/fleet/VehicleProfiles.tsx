@@ -1,18 +1,22 @@
 import { companyIdSchema } from '@wagonwise/contracts/companies';
+import type { FleetVehicleDto } from '@wagonwise/contracts/fleet';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
+import { DataTable, IconButton, type Column } from '../../components/DataTable';
+import { FieldError } from '../../components/FieldError';
+import { focusFirstInvalid, hasErrors, type FieldErrors } from '../../lib/forms';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
 
 const COMPANIES_KEY = ['companies'] as const;
 const DIMENSION_FIELDS = [
-  { key: 'heightM', label: 'Height (m)' },
-  { key: 'widthM', label: 'Width (m)' },
-  { key: 'lengthM', label: 'Length (m)' },
-  { key: 'grossWeightT', label: 'Gross weight (t)' },
+  { key: 'heightM', label: 'Height (m)', noun: 'height in metres', example: '3.8' },
+  { key: 'widthM', label: 'Width (m)', noun: 'width in metres', example: '2.55' },
+  { key: 'lengthM', label: 'Length (m)', noun: 'length in metres', example: '16.5' },
+  { key: 'grossWeightT', label: 'Gross weight (t)', noun: 'gross weight in tonnes', example: '44' },
 ] as const;
 
 const EMPTY_FORM = { name: '', heightM: '', widthM: '', lengthM: '', grossWeightT: '' };
@@ -62,6 +66,7 @@ export function VehicleProfiles() {
       ),
     onSuccess: () => {
       setForm(EMPTY_FORM);
+      setShowErrors(false);
       void queryClient.invalidateQueries({ queryKey: vehiclesKey });
     },
   });
@@ -71,10 +76,71 @@ export function VehicleProfiles() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: vehiclesKey }),
   });
 
+  const [showErrors, setShowErrors] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const errors: FieldErrors<'name' | (typeof DIMENSION_FIELDS)[number]['key']> = {};
+  if (form.name.trim() === '') errors.name = 'Enter a name so you can tell vehicles apart.';
+  for (const field of DIMENSION_FIELDS) {
+    const value = form[field.key].trim();
+    if (value === '') errors[field.key] = `Enter the ${field.noun}, like ${field.example}.`;
+    else if (!(Number(value) > 0)) errors[field.key] = `Enter ${field.noun} as a number above 0.`;
+  }
+  const shown = (field: keyof typeof errors): string | undefined =>
+    showErrors ? errors[field] : undefined;
+
   function handleSubmit(): void {
-    if (form.name.trim().length === 0 || companyId === undefined) return;
+    if (companyId === undefined) return;
+    if (hasErrors(errors)) {
+      setShowErrors(true);
+      focusFirstInvalid(formRef.current);
+      return;
+    }
     createVehicle.mutate();
   }
+
+  const vehicleColumns: Column<FleetVehicleDto>[] = [
+    { key: 'name', header: 'Name', sortValue: (v) => v.name, cell: (v) => v.name },
+    {
+      key: 'height',
+      header: 'Height',
+      sortValue: (v) => v.dimensions.heightM,
+      cell: (v) => `${v.dimensions.heightM} m`,
+    },
+    {
+      key: 'width',
+      header: 'Width',
+      sortValue: (v) => v.dimensions.widthM,
+      cell: (v) => `${v.dimensions.widthM} m`,
+    },
+    {
+      key: 'length',
+      header: 'Length',
+      sortValue: (v) => v.dimensions.lengthM,
+      cell: (v) => `${v.dimensions.lengthM} m`,
+    },
+    {
+      key: 'weight',
+      header: 'Weight',
+      sortValue: (v) => v.dimensions.grossWeightT,
+      cell: (v) => `${v.dimensions.grossWeightT} t`,
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      cell: (v) => (
+        <IconButton
+          icon="delete"
+          danger
+          label={`Delete ${v.name}`}
+          disabled={deleteVehicle.isPending}
+          onClick={() => {
+            if (window.confirm(`Delete ${v.name}?`)) deleteVehicle.mutate(v.id);
+          }}
+        />
+      ),
+    },
+  ];
 
   const error = companies.error ?? vehicles.error ?? createVehicle.error ?? deleteVehicle.error;
 
@@ -123,67 +189,56 @@ export function VehicleProfiles() {
       ) : (
         <>
           <form
+            ref={formRef}
+            noValidate
             onSubmit={(e) => {
               e.preventDefault();
               handleSubmit();
             }}
-            style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}
+            className="form-row"
           >
-            <input
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Vehicle name"
-            />
-            {DIMENSION_FIELDS.map((field) => (
+            <div className="field" style={{ flex: '2 1 200px' }}>
+              <label htmlFor="vehicle-name">Vehicle name</label>
               <input
-                key={field.key}
-                value={form[field.key]}
-                onChange={(e) => setForm((f) => ({ ...f, [field.key]: e.target.value }))}
-                placeholder={field.label}
-                style={{ width: 110 }}
+                id="vehicle-name"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Scania R450, NX21 ABC"
+                aria-invalid={shown('name') !== undefined}
+                aria-describedby="vehicle-name-error"
               />
+              <FieldError id="vehicle-name-error" message={shown('name')} />
+            </div>
+            {DIMENSION_FIELDS.map((field) => (
+              <div key={field.key} className="field" style={{ flex: '1 1 120px' }}>
+                <label htmlFor={`vehicle-${field.key}`}>{field.label}</label>
+                <input
+                  id={`vehicle-${field.key}`}
+                  inputMode="decimal"
+                  value={form[field.key]}
+                  onChange={(e) => setForm((f) => ({ ...f, [field.key]: e.target.value }))}
+                  placeholder={field.example}
+                  aria-invalid={shown(field.key) !== undefined}
+                  aria-describedby={`vehicle-${field.key}-error`}
+                />
+                <FieldError id={`vehicle-${field.key}-error`} message={shown(field.key)} />
+              </div>
             ))}
-            <button type="submit" disabled={createVehicle.isPending || form.name.trim() === ''}>
+            <button type="submit" disabled={createVehicle.isPending} className="form-row-button">
               {createVehicle.isPending ? 'Adding…' : 'Add vehicle'}
             </button>
           </form>
 
           {vehicles.isPending ? (
             <p>Loading…</p>
-          ) : vehicles.data?.length === 0 ? (
-            <p style={{ color: '#6b7280' }}>No vehicles yet.</p>
           ) : (
-            <table style={{ width: '100%', textAlign: 'left' }}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Height</th>
-                  <th>Width</th>
-                  <th>Length</th>
-                  <th>Weight</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {vehicles.data?.map((vehicle) => (
-                  <tr key={vehicle.id}>
-                    <td>{vehicle.name}</td>
-                    <td>{vehicle.dimensions.heightM}m</td>
-                    <td>{vehicle.dimensions.widthM}m</td>
-                    <td>{vehicle.dimensions.lengthM}m</td>
-                    <td>{vehicle.dimensions.grossWeightT}t</td>
-                    <td>
-                      <button
-                        onClick={() => deleteVehicle.mutate(vehicle.id)}
-                        disabled={deleteVehicle.isPending}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable
+              columns={vehicleColumns}
+              rows={vehicles.data ?? []}
+              rowKey={(vehicle) => vehicle.id}
+              searchText={(vehicle) => vehicle.name}
+              emptyText="No vehicles yet."
+            />
           )}
         </>
       )}

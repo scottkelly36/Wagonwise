@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
+import { DataTable, type Column } from '../../components/DataTable';
+import { FieldError } from '../../components/FieldError';
+import { identifierError } from '../../lib/forms';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
@@ -47,6 +50,8 @@ export function Drivers() {
   const refreshLinks = () => void queryClient.invalidateQueries({ queryKey: linksKey });
 
   const [identifier, setIdentifier] = useState('');
+  const [showIdentifierError, setShowIdentifierError] = useState(false);
+  const driverError = identifierError(identifier);
   const invite = useMutation({
     mutationFn: () =>
       withAccessToken((token) =>
@@ -165,17 +170,31 @@ export function Drivers() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (identifier.trim() !== '') invite.mutate();
+                if (driverError !== undefined) {
+                  setShowIdentifierError(true);
+                  return;
+                }
+                invite.mutate();
               }}
-              style={{ display: 'flex', gap: 8 }}
+              noValidate
+              style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}
             >
-              <input
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="Phone number or email"
-                style={{ width: 260 }}
-              />
-              <button type="submit" disabled={invite.isPending || identifier.trim() === ''}>
+              <div className="field">
+                <input
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="Phone number or email"
+                  aria-label="Driver's phone number or email"
+                  aria-invalid={showIdentifierError && driverError !== undefined}
+                  aria-describedby="driver-identifier-error"
+                  style={{ width: 260 }}
+                />
+                <FieldError
+                  id="driver-identifier-error"
+                  message={showIdentifierError ? driverError : undefined}
+                />
+              </div>
+              <button type="submit" disabled={invite.isPending}>
                 {invite.isPending ? 'Inviting…' : 'Invite'}
               </button>
             </form>
@@ -240,37 +259,43 @@ export function Drivers() {
   );
 }
 
+function whoText(link: DriverLinkDto): string {
+  return link.invitedIdentifier ?? link.driverIdentifier ?? link.driverId ?? '';
+}
+
 function DriverLinksSection(props: {
   title: string;
   empty: string;
   links: readonly DriverLinkDto[];
   renderActions: (link: DriverLinkDto) => ReactNode;
 }) {
+  const columns: Column<DriverLinkDto>[] = [
+    {
+      key: 'who',
+      header: 'Who',
+      sortValue: (link) => whoText(link),
+      cell: (link) => whoText(link),
+    },
+    {
+      key: 'since',
+      header: 'Since',
+      sortValue: (link) => link.createdAt,
+      cell: (link) => new Date(link.createdAt).toLocaleDateString('en-GB'),
+    },
+    { key: 'actions', header: '', align: 'right', cell: (link) => props.renderActions(link) },
+  ];
+
   return (
     <section style={{ marginBottom: 24 }}>
       <h2>{props.title}</h2>
-      {props.links.length === 0 ? (
-        <p style={{ color: '#6b7280' }}>{props.empty}</p>
-      ) : (
-        <table style={{ width: '100%', textAlign: 'left' }}>
-          <thead>
-            <tr>
-              <th>Who</th>
-              <th>Since</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {props.links.map((link) => (
-              <tr key={link.id}>
-                <td>{link.invitedIdentifier ?? link.driverIdentifier ?? link.driverId}</td>
-                <td>{new Date(link.createdAt).toLocaleDateString()}</td>
-                <td>{props.renderActions(link)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <DataTable
+        columns={columns}
+        rows={props.links}
+        rowKey={(link) => link.id}
+        searchText={props.links.length > 10 ? (link) => whoText(link) : undefined}
+        emptyText={props.empty}
+        maxHeight={420}
+      />
     </section>
   );
 }

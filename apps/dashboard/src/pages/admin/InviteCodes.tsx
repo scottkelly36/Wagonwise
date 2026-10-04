@@ -1,9 +1,35 @@
+import type { InviteCodeDto } from '@wagonwise/contracts/identity';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as inviteCodesApi from '../../api/invite-codes';
+import { DataTable, type Column } from '../../components/DataTable';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
 
 const INVITE_CODES_KEY = ['invite-codes'] as const;
+
+const COLUMNS: Column<InviteCodeDto>[] = [
+  {
+    key: 'code',
+    header: 'Code',
+    sortValue: (invite) => invite.code,
+    cell: (invite) => <span style={{ fontFamily: 'monospace' }}>{invite.code}</span>,
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    sortValue: (invite) => (invite.redeemedAt === null ? 'Active' : 'Redeemed'),
+    cell: (invite) =>
+      invite.redeemedAt === null
+        ? 'Active'
+        : `Redeemed ${new Date(invite.redeemedAt).toLocaleDateString('en-GB')}`,
+  },
+  {
+    key: 'created',
+    header: 'Created',
+    sortValue: (invite) => invite.createdAt,
+    cell: (invite) => new Date(invite.createdAt).toLocaleDateString('en-GB'),
+  },
+];
 
 /** Replaces the manual `insert into identity.invite_codes` the README used to point testers at
  *  (2026-09-27) — see core's `application/create-invite-code.ts` for the full reasoning. */
@@ -45,31 +71,14 @@ export function InviteCodes() {
 
       {inviteCodes.isPending ? (
         <p>Loading…</p>
-      ) : sorted.length === 0 ? (
-        <p style={{ color: '#6b7280' }}>No invite codes yet.</p>
       ) : (
-        <table style={{ width: '100%', textAlign: 'left' }}>
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Status</th>
-              <th>Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((invite) => (
-              <tr key={invite.code}>
-                <td style={{ fontFamily: 'monospace' }}>{invite.code}</td>
-                <td>
-                  {invite.redeemedAt === null
-                    ? 'Active'
-                    : `Redeemed ${new Date(invite.redeemedAt).toLocaleDateString()}`}
-                </td>
-                <td>{new Date(invite.createdAt).toLocaleDateString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable
+          columns={COLUMNS}
+          rows={sorted}
+          rowKey={(invite) => invite.code}
+          searchText={(invite) => invite.code}
+          emptyText="No invite codes yet."
+        />
       )}
     </div>
   );
