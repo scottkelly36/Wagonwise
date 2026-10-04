@@ -133,6 +133,14 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-04: driver app checks for its job. The app asked for "my current job" once on opening
+  and never again (no timer, no refresh on return, and push is still off), so a job assigned while
+  the app was open did not appear until a full restart, and a failed check showed nothing. Now it
+  checks every 20 s while a screen showing the job is open and straight away when the app comes
+  back to the front, and Settings has a **My job** row (the job, "No job assigned right now", or
+  "couldn't check", with Check again). JS only, shipped by `eas update` to the production channel
+  (runtime 1.1.0).
+
 - 2026-10-04: database pools now have an error handler. CI failed once on a dashboard-only PR with
   two "unhandled errors" (`terminating connection due to administrator command`, from
   `row-level-security.test.ts`) although every test passed. node-postgres re-emits an idle

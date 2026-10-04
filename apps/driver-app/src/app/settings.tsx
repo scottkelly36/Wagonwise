@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,7 +12,9 @@ import {
 } from 'react-native';
 
 import { useDeleteAccount } from '../api/use-identity';
+import { useCurrentJob } from '../api/use-jobs';
 import { identityErrorMessage } from '../lib/error-messages';
+import { jobEntry } from '../lib/job-entry';
 import { PRODUCT_NAME } from '../product';
 import { useAuthStore } from '../state/auth-store';
 import { useThemeStore, type ThemeMode } from '../state/theme-store';
@@ -29,6 +32,8 @@ export default function SettingsScreen() {
   const state = useAuthStore((s) => s.state);
   const signOut = useAuthStore((s) => s.signOut);
   const deleteAccount = useDeleteAccount();
+  const currentJob = useCurrentJob();
+  const job = jobEntry(currentJob);
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
   const colors = useThemeColors();
@@ -61,9 +66,42 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>{PRODUCT_NAME}</Text>
         <Text style={styles.subtitle}>Signed in as {state.driver.identifier}</Text>
+
+        <Text style={styles.sectionLabel}>My job</Text>
+        {job.kind === 'job' ? (
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => router.push('/job')}
+            testID="my-job-button"
+          >
+            <Text style={styles.buttonText}>On job {job.reference} →</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.jobStatus}>
+            <Text style={styles.jobStatusText} testID="my-job-status">
+              {job.kind === 'checking'
+                ? 'Checking for a job…'
+                : job.kind === 'error'
+                  ? "Couldn't check for a job. Check your signal and try again."
+                  : 'No job assigned right now.'}
+            </Text>
+            {job.kind !== 'checking' && (
+              <TouchableOpacity
+                style={styles.smallButton}
+                disabled={currentJob.isFetching}
+                onPress={() => void currentJob.refetch()}
+                testID="my-job-refresh-button"
+              >
+                <Text style={styles.themeButtonText}>
+                  {currentJob.isFetching ? 'Checking…' : 'Check again'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         <Text style={styles.sectionLabel}>Appearance</Text>
         <View style={styles.themeRow}>
@@ -137,7 +175,7 @@ export default function SettingsScreen() {
             <Text style={styles.deleteButtonText}>Delete account</Text>
           )}
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -149,7 +187,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.background,
     },
     content: {
-      flex: 1,
+      flexGrow: 1,
       justifyContent: 'center',
       alignItems: 'center',
       padding: 24,
@@ -218,6 +256,24 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'center',
       alignItems: 'center',
       marginTop: 24,
+    },
+    jobStatus: {
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 12,
+    },
+    jobStatusText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    smallButton: {
+      minHeight: 44,
+      minWidth: 140,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 22,
+      backgroundColor: colors.surface,
     },
     buttonDisabled: {
       opacity: 0.5,
