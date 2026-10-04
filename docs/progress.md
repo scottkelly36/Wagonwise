@@ -133,14 +133,14 @@ live map, moderation, reports).
 
 ## Recent log
 
-- 2026-10-04: automated driver app releases. A GitHub Actions workflow (`driver-app-release.yml`) runs after CI
-  passes on main: a JavaScript-only app change publishes `eas update` (after waiting for the live server to have the
-  routes the app needs, from `.github/release/api-checks.txt`); a raised `version` on a PR labelled
-  `release-android` builds and uploads to Play internal testing; anything else does nothing and says why. Rules are
-  in tested scripts (`pnpm test:ci-scripts`, now in CI and `pnpm verify`). **Needs the owner's one-off setup before it
-  can run:** the `EXPO_TOKEN` and `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` secrets and the `release-android` label
-  (`docs/deployment-guide.md` section 9). Not run for real yet: the first run is the "check" mode.
-
+- 2026-10-04: driver app releases run on a **`release` label**. Merging to main publishes nothing; adding the label
+  to a PR (before or after it merges) runs `driver-app-release.yml`: `eas update` for a JavaScript-only change
+  (after waiting for the live server to have the routes the app needs, `.github/release/api-checks.txt`), or a Play
+  internal-testing build when `version` is higher than at the last release. "Release" means main as it is now, measured
+  against the `driver-app/production` tag (created, at `2bb0779`, along with the label). No staging copy, by choice.
+  Rules are tested scripts (`pnpm test:ci-scripts`, in CI and `pnpm verify`). **Needs the owner's one-off setup:** the
+  `EXPO_TOKEN` and `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` secrets (`docs/deployment-guide.md` section 9). **Unreleased on
+  main right now: the redesign (app 1.2.0, needs a Play build).** Not run for real yet; first run is "check" mode.
 - 2026-10-04: driver app redesign, to match the owner's mock: a Map / Jobs / Saved / More tab bar, a new
   Home (job card, round recentre and layers buttons, icon quick actions, a Where-to sheet), lifted
   cards and icons on every screen, a back button on pushed screens, and a deeper brand blue. Also

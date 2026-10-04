@@ -1,16 +1,25 @@
 name: Driver app release
 
-# Gets a merged driver app change onto phones without anyone running eas by hand.
+# Merging to main never releases the driver app by itself. Adding the `release` label to a pull request
+# publishes the driver app to production:
 #
-#   - A JavaScript-only change publishes an over-the-air update (eas update) to the production channel.
-#   - A native change (the version in apps/driver-app/app.config.ts was raised, and the pull request
-#     carries the release-android label) builds the Android app and uploads it to Google Play's
-#     internal testing track. Promoting it to a wider track stays a deliberate step in Play Console.
-#   - Anything else does nothing, and the run summary says why.
+#   - labelled before it merges: releases when it merges, once CI has passed on main
+#   - labelled after it merged:  releases main as it is now (once CI has passed on main)
 #
-# It only runs after CI has passed on main (workflow_run), so nothing unverified reaches phones. It can
-# also be run by hand (Actions, Driver app release, Run workflow): "check" proves the secrets work
-# without publishing anything. Rules are in .github/scripts/release-decision.mjs and are tested.
+# "Release" always means "publish main as it is now", never an older commit, which could undo a newer
+# over-the-air update. What goes out is everything on main since the last release (the
+# driver-app/production tag), so earlier unlabelled merges ride along; the run summary lists them.
+#
+#   - JavaScript-only (the app version is unchanged): eas update to the production channel.
+#   - Native (the version in apps/driver-app/app.config.ts is higher than at the last release): builds
+#     the Android app and uploads it to Google Play's internal testing track. Promoting it to a wider
+#     track stays a deliberate step in Play Console.
+#   - Nothing in the app changed, or no label: nothing is published, and the run summary says why.
+#
+# It can also be run by hand (Actions, Driver app release, Run workflow): "check" proves the secrets
+# work without publishing anything; "update" and "build" release regardless of the label (this is also
+# how the very first release creates the tag). The rules are in .github/scripts/release-decision.mjs
+# and are tested.
 #
 # Secrets needed (see docs/deployment-guide.md, "Automated app releases"):
 #   EXPO_TOKEN                        an Expo access token
@@ -19,6 +28,9 @@ on:
   workflow_run:
     workflows: [CI]
     types: [completed]
+    branches: [main]
+  pull_request:
+    types: [labeled]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -38,23 +50,30 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # The commit that was tested. For a manual run, the commit the run was started on.
-  RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+  # What to release: the commit CI just passed (the labelled pull request merging), main's tip (the
+  # label added to a pull request that had already merged), or the commit a manual run started on.
+  RELEASE_REF: ${{ github.event.workflow_run.head_sha || (github.event_name == 'pull_request' && 'main') || github.sha }}
+  TRIGGER: ${{ github.event_name == 'workflow_run' && 'merge' || github.event_name == 'pull_request' && 'label' || 'manual' }}
 
 jobs:
   decide:
-    # CI must have passed. A manual run needs no CI.
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # CI must have passed on the merge, and only the release label on a merged pull request counts.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.label.name == 'release')
     runs-on: ubuntu-latest
     outputs:
       kind: ${{ steps.decide.outputs.kind }}
+      sha: ${{ steps.decide.outputs.sha }}
       # Until the owner has added the secrets, a release is skipped with a note, not failed.
       configured: ${{ steps.configured.outputs.configured }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_SHA }}
-          fetch-depth: 2
+          ref: ${{ env.RELEASE_REF }}
+          fetch-depth: 0
+          fetch-tags: true
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
@@ -62,8 +81,7 @@ jobs:
         id: decide
         run: node .github/scripts/decide-release.mjs
         env:
-          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
-          HEAD_SHA: ${{ env.RELEASE_SHA }}
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'release' }}
           GH_TOKEN: ${{ github.token }}
 
       - name: Is the release set up?
@@ -87,7 +105,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_SHA }}
+          ref: ${{ needs.decide.outputs.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
@@ -105,10 +123,14 @@ jobs:
     needs: decide
     if: needs.decide.outputs.kind == 'update' && needs.decide.outputs.configured == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # to move the driver-app/production tag
+    env:
+      RELEASE_SHA: ${{ needs.decide.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_SHA }}
+          ref: ${{ needs.decide.outputs.sha }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -133,6 +155,11 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
+      - name: Record what is now in production
+        run: |
+          git tag -f driver-app/production "$RELEASE_SHA"
+          git push --force origin refs/tags/driver-app/production
+
       - name: Summary
         run: |
           {
@@ -145,10 +172,14 @@ jobs:
     needs: decide
     if: needs.decide.outputs.kind == 'build' && needs.decide.outputs.configured == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # to move the driver-app/production tag
+    env:
+      RELEASE_SHA: ${{ needs.decide.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_SHA }}
+          ref: ${{ needs.decide.outputs.sha }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -188,6 +219,11 @@ jobs:
         if: always()
         working-directory: apps/driver-app
         run: rm -f google-play-service-account.json
+
+      - name: Record what is now in production
+        run: |
+          git tag -f driver-app/production "$RELEASE_SHA"
+          git push --force origin refs/tags/driver-app/production
 
       - name: Summary
         run: |
