@@ -407,19 +407,31 @@ Then restart the container. Nothing breaks if this is skipped.
 
 ## 9. Automated app releases (the driver app to Google Play)
 
-`.github/workflows/driver-app-release.yml` ("Driver app release") gets a merged driver app change onto
-phones, so nobody runs `eas` by hand. It runs after **CI has passed on `main`** and decides from the
-merge itself (`.github/scripts/release-decision.mjs`, tested by `pnpm test:ci-scripts`):
+**Merging to `main` never releases the driver app by itself. The `release` label does.**
+`.github/workflows/driver-app-release.yml` ("Driver app release") publishes the driver app to production
+when a pull request carries the **`release`** label:
 
-| The merge                                                                                     | What happens                                                                                                                                                                     |
-| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Changes nothing in `apps/driver-app` or `packages/contracts` (tests and `.md` files excluded) | Nothing. The run summary says so.                                                                                                                                                |
-| Changes the app, `version` in `apps/driver-app/app.config.ts` unchanged                       | `eas update` to the production channel, after waiting for the live server to have the routes the app needs (below).                                                              |
-| Raises `version`, and the pull request has the **`release-android`** label                    | `eas build --platform android --profile production --auto-submit`: builds, then uploads to Play's **internal testing** track. Promoting it is a deliberate step in Play Console. |
-| Raises `version` without the label                                                            | Nothing is built, and the summary says why. (A JavaScript update to a version no phone has would reach nobody.)                                                                  |
+- labelled **before** it merges: it releases when it merges, once CI has passed on `main`;
+- labelled **after** it merged: it releases `main` as it is now, once CI has passed on `main`.
 
-It can also be run by hand (Actions, Driver app release, Run workflow): **check** proves the secrets work
-and publishes nothing, **update** and **build** do what they say.
+"Release" always means "publish `main` as it is now", never an older commit (an older over-the-air update
+published after a newer one would undo it). What goes out is **everything on `main` since the last release**,
+so earlier unlabelled merges ride along; the run summary lists them. The last release is recorded by the git
+tag **`driver-app/production`**, which the workflow moves after each successful release.
+
+What it publishes (decided by `.github/scripts/release-decision.mjs`, tested by `pnpm test:ci-scripts`):
+
+| Since the last release                                                               | What happens                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No `release` label                                                                   | Nothing. The run summary says how to release.                                                                                                                                    |
+| Nothing changed in `apps/driver-app` or `packages/contracts` (tests, `.md` excluded) | Nothing.                                                                                                                                                                         |
+| App changed, `version` in `apps/driver-app/app.config.ts` unchanged                  | `eas update` to the production channel, after waiting for the live server to have the routes the app needs (below).                                                              |
+| App changed, `version` higher than at the last release                               | `eas build --platform android --profile production --auto-submit`: builds, then uploads to Play's **internal testing** track. Promoting it is a deliberate step in Play Console. |
+
+Raise `version` for any native change (a new package, a plugin, permissions, a new Expo version); the run
+warns if native-looking files changed without it. It can also be run by hand (Actions, Driver app release,
+Run workflow): **check** proves the secrets work and publishes nothing; **update** and **build** release
+regardless of the label, and are how the **first** release creates the tag.
 
 **Setup, once (only the owner can do these).**
 
@@ -428,9 +440,10 @@ and publishes nothing, **update** and **build** do what they say.
    API, create the account, add a JSON key), invite its email in Play Console under Users and permissions
    with **Release to testing tracks** for the app, and store the whole JSON as the GitHub secret
    `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`.
-3. A GitHub label named `release-android`.
+3. The GitHub label `release` (already created) and the baseline tag `driver-app/production` (already
+   pushed, at the last commit published by hand: `2bb0779`, app 1.1.0).
 4. Run the workflow once with mode **check**; it shows the service account's email to compare with the
-   one invited in Play.
+   one invited in Play. Until the secrets exist a labelled release is skipped with a note, not failed.
 
 **Waiting for the server.** An update reaches phones within minutes, while the server deploys separately
 (a route the app calls may not exist yet, which nearly broke "Start" for every driver). Before publishing,
@@ -439,8 +452,10 @@ the workflow polls the live API until every line in `.github/release/api-checks.
 20 minutes, and publishes nothing if it never does. **Add a line there whenever an app change needs a new
 server route.**
 
-**Things to know.** The Google key is written to `apps/driver-app/google-play-service-account.json` for the
-build step only and removed afterwards (git-ignored, referenced by `eas.json`'s submit profile). Releases
-run one at a time and are never cancelled half way. A bad over-the-air update can be rolled back from the
-Expo dashboard; a bad native build can only be superseded by a higher version. iOS is not included (no
-Apple developer account yet).
+**Things to know.** Adding the label to a merged pull request checks that CI is green on `main`'s latest
+commit first; if it is not, nothing is published, and removing and re-adding the label retries. The Google
+key is written to `apps/driver-app/google-play-service-account.json` for the build step only and removed
+afterwards (git-ignored, referenced by `eas.json`'s submit profile). Releases run one at a time and are never
+cancelled half way. A bad over-the-air update can be rolled back from the Expo dashboard; a bad native build
+can only be superseded by a higher version. There is no staging copy of the app: a change is verified by CI
+and then goes to drivers when labelled. iOS is not included (no Apple developer account yet).
