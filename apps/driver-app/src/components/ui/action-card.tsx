@@ -27,7 +27,7 @@ export function ActionCard({ icon, iconColor, label, onPress, testID }: Props) {
       accessibilityLabel={label}
       testID={testID}
     >
-      <Icon name={icon} size={38} color={iconColor} />
+      <Icon name={icon} size={32} color={iconColor} />
       <Text style={styles.label} numberOfLines={1}>
         {label}
       </Text>
@@ -40,15 +40,15 @@ function createStyles(colors: ThemeColors) {
     card: {
       ...cardStyle(colors),
       flex: 1,
-      minHeight: 88,
-      paddingVertical: 12,
+      minHeight: 72,
+      paddingVertical: 10,
       paddingHorizontal: 6,
-      gap: 6,
+      gap: 4,
       justifyContent: 'center',
       alignItems: 'center',
     },
     label: {
-      fontSize: 15,
+      fontSize: 14,
       fontWeight: '600',
       color: colors.text,
       textAlign: 'center',

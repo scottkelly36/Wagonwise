@@ -215,7 +215,7 @@ export default function HomeScreen() {
             accessibilityRole="button"
             testID="plan-route-button"
           >
-            <Icon name="navigation-variant" size={30} color={colors.textOnAccent} />
+            <Icon name="navigation-variant" size={24} color={colors.textOnAccent} />
             <Text style={styles.planButtonText}>Where to?</Text>
           </TouchableOpacity>
         </View>
@@ -319,10 +319,16 @@ function createStyles(colors: ThemeColors) {
     },
     sheet: {
       ...cardStyle(colors),
-      borderRadius: radius.sheet,
-      paddingHorizontal: 14,
+      // Edge to edge, like the mock: only the top corners are rounded.
+      marginHorizontal: -16,
+      marginBottom: -12,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      borderTopLeftRadius: radius.sheet,
+      borderTopRightRadius: radius.sheet,
+      paddingHorizontal: 16,
       paddingTop: 10,
-      paddingBottom: 14,
+      paddingBottom: 16,
       gap: 12,
       alignItems: 'stretch',
     },
@@ -334,8 +340,8 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.surfaceStrong,
     },
     planButton: {
-      minHeight: 68,
-      borderRadius: 34,
+      minHeight: 56,
+      borderRadius: radius.card,
       backgroundColor: colors.accent,
       flexDirection: 'row',
       justifyContent: 'center',
@@ -343,7 +349,7 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
     },
     planButtonText: {
-      fontSize: 24,
+      fontSize: 20,
       fontWeight: '700',
       color: colors.textOnAccent,
     },

@@ -4,8 +4,8 @@ import type { ThemeColors } from './colors';
 
 /** Corner radii: soft and generous, so cards and sheets read as one family. */
 export const radius = {
-  card: 20,
-  sheet: 28,
+  card: 16,
+  sheet: 24,
   badge: 14,
   pill: 999,
 } as const;
