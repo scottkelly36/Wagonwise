@@ -10,7 +10,7 @@ import { useNearbySafeParkingSpots } from '../../api/use-parking';
 import { HazardDetailDrawer } from '../../components/hazard-detail-drawer';
 import { JobCard } from '../../components/job-card';
 import { RouteMap, type RouteMapHandle } from '../../components/route-map';
-import { ActionCard } from '../../components/ui/action-card';
+import { ACTION_COLOURS, ActionCard } from '../../components/ui/action-card';
 import { Icon } from '../../components/ui/icon';
 import { RoundButton } from '../../components/ui/round-button';
 import { useJobArrivalGeofence } from '../../hooks/use-job-arrival-geofence';
@@ -29,9 +29,6 @@ const HOME_MAP_ZOOM = 14;
 
 // Hazard, traffic and parking icons keep their own colour in both themes: they stand for what is
 // on the map, so a driver learns one red-orange triangle, one orange cone, one blue P.
-const TRAFFIC_COLOUR = '#F0452B';
-const HAZARD_COLOUR = '#F97316';
-const PARKING_COLOUR = '#1A73E8';
 
 /**
  * The map is the app (design decision, 2026-09-24): a driver signs in and lands straight on a
@@ -179,21 +176,21 @@ export default function HomeScreen() {
         <View style={styles.reportButtonRow}>
           <ActionCard
             icon="alert"
-            iconColor={TRAFFIC_COLOUR}
+            iconColor={ACTION_COLOURS.traffic}
             label="Report traffic"
             onPress={() => router.push('/report-congestion')}
             testID="report-congestion-button"
           />
           <ActionCard
             icon="traffic-cone"
-            iconColor={HAZARD_COLOUR}
+            iconColor={ACTION_COLOURS.hazard}
             label="Report hazard"
             onPress={() => router.push('/report-hazard')}
             testID="report-hazard-button"
           />
           <ActionCard
             icon="parking"
-            iconColor={PARKING_COLOUR}
+            iconColor={ACTION_COLOURS.parking}
             label="Mark parking"
             onPress={() => router.push('/report-safe-parking-spot')}
             testID="report-parking-spot-button"
