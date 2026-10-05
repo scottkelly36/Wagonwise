@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEndTrip } from '../api/use-active-trip';
 import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
 import { useNearbyHazards } from '../api/use-hazards';
+import { ACTION_COLOURS, ActionCard } from '../components/ui/action-card';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { TurnBanner } from '../components/turn-banner';
 import { RouteMap } from '../components/route-map';
@@ -39,18 +40,19 @@ import { Icon, type IconName } from '../components/ui/icon';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle, radius } from '../theme/tokens';
 
+// Short, since three share one row over the map; the fuller wording is in the notes above them.
 const VOICE_FLOW_LABEL: Record<string, string> = {
   idle: 'Report hazard',
-  'capturing-report': 'Listening… tap to cancel',
-  'report-no-speech': "Didn't catch that — tap to try again",
-  parsing: 'Working out what you said…',
-  'speaking-summary': 'Confirm out loud…',
-  'capturing-confirmation': 'Listening for yes or no… tap to cancel',
+  'capturing-report': 'Listening…',
+  'report-no-speech': 'Try again',
+  parsing: 'Working…',
+  'speaking-summary': 'Confirm…',
+  'capturing-confirmation': 'Listening…',
   filing: 'Saving…',
   filed: 'Report hazard',
   queued: 'Report hazard',
   'draft-saved': 'Report hazard',
-  error: 'Tap to try again',
+  error: 'Try again',
 };
 
 const QUICK_REPORT_ICON: Record<QuickReportKind, IconName> = {
@@ -60,7 +62,7 @@ const QUICK_REPORT_ICON: Record<QuickReportKind, IconName> = {
 
 const QUICK_REPORT_LABEL: Record<QuickReportKind, string> = {
   traffic: 'Traffic',
-  parking: 'Mark parking',
+  parking: 'Parking',
 };
 
 /** The label for one quick-report button: its own name when idle (or while the other kind is
@@ -73,7 +75,7 @@ function quickReportButtonLabel(kind: QuickReportKind, state: QuickVoiceReportSt
       return 'Speaking…';
     case 'capturing-wait':
     case 'capturing-confirmation':
-      return 'Listening… tap to cancel';
+      return 'Listening…';
     case 'filing':
       return 'Sending…';
     default:
@@ -184,6 +186,24 @@ export default function ActiveTripScreen() {
   const setVoiceMuted = useGuidanceStore((s) => s.setMuted);
   const replan = useReplanFromHere();
   useTurnAnnouncements(guidance.utterance, !voiceMuted && !micBusy && !micActive && !quickInFlight);
+
+  const quickCard = (kind: QuickReportKind) => {
+    const ownListening = quickListening && activeQuickReportKind(quickReport.state) === kind;
+    const disabled = micBusy || micActive || quickBusy || (quickListening && !ownListening);
+    return (
+      <ActionCard
+        key={kind}
+        compact
+        icon={QUICK_REPORT_ICON[kind]}
+        iconColor={ACTION_COLOURS[kind]}
+        label={quickReportButtonLabel(kind, quickReport.state)}
+        active={ownListening}
+        disabled={disabled}
+        onPress={() => (ownListening ? quickReport.cancel() : quickReport.start(kind))}
+        testID={'quick-report-' + kind}
+      />
+    );
+  };
 
   // Reachable with no current trip/plan only by navigating here directly, or after an app
   // relaunch mid-trip — the trip store is ephemeral (docs/progress.md, M5.6 deviations) and
@@ -310,60 +330,24 @@ export default function ActiveTripScreen() {
             </Text>
           )}
 
-          {/* Traffic and Mark parking: one tap each, then entirely by voice — same big targets
-              and no typing as the hazard mic (AGENTS.md: nothing on this screen needs typing or
-              small taps while moving). Only one voice report runs at a time. */}
+          {/* Traffic, hazard and parking: the same cards as the home screen, a size smaller so
+              they cover less of the map. One tap each, then entirely by voice (AGENTS.md: nothing
+              on this screen needs typing or small taps while moving). Only one voice report runs at
+              a time; a card being listened to turns red and cancels on a second tap. */}
           <View style={styles.quickReportRow}>
-            {(['traffic', 'parking'] as const).map((kind) => {
-              const ownListening =
-                quickListening && activeQuickReportKind(quickReport.state) === kind;
-              const disabled =
-                micBusy || micActive || quickBusy || (quickListening && !ownListening);
-              return (
-                <TouchableOpacity
-                  key={kind}
-                  style={[
-                    styles.micButton,
-                    styles.quickReportButton,
-                    ownListening && styles.micButtonListening,
-                    disabled && styles.buttonDisabled,
-                  ]}
-                  disabled={disabled}
-                  onPress={() => (ownListening ? quickReport.cancel() : quickReport.start(kind))}
-                  testID={`quick-report-${kind}`}
-                >
-                  <View style={styles.micButtonContent}>
-                    <Icon
-                      name={QUICK_REPORT_ICON[kind]}
-                      size={24}
-                      color={ownListening ? '#FFFFFF' : colors.text}
-                    />
-                    <Text style={[styles.micButtonText, ownListening && styles.micButtonTextOn]}>
-                      {quickReportButtonLabel(kind, quickReport.state)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            {quickCard('traffic')}
+            <ActionCard
+              compact
+              icon="microphone"
+              iconColor={ACTION_COLOURS.hazard}
+              label={VOICE_FLOW_LABEL[voiceFlow.state.phase]}
+              active={micActive}
+              disabled={micBusy || quickInFlight}
+              onPress={micActive ? voiceFlow.reset : voiceFlow.start}
+              testID="voice-report-button"
+            />
+            {quickCard('parking')}
           </View>
-
-          <TouchableOpacity
-            style={[
-              styles.micButton,
-              micActive && styles.micButtonListening,
-              (micBusy || quickInFlight) && styles.buttonDisabled,
-            ]}
-            disabled={micBusy || quickInFlight}
-            onPress={micActive ? voiceFlow.reset : voiceFlow.start}
-            testID="voice-report-button"
-          >
-            <View style={styles.micButtonContent}>
-              <Icon name="microphone" size={24} color={micActive ? '#FFFFFF' : colors.text} />
-              <Text style={[styles.micButtonText, micActive && styles.micButtonTextOn]}>
-                {VOICE_FLOW_LABEL[voiceFlow.state.phase]}
-              </Text>
-            </View>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -517,40 +501,10 @@ function createStyles(colors: ThemeColors) {
       fontSize: 16,
       color: colors.textSecondary,
     },
-    micButton: {
-      ...cardStyle(colors),
-      minHeight: 56,
-      paddingHorizontal: 20,
-      borderRadius: 16,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    micButtonContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
     quickReportRow: {
       flexDirection: 'row',
       gap: 8,
       alignSelf: 'stretch',
-      justifyContent: 'center',
-    },
-    quickReportButton: {
-      flex: 1,
-      maxWidth: 200,
-      paddingHorizontal: 12,
-    },
-    micButtonListening: {
-      backgroundColor: colors.danger,
-    },
-    micButtonText: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    micButtonTextOn: {
-      color: '#FFFFFF',
     },
     jobBar: {
       gap: 8,
