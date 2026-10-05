@@ -125,19 +125,12 @@ export default function HomeScreen() {
             />
           )}
         </View>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => router.navigate('/more')}
-          accessibilityRole="button"
-          accessibilityLabel="Menu"
-          testID="menu-button"
-        >
-          <Icon name="menu" size={26} color="#FFFFFF" />
-          <Text style={styles.menuButtonText}>Menu</Text>
-        </TouchableOpacity>
       </View>
 
-      <View style={[styles.rightColumn, { top: top + 92 }]} pointerEvents="box-none">
+      <View
+        style={[styles.rightColumn, { top: top + (currentJob.data ? 92 : 0) }]}
+        pointerEvents="box-none"
+      >
         <RoundButton
           icon="navigation-variant"
           label="Centre the map on me"
@@ -215,7 +208,7 @@ export default function HomeScreen() {
             accessibilityRole="button"
             testID="plan-route-button"
           >
-            <Icon name="navigation-variant" size={30} color={colors.textOnAccent} />
+            <Icon name="navigation-variant" size={24} color={colors.textOnAccent} />
             <Text style={styles.planButtonText}>Where to?</Text>
           </TouchableOpacity>
         </View>
@@ -270,20 +263,6 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
     },
     topLeft: { flex: 1 },
-    menuButton: {
-      minHeight: 56,
-      paddingHorizontal: 16,
-      borderRadius: radius.card,
-      backgroundColor: '#0F172A',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    menuButtonText: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: '#FFFFFF',
-    },
     rightColumn: {
       position: 'absolute',
       right: 16,
@@ -319,10 +298,16 @@ function createStyles(colors: ThemeColors) {
     },
     sheet: {
       ...cardStyle(colors),
-      borderRadius: radius.sheet,
-      paddingHorizontal: 14,
+      // Edge to edge, like the mock: only the top corners are rounded.
+      marginHorizontal: -16,
+      marginBottom: -12,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      borderTopLeftRadius: radius.sheet,
+      borderTopRightRadius: radius.sheet,
+      paddingHorizontal: 16,
       paddingTop: 10,
-      paddingBottom: 14,
+      paddingBottom: 16,
       gap: 12,
       alignItems: 'stretch',
     },
@@ -334,8 +319,8 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.surfaceStrong,
     },
     planButton: {
-      minHeight: 68,
-      borderRadius: 34,
+      minHeight: 56,
+      borderRadius: radius.card,
       backgroundColor: colors.accent,
       flexDirection: 'row',
       justifyContent: 'center',
@@ -343,7 +328,7 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
     },
     planButtonText: {
-      fontSize: 24,
+      fontSize: 20,
       fontWeight: '700',
       color: colors.textOnAccent,
     },

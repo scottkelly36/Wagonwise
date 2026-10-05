@@ -131,7 +131,7 @@ function createStyles(colors: ThemeColors) {
       minHeight: 56,
       borderWidth: 2,
       borderColor: colors.danger,
-      borderRadius: 28,
+      borderRadius: 16,
       justifyContent: 'center',
       alignItems: 'center',
       marginTop: 32,

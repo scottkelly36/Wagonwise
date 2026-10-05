@@ -235,8 +235,8 @@ function createStyles(colors: ThemeColors) {
     },
     button: {
       flex: 1,
-      minHeight: 60,
-      borderRadius: 30,
+      minHeight: 52,
+      borderRadius: 16,
       justifyContent: 'center',
       alignItems: 'center',
     },

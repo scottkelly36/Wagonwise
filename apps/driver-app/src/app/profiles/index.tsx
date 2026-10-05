@@ -149,10 +149,10 @@ function createStyles(colors: ThemeColors) {
       marginTop: 2,
     },
     addButton: {
-      minHeight: 64,
+      minHeight: 56,
       margin: 16,
       marginTop: 4,
-      borderRadius: 32,
+      borderRadius: 16,
       backgroundColor: colors.accent,
       flexDirection: 'row',
       justifyContent: 'center',

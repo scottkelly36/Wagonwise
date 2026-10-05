@@ -107,7 +107,7 @@ function createStyles(colors: ThemeColors) {
     replan: {
       minHeight: 48,
       paddingHorizontal: 14,
-      borderRadius: 24,
+      borderRadius: 16,
       backgroundColor: colors.accent,
       justifyContent: 'center',
       alignItems: 'center',
