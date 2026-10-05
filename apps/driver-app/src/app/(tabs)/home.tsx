@@ -125,19 +125,12 @@ export default function HomeScreen() {
             />
           )}
         </View>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => router.navigate('/more')}
-          accessibilityRole="button"
-          accessibilityLabel="Menu"
-          testID="menu-button"
-        >
-          <Icon name="menu" size={26} color="#FFFFFF" />
-          <Text style={styles.menuButtonText}>Menu</Text>
-        </TouchableOpacity>
       </View>
 
-      <View style={[styles.rightColumn, { top: top + 92 }]} pointerEvents="box-none">
+      <View
+        style={[styles.rightColumn, { top: top + (currentJob.data ? 92 : 0) }]}
+        pointerEvents="box-none"
+      >
         <RoundButton
           icon="navigation-variant"
           label="Centre the map on me"
@@ -270,20 +263,6 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
     },
     topLeft: { flex: 1 },
-    menuButton: {
-      minHeight: 56,
-      paddingHorizontal: 16,
-      borderRadius: radius.card,
-      backgroundColor: '#0F172A',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    menuButtonText: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: '#FFFFFF',
-    },
     rightColumn: {
       position: 'absolute',
       right: 16,
