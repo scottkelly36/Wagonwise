@@ -230,7 +230,7 @@ function createStyles(colors: ThemeColors) {
     button: {
       flex: 1,
       minHeight: 52,
-      borderRadius: 26,
+      borderRadius: 16,
       justifyContent: 'center',
       alignItems: 'center',
     },

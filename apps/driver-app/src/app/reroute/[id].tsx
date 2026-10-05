@@ -158,8 +158,8 @@ function createStyles(colors: ThemeColors) {
       textAlign: 'center',
     },
     button: {
-      minHeight: 64,
-      borderRadius: 32,
+      minHeight: 56,
+      borderRadius: 16,
       justifyContent: 'center',
       alignItems: 'center',
     },

@@ -358,7 +358,7 @@ function createStyles(colors: ThemeColors) {
     },
     proofButton: {
       minHeight: 56,
-      borderRadius: 28,
+      borderRadius: 16,
       backgroundColor: colors.accentSoft,
       justifyContent: 'center',
       alignItems: 'center',
@@ -382,8 +382,8 @@ function createStyles(colors: ThemeColors) {
       gap: 10,
     },
     button: {
-      minHeight: 64,
-      borderRadius: 32,
+      minHeight: 56,
+      borderRadius: 16,
       backgroundColor: colors.accent,
       justifyContent: 'center',
       alignItems: 'center',
@@ -398,7 +398,7 @@ function createStyles(colors: ThemeColors) {
     },
     secondaryButton: {
       minHeight: 56,
-      borderRadius: 28,
+      borderRadius: 16,
       borderWidth: 2,
       borderColor: colors.accent,
       justifyContent: 'center',
@@ -411,7 +411,7 @@ function createStyles(colors: ThemeColors) {
     },
     voiceButton: {
       minHeight: 56,
-      borderRadius: 28,
+      borderRadius: 16,
       backgroundColor: colors.accentSoft,
       justifyContent: 'center',
       alignItems: 'center',

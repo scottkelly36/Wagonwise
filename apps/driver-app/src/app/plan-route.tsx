@@ -558,9 +558,9 @@ function createStyles(colors: ThemeColors) {
       color: colors.text,
     },
     button: {
-      minHeight: 64,
+      minHeight: 56,
       backgroundColor: colors.accent,
-      borderRadius: 32,
+      borderRadius: 16,
       justifyContent: 'center',
       alignItems: 'center',
     },

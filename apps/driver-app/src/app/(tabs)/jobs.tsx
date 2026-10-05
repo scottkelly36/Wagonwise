@@ -101,7 +101,7 @@ function createStyles(colors: ThemeColors) {
       marginTop: 6,
       minHeight: 52,
       paddingHorizontal: 28,
-      borderRadius: 26,
+      borderRadius: 16,
       backgroundColor: colors.accent,
       justifyContent: 'center',
     },
