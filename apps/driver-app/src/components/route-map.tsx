@@ -50,6 +50,13 @@ const HAZARD_MARKER_COLOR: Record<'high' | 'caution', string> = {
   caution: '#F59E0B',
 };
 
+/** One of several candidate routes drawn side by side, each in its own colour. */
+export interface RouteOptionLine {
+  readonly id: string;
+  readonly line: [lon: number, lat: number][];
+  readonly color: string;
+}
+
 interface Props {
   readonly origin: MapPoint | undefined;
   readonly destination: MapPoint | undefined;
@@ -60,6 +67,9 @@ interface Props {
    *  notification shows old vs new route") — drawn in a second colour alongside `routeLine`,
    *  which stands for the *current* route in that comparison. Absent everywhere else. */
   readonly alternateRouteLine?: [lon: number, lat: number][];
+  /** Route options being compared on the plan-route screen, before one is chosen: every option is
+   *  drawn in its own colour (matching its card) and the camera fits them all. */
+  readonly routeOptionLines?: readonly RouteOptionLine[];
   /** Absent on the route-overview screen — a planned route's origin/destination are fixed
    *  outcomes of `POST /routing/route-plans`, not editable by tapping the map afterwards. */
   readonly onMapPress?: (point: MapPoint) => void;
@@ -150,6 +160,7 @@ export function RouteMap({
   destination,
   routeLine,
   alternateRouteLine,
+  routeOptionLines,
   onMapPress,
   currentPosition,
   hazards,
@@ -187,6 +198,7 @@ export function RouteMap({
   const routePoints: MapPoint[] = [
     ...(routeLine?.map(([lon, lat]) => ({ lon, lat })) ?? []),
     ...(alternateRouteLine?.map(([lon, lat]) => ({ lon, lat })) ?? []),
+    ...(routeOptionLines?.flatMap((o) => o.line.map(([lon, lat]) => ({ lon, lat }))) ?? []),
   ];
   const bounds = currentPosition ? undefined : boundsFor(routePoints);
 
@@ -258,6 +270,29 @@ export function RouteMap({
               paint={{ 'line-color': '#34D399', 'line-width': 4 }}
             />
           </GeoJSONSource>
+        )}
+        {routeOptionLines?.map((option) =>
+          option.line.length > 1 ? (
+            <GeoJSONSource
+              key={option.id}
+              id={`route-option-source-${option.id}`}
+              data={{ type: 'LineString', coordinates: option.line }}
+            >
+              {/* A white edge under the colour, so each line stands out from roads and water. */}
+              <Layer
+                type="line"
+                id={`route-option-casing-${option.id}`}
+                source={`route-option-source-${option.id}`}
+                paint={{ 'line-color': '#FFFFFF', 'line-width': 8 }}
+              />
+              <Layer
+                type="line"
+                id={`route-option-layer-${option.id}`}
+                source={`route-option-source-${option.id}`}
+                paint={{ 'line-color': option.color, 'line-width': 5 }}
+              />
+            </GeoJSONSource>
+          ) : null,
         )}
         {origin && (
           <ViewAnnotation id="origin" lngLat={toLngLat(origin)}>
