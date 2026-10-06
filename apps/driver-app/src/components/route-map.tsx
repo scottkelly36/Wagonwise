@@ -103,7 +103,7 @@ interface Props {
   /** Driver-reported safe parking spots (M9) — same "caller decides the query, this component
    *  just draws what it's given" split as `hazards`/`congestion` above. */
   readonly parkingSpots?: readonly ParkingSpotMarker[];
-  /** Fired when a parking-spot marker is tapped — no drawer yet, same reasoning as
+  /** Fired when a parking-spot marker is tapped (the home screen opens `ParkingSpotDrawer`). Same as
    *  `onCongestionPress`. */
   readonly onParkingSpotPress?: (parkingSpotId: string) => void;
   /** Zoom while following `currentPosition`. A street-level 16 suits driving; the home map wants a
