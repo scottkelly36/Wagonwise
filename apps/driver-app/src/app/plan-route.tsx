@@ -20,7 +20,8 @@ import { useNearbyHazards } from '../api/use-hazards';
 import { useCreateRoutePlan, usePreviewRouteOptions } from '../api/use-route-plans';
 import { AddressSearchField } from '../components/address-search-field';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
-import { RouteMap, type MapPoint } from '../components/route-map';
+import { RouteMap, type MapPoint, type RouteOptionLine } from '../components/route-map';
+import { decodePolyline6 } from '../lib/polyline';
 import { config } from '../config';
 import { useCurrentLocation } from '../hooks/use-current-location';
 import type { GeocodingResult } from '../lib/geocoding';
@@ -61,6 +62,11 @@ const DIMENSION_FIELDS: {
 // hazards being visible on the home map but not here).
 const NEARBY_RADIUS_M = 5_000;
 
+// One colour per route option, drawn on the map and repeated on its card so the two can be matched.
+// Indigo, magenta, amber: in the app's blue-violet family for the first, and none of them a pale blue,
+// which reads as a river on the base map (design decision, 2026-09-24).
+const OPTION_COLOURS = ['#5B4BDB', '#D6336C', '#E8890C'] as const;
+
 export default function PlanRouteScreen() {
   const router = useRouter();
   const location = useCurrentLocation();
@@ -79,6 +85,16 @@ export default function PlanRouteScreen() {
   const [comparedProfileId, setComparedProfileId] = useState<
     PlanRouteRequest['profileId'] | undefined
   >(undefined);
+
+  const optionLines = useMemo<RouteOptionLine[] | undefined>(
+    () =>
+      routeOptions?.map((option, index) => ({
+        id: String(index),
+        line: decodePolyline6(option.geometry),
+        color: OPTION_COLOURS[index % OPTION_COLOURS.length],
+      })),
+    [routeOptions],
+  );
 
   const [vehicleMode, setVehicleMode] = useState<VehicleMode>('profile');
   const [profileId, setProfileId] = useState<string | undefined>(undefined);
@@ -242,6 +258,7 @@ export default function PlanRouteScreen() {
         <RouteMap
           origin={effectiveOrigin}
           destination={destination}
+          routeOptionLines={optionLines}
           onMapPress={handleMapPress}
           hazards={nearbyHazards.data?.map((h) => ({
             id: h.id,
@@ -399,7 +416,13 @@ export default function PlanRouteScreen() {
               {routeOptions.map((option, index) => (
                 <TouchableOpacity
                   key={`${option.geometry}-${index}`}
-                  style={styles.optionCard}
+                  style={[
+                    styles.optionCard,
+                    {
+                      borderLeftWidth: 6,
+                      borderLeftColor: OPTION_COLOURS[index % OPTION_COLOURS.length],
+                    },
+                  ]}
                   disabled={createRoutePlan.isPending}
                   onPress={() => handleConfirmOption(option)}
                   testID={`route-option-${index}`}
