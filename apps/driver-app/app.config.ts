@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   slug: 'wagonwise-driver-app',
   // Store-build version, bumped by hand on each `eas build` (README: "Versions and updates").
   // OTA updates can't change it — it's baked into the binary.
-  version: '1.2.0',
+  version: '1.2.1',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'wagonwise',
@@ -62,8 +62,11 @@ const config: ExpoConfig = {
       'expo-image-picker',
       {
         cameraPermission: 'WagonWise uses the camera to take proof-of-delivery photos.',
-        // Photos only — nothing here records video, so no microphone prompt.
-        microphonePermission: false,
+        // Photos only, so no video. Not `false`: that makes this plugin strip RECORD_AUDIO from the
+        // Android manifest, even though expo-speech-recognition below needs it, and with no
+        // permission in the manifest Android never shows the prompt, so voice reports fail as
+        // "no microphone access" (found 2026-10-06, broke voice in 1.1.0 and 1.2.0).
+        microphonePermission: 'WagonWise uses the microphone to hear your spoken hazard reports.',
       },
     ],
     '@maplibre/maplibre-react-native',
