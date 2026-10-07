@@ -195,3 +195,10 @@ update --spec` (used once to add the job) wiped `core`'s App-Level `DATABASE_URL
   Where to? The tab holds saved voice reports until this exists. Needs a store (local first, or synced
   with the account so it follows a driver to a new phone), a way to save a place from a search result
   or the map, and a decision on whether a company can push shared places (depots) to its drivers.
+
+- **2026-10-07: email and password sign-in instead of one-time codes (not scheduled).** Raised by the owner after
+  a sign-in failure during the pilot set-up: one-time codes depend on two outside services (Resend for email,
+  ClickSend for text) both working, and on the person receiving the message, which has already caused confusion.
+  Email plus password would drop that dependency. It needs a password store (hashing, reset by email, which still
+  needs Resend), so it is a real piece of work. For now the codes stay; the sign-in screen now says what kind of
+  failure it was.

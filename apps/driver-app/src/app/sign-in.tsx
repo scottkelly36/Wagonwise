@@ -14,41 +14,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as identityApi from '../api/identity';
-import { ApiError } from '../api/errors';
 import { PRODUCT_NAME } from '../product';
 import { useAuthStore } from '../state/auth-store';
+import {
+  REQUEST_OTP_MESSAGES,
+  signInErrorMessage,
+  VERIFY_OTP_MESSAGES,
+} from '../lib/sign-in-errors';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 type Step =
   | { readonly kind: 'identifier' }
   | { readonly kind: 'code'; readonly identifier: string; readonly inviteCode: string | undefined };
-
-const REQUEST_OTP_MESSAGES: Record<string, string> = {
-  InvalidIdentifier: 'Enter a valid email address or phone number.',
-  InviteCodeRequired: "You'll need an invite code the first time you sign in.",
-  InvalidInviteCode: "That invite code isn't recognised.",
-};
-
-const VERIFY_OTP_MESSAGES: Record<string, string> = {
-  ...REQUEST_OTP_MESSAGES,
-  OtpNotFound: 'Request a new code.',
-  OtpAlreadyConsumed: "That code's already been used — request a new one.",
-  OtpExpired: "That code's expired — request a new one.",
-  TooManyAttempts: 'Too many attempts. Request a new code.',
-};
-
-function errorMessage(error: unknown, messages: Record<string, string>): string {
-  if (error instanceof ApiError) {
-    if (error.tag === 'OtpIncorrect') {
-      const remaining = error.attemptsRemaining;
-      return remaining === undefined
-        ? 'Wrong code.'
-        : `Wrong code. ${remaining} attempt${remaining === 1 ? '' : 's'} left.`;
-    }
-    return messages[error.tag] ?? 'Something went wrong. Try again.';
-  }
-  return "Couldn't reach the server. Check your connection.";
-}
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -127,7 +104,7 @@ export default function SignInScreen() {
 
               {requestOtpMutation.isError && (
                 <Text style={styles.error}>
-                  {errorMessage(requestOtpMutation.error, REQUEST_OTP_MESSAGES)}
+                  {signInErrorMessage(requestOtpMutation.error, REQUEST_OTP_MESSAGES)}
                 </Text>
               )}
 
@@ -161,7 +138,7 @@ export default function SignInScreen() {
 
               {verifyOtpMutation.isError && (
                 <Text style={styles.error}>
-                  {errorMessage(verifyOtpMutation.error, VERIFY_OTP_MESSAGES)}
+                  {signInErrorMessage(verifyOtpMutation.error, VERIFY_OTP_MESSAGES)}
                 </Text>
               )}
 
