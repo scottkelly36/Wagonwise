@@ -21,3 +21,14 @@ const TRACKED: readonly JobStatus[] = [
 export function isTrackedStatus(status: JobStatus): boolean {
   return TRACKED.includes(status);
 }
+
+/**
+ * Whether the driver's position is being sent to the company right now: the job is in a tracked
+ * state AND the driver has started navigating it (a trip is running). Accepting a job is not enough:
+ * a driver at home with the app open has not set off. Core still accepts a position for any tracked
+ * status, which is only an upper limit; this is what the app actually does, and what it tells the
+ * driver.
+ */
+export function isSharingPosition(status: JobStatus, navigating: boolean): boolean {
+  return navigating && isTrackedStatus(status);
+}

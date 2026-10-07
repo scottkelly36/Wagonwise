@@ -135,7 +135,8 @@ export default function JobScreen() {
           <View style={styles.notice}>
             <Icon name="map-marker-radius-outline" size={22} color={colors.accent} />
             <Text style={styles.noticeText} testID="job-tracking-notice">
-              Your company can see where you are while this job is on the road.
+              Your company can see where you are while you are navigating this job, and only while
+              the app is open.
             </Text>
           </View>
         )}

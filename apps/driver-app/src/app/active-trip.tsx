@@ -10,6 +10,8 @@ import { useNearbyHazards } from '../api/use-hazards';
 import { ACTION_COLOURS, ActionCard } from '../components/ui/action-card';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { OpenSettingsButton } from '../components/open-settings-button';
+import { PositionSharingChip } from '../components/position-sharing-chip';
+import { isSharingPosition } from '../lib/job-position-reporting';
 import { TurnBanner } from '../components/turn-banner';
 import { RouteMap } from '../components/route-map';
 import { useHazardVoiceWarnings } from '../hooks/use-hazard-voice-warnings';
@@ -359,6 +361,8 @@ export default function ActiveTripScreen() {
       </View>
 
       <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
+        {job.data && isSharingPosition(job.data.status, true) && <PositionSharingChip />}
+
         {location.status === 'denied' && (
           <Text style={styles.hint}>
             Location access is off, so the map won’t follow you — road signs and your own judgement
