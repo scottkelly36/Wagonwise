@@ -75,6 +75,14 @@ describe('planRoute', () => {
     expect(engine.requests).toEqual([{ origin, destination, dimensions, avoid: [] }]);
   });
 
+  it('passes the direction the driver is travelling on to the routing engine (a re-plan mid-drive)', async () => {
+    const deps = await buildDeps();
+    await planRoute(deps, { driverId, profileId, origin, destination, originHeadingDeg: 215 });
+
+    const engine = deps.routingEngine as FakeRoutingEngine;
+    expect(engine.requests[0]?.originHeadingDeg).toBe(215);
+  });
+
   it('returns VehicleProfileNotFound for an unknown profile, without calling the routing engine', async () => {
     const deps = await buildDeps();
     const result = await planRoute(deps, {

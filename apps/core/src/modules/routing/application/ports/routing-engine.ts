@@ -5,6 +5,9 @@ import type { Dimensions } from '../../domain/vehicle-profile.js';
 
 export interface RouteRequest {
   readonly origin: GeoPoint;
+  /** The direction the vehicle is already travelling at `origin`, degrees clockwise from north. The
+   *  engine prefers a route that sets off that way, and falls back to any route if there is none. */
+  readonly originHeadingDeg?: number | undefined;
   readonly destination: GeoPoint;
   readonly dimensions: Dimensions;
   /** Areas the vehicle must not be routed through — how community hazards feed into routing
