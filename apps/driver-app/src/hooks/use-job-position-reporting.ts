@@ -3,14 +3,15 @@ import { useEffect, useRef } from 'react';
 
 import * as jobsApi from '../api/jobs';
 import type { MapPoint } from '../components/route-map';
-import { isTrackedStatus, POSITION_REPORT_INTERVAL_MS } from '../lib/job-position-reporting';
+import { isSharingPosition, POSITION_REPORT_INTERVAL_MS } from '../lib/job-position-reporting';
 import { useAccessToken } from './use-access-token';
 
 /**
  * Tells the company where the driver is while they're out on a job, so the dispatcher's live map
  * works (P2-M6.1, design doc §6). Reuses the position `useLiveLocation` is already watching — no
  * second location watch and no extra permission, the same stance as the arrival geofence. Only
- * while the job is being driven (`isTrackedStatus`) and only while the app is open: nothing is
+ * while the job is being driven (a tracked status, and the driver has tapped Start so a trip is
+ * running: `isSharingPosition`) and only while the app is open: nothing is
  * collected in the background, so the map shows "last seen" when a phone is locked or the app is
  * closed.
  *
@@ -21,6 +22,8 @@ import { useAccessToken } from './use-access-token';
 export function useJobPositionReporting(
   job: JobDto | null | undefined,
   position: MapPoint | undefined,
+  /** The driver has started navigating (a trip is running). Nothing is sent before this. */
+  navigating: boolean,
 ): void {
   const accessToken = useAccessToken();
   const positionRef = useRef(position);
@@ -29,7 +32,9 @@ export function useJobPositionReporting(
   }, [position]);
 
   const jobId =
-    job !== null && job !== undefined && isTrackedStatus(job.status) ? job.id : undefined;
+    job !== null && job !== undefined && isSharingPosition(job.status, navigating)
+      ? job.id
+      : undefined;
   const hasPosition = position !== undefined;
 
   useEffect(() => {

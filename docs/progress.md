@@ -135,6 +135,11 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-07: **position is shared from Start, not from Accept.** The app now sends a driver's position to their company
+  only while the job is in a tracked state AND the driver has tapped Start (a trip is running), and shows a "Your
+  company can see your position" chip on the map and trip screens while it does (`isSharingPosition`). Core still
+  accepts a position for any tracked status, as an upper limit. From the draft DPIA's risk 2. JS only.
+
 - 2026-10-07: **real account deletion, and route retention.** Deleting an account now also deletes the driver's vehicle
   profiles, route plans, trips, reroute alerts and feedback, and ends their company links and removes unanswered
   invitations to their email or phone (`identity`'s `DriverDataEraser`, supplied by composition over routing, feedback

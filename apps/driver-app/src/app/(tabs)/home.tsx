@@ -17,6 +17,9 @@ import { ACTION_COLOURS, ActionCard } from '../../components/ui/action-card';
 import { Icon } from '../../components/ui/icon';
 import { RoundButton } from '../../components/ui/round-button';
 import { useJobArrivalGeofence } from '../../hooks/use-job-arrival-geofence';
+import { PositionSharingChip } from '../../components/position-sharing-chip';
+import { isSharingPosition } from '../../lib/job-position-reporting';
+import { useCurrentActiveTripStore } from '../../state/current-active-trip-store';
 import { useJobPositionReporting } from '../../hooks/use-job-position-reporting';
 import { useLiveLocation } from '../../hooks/use-live-location';
 import { jobSubtitle } from '../../lib/job-navigation';
@@ -75,7 +78,9 @@ export default function HomeScreen() {
   // stop — a confirm, never an automatic status change.
   useJobArrivalGeofence(currentJob.data, location.point);
   // P2-M6.1: the company's live map. Same position, same screen, only while the job is on the road.
-  useJobPositionReporting(currentJob.data, location.point);
+  const navigating = useCurrentActiveTripStore((s) => s.trip !== undefined);
+  useJobPositionReporting(currentJob.data, location.point, navigating);
+  const sharing = currentJob.data ? isSharingPosition(currentJob.data.status, navigating) : false;
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -136,6 +141,11 @@ export default function HomeScreen() {
               onPress={() => router.push('/job')}
               testID="current-job-banner"
             />
+          )}
+          {sharing && (
+            <View style={styles.sharingChip}>
+              <PositionSharingChip />
+            </View>
           )}
         </View>
       </View>
@@ -282,6 +292,7 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
     },
     topLeft: { flex: 1 },
+    sharingChip: { marginTop: 8 },
     rightColumn: {
       position: 'absolute',
       right: 16,
