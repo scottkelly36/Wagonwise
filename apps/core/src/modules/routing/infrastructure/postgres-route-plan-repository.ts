@@ -1,4 +1,5 @@
 import { sql } from 'kysely';
+import { lineWkt } from '../../../shared/line-wkt.js';
 import { makeId } from '../../../shared/brand.js';
 import type { RoutePlanRepository } from '../application/ports/route-plan-repository.js';
 import { decodePolyline, type GeoPoint } from '../domain/geo.js';
@@ -67,11 +68,7 @@ export class PostgresRoutePlanRepository implements RoutePlanRepository {
    *  a derived, queryable copy, not a second source of truth. */
   async save(plan: RoutePlan): Promise<void> {
     const points = decodePolyline(plan.geometry);
-    const pointExprs = points.map((p) => sql`ST_MakePoint(${p.lon}, ${p.lat})`);
-    const geog =
-      points.length >= 2
-        ? sql`ST_SetSRID(ST_MakeLine(ARRAY[${sql.join(pointExprs)}]), 4326)::geography`
-        : sql`null`;
+    const geog = points.length >= 2 ? sql`ST_GeogFromText(${lineWkt(points)})` : sql`null`;
 
     await sql`
       insert into routing.route_plans

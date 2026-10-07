@@ -1,4 +1,5 @@
 import { sql } from 'kysely';
+import { lineWkt } from '../../../shared/line-wkt.js';
 import { makeId } from '../../../shared/brand.js';
 import type { CongestionRepository } from '../application/ports/congestion-repository.js';
 import type { CongestionReport, GeoPoint } from '../domain/congestion-report.js';
@@ -53,12 +54,11 @@ export class PostgresCongestionRepository implements CongestionRepository {
       return rows.map(toDomain);
     }
 
-    const pointExprs = points.map((p) => sql`ST_MakePoint(${p.lon}, ${p.lat})`);
     const { rows } = await sql<CongestionReportRow>`
       select ${sql.raw(SELECT_COLUMNS)} from congestion.reports
       where ST_DWithin(
         location,
-        ST_SetSRID(ST_MakeLine(ARRAY[${sql.join(pointExprs)}]), 4326)::geography,
+        ST_GeogFromText(${lineWkt(points)}),
         ${radiusM}
       )
       order by created_at desc

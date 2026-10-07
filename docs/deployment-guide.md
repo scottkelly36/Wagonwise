@@ -459,3 +459,36 @@ afterwards (git-ignored, referenced by `eas.json`'s submit profile). Releases ru
 cancelled half way. A bad over-the-air update can be rolled back from the Expo dashboard; a bad native build
 can only be superseded by a higher version. There is no staging copy of the app: a change is verified by CI
 and then goes to drivers when labelled. iOS is not included (no Apple developer account yet).
+
+## 10. Valhalla: covering the whole of Great Britain (planned for the start of November 2026)
+
+Today Valhalla covers Northumberland, Tyne and Wear and Cumbria on a 2 GB droplet. National coverage
+(Great Britain; **Northern Ireland is deliberately left out for now**) is mostly an infrastructure job:
+
+1. **Build the tiles on a temporary big droplet**, not the serving one. The national graph needs very
+   roughly 16 to 32 GB of RAM and several cores for a build of a couple of hours; serving it needs about
+   8 GB. Create a 16 GB / 8 vCPU droplet in `lon1`, run `infra/valhalla/build-gb-tiles.sh` on it, and
+   delete the droplet afterwards (a few pounds). These figures are estimates: check the real peak memory
+   on the first build.
+2. **Resize or replace the serving droplet** to about 8 GB (`wagonwise-valhalla-lon1`), with 50 GB or more
+   of disk (the tiles are a few GB, the extract about 2 GB, and keep the previous tiles for a rollback).
+   Check your DigitalOcean account's droplet size limit before the day.
+3. **Copy the finished tiles across** (`rsync -a custom_files/ <serving-private-ip>:/path/custom_files-new/`),
+   then swap directories, restart the container (it starts with `use_tiles_ignore_pbf=True`, so it uses the
+   tiles and does not rebuild) and check `curl http://<private-ip>:8002/status`. Keep the old directory until
+   the golden routes pass.
+4. **Lift the trace limits** (section 8): for national journeys `max_distance` and `max_shape` matter a lot.
+5. **Run the golden-route checks** (`pnpm test:golden`, or the nightly workflow) and add golden routes beyond
+   the north-east: the Scottish Highlands, mid-Wales, the South West, London, and a long cross-country
+   one (Penzance to Wick). Re-record the golden values after the switch (section 7's note applies).
+6. **Rebuild on a schedule** (about monthly): roads change. The same script, the same copy and swap.
+
+**Not about Valhalla, but needed for long routes (done in code, 2026-10-07):** a route across Britain has tens
+of thousands of points. The server used to build lines for its "what is near this route" queries from one
+bound value pair per point, which Postgres refuses past about 32,000 points, so planning a long journey would
+have failed outright; it now sends the line as one text value (`shared/line-wkt.ts`). The app also thins the
+route to 1,500 points before asking about hazards and parking, because the API accepts at most 2,000.
+
+**Still to check on the first national build:** how the route-options preview and parking drive times behave
+on long routes (each is a separate routing request), MapTiler plan limits (tiles and address search) at national
+usage, and OpenStreetMap's height and weight tags on the routes customers actually drive.
