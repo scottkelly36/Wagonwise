@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { PostgresDriverLinkEraser } from './infrastructure/postgres-driver-link-eraser.js';
 import { makeId } from '../../shared/brand.js';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
@@ -60,6 +61,10 @@ export interface FleetModule {
   /** Whether the driver has an active link with the company (P2-M2.8). For `jobs`' driver
    *  directory, supplied by composition — replaces identity's old single `drivers.company_id`. */
   isActiveDriverOfCompany(driverId: string, companyId: string): Promise<boolean>;
+  /** Removes a deleted driver from fleet: their unanswered invitations are deleted, their own links
+   *  lose the identifier and end. For account deletion, supplied to `identity` by composition. Safe
+   *  to run twice. */
+  eraseDriverData(driverId: string, identifier: string): Promise<void>;
 }
 
 /**
@@ -90,7 +95,14 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
     dataScopes: deps.dataScopes,
   };
 
+  const linkEraser = new PostgresDriverLinkEraser(deps.db);
+
   return {
+    eraseDriverData(driverId: string, identifier: string): Promise<void> {
+      return deps.dataScopes.run({ kind: 'platform' }, () =>
+        linkEraser.erase(driverId, identifier, deps.clock.now()),
+      );
+    },
     registerRoutes(app: FastifyInstance): void {
       registerFleetRoutes(app, routeDeps);
       registerFleetDriverRoutes(app, {

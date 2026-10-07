@@ -163,6 +163,15 @@ export function composeCore(
     resendFromEmail: config.resendFromEmail,
     otpSender: overrides.otpSender,
     platformStaff: { isPlatformStaff },
+    // Called when a driver deletes their account, long after every module below is built. Each
+    // part is safe to run twice, and the account is only scrubbed once all of them have succeeded.
+    driverDataEraser: {
+      erase: async ({ driverId, identifier }) => {
+        await routing.eraseDriverData(driverId);
+        await feedback.eraseDriverData(driverId);
+        await fleet.eraseDriverData(driverId, identifier);
+      },
+    },
   });
   // Same underlying pool, same untyped-Kysely shape as identity's — structurally the same type
   // (Kysely<Record<string, unknown>>, no branding), so one instance serves both modules; unlike
@@ -300,6 +309,15 @@ export function composeCore(
     run: async () => {
       const removed = await jobs.pruneOldPositions(config.jobPositionRetentionDays);
       if (removed > 0) app.log.info({ removed }, 'deleted old job positions');
+    },
+  });
+
+  periodicTasks.start({
+    name: 'prune-route-plans',
+    intervalMs: config.positionSweepIntervalMs,
+    run: async () => {
+      const removed = await routing.pruneOldRoutePlans(config.routeRetentionDays);
+      if (removed > 0) app.log.info({ removed }, 'deleted old route plans');
     },
   });
 

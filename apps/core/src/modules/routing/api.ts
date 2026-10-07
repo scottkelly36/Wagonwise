@@ -1,4 +1,6 @@
 import type { FastifyInstance } from 'fastify';
+import { eraseDriverRoutingData, pruneOldRoutePlans } from './application/housekeeping.js';
+import { PostgresRoutingHousekeeping } from './infrastructure/postgres-routing-housekeeping.js';
 import type { HazardsModule } from '../hazards/api.js';
 import type { IdentityModule } from '../identity/api.js';
 import type { Clock } from '../../shared/ports/clock.js';
@@ -77,6 +79,12 @@ export interface RoutingModule {
    *  event type this module reacts to. Empty in Phase 1 for every module except this one (M6.1's
    *  "no module has one yet" is no longer true as of M6.4). */
   readonly eventHandlers: readonly RoutingEventHandler[];
+  /** Deletes a driver's vehicle profiles, route plans, trips and reroute alerts, for account deletion.
+   *  Safe to run twice. Supplied to `identity`'s eraser by composition. */
+  eraseDriverData(driverId: string): Promise<void>;
+  /** Deletes route plans older than `retentionDays` (not those a running trip uses), with their
+   *  ended trips and alerts; returns how many plans went. Run on a timer by composition. */
+  pruneOldRoutePlans(retentionDays: number): Promise<number>;
 }
 
 /**
@@ -91,6 +99,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
   const routePlanRepo = new PostgresRoutePlanRepository(deps.db);
   const activeTripRepo = new PostgresActiveTripRepository(deps.db);
   const rerouteAlertRepo = new PostgresRerouteAlertRepository(deps.db);
+  const housekeeping = new PostgresRoutingHousekeeping(deps.db);
   const restrictionOverrideRepo = new PostgresRestrictionOverrideRepository(deps.db);
   const routingEngine = new ValhallaRoutingEngine(deps.valhallaUrl);
   const hazardAvoidanceQuery = new HazardAvoidanceQueryAdapter(deps.hazards);
@@ -149,5 +158,8 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
     estimateRoute: (input) => estimateRoute({ routingEngine }, input),
     upsertVehicleProfile: (input) => upsertVehicleProfile({ repo: vehicleProfileRepo }, input),
     eventHandlers,
+    eraseDriverData: (driverId) => eraseDriverRoutingData({ housekeeping }, { driverId }),
+    pruneOldRoutePlans: (retentionDays) =>
+      pruneOldRoutePlans({ housekeeping, clock: deps.clock }, { retentionDays }),
   };
 }

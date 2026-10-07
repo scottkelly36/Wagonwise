@@ -54,7 +54,9 @@ export default function ConsentScreen() {
           each time.
         </Text>
         <Text style={styles.paragraph}>
-          You can delete your account and everything tied to it at any time from the More tab.
+          You can delete your account at any time from the More tab. That removes your sign-in,
+          vehicle profiles, routes and feedback. Hazard reports you filed stay, with nothing linking
+          them to you, and a company keeps its own job records.
         </Text>
 
         <Text style={styles.heading}>Before you rely on this app</Text>
