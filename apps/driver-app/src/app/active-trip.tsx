@@ -113,7 +113,7 @@ export default function ActiveTripScreen() {
   const clearTrip = useCurrentActiveTripStore((s) => s.clear);
   const plan = useCurrentRoutePlanStore((s) => s.plan);
   const clearPlan = useCurrentRoutePlanStore((s) => s.clear);
-  const location = useLiveLocation();
+  const location = useLiveLocation({ fast: true });
   const endTrip = useEndTrip();
   // A company job being driven (the "Start" on the job screen): the arrival is confirmed from here,
   // so a driver never has to leave the navigation to tell dispatch they have got there.
@@ -129,6 +129,12 @@ export default function ActiveTripScreen() {
   const corridor = useMemo(() => routeLine?.map(([lon, lat]) => ({ lat, lon })) ?? [], [routeLine]);
   const nearbyHazards = useNearbyHazards(corridor, ON_ROUTE_HAZARD_RADIUS_M);
   const nearbyHazardsData = nearbyHazards.data;
+  // A stable array: a new one every render (once a second, with the position) made every hazard
+  // marker update on the map each time.
+  const mapHazards = useMemo(
+    () => nearbyHazardsData?.map((h) => ({ id: h.id, type: h.type, location: h.location })),
+    [nearbyHazardsData],
+  );
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
@@ -256,11 +262,8 @@ export default function ActiveTripScreen() {
           routeLine={routeLine}
           currentPosition={location.point}
           currentHeading={location.heading}
-          hazards={nearbyHazardsData?.map((h) => ({
-            id: h.id,
-            type: h.type,
-            location: h.location,
-          }))}
+          navigating
+          hazards={mapHazards}
           onHazardPress={setSelectedHazardId}
         />
 
@@ -272,7 +275,10 @@ export default function ActiveTripScreen() {
             replanning={replan.isPending}
             replanFailed={replan.isError}
             onToggleMute={() => void setVoiceMuted(!voiceMuted)}
-            onReplan={() => replan.mutate()}
+            onReplan={() => {
+              if (location.point)
+                replan.mutate({ here: location.point, headingDeg: location.course });
+            }}
           />
         </View>
 

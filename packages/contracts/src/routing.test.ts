@@ -165,6 +165,23 @@ describe('planRouteRequestSchema', () => {
     expect(planRouteRequestSchema.safeParse({ ...base, strategy: 'shortest' }).success).toBe(true);
     expect(planRouteRequestSchema.safeParse({ ...base, strategy: 'cheapest' }).success).toBe(false);
   });
+
+  it('accepts an optional heading from 0 to 360 degrees, rejects anything outside it', () => {
+    const base = {
+      profileId: '11111111-1111-4111-8111-111111111111',
+      origin: { lat: 54.9707, lon: -2.1013 },
+      destination: { lat: 54.9738, lon: -2.0165 },
+    };
+    expect(planRouteRequestSchema.safeParse(base).success).toBe(true);
+    expect(planRouteRequestSchema.safeParse({ ...base, originHeadingDeg: 0 }).success).toBe(true);
+    expect(planRouteRequestSchema.safeParse({ ...base, originHeadingDeg: 215.5 }).success).toBe(
+      true,
+    );
+    expect(planRouteRequestSchema.safeParse({ ...base, originHeadingDeg: -1 }).success).toBe(false);
+    expect(planRouteRequestSchema.safeParse({ ...base, originHeadingDeg: 361 }).success).toBe(
+      false,
+    );
+  });
 });
 
 describe('previewRouteOptionsRequestSchema', () => {

@@ -12,7 +12,12 @@ import type {
 interface ValhallaLocation {
   readonly lat: number;
   readonly lon: number;
+  readonly heading?: number;
+  readonly heading_tolerance?: number;
 }
+
+/** How far from the vehicle's heading the first road may point, in degrees. Valhalla's own default. */
+const HEADING_TOLERANCE_DEG = 60;
 
 /** One step in a leg's turn list. Only the fields we use; `length` is in the request's units
  *  (kilometres, which `directionsOptions` pins). */
@@ -194,12 +199,32 @@ export class ValhallaRoutingEngine implements RoutingEngine {
 
   private requestBody(req: RouteRequest, alternates: number | undefined): Record<string, unknown> {
     return {
-      locations: [toValhallaLocation(req.origin), toValhallaLocation(req.destination)],
+      locations: [
+        req.originHeadingDeg === undefined
+          ? toValhallaLocation(req.origin)
+          : {
+              ...toValhallaLocation(req.origin),
+              heading: Math.round(req.originHeadingDeg) % 360,
+              heading_tolerance: HEADING_TOLERANCE_DEG,
+            },
+        toValhallaLocation(req.destination),
+      ],
       ...truckCosting(req.dimensions),
       ...(req.avoid.length === 0 ? {} : { exclude_polygons: req.avoid.map(toValhallaPolygon) }),
       ...(alternates === undefined ? {} : { alternates }),
       directions_options: DIRECTIONS_OPTIONS,
     };
+  }
+
+  /** Asks for the route; if one was asked for with a heading and none exists that sets off that way,
+   *  asks again without it, so a heading can only ever improve a route, never cause "no route". */
+  private async postRoute(
+    req: RouteRequest,
+    alternates: number | undefined,
+  ): Promise<Result<ValhallaSuccessResponse, NoRouteFound>> {
+    const result = await this.post(this.requestBody(req, alternates));
+    if (result.ok || req.originHeadingDeg === undefined) return result;
+    return this.post(this.requestBody({ ...req, originHeadingDeg: undefined }, alternates));
   }
 
   private async post(
@@ -255,7 +280,7 @@ export class ValhallaRoutingEngine implements RoutingEngine {
   }
 
   async route(req: RouteRequest): Promise<Result<RouteResult, NoRouteFound>> {
-    const result = await this.post(this.requestBody(req, undefined));
+    const result = await this.postRoute(req, undefined);
     if (!result.ok) {
       return result;
     }
@@ -265,7 +290,7 @@ export class ValhallaRoutingEngine implements RoutingEngine {
   async routeAlternatives(
     req: RouteRequest,
   ): Promise<Result<readonly RouteResult[], NoRouteFound>> {
-    const result = await this.post(this.requestBody(req, ALTERNATES_REQUESTED));
+    const result = await this.postRoute(req, ALTERNATES_REQUESTED);
     if (!result.ok) {
       return result;
     }

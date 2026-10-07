@@ -45,6 +45,9 @@ export interface PlanRouteInput {
    *  avoiding route — the "shortest" preference doesn't carry through a re-plan, an accepted
    *  edge case (safety-avoidance wins over a distance preference). */
   readonly strategy?: 'fastest' | 'shortest' | undefined;
+  /** The direction the driver is already travelling, so a re-plan from the middle of a drive does not
+   *  start by sending them back the way they came. */
+  readonly originHeadingDeg?: number | undefined;
 }
 
 export type PlanRouteError = VehicleProfileNotFound | NoRouteFound;
@@ -83,6 +86,7 @@ export async function planRoute(
   if (input.strategy === 'shortest') {
     const alternatives = await deps.routingEngine.routeAlternatives({
       origin: input.origin,
+      originHeadingDeg: input.originHeadingDeg,
       destination: input.destination,
       dimensions: profile.dimensions,
       avoid: [],
@@ -100,6 +104,7 @@ export async function planRoute(
   } else {
     const firstPass = await deps.routingEngine.route({
       origin: input.origin,
+      originHeadingDeg: input.originHeadingDeg,
       destination: input.destination,
       dimensions: profile.dimensions,
       avoid: [],
@@ -132,6 +137,7 @@ export async function planRoute(
   if (blocking.length > 0) {
     const secondPass = await deps.routingEngine.route({
       origin: input.origin,
+      originHeadingDeg: input.originHeadingDeg,
       destination: input.destination,
       dimensions: profile.dimensions,
       avoid: blocking.map((obstruction) => obstruction.zone),

@@ -28,6 +28,9 @@ export type WatchResult =
  */
 export async function startWatchingPosition(
   onUpdate: (point: MapPoint, motion: Motion) => void,
+  /** While driving: a fix every second or two metres, at the phone's navigation accuracy, so the
+   *  turn guidance and ETA keep up. Costs more battery, so only the trip screen asks for it. */
+  fast = false,
 ): Promise<WatchResult> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') {
@@ -35,7 +38,9 @@ export async function startWatchingPosition(
   }
   try {
     const subscription = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.High, timeInterval: 3000, distanceInterval: 10 },
+      fast
+        ? { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 2 }
+        : { accuracy: Location.Accuracy.High, timeInterval: 3000, distanceInterval: 10 },
       (position) =>
         onUpdate(
           { lat: position.coords.latitude, lon: position.coords.longitude },
@@ -50,16 +55,21 @@ export async function startWatchingPosition(
 
 /** The active-trip screen's "map following position" (design doc §8). Only runs in the
  *  foreground — background tracking for reroute alerts is M6 territory (docs/progress.md). */
-export function useLiveLocation(): {
+export function useLiveLocation(options: { readonly fast?: boolean } = {}): {
   readonly status: LiveLocationStatus;
   readonly point: MapPoint | undefined;
   /** Which way the driver is facing, degrees clockwise from north: the GPS course while moving, the
    *  compass when stopped. Undefined until known. */
   readonly heading: number | undefined;
+  /** The direction of travel from GPS, only while actually moving; undefined when stopped. For asking
+   *  the server for a route that sets off the way the lorry is already going. */
+  readonly course: number | undefined;
 } {
+  const fast = options.fast ?? false;
   const [status, setStatus] = useState<LiveLocationStatus>('loading');
   const [point, setPoint] = useState<MapPoint | undefined>(undefined);
   const [heading, setHeading] = useState<number | undefined>(undefined);
+  const [course, setCourse] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     let subscription: Location.LocationSubscription | undefined;
@@ -69,7 +79,13 @@ export function useLiveLocation(): {
     let motion: Motion = { gpsHeadingDeg: null, speedMps: null };
     let compassDeg: number | null = null;
     let shown: number | undefined;
+    let shownCourse: number | undefined;
     const refreshHeading = () => {
+      const nextCourse = facingDegrees({ ...motion, compassDeg: null });
+      if (headingChangedEnough(shownCourse, nextCourse)) {
+        shownCourse = nextCourse;
+        setCourse(nextCourse);
+      }
       const next = facingDegrees({ ...motion, compassDeg });
       if (headingChangedEnough(shown, next)) {
         shown = next;
@@ -96,7 +112,7 @@ export function useLiveLocation(): {
       setPoint(next);
       motion = nextMotion;
       refreshHeading();
-    }).then((result) => {
+    }, fast).then((result) => {
       if (cancelled) {
         if (result.ok) result.subscription.remove();
         return;
@@ -113,7 +129,7 @@ export function useLiveLocation(): {
       subscription?.remove();
       compass?.remove();
     };
-  }, []);
+  }, [fast]);
 
-  return { status, point, heading };
+  return { status, point, heading, course };
 }

@@ -82,6 +82,9 @@ export const planRouteRequestSchema = z.object({
   origin: geoPointSchema,
   destination: geoPointSchema,
   strategy: z.enum(['fastest', 'shortest']).optional(),
+  /** Which way the vehicle is heading, degrees clockwise from north, when it is already moving. The
+   *  route then starts in that direction rather than asking for a U-turn (re-planning mid-drive). */
+  originHeadingDeg: z.number().min(0).max(360).optional(),
 });
 export type PlanRouteRequest = z.infer<typeof planRouteRequestSchema>;
 

@@ -11,8 +11,8 @@ import {
   type ViewStateChangeEvent,
 } from '@maplibre/maplibre-react-native';
 import type { HazardTypeDto } from '@wagonwise/contracts/hazards';
-import { useImperativeHandle, useState, type Ref } from 'react';
-import type { NativeSyntheticEvent } from 'react-native';
+import { useImperativeHandle, useMemo, useState, type Ref } from 'react';
+import type { LayoutChangeEvent, NativeSyntheticEvent } from 'react-native';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { config } from '../config';
@@ -84,6 +84,11 @@ interface Props {
   /** Which way the driver is facing, degrees clockwise from north. When known, the position is drawn
    *  as an arrow pointing that way instead of a plain dot. */
   readonly currentHeading?: number | undefined;
+  /** Turn-by-turn driving (the trip screen): while following, the map turns to put the direction of
+   *  travel at the top, tilts, and keeps the position low on the screen so most of it shows the road
+   *  ahead. The camera follows the phone's own location natively, which is what keeps it smooth. The
+   *  position is then a fixed arrow, always pointing up. */
+  readonly navigating?: boolean;
   /** Reported hazards to show as warning icons (design decision, 2026-09-24: "within x amount of
    *  distance from you or on your route", not every hazard in the country) — the caller decides
    *  the query (near the driver, near a route corridor) via `useNearbyHazards`; this component
@@ -151,6 +156,13 @@ function boundsFor(points: readonly MapPoint[]): LngLatBounds | undefined {
 // route-overview.tsx), not an overlay, so this doesn't need to account for it.
 const BOUNDS_PADDING = { top: 60, right: 60, bottom: 60, left: 60 };
 
+// Turn-by-turn camera: tilted like a car sat-nav, with this fraction of the map's height added as
+// padding at the top, which pushes the position down to about three quarters of the way down the
+// screen so most of what is shown is the road ahead.
+const NAV_PITCH_DEG = 45;
+const NAV_TOP_PADDING_FRACTION = 0.45;
+const NAV_ARROW_SIZE = 40;
+
 /**
  * The riskiest, least-verifiable part of M5.4/M5.5 — a native map library with no Android SDK
  * or macOS on this machine to actually run it on (see docs/progress.md's verification notes).
@@ -168,6 +180,7 @@ export function RouteMap({
   onMapPress,
   currentPosition,
   currentHeading,
+  navigating = false,
   hazards,
   onHazardPress,
   congestion,
@@ -189,6 +202,39 @@ export function RouteMap({
     onFollowingChange?.(next);
   }
   useImperativeHandle(ref, () => ({ recenter: () => setFollowing(true) }));
+
+  // The map's height, to know where the camera's anchor is on the screen (see `NAV_TOP_PADDING_FRACTION`).
+  const [mapHeight, setMapHeight] = useState(0);
+  function handleLayout(event: LayoutChangeEvent): void {
+    setMapHeight(event.nativeEvent.layout.height);
+  }
+  const navTopPadding = Math.round(mapHeight * NAV_TOP_PADDING_FRACTION);
+  const navPadding = useMemo(
+    () => ({ top: navTopPadding, right: 0, bottom: 0, left: 0 }),
+    [navTopPadding],
+  );
+
+  // GeoJSON sources get a new `data` object every render otherwise, and each one is sent to the map
+  // again. With a position update every second that was visible as a stutter.
+  const routeData = useMemo(
+    () => (routeLine ? { type: 'LineString' as const, coordinates: routeLine } : undefined),
+    [routeLine],
+  );
+  const alternateData = useMemo(
+    () =>
+      alternateRouteLine
+        ? { type: 'LineString' as const, coordinates: alternateRouteLine }
+        : undefined,
+    [alternateRouteLine],
+  );
+  const optionData = useMemo(
+    () =>
+      routeOptionLines?.map((o) => ({
+        option: o,
+        data: { type: 'LineString' as const, coordinates: o.line },
+      })),
+    [routeOptionLines],
+  );
 
   // Priority: a live position always wins (active-trip following) over any bounds fit; then a
   // planned route's own line — small route zooms in, big route zooms out, rather than a fixed
@@ -218,6 +264,9 @@ export function RouteMap({
   // `center`/`zoom` leaves the map exactly where the driver's own gesture left it, rather than
   // fighting it every time `currentPosition` ticks (every ~3s/10m, `useLiveLocation`).
   const isFreeLooking = currentPosition !== undefined && !following;
+  const navTracking = navigating && currentPosition !== undefined && following;
+  // Anchor of the camera on screen when tracking: the middle of the area left under the top padding.
+  const navAnchorY = (mapHeight + navTopPadding) / 2;
 
   function handlePress(event: NativeSyntheticEvent<PressEvent>): void {
     if (!onMapPress) return;
@@ -233,14 +282,21 @@ export function RouteMap({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={handleLayout}>
       <MapLibreMap
         style={styles.map}
         mapStyle={config.mapStyleUrl}
         onPress={handlePress}
         onRegionWillChange={handleRegionWillChange}
       >
-        {bounds ? (
+        {navTracking ? (
+          <Camera
+            trackUserLocation="course"
+            zoom={followZoom}
+            pitch={NAV_PITCH_DEG}
+            padding={navPadding}
+          />
+        ) : bounds ? (
           <Camera bounds={bounds} padding={BOUNDS_PADDING} />
         ) : (
           <Camera
@@ -248,11 +304,8 @@ export function RouteMap({
             zoom={isFreeLooking ? undefined : zoom}
           />
         )}
-        {routeLine && routeLine.length > 1 && (
-          <GeoJSONSource
-            id="route-line-source"
-            data={{ type: 'LineString', coordinates: routeLine }}
-          >
+        {routeData && routeLine && routeLine.length > 1 && (
+          <GeoJSONSource id="route-line-source" data={routeData}>
             <Layer
               type="line"
               id="route-line-layer"
@@ -263,11 +316,8 @@ export function RouteMap({
             />
           </GeoJSONSource>
         )}
-        {alternateRouteLine && alternateRouteLine.length > 1 && (
-          <GeoJSONSource
-            id="alternate-route-line-source"
-            data={{ type: 'LineString', coordinates: alternateRouteLine }}
-          >
+        {alternateData && alternateRouteLine && alternateRouteLine.length > 1 && (
+          <GeoJSONSource id="alternate-route-line-source" data={alternateData}>
             <Layer
               type="line"
               id="alternate-route-line-layer"
@@ -276,13 +326,9 @@ export function RouteMap({
             />
           </GeoJSONSource>
         )}
-        {routeOptionLines?.map((option) =>
+        {optionData?.map(({ option, data }) =>
           option.line.length > 1 ? (
-            <GeoJSONSource
-              key={option.id}
-              id={`route-option-source-${option.id}`}
-              data={{ type: 'LineString', coordinates: option.line }}
-            >
+            <GeoJSONSource key={option.id} id={`route-option-source-${option.id}`} data={data}>
               {/* A white edge under the colour, so each line stands out from roads and water. */}
               <Layer
                 type="line"
@@ -309,9 +355,9 @@ export function RouteMap({
             <View style={[styles.pin, styles.destinationPin]} testID="destination-pin" />
           </ViewAnnotation>
         )}
-        {currentPosition && (
+        {currentPosition && !navTracking && (
           <ViewAnnotation id="current-position" lngLat={toLngLat(currentPosition)}>
-            {currentHeading === undefined ? (
+            {currentHeading === undefined || navigating ? (
               <View style={[styles.pin, styles.currentPositionPin]} testID="current-position-pin" />
             ) : (
               <View style={styles.headingPuck} testID="current-position-arrow">
@@ -365,6 +411,18 @@ export function RouteMap({
           </ViewAnnotation>
         ))}
       </MapLibreMap>
+      {navTracking && mapHeight > 0 && (
+        // Fixed on the screen where the camera keeps the position, so it does not jump with each fix
+        // the way a map marker would. The map turns, so the arrow always points up.
+        <View
+          pointerEvents="none"
+          style={[styles.navArrowAnchor, { top: navAnchorY - NAV_ARROW_SIZE / 2 }]}
+        >
+          <View style={styles.headingPuck} testID="current-position-arrow">
+            <MaterialCommunityIcons name="navigation" size={26} color="#1A73E8" />
+          </View>
+        </View>
+      )}
       {isFreeLooking && !hideRecenterButton && (
         <TouchableOpacity
           style={styles.recenterButton}
@@ -419,6 +477,7 @@ const styles = StyleSheet.create({
   },
   // A white disc with the arrow turned inside it: reads against any map colour, and only the arrow
   // rotates, never the disc.
+  navArrowAnchor: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   headingPuck: {
     width: 40,
     height: 40,

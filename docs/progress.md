@@ -135,6 +135,16 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-07: **field-test fixes** (first drive). (1) _Re-plan from here_ now plans from the live position and sends the
+  direction of travel (`originHeadingDeg`, GPS course while moving): Valhalla gets a `heading` on the first location and a
+  route that sets off that way is preferred, falling back to any route if none exists. The old trip is ended only once the
+  new route exists. (2) The trip map is now **heading-up**: it turns to the direction of travel, tilts 45 degrees and
+  keeps the position low on screen so most of it shows the road ahead; the camera follows the phone's own location
+  natively (`trackUserLocation="course"`), and the position is a fixed arrow pointing up. (3) **Smoothness**: the trip
+  screen now takes a fix every second (navigation accuracy) instead of every 3 s / 10 m, and the map no longer re-sends
+  its route lines and hazard markers on every update. Core and app changes; core deploy first. **Not yet checked on a
+  device: the camera tracking and the arrow placement.**
+
 - 2026-10-07: **position is shared from Start, not from Accept.** The app now sends a driver's position to their company
   only while the job is in a tracked state AND the driver has tapped Start (a trip is running), and shows a "Your
   company can see your position" chip on the map and trip screens while it does (`isSharingPosition`). Core still
