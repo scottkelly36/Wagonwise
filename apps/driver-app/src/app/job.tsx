@@ -12,6 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
 import { useJobNavigation } from '../hooks/use-job-navigation';
+import { OpenSettingsButton } from '../components/open-settings-button';
+import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { useJobStatusVoice } from '../hooks/use-job-status-voice';
 import { useProofOfDeliveryCapture } from '../hooks/use-proof-of-delivery';
 import { jobNavigationErrorMessage, jobsErrorMessage } from '../lib/error-messages';
@@ -194,6 +196,14 @@ export default function JobScreen() {
             No vehicle has been assigned to this job yet. Ask dispatch to assign one before you
             start.
           </Text>
+        )}
+        {voice.state.phase === 'error' && (
+          <>
+            <Text style={styles.error} testID="job-voice-error">
+              {voice.state.message}
+            </Text>
+            {voice.state.message === MIC_OFF_MESSAGE && <OpenSettingsButton />}
+          </>
         )}
         {voice.state.phase === 'confirming' && (
           <Text style={styles.voiceFootnote} testID="job-voice-prompt">

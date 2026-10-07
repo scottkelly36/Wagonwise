@@ -11,36 +11,41 @@ history file keeps the record.
 
 ## Status
 
-| Milestone                          | Status                                   | Detail                                 |
-| ---------------------------------- | ---------------------------------------- | -------------------------------------- |
-| M1 Foundations                     | Done — 2026-09-22                        | `history/m1-foundations.md`            |
-| M2 Routing core                    | Done — 2026-09-22                        | `history/m2-routing-core.md`           |
-| M3 Hazards core                    | Done — 2026-09-22                        | `history/m3-hazards-core.md`           |
-| M4 Driver BFF + auth               | Done — 2026-09-22                        | `history/m4-driver-bff-auth.md`        |
-| M5 Driver app                      | In progress — only M5.10 left            | `history/m5-driver-app.md`             |
-| M6 Alerts                          | Done — 2026-09-24                        | `history/m6-alerts.md`                 |
-| M7 Voice                           | Done — 2026-09-24                        | `history/m7-voice.md`                  |
-| M8 Field-ready                     | In progress — partly shipped 2026-09-25  | below (no breakdown written yet)       |
-| M9 Route options & safe parking    | Done — 2026-09-27                        | `history/m9-route-options-parking.md`  |
-| Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only   | below, and the Phase 2 tech design doc |
-| P2-M1 Orgs, roles, RLS, staff auth | Done — 2026-10-01                        | `history/p2-m1-organisations-auth.md`  |
-| P2-M2 Fleet                        | Done — 2026-10-02                        | `history/p2-m2-driver-links.md`        |
-| P2-M3 Jobs core                    | Done — 2026-10-02                        | below                                  |
-| P2-M4 Jobs in the portal           | Done — 2026-10-02                        | `history/p2-m4-portal-jobs.md`         |
-| P2-M5 Jobs in the driver app       | Code-complete 2026-10-03 — needs a build | `history/p2-m5-driver-app-jobs.md`     |
-| P2-M6 Live fleet map               | Done — 2026-10-03 (M6.4c deferred)       | `history/p2-m6-live-map.md`            |
+| Milestone                          | Status                                  | Detail                                 |
+| ---------------------------------- | --------------------------------------- | -------------------------------------- |
+| M1 Foundations                     | Done — 2026-09-22                       | `history/m1-foundations.md`            |
+| M2 Routing core                    | Done — 2026-09-22                       | `history/m2-routing-core.md`           |
+| M3 Hazards core                    | Done — 2026-09-22                       | `history/m3-hazards-core.md`           |
+| M4 Driver BFF + auth               | Done — 2026-09-22                       | `history/m4-driver-bff-auth.md`        |
+| M5 Driver app                      | In progress — only M5.10 left           | `history/m5-driver-app.md`             |
+| M6 Alerts                          | Done — 2026-09-24                       | `history/m6-alerts.md`                 |
+| M7 Voice                           | Done — 2026-09-24                       | `history/m7-voice.md`                  |
+| M8 Field-ready                     | In progress — partly shipped 2026-09-25 | below (no breakdown written yet)       |
+| M9 Route options & safe parking    | Done — 2026-09-27                       | `history/m9-route-options-parking.md`  |
+| Phase 2 / `apps/dashboard`         | Started early — admin scaffolding only  | below, and the Phase 2 tech design doc |
+| P2-M1 Orgs, roles, RLS, staff auth | Done — 2026-10-01                       | `history/p2-m1-organisations-auth.md`  |
+| P2-M2 Fleet                        | Done — 2026-10-02                       | `history/p2-m2-driver-links.md`        |
+| P2-M3 Jobs core                    | Done — 2026-10-02                       | below                                  |
+| P2-M4 Jobs in the portal           | Done — 2026-10-02                       | `history/p2-m4-portal-jobs.md`         |
+| P2-M5 Jobs in the driver app       | Done — live on app 1.2.1 (2026-10-06)   | `history/p2-m5-driver-app-jobs.md`     |
+| P2-M6 Live fleet map               | Done — 2026-10-03 (M6.4c deferred)      | `history/p2-m6-live-map.md`            |
+| P2-M10 Spoken turn-by-turn         | Live on app 1.2.1 — needs a drive test  | `history/p2-m10-spoken-directions.md`  |
 
 ## Next up
 
-0. **P2-M10 spoken turn-by-turn is code-complete (2026-10-04, branch `claude/spoken-directions`).** Server stores maneuvers (migration 0035), the app speaks them and shows a turn card. Deploy core first, then the app. Needs a real-device drive test. See `history/p2-m10-spoken-directions.md`.
+1. **Drive-test the spoken directions** (P2-M10) and the 1.2.1 microphone fix on a real route. Both are live
+   (core deployed with migration 0035; app 1.2.1 on Play internal testing) but only tested against a recorded
+   route and by hand so far. Announcement distances are constants in `lib/turn-guidance.ts`.
+2. **Hazard expiry poller and `job_positions` retention sweeper**: two small server jobs that need a "run
+   where" decision (suggested: a timer inside core).
+3. The restriction-data audit around Hexham, onboarding the first driver, and P2-M8 (reports, CSV export) and
+   P2-M9 (privacy, DPA, pilot onboarding). Phase 3 waits for pilot data.
 
-1. **P2-M5 is code-complete (2026-10-03).** M5.5b added the driver app's "Take photo" card at the
-   delivery stop and an offline upload queue. It brings a new native dependency
-   (`expo-image-picker`) and the camera permission, so app `version` is now 1.1.0 and it **needs a
-   fresh `eas build`** before it works on a device (`eas update` won't carry it). Not yet run on a
-   real device. See
-   `history/p2-m5-driver-app-jobs.md`. Not built yet in Phase 2: dispatch, live
-   map, moderation, reports.
+**How the driver app ships now:** JavaScript-only changes go out over the air to the installed version
+(`runtimeVersion` follows `version`, currently **1.2.1**: `eas update` is published for that version only, so
+a phone on an older build ignores it). A native change (new package, plugin or permission) needs `version`
+bumped and a Play build. Both run from `driver-app-release.yml`: the `release` label on a PR, or Run workflow
+with mode `update` or `build`. Merging alone publishes nothing. Secrets are set up and the check run passed.
 
 ## Open items (verified against the code 2026-09-28)
 
@@ -48,8 +53,8 @@ history file keeps the record.
   for company jobs first (it only exists for Phase 1 trips). Revisit if the pilot firm wants it.
   Also open from M6: no retention sweeper for `jobs.job_positions` (same decision as the hazard
   expiry poller), and no Valhalla-backed check of the ETA and route preview yet.
-- **M5.10**: Android real-device run done 2026-09-25. iOS real-device run and EAS Build →
-  TestFlight + Play internal still open, blocked on the Apple/Google developer accounts.
+- **M5.10**: Android is done: real-device runs, and Play internal testing builds (1.2.1 now, built by
+  EAS from the release workflow). iOS (TestFlight) is still open, blocked on an Apple developer account.
 - **M8 Field-ready**: shipped 2026-09-25 (commit `6f8fa52`, never written up here at the time):
   consent gate (`POST /identity/consent`), delete account (`DELETE /identity/account`),
   migration 0011, and the curated `routing.restriction_overrides` mechanism (migration 0010),
@@ -62,9 +67,7 @@ history file keeps the record.
 - **Real-device gaps**: voice reporting (M7) hasn't been tested on iOS, and accent/cab-noise
   accuracy is still the biggest unknown. Map markers (hazards, congestion, parking) have only
   been checked against MapLibre's docs.
-- **Push notifications** need an EAS project id, so they're deferred with M5.10.
-- **P2-M2.7** (driver app "join a company" screens) is code-complete and JS-only but not yet
-  shipped via `eas update` or checked on a real device.
+- **Push notifications**: the EAS project exists now, but notifications have not been tested on a device.
 
 ## Open questions
 
@@ -135,20 +138,27 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-06: **app 1.2.1**: the Android microphone permission was missing from 1.1.0 and 1.2.0 (`expo-image-picker`'s
+  `microphonePermission: false` made it block `RECORD_AUDIO`), so every voice feature said "no access". Fixed, and a
+  denied microphone now says where to turn it on and offers an Open settings button. Over the air since: the map
+  and trip-screen buttons restyled to the mock (smaller, 16 radius, no top Menu button), route options drawn on the
+  map in their own colours before one is chosen, a parking marker details drawer, and a Nearby parking list with
+  drive times and Take me there (no server change: it uses the route preview endpoint).
+
 - 2026-10-04: driver app releases run on a **`release` label**. Merging to main publishes nothing; adding the label
   to a PR (before or after it merges) runs `driver-app-release.yml`: `eas update` for a JavaScript-only change
   (after waiting for the live server to have the routes the app needs, `.github/release/api-checks.txt`), or a Play
   internal-testing build when `version` is higher than at the last release. "Release" means main as it is now, measured
   against the `driver-app/production` tag (created, at `2bb0779`, along with the label). No staging copy, by choice.
   Rules are tested scripts (`pnpm test:ci-scripts`, in CI and `pnpm verify`). **Needs the owner's one-off setup:** the
-  `EXPO_TOKEN` and `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` secrets (`docs/deployment-guide.md` section 9). **Unreleased on
-  main right now: the redesign (app 1.2.0, needs a Play build).** Not run for real yet; first run is "check" mode.
+  `EXPO_TOKEN` and `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` secrets (`docs/deployment-guide.md` section 9). The redesign shipped as
+  app 1.2.0 (2026-10-04), and the first `check`, `build` and `update` runs all passed.
 - 2026-10-04: driver app redesign, to match the owner's mock: a Map / Jobs / Saved / More tab bar, a new
   Home (job card, round recentre and layers buttons, icon quick actions, a Where-to sheet), lifted
   cards and icons on every screen, a back button on pushed screens, and a deeper brand blue. Also
   fixes the Android navigation bar covering buttons at the bottom of screens (reported on a Galaxy
   S25 FE): every screen now uses the safe-area library's view. **Adds native code (icon library), so
-  app version 1.2.0 and a new Play build are needed; `eas update` cannot carry it.** Not yet seen on a
+  app version 1.2.0 and a Play build were needed (shipped).** Not yet seen on a
   device. See `history/driver-app-redesign.md`.
 
 - 2026-10-04: driver app **Start**: accept the job, tap Start, and the app plans a route for the

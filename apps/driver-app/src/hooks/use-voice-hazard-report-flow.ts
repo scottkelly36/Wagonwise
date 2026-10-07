@@ -12,6 +12,7 @@ import {
   INITIAL_VOICE_REPORT_FLOW_STATE,
   type VoiceReportFlowState,
 } from '../lib/voice-report-flow-reducer';
+import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { summaryFor } from '../lib/voice-report-summary';
 import { parseYesNo } from '../lib/yes-no-parser';
 import { useVoiceReportCapture } from './use-voice-report-capture';
@@ -68,7 +69,7 @@ export function useVoiceHazardReportFlow(fallbackOrigin: MapPoint | undefined): 
       } else if (status === 'no-speech') {
         dispatch({ type: 'report-no-speech' });
       } else if (status === 'permission-denied') {
-        dispatch({ type: 'report-capture-failed', message: 'Microphone access is off.' });
+        dispatch({ type: 'report-capture-failed', message: MIC_OFF_MESSAGE });
       } else if (status === 'error') {
         dispatch({
           type: 'report-capture-failed',

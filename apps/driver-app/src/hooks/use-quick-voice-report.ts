@@ -15,6 +15,7 @@ import {
   type QuickReportKind,
   type QuickVoiceReportState,
 } from '../lib/quick-voice-report-reducer';
+import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { DEFAULT_WAIT_MINUTES, parseSpokenWaitMinutes } from '../lib/spoken-wait-minutes';
 import { parseYesNo } from '../lib/yes-no-parser';
 import { useVoiceReportCapture } from './use-voice-report-capture';
@@ -75,7 +76,7 @@ export function useQuickVoiceReport(currentPosition: MapPoint | undefined): {
     awaitingCaptureRef.current = false;
 
     if (status === 'permission-denied') {
-      dispatch({ type: 'capture-failed', message: 'Microphone access is off.' });
+      dispatch({ type: 'capture-failed', message: MIC_OFF_MESSAGE });
       return;
     }
     if (state.phase === 'capturing-wait') {

@@ -3,6 +3,7 @@ import * as Speech from 'expo-speech';
 import { useEffect, useReducer, useRef } from 'react';
 
 import { useAdvanceJobStatus } from '../api/use-jobs';
+import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { matchesJobStatusTrigger, NEXT_STEP } from '../lib/job-status';
 import {
   confirmationPrompt,
@@ -71,7 +72,7 @@ export function useJobStatusVoice(
     awaitingCaptureRef.current = false;
 
     if (status === 'permission-denied') {
-      dispatch({ type: 'report-capture-failed', message: 'Microphone access is off.' });
+      dispatch({ type: 'report-capture-failed', message: MIC_OFF_MESSAGE });
       return;
     }
     if (state.phase === 'capturing-report') {

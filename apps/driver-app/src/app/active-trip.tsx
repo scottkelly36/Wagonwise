@@ -9,6 +9,7 @@ import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
 import { useNearbyHazards } from '../api/use-hazards';
 import { ACTION_COLOURS, ActionCard } from '../components/ui/action-card';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
+import { OpenSettingsButton } from '../components/open-settings-button';
 import { TurnBanner } from '../components/turn-banner';
 import { RouteMap } from '../components/route-map';
 import { useHazardVoiceWarnings } from '../hooks/use-hazard-voice-warnings';
@@ -18,6 +19,7 @@ import { useReplanFromHere } from '../hooks/use-replan-from-here';
 import { useTurnAnnouncements } from '../hooks/use-turn-announcements';
 import { useTurnGuidance } from '../hooks/use-turn-guidance';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
+import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { computeEta } from '../lib/eta';
 import { arrivalStep } from '../lib/job-navigation';
 import { jobsErrorMessage, routingErrorMessage } from '../lib/error-messages';
@@ -319,6 +321,10 @@ export default function ActiveTripScreen() {
           {voiceFlow.state.phase === 'error' && (
             <Text style={styles.overlayFootnote}>{voiceFlow.state.message}</Text>
           )}
+          {(voiceFlow.state.phase === 'error' && voiceFlow.state.message === MIC_OFF_MESSAGE) ||
+          (quickReport.state.phase === 'error' && quickReport.state.message === MIC_OFF_MESSAGE) ? (
+            <OpenSettingsButton />
+          ) : null}
           {quickReport.state.phase === 'confirming' && (
             <Text style={styles.overlayFootnote} testID="quick-report-prompt">
               “{quickReport.state.prompt}”
