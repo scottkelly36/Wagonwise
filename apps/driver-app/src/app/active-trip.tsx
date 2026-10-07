@@ -253,6 +253,7 @@ export default function ActiveTripScreen() {
           destination={plan.destination}
           routeLine={routeLine}
           currentPosition={location.point}
+          currentHeading={location.heading}
           hazards={nearbyHazardsData?.map((h) => ({
             id: h.id,
             type: h.type,

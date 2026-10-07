@@ -31,8 +31,13 @@ describe('startWatchingPosition', () => {
     const result = await startWatchingPosition(onUpdate);
 
     expect(result.ok).toBe(true);
-    callback?.({ coords: { latitude: 54.971, longitude: -2.1 } } as Location.LocationObject);
-    expect(onUpdate).toHaveBeenCalledWith({ lat: 54.971, lon: -2.1 });
+    callback?.({
+      coords: { latitude: 54.971, longitude: -2.1, heading: 90, speed: 12 },
+    } as Location.LocationObject);
+    expect(onUpdate).toHaveBeenCalledWith(
+      { lat: 54.971, lon: -2.1 },
+      { gpsHeadingDeg: 90, speedMps: 12 },
+    );
   });
 
   it('reports denied without starting a watch', async () => {

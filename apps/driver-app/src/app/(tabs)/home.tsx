@@ -88,6 +88,7 @@ export default function HomeScreen() {
         origin={undefined}
         destination={undefined}
         currentPosition={location.point}
+        currentHeading={location.heading}
         followZoom={HOME_MAP_ZOOM}
         onFollowingChange={setFollowing}
         hideRecenterButton
