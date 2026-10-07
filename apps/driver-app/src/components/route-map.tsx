@@ -265,6 +265,10 @@ export function RouteMap({
   // fighting it every time `currentPosition` ticks (every ~3s/10m, `useLiveLocation`).
   const isFreeLooking = currentPosition !== undefined && !following;
   const navTracking = navigating && currentPosition !== undefined && following;
+  const arrowKey =
+    currentHeading === undefined || navigating
+      ? 'dot'
+      : String(Math.round(currentHeading / 10) * 10);
   // Anchor of the camera on screen when tracking: the middle of the area left under the top padding.
   const navAnchorY = (mapHeight + navTopPadding) / 2;
 
@@ -356,7 +360,14 @@ export function RouteMap({
           </ViewAnnotation>
         )}
         {currentPosition && !navTracking && (
-          <ViewAnnotation id="current-position" lngLat={toLngLat(currentPosition)}>
+          // On Android a map marker is drawn once to a picture and does not notice its contents
+          // turning afterwards (found on a phone, 2026-10-07: the arrow stayed pointing one way). So the
+          // marker is replaced, not rotated, each time the heading moves on a few degrees.
+          <ViewAnnotation
+            key={`current-position-${arrowKey}`}
+            id={`current-position-${arrowKey}`}
+            lngLat={toLngLat(currentPosition)}
+          >
             {currentHeading === undefined || navigating ? (
               <View style={[styles.pin, styles.currentPositionPin]} testID="current-position-pin" />
             ) : (
