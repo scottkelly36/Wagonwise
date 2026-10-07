@@ -158,8 +158,8 @@ live map, moderation, reports).
   cards and icons on every screen, a back button on pushed screens, and a deeper brand blue. Also
   fixes the Android navigation bar covering buttons at the bottom of screens (reported on a Galaxy
   S25 FE): every screen now uses the safe-area library's view. **Adds native code (icon library), so
-  app version 1.2.0 and a Play build were needed (shipped).** Not yet seen on a
-  device. See `history/driver-app-redesign.md`.
+  app version 1.2.0 and a Play build were needed (shipped), and it has been
+  used on a real device. See `history/driver-app-redesign.md`.
 
 - 2026-10-04: driver app **Start**: accept the job, tap Start, and the app plans a route for the
   assigned company vehicle (never a profile the driver picked) and opens the trip screen; **Set off**

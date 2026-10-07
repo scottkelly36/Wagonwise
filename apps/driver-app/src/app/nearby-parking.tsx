@@ -1,6 +1,8 @@
+import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import {
   ActivityIndicator,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -33,6 +35,7 @@ const KM_TO_M = 1000;
  * nearest as the crow flies are timed by road, then shown shortest drive first.
  */
 export default function NearbyParkingScreen() {
+  const router = useRouter();
   const location = useCurrentLocation();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -72,7 +75,16 @@ export default function NearbyParkingScreen() {
       <View style={styles.header}>
         <ScreenHeader title="Nearby parking" subtitle="Safe spots reported by drivers" />
       </View>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={spots.isRefetching}
+            onRefresh={() => void spots.refetch()}
+            tintColor={colors.text}
+          />
+        }
+      >
         {loading && <ActivityIndicator size="large" color={colors.text} />}
 
         {!loading && location.point === undefined && (
@@ -88,9 +100,20 @@ export default function NearbyParkingScreen() {
         )}
 
         {!loading && location.point !== undefined && !spots.isError && rows.length === 0 && (
-          <Text style={styles.message} testID="nearby-parking-empty">
-            No parking has been reported near you yet. Use Mark parking on the map to add one.
-          </Text>
+          <>
+            <Text style={styles.message} testID="nearby-parking-empty">
+              No parking has been reported near you yet.
+            </Text>
+            <TouchableOpacity
+              style={styles.markButton}
+              onPress={() => router.push('/report-safe-parking-spot')}
+              accessibilityRole="button"
+              testID="mark-parking-button"
+            >
+              <Icon name="parking" size={22} color={colors.textOnAccent} />
+              <Text style={styles.markButtonText}>Mark parking here</Text>
+            </TouchableOpacity>
+          </>
         )}
 
         {rows.map(({ spot, distanceM }) => {
@@ -165,6 +188,18 @@ function createStyles(colors: ThemeColors) {
     distance: { fontSize: 16, fontWeight: '600', color: colors.textMuted },
     note: { fontSize: 15, color: colors.textSecondary, marginTop: 2 },
     message: { fontSize: 16, color: colors.textMuted, textAlign: 'center', marginTop: 16 },
+    markButton: {
+      minHeight: 52,
+      borderRadius: 16,
+      backgroundColor: colors.accent,
+      flexDirection: 'row',
+      gap: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
+      alignSelf: 'center',
+      paddingHorizontal: 24,
+    },
+    markButtonText: { fontSize: 18, fontWeight: '700', color: colors.textOnAccent },
     error: { fontSize: 16, color: colors.danger, textAlign: 'center' },
   });
 }
