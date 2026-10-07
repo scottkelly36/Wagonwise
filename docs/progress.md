@@ -36,8 +36,13 @@ history file keeps the record.
 1. **Drive-test the spoken directions** (P2-M10) and the 1.2.1 microphone fix on a real route. Both are live
    (core deployed with migration 0035; app 1.2.1 on Play internal testing) but only tested against a recorded
    route and by hand so far. Announcement distances are constants in `lib/turn-guidance.ts`.
-2. The restriction-data audit around Hexham, onboarding the first driver, and P2-M8 (reports, CSV export) and
-   P2-M9 (privacy, DPA, pilot onboarding). Phase 3 waits for pilot data.
+2. **Privacy gaps to close before the pilot** (found while writing the P2-M9 documents): account deletion scrubs the
+   sign-in and revokes sessions and devices but leaves vehicle profiles, routes and trips in place (the consent screen
+   says "everything tied to it"); route plans and trips have no retention rule even though they hold start points;
+   proof-of-delivery photos have none either. Fix the system or the wording. Also: name the transfer safeguard for
+   each outside-UK service, register with the ICO, and do a DPIA for driver location tracking.
+3. The restriction-data audit around Hexham, onboarding the first driver, and P2-M8 (reports, CSV export). Phase 3
+   waits for pilot data.
 
 **How the driver app ships now:** JavaScript-only changes go out over the air to the installed version
 (`runtimeVersion` follows `version`, currently **1.2.1**: `eas update` is published for that version only, so
@@ -131,6 +136,11 @@ live map, moderation, reports).
   `valhalla-routing-engine.golden-test.ts`.
 
 ## Recent log
+
+- 2026-10-07: **P2-M9 documents drafted** (Docs artifacts, not in the repo): a privacy notice, a data processing
+  agreement and a pilot onboarding checklist, plus a driver install guide. All written from what the system does today,
+  with [brackets] for what only the owner can fill in (company details, transfer safeguards). They need a solicitor's
+  review before signing. The privacy notice's last section lists where the system and the consent screen disagree.
 
 - 2026-10-07: **housekeeping timers in core** (`platform/periodic-task.ts`, wired in `compose-core.ts`): hazards past their
   expiry are marked expired every 5 minutes (`HAZARD_EXPIRY_INTERVAL_MS`), and driver positions older than 30 days
