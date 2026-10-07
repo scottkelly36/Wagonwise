@@ -405,8 +405,13 @@ export function RouteMap({
             lngLat={toLngLat(spot.location)}
             onPress={() => onParkingSpotPress?.(spot.id)}
           >
-            <View style={styles.parkingMarker} testID={`parking-pin-${spot.id}`}>
-              <Text style={styles.parkingMarkerText}>P</Text>
+            <View
+              style={[styles.parkingMarker, navigating && styles.parkingMarkerSmall]}
+              testID={`parking-pin-${spot.id}`}
+            >
+              <Text style={[styles.parkingMarkerText, navigating && styles.parkingMarkerTextSmall]}>
+                P
+              </Text>
             </View>
           </ViewAnnotation>
         ))}
@@ -539,6 +544,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // While driving the map is busy and the lorry is moving: the same marker, smaller, so a row of
+  // parking spots along the route does not crowd the road.
+  parkingMarkerSmall: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5 },
+  parkingMarkerTextSmall: { fontSize: 12 },
   parkingMarkerText: {
     fontSize: 15,
     fontWeight: '800',

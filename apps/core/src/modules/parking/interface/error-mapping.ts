@@ -1,6 +1,7 @@
+import type { SafeParkingSpotNotFound } from '../application/delete-safe-parking-spot.js';
 import type { InvalidNote } from '../domain/safe-parking-spot.js';
 
-export type ParkingError = InvalidNote;
+export type ParkingError = InvalidNote | SafeParkingSpotNotFound;
 
 /** Tag -> HTTP status, in exactly one table (AGENTS.md rule 13), mirroring every other module's
  *  error-mapping.ts. `switch-exhaustiveness-check` means a new domain error tag breaks
@@ -9,5 +10,7 @@ export function statusFor(error: ParkingError): number {
   switch (error.tag) {
     case 'InvalidNote':
       return 400;
+    case 'SafeParkingSpotNotFound':
+      return 404;
   }
 }

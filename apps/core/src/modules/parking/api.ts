@@ -31,6 +31,7 @@ export function createParkingModule(deps: ParkingModuleDeps): ParkingModule {
 
   const routeDeps: ParkingRouteDeps = {
     reportSafeParkingSpot: { repo, clock: deps.clock },
+    deleteSafeParkingSpot: { repo },
     findNearbyParking: { repo },
   };
 

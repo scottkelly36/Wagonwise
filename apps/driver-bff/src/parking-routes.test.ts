@@ -115,3 +115,41 @@ describe('POST /parking/spots/nearby', () => {
     expect(coreClient.calls).toEqual([]);
   });
 });
+
+describe('DELETE /parking/spots/:id', () => {
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({ method: 'DELETE', url: `/parking/spots/${SPOT_ID}` });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards the delete with the original token and relays core’s answer', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 204, body: undefined };
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/parking/spots/${SPOT_ID}`,
+      headers: AUTH_HEADER,
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'DELETE',
+      path: `/parking/spots/${SPOT_ID}`,
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('400s locally on a malformed id, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/parking/spots/not-a-uuid',
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+});

@@ -7,8 +7,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEndTrip } from '../api/use-active-trip';
 import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
 import { useNearbyHazards } from '../api/use-hazards';
+import { useNearbySafeParkingSpots } from '../api/use-parking';
 import { ACTION_COLOURS, ActionCard } from '../components/ui/action-card';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
+import { ParkingSpotDrawer } from '../components/parking-spot-drawer';
+import { thinPoints } from '../lib/thin-points';
 import { OpenSettingsButton } from '../components/open-settings-button';
 import { PositionSharingChip } from '../components/position-sharing-chip';
 import { isSharingPosition } from '../lib/job-position-reporting';
@@ -94,6 +97,8 @@ const CANCELLABLE_PHASES = new Set(['capturing-report', 'capturing-confirmation'
 // "On your route" (design decision, 2026-09-24) — wider than a routing-avoidance check (30m,
 // design doc §5), since this is just an on-map warning icon, not a decision to reroute around.
 const ON_ROUTE_HAZARD_RADIUS_M = 750;
+// Parking a little further out than hazards: a layby just off the route is worth seeing.
+const ON_ROUTE_PARKING_RADIUS_M = 1500;
 
 /**
  * The active-trip screen (design doc §8, M5.6): a map following the driver's live position, an
@@ -128,6 +133,16 @@ export default function ActiveTripScreen() {
   const routeLine = useMemo(() => (plan ? decodePolyline6(plan.geometry) : undefined), [plan]);
   const corridor = useMemo(() => routeLine?.map(([lon, lat]) => ({ lat, lon })) ?? [], [routeLine]);
   const nearbyHazards = useNearbyHazards(corridor, ON_ROUTE_HAZARD_RADIUS_M);
+  // Safe parking along the route, so a spot marked while driving is on the map where it was marked.
+  // Thinned: the request takes at most 2000 points and a long route has more.
+  const parkingCorridor = useMemo(() => thinPoints(corridor, 1500), [corridor]);
+  const nearbyParking = useNearbySafeParkingSpots(parkingCorridor, ON_ROUTE_PARKING_RADIUS_M);
+  const mapParking = useMemo(
+    () => nearbyParking.data?.map((s) => ({ id: s.id, location: s.location })),
+    [nearbyParking.data],
+  );
+  const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
+  const selectedParking = nearbyParking.data?.find((s) => s.id === selectedParkingId);
   const nearbyHazardsData = nearbyHazards.data;
   // A stable array: a new one every render (once a second, with the position) made every hazard
   // marker update on the map each time.
@@ -264,6 +279,8 @@ export default function ActiveTripScreen() {
           currentHeading={location.heading}
           navigating
           hazards={mapHazards}
+          parkingSpots={mapParking}
+          onParkingSpotPress={setSelectedParkingId}
           onHazardPress={setSelectedHazardId}
         />
 
@@ -297,6 +314,8 @@ export default function ActiveTripScreen() {
             </View>
           </View>
         )}
+
+        <ParkingSpotDrawer spot={selectedParking} onClose={() => setSelectedParkingId(undefined)} />
 
         <HazardDetailDrawer
           hazardId={selectedHazardId}
@@ -343,6 +362,16 @@ export default function ActiveTripScreen() {
             <Text style={styles.overlayFootnote} testID="quick-report-status">
               {quickReportOutcome(quickReport.state)}
             </Text>
+          )}
+          {quickReport.canUndoParking && (
+            <TouchableOpacity
+              style={styles.undoButton}
+              onPress={quickReport.undoParking}
+              accessibilityRole="button"
+              testID="undo-parking-button"
+            >
+              <Text style={styles.undoButtonText}>Undo</Text>
+            </TouchableOpacity>
           )}
 
           {/* Traffic, hazard and parking: the same cards as the home screen, a size smaller so
@@ -472,6 +501,16 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 12,
       padding: 10,
     },
+    // Big enough to hit while driving: it is only there for a few seconds after marking parking.
+    undoButton: {
+      minHeight: 48,
+      paddingHorizontal: 28,
+      borderRadius: 16,
+      backgroundColor: colors.accent,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    undoButtonText: { fontSize: 18, fontWeight: '700', color: colors.textOnAccent },
     panel: {
       ...cardStyle(colors),
       borderBottomLeftRadius: 0,

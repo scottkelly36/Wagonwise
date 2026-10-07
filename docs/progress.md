@@ -135,6 +135,12 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-07: **one-tap parking, with Undo; parking on the trip map.** The spoken yes/no for "Mark parking" is gone: it is
+  filed at once, says "Parking marked", and shows Undo for 8 seconds (`DELETE /parking/spots/:id`, only the reporter's own
+  spot; core, BFF and contracts). Found on the first drive: spots were saved but not seen, because the home map only
+  looked 5 km around the driver and the trip screen drew no parking at all. The home map now looks 20 km out for
+  parking, and the trip screen shows parking along the route (smaller markers, tap for details). Core deploy first.
+
 - 2026-10-07: **field-test fixes** (first drive). (1) _Re-plan from here_ now plans from the live position and sends the
   direction of travel (`originHeadingDeg`, GPS course while moving): Valhalla gets a `heading` on the first location and a
   route that sets off that way is preferred, falling back to any route if none exists. The old trip is ended only once the

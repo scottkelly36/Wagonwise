@@ -2,10 +2,10 @@ import { congestionReportIdSchema } from '@wagonwise/contracts/congestion';
 import { safeParkingSpotIdSchema } from '@wagonwise/contracts/parking';
 import * as Crypto from 'expo-crypto';
 import * as Speech from 'expo-speech';
-import { useEffect, useReducer, useRef } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 
 import { useReportCongestion } from '../api/use-congestion';
-import { useReportSafeParkingSpot } from '../api/use-parking';
+import { useDeleteSafeParkingSpot, useReportSafeParkingSpot } from '../api/use-parking';
 import type { MapPoint } from '../components/route-map';
 import {
   INITIAL_QUICK_VOICE_REPORT_STATE,
@@ -40,15 +40,25 @@ function speak(text: string, onDone?: () => void): void {
  * Filed at `currentPosition`, the driver's live position at the moment they say yes. No offline
  * queue (unlike hazards): with no signal the driver is told and nothing is retried.
  */
+/** How long the Undo button stays after a parking spot is marked. */
+const UNDO_WINDOW_MS = 8000;
+
 export function useQuickVoiceReport(currentPosition: MapPoint | undefined): {
   readonly state: QuickVoiceReportState;
   readonly start: (kind: QuickReportKind) => void;
   readonly cancel: () => void;
+  /** True for a few seconds after a parking spot is marked: the screen offers Undo. */
+  readonly canUndoParking: boolean;
+  readonly undoParking: () => void;
 } {
   const [state, dispatch] = useReducer(quickVoiceReportReducer, INITIAL_QUICK_VOICE_REPORT_STATE);
   const capture = useVoiceReportCapture();
   const reportCongestion = useReportCongestion();
   const reportParking = useReportSafeParkingSpot();
+  const deleteParking = useDeleteSafeParkingSpot();
+  // The spot just marked, and whether it can still be taken back.
+  const lastParkingIdRef = useRef<string | undefined>(undefined);
+  const [canUndoParking, setCanUndoParking] = useState(false);
 
   const positionRef = useRef(currentPosition);
   useEffect(() => {
@@ -112,7 +122,13 @@ export function useQuickVoiceReport(currentPosition: MapPoint | undefined): {
       return;
     }
     const callbacks = {
-      onSuccess: () => dispatch({ type: 'file-succeeded' }),
+      onSuccess: () => {
+        dispatch({ type: 'file-succeeded' });
+        if (state.kind === 'parking') {
+          setCanUndoParking(true);
+          setTimeout(() => setCanUndoParking(false), UNDO_WINDOW_MS);
+        }
+      },
       onError: () => dispatch({ type: 'file-failed', message: NO_SIGNAL_MESSAGE }),
     };
     if (state.kind === 'traffic') {
@@ -125,10 +141,9 @@ export function useQuickVoiceReport(currentPosition: MapPoint | undefined): {
         callbacks,
       );
     } else {
-      reportParking.mutate(
-        { id: safeParkingSpotIdSchema.parse(Crypto.randomUUID()), location },
-        callbacks,
-      );
+      const id = safeParkingSpotIdSchema.parse(Crypto.randomUUID());
+      lastParkingIdRef.current = id;
+      reportParking.mutate({ id, location }, callbacks);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.phase]);
@@ -150,7 +165,24 @@ export function useQuickVoiceReport(currentPosition: MapPoint | undefined): {
 
   return {
     state,
-    start: (kind) => dispatch({ type: 'start', kind }),
+    canUndoParking,
+    undoParking: () => {
+      const id = lastParkingIdRef.current;
+      if (id === undefined || !canUndoParking) return;
+      setCanUndoParking(false);
+      deleteParking.mutate(id, {
+        onSuccess: () => dispatch({ type: 'undone' }),
+        onError: () =>
+          dispatch({
+            type: 'file-failed',
+            message: "Couldn't remove that. Try again when you have signal.",
+          }),
+      });
+    },
+    start: (kind) => {
+      setCanUndoParking(false);
+      dispatch({ type: 'start', kind });
+    },
     cancel: () => {
       awaitingCaptureRef.current = false;
       capture.cancel();

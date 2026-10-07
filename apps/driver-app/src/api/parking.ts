@@ -26,6 +26,14 @@ export async function reportSafeParkingSpot(
   return safeParkingSpotSchema.parse(json);
 }
 
+/** Takes back a spot the driver just marked (the Undo after a one-tap voice report). */
+export async function deleteSafeParkingSpot(accessToken: string, id: string): Promise<void> {
+  const { status, json } = await requestJson('DELETE', `/parking/spots/${id}`, {
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [204]);
+}
+
 /** Powers the map markers, same reasoning as congestion's/hazards' own `findNearby*` —
  *  `input.corridor` is one point for "near me" (home screen, Phase 1's only consumer for now). */
 export async function findNearbySafeParkingSpots(

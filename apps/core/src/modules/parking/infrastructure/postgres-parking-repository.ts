@@ -1,7 +1,12 @@
 import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
 import type { ParkingRepository } from '../application/ports/parking-repository.js';
-import type { GeoPoint, SafeParkingSpot } from '../domain/safe-parking-spot.js';
+import type {
+  DriverId,
+  GeoPoint,
+  SafeParkingSpot,
+  SafeParkingSpotId,
+} from '../domain/safe-parking-spot.js';
 import type { UntypedDb } from './db.js';
 
 interface SafeParkingSpotRow {
@@ -62,6 +67,14 @@ export class PostgresParkingRepository implements ParkingRepository {
       order by reported_at desc
     `.execute(this.db);
     return rows.map(toDomain);
+  }
+
+  async deleteOwned(id: SafeParkingSpotId, reporterId: DriverId): Promise<boolean> {
+    const { rows } = await sql`
+      delete from parking.safe_parking_spots where id = ${id} and reporter_id = ${reporterId}
+      returning 1
+    `.execute(this.db);
+    return rows.length > 0;
   }
 
   async save(spot: SafeParkingSpot): Promise<void> {

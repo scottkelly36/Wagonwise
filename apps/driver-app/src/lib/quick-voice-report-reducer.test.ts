@@ -55,15 +55,23 @@ describe('quickVoiceReportReducer — traffic', () => {
 });
 
 describe('quickVoiceReportReducer — parking', () => {
-  it('goes straight to the read-back and files on a yes', () => {
-    expect(run([{ type: 'start', kind: 'parking' }])).toEqual({
-      phase: 'confirming',
+  it('files at once with no spoken question', () => {
+    expect(run([{ type: 'start', kind: 'parking' }])).toEqual({ phase: 'filing', kind: 'parking' });
+    expect(run([{ type: 'start', kind: 'parking' }, { type: 'file-succeeded' }])).toEqual({
+      phase: 'filed',
       kind: 'parking',
-      prompt: 'Mark a safe place to park here?',
     });
+  });
+
+  it('can be undone once filed, and not before or after another report', () => {
     expect(
-      run([{ type: 'start', kind: 'parking' }, { type: 'prompt-spoken' }, { type: 'confirmed' }]),
-    ).toEqual({ phase: 'filing', kind: 'parking', waitMinutes: undefined });
+      run([{ type: 'start', kind: 'parking' }, { type: 'file-succeeded' }, { type: 'undone' }]),
+    ).toEqual({ phase: 'undone', kind: 'parking' });
+    // Nothing to undo while it is still being saved.
+    expect(run([{ type: 'start', kind: 'parking' }, { type: 'undone' }])).toEqual({
+      phase: 'filing',
+      kind: 'parking',
+    });
   });
 });
 
@@ -161,6 +169,7 @@ describe('helpers', () => {
     expect(outcomeMessage({ phase: 'filed', kind: 'traffic' })).toBe('Traffic reported.');
     expect(outcomeMessage({ phase: 'filed', kind: 'parking' })).toBe('Parking marked.');
     expect(outcomeMessage({ phase: 'not-filed', kind: 'parking' })).toBe('Not reported.');
+    expect(outcomeMessage({ phase: 'undone', kind: 'parking' })).toBe('Parking removed.');
     expect(outcomeMessage({ phase: 'error', message: 'No signal.' })).toBe('No signal.');
     expect(outcomeMessage({ phase: 'asking-wait' })).toBeUndefined();
   });

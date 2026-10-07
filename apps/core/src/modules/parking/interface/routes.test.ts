@@ -18,6 +18,7 @@ function buildApp(): { app: FastifyInstance; deps: ParkingRouteDeps } {
   const deps: ParkingRouteDeps = {
     reportSafeParkingSpot: { repo, clock },
     findNearbyParking: { repo },
+    deleteSafeParkingSpot: { repo },
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {
@@ -156,5 +157,80 @@ describe('POST /parking/spots/nearby', () => {
       payload: { corridor: [location], radiusM: 0 },
     });
     expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('DELETE /parking/spots/:id', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const mark = (app: FastifyInstance, driver: string) =>
+    app.inject({
+      method: 'POST',
+      url: '/parking/spots',
+      payload: { id, location },
+      ...asDriver(driver),
+    });
+
+  it('204s when the reporter takes their own spot back, and it is gone', async () => {
+    const { app } = buildApp();
+    await mark(app, 'driver-1');
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/parking/spots/${id}`,
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(204);
+    const nearby = await app.inject({
+      method: 'POST',
+      url: '/parking/spots/nearby',
+      payload: { corridor: [location], radiusM: 500 },
+      ...asDriver('driver-1'),
+    });
+    expect(nearby.json()).toEqual({ spots: [] });
+  });
+
+  it('404s for another driver’s spot, and leaves it', async () => {
+    const { app } = buildApp();
+    await mark(app, 'driver-1');
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/parking/spots/${id}`,
+      ...asDriver('driver-2'),
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ tag: 'SafeParkingSpotNotFound' });
+    const nearby = await app.inject({
+      method: 'POST',
+      url: '/parking/spots/nearby',
+      payload: { corridor: [location], radiusM: 500 },
+      ...asDriver('driver-1'),
+    });
+    const body: { spots: unknown[] } = nearby.json();
+    expect(body.spots).toHaveLength(1);
+  });
+
+  it('404s for a spot that does not exist', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/parking/spots/${id}`,
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('401s with no authenticated driver, and 400s a malformed id', async () => {
+    const { app } = buildApp();
+    expect((await app.inject({ method: 'DELETE', url: `/parking/spots/${id}` })).statusCode).toBe(
+      401,
+    );
+    expect(
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: '/parking/spots/not-a-uuid',
+          ...asDriver('driver-1'),
+        })
+      ).statusCode,
+    ).toBe(400);
   });
 });

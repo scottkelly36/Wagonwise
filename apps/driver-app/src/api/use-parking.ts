@@ -23,6 +23,16 @@ export function useReportSafeParkingSpot() {
   });
 }
 
+/** Taking back a spot just marked. The map and list refresh straight away. */
+export function useDeleteSafeParkingSpot() {
+  const accessToken = useAccessToken();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => parkingApi.deleteSafeParkingSpot(accessToken, id),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: NEARBY_PARKING_KEY }),
+  });
+}
+
 /** `corridor` is one point for "near me" (home screen, Phase 1's only consumer) — disabled
  *  entirely until there's at least one point, same reasoning as `useNearbyCongestion`. */
 export function useNearbySafeParkingSpots(corridor: readonly GeoPointDto[], radiusM: number) {
