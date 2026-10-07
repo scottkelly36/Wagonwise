@@ -2,6 +2,13 @@ import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
 
 import type { MapPoint } from '../components/route-map';
+import { facingDegrees, headingChangedEnough } from '../lib/heading';
+
+/** What the phone reports about its movement with a fix: the GPS course and speed. */
+export interface Motion {
+  readonly gpsHeadingDeg: number | null;
+  readonly speedMps: number | null;
+}
 
 export type LiveLocationStatus = 'loading' | 'granted' | 'denied' | 'error';
 
@@ -20,7 +27,7 @@ export type WatchResult =
  * stays a plain `useEffect` subscription instead.
  */
 export async function startWatchingPosition(
-  onUpdate: (point: MapPoint) => void,
+  onUpdate: (point: MapPoint, motion: Motion) => void,
 ): Promise<WatchResult> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') {
@@ -29,7 +36,11 @@ export async function startWatchingPosition(
   try {
     const subscription = await Location.watchPositionAsync(
       { accuracy: Location.Accuracy.High, timeInterval: 3000, distanceInterval: 10 },
-      (position) => onUpdate({ lat: position.coords.latitude, lon: position.coords.longitude }),
+      (position) =>
+        onUpdate(
+          { lat: position.coords.latitude, lon: position.coords.longitude },
+          { gpsHeadingDeg: position.coords.heading, speedMps: position.coords.speed },
+        ),
     );
     return { ok: true, subscription };
   } catch {
@@ -42,18 +53,49 @@ export async function startWatchingPosition(
 export function useLiveLocation(): {
   readonly status: LiveLocationStatus;
   readonly point: MapPoint | undefined;
+  /** Which way the driver is facing, degrees clockwise from north: the GPS course while moving, the
+   *  compass when stopped. Undefined until known. */
+  readonly heading: number | undefined;
 } {
   const [status, setStatus] = useState<LiveLocationStatus>('loading');
   const [point, setPoint] = useState<MapPoint | undefined>(undefined);
+  const [heading, setHeading] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     let subscription: Location.LocationSubscription | undefined;
     let cancelled = false;
 
-    void startWatchingPosition((next) => {
+    // The latest of each input, so the arrow is recomputed whenever either one changes.
+    let motion: Motion = { gpsHeadingDeg: null, speedMps: null };
+    let compassDeg: number | null = null;
+    let shown: number | undefined;
+    const refreshHeading = () => {
+      const next = facingDegrees({ ...motion, compassDeg });
+      if (headingChangedEnough(shown, next)) {
+        shown = next;
+        setHeading(next);
+      }
+    };
+
+    let compass: Location.LocationSubscription | undefined;
+    void Location.watchHeadingAsync((reading) => {
+      if (cancelled) return;
+      compassDeg = reading.trueHeading >= 0 ? reading.trueHeading : reading.magHeading;
+      refreshHeading();
+    })
+      .then((sub) => {
+        if (cancelled) sub.remove();
+        else compass = sub;
+      })
+      // No compass just means no arrow while stopped; the GPS course still works while moving.
+      .catch(() => undefined);
+
+    void startWatchingPosition((next, nextMotion) => {
       if (cancelled) return;
       setStatus('granted');
       setPoint(next);
+      motion = nextMotion;
+      refreshHeading();
     }).then((result) => {
       if (cancelled) {
         if (result.ok) result.subscription.remove();
@@ -69,8 +111,9 @@ export function useLiveLocation(): {
     return () => {
       cancelled = true;
       subscription?.remove();
+      compass?.remove();
     };
   }, []);
 
-  return { status, point };
+  return { status, point, heading };
 }

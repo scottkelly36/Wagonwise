@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Camera,
   GeoJSONSource,
@@ -80,6 +81,9 @@ interface Props {
    *  of following (design feedback, 2026-09-26: recentring on every fix fought a driver trying
    *  to look ahead) — a "Recenter" button reappears to opt back in; see `following` state below. */
   readonly currentPosition?: MapPoint;
+  /** Which way the driver is facing, degrees clockwise from north. When known, the position is drawn
+   *  as an arrow pointing that way instead of a plain dot. */
+  readonly currentHeading?: number | undefined;
   /** Reported hazards to show as warning icons (design decision, 2026-09-24: "within x amount of
    *  distance from you or on your route", not every hazard in the country) — the caller decides
    *  the query (near the driver, near a route corridor) via `useNearbyHazards`; this component
@@ -163,6 +167,7 @@ export function RouteMap({
   routeOptionLines,
   onMapPress,
   currentPosition,
+  currentHeading,
   hazards,
   onHazardPress,
   congestion,
@@ -306,7 +311,15 @@ export function RouteMap({
         )}
         {currentPosition && (
           <ViewAnnotation id="current-position" lngLat={toLngLat(currentPosition)}>
-            <View style={[styles.pin, styles.currentPositionPin]} testID="current-position-pin" />
+            {currentHeading === undefined ? (
+              <View style={[styles.pin, styles.currentPositionPin]} testID="current-position-pin" />
+            ) : (
+              <View style={styles.headingPuck} testID="current-position-arrow">
+                <View style={{ transform: [{ rotate: `${currentHeading}deg` }] }}>
+                  <MaterialCommunityIcons name="navigation" size={26} color="#1A73E8" />
+                </View>
+              </View>
+            )}
           </ViewAnnotation>
         )}
         {hazards?.map((hazard) => (
@@ -403,6 +416,21 @@ const styles = StyleSheet.create({
   },
   destinationPin: {
     backgroundColor: '#F5A623',
+  },
+  // A white disc with the arrow turned inside it: reads against any map colour, and only the arrow
+  // rotates, never the disc.
+  headingPuck: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#0B1220',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   currentPositionPin: {
     backgroundColor: '#34D399',
