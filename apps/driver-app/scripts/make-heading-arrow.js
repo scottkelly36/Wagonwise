@@ -1,3 +1,4 @@
+/* global Buffer, __dirname, console, require */
 // Draws assets/images/heading-arrow.png: a blue navigation arrow, pointing up, on a white disc with a
 // soft edge. The map draws it as a native layer and turns it with `icon-rotate`, which is smooth, unlike
 // a React Native marker (those are drawn once to a picture on Android and flicker if re-made).
