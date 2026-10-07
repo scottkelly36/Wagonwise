@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Camera,
   GeoJSONSource,
+  Images,
   Layer,
   Map as MapLibreMap,
   ViewAnnotation,
@@ -163,6 +164,11 @@ const NAV_PITCH_DEG = 45;
 const NAV_TOP_PADDING_FRACTION = 0.45;
 const NAV_ARROW_SIZE = 40;
 
+// The arrow drawn at the driver's position on the north-up maps: a picture made by
+// scripts/make-heading-arrow.js, drawn at a third of its size (it is 128 px for sharpness).
+const HEADING_ARROW_IMAGE = require('../../assets/images/heading-arrow.png') as number;
+const HEADING_ARROW_SCALE = 0.34;
+
 /**
  * The riskiest, least-verifiable part of M5.4/M5.5 — a native map library with no Android SDK
  * or macOS on this machine to actually run it on (see docs/progress.md's verification notes).
@@ -265,10 +271,16 @@ export function RouteMap({
   // fighting it every time `currentPosition` ticks (every ~3s/10m, `useLiveLocation`).
   const isFreeLooking = currentPosition !== undefined && !following;
   const navTracking = navigating && currentPosition !== undefined && following;
-  const arrowKey =
-    currentHeading === undefined || navigating
-      ? 'dot'
-      : String(Math.round(currentHeading / 10) * 10);
+  // The arrow is a native map layer (below), not a React Native marker, so it can be turned smoothly.
+  const showArrowLayer =
+    currentPosition !== undefined && !navTracking && !navigating && currentHeading !== undefined;
+  const arrowData = useMemo(
+    () =>
+      currentPosition
+        ? { type: 'Point' as const, coordinates: [currentPosition.lon, currentPosition.lat] }
+        : undefined,
+    [currentPosition],
+  );
   // Anchor of the camera on screen when tracking: the middle of the area left under the top padding.
   const navAnchorY = (mapHeight + navTopPadding) / 2;
 
@@ -359,24 +371,31 @@ export function RouteMap({
             <View style={[styles.pin, styles.destinationPin]} testID="destination-pin" />
           </ViewAnnotation>
         )}
-        {currentPosition && !navTracking && (
-          // On Android a map marker is drawn once to a picture and does not notice its contents
-          // turning afterwards (found on a phone, 2026-10-07: the arrow stayed pointing one way). So the
-          // marker is replaced, not rotated, each time the heading moves on a few degrees.
-          <ViewAnnotation
-            key={`current-position-${arrowKey}`}
-            id={`current-position-${arrowKey}`}
-            lngLat={toLngLat(currentPosition)}
-          >
-            {currentHeading === undefined || navigating ? (
-              <View style={[styles.pin, styles.currentPositionPin]} testID="current-position-pin" />
-            ) : (
-              <View style={styles.headingPuck} testID="current-position-arrow">
-                <View style={{ transform: [{ rotate: `${currentHeading}deg` }] }}>
-                  <MaterialCommunityIcons name="navigation" size={26} color="#1A73E8" />
-                </View>
-              </View>
-            )}
+        {showArrowLayer && arrowData && (
+          <>
+            <Images images={{ 'heading-arrow': HEADING_ARROW_IMAGE }} />
+            {/* Drawn by the map itself and turned with `icon-rotate`. A React Native marker is drawn once to a
+                picture on Android, so turning it meant replacing it, which flickered (found on a phone). */}
+            <GeoJSONSource id="heading-arrow-source" data={arrowData}>
+              <Layer
+                type="symbol"
+                id="heading-arrow-layer"
+                source="heading-arrow-source"
+                layout={{
+                  'icon-image': 'heading-arrow',
+                  'icon-rotate': currentHeading ?? 0,
+                  'icon-rotation-alignment': 'map',
+                  'icon-allow-overlap': true,
+                  'icon-ignore-placement': true,
+                  'icon-size': HEADING_ARROW_SCALE,
+                }}
+              />
+            </GeoJSONSource>
+          </>
+        )}
+        {currentPosition && !navTracking && !showArrowLayer && (
+          <ViewAnnotation id="current-position" lngLat={toLngLat(currentPosition)}>
+            <View style={[styles.pin, styles.currentPositionPin]} testID="current-position-pin" />
           </ViewAnnotation>
         )}
         {hazards?.map((hazard) => (
