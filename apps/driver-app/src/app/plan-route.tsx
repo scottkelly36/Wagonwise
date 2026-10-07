@@ -116,7 +116,10 @@ export default function PlanRouteScreen() {
   const corridor = [effectiveOrigin, destination].filter((p): p is MapPoint => p !== undefined);
   const nearbyHazards = useNearbyHazards(corridor, NEARBY_RADIUS_M);
 
-  const selectedProfile = profiles?.find((p) => p.id === profileId);
+  // With exactly one saved vehicle there is nothing to choose, so it is already selected.
+  const selectedProfile =
+    profiles?.find((p) => p.id === profileId) ?? (profiles?.length === 1 ? profiles[0] : undefined);
+  const noVehiclesYet = !profilesLoading && profiles !== undefined && profiles.length === 0;
   const pending =
     createVehicleProfile.isPending || createRoutePlan.isPending || previewRouteOptions.isPending;
   const canPlan =
@@ -124,6 +127,19 @@ export default function PlanRouteScreen() {
     destination !== undefined &&
     !pending &&
     (vehicleMode === 'manual' || selectedProfile !== undefined);
+
+  // The one thing still needed before a route can be planned, in the order a first-time driver does
+  // them, so the button is never just greyed out with no word on why.
+  const nextStepHint: string | undefined =
+    vehicleMode === 'profile' && noVehiclesYet
+      ? 'Step 1: add your vehicle above.'
+      : vehicleMode === 'profile' && selectedProfile === undefined
+        ? 'Step 1: choose your vehicle above.'
+        : effectiveOrigin === undefined
+          ? 'Waiting for your location. Or search for a start point, or tap the map.'
+          : destination === undefined
+            ? 'Now choose where you are going: search above, or tap the map.'
+            : undefined;
 
   function setDimensionField(field: keyof Omit<VehicleProfileFormValues, 'name'>) {
     return (text: string) => {
@@ -306,7 +322,32 @@ export default function PlanRouteScreen() {
             </TouchableOpacity>
           </View>
 
-          {vehicleMode === 'profile' ? (
+          {vehicleMode === 'profile' && noVehiclesYet ? (
+            <View style={styles.firstUse} testID="first-vehicle-card">
+              <View style={styles.firstUseHeader}>
+                <Icon name="truck-outline" size={28} color={colors.accent} />
+                <Text style={styles.firstUseTitle}>First, tell us about your lorry</Text>
+              </View>
+              <Text style={styles.firstUseBody}>
+                Its height, width, length and weight decide which roads and bridges are safe. Add it
+                once and it is remembered for every trip.
+              </Text>
+              <TouchableOpacity
+                style={styles.firstUseButton}
+                onPress={() => router.push('/profiles/new')}
+                accessibilityRole="button"
+                testID="add-first-vehicle-button"
+              >
+                <Text style={styles.firstUseButtonText}>Add my vehicle</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleSelectVehicleMode('manual')}
+                testID="first-vehicle-manual-link"
+              >
+                <Text style={styles.firstUseLink}>Or enter the details just for this trip</Text>
+              </TouchableOpacity>
+            </View>
+          ) : vehicleMode === 'profile' ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -322,12 +363,15 @@ export default function PlanRouteScreen() {
                 profiles.map((profile) => (
                   <TouchableOpacity
                     key={profile.id}
-                    style={[styles.chip, profile.id === profileId && styles.chipSelected]}
+                    style={[styles.chip, profile.id === selectedProfile?.id && styles.chipSelected]}
                     onPress={() => handleSelectProfile(profile.id)}
                     testID={`profile-chip-${profile.id}`}
                   >
                     <Text
-                      style={[styles.chipText, profile.id === profileId && styles.chipTextSelected]}
+                      style={[
+                        styles.chipText,
+                        profile.id === selectedProfile?.id && styles.chipTextSelected,
+                      ]}
                     >
                       {profile.name}
                     </Text>
@@ -393,6 +437,11 @@ export default function PlanRouteScreen() {
           </View>
 
           {displayedError !== undefined && <Text style={styles.error}>{displayedError}</Text>}
+          {nextStepHint !== undefined && !pending && (
+            <Text style={styles.nextStep} testID="plan-next-step">
+              {nextStepHint}
+            </Text>
+          )}
 
           {routeOptions === undefined ? (
             <TouchableOpacity
@@ -536,6 +585,30 @@ function createStyles(colors: ThemeColors) {
       color: colors.textOnAccent,
       fontWeight: '700',
     },
+    firstUse: {
+      backgroundColor: colors.accentSoft,
+      borderRadius: radius.card,
+      padding: 14,
+      gap: 10,
+    },
+    firstUseHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    firstUseTitle: { flex: 1, fontSize: 18, fontWeight: '800', color: colors.text },
+    firstUseBody: { fontSize: 15, color: colors.textSecondary },
+    firstUseButton: {
+      minHeight: 52,
+      borderRadius: radius.card,
+      backgroundColor: colors.accent,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    firstUseButtonText: { fontSize: 18, fontWeight: '700', color: colors.textOnAccent },
+    firstUseLink: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.accent,
+      textAlign: 'center',
+    },
+    nextStep: { fontSize: 15, fontWeight: '600', color: colors.textMuted, textAlign: 'center' },
     hint: {
       fontSize: 15,
       color: colors.textMuted,
