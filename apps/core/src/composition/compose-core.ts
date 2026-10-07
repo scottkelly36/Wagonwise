@@ -43,6 +43,7 @@ import {
 import { createDb, createPool } from '../platform/db.js';
 import { deterministicUuid } from '../platform/deterministic-id.js';
 import { OutboxDispatcher, type OutboxEventHandler } from '../platform/outbox-dispatcher.js';
+import { PeriodicTasks } from '../platform/periodic-task.js';
 import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
 import { PostgresUnitOfWork } from '../platform/postgres-unit-of-work.js';
 import { SystemClock } from '../platform/system-clock.js';
@@ -282,6 +283,26 @@ export function composeCore(
     staffAccessTokenVerifier:
       overrides.staffAccessTokenVerifier ?? lazyStaffVerifier(overrides.tokenSigner ?? tokenSigner),
   });
+  // Housekeeping on timers, started once the app (and its logger) exists. Both passes are safe to
+  // run twice, so a second core instance would do no harm.
+  const periodicTasks = new PeriodicTasks(app.log);
+  periodicTasks.start({
+    name: 'expire-hazards',
+    intervalMs: config.hazardExpiryIntervalMs,
+    run: async () => {
+      const expired = await hazards.expireDueHazards();
+      if (expired > 0) app.log.info({ expired }, 'expired hazards');
+    },
+  });
+  periodicTasks.start({
+    name: 'prune-job-positions',
+    intervalMs: config.positionSweepIntervalMs,
+    run: async () => {
+      const removed = await jobs.pruneOldPositions(config.jobPositionRetentionDays);
+      if (removed > 0) app.log.info({ removed }, 'deleted old job positions');
+    },
+  });
+
   identity.registerRoutes(app);
   routing.registerRoutes(app);
   hazards.registerRoutes(app);
@@ -295,6 +316,7 @@ export function composeCore(
   return {
     app,
     async close(): Promise<void> {
+      await periodicTasks.stop();
       await outboxDispatcher.stop();
       await app.close();
       await pool.end();

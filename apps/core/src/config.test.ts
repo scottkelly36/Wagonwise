@@ -30,6 +30,9 @@ describe('loadConfig', () => {
       resendApiKey: undefined,
       resendFromEmail: undefined,
       outboxPollIntervalMs: 2000,
+      hazardExpiryIntervalMs: 300_000,
+      positionSweepIntervalMs: 3_600_000,
+      jobPositionRetentionDays: 30,
       fuelPricePerLitreGBP: 1.6,
       staffSecretKey: undefined,
     });
@@ -80,6 +83,9 @@ describe('loadConfig', () => {
       resendApiKey: 'resend-secret-key',
       resendFromEmail: 'WagonWise <noreply@wagon-wise.co.uk>',
       outboxPollIntervalMs: 500,
+      hazardExpiryIntervalMs: 300_000,
+      positionSweepIntervalMs: 3_600_000,
+      jobPositionRetentionDays: 30,
       fuelPricePerLitreGBP: 1.75,
       staffSecretKey: undefined,
     });
@@ -227,6 +233,15 @@ describe('loadConfig', () => {
   it('rejects an empty-string RESEND_API_KEY or RESEND_FROM_EMAIL', () => {
     expect(() => loadConfig({ RESEND_API_KEY: '' })).toThrow(ConfigError);
     expect(() => loadConfig({ RESEND_FROM_EMAIL: '' })).toThrow(ConfigError);
+  });
+
+  it('defaults the housekeeping settings and rejects a retention under one day', () => {
+    const config = loadConfig({});
+    expect(config.hazardExpiryIntervalMs).toBe(300_000);
+    expect(config.positionSweepIntervalMs).toBe(3_600_000);
+    expect(config.jobPositionRetentionDays).toBe(30);
+    expect(loadConfig({ JOB_POSITION_RETENTION_DAYS: '7' }).jobPositionRetentionDays).toBe(7);
+    expect(() => loadConfig({ JOB_POSITION_RETENTION_DAYS: '0' })).toThrow(ConfigError);
   });
 
   it('defaults OUTBOX_POLL_INTERVAL_MS to 2000', () => {

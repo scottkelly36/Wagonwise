@@ -15,6 +15,13 @@ export class InMemoryJobPositionRepository implements JobPositionRepository {
     return Promise.resolve();
   }
 
+  deleteOlderThan(cutoff: Date): Promise<number> {
+    const keep = this.recorded.filter((p) => p.recordedAt >= cutoff);
+    const removed = this.recorded.length - keep.length;
+    this.recorded.splice(0, this.recorded.length, ...keep);
+    return Promise.resolve(removed);
+  }
+
   async latestForCompany(companyId: CompanyId): Promise<JobPosition[]> {
     const latest = new Map<string, JobPosition>();
     for (const position of this.recorded) {

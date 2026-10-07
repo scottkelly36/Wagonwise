@@ -415,6 +415,30 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
       });
       expect(await count()).toBe(0); // outside any scope: nothing
     });
+
+    it('the platform scope can delete positions older than a cutoff, across companies (the retention sweeper)', async () => {
+      const insertOld = (jobId: string) =>
+        sql`insert into jobs.job_positions (job_id, recorded_at, location)
+            values (${jobId}, '2025-01-01T09:00:00Z', ST_SetSRID(ST_MakePoint(-2.1, 54.9), 4326)::geography)`.execute(
+          db,
+        );
+      const deleteOld = async () => {
+        const { rows } = await sql<{ n: string }>`
+          with gone as (delete from jobs.job_positions where recorded_at < '2026-01-01T00:00:00Z' returning 1)
+          select count(*)::text as n from gone`.execute(db);
+        return Number(rows[0]?.n);
+      };
+
+      await scopes.run({ kind: 'platform' }, async () => {
+        await insertOld(ACME_JOB);
+        await insertOld(BETA_JOB);
+      });
+      // Outside any scope the sweeper would see, and delete, nothing: it must run as the platform.
+      expect(await deleteOld()).toBe(0);
+      await scopes.run({ kind: 'platform' }, async () => {
+        expect(await deleteOld()).toBe(2);
+      });
+    });
   });
 
   it('every table with a company_id has RLS', async () => {

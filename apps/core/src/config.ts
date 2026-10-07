@@ -95,6 +95,12 @@ const envSchema = z.object({
   // fast enough that a Phase 1 tester never notices the delay, without hammering the database
   // between polls.
   OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(100).default(2000),
+  // Housekeeping timers inside core (platform/periodic-task.ts). Expiring a hazard only changes how
+  // it is listed (routing already ignores an expired one), so every 5 minutes is plenty. Driver
+  // positions are personal data: kept 30 days, swept hourly.
+  HAZARD_EXPIRY_INTERVAL_MS: z.coerce.number().int().min(1000).default(300_000),
+  POSITION_SWEEP_INTERVAL_MS: z.coerce.number().int().min(1000).default(3_600_000),
+  JOB_POSITION_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
   // M9's rough fuel-cost estimate (docs/progress.md) — one app-wide constant, not a live price
   // feed. Default is a rough UK average diesel price; update it here as prices actually move,
   // rather than wiring up a live feed for a number that's explicitly a rough estimate anyway.
@@ -131,6 +137,9 @@ export interface Config {
   readonly resendApiKey: string | undefined;
   readonly resendFromEmail: string | undefined;
   readonly outboxPollIntervalMs: number;
+  readonly hazardExpiryIntervalMs: number;
+  readonly positionSweepIntervalMs: number;
+  readonly jobPositionRetentionDays: number;
   readonly fuelPricePerLitreGBP: number;
   /** Base64, 32 bytes, or undefined for a per-boot key (local dev only). */
   readonly staffSecretKey: string | undefined;
@@ -174,6 +183,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     resendApiKey: values.RESEND_API_KEY,
     resendFromEmail: values.RESEND_FROM_EMAIL,
     outboxPollIntervalMs: values.OUTBOX_POLL_INTERVAL_MS,
+    hazardExpiryIntervalMs: values.HAZARD_EXPIRY_INTERVAL_MS,
+    positionSweepIntervalMs: values.POSITION_SWEEP_INTERVAL_MS,
+    jobPositionRetentionDays: values.JOB_POSITION_RETENTION_DAYS,
     fuelPricePerLitreGBP: values.FUEL_PRICE_PER_LITRE_GBP,
     staffSecretKey: values.STAFF_SECRET_KEY,
   };

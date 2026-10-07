@@ -3,6 +3,7 @@ import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { HazardParser } from './application/ports/hazard-parser.js';
 import { isExpired, type GeoPoint, type HazardType } from './domain/hazard-report.js';
+import { expireHazards } from './application/expire-hazards.js';
 import { findNearbyHazards } from './application/find-nearby-hazards.js';
 import { assessReports } from './application/trust.js';
 import { AnthropicHazardParser } from './infrastructure/anthropic-hazard-parser.js';
@@ -77,6 +78,10 @@ export interface AvoidanceCandidate {
 
 export interface HazardsModule {
   registerRoutes(app: FastifyInstance): void;
+  /** Marks every temporary hazard past its expiry as expired, and says how many it did. Driven on a
+   *  timer by composition; routing was already safe without it (`isExpired()` is checked live), this
+   *  is what stops expired hazards showing as active on the map. */
+  expireDueHazards(): Promise<number>;
   /** Active, non-expired, blocking-type hazards within `radiusM` of a corridor — the on-route
    *  detection query (design doc §5) as consumed by routing's `HazardAvoidanceQuery` adapter.
    *  Filters out advisory types and anything not genuinely active *right now* (`isExpired()`,
@@ -127,6 +132,10 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
   return {
     registerRoutes(app: FastifyInstance): void {
       registerHazardsRoutes(app, routeDeps);
+    },
+
+    async expireDueHazards(): Promise<number> {
+      return (await expireHazards({ repo, clock: deps.clock })).length;
     },
 
     async findAvoidanceCandidates(
