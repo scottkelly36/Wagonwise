@@ -69,7 +69,7 @@ export default function MoreScreen() {
   function handleDeleteAccount(): void {
     Alert.alert(
       'Delete your account?',
-      'This removes your account and everything tied to it. This cannot be undone.',
+      'This removes your sign-in, vehicle profiles, routes and feedback, and signs you out. Hazard reports you filed stay, with nothing linking them to you, and a company keeps its own job records. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

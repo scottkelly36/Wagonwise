@@ -15,4 +15,9 @@ export class PostgresFeedbackNoteRepository implements FeedbackNoteRepository {
       values (${note.id}, ${note.driverId}, ${note.message}, ${note.appVersion}, ${note.deviceInfo}, ${note.createdAt})
     `.execute(this.db);
   }
+
+  /** Deletes every note this driver sent (account deletion). */
+  async deleteAllForDriver(driverId: string): Promise<void> {
+    await sql`delete from feedback.notes where driver_id = ${driverId}`.execute(this.db);
+  }
 }

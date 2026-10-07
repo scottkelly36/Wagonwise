@@ -5,6 +5,7 @@ import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { InMemoryUnitOfWork } from '../../../shared/testing/in-memory-unit-of-work.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { InviteCode } from '../domain/invite-code.js';
+import { RecordingDriverDataEraser } from '../application/testing/recording-driver-data-eraser.js';
 import { InMemoryDeviceRepository } from '../application/testing/in-memory-device-repository.js';
 import { InMemoryDriverRepository } from '../application/testing/in-memory-driver-repository.js';
 import { InMemoryInviteCodeRepository } from '../application/testing/in-memory-invite-code-repository.js';
@@ -77,7 +78,13 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
     revokeSession: { sessionRepo, clock },
     registerDevice: { repo: deviceRepo, clock, ids },
     giveConsent: { driverRepo, clock },
-    deleteAccount: { driverRepo, sessionRepo, deviceRepo, clock },
+    deleteAccount: {
+      driverRepo,
+      sessionRepo,
+      deviceRepo,
+      dataEraser: new RecordingDriverDataEraser(),
+      clock,
+    },
     createInviteCode: {
       repo: inviteCodeRepo,
       generator: new SequentialInviteCodeGenerator(),

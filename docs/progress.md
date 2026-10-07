@@ -36,11 +36,9 @@ history file keeps the record.
 1. **Drive-test the spoken directions** (P2-M10) and the 1.2.1 microphone fix on a real route. Both are live
    (core deployed with migration 0035; app 1.2.1 on Play internal testing) but only tested against a recorded
    route and by hand so far. Announcement distances are constants in `lib/turn-guidance.ts`.
-2. **Privacy gaps to close before the pilot** (found while writing the P2-M9 documents): account deletion scrubs the
-   sign-in and revokes sessions and devices but leaves vehicle profiles, routes and trips in place (the consent screen
-   says "everything tied to it"); route plans and trips have no retention rule even though they hold start points;
-   proof-of-delivery photos have none either. Fix the system or the wording. Also: name the transfer safeguard for
-   each outside-UK service, register with the ICO, and do a DPIA for driver location tracking.
+2. **Privacy gaps still open before the pilot**: proof-of-delivery photos have no retention rule (agree one with the
+   pilot company); name the transfer safeguard for each outside-UK service; register with the ICO; do a DPIA for driver
+   location tracking.
 3. The restriction-data audit around Hexham, onboarding the first driver, and P2-M8 (reports, CSV export). Phase 3
    waits for pilot data.
 
@@ -136,6 +134,14 @@ live map, moderation, reports).
   `valhalla-routing-engine.golden-test.ts`.
 
 ## Recent log
+
+- 2026-10-07: **real account deletion, and route retention.** Deleting an account now also deletes the driver's vehicle
+  profiles, route plans, trips, reroute alerts and feedback, and ends their company links and removes unanswered
+  invitations to their email or phone (`identity`'s `DriverDataEraser`, supplied by composition over routing, feedback
+  and fleet). It erases first and scrubs the account last, so a failure part-way is simply retried. Reports they filed
+  stay, linked only to the scrubbed account; job records stay with the company. Route plans and ended trips older than
+  30 days (`ROUTE_RETENTION_DAYS`) are deleted by a timer. The consent and delete-account wording in the app now say
+  exactly this (JS only). Core deploy needed; no migration.
 
 - 2026-10-07: **P2-M9 documents drafted** (Docs artifacts, not in the repo): a privacy notice, a data processing
   agreement and a pilot onboarding checklist, plus a driver install guide. All written from what the system does today,

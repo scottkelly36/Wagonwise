@@ -101,6 +101,9 @@ const envSchema = z.object({
   HAZARD_EXPIRY_INTERVAL_MS: z.coerce.number().int().min(1000).default(300_000),
   POSITION_SWEEP_INTERVAL_MS: z.coerce.number().int().min(1000).default(3_600_000),
   JOB_POSITION_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
+  // A planned route holds where the driver set off from, so route plans (with their ended trips) are
+  // kept no longer than this. Swept on the same interval as the positions.
+  ROUTE_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
   // M9's rough fuel-cost estimate (docs/progress.md) — one app-wide constant, not a live price
   // feed. Default is a rough UK average diesel price; update it here as prices actually move,
   // rather than wiring up a live feed for a number that's explicitly a rough estimate anyway.
@@ -140,6 +143,7 @@ export interface Config {
   readonly hazardExpiryIntervalMs: number;
   readonly positionSweepIntervalMs: number;
   readonly jobPositionRetentionDays: number;
+  readonly routeRetentionDays: number;
   readonly fuelPricePerLitreGBP: number;
   /** Base64, 32 bytes, or undefined for a per-boot key (local dev only). */
   readonly staffSecretKey: string | undefined;
@@ -186,6 +190,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     hazardExpiryIntervalMs: values.HAZARD_EXPIRY_INTERVAL_MS,
     positionSweepIntervalMs: values.POSITION_SWEEP_INTERVAL_MS,
     jobPositionRetentionDays: values.JOB_POSITION_RETENTION_DAYS,
+    routeRetentionDays: values.ROUTE_RETENTION_DAYS,
     fuelPricePerLitreGBP: values.FUEL_PRICE_PER_LITRE_GBP,
     staffSecretKey: values.STAFF_SECRET_KEY,
   };

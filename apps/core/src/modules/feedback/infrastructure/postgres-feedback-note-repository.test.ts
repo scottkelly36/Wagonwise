@@ -62,4 +62,37 @@ describe('PostgresFeedbackNoteRepository', () => {
     });
     expect(rows[0]?.created_at).toEqual(n.createdAt);
   });
+
+  it('deletes every note a driver sent, and only that driver’s', async () => {
+    const repo = new PostgresFeedbackNoteRepository(db);
+    const mine = makeId<'DriverId'>('bbbbbbbb-0000-4000-8000-00000000000a');
+    const theirs = makeId<'DriverId'>('bbbbbbbb-0000-4000-8000-00000000000b');
+    await repo.save(
+      note({
+        id: makeId<'FeedbackNoteId'>('cccccccc-0000-4000-8000-000000000001'),
+        driverId: mine,
+      }),
+    );
+    await repo.save(
+      note({
+        id: makeId<'FeedbackNoteId'>('cccccccc-0000-4000-8000-000000000002'),
+        driverId: mine,
+      }),
+    );
+    await repo.save(
+      note({
+        id: makeId<'FeedbackNoteId'>('cccccccc-0000-4000-8000-000000000003'),
+        driverId: theirs,
+      }),
+    );
+
+    await repo.deleteAllForDriver(mine);
+
+    const { rows } = await pool.query<{ driver_id: string }>(
+      'select driver_id from feedback.notes where driver_id in ($1, $2)',
+      [mine, theirs],
+    );
+    expect(rows.map((r) => r.driver_id)).toEqual([theirs]);
+    await expect(repo.deleteAllForDriver(mine)).resolves.toBeUndefined();
+  });
 });

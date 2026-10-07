@@ -33,6 +33,7 @@ describe('loadConfig', () => {
       hazardExpiryIntervalMs: 300_000,
       positionSweepIntervalMs: 3_600_000,
       jobPositionRetentionDays: 30,
+      routeRetentionDays: 30,
       fuelPricePerLitreGBP: 1.6,
       staffSecretKey: undefined,
     });
@@ -86,6 +87,7 @@ describe('loadConfig', () => {
       hazardExpiryIntervalMs: 300_000,
       positionSweepIntervalMs: 3_600_000,
       jobPositionRetentionDays: 30,
+      routeRetentionDays: 30,
       fuelPricePerLitreGBP: 1.75,
       staffSecretKey: undefined,
     });
@@ -240,6 +242,8 @@ describe('loadConfig', () => {
     expect(config.hazardExpiryIntervalMs).toBe(300_000);
     expect(config.positionSweepIntervalMs).toBe(3_600_000);
     expect(config.jobPositionRetentionDays).toBe(30);
+    expect(config.routeRetentionDays).toBe(30);
+    expect(() => loadConfig({ ROUTE_RETENTION_DAYS: '0' })).toThrow(ConfigError);
     expect(loadConfig({ JOB_POSITION_RETENTION_DAYS: '7' }).jobPositionRetentionDays).toBe(7);
     expect(() => loadConfig({ JOB_POSITION_RETENTION_DAYS: '0' })).toThrow(ConfigError);
   });

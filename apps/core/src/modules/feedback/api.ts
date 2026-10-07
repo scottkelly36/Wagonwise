@@ -17,6 +17,8 @@ export interface FeedbackModuleDeps {
 
 export interface FeedbackModule {
   registerRoutes(app: FastifyInstance): void;
+  /** Deletes every note a driver sent, for account deletion. Safe to run twice. */
+  eraseDriverData(driverId: string): Promise<void>;
 }
 
 /**
@@ -35,5 +37,6 @@ export function createFeedbackModule(deps: FeedbackModuleDeps): FeedbackModule {
     registerRoutes(app: FastifyInstance): void {
       registerFeedbackRoutes(app, routeDeps);
     },
+    eraseDriverData: (driverId) => repo.deleteAllForDriver(driverId),
   };
 }

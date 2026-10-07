@@ -5,6 +5,7 @@ import type { Device } from '../domain/device.js';
 import type { Driver } from '../domain/driver.js';
 import type { Session } from '../domain/session.js';
 import { deleteAccount, type DeleteAccountDeps } from './delete-account.js';
+import { RecordingDriverDataEraser } from './testing/recording-driver-data-eraser.js';
 import { InMemoryDeviceRepository } from './testing/in-memory-device-repository.js';
 import { InMemoryDriverRepository } from './testing/in-memory-driver-repository.js';
 import { InMemorySessionRepository } from './testing/in-memory-session-repository.js';
@@ -50,6 +51,7 @@ function buildDeps(overrides: Partial<DeleteAccountDeps> = {}): DeleteAccountDep
     driverRepo: new InMemoryDriverRepository(),
     sessionRepo: new InMemorySessionRepository(),
     deviceRepo: new InMemoryDeviceRepository(),
+    dataEraser: new RecordingDriverDataEraser(),
     clock: new FakeClock(now),
     ...overrides,
   };
@@ -105,6 +107,40 @@ describe('deleteAccount', () => {
 
     expect((await sessionRepo.findById(first.id))?.revokedAt).toEqual(now);
     expect((await sessionRepo.findById(second.id))?.revokedAt).toEqual(now);
+  });
+
+  it('erases the data held elsewhere, using the identifier from before it is scrubbed', async () => {
+    const driverRepo = new InMemoryDriverRepository();
+    const d = driver();
+    await driverRepo.save(d);
+    const dataEraser = new RecordingDriverDataEraser();
+
+    await deleteAccount(buildDeps({ driverRepo, dataEraser }), { driverId: d.id });
+
+    expect(dataEraser.erased).toEqual([{ driverId: d.id, identifier: 'driver1@example.com' }]);
+  });
+
+  it('leaves the account intact when erasing fails, so the whole deletion can be retried', async () => {
+    const driverRepo = new InMemoryDriverRepository();
+    const sessionRepo = new InMemorySessionRepository();
+    const d = driver();
+    const session = activeSession();
+    await driverRepo.save(d);
+    await sessionRepo.save(session);
+    const dataEraser = new RecordingDriverDataEraser();
+    dataEraser.failWith = new Error('database unavailable');
+
+    await expect(
+      deleteAccount(buildDeps({ driverRepo, sessionRepo, dataEraser }), { driverId: d.id }),
+    ).rejects.toThrow('database unavailable');
+    expect((await driverRepo.findById(d.id))?.deletedAt).toBeUndefined();
+    expect((await sessionRepo.findById(session.id))?.revokedAt).toBeNull();
+
+    // The retry: the failure is gone, and now the whole deletion goes through.
+    dataEraser.failWith = undefined;
+    await deleteAccount(buildDeps({ driverRepo, sessionRepo, dataEraser }), { driverId: d.id });
+    expect((await driverRepo.findById(d.id))?.deletedAt).toEqual(now);
+    expect(dataEraser.erased).toHaveLength(1);
   });
 
   it('is idempotent: deleting an already-deleted account succeeds without re-anonymizing', async () => {

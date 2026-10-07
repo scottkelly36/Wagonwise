@@ -21,10 +21,12 @@ import { PostgresDriverRepository } from './infrastructure/postgres-driver-repos
 import { PostgresInviteCodeRepository } from './infrastructure/postgres-invite-code-repository.js';
 import { PostgresOtpRepository } from './infrastructure/postgres-otp-repository.js';
 import { PostgresSessionRepository } from './infrastructure/postgres-session-repository.js';
+import type { DriverDataEraser } from './application/ports/driver-data-eraser.js';
 import { registerIdentityRoutes, type IdentityRouteDeps } from './interface/routes.js';
 
 // Re-exported so composition/ can type its overrides without reaching past this facade into
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
+export type { DriverDataEraser } from './application/ports/driver-data-eraser.js';
 export type { OtpSender } from './application/ports/otp-sender.js';
 export type { TokenSigner } from './application/ports/token-signer.js';
 export type { PlatformStaffDirectory } from './application/ports/platform-staff.js';
@@ -56,6 +58,9 @@ export interface IdentityModuleDeps {
   /** Is a staff member a WagonWise admin? For the invite-code screen (P2-M1.12c). Supplied by
    *  composition over `companies`' `getStaffCaller`. */
   readonly platformStaff: PlatformStaffDirectory;
+  /** Removes a driver's data held by the other modules when they delete their account. Supplied by
+   *  composition over those modules (they are built after identity, so it is called late). */
+  readonly driverDataEraser: DriverDataEraser;
   /** Both set wires `ClickSendOtpSender` for phone-identifier OTPs; either unset falls back to
    *  the local-dev `ConsoleOtpSender` for that channel — same "real adapter behind a config
    *  toggle" precedent as hazards' `anthropicApiKey` (hazards/api.ts). */
@@ -150,7 +155,13 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     revokeSession: { sessionRepo, clock: deps.clock },
     registerDevice: { repo: deviceRepo, clock: deps.clock, ids: deps.ids },
     giveConsent: { driverRepo, clock: deps.clock },
-    deleteAccount: { driverRepo, sessionRepo, deviceRepo, clock: deps.clock },
+    deleteAccount: {
+      driverRepo,
+      sessionRepo,
+      deviceRepo,
+      dataEraser: deps.driverDataEraser,
+      clock: deps.clock,
+    },
     createInviteCode: {
       repo: inviteCodeRepo,
       generator: inviteCodeGenerator,
