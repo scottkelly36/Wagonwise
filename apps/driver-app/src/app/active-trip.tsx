@@ -1,6 +1,6 @@
 import { useKeepAwake } from 'expo-keep-awake';
 import { Redirect, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,7 +16,8 @@ import { OpenSettingsButton } from '../components/open-settings-button';
 import { PositionSharingChip } from '../components/position-sharing-chip';
 import { isSharingPosition } from '../lib/job-position-reporting';
 import { TurnBanner } from '../components/turn-banner';
-import { RouteMap } from '../components/route-map';
+import { RouteMap, type RouteMapHandle } from '../components/route-map';
+import { RoundButton } from '../components/ui/round-button';
 import { useHazardVoiceWarnings } from '../hooks/use-hazard-voice-warnings';
 import { useLiveLocation } from '../hooks/use-live-location';
 import { useQuickVoiceReport } from '../hooks/use-quick-voice-report';
@@ -147,6 +148,10 @@ export default function ActiveTripScreen() {
     () => nearbyParking.data?.map((s) => ({ id: s.id, location: s.location })),
     [nearbyParking.data],
   );
+  // Whether the map is following the driver. When they move it away, a Recenter button appears; it is
+  // gone again as soon as the map is following. (The map's own small button sat under the turn card.)
+  const mapRef = useRef<RouteMapHandle>(null);
+  const [following, setFollowing] = useState(true);
   const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
   const selectedParking = nearbyParking.data?.find((s) => s.id === selectedParkingId);
   const nearbyHazardsData = nearbyHazards.data;
@@ -278,6 +283,9 @@ export default function ActiveTripScreen() {
     <View style={styles.container}>
       <View style={styles.mapArea}>
         <RouteMap
+          ref={mapRef}
+          onFollowingChange={setFollowing}
+          hideRecenterButton
           origin={plan.origin}
           destination={plan.destination}
           routeLine={routeLine}
@@ -305,6 +313,23 @@ export default function ActiveTripScreen() {
             }}
           />
         </View>
+
+        {!following && (
+          <View
+            style={[
+              styles.recenter,
+              { top: insets.top + (guidance.next || guidance.offRoute ? 96 : 8) },
+            ]}
+            pointerEvents="box-none"
+          >
+            <RoundButton
+              icon="crosshairs-gps"
+              label="Centre the map on me"
+              onPress={() => mapRef.current?.recenter()}
+              testID="recenter-button"
+            />
+          </View>
+        )}
 
         {eta && (
           <View
@@ -528,6 +553,8 @@ function createStyles(colors: ThemeColors) {
       paddingTop: 16,
       gap: 12,
     },
+    // Under the turn card, on the right, clear of the ETA card on the left.
+    recenter: { position: 'absolute', right: 16 },
     turnBanner: { position: 'absolute', left: 16, right: 16 },
     etaCard: {
       ...cardStyle(colors),
