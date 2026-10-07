@@ -20,6 +20,9 @@ interface Props {
   /** The tapped spot, or undefined when the drawer is closed. */
   readonly spot: SafeParkingSpotDto | undefined;
   readonly onClose: () => void;
+  /** Take the driver there. Absent (or `busy`/`disabled`) hides or greys the button. */
+  readonly onNavigate?: (spot: SafeParkingSpotDto) => void;
+  readonly navigateDisabled?: boolean;
 }
 
 /**
@@ -27,7 +30,7 @@ interface Props {
  * ordinary `Modal` outside the map's view tree). The spot is already in the list the map drew its
  * marker from, so there is nothing to fetch: it shows the driver's note and when it was reported.
  */
-export function ParkingSpotDrawer({ spot, onClose }: Props) {
+export function ParkingSpotDrawer({ spot, onClose, onNavigate, navigateDisabled = false }: Props) {
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -54,6 +57,18 @@ export function ParkingSpotDrawer({ spot, onClose }: Props) {
           {spot?.note !== undefined && <Text style={styles.detail}>{spot.note}</Text>}
           {spot !== undefined && (
             <Text style={styles.meta}>Reported {formatDateTime(spot.reportedAt)}</Text>
+          )}
+
+          {spot !== undefined && onNavigate && (
+            <TouchableOpacity
+              style={[styles.navigateButton, navigateDisabled && styles.disabled]}
+              disabled={navigateDisabled}
+              onPress={() => onNavigate(spot)}
+              testID="parking-navigate-button"
+            >
+              <Icon name="navigation-variant" size={22} color={colors.textOnAccent} />
+              <Text style={styles.navigateText}>Take me there</Text>
+            </TouchableOpacity>
           )}
 
           <TouchableOpacity
@@ -111,8 +126,20 @@ function createStyles(colors: ThemeColors) {
     status: { fontSize: 14, color: colors.textMuted, textTransform: 'uppercase' },
     detail: { fontSize: 17, color: colors.textSecondary, marginTop: 8 },
     meta: { fontSize: 14, color: colors.textDim, marginTop: 8 },
-    closeButton: {
+    navigateButton: {
       marginTop: 20,
+      minHeight: 52,
+      borderRadius: 16,
+      backgroundColor: colors.accent,
+      flexDirection: 'row',
+      gap: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    navigateText: { fontSize: 18, fontWeight: '700', color: colors.textOnAccent },
+    disabled: { opacity: 0.5 },
+    closeButton: {
+      marginTop: 12,
       minHeight: 52,
       borderRadius: 16,
       backgroundColor: colors.surface,

@@ -8,6 +8,8 @@ import { useNearbyHazards } from '../../api/use-hazards';
 import { useCurrentJob } from '../../api/use-jobs';
 import { useNearbySafeParkingSpots } from '../../api/use-parking';
 import { HazardDetailDrawer } from '../../components/hazard-detail-drawer';
+import { useNavigateToPlace } from '../../hooks/use-navigate-to-spot';
+import { useDrivingProfileId } from '../../hooks/use-parking-drive-times';
 import { ParkingSpotDrawer } from '../../components/parking-spot-drawer';
 import { JobCard } from '../../components/job-card';
 import { RouteMap, type RouteMapHandle } from '../../components/route-map';
@@ -55,6 +57,8 @@ export default function HomeScreen() {
     location.point ? [location.point] : [],
     NEARBY_RADIUS_M,
   );
+  const drivingProfileId = useDrivingProfileId();
+  const navigateToSpot = useNavigateToPlace(drivingProfileId);
   const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
   const selectedParking = nearbyParkingSpots.data?.find((s) => s.id === selectedParkingId);
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
@@ -110,7 +114,12 @@ export default function HomeScreen() {
         }
       />
 
-      <ParkingSpotDrawer spot={selectedParking} onClose={() => setSelectedParkingId(undefined)} />
+      <ParkingSpotDrawer
+        spot={selectedParking}
+        onClose={() => setSelectedParkingId(undefined)}
+        onNavigate={(spot) => navigateToSpot.mutate(spot.location)}
+        navigateDisabled={navigateToSpot.isPending || drivingProfileId === undefined}
+      />
 
       <HazardDetailDrawer
         hazardId={selectedHazardId}
@@ -140,6 +149,12 @@ export default function HomeScreen() {
           active={following}
           onPress={() => mapRef.current?.recenter()}
           testID="recenter-button"
+        />
+        <RoundButton
+          icon="parking"
+          label="Nearby parking"
+          onPress={() => router.push('/nearby-parking')}
+          testID="nearby-parking-button"
         />
         <RoundButton
           icon="layers-outline"
