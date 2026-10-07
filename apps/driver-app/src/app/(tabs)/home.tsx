@@ -8,6 +8,7 @@ import { useNearbyHazards } from '../../api/use-hazards';
 import { useCurrentJob } from '../../api/use-jobs';
 import { useNearbySafeParkingSpots } from '../../api/use-parking';
 import { HazardDetailDrawer } from '../../components/hazard-detail-drawer';
+import { ParkingSpotDrawer } from '../../components/parking-spot-drawer';
 import { JobCard } from '../../components/job-card';
 import { RouteMap, type RouteMapHandle } from '../../components/route-map';
 import { ACTION_COLOURS, ActionCard } from '../../components/ui/action-card';
@@ -54,6 +55,8 @@ export default function HomeScreen() {
     location.point ? [location.point] : [],
     NEARBY_RADIUS_M,
   );
+  const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
+  const selectedParking = nearbyParkingSpots.data?.find((s) => s.id === selectedParkingId);
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const [following, setFollowing] = useState(true);
   // Which kinds of marker the map shows. All on until a driver turns something off to declutter.
@@ -90,6 +93,7 @@ export default function HomeScreen() {
             : undefined
         }
         onHazardPress={setSelectedHazardId}
+        onParkingSpotPress={setSelectedParkingId}
         congestion={
           showTraffic
             ? nearbyCongestion.data?.map((c) => ({
@@ -105,6 +109,8 @@ export default function HomeScreen() {
             : undefined
         }
       />
+
+      <ParkingSpotDrawer spot={selectedParking} onClose={() => setSelectedParkingId(undefined)} />
 
       <HazardDetailDrawer
         hazardId={selectedHazardId}
