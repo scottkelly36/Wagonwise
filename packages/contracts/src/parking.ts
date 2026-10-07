@@ -20,6 +20,9 @@ export type SafeParkingSpotDto = z.infer<typeof safeParkingSpotSchema>;
 /** `id` is client-generated (design doc's offline-queue idempotency pattern, mirrors hazards'/
  *  congestion's own report request schemas) — the reporter is whoever the caller's access token
  *  says they are, taken from the verified token, not this schema. */
+/** `DELETE /parking/spots/:id`: a driver taking back a spot they just marked. */
+export const safeParkingSpotIdParamsSchema = z.object({ id: z.uuid() });
+
 export const reportSafeParkingSpotRequestSchema = z.object({
   id: safeParkingSpotIdSchema,
   location: geoPointSchema,

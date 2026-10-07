@@ -27,6 +27,8 @@ export type QuickVoiceReportState =
     }
   | { readonly phase: 'filed'; readonly kind: QuickReportKind }
   | { readonly phase: 'not-filed'; readonly kind: QuickReportKind }
+  // A parking spot the driver marked and then took back with Undo.
+  | { readonly phase: 'undone'; readonly kind: QuickReportKind }
   | { readonly phase: 'error'; readonly message: string };
 
 export type QuickVoiceReportEvent =
@@ -39,6 +41,7 @@ export type QuickVoiceReportEvent =
   | { readonly type: 'confirmed' }
   | { readonly type: 'declined' }
   | { readonly type: 'file-succeeded' }
+  | { readonly type: 'undone' }
   | { readonly type: 'file-failed'; readonly message: string }
   // The microphone can't be used at all (permission off) — there's no way to confirm, so stop.
   | { readonly type: 'capture-failed'; readonly message: string }
@@ -61,6 +64,8 @@ export function outcomeMessage(state: QuickVoiceReportState): string | undefined
       return state.kind === 'traffic' ? 'Traffic reported.' : 'Parking marked.';
     case 'not-filed':
       return 'Not reported.';
+    case 'undone':
+      return 'Parking removed.';
     case 'error':
       return state.message;
     default:
@@ -87,8 +92,7 @@ export function activeKind(state: QuickVoiceReportState): QuickReportKind | unde
 
 /**
  * Pure state machine for the one-tap Traffic and Mark parking voice reports. Traffic: ask the
- * wait → listen → read back → listen for yes/no → file. Parking: read back → listen for yes/no →
- * file. `use-quick-voice-report.ts` drives it from real speech, recognition and network events.
+ * wait → listen → read back → listen for yes/no → file. Parking: filed at once, with an Undo. `use-quick-voice-report.ts` drives it from real speech, recognition and network events.
  *
  * Only a clear "yes" files anything (AGENTS.md: voice reports are never filed without driver
  * confirmation). A "no", an unclear reply, silence, or a capture failure at the confirm step all
@@ -102,9 +106,12 @@ export function quickVoiceReportReducer(
   switch (event.type) {
     case 'start':
       if (isBusy(state) || isListening(state)) return state;
+      // Parking is one tap: no spoken yes/no (in a noisy cab it was the step that failed, and a
+      // spot marked by mistake costs far less than a wrong hazard). It is filed at once, and the
+      // screen offers Undo for a few seconds.
       return event.kind === 'traffic'
         ? { phase: 'asking-wait' }
-        : { phase: 'confirming', kind: 'parking', prompt: confirmationPrompt('parking') };
+        : { phase: 'filing', kind: 'parking' };
     case 'question-spoken':
       return state.phase === 'asking-wait' ? { phase: 'capturing-wait' } : state;
     case 'wait-heard': {
@@ -129,6 +136,8 @@ export function quickVoiceReportReducer(
       return state.phase === 'capturing-confirmation'
         ? { phase: 'not-filed', kind: state.kind }
         : state;
+    case 'undone':
+      return state.phase === 'filed' ? { phase: 'undone', kind: state.kind } : state;
     case 'file-succeeded':
       return state.phase === 'filing' ? { phase: 'filed', kind: state.kind } : state;
     case 'file-failed':

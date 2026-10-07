@@ -29,6 +29,9 @@ import { cardStyle, radius } from '../../theme/tokens';
 // "Within x amount of distance from you" (design decision, 2026-09-24) — a driver stood still or
 // walking to the cab doesn't need a country-wide hazard feed, just what's actually around them.
 const NEARBY_RADIUS_M = 5_000;
+// Parking is looked for further out than hazards and traffic: a driver wants to see where the nearest
+// safe place to stop is, and it is rarely within a few streets.
+const NEARBY_PARKING_RADIUS_M = 20_000;
 
 // Town-level, so a driver sees the streets and the next junction, not a street-by-street close-up.
 const HOME_MAP_ZOOM = 14;
@@ -58,7 +61,7 @@ export default function HomeScreen() {
   );
   const nearbyParkingSpots = useNearbySafeParkingSpots(
     location.point ? [location.point] : [],
-    NEARBY_RADIUS_M,
+    NEARBY_PARKING_RADIUS_M,
   );
   const drivingProfileId = useDrivingProfileId();
   const navigateToSpot = useNavigateToPlace(drivingProfileId);

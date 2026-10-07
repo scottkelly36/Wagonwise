@@ -1,6 +1,7 @@
 import {
   findNearbySafeParkingSpotsRequestSchema,
   reportSafeParkingSpotRequestSchema,
+  safeParkingSpotIdParamsSchema,
 } from '@wagonwise/contracts/parking';
 import type { FastifyInstance } from 'fastify';
 import type { AccessTokenVerifier } from './auth/access-token-verifier.js';
@@ -28,6 +29,23 @@ export function registerParkingRoutes(app: FastifyInstance, deps: ParkingRouteDe
       body: parsed.data,
       authorization: `Bearer ${token}`,
     });
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.delete('/parking/spots/:id', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const params = safeParkingSpotIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request(
+      'DELETE',
+      `/parking/spots/${params.data.id}`,
+      request.id,
+      { authorization: `Bearer ${token}` },
+    );
     return reply.status(core.status).send(core.body);
   });
 

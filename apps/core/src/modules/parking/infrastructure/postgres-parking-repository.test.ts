@@ -85,4 +85,22 @@ describe('PostgresParkingRepository', () => {
       expect(found).toEqual([s]);
     });
   });
+
+  describe('deleteOwned', () => {
+    it('deletes the reporter’s own spot, and no one else’s', async () => {
+      const mine = spot({
+        id: makeId<'SafeParkingSpotId'>('99999999-9999-4999-8999-999999999991'),
+        location: { lat: 52.1, lon: -1.1 },
+      });
+      await repo().save(mine);
+      const stranger = makeId<'DriverId'>('33333333-3333-4333-8333-333333333333');
+
+      expect(await repo().deleteOwned(mine.id, stranger)).toBe(false);
+      expect(await repo().findNearbyLine([mine.location], 50)).toHaveLength(1);
+
+      expect(await repo().deleteOwned(mine.id, mine.reporterId)).toBe(true);
+      expect(await repo().findNearbyLine([mine.location], 50)).toEqual([]);
+      expect(await repo().deleteOwned(mine.id, mine.reporterId)).toBe(false);
+    });
+  });
 });

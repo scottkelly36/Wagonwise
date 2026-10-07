@@ -1,9 +1,14 @@
 import {
   findNearbySafeParkingSpotsRequestSchema,
   reportSafeParkingSpotRequestSchema,
+  safeParkingSpotIdParamsSchema,
 } from '@wagonwise/contracts/parking';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
+import {
+  deleteSafeParkingSpot,
+  type DeleteSafeParkingSpotDeps,
+} from '../application/delete-safe-parking-spot.js';
 import {
   findNearbySafeParkingSpots,
   type FindNearbyParkingDeps,
@@ -17,6 +22,7 @@ import { statusFor } from './error-mapping.js';
 export interface ParkingRouteDeps {
   readonly reportSafeParkingSpot: ReportSafeParkingSpotDeps;
   readonly findNearbyParking: FindNearbyParkingDeps;
+  readonly deleteSafeParkingSpot: DeleteSafeParkingSpotDeps;
 }
 
 /** Duplicated from every other module's own `requireDriverId` rather than shared — a module is
@@ -55,6 +61,26 @@ export function registerParkingRoutes(app: FastifyInstance, deps: ParkingRouteDe
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(200).send(result.value);
+  });
+
+  // A driver taking back a spot they just marked (the Undo after a one-tap voice report). Only the
+  // reporter's own spot can be deleted; anyone else's looks the same as one that does not exist.
+  app.delete('/parking/spots/:id', async (request, reply) => {
+    const reporterId = requireDriverId(request, reply);
+    if (reporterId === undefined) return reply;
+
+    const params = safeParkingSpotIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await deleteSafeParkingSpot(deps.deleteSafeParkingSpot, {
+      id: makeId<'SafeParkingSpotId'>(params.data.id),
+      reporterId,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(204).send();
   });
 
   // No requireDriverId call — reading parking spots for the map isn't scoped to a reporter, though

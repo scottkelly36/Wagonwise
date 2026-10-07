@@ -1,4 +1,5 @@
 import type {
+  DriverId,
   GeoPoint,
   SafeParkingSpot,
   SafeParkingSpotId,
@@ -22,6 +23,13 @@ export class InMemoryParkingRepository implements ParkingRepository {
       .filter((spot) => points.some((p) => metresBetween(spot.location, p) <= radiusM))
       .sort((a, b) => b.reportedAt.getTime() - a.reportedAt.getTime());
     return Promise.resolve(matches);
+  }
+
+  deleteOwned(id: SafeParkingSpotId, reporterId: DriverId): Promise<boolean> {
+    const spot = this.#byId.get(id);
+    if (spot === undefined || spot.reporterId !== reporterId) return Promise.resolve(false);
+    this.#byId.delete(id);
+    return Promise.resolve(true);
   }
 
   save(spot: SafeParkingSpot): Promise<void> {
