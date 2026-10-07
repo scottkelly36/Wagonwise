@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Camera,
+  type CameraRef,
   GeoJSONSource,
   Images,
   Layer,
@@ -12,7 +13,7 @@ import {
   type ViewStateChangeEvent,
 } from '@maplibre/maplibre-react-native';
 import type { HazardTypeDto } from '@wagonwise/contracts/hazards';
-import { useImperativeHandle, useMemo, useState, type Ref } from 'react';
+import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
 import type { LayoutChangeEvent, NativeSyntheticEvent } from 'react-native';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -85,6 +86,9 @@ interface Props {
   /** Which way the driver is facing, degrees clockwise from north. When known, the position is drawn
    *  as an arrow pointing that way instead of a plain dot. */
   readonly currentHeading?: number | undefined;
+  /** The direction of travel from GPS, only while moving; undefined when stopped. While navigating the
+   *  map turns to this and keeps its last value when it is undefined, so it does not spin when stopped. */
+  readonly currentCourse?: number | undefined;
   /** Turn-by-turn driving (the trip screen): while following, the map turns to put the direction of
    *  travel at the top, tilts, and keeps the position low on the screen so most of it shows the road
    *  ahead. The camera follows the phone's own location natively, which is what keeps it smooth. The
@@ -163,6 +167,7 @@ const BOUNDS_PADDING = { top: 60, right: 60, bottom: 60, left: 60 };
 const NAV_PITCH_DEG = 45;
 const NAV_TOP_PADDING_FRACTION = 0.45;
 const NAV_ARROW_SIZE = 40;
+const NAV_EASE_MS = 1100;
 
 // The arrow drawn at the driver's position on the north-up maps: a picture made by
 // scripts/make-heading-arrow.js, drawn at a third of its size (it is 128 px for sharpness).
@@ -186,6 +191,7 @@ export function RouteMap({
   onMapPress,
   currentPosition,
   currentHeading,
+  currentCourse,
   navigating = false,
   hazards,
   onHazardPress,
@@ -271,6 +277,35 @@ export function RouteMap({
   // fighting it every time `currentPosition` ticks (every ~3s/10m, `useLiveLocation`).
   const isFreeLooking = currentPosition !== undefined && !following;
   const navTracking = navigating && currentPosition !== undefined && following;
+
+  // While navigating the camera is moved here, once a second as a fix arrives: centred on the driver's
+  // position, turned to their direction of travel, tilted, with the position held low on the screen.
+  // The arrow overlay is fixed where the camera keeps the position, so they always coincide.
+  const cameraRef = useRef<CameraRef>(null);
+  const lastBearing = useRef(0);
+  const lat = currentPosition?.lat;
+  const lon = currentPosition?.lon;
+  useEffect(() => {
+    if (!navTracking || lat === undefined || lon === undefined) return;
+    // The last known course, so the map holds its direction when the lorry stops instead of spinning.
+    if (currentCourse !== undefined) lastBearing.current = currentCourse;
+    const bearing = lastBearing.current;
+    // A little longer than the gap between fixes, so each move runs into the next: a steady glide.
+    try {
+      cameraRef.current?.easeTo({
+        center: [lon, lat],
+        bearing,
+        zoom: followZoom,
+        pitch: NAV_PITCH_DEG,
+        padding: navPadding,
+        duration: NAV_EASE_MS,
+        easing: 'linear',
+      });
+    } catch {
+      // The map is not ready yet (the first fix can arrive before it has loaded): the next fix, a
+      // second later, moves the camera.
+    }
+  }, [navTracking, lat, lon, currentCourse, followZoom, navPadding]);
   // The arrow is a native map layer (below), not a React Native marker, so it can be turned smoothly.
   const showArrowLayer =
     currentPosition !== undefined && !navTracking && !navigating && currentHeading !== undefined;
@@ -306,12 +341,9 @@ export function RouteMap({
         onRegionWillChange={handleRegionWillChange}
       >
         {navTracking ? (
-          <Camera
-            trackUserLocation="course"
-            zoom={followZoom}
-            pitch={NAV_PITCH_DEG}
-            padding={navPadding}
-          />
+          // Moved by the effect above, from our own position fixes, not by the phone's location engine
+          // (tried: it showed its own dot and left the camera where it was).
+          <Camera ref={cameraRef} zoom={followZoom} pitch={NAV_PITCH_DEG} padding={navPadding} />
         ) : bounds ? (
           <Camera bounds={bounds} padding={BOUNDS_PADDING} />
         ) : (

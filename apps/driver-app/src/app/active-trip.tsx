@@ -283,6 +283,7 @@ export default function ActiveTripScreen() {
           routeLine={routeLine}
           currentPosition={location.point}
           currentHeading={location.heading}
+          currentCourse={location.course}
           navigating
           hazards={mapHazards}
           parkingSpots={mapParking}
