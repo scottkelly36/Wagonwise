@@ -1,4 +1,5 @@
 import { sql } from 'kysely';
+import { lineWkt } from '../../../shared/line-wkt.js';
 import { makeId } from '../../../shared/brand.js';
 import type { DomainEvent } from '../../../shared/domain-event.js';
 import type { HazardRepository } from '../application/ports/hazard-repository.js';
@@ -139,12 +140,11 @@ export class PostgresHazardRepository implements HazardRepository {
     if (only && rest.length === 0) {
       return this.findNearby(only, radiusM);
     }
-    const pointExprs = points.map((p) => sql`ST_MakePoint(${p.lon}, ${p.lat})`);
     const { rows } = await sql<HazardReportRow>`
       select ${sql.raw(SELECT_COLUMNS)} from hazards.reports
       where ST_DWithin(
         location,
-        ST_SetSRID(ST_MakeLine(ARRAY[${sql.join(pointExprs)}]), 4326)::geography,
+        ST_GeogFromText(${lineWkt(points)}),
         ${radiusM}
       )
       order by created_at desc

@@ -135,6 +135,14 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-07: **UK-wide coverage, groundwork.** Target: Great Britain by the start of November (Northern Ireland left out
+  for now). Code fixes done now: lines for "what is near this route" are sent as one text value, so a journey of
+  tens of thousands of points can be planned (the old form broke at ~32,000 points); the app thins the route
+  corridor to 1,500 points for hazards and parking. Added `infra/valhalla/build-gb-tiles.sh` (untested at national
+  scale) and `deployment-guide.md` section 10 (build on a temporary 16 GB droplet, serve on ~8 GB, rebuild monthly).
+  Still to do: the actual build and switch-over, wider golden routes, restriction checks on real routes, MapTiler
+  plan limits. Core deploy needed for the line fix.
+
 - 2026-10-07: **one-tap parking, with Undo; parking on the trip map.** The spoken yes/no for "Mark parking" is gone: it is
   filed at once, says "Parking marked", and shows Undo for 8 seconds (`DELETE /parking/spots/:id`, only the reporter's own
   spot; core, BFF and contracts). Found on the first drive: spots were saved but not seen, because the home map only

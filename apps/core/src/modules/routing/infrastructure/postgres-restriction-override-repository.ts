@@ -1,4 +1,5 @@
 import { sql } from 'kysely';
+import { lineWkt } from '../../../shared/line-wkt.js';
 import { makeId } from '../../../shared/brand.js';
 import type { RestrictionOverrideRepository } from '../application/ports/restriction-override-repository.js';
 import type { GeoPoint } from '../domain/geo.js';
@@ -55,12 +56,11 @@ export class PostgresRestrictionOverrideRepository implements RestrictionOverrid
       `.execute(this.db);
       return rows.map(toDomain);
     }
-    const pointExprs = points.map((p) => sql`ST_MakePoint(${p.lon}, ${p.lat})`);
     const { rows } = await sql<RestrictionOverrideRow>`
       select ${sql.raw(SELECT_COLUMNS)} from routing.restriction_overrides
       where ST_DWithin(
         location,
-        ST_SetSRID(ST_MakeLine(ARRAY[${sql.join(pointExprs)}]), 4326)::geography,
+        ST_GeogFromText(${lineWkt(points)}),
         ${radiusM}
       )
     `.execute(this.db);

@@ -101,6 +101,43 @@ describe('PostgresRoutePlanRepository', () => {
     expect((await repo().findById(makeId<'RoutePlanId'>(id)))?.maneuvers).toEqual([]);
   });
 
+  it('saves a plan for a journey across Britain, whose geometry has tens of thousands of points', async () => {
+    // The line was once built from a bound ST_MakePoint per point, which fails past about 32,000.
+    function encodeValue(raw: number): string {
+      let value = raw < 0 ? ~(raw << 1) : raw << 1;
+      let output = '';
+      while (value >= 0x20) {
+        output += String.fromCharCode((0x20 | (value & 0x1f)) + 63);
+        value >>= 5;
+      }
+      return output + String.fromCharCode(value + 63);
+    }
+    let geometry = '';
+    let prevLat = 0;
+    let prevLon = 0;
+    for (let i = 0; i < 60_000; i++) {
+      const lat = Math.round((58 - i * 0.00008) * 1e6);
+      const lon = Math.round(-1.5 * 1e6);
+      geometry += encodeValue(lat - prevLat) + encodeValue(lon - prevLon);
+      prevLat = lat;
+      prevLon = lon;
+    }
+    const p = plan({
+      id: makeId<'RoutePlanId'>('c0de0003-0000-4000-8000-000000000003'),
+      geometry,
+    });
+
+    await repo().save(p);
+
+    const found = await repo().findById(p.id);
+    expect(found?.geometry).toBe(geometry);
+    const { rows } = await pool.query<{ n: string }>(
+      'select ST_NPoints(geometry_geog::geometry) as n from routing.route_plans where id = $1',
+      [p.id],
+    );
+    expect(Number(rows[0]?.n)).toBe(60_000);
+  }, 60_000);
+
   it('returns null for an unknown id', async () => {
     expect(
       await repo().findById(makeId<'RoutePlanId'>('00000000-0000-4000-8000-000000000000')),

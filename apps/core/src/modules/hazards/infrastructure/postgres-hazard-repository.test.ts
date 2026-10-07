@@ -147,6 +147,24 @@ describe('PostgresHazardRepository', () => {
       expect(found.map((r) => r.id)).toEqual([onCorridor.id]);
     });
 
+    it('copes with a corridor as long as a route across Britain (tens of thousands of points)', async () => {
+      // Postgres allows 65,535 bound values per query. A corridor built from one ST_MakePoint call per
+      // point (two values each) failed at about 32,000 points, which a long journey exceeds.
+      const nearTheMiddle = report({
+        id: makeId<'HazardReportId'>('70707070-7070-4707-8707-707070707070'),
+        location: { lat: 52.5, lon: -1.5 },
+      });
+      await repo().save(nearTheMiddle);
+
+      // About 1,100 km due north to south, with a point every 11 m: 100,000 points.
+      const corridor = Array.from({ length: 100_000 }, (_, i) => ({
+        lat: 58 - i * 0.0001,
+        lon: -1.5,
+      }));
+      const found = await repo().findNearbyLine(corridor, 50);
+      expect(found.map((r) => r.id)).toContain(nearTheMiddle.id);
+    });
+
     it('finds a report near a line segment even when no single vertex is close to it', async () => {
       // Real-world corridors are dense decoded polylines, but this proves the query uses the
       // actual line geometry (ST_DWithin against ST_MakeLine), not just distance-to-nearest-vertex

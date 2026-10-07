@@ -97,6 +97,8 @@ const CANCELLABLE_PHASES = new Set(['capturing-report', 'capturing-confirmation'
 // "On your route" (design decision, 2026-09-24) — wider than a routing-avoidance check (30m,
 // design doc §5), since this is just an on-map warning icon, not a decision to reroute around.
 const ON_ROUTE_HAZARD_RADIUS_M = 750;
+// Under the server's limit of 2000 corridor points per request.
+const CORRIDOR_MAX_POINTS = 1500;
 // Parking a little further out than hazards: a layby just off the route is worth seeing.
 const ON_ROUTE_PARKING_RADIUS_M = 1500;
 
@@ -131,12 +133,16 @@ export default function ActiveTripScreen() {
   // decodePolyline6 is a pure function of plan.geometry — no need to redo it on every
   // unrelated re-render (e.g. a location update).
   const routeLine = useMemo(() => (plan ? decodePolyline6(plan.geometry) : undefined), [plan]);
-  const corridor = useMemo(() => routeLine?.map(([lon, lat]) => ({ lat, lon })) ?? [], [routeLine]);
+  // The route as the corridor for "what is near it" requests, thinned to fit: the server takes at most
+  // 2000 points and a route across Britain has tens of thousands, which would have failed outright.
+  const corridor = useMemo(
+    () => thinPoints(routeLine?.map(([lon, lat]) => ({ lat, lon })) ?? [], CORRIDOR_MAX_POINTS),
+    [routeLine],
+  );
   const nearbyHazards = useNearbyHazards(corridor, ON_ROUTE_HAZARD_RADIUS_M);
   // Safe parking along the route, so a spot marked while driving is on the map where it was marked.
   // Thinned: the request takes at most 2000 points and a long route has more.
-  const parkingCorridor = useMemo(() => thinPoints(corridor, 1500), [corridor]);
-  const nearbyParking = useNearbySafeParkingSpots(parkingCorridor, ON_ROUTE_PARKING_RADIUS_M);
+  const nearbyParking = useNearbySafeParkingSpots(corridor, ON_ROUTE_PARKING_RADIUS_M);
   const mapParking = useMemo(
     () => nearbyParking.data?.map((s) => ({ id: s.id, location: s.location })),
     [nearbyParking.data],

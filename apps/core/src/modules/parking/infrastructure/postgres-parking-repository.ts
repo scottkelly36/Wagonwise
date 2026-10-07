@@ -1,4 +1,5 @@
 import { sql } from 'kysely';
+import { lineWkt } from '../../../shared/line-wkt.js';
 import { makeId } from '../../../shared/brand.js';
 import type { ParkingRepository } from '../application/ports/parking-repository.js';
 import type {
@@ -56,12 +57,11 @@ export class PostgresParkingRepository implements ParkingRepository {
       return rows.map(toDomain);
     }
 
-    const pointExprs = points.map((p) => sql`ST_MakePoint(${p.lon}, ${p.lat})`);
     const { rows } = await sql<SafeParkingSpotRow>`
       select ${sql.raw(SELECT_COLUMNS)} from parking.safe_parking_spots
       where ST_DWithin(
         location,
-        ST_SetSRID(ST_MakeLine(ARRAY[${sql.join(pointExprs)}]), 4326)::geography,
+        ST_GeogFromText(${lineWkt(points)}),
         ${radiusM}
       )
       order by reported_at desc
