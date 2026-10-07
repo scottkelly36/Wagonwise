@@ -87,4 +87,34 @@ describe('PostgresJobPositionRepository', () => {
     };
     await expect(positions.record(report)).resolves.toBeUndefined();
   });
+
+  it('deletes positions recorded before the cutoff, for any job, and keeps the rest', async () => {
+    const jobs = new PostgresJobRepository(db);
+    const positions = new PostgresJobPositionRepository(db);
+    await jobs.save(job(5, companyA, 'en_route'));
+    const old = (day: number) => new Date(Date.UTC(2025, 0, day, 9, 0));
+    await positions.record({
+      jobId: jobId(5),
+      location: { lat: 54.9, lon: -2.1 },
+      recordedAt: old(1),
+    });
+    await positions.record({
+      jobId: jobId(5),
+      location: { lat: 54.9, lon: -2.1 },
+      recordedAt: old(2),
+    });
+    const recent = new Date(Date.UTC(2026, 9, 6, 9, 0));
+    await positions.record({
+      jobId: jobId(5),
+      location: { lat: 54.91, lon: -2.1 },
+      recordedAt: recent,
+    });
+
+    const removed = await positions.deleteOlderThan(new Date(Date.UTC(2026, 0, 1)));
+
+    expect(removed).toBe(2);
+    const latest = await positions.latestForCompany(companyA);
+    expect(latest.find((p) => p.jobId === jobId(5))?.recordedAt).toEqual(recent);
+    expect(await positions.deleteOlderThan(new Date(Date.UTC(2026, 0, 1)))).toBe(0);
+  });
 });

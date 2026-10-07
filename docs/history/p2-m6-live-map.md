@@ -54,9 +54,8 @@ company login for the reviewer will probably be needed to see it.
 
 ## Open
 
-- **No retention sweeper.** Rows are meant to be short-lived (design doc §9: ~30 days) but nothing
-  deletes them yet — the same "how often, run where" decision as the hazard expiry poller (see
-  `progress.md`). Until then positions accumulate at one row per 30 s per driven job.
+- **Retention sweeper: done 2026-10-07.** A timer in core deletes positions older than 30 days
+  (`JOB_POSITION_RETENTION_DAYS`), hourly, in the platform data scope.
 - **iOS purpose string and consent paragraph** are changed but unshipped: they need the next native
   build (app `version` bump) and, for the consent screen, `eas update`.
 - The driver cannot decline sharing while keeping the job. Today accepting a job is accepting

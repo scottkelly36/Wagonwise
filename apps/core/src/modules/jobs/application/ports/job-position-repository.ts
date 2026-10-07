@@ -11,4 +11,6 @@ export interface JobPositionRepository {
   /** The most recent position of each of the company's jobs that is being driven right now
    *  (`isTracked`), newest report per job. Jobs with no report yet are simply absent. */
   latestForCompany(companyId: CompanyId): Promise<JobPosition[]>;
+  /** Deletes every position recorded before `cutoff`, for every company, and says how many went. */
+  deleteOlderThan(cutoff: Date): Promise<number>;
 }

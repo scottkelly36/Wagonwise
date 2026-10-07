@@ -36,9 +36,7 @@ history file keeps the record.
 1. **Drive-test the spoken directions** (P2-M10) and the 1.2.1 microphone fix on a real route. Both are live
    (core deployed with migration 0035; app 1.2.1 on Play internal testing) but only tested against a recorded
    route and by hand so far. Announcement distances are constants in `lib/turn-guidance.ts`.
-2. **Hazard expiry poller and `job_positions` retention sweeper**: two small server jobs that need a "run
-   where" decision (suggested: a timer inside core).
-3. The restriction-data audit around Hexham, onboarding the first driver, and P2-M8 (reports, CSV export) and
+2. The restriction-data audit around Hexham, onboarding the first driver, and P2-M8 (reports, CSV export) and
    P2-M9 (privacy, DPA, pilot onboarding). Phase 3 waits for pilot data.
 
 **How the driver app ships now:** JavaScript-only changes go out over the air to the installed version
@@ -51,8 +49,7 @@ with mode `update` or `build`. Merging alone publishes nothing. Secrets are set 
 
 - **Deferred, P2-M6.4c**: a reroute-alert indicator on the live map. Needs reroute detection written
   for company jobs first (it only exists for Phase 1 trips). Revisit if the pilot firm wants it.
-  Also open from M6: no retention sweeper for `jobs.job_positions` (same decision as the hazard
-  expiry poller), and no Valhalla-backed check of the ETA and route preview yet.
+  Also open from M6: no Valhalla-backed check of the ETA and route preview yet.
 - **M5.10**: Android is done: real-device runs, and Play internal testing builds (1.2.1 now, built by
   EAS from the release workflow). iOS (TestFlight) is still open, blocked on an Apple developer account.
 - **M8 Field-ready**: shipped 2026-09-25 (commit `6f8fa52`, never written up here at the time):
@@ -61,9 +58,6 @@ with mode `update` or `build`. Merging alone publishes nothing. Secrets are set 
   applied in `plan-route.ts` through `applies()`. Still open: the actual test-area restriction
   audit (entering override data for testers' routes), store distribution (same block as M5.10),
   and onboarding the first driver.
-- **No hazard expiry poller.** `expireHazards` exists and is tested, but nothing runs it on a
-  schedule. Routing is safe regardless (`isExpired()` is checked live), but expired hazards still
-  show as `active` on the map. Needs a "how often, run where" decision.
 - **Real-device gaps**: voice reporting (M7) hasn't been tested on iOS, and accent/cab-noise
   accuracy is still the biggest unknown. Map markers (hazards, congestion, parking) have only
   been checked against MapLibre's docs.
@@ -137,6 +131,12 @@ live map, moderation, reports).
   `valhalla-routing-engine.golden-test.ts`.
 
 ## Recent log
+
+- 2026-10-07: **housekeeping timers in core** (`platform/periodic-task.ts`, wired in `compose-core.ts`): hazards past their
+  expiry are marked expired every 5 minutes (`HAZARD_EXPIRY_INTERVAL_MS`), and driver positions older than 30 days
+  (`JOB_POSITION_RETENTION_DAYS`) are deleted hourly (`POSITION_SWEEP_INTERVAL_MS`) in the platform data scope. In
+  process, no new infrastructure; both passes are safe to run twice, so a second core instance would do no harm. Closes
+  the old "no expiry poller" and "no retention sweeper" open items.
 
 - 2026-10-06: **app 1.2.1**: the Android microphone permission was missing from 1.1.0 and 1.2.0 (`expo-image-picker`'s
   `microphonePermission: false` made it block `RECORD_AUDIO`), so every voice feature said "no access". Fixed, and a
@@ -250,7 +250,7 @@ live map, moderation, reports).
 - 2026-10-03: P2-M6.1 done: the driver app reports position every 30 s while a job is on the road
   (foreground only, no background permission), core stores it (`jobs.job_positions`, migration 0032) and serves the latest per job to staff. Built narrow on purpose after the owner's warning
   about Apple blocking an employer's tracking app; privacy and review notes in
-  `history/p2-m6-live-map.md`. No retention sweeper yet.
+  `history/p2-m6-live-map.md`. Positions older than 30 days are deleted by a timer in core (2026-10-07).
 - 2026-10-03: dispatchers can now view the proof-of-delivery photo: `GET /staff/jobs/:id/proof-of-
 delivery` in core, a staff-bff forward, and a "View photo" overlay on the dashboard's Jobs page.
   Upload content types are restricted to `image/*`. No driver-app native change. A production

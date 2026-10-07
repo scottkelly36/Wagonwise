@@ -28,6 +28,16 @@ export class PostgresJobPositionRepository implements JobPositionRepository {
     `.execute(this.db);
   }
 
+  async deleteOlderThan(cutoff: Date): Promise<number> {
+    const { rows } = await sql<{ removed: string }>`
+      with gone as (
+        delete from jobs.job_positions where recorded_at < ${cutoff} returning 1
+      )
+      select count(*)::text as removed from gone
+    `.execute(this.db);
+    return Number(rows[0]?.removed ?? 0);
+  }
+
   async latestForCompany(companyId: CompanyId): Promise<JobPosition[]> {
     const { rows } = await sql<PositionRow>`
       select distinct on (p.job_id)

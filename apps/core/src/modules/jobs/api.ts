@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { pruneJobPositions } from './application/prune-job-positions.js';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
@@ -57,6 +58,9 @@ export interface JobsModuleDeps {
 
 export interface JobsModule {
   registerRoutes(app: FastifyInstance): void;
+  /** Deletes driver positions older than `retentionDays`, across every company (a platform-wide
+   *  housekeeping job, so it runs in the platform data scope), and says how many went. */
+  pruneOldPositions(retentionDays: number): Promise<number>;
 }
 
 /**
@@ -102,6 +106,11 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
   };
 
   return {
+    pruneOldPositions(retentionDays: number): Promise<number> {
+      return deps.dataScopes.run({ kind: 'platform' }, () =>
+        pruneJobPositions({ positions, clock: deps.clock }, { retentionDays }),
+      );
+    },
     registerRoutes(app: FastifyInstance): void {
       registerJobsRoutes(app, routeDeps);
       registerJobsDriverRoutes(app, driverRouteDeps);
