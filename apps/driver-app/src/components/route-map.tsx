@@ -1,4 +1,3 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Camera,
   type CameraRef,
@@ -166,7 +165,7 @@ const BOUNDS_PADDING = { top: 60, right: 60, bottom: 60, left: 60 };
 // screen so most of what is shown is the road ahead.
 const NAV_PITCH_DEG = 45;
 const NAV_TOP_PADDING_FRACTION = 0.45;
-const NAV_ARROW_SIZE = 40;
+const NAV_DOT_SIZE = 26;
 const NAV_EASE_MS = 1100;
 
 // The arrow drawn at the driver's position on the north-up maps: a picture made by
@@ -480,14 +479,12 @@ export function RouteMap({
       </MapLibreMap>
       {navTracking && mapHeight > 0 && (
         // Fixed on the screen where the camera keeps the position, so it does not jump with each fix
-        // the way a map marker would. The map turns, so the arrow always points up.
+        // the way a map marker would.
         <View
           pointerEvents="none"
-          style={[styles.navArrowAnchor, { top: navAnchorY - NAV_ARROW_SIZE / 2 }]}
+          style={[styles.navArrowAnchor, { top: navAnchorY - NAV_DOT_SIZE / 2 }]}
         >
-          <View style={styles.headingPuck} testID="current-position-arrow">
-            <MaterialCommunityIcons name="navigation" size={26} color="#1A73E8" />
-          </View>
+          <View style={styles.navDot} testID="current-position-dot" />
         </View>
       )}
       {isFreeLooking && !hideRecenterButton && (
@@ -545,13 +542,15 @@ const styles = StyleSheet.create({
   // A white disc with the arrow turned inside it: reads against any map colour, and only the arrow
   // rotates, never the disc.
   navArrowAnchor: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-  headingPuck: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
+  // While navigating the map itself turns to the direction of travel, so the position is just a dot:
+  // the way the lorry is facing is simply up the screen. Fixed where the camera holds the position.
+  navDot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#1A73E8',
+    borderWidth: 3.5,
+    borderColor: '#FFFFFF',
     shadowColor: '#0B1220',
     shadowOpacity: 0.3,
     shadowRadius: 4,
