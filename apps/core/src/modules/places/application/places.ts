@@ -155,6 +155,32 @@ export async function updatePlace(
   return ok(updated);
 }
 
+/**
+ * A driver who has joined a company shares one of their personal places with it. Only the owner, and only
+ * into a company they have an active link with. Moving the other way (a company's place becoming personal)
+ * is not offered: what was marked for a company stays the company's.
+ */
+export async function sharePlace(
+  deps: PlaceDeps,
+  input: { readonly actor: PlaceActor; readonly id: SavedPlaceId; readonly companyId: CompanyId },
+): Promise<Result<SavedPlace, Forbidden | PlaceNotFound>> {
+  const place = await deps.repo.findById(input.id);
+  if (
+    place === null ||
+    place.companyId !== undefined ||
+    input.actor.kind !== 'driver' ||
+    place.createdBy !== input.actor.driverId
+  ) {
+    return err({ tag: 'PlaceNotFound' });
+  }
+  if (!(await canMark(input.actor, input.companyId, deps.membership))) {
+    return err({ tag: 'Forbidden' });
+  }
+  await deps.repo.shareWithCompany(place.id, input.companyId, deps.clock.now());
+  const shared = await deps.repo.findById(place.id);
+  return shared === null ? err({ tag: 'PlaceNotFound' }) : ok(shared);
+}
+
 export async function deletePlace(
   deps: PlaceDeps,
   input: { readonly actor: PlaceActor; readonly id: SavedPlaceId },

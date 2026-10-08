@@ -16,8 +16,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError } from '../api/errors';
-import { useDeletePlace, useUpdatePlace } from '../api/use-places';
-import { PLACE_CATEGORY_ICONS, PLACE_CATEGORY_LABELS } from '../lib/places';
+import { useDeletePlace, useSharePlace, useUpdatePlace } from '../api/use-places';
+import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
+import { PLACE_CATEGORY_LABELS } from '../lib/places';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
 import { Icon } from './ui/icon';
@@ -28,6 +29,8 @@ interface Props {
   /** Takes the driver there. Absent hides the button (no vehicle profile to plan with). */
   readonly onGo?: ((place: SavedPlaceDto) => void) | undefined;
   readonly goDisabled?: boolean;
+  /** The company a personal place could be shared with: the driver's company now, if they have one. */
+  readonly shareCompanyId?: string | undefined;
 }
 
 /**
@@ -44,12 +47,13 @@ export function PlaceSheet(props: Props) {
   );
 }
 
-function PlaceSheetBody({ place, onClose, onGo, goDisabled = false }: Props) {
+function PlaceSheetBody({ place, onClose, onGo, goDisabled = false, shareCompanyId }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const update = useUpdatePlace();
   const remove = useDeletePlace();
+  const share = useSharePlace();
   const savedNote = place?.note ?? '';
   const [note, setNote] = useState(savedNote);
   const [problem, setProblem] = useState<string | undefined>(undefined);
@@ -118,6 +122,30 @@ function PlaceSheetBody({ place, onClose, onGo, goDisabled = false }: Props) {
               )}
 
               {problem !== undefined && <Text style={styles.error}>{problem}</Text>}
+
+              {place.companyId === undefined && shareCompanyId !== undefined && (
+                <View style={styles.shareBox}>
+                  <Text style={styles.shareText}>
+                    This one is only yours. Share it so every driver at your company sees it too.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.share, share.isPending && styles.disabled]}
+                    disabled={share.isPending}
+                    onPress={() =>
+                      share.mutate(
+                        { id: place.id, companyId: shareCompanyId },
+                        {
+                          onSuccess: onClose,
+                          onError: () => setProblem('Couldn’t share it. Try again.'),
+                        },
+                      )
+                    }
+                    testID="place-share-button"
+                  >
+                    <Text style={styles.shareButtonText}>Share with my company</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {onGo !== undefined && (
                 <TouchableOpacity
@@ -221,6 +249,18 @@ function createStyles(colors: ThemeColors) {
     },
     saveNoteText: { fontSize: 17, fontWeight: '700', color: colors.textOnAccent },
     error: { fontSize: 15, color: colors.danger, marginTop: 10 },
+    shareBox: { marginTop: 16, gap: 8 },
+    shareText: { fontSize: 15, color: colors.textSecondary },
+    share: {
+      minHeight: 48,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      borderWidth: 2,
+      borderColor: colors.accent,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    shareButtonText: { fontSize: 16, fontWeight: '700', color: colors.accent },
     go: {
       marginTop: 18,
       minHeight: 52,

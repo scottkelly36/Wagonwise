@@ -171,6 +171,7 @@ export function composeCore(
         await routing.eraseDriverData(driverId);
         await feedback.eraseDriverData(driverId);
         await fleet.eraseDriverData(driverId, identifier);
+        await places.eraseDriverData(driverId);
       },
     },
   });

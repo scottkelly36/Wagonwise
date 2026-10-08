@@ -12,7 +12,7 @@ export async function canView(
   actor: PlaceActor,
   companyId: CompanyId | undefined,
   membership: DriverMembership,
-  ownerOfPersonal?: DriverId  ,
+  ownerOfPersonal?: DriverId,
 ): Promise<boolean> {
   if (companyId === undefined) {
     return (
@@ -32,7 +32,7 @@ export async function canMark(
   actor: PlaceActor,
   companyId: CompanyId | undefined,
   membership: DriverMembership,
-  ownerOfPersonal?: DriverId  ,
+  ownerOfPersonal?: DriverId,
 ): Promise<boolean> {
   if (companyId === undefined) {
     return (

@@ -3,6 +3,7 @@ import {
   markPlaceRequestSchema,
   nearbyPlacesRequestSchema,
   placeIdParamsSchema,
+  sharePlaceRequestSchema,
   placesCompanyParamsSchema,
   updatePlaceRequestSchema,
 } from '@wagonwise/contracts/places';
@@ -16,6 +17,7 @@ import {
   listPlaces,
   markPlace,
   placesNear,
+  sharePlace,
   updatePlace,
   type PlaceDeps,
 } from '../application/places.js';
@@ -188,6 +190,18 @@ export function registerPlacesRoutes(app: FastifyInstance, deps: PlacesRouteDeps
     return result.ok ? { status: 204 } : failure(result.error);
   };
 
+  const share = async (actor: PlaceActor, params: unknown, body: unknown): Promise<Outcome> => {
+    const p = placeIdParamsSchema.safeParse(params);
+    const b = sharePlaceRequestSchema.safeParse(body);
+    if (!p.success || !b.success) return INVALID;
+    const result = await sharePlace(deps.places, {
+      actor,
+      id: makeId<'SavedPlaceId'>(p.data.id),
+      companyId: makeId<'CompanyId'>(b.data.companyId),
+    });
+    return result.ok ? { status: 200, body: placeDto(result.value) } : failure(result.error);
+  };
+
   // Drivers
   app.post('/places', (request, reply) =>
     asDriver(request, reply, (actor) => mark(actor, request.body)),
@@ -203,6 +217,9 @@ export function registerPlacesRoutes(app: FastifyInstance, deps: PlacesRouteDeps
   );
   app.put('/places/:id', (request, reply) =>
     asDriver(request, reply, (actor) => update(actor, request.params, request.body)),
+  );
+  app.post('/places/:id/share', (request, reply) =>
+    asDriver(request, reply, (actor) => share(actor, request.params, request.body)),
   );
   app.delete('/places/:id', (request, reply) =>
     asDriver(request, reply, (actor) => remove(actor, request.params)),

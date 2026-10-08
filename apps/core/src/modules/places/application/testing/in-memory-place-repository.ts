@@ -65,6 +65,12 @@ export class InMemoryPlaceRepository implements PlaceRepository {
     return Promise.resolve();
   }
 
+  shareWithCompany(id: SavedPlaceId, companyId: CompanyId, at: Date): Promise<void> {
+    const place = this.#byId.get(id);
+    if (place !== undefined) this.#byId.set(id, { ...place, companyId, updatedAt: at });
+    return Promise.resolve();
+  }
+
   delete(id: SavedPlaceId): Promise<void> {
     this.#byId.delete(id);
     return Promise.resolve();

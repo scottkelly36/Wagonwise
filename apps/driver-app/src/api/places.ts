@@ -65,6 +65,20 @@ export async function updatePlace(
   return savedPlaceSchema.parse(json);
 }
 
+/** Shares one of the driver's personal places with a company they have joined. */
+export async function sharePlace(
+  accessToken: string,
+  id: string,
+  companyId: string,
+): Promise<SavedPlaceDto> {
+  const { status, json } = await requestJson('POST', `/places/${id}/share`, {
+    body: { companyId },
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return savedPlaceSchema.parse(json);
+}
+
 export async function deletePlace(accessToken: string, id: string): Promise<void> {
   const { status, json } = await requestJson('DELETE', `/places/${id}`, {
     authorization: bearer(accessToken),

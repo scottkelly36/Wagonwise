@@ -358,7 +358,11 @@ export default function ActiveTripScreen() {
           </View>
         )}
 
-        <PlaceSheet place={selectedPlace} onClose={() => setSelectedPlace(undefined)} />
+        <PlaceSheet
+          place={selectedPlace}
+          onClose={() => setSelectedPlace(undefined)}
+          shareCompanyId={myPlaces.markingCompanyId}
+        />
 
         <ParkingSpotDrawer spot={selectedParking} onClose={() => setSelectedParkingId(undefined)} />
 

@@ -19,4 +19,6 @@ export interface PlaceRepository {
   /** Insert, or replace what is stored under the same id (name, category, note, updatedAt). */
   save(place: SavedPlace): Promise<void>;
   delete(id: SavedPlaceId): Promise<void>;
+  /** Makes a personal place the company's (it keeps everything else, including who marked it). */
+  shareWithCompany(id: SavedPlaceId, companyId: CompanyId, at: Date): Promise<void>;
 }

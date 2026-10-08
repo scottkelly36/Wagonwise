@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { makeId } from '../../shared/brand.js';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type {
@@ -33,6 +34,9 @@ export interface PlacesModuleDeps {
 
 export interface PlacesModule {
   registerRoutes(app: FastifyInstance): void;
+  /** A driver deleted their account: removes their personal places and clears who marked the rest.
+   *  Safe to run twice. Supplied to `identity`'s eraser by composition. */
+  eraseDriverData(driverId: string): Promise<void>;
 }
 
 /**
@@ -42,6 +46,10 @@ export interface PlacesModule {
 export function createPlacesModule(deps: PlacesModuleDeps): PlacesModule {
   const repo = new PostgresPlaceRepository(deps.db);
   return {
+    eraseDriverData: (driverId) =>
+      deps.dataScopes.run({ kind: 'platform' }, () =>
+        repo.eraseDriver(makeId<'DriverId'>(driverId)),
+      ),
     registerRoutes(app: FastifyInstance): void {
       registerPlacesRoutes(app, {
         places: { repo, membership: deps.membership, clock: deps.clock },

@@ -3,6 +3,7 @@ import {
   markPlaceRequestSchema,
   nearbyPlacesRequestSchema,
   placeIdParamsSchema,
+  sharePlaceRequestSchema,
   updatePlaceRequestSchema,
 } from '@wagonwise/contracts/places';
 import type { FastifyInstance } from 'fastify';
@@ -73,6 +74,23 @@ export function registerPlacesRoutes(app: FastifyInstance, deps: PlacesRouteDeps
       body: body.data,
       authorization: `Bearer ${token}`,
     });
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.post('/places/:id/share', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+    const params = placeIdParamsSchema.safeParse(request.params);
+    const body = sharePlaceRequestSchema.safeParse(request.body);
+    if (!params.success || !body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request(
+      'POST',
+      `/places/${params.data.id}/share`,
+      request.id,
+      { body: body.data, authorization: `Bearer ${token}` },
+    );
     return reply.status(core.status).send(core.body);
   });
 

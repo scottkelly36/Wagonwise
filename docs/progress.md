@@ -147,7 +147,7 @@ live map, moderation, reports).
   near the stop, with notes, and _Mark this spot_), a _Places_ list on the Saved tab, and green markers on the home and trip
   maps with a sheet to read or improve the note and _Take me there_. New `places` module and migration 0036 (row-level
   security: company staff and WagonWise admins by company; drivers by an active company link, or their own personal places).
-  Core, both BFFs, dashboard and app. Core and BFF deploy first. See `history/saved-places.md`.
+  Core, both BFFs, dashboard and app. A personal place can be shared with a company the driver has joined; account deletion removes personal places. Core and BFF deploy first. See `history/saved-places.md`.
 
 - 2026-10-08: **P2-M8 reports and CSV export.** A Reports page in the dashboard (needs `view_reports`; WagonWise admins see
   any company): pick a period (last 7 or 30 days, this or last month, custom dates), see a summary (jobs, delivered, on

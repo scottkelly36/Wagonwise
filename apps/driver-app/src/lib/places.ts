@@ -1,19 +1,12 @@
 import type { PlaceCategory, SavedPlaceDto } from '@wagonwise/contracts/places';
 
 import type { MapPoint } from '../components/route-map';
-import type { IconName } from '../components/ui/icon';
 import { distanceMetres } from './geo-distance';
 
 export const PLACE_CATEGORY_LABELS: Record<PlaceCategory, string> = {
   farm: 'Farm',
   yard: 'Yard',
   other: 'Other',
-};
-
-export const PLACE_CATEGORY_ICONS: Record<PlaceCategory, IconName> = {
-  farm: 'barn',
-  yard: 'warehouse',
-  other: 'map-marker-star',
 };
 
 export const PLACE_CATEGORIES: readonly PlaceCategory[] = ['farm', 'yard', 'other'];

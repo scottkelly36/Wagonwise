@@ -107,6 +107,26 @@ export class PostgresPlaceRepository implements PlaceRepository {
     `.execute(this.db);
   }
 
+  async shareWithCompany(id: SavedPlaceId, companyId: CompanyId, at: Date): Promise<void> {
+    await sql`
+      update places.saved_places set company_id = ${companyId}, updated_at = ${at}
+      where id = ${id} and company_id is null
+    `.execute(this.db);
+  }
+
+  /**
+   * A driver deleted their account: their personal places go with it; the places they marked for a
+   * company stay with the company, with nothing left to say who marked them. Safe to run twice.
+   */
+  async eraseDriver(driverId: DriverId): Promise<void> {
+    await sql`
+      delete from places.saved_places where company_id is null and created_by = ${driverId}
+    `.execute(this.db);
+    await sql`
+      update places.saved_places set created_by = null where created_by = ${driverId}
+    `.execute(this.db);
+  }
+
   async delete(id: SavedPlaceId): Promise<void> {
     await sql`delete from places.saved_places where id = ${id}`.execute(this.db);
   }

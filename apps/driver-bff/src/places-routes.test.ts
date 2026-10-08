@@ -27,6 +27,7 @@ const cases = [
   ['POST', '/places/list', { companyId: COMPANY }],
   ['POST', '/places/nearby', { companyId: COMPANY, location, radiusM: 3000 }],
   ['PUT', `/places/${ID}`, { note: 'Gate on the left' }],
+  ['POST', `/places/${ID}/share`, { companyId: COMPANY }],
   ['DELETE', `/places/${ID}`, undefined],
 ] as const;
 

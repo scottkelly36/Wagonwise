@@ -3,7 +3,14 @@ import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import type { CompanyId, DriverId, SavedPlaceId } from '../domain/place.js';
 import type { PlaceActor } from './authorization.js';
-import { deletePlace, listPlaces, markPlace, placesNear, updatePlace } from './places.js';
+import {
+  deletePlace,
+  listPlaces,
+  markPlace,
+  placesNear,
+  sharePlace,
+  updatePlace,
+} from './places.js';
 import type { DriverMembership } from './ports/directories.js';
 import { InMemoryPlaceRepository } from './testing/in-memory-place-repository.js';
 
@@ -329,5 +336,50 @@ describe('personal places (a driver with no company)', () => {
       ok: false,
       error: { tag: 'Forbidden' },
     });
+  });
+});
+
+describe('sharePlace (a solo driver who has joined a company)', () => {
+  const solo = makeId<'DriverId'>('driver-solo');
+
+  it('moves a personal place into the company, for everyone there to see', async () => {
+    const { deps } = setup();
+    // The solo driver has since joined acme: the membership fake says pat and sam do; use pat.
+    await mark(deps, driver(pat), id(1), { companyId: undefined, name: 'Mine' });
+    const result = await sharePlace(deps, { actor: driver(pat), id: id(1), companyId: acme });
+    expect(result).toMatchObject({
+      ok: true,
+      value: { companyId: acme, name: 'Mine', createdBy: pat },
+    });
+    const colleague = await listPlaces(deps, { actor: driver(sam), companyId: acme });
+    expect(colleague.ok && colleague.value.map((p) => p.name)).toEqual(['Mine']);
+    const mine = await listPlaces(deps, { actor: driver(pat), companyId: undefined });
+    expect(mine.ok && mine.value).toEqual([]);
+  });
+
+  it('refuses a company the driver does not belong to', async () => {
+    const { deps } = setup();
+    await mark(deps, driver(pat), id(1), { companyId: undefined });
+    expect(await sharePlace(deps, { actor: driver(pat), id: id(1), companyId: beta })).toEqual({
+      ok: false,
+      error: { tag: 'Forbidden' },
+    });
+  });
+
+  it('is only for the owner’s personal places: not someone else’s, not one already a company’s, not staff', async () => {
+    const { deps } = setup();
+    await mark(deps, driver(solo), id(1), { companyId: undefined });
+    await mark(deps, driver(pat), id(2)); // already acme's
+    for (const [actor, placeId] of [
+      [driver(pat), id(1)],
+      [driver(pat), id(2)],
+      [dispatcher, id(1)],
+      [admin, id(1)],
+    ] as const) {
+      expect(await sharePlace(deps, { actor, id: placeId, companyId: acme })).toEqual({
+        ok: false,
+        error: { tag: 'PlaceNotFound' },
+      });
+    }
   });
 });

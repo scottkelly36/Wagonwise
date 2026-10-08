@@ -132,4 +132,50 @@ describe('PostgresPlaceRepository', () => {
     const near = await repo().findNearForDriver(solo, { lat: 52.5, lon: -1.5 }, 1000);
     expect(near.map((p) => p.name)).toEqual(['My farm']);
   });
+
+  it('shares a personal place with a company, keeping who marked it', async () => {
+    const owner = makeId<'DriverId'>('d7000000-0000-4000-8000-000000000007');
+    const p = place(1, {
+      id: makeId<'SavedPlaceId'>('a7777777-0000-4000-8000-000000000001'),
+      companyId: undefined,
+      createdBy: owner,
+      name: 'To share',
+    });
+    await repo().save(p);
+    await repo().shareWithCompany(p.id, acme, new Date('2026-10-09T09:00:00.000Z'));
+    expect(await repo().findById(p.id)).toMatchObject({ companyId: acme, createdBy: owner });
+    expect(await repo().listForDriver(owner)).toEqual([]);
+    // A company's place is not moved by sharing again.
+    await repo().shareWithCompany(p.id, beta, new Date('2026-10-10T09:00:00.000Z'));
+    expect((await repo().findById(p.id))?.companyId).toBe(acme);
+  });
+
+  it('erasing a driver deletes their personal places and clears who marked the company ones', async () => {
+    const leaver = makeId<'DriverId'>('d8000000-0000-4000-8000-000000000008');
+    const other = makeId<'DriverId'>('d9000000-0000-4000-8000-000000000009');
+    const personal = place(1, {
+      id: makeId<'SavedPlaceId'>('a8888888-0000-4000-8000-000000000001'),
+      companyId: undefined,
+      createdBy: leaver,
+    });
+    const shared = place(2, {
+      id: makeId<'SavedPlaceId'>('a8888888-0000-4000-8000-000000000002'),
+      createdBy: leaver,
+    });
+    const theirs = place(3, {
+      id: makeId<'SavedPlaceId'>('a8888888-0000-4000-8000-000000000003'),
+      createdBy: other,
+    });
+    for (const p of [personal, shared, theirs]) await repo().save(p);
+
+    await repo().eraseDriver(leaver);
+
+    expect(await repo().findById(personal.id)).toBeNull();
+    expect(await repo().findById(shared.id)).toMatchObject({
+      companyId: acme,
+      createdBy: undefined,
+    });
+    expect(await repo().findById(theirs.id)).toMatchObject({ createdBy: other });
+    await expect(repo().eraseDriver(leaver)).resolves.toBeUndefined();
+  });
 });

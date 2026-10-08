@@ -5,7 +5,8 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useMyPlaces } from '../api/use-places';
 import { useNavigateToPlace } from '../hooks/use-navigate-to-spot';
 import { useDrivingProfileId } from '../hooks/use-parking-drive-times';
-import { PLACE_CATEGORY_ICONS, placesNear } from '../lib/places';
+import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
+import { placesNear } from '../lib/places';
 import { shortDistance } from '../lib/uk-distance';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle } from '../theme/tokens';
@@ -89,6 +90,7 @@ export function JobPlacesCard({ stop }: Props) {
         onClose={() => setSelected(undefined)}
         onGo={(place) => navigate.mutate(place.location)}
         goDisabled={navigate.isPending || profileId === undefined}
+        shareCompanyId={mine.markingCompanyId}
       />
     </View>
   );

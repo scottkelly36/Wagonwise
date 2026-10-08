@@ -139,6 +139,7 @@ export default function HomeScreen() {
         onClose={() => setSelectedPlace(undefined)}
         onGo={(place) => navigateToSpot.mutate(place.location)}
         goDisabled={navigateToSpot.isPending || drivingProfileId === undefined}
+        shareCompanyId={myPlaces.markingCompanyId}
       />
 
       <ParkingSpotDrawer

@@ -94,6 +94,16 @@ export function useUpdatePlace() {
   });
 }
 
+export function useSharePlace() {
+  const accessToken = useAccessToken();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, companyId }: { id: string; companyId: string }) =>
+      placesApi.sharePlace(accessToken, id, companyId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: PLACES_KEY }),
+  });
+}
+
 export function useDeletePlace() {
   const accessToken = useAccessToken();
   const queryClient = useQueryClient();

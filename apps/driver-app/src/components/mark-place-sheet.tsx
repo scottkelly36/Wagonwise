@@ -19,12 +19,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDeletePlace, useMarkPlace } from '../api/use-places';
 import { fetchCurrentLocation } from '../hooks/use-current-location';
-import {
-  defaultPlaceName,
-  PLACE_CATEGORIES,
-  PLACE_CATEGORY_ICONS,
-  PLACE_CATEGORY_LABELS,
-} from '../lib/places';
+import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
+import { defaultPlaceName, PLACE_CATEGORIES, PLACE_CATEGORY_LABELS } from '../lib/places';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
 import { Icon } from './ui/icon';

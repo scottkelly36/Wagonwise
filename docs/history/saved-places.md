@@ -25,6 +25,19 @@ real entrance, but the next job to that farm sends the next driver to the wrong 
   button), a _Places_ section on the Saved tab, green round markers on the home and trip maps (smaller while driving),
   and a sheet to read or improve the note, remove it, or _Take me there_.
 
+## When a driver joins, moves or leaves a company
+
+- **A solo driver joins a company:** their personal places stay personal and private: nothing is shared without them
+  choosing. A personal place now has a **Share with my company** button, so they can hand over the farms they already
+  know. (Sharing is one way: what was marked for a company stays the company's.)
+- **Moves from company A to company B:** the places they marked for A stay A's, like A's jobs and proof photos, and they
+  stop seeing them once the link ends (the database checks for an _active_ link). Their personal places go with them.
+  New places they mark go to B (the company of the job they are on, else their only active company).
+- **Leaves a company:** as above: they lose sight of the company's places; their personal ones remain.
+- **Deletes their account:** their personal places are deleted; the places they marked for a company stay with the
+  company with nothing left to say who marked them (`created_by` is cleared). Done by the same eraser as the rest of
+  the account (`places.eraseDriverData`).
+
 ## How it is built
 
 - `places` module (migration 0036, schema `places`). `SavedPlace`: company (absent for a personal one), category,

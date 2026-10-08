@@ -55,6 +55,10 @@ export const updatePlaceRequestSchema = z
   });
 export type UpdatePlaceRequest = z.infer<typeof updatePlaceRequestSchema>;
 
+/** `POST /places/:id/share`: a driver who has joined a company shares one of their personal places with it. */
+export const sharePlaceRequestSchema = z.object({ companyId: companyIdSchema });
+export type SharePlaceRequest = z.infer<typeof sharePlaceRequestSchema>;
+
 export const placeIdParamsSchema = z.object({ id: z.uuid() });
 export type PlaceIdParams = z.infer<typeof placeIdParamsSchema>;
 

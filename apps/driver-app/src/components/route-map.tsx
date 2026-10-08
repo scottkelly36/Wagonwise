@@ -19,7 +19,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { config } from '../config';
 import type { PlaceCategory } from '@wagonwise/contracts/places';
 import { hazardSeverityFor } from '../lib/hazard-labels';
-import { PLACE_CATEGORY_ICONS } from '../lib/places';
+import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
 import { Icon } from './ui/icon';
 
 export interface MapPoint {
