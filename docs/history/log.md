@@ -3,6 +3,12 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-08: **delivery records.** Jobs shows, for a delivered job, Internal and Customer copy buttons. Each opens a printable page in a
+  new tab (the browser's Save as PDF) with the reference, each stop with arrival and finish times, and the delivery photos. The
+  customer copy has nothing about the driver or vehicle and no driver instructions; the internal one adds the driver (the sign-in
+  email or phone, the portal has no driver name), the vehicle, instructions and the status history. No GPS positions in either.
+  Built in the browser from the existing photo requests: portal only, no core change. Lets a company keep proof after the photo's
+  retention period.
 - 2026-10-08: **delivery photo retention, chosen by the company.** `companies.companies.photo_retention_months` (migration 0038,
   default 12, 1 to 120). A manager (`manage_users`) or WagonWise staff sets it on the portal's new Settings page
   (`PUT /staff/companies/:id/settings`, audited as `company_settings_changed`, shown on Activity). A daily task in core

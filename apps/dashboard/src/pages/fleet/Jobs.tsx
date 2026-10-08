@@ -8,6 +8,11 @@ import * as jobsApi from '../../api/jobs';
 import * as placesApi from '../../api/places';
 import { savedPlaceIdSchema } from '@wagonwise/contracts/places';
 import { StopEditor } from '../../components/StopEditor';
+import {
+  deliveryRecordHtml,
+  type RecordPhoto,
+  type RecordVariant,
+} from '../../lib/delivery-record';
 import { DataTable, type Column } from '../../components/DataTable';
 import { FieldError } from '../../components/FieldError';
 import { resolvePostcode } from '../../hooks/use-postcode';
@@ -240,6 +245,49 @@ export function Jobs() {
     (link) => link.status === 'active' && link.driverId !== undefined,
   );
 
+  const [recordError, setRecordError] = useState<string | undefined>(undefined);
+
+  /** Opens a delivery record in a new tab and offers it for printing or saving as a PDF. The tab is opened first,
+   *  on the click, so a pop-up blocker allows it; the photos are fetched one at a time (they are large). */
+  async function openRecord(job: JobDto, variant: RecordVariant): Promise<void> {
+    setRecordError(undefined);
+    const tab = window.open('', '_blank');
+    if (tab === null) {
+      setRecordError('Allow pop-ups for this site to open the record.');
+      return;
+    }
+    tab.document.write('<p style="font-family:system-ui">Preparing the record…</p>');
+    try {
+      const photos = new Map<number, RecordPhoto>();
+      for (const stopIndex of job.proofStops) {
+        const photo = await withAccessToken((token) =>
+          jobsApi.getProofOfDelivery(token, job.id, stopIndex),
+        );
+        photos.set(stopIndex, {
+          dataUrl: `data:${photo.contentType};base64,${photo.dataBase64}`,
+          capturedAt: photo.capturedAt,
+        });
+      }
+      const html = deliveryRecordHtml({
+        job,
+        variant,
+        photos,
+        generatedAt: new Date(),
+        driverLabel: drivers.data?.find((l) => l.driverId === job.driverId)?.driverIdentifier,
+        vehicleName: vehicles.data?.find((v) => v.id === job.vehicleId)?.name,
+      });
+      tab.document.open();
+      tab.document.write(html);
+      tab.document.close();
+      tab.focus();
+      // Give the photos a moment to draw before the print dialog (Save as PDF) opens.
+      setTimeout(() => tab.print(), 400);
+    } catch (e) {
+      tab.close();
+      setRecordError(staffErrorMessage(e));
+    }
+  }
+
   const jobColumns: Column<JobDto>[] = [
     {
       key: 'reference',
@@ -293,6 +341,31 @@ export function Jobs() {
           'Photo removed (retention period)'
         ) : job.requiresProofOfDelivery ? (
           'Required — not yet received'
+        ) : (
+          '—'
+        ),
+    },
+    {
+      key: 'record',
+      header: 'Delivery record',
+      cell: (job) =>
+        job.status === 'delivered' ? (
+          <>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void openRecord(job, 'internal')}
+            >
+              Internal
+            </button>{' '}
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void openRecord(job, 'customer')}
+            >
+              Customer copy
+            </button>
+          </>
         ) : (
           '—'
         ),
@@ -418,6 +491,7 @@ export function Jobs() {
       )}
 
       {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
+      {recordError !== undefined && <p style={{ color: '#dc2626' }}>{recordError}</p>}
 
       {viewing !== undefined && (
         <ProofPhotoDialog
