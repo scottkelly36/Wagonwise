@@ -244,3 +244,9 @@ update --spec` (used once to add the job) wiped `core`'s App-Level `DATABASE_URL
     the same screen; (4) send the status to core and show it in the portal; (5) put the break into the ETA and the
     route, including re-planning when traffic eats the time left. Pricing is a business decision and is not recorded
     here.
+
+- **2026-10-08: job flow that fits more kinds of firm (built).** Raised by the owner before calling Phase 2 done: a pickup
+  should be optional (some firms always load at the same place), a company should be able to store its customers and sites
+  (New address or Stored location), and a job should be able to have several stops. All three are built: see
+  `history/log.md`. Still open: letting a driver reorder stops (only dispatchers can today), and re-planning a multi-stop job
+  that is already in flight.
