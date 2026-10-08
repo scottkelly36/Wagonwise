@@ -400,148 +400,167 @@ export default function PlanRouteScreen() {
         </View>
 
         <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
-          <SegmentedControl
-            options={VEHICLE_MODE_OPTIONS}
-            value={vehicleMode}
-            onChange={handleSelectVehicleMode}
-            testIDPrefix="vehicle-mode"
-          />
+          {routeOptions === undefined ? (
+            <>
+              <SegmentedControl
+                options={VEHICLE_MODE_OPTIONS}
+                value={vehicleMode}
+                onChange={handleSelectVehicleMode}
+                testIDPrefix="vehicle-mode"
+              />
 
-          {vehicleMode === 'profile' && noVehiclesYet ? (
-            <View style={styles.firstUse} testID="first-vehicle-card">
-              <View style={styles.firstUseHeader}>
-                <Icon name="truck-outline" size={28} color={colors.accent} />
-                <Text style={styles.firstUseTitle}>First, tell us about your lorry</Text>
-              </View>
-              <Text style={styles.firstUseBody}>
-                Its height, width, length and weight decide which roads and bridges are safe. Add it
-                once and it is remembered for every trip.
-              </Text>
-              <TouchableOpacity
-                style={styles.firstUseButton}
-                onPress={() => router.push('/profiles/new')}
-                accessibilityRole="button"
-                testID="add-first-vehicle-button"
-              >
-                <Text style={styles.firstUseButtonText}>Add my vehicle</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleSelectVehicleMode('manual')}
-                testID="first-vehicle-manual-link"
-              >
-                <Text style={styles.firstUseLink}>Or enter the details just for this trip</Text>
-              </TouchableOpacity>
-            </View>
-          ) : vehicleMode === 'profile' ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.profileRow}
-            >
-              {profilesLoading ? (
-                <ActivityIndicator color={colors.text} />
-              ) : profiles === undefined || profiles.length === 0 ? (
-                <Text style={styles.hint}>
-                  No saved vehicles yet — try “Enter details” instead.
-                </Text>
-              ) : (
-                profiles.map((profile) => (
+              {vehicleMode === 'profile' && noVehiclesYet ? (
+                <View style={styles.firstUse} testID="first-vehicle-card">
+                  <View style={styles.firstUseHeader}>
+                    <Icon name="truck-outline" size={28} color={colors.accent} />
+                    <Text style={styles.firstUseTitle}>First, tell us about your lorry</Text>
+                  </View>
+                  <Text style={styles.firstUseBody}>
+                    Its height, width, length and weight decide which roads and bridges are safe.
+                    Add it once and it is remembered for every trip.
+                  </Text>
                   <TouchableOpacity
-                    key={profile.id}
-                    style={[styles.chip, profile.id === selectedProfile?.id && styles.chipSelected]}
-                    onPress={() => handleSelectProfile(profile.id)}
-                    testID={`profile-chip-${profile.id}`}
+                    style={styles.firstUseButton}
+                    onPress={() => router.push('/profiles/new')}
+                    accessibilityRole="button"
+                    testID="add-first-vehicle-button"
                   >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        profile.id === selectedProfile?.id && styles.chipTextSelected,
-                      ]}
-                    >
-                      {profile.name}
-                    </Text>
+                    <Text style={styles.firstUseButtonText}>Add my vehicle</Text>
                   </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-          ) : (
-            <ScrollView
-              style={styles.manualForm}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              {DIMENSION_FIELDS.map((field) => (
-                <View key={field.key}>
-                  <Text style={styles.label}>{field.label}</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={dimensionValues[field.key]}
-                    onChangeText={setDimensionField(field.key)}
-                    placeholder={field.placeholder}
-                    placeholderTextColor={colors.textDim}
-                    keyboardType="decimal-pad"
-                    testID={`manual-${field.key}-input`}
-                  />
+                  <TouchableOpacity
+                    onPress={() => handleSelectVehicleMode('manual')}
+                    testID="first-vehicle-manual-link"
+                  >
+                    <Text style={styles.firstUseLink}>Or enter the details just for this trip</Text>
+                  </TouchableOpacity>
                 </View>
-              ))}
-            </ScrollView>
+              ) : vehicleMode === 'profile' ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.profileRow}
+                >
+                  {profilesLoading ? (
+                    <ActivityIndicator color={colors.text} />
+                  ) : profiles === undefined || profiles.length === 0 ? (
+                    <Text style={styles.hint}>
+                      No saved vehicles yet — try “Enter details” instead.
+                    </Text>
+                  ) : (
+                    profiles.map((profile) => (
+                      <TouchableOpacity
+                        key={profile.id}
+                        style={[
+                          styles.chip,
+                          profile.id === selectedProfile?.id && styles.chipSelected,
+                        ]}
+                        onPress={() => handleSelectProfile(profile.id)}
+                        testID={`profile-chip-${profile.id}`}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            profile.id === selectedProfile?.id && styles.chipTextSelected,
+                          ]}
+                        >
+                          {profile.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </ScrollView>
+              ) : (
+                <ScrollView
+                  style={styles.manualForm}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                >
+                  {DIMENSION_FIELDS.map((field) => (
+                    <View key={field.key}>
+                      <Text style={styles.label}>{field.label}</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={dimensionValues[field.key]}
+                        onChangeText={setDimensionField(field.key)}
+                        placeholder={field.placeholder}
+                        placeholderTextColor={colors.textDim}
+                        keyboardType="decimal-pad"
+                        testID={`manual-${field.key}-input`}
+                      />
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+
+              <PointPicker
+                label="From"
+                options={FROM_OPTIONS}
+                mode={fromMode === 'here' ? 'search' : fromMode}
+                onModeChange={handleFromModeChange}
+                testID="from"
+                collapsed={
+                  fromMode === 'here'
+                    ? {
+                        text:
+                          location.point === undefined ? 'Finding your position…' : 'Your position',
+                        actionLabel: 'Change',
+                        onAction: () => handleFromModeChange('search'),
+                      }
+                    : undefined
+                }
+              >
+                {fromMode === 'search' ? (
+                  <AddressSearchField
+                    placeholder="Search for an address or postcode"
+                    apiKey={config.maptilerApiKey}
+                    near={origin ?? location.point}
+                    onSelect={handleOriginSearchSelect}
+                    testID="origin-search"
+                  />
+                ) : (
+                  mapHelp('origin')
+                )}
+                <TouchableOpacity
+                  onPress={() => handleFromModeChange('here')}
+                  accessibilityRole="button"
+                  testID="from-use-position-button"
+                >
+                  <Text style={styles.linkText}>Use my position instead</Text>
+                </TouchableOpacity>
+              </PointPicker>
+
+              <PointPicker
+                label="To"
+                options={TO_OPTIONS}
+                mode={toMode}
+                onModeChange={handleToModeChange}
+                testID="to"
+              >
+                {toMode === 'search' ? (
+                  <AddressSearchField
+                    placeholder="Search for an address or postcode"
+                    apiKey={config.maptilerApiKey}
+                    near={effectiveOrigin ?? location.point}
+                    onSelect={handleDestinationSearchSelect}
+                    testID="destination-search"
+                  />
+                ) : (
+                  mapHelp('destination')
+                )}
+              </PointPicker>
+            </>
+          ) : (
+            // With the route choices showing, the form folds into one line so the map keeps most of the screen.
+            <View style={styles.summary} testID="route-summary">
+              <Icon name="truck-outline" size={20} color={colors.accent} />
+              <Text style={styles.summaryText} numberOfLines={2}>
+                {vehicleMode === 'profile'
+                  ? (selectedProfile?.name ?? 'Your vehicle')
+                  : 'The vehicle details you entered'}
+                {fromMode === 'here' ? ' · from your position' : ' · from the start you chose'}
+              </Text>
+            </View>
           )}
-
-          <PointPicker
-            label="From"
-            options={FROM_OPTIONS}
-            mode={fromMode === 'here' ? 'search' : fromMode}
-            onModeChange={handleFromModeChange}
-            testID="from"
-            collapsed={
-              fromMode === 'here'
-                ? {
-                    text: location.point === undefined ? 'Finding your position…' : 'Your position',
-                    actionLabel: 'Change',
-                    onAction: () => handleFromModeChange('search'),
-                  }
-                : undefined
-            }
-          >
-            {fromMode === 'search' ? (
-              <AddressSearchField
-                placeholder="Search for an address or postcode"
-                apiKey={config.maptilerApiKey}
-                near={origin ?? location.point}
-                onSelect={handleOriginSearchSelect}
-                testID="origin-search"
-              />
-            ) : (
-              mapHelp('origin')
-            )}
-            <TouchableOpacity
-              onPress={() => handleFromModeChange('here')}
-              accessibilityRole="button"
-              testID="from-use-position-button"
-            >
-              <Text style={styles.linkText}>Use my position instead</Text>
-            </TouchableOpacity>
-          </PointPicker>
-
-          <PointPicker
-            label="To"
-            options={TO_OPTIONS}
-            mode={toMode}
-            onModeChange={handleToModeChange}
-            testID="to"
-          >
-            {toMode === 'search' ? (
-              <AddressSearchField
-                placeholder="Search for an address or postcode"
-                apiKey={config.maptilerApiKey}
-                near={effectiveOrigin ?? location.point}
-                onSelect={handleDestinationSearchSelect}
-                testID="destination-search"
-              />
-            ) : (
-              mapHelp('destination')
-            )}
-          </PointPicker>
 
           {displayedError !== undefined && <Text style={styles.error}>{displayedError}</Text>}
           {nextStepHint !== undefined && !pending && (
@@ -639,6 +658,8 @@ function createStyles(colors: ThemeColors) {
       paddingTop: 16,
       gap: 12,
     },
+    summary: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 2 },
+    summaryText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.textSecondary },
     backOverlay: {
       position: 'absolute',
       left: 16,

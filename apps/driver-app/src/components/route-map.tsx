@@ -331,7 +331,12 @@ export function RouteMap({
           // (tried: it showed its own dot and left the camera where it was).
           <Camera ref={cameraRef} zoom={followZoom} pitch={NAV_PITCH_DEG} padding={navPadding} />
         ) : bounds ? (
-          <Camera bounds={bounds} padding={BOUNDS_PADDING} />
+          // Re-fitted when the map is resized (the plan screen's panel grows and shrinks), so the whole route stays in view.
+          <Camera
+            key={`fit-${Math.round(mapHeight / 60)}`}
+            bounds={bounds}
+            padding={BOUNDS_PADDING}
+          />
         ) : (
           <Camera
             center={isFreeLooking || !center ? undefined : toLngLat(center)}
