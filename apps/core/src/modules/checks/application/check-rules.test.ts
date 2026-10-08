@@ -9,6 +9,7 @@ import {
   updateCheckSettings,
   type CheckRulesDeps,
 } from './check-rules.js';
+import { DEFAULT_SETTINGS } from '../domain/settings.js';
 import type { StaffCaller } from './ports/directories.js';
 import { InMemoryCheckRepository } from './testing/in-memory-check-repository.js';
 import { InMemoryOfficeCheckRepository } from './testing/in-memory-office-check-repository.js';
@@ -82,7 +83,7 @@ describe('settings', () => {
     const { deps } = setup();
     expect(await getCheckSettings(deps, viewer, acme)).toEqual({
       ok: true,
-      value: { requiredBeforeJob: false, blockOnDoNotDrive: false },
+      value: { requiredBeforeJob: false, blockOnDoNotDrive: false, retentionMonths: 12 },
     });
     const changed = await updateCheckSettings(deps, manager, staffId, acme, {
       requiredBeforeJob: true,
@@ -127,7 +128,11 @@ describe('jobStartVerdict', () => {
 
   it('wants every list for the vehicle done today when the firm asks for it', async () => {
     const { deps, settings, templates, checks } = setup();
-    await settings.save(acme, { requiredBeforeJob: true, blockOnDoNotDrive: false }, staffId);
+    await settings.save(
+      acme,
+      { ...DEFAULT_SETTINGS, requiredBeforeJob: true, blockOnDoNotDrive: false },
+      staffId,
+    );
     await templates.save(list('a'));
     await templates.save(list('b'));
     expect(await jobStartVerdict(deps, acme, lorry)).toBe('check_required');
@@ -139,7 +144,11 @@ describe('jobStartVerdict', () => {
 
   it('counts only the lists meant for this vehicle, and a check on another vehicle does not help', async () => {
     const { deps, settings, templates, checks } = setup();
-    await settings.save(acme, { requiredBeforeJob: true, blockOnDoNotDrive: false }, staffId);
+    await settings.save(
+      acme,
+      { ...DEFAULT_SETTINGS, requiredBeforeJob: true, blockOnDoNotDrive: false },
+      staffId,
+    );
     await templates.save(list('trailer-only', { appliesTo: 'selected', vehicleIds: [trailer] }));
     expect(await jobStartVerdict(deps, acme, lorry)).toBe('ok');
     expect(await jobStartVerdict(deps, acme, trailer)).toBe('check_required');
@@ -149,7 +158,11 @@ describe('jobStartVerdict', () => {
 
   it('is not asked tomorrow for a check done today', async () => {
     const { deps, settings, templates, checks, clock } = setup();
-    await settings.save(acme, { requiredBeforeJob: true, blockOnDoNotDrive: false }, staffId);
+    await settings.save(
+      acme,
+      { ...DEFAULT_SETTINGS, requiredBeforeJob: true, blockOnDoNotDrive: false },
+      staffId,
+    );
     await templates.save(list('a'));
     await doneToday(checks, 'a', lorry);
     expect(await jobStartVerdict(deps, acme, lorry)).toBe('ok');
@@ -159,7 +172,11 @@ describe('jobStartVerdict', () => {
 
   it('holds back a vehicle with an unfixed do-not-drive defect until the office marks it fixed', async () => {
     const { deps, settings, office } = setup();
-    await settings.save(acme, { requiredBeforeJob: false, blockOnDoNotDrive: true }, staffId);
+    await settings.save(
+      acme,
+      { ...DEFAULT_SETTINGS, requiredBeforeJob: false, blockOnDoNotDrive: true },
+      staffId,
+    );
     const detail: CheckDetail = {
       id: makeId<'CheckId'>('c1'),
       companyId: acme,

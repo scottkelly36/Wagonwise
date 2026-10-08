@@ -225,7 +225,11 @@ describe('/staff/checks', () => {
     const { app } = buildApp();
     const url = `/staff/checks/companies/${ACME}/settings`;
     const first = await app.inject({ method: 'GET', url, ...as('viewer') });
-    expect(first.json()).toEqual({ requiredBeforeJob: false, blockOnDoNotDrive: false });
+    expect(first.json()).toEqual({
+      requiredBeforeJob: false,
+      blockOnDoNotDrive: false,
+      retentionMonths: 12,
+    });
 
     const on = { requiredBeforeJob: true, blockOnDoNotDrive: true };
     expect(
@@ -236,8 +240,11 @@ describe('/staff/checks', () => {
     ).toBe(403);
     const put = await app.inject({ method: 'PUT', url, payload: on, ...as('builder') });
     expect(put.statusCode).toBe(200);
-    expect(put.json()).toEqual(on);
-    expect((await app.inject({ method: 'GET', url, ...as('viewer') })).json()).toEqual(on);
+    expect(put.json()).toEqual({ ...on, retentionMonths: 12 });
+    expect((await app.inject({ method: 'GET', url, ...as('viewer') })).json()).toEqual({
+      ...on,
+      retentionMonths: 12,
+    });
     expect((await app.inject({ method: 'GET', url, ...as('outsider') })).statusCode).toBe(403);
   });
 
@@ -250,5 +257,32 @@ describe('/staff/checks', () => {
       ...as('builder'),
     });
     expect(response.statusCode).toBe(400);
+  });
+
+  it('lets a fleet manager choose how long checks are kept, and refuses a length that makes no sense', async () => {
+    const { app } = buildApp();
+    const url = `/staff/checks/companies/${ACME}/settings`;
+    const rules = { requiredBeforeJob: false, blockOnDoNotDrive: false };
+    const put = await app.inject({
+      method: 'PUT',
+      url,
+      payload: { ...rules, retentionMonths: 36 },
+      ...as('builder'),
+    });
+    expect(put.json()).toMatchObject({ retentionMonths: 36 });
+    // Leaving it out keeps it.
+    await app.inject({ method: 'PUT', url, payload: rules, ...as('builder') });
+    expect((await app.inject({ method: 'GET', url, ...as('viewer') })).json()).toMatchObject({
+      retentionMonths: 36,
+    });
+    for (const bad of [0, 121, 2.5]) {
+      const refused = await app.inject({
+        method: 'PUT',
+        url,
+        payload: { ...rules, retentionMonths: bad },
+        ...as('builder'),
+      });
+      expect(refused.statusCode).toBe(400);
+    }
   });
 });

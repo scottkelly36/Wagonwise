@@ -77,6 +77,8 @@ describe('runMigrations', () => {
       '0044_checks_checks.sql',
       '0045_checks_defect_handling.sql',
       '0046_checks_settings.sql',
+      '0047_checks_retention.sql',
+      '0048_billing_costs.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -230,6 +232,8 @@ describe('runMigrations', () => {
       '0044_checks_checks.sql',
       '0045_checks_defect_handling.sql',
       '0046_checks_settings.sql',
+      '0047_checks_retention.sql',
+      '0048_billing_costs.sql',
     ]);
   });
 });

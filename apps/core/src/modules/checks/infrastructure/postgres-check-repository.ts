@@ -1,7 +1,7 @@
 import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
 import type { CheckPhoto, CheckRepository } from '../application/ports/check-repository.js';
-import type { CheckItem, CheckTemplateId, VehicleId } from '../domain/check-template.js';
+import type { CheckItem, CheckTemplateId, CompanyId, VehicleId } from '../domain/check-template.js';
 import type { Answer, Check, CheckId, CheckResult, Defect } from '../domain/check.js';
 import type { UntypedDb } from './db.js';
 
@@ -108,6 +108,20 @@ export class PostgresCheckRepository implements CheckRepository {
                 ${defect.detail}, ${defect.note ?? null}, ${check.submittedAt})
       `.execute(this.db);
     }
+  }
+
+  async deleteOlderThan(companyId: CompanyId, cutoff: Date): Promise<number> {
+    // The photos and defects go with the check (on delete cascade). A check that still has a defect open or only
+    // seen stays: an unresolved fault must not be lost to the clock.
+    const { rows } = await sql<{ id: string }>`
+      delete from checks.checks c
+      where c.company_id = ${companyId} and c.submitted_at < ${cutoff}
+        and not exists (
+          select 1 from checks.defects d where d.check_id = c.id and d.status <> 'fixed'
+        )
+      returning c.id
+    `.execute(this.db);
+    return rows.length;
   }
 
   async savePhoto(check: Check, itemId: string, photo: CheckPhoto, at: Date): Promise<void> {

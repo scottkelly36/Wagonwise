@@ -876,4 +876,42 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
       ).rejects.toThrow(/row-level security/);
     });
   });
+
+  describe('WagonWise’s costs (migration 0048)', () => {
+    beforeAll(async () => {
+      await ownerPool.query(`
+        insert into billing.costs (id, category, description, amount_pence, from_month, created_at)
+          values (gen_random_uuid(), 'hosting', 'Servers', 5000, '2026-08', now());
+      `);
+    });
+    const descriptions = async () =>
+      (
+        await sql<{ description: string }>`select description from billing.costs`.execute(db)
+      ).rows.map((r) => r.description);
+
+    it('only WagonWise staff see the costs, never a company, a driver or an unscoped query', async () => {
+      await scopes.run({ kind: 'platform' }, async () => {
+        expect(await descriptions()).toEqual(['Servers']);
+      });
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await descriptions()).toEqual([]);
+      });
+      expect(await descriptions()).toEqual([]);
+    });
+
+    it('a company cannot change or add to them', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        const changed = await sql`update billing.costs set amount_pence = 1`.execute(db);
+        expect(changed.numAffectedRows).toBe(0n);
+      });
+      await expect(
+        scopes.run({ kind: 'company', companyId: ACME }, () =>
+          sql`insert into billing.costs (id, category, description, amount_pence, from_month, created_at)
+              values (gen_random_uuid(), 'other', 'Planted', 1, '2026-10', now())`.execute(db),
+        ),
+      ).rejects.toThrow(/row-level security/);
+      const { rows } = await ownerPool.query('select amount_pence from billing.costs');
+      expect(rows).toEqual([{ amount_pence: 5000 }]);
+    });
+  });
 });

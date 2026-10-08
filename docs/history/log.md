@@ -3,6 +3,26 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **Finances page: WagonWise's own costs against what companies are invoiced (Phase 3 M1, M2 and M6, reframed by the
+  owner).** Migration 0048 (`billing.costs`, platform-only Row-Level Security). An admin enters what it costs to run WagonWise on the
+  new **Finances** page (types: hosting, maps and routing, email and text, software and tools, wages or your time, other; amounts ex
+  VAT). A cost is **standing**: it applies from its first month and carries on every month until changed or stopped, so most are
+  entered once. Changing the amount from a later month ends the old entry the month before and starts a new one, so earlier months
+  keep what they had and a past month's profit never moves; stopping ends it the month before; a one-off is a single month; "remove
+  entry" is for a mistake. Revenue comes from the invoices already in the system: **invoiced** is issued and paid invoices (never
+  drafts or cancelled ones) by the month they are for, **received** is those marked paid. The page shows the month's figures, its
+  costs, revenue by company, profit on both measures (invoiced is the headline), twelve months side by side, and a look ahead (today's
+  plans against the costs standing this month, with the break-even number of vehicles). Per-vehicle and per-job costing for client
+  companies (the original M1 and M2) are not built and would only follow if a company asks.
+- 2026-10-09: **walk-round checks, slice 3c: retention (Phase 3 M5 complete).** Migration 0047 (`checks.settings.retention_months`,
+  default 12, 1 to 120). The firm chooses how long its check records are kept ("Keep check records for" on the Walk-round checks page,
+  `manage_fleet`), as it is the controller of them. A daily task (`prune-checks`, same interval as the other cleanups) deletes each
+  company's checks older than its own retention (12 months if it never chose), with their photos and defects (cascade). A check with
+  a defect still open or only seen is kept until the office marks the defect fixed, so an unresolved fault is never lost to the
+  clock. The PUT settings call may leave `retentionMonths` out to keep what is set; a value outside 1 to 120 whole months is refused.
+  Tested on real Postgres (old check and photos go, recent kept, open and seen defects kept until fixed, other companies untouched).
+  The privacy notice, DPA and DPIA need the new data (daily checks, defect photos) and the firm-chosen retention added; they are held
+  outside the repo, so that is on the owner's list in `progress.md`.
 - 2026-10-09: **walk-round checks, slice 3b: rules about sending a vehicle out (Phase 3 M5).** Migration 0046 (`checks.settings`; and a
   driver may now read their company's settings and defects). Two rules per firm, both off by default, set by a fleet manager on the
   Walk-round checks page: **do the check before the job** (a driver cannot accept a job until every list for the vehicle is done

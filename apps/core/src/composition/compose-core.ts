@@ -425,6 +425,17 @@ export function composeCore(
   });
 
   periodicTasks.start({
+    name: 'prune-checks',
+    intervalMs: config.positionSweepIntervalMs,
+    run: async () => {
+      // Each company chooses how long its walk-round check records are kept; a check with a defect not yet fixed stays.
+      const ids = (await companies.listCompanyNames()).map((c) => c.id);
+      const removed = await checks.pruneOldChecks(ids);
+      if (removed > 0) app.log.info({ removed }, 'deleted old walk-round checks');
+    },
+  });
+
+  periodicTasks.start({
     name: 'prune-route-plans',
     intervalMs: config.positionSweepIntervalMs,
     run: async () => {

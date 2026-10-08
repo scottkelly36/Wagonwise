@@ -55,8 +55,10 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
 - **Decided defaults:** whether a check must be done before a job is a per-firm setting, off by default; a check is once per vehicle
   per day; defects go to an office inbox (open, acknowledged, fixed); the firm chooses how long records are kept.
 - **Slices:** 1 the list builder (built); 2a the server side of a driver doing a check (built); 2b the driver app screen, offline
-  with photos (built); 3a the office results page and defects inbox (built); 3b the before-a-job rules and gate (built); 3c retention; 4 defects feeding maintenance (M4). The
+  with photos (built); 3a the office results page and defects inbox (built); 3b the before-a-job rules and gate (built); 3c retention (built, so M5 is done); 4 defects feeding maintenance (M4). The
   example list is not a standard and the app does not make a firm compliant.
+
+## Finances (M1, M2 and M6 reframed), decided with the owner 2026-10-09- The owner does not yet know the figures, so M1 and M2 became WagonWise's **own** books rather than a client's: an admin enters the running costs, revenue is taken from the invoices already issued, and M6's profit and look-ahead sit on the same page.- **Costs are standing**: entered once, they carry on every month until changed or stopped. Changing the amount from a month keeps the earlier months as they were. Automating the entry (reading a bill, a recurring payment feed) is a later idea.- **Built:** the Finances page (costs, revenue by month and by company, profit on invoiced and received, twelve months, look ahead). Per-vehicle and per-job costing for client companies is not built, and would follow only if a company asks.
 
 ## Cross-cutting
 

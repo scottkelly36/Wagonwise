@@ -8,6 +8,7 @@ import type { CompanyDirectory } from './application/ports/company-directory.js'
 import type { CallerDirectory } from './application/ports/directories.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresBillingDetailsRepository } from './infrastructure/postgres-billing-details-repository.js';
+import { PostgresCostRepository } from './infrastructure/postgres-cost-repository.js';
 import { PostgresInvoiceRepository } from './infrastructure/postgres-invoice-repository.js';
 import { PostgresPlanRepository } from './infrastructure/postgres-plan-repository.js';
 import { registerBillingRoutes } from './interface/routes.js';
@@ -51,6 +52,7 @@ export function createBillingModule(deps: BillingModuleDeps): BillingModule {
   const details = new PostgresBillingDetailsRepository(deps.db);
   const plans = new PostgresPlanRepository(deps.db);
   const invoices = new PostgresInvoiceRepository(deps.db);
+  const costs = new PostgresCostRepository(deps.db);
   return {
     registerRoutes(app: FastifyInstance): void {
       registerBillingRoutes(app, {
@@ -65,6 +67,14 @@ export function createBillingModule(deps: BillingModuleDeps): BillingModule {
           clock: deps.clock,
         },
         own: { plans, invoices, vehicles: deps.vehicles, clock: deps.clock },
+        finance: {
+          costs,
+          invoices,
+          plans,
+          companies: deps.companies,
+          ids: deps.ids,
+          clock: deps.clock,
+        },
         callerDirectory: deps.callers,
         dataScopes: deps.dataScopes,
       });

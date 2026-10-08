@@ -2,6 +2,7 @@ import type { CheckSettingsDto } from '@wagonwise/contracts/checks';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as checksApi from '../api/checks';
+import { retentionChoices } from '../lib/retention';
 import { staffErrorMessage } from '../pages/staff/messages';
 import { useStaffAuthStore } from '../state/staff-auth-store';
 
@@ -60,9 +61,28 @@ export function CheckRules({ companyId, canChange }: { companyId: string; canCha
             <strong>Hold back a vehicle with a &quot;do not drive&quot; defect.</strong> It
             can&apos;t be sent out until you mark the defect fixed on the Defects page.
           </label>
+          <label style={{ display: 'block', marginTop: 16 }}>
+            <strong>Keep check records for</strong>{' '}
+            <select
+              value={current.retentionMonths}
+              disabled={!canChange || save.isPending}
+              onChange={(e) => change({ ...current, retentionMonths: Number(e.target.value) })}
+            >
+              {retentionChoices(current.retentionMonths).map((c) => (
+                <option key={c.months} value={c.months}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <p style={{ color: '#6b7280', fontSize: 13 }}>
-            Both are off until you turn them on. A dispatcher moving a job is never held up by
-            these.
+            After this, a check is deleted with its photos each day. You are in charge of these
+            records, and WagonWise deletes them on your say. A check with a defect not yet fixed is
+            kept until the defect is marked fixed.
+          </p>
+          <p style={{ color: '#6b7280', fontSize: 13 }}>
+            The two rules are off until you turn them on. A dispatcher moving a job is never held up
+            by these.
             {!canChange && ' Fleet managers can change them.'}
           </p>
           {saved && <p style={{ color: '#15803d' }}>Saved.</p>}
