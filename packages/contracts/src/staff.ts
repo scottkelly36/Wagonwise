@@ -193,6 +193,8 @@ export type StaffInviteDto = z.infer<typeof staffInviteSchema>;
 export const createStaffInviteResponseSchema = z.object({
   invite: staffInviteSchema,
   inviteToken: z.string().min(1),
+  /** Whether the invitation was emailed to them. When false the inviter shares the link by hand. */
+  emailed: z.boolean().default(false),
 });
 export type CreateStaffInviteResponse = z.infer<typeof createStaffInviteResponseSchema>;
 

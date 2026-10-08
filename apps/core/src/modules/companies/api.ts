@@ -13,6 +13,7 @@ import type { StaffDeps } from './application/staff-deps.js';
 import { AesGcmSecretBox } from './infrastructure/aes-gcm-secret-box.js';
 import { CryptoRandomCodes } from './infrastructure/crypto-random-codes.js';
 import { IdentityCodeSender } from './infrastructure/identity-code-sender.js';
+import { IdentityInviteMailer } from './infrastructure/identity-invite-mailer.js';
 import { IdentityStaffTokenIssuer } from './infrastructure/identity-staff-token-issuer.js';
 import { PostgresStaffAccountRepository } from './infrastructure/postgres-staff-account-repository.js';
 import { PostgresStaffAuditLog } from './infrastructure/postgres-staff-audit-log.js';
@@ -39,7 +40,10 @@ export interface CompaniesModuleDeps {
   /** The cross-context calls this module makes (AGENTS.md rule 7), each wrapped by an adapter in
    *  `infrastructure/`: for staff sign-in (P2-M1.6), sending codes through drivers' SMS/email
    *  senders and signing staff tokens with core's key. */
-  readonly identity: Pick<IdentityModule, 'sendOneTimeCode' | 'signStaffAccessToken'>;
+  readonly identity: Pick<IdentityModule, 'sendOneTimeCode' | 'sendEmail' | 'signStaffAccessToken'>;
+  /** The dashboard's address (config's DASHBOARD_URL), so a staff invitation can be emailed as a link.
+   *  Undefined: invitations are not emailed and the inviter shares the link. */
+  readonly dashboardUrl?: string | undefined;
   /** Base64 32-byte key for staff TOTP secrets (config's STAFF_SECRET_KEY). Undefined: a fresh
    *  key per boot, local dev only. */
   readonly staffSecretKey?: string | undefined;
@@ -95,6 +99,10 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     codeSender: new IdentityCodeSender((destination, code) =>
       deps.identity.sendOneTimeCode(destination, code),
     ),
+    inviteMailer: new IdentityInviteMailer((to, subject, text) =>
+      deps.identity.sendEmail(to, subject, text),
+    ),
+    dashboardUrl: deps.dashboardUrl,
     randomCodes: new CryptoRandomCodes(),
     tokenIssuer: new IdentityStaffTokenIssuer((staffId, sessionId) =>
       deps.identity.signStaffAccessToken(staffId, sessionId),

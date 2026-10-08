@@ -220,6 +220,7 @@ export function composeCore(
     identity,
     dataScopes,
     staffSecretKey: config.staffSecretKey,
+    dashboardUrl: config.dashboardUrl,
   });
   composed.companies = companies;
   const parking = createParkingModule({ db: parkingDb, clock });

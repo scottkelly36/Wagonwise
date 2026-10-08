@@ -255,6 +255,8 @@ function InviteForm(props: {
     PRIVILEGE_PRESETS.viewer.filter((p) => props.myPrivileges.includes(p)),
   );
   const [link, setLink] = useState<string | undefined>(undefined);
+  // The address the invitation was emailed to; undefined when it was not (so the link is shared by hand).
+  const [emailedTo, setEmailedTo] = useState<string | undefined>(undefined);
 
   const invite = useMutation({
     mutationFn: () =>
@@ -276,6 +278,7 @@ function InviteForm(props: {
       ),
     onSuccess: (result) => {
       setLink(`${window.location.origin}/join?token=${encodeURIComponent(result.inviteToken)}`);
+      setEmailedTo(result.emailed ? result.invite.email : undefined);
       setName('');
       setEmail('');
       setShowErrors(false);
@@ -404,7 +407,12 @@ function InviteForm(props: {
       {invite.error !== null && <p className="error">{staffErrorMessage(invite.error)}</p>}
       {link !== undefined && (
         <div style={{ marginTop: 12 }}>
-          <p>Send this link to them. It works once, expires in 7 days, and won't be shown again:</p>
+          <p>
+            {emailedTo !== undefined
+              ? `We have emailed an invitation to ${emailedTo}. If it does not arrive, you can send them this link yourself.`
+              : "We couldn't email it, so send this link to them yourself."}{' '}
+            It works once, expires in 7 days, and won't be shown again:
+          </p>
           <input
             readOnly
             value={link}

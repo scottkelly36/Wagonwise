@@ -235,7 +235,14 @@ export function registerStaffRoutes(
             };
       const result = await createStaffInvite(deps, actor, input);
       if (!result.ok) return fail(result.error);
-      return ok(201, { invite: inviteDto(result.value.invite), inviteToken: result.value.token });
+      if (result.value.emailError !== undefined) {
+        request.log.error({ err: result.value.emailError }, 'could not email staff invitation');
+      }
+      return ok(201, {
+        invite: inviteDto(result.value.invite),
+        inviteToken: result.value.token,
+        emailed: result.value.emailed,
+      });
     });
     return send(request, reply, outcome);
   });

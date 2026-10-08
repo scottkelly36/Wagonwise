@@ -80,6 +80,9 @@ const envSchema = z.object({
   // Optional: the Met Office Weather DataHub key (NSWWS warnings). Unset means no weather warnings are
   // fetched or shown. Server-side only; never sent to an app.
   METOFFICE_API_KEY: z.string().min(1).optional(),
+  // Optional: where the dashboard is served (e.g. https://dashboard.wagon-wise.co.uk), so a staff invitation
+  // can be emailed as a link. Unset means invitations are not emailed and the inviter shares the link.
+  DASHBOARD_URL: z.url().optional(),
   // Optional pair: unset means OTP codes fall back to ConsoleOtpSender (logs the code, never
   // sends it) — fine for local dev, useless for a driver who isn't watching this process's
   // stdout. Both set wires ClickSendOtpSender instead. ClickSend's own auth uses the account
@@ -141,6 +144,7 @@ export interface Config {
   readonly expoAccessToken: string | undefined;
   readonly anthropicApiKey: string | undefined;
   readonly metOfficeApiKey: string | undefined;
+  readonly dashboardUrl: string | undefined;
   readonly clickSendUsername: string | undefined;
   readonly clickSendApiKey: string | undefined;
   readonly resendApiKey: string | undefined;
@@ -190,6 +194,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     expoAccessToken: values.EXPO_ACCESS_TOKEN,
     anthropicApiKey: values.ANTHROPIC_API_KEY,
     metOfficeApiKey: values.METOFFICE_API_KEY,
+    dashboardUrl: values.DASHBOARD_URL,
     clickSendUsername: values.CLICKSEND_USERNAME,
     clickSendApiKey: values.CLICKSEND_API_KEY,
     resendApiKey: values.RESEND_API_KEY,

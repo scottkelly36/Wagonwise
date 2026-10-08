@@ -137,6 +137,15 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-08: **weather warnings, staff invitation emails, live map fix, Resend fix.** (1) Met Office warnings (NSWWS via
+  Weather DataHub, key `METOFFICE_API_KEY` on core): core polls every 5 minutes and keeps them in memory; the portal shows a
+  banner and a toggleable layer on Live trips; the driver app shows a badge (weather icon on the warning colour) when a
+  warning covers where they are. Nothing shows until a warning is issued. (2) Staff invitations are now emailed as a link
+  through Resend when `DASHBOARD_URL` is set on core (the invite is still made, and the link still shown, if the email
+  fails). (3) Live trips drew only a background: MapLibre 6's tile worker was missing from the production build; now
+  bundled (`dashboard/src/lib/map-worker.ts`). (4) Email sign-in codes had stopped: the `wagon-wise.co.uk` domain was not
+  verified in Resend, so the sandbox sender refused everyone but the account owner. Fixed by verifying the domain;
+  recorded in the deployment guide.
 - 2026-10-08: **saved places** (a farm's real gate, marked once, kept for future jobs). From the first drive and the owner's
   field test: a farm's postcode often lands somewhere other than its gate. A driver stands at the real entrance, taps
   _Mark this spot_, names it and adds a note ("gate on the left, tight turn"); it is saved where they stand. **Company

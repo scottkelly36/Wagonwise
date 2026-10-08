@@ -1,6 +1,7 @@
 import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import type { CodeSender } from './ports/code-sender.js';
+import type { InviteMailer } from './ports/invite-mailer.js';
 import type { PasswordHasher } from './ports/password-hasher.js';
 import type { RandomCodes } from './ports/random-codes.js';
 import type { SecretBox } from './ports/secret-box.js';
@@ -29,6 +30,10 @@ export interface StaffDeps {
   readonly secretBox: SecretBox;
   readonly totp: Totp;
   readonly codeSender: CodeSender;
+  readonly inviteMailer: InviteMailer;
+  /** The dashboard's address (config's DASHBOARD_URL), for the link in an invitation email. Undefined:
+   *  no email is sent and the inviter shares the link by hand. */
+  readonly dashboardUrl: string | undefined;
   readonly randomCodes: RandomCodes;
   readonly tokenIssuer: StaffTokenIssuer;
   readonly clock: Clock;
