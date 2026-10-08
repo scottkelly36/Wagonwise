@@ -12,6 +12,11 @@ export interface VehicleDirectory {
   belongsToCompany(vehicleId: VehicleId, companyId: CompanyId): Promise<boolean>;
 }
 
+/** A company vehicle's name, for the reports (P2-M8). Supplied by composition over fleet. */
+export interface VehicleNameDirectory {
+  getName(vehicleId: VehicleId): Promise<string | null>;
+}
+
 /** Resolves a driver's identifier, needed for the `driver` data scope (P2-M5.1) — same shape as
  *  fleet's own port of the same name; composition supplies both over identity's
  *  `getDriverIdentifier`. */

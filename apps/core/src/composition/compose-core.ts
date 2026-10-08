@@ -242,6 +242,9 @@ export function composeCore(
         (await fleet.getVehicleCompanyId(vehicleId)) === companyId,
     },
     driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+    vehicleNames: {
+      getName: async (vehicleId) => (await fleet.getVehicle(vehicleId))?.name ?? null,
+    },
     // A job is routed for the company vehicle it is assigned to (fleet's dimensions), not a
     // driver's own profile; composition is where those two modules meet (AGENTS.md rule 7).
     navigationProfiles: {

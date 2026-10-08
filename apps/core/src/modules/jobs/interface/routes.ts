@@ -5,6 +5,7 @@ import {
   failJobRequestSchema,
   jobCompanyIdParamsSchema,
   jobIdParamsSchema,
+  jobReportRequestSchema,
   previewJobRouteRequestSchema,
 } from '@wagonwise/contracts/jobs';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -23,12 +24,13 @@ import {
   type GetProofOfDeliveryDeps,
 } from '../application/get-proof-of-delivery.js';
 import { previewJobRoute, type PreviewJobRouteDeps } from '../application/preview-job-route.js';
+import { reportJobs, type ReportJobsDeps } from '../application/report-jobs.js';
 import { listJobEtas, type ListJobEtasDeps } from '../application/list-job-etas.js';
 import { listJobPositions, type ListJobPositionsDeps } from '../application/list-job-positions.js';
 import { getJob, listJobs, type GetJobDeps, type ListJobsDeps } from '../application/list-jobs.js';
 import type { Caller, CallerDirectory } from '../application/ports/caller-directory.js';
 import type { JobStop } from '../domain/job.js';
-import { jobDto } from './dto.js';
+import { jobDto, jobReportDto } from './dto.js';
 import { statusFor } from './error-mapping.js';
 
 export interface JobsRouteDeps {
@@ -41,6 +43,7 @@ export interface JobsRouteDeps {
   readonly listPositions: ListJobPositionsDeps;
   readonly listEtas: ListJobEtasDeps;
   readonly previewRoute: PreviewJobRouteDeps;
+  readonly report: ReportJobsDeps;
   /** Resolves who's calling, for the use cases' own permission checks
    *  (`application/authorization.ts`) and for the request's RLS scope. */
   readonly callerDirectory: CallerDirectory;
@@ -147,6 +150,25 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
       return result.ok
         ? { status: 200, body: { jobs: result.value.map(jobDto) } }
         : failure(result.error);
+    }),
+  );
+
+  // P2-M8: the jobs report. Needs `view_reports` (a step beyond viewing jobs), checked in the use case.
+  app.post('/staff/jobs/companies/:companyId/report', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = jobCompanyIdParamsSchema.safeParse(request.params);
+      const body = jobReportRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return INVALID;
+      const from = new Date(body.data.from);
+      const to = new Date(body.data.to);
+      if (from.getTime() >= to.getTime()) return INVALID;
+      const result = await reportJobs(deps.report, {
+        caller,
+        companyId: makeId<'CompanyId'>(params.data.companyId),
+        from,
+        to,
+      });
+      return result.ok ? { status: 200, body: jobReportDto(result.value) } : failure(result.error);
     }),
   );
 

@@ -8,6 +8,7 @@ import type {
   DriverDirectory,
   DriverIdentityDirectory,
   VehicleDirectory,
+  VehicleNameDirectory,
 } from './application/ports/directories.js';
 import type { NavigationProfileProvisioner } from './application/ports/navigation-profile.js';
 import type { JobRouteEstimator } from './application/ports/route-estimator.js';
@@ -48,6 +49,8 @@ export interface JobsModuleDeps {
   /** A driver's own identifier, for the `driver` data scope (P2-M5.1). Supplied by composition
    *  over identity's `getDriverIdentifier`, same as fleet's own driver routes. */
   readonly driverIdentities: DriverIdentityDirectory;
+  /** A company vehicle's name, for the reports (P2-M8). Supplied by composition over fleet. */
+  readonly vehicleNames: VehicleNameDirectory;
   /** Travel estimates for a company vehicle (P2-M6.4). Supplied by composition over `fleet`'s
    *  dimensions and `routing`'s `estimateRoute`; this module caches them. */
   readonly routes: JobRouteEstimator;
@@ -90,6 +93,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     getProofOfDelivery: { repo },
     listPositions: { positions },
     listEtas: { repo, positions, routes },
+    report: { repo, drivers: deps.driverIdentities, vehicles: deps.vehicleNames },
     previewRoute: { repo, vehicles: deps.vehicles, routes },
     callerDirectory: deps.callers,
     dataScopes: deps.dataScopes,

@@ -15,6 +15,15 @@ export function canViewJobs(caller: Caller, companyId: CompanyId): boolean {
   return caller.kind === 'platform' || caller.companyId === companyId;
 }
 
+/** The reports (P2-M8) need the `view_reports` privilege, since they hold a company's whole job
+ *  history, including who drove what: a step beyond looking at today's jobs. WagonWise admins see any. */
+export function canViewReports(caller: Caller, companyId: CompanyId): boolean {
+  return (
+    caller.kind === 'platform' ||
+    (caller.companyId === companyId && caller.privileges.includes('view_reports'))
+  );
+}
+
 /** Who is moving a job's status: staff (dispatchers) or the driver the job is assigned to. */
 export type JobActor = Caller | { readonly kind: 'driver'; readonly driverId: DriverId };
 

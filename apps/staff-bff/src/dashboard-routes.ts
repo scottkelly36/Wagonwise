@@ -16,6 +16,7 @@ import {
   createJobRequestSchema,
   jobCompanyIdParamsSchema,
   jobIdParamsSchema,
+  jobReportRequestSchema,
   previewJobRouteRequestSchema,
 } from '@wagonwise/contracts/jobs';
 import type { FastifyInstance } from 'fastify';
@@ -124,6 +125,13 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/jobs/companies/:companyId/jobs',
     params: jobCompanyIdParamsSchema,
     body: createJobRequestSchema,
+  },
+  // P2-M8: the jobs report (needs `view_reports`, which core checks).
+  {
+    method: 'POST',
+    path: '/staff/jobs/companies/:companyId/report',
+    params: jobCompanyIdParamsSchema,
+    body: jobReportRequestSchema,
   },
   {
     method: 'GET',

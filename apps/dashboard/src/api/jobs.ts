@@ -1,6 +1,8 @@
 import {
   assignJobRequestSchema,
   createJobRequestSchema,
+  jobReportRequestSchema,
+  jobReportResponseSchema,
   jobSchema,
   jobRoutePreviewSchema,
   listJobEtasResponseSchema,
@@ -10,6 +12,8 @@ import {
   proofOfDeliveryResponseSchema,
   type AssignJobRequest,
   type CreateJobRequest,
+  type JobReportRequest,
+  type JobReportResponse,
   type JobEtaDto,
   type JobRoutePreviewDto,
   type JobDto,
@@ -25,6 +29,21 @@ export async function listJobs(accessToken: string, companyId: string): Promise<
   });
   throwUnlessSuccess(status, json, [200]);
   return listJobsResponseSchema.parse(json).jobs;
+}
+
+/** The jobs report for a period (P2-M8); needs the `view_reports` privilege. */
+export async function jobReport(
+  accessToken: string,
+  companyId: string,
+  input: JobReportRequest,
+): Promise<JobReportResponse> {
+  const body = jobReportRequestSchema.parse(input);
+  const { status, json } = await requestJson('POST', `/staff/jobs/companies/${companyId}/report`, {
+    body,
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return jobReportResponseSchema.parse(json);
 }
 
 export async function createJob(

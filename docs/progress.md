@@ -29,6 +29,7 @@ history file keeps the record.
 | P2-M4 Jobs in the portal           | Done — 2026-10-02                       | `history/p2-m4-portal-jobs.md`         |
 | P2-M5 Jobs in the driver app       | Done — live on app 1.2.1 (2026-10-06)   | `history/p2-m5-driver-app-jobs.md`     |
 | P2-M6 Live fleet map               | Done — 2026-10-03 (M6.4c deferred)      | `history/p2-m6-live-map.md`            |
+| P2-M8 Reports and CSV export       | Done 2026-10-08 — needs a core deploy   | `history/p2-m8-reports.md`             |
 | P2-M10 Spoken turn-by-turn         | Live on app 1.2.1 — needs a drive test  | `history/p2-m10-spoken-directions.md`  |
 
 ## Next up
@@ -39,7 +40,7 @@ history file keeps the record.
 2. **Privacy gaps still open before the pilot**: proof-of-delivery photos have no retention rule (agree one with the
    pilot company); name the transfer safeguard for each outside-UK service; register with the ICO; do a DPIA for driver
    location tracking.
-3. The restriction-data audit around Hexham, onboarding the first driver, and P2-M8 (reports, CSV export). Phase 3
+3. The restriction-data audit around Hexham and onboarding the first driver. Phase 3
    waits for pilot data.
 
 **How the driver app ships now:** JavaScript-only changes go out over the air to the installed version
@@ -134,6 +135,13 @@ live map, moderation, reports).
   `valhalla-routing-engine.golden-test.ts`.
 
 ## Recent log
+
+- 2026-10-08: **P2-M8 reports and CSV export.** A Reports page in the dashboard (needs `view_reports`; WagonWise admins see
+  any company): pick a period (last 7 or 30 days, this or last month, custom dates), see a summary (jobs, delivered, on
+  time against late, average accepted-to-delivered time, cancelled or failed, in progress, proof photos received) and the
+  jobs, and download a CSV. Core `POST /staff/jobs/companies/:companyId/report` returns the rows with the driver and
+  vehicle named, so a report reader needs no fleet access; staff-bff forwards it. Cells that start with a formula
+  character are defused in the CSV. No migration. Core and staff-bff deploy needed. See `history/p2-m8-reports.md`.
 
 - 2026-10-07: **UK-wide coverage, groundwork.** Target: Great Britain by the start of November (Northern Ireland left out
   for now). Code fixes done now: lines for "what is near this route" are sent as one text value, so a journey of
@@ -414,5 +422,6 @@ Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those no
 | `history/p2-m7-moderation.md`         | P2-M7: hazard moderation and trust scoring (active)                    | —         |
 | `history/p2-m6-live-map.md`           | P2-M6: live fleet map, and the tracking/store-review notes (active)    | —         |
 | `history/driver-app-redesign.md`      | Driver app redesign to the owner's mock, and the Android safe-area fix | —         |
+| `history/p2-m8-reports.md`            | P2-M8: reports and CSV export                                          | —         |
 | `history/p2-m10-spoken-directions.md` | P2-M10: spoken turn-by-turn directions                                 | —         |
 | `ideas.md`                            | Field-testing ideas backlog (shipped and unscheduled)                  | —         |
