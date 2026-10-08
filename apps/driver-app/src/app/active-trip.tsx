@@ -11,6 +11,9 @@ import { useNearbySafeParkingSpots } from '../api/use-parking';
 import { ACTION_COLOURS, ActionCard } from '../components/ui/action-card';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { ParkingSpotDrawer } from '../components/parking-spot-drawer';
+import { PlaceSheet } from '../components/place-sheet';
+import { useMyPlaces } from '../api/use-places';
+import type { SavedPlaceDto } from '@wagonwise/contracts/places';
 import { thinPoints } from '../lib/thin-points';
 import { OpenSettingsButton } from '../components/open-settings-button';
 import { PositionSharingChip } from '../components/position-sharing-chip';
@@ -152,6 +155,12 @@ export default function ActiveTripScreen() {
   // gone again as soon as the map is following. (The map's own small button sat under the turn card.)
   const mapRef = useRef<RouteMapHandle>(null);
   const [following, setFollowing] = useState(true);
+  const myPlaces = useMyPlaces();
+  const mapPlaces = useMemo(
+    () => myPlaces.places.map((p) => ({ id: p.id, category: p.category, location: p.location })),
+    [myPlaces.places],
+  );
+  const [selectedPlace, setSelectedPlace] = useState<SavedPlaceDto | undefined>(undefined);
   const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
   const selectedParking = nearbyParking.data?.find((s) => s.id === selectedParkingId);
   const nearbyHazardsData = nearbyHazards.data;
@@ -296,6 +305,8 @@ export default function ActiveTripScreen() {
           hazards={mapHazards}
           parkingSpots={mapParking}
           onParkingSpotPress={setSelectedParkingId}
+          places={mapPlaces}
+          onPlacePress={(id) => setSelectedPlace(myPlaces.places.find((p) => p.id === id))}
           onHazardPress={setSelectedHazardId}
         />
 
@@ -346,6 +357,12 @@ export default function ActiveTripScreen() {
             </View>
           </View>
         )}
+
+        <PlaceSheet
+          place={selectedPlace}
+          onClose={() => setSelectedPlace(undefined)}
+          shareCompanyId={myPlaces.markingCompanyId}
+        />
 
         <ParkingSpotDrawer spot={selectedParking} onClose={() => setSelectedParkingId(undefined)} />
 

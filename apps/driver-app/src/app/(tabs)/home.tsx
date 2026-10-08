@@ -11,6 +11,9 @@ import { HazardDetailDrawer } from '../../components/hazard-detail-drawer';
 import { useNavigateToPlace } from '../../hooks/use-navigate-to-spot';
 import { useDrivingProfileId } from '../../hooks/use-parking-drive-times';
 import { ParkingSpotDrawer } from '../../components/parking-spot-drawer';
+import { PlaceSheet } from '../../components/place-sheet';
+import { useMyPlaces } from '../../api/use-places';
+import type { SavedPlaceDto } from '@wagonwise/contracts/places';
 import { JobCard } from '../../components/job-card';
 import { RouteMap, type RouteMapHandle } from '../../components/route-map';
 import { ACTION_COLOURS, ActionCard } from '../../components/ui/action-card';
@@ -65,6 +68,12 @@ export default function HomeScreen() {
   );
   const drivingProfileId = useDrivingProfileId();
   const navigateToSpot = useNavigateToPlace(drivingProfileId);
+  const myPlaces = useMyPlaces();
+  const mapPlaces = useMemo(
+    () => myPlaces.places.map((p) => ({ id: p.id, category: p.category, location: p.location })),
+    [myPlaces.places],
+  );
+  const [selectedPlace, setSelectedPlace] = useState<SavedPlaceDto | undefined>(undefined);
   const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
   const selectedParking = nearbyParkingSpots.data?.find((s) => s.id === selectedParkingId);
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
@@ -107,6 +116,8 @@ export default function HomeScreen() {
         }
         onHazardPress={setSelectedHazardId}
         onParkingSpotPress={setSelectedParkingId}
+        places={mapPlaces}
+        onPlacePress={(id) => setSelectedPlace(myPlaces.places.find((p) => p.id === id))}
         congestion={
           showTraffic
             ? nearbyCongestion.data?.map((c) => ({
@@ -121,6 +132,14 @@ export default function HomeScreen() {
             ? nearbyParkingSpots.data?.map((s) => ({ id: s.id, location: s.location }))
             : undefined
         }
+      />
+
+      <PlaceSheet
+        place={selectedPlace}
+        onClose={() => setSelectedPlace(undefined)}
+        onGo={(place) => navigateToSpot.mutate(place.location)}
+        goDisabled={navigateToSpot.isPending || drivingProfileId === undefined}
+        shareCompanyId={myPlaces.markingCompanyId}
       />
 
       <ParkingSpotDrawer

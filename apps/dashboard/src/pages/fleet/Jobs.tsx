@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from 'react';
 import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import * as jobsApi from '../../api/jobs';
+import * as placesApi from '../../api/places';
+import type { SavedPlaceDto } from '@wagonwise/contracts/places';
+import { MarkedPlaces } from '../../components/MarkedPlaces';
 import { DataTable, type Column } from '../../components/DataTable';
 import { FieldError } from '../../components/FieldError';
 import { resolvePostcode, usePostcode } from '../../hooks/use-postcode';
@@ -88,6 +91,15 @@ export function Jobs() {
   const [form, setForm] = useState(EMPTY_FORM);
   const pickupPostcode = usePostcode(form.pickupPostcode);
   const deliveryPostcode = usePostcode(form.deliveryPostcode);
+  // A rural postcode often lands away from the gate. Entrances drivers have marked near it are offered,
+  // and one chosen here sends the driver to the real spot, with its note on the stop.
+  const markedPlaces = useQuery({
+    queryKey: ['places', companyId],
+    queryFn: () => withAccessToken((token) => placesApi.listPlaces(token, companyId as string)),
+    enabled: companyId !== undefined,
+  });
+  const [pickupPlace, setPickupPlace] = useState<SavedPlaceDto | undefined>(undefined);
+  const [deliveryPlace, setDeliveryPlace] = useState<SavedPlaceDto | undefined>(undefined);
   const createJob = useMutation({
     mutationFn: async () => {
       // Resolved here rather than trusting the live hint's state, so a fast click on Create can't
@@ -101,8 +113,18 @@ export function Jobs() {
           companyId: companyIdSchema.parse(companyId),
           reference: form.reference,
           stops: [
-            { kind: 'pickup', name: form.pickupName, location: pickup.location },
-            { kind: 'delivery', name: form.deliveryName, location: delivery.location },
+            {
+              kind: 'pickup',
+              name: form.pickupName,
+              location: pickupPlace?.location ?? pickup.location,
+              ...(pickupPlace?.note === undefined ? {} : { notes: pickupPlace.note }),
+            },
+            {
+              kind: 'delivery',
+              name: form.deliveryName,
+              location: deliveryPlace?.location ?? delivery.location,
+              ...(deliveryPlace?.note === undefined ? {} : { notes: deliveryPlace.note }),
+            },
           ],
           requiresProofOfDelivery: form.requiresProofOfDelivery,
         }),
@@ -110,6 +132,8 @@ export function Jobs() {
     },
     onSuccess: () => {
       setForm(EMPTY_FORM);
+      setPickupPlace(undefined);
+      setDeliveryPlace(undefined);
       setShowErrors(false);
       refreshJobs();
     },
@@ -419,6 +443,12 @@ export function Jobs() {
                   lookup={pickupPostcode}
                   error={shown('pickupPostcode')}
                 />
+                <MarkedPlaces
+                  places={markedPlaces.data ?? []}
+                  near={pickupPostcode.data?.location}
+                  chosen={pickupPlace}
+                  onChoose={setPickupPlace}
+                />
                 <div className="field">
                   <label htmlFor="job-delivery-name">Delivery name</label>
                   <input
@@ -438,6 +468,12 @@ export function Jobs() {
                   onChange={(value) => setForm((f) => ({ ...f, deliveryPostcode: value }))}
                   lookup={deliveryPostcode}
                   error={shown('deliveryPostcode')}
+                />
+                <MarkedPlaces
+                  places={markedPlaces.data ?? []}
+                  near={deliveryPostcode.data?.location}
+                  chosen={deliveryPlace}
+                  onChoose={setDeliveryPlace}
                 />
                 <div className="job-form-actions">
                   <label className="check">

@@ -19,6 +19,12 @@ import {
   jobReportRequestSchema,
   previewJobRouteRequestSchema,
 } from '@wagonwise/contracts/jobs';
+import {
+  markPlaceRequestSchema,
+  placeIdParamsSchema,
+  placesCompanyParamsSchema,
+  updatePlaceRequestSchema,
+} from '@wagonwise/contracts/places';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticateOrReject } from './auth/authenticate.js';
@@ -126,6 +132,25 @@ const FORWARDS: readonly Forward[] = [
     params: jobCompanyIdParamsSchema,
     body: createJobRequestSchema,
   },
+  // Saved places (a farm's real gate, marked once): a company's staff see them; dispatchers edit.
+  {
+    method: 'GET',
+    path: '/staff/places/companies/:companyId/places',
+    params: placesCompanyParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/places/companies/:companyId/places',
+    params: placesCompanyParamsSchema,
+    body: markPlaceRequestSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/places/:id',
+    params: placeIdParamsSchema,
+    body: updatePlaceRequestSchema,
+  },
+  { method: 'DELETE', path: '/staff/places/:id', params: placeIdParamsSchema },
   // P2-M8: the jobs report (needs `view_reports`, which core checks).
   {
     method: 'POST',

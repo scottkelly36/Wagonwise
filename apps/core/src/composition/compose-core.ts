@@ -35,6 +35,7 @@ import {
 } from '../modules/identity/api.js';
 import { createJobsModule, type UntypedDb as JobsUntypedDb } from '../modules/jobs/api.js';
 import { createParkingModule, type UntypedDb as ParkingUntypedDb } from '../modules/parking/api.js';
+import { createPlacesModule, type UntypedDb as PlacesUntypedDb } from '../modules/places/api.js';
 import {
   createRoutingModule,
   type PushNotifier,
@@ -170,6 +171,7 @@ export function composeCore(
         await routing.eraseDriverData(driverId);
         await feedback.eraseDriverData(driverId);
         await fleet.eraseDriverData(driverId, identifier);
+        await places.eraseDriverData(driverId);
       },
     },
   });
@@ -182,6 +184,7 @@ export function composeCore(
   const congestionDb: CongestionUntypedDb = identityDb;
   const companiesDb: CompaniesUntypedDb = identityDb;
   const parkingDb: ParkingUntypedDb = identityDb;
+  const placesDb: PlacesUntypedDb = identityDb;
   const fleetDb: FleetUntypedDb = identityDb;
   const jobsDb: JobsUntypedDb = identityDb;
 
@@ -227,6 +230,18 @@ export function composeCore(
     clock,
     driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
     companyNames: { namesFor: (ids) => companies.getCompanyNames(ids) },
+  });
+  const places = createPlacesModule({
+    db: placesDb,
+    clock,
+    dataScopes,
+    // A driver's company is whichever they have an active link with, as for jobs.
+    membership: {
+      isActiveDriverOfCompany: (driverId, companyId) =>
+        fleet.isActiveDriverOfCompany(driverId, companyId),
+    },
+    callers: { getCaller: staffCaller },
+    driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
   });
   const jobs = createJobsModule({
     db: jobsDb,
@@ -333,6 +348,7 @@ export function composeCore(
   parking.registerRoutes(app);
   fleet.registerRoutes(app);
   jobs.registerRoutes(app);
+  places.registerRoutes(app);
 
   return {
     app,
