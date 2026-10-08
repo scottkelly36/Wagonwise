@@ -1,7 +1,13 @@
 import {
+  checkResultParamsSchema,
+  checkResultPhotoParamsSchema,
+  checkResultsQuerySchema,
   checkTemplateIdParamsSchema,
   checksCompanyParamsSchema,
   createCheckTemplateRequestSchema,
+  defectIdParamsSchema,
+  defectsQuerySchema,
+  setDefectStatusRequestSchema,
   updateCheckTemplateRequestSchema,
 } from '@wagonwise/contracts/checks';
 import {
@@ -97,6 +103,32 @@ const FORWARDS: readonly Forward[] = [
     body: updateCheckTemplateRequestSchema,
   },
   { method: 'DELETE', path: '/staff/checks/templates/:id', params: checkTemplateIdParamsSchema },
+  // What drivers' walk-round checks found, for the office: results, one check in full with its photos, and the
+  // defects to work through. Core decides who may see and change them.
+  {
+    method: 'GET',
+    path: '/staff/checks/companies/:companyId/results',
+    params: checksCompanyParamsSchema,
+    query: checkResultsQuerySchema,
+  },
+  { method: 'GET', path: '/staff/checks/results/:id', params: checkResultParamsSchema },
+  {
+    method: 'GET',
+    path: '/staff/checks/results/:id/photos/:itemId',
+    params: checkResultPhotoParamsSchema,
+  },
+  {
+    method: 'GET',
+    path: '/staff/checks/companies/:companyId/defects',
+    params: checksCompanyParamsSchema,
+    query: defectsQuerySchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/checks/defects/:id/status',
+    params: defectIdParamsSchema,
+    body: setDefectStatusRequestSchema,
+  },
   // WagonWise's own billing details, printed on invoices. WagonWise admins only; core decides.
   { method: 'GET', path: '/staff/billing/details', params: noParams },
   {

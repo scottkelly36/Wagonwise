@@ -25,12 +25,16 @@ const OUTSIDER = 'dddddddd-0000-4000-8000-000000000003'; // drives for BETA
 const LORRY = 'eeeeeeee-0000-4000-8000-000000000001';
 const CHECK = 'cccccccc-0000-4000-8000-000000000001';
 const LIST = 'aaaaaaaa-0000-4000-8000-000000000001';
+const OFFICE = '50000000-0000-4000-8000-000000000001'; // a dispatcher at ACME (staff ids are UUIDs)
 
 const dispatchers: Record<string, Caller> = {
   dispatcher: { kind: 'fleet', companyId: ACME as never, privileges: ['dispatch'] },
 };
 const builders: Record<string, StaffCaller> = {
   builder: { kind: 'fleet', companyId: ACME as never, privileges: ['manage_fleet'] },
+  [OFFICE]: { kind: 'fleet', companyId: ACME as never, privileges: ['dispatch'] },
+  nobody: { kind: 'fleet', companyId: ACME as never, privileges: ['view_live_map'] },
+  rival: { kind: 'fleet', companyId: BETA as never, privileges: ['manage_fleet', 'dispatch'] },
 };
 
 const stops = [
@@ -323,5 +327,132 @@ describe('walk-round checks end to end (real RLS, real scopes)', () => {
 
   it('needs a driver sign-in', async () => {
     expect((await app.inject({ method: 'GET', url: '/checks/mine' })).statusCode).toBe(401);
+  });
+
+  describe('the office side', () => {
+    it('lists the checks done, with the driver’s sign-in and how many defects', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/staff/checks/companies/${ACME}/results`,
+        ...asStaff(OFFICE),
+      });
+      expect(response.statusCode).toBe(200);
+      const { checks } = response.json<{ checks: Record<string, unknown>[] }>();
+      expect(checks).toHaveLength(1);
+      expect(checks[0]).toMatchObject({
+        id: CHECK,
+        templateName: 'Tractor unit',
+        vehicleName: 'Big Wagon',
+        driverLabel: 'pat@example.com',
+        checkDay: '2026-10-09',
+        result: 'do_not_drive',
+        defectCount: 1,
+      });
+    });
+
+    it('shows one check in full, with the questions as they were and which have a photo', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/staff/checks/results/${CHECK}`,
+        ...asStaff(OFFICE),
+      });
+      expect(response.statusCode).toBe(200);
+      const detail = response.json<{
+        templateVersion: number;
+        items: { id: string }[];
+        answers: { itemId: string; note?: string }[];
+        photoItemIds: string[];
+        defects: { status: string }[];
+      }>();
+      expect(detail.templateVersion).toBe(1);
+      expect(detail.items.map((i) => i.id)).toEqual(['tyres', 'notes']);
+      expect(detail.answers).toEqual([
+        { itemId: 'tyres', value: 'defect', note: 'Nearside front is bald' },
+      ]);
+      expect(detail.photoItemIds).toEqual(['tyres']);
+      expect(detail.defects.map((d) => d.status)).toEqual(['open']);
+    });
+
+    it('returns the photo exactly as the driver sent it', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/staff/checks/results/${CHECK}/photos/tyres`,
+        ...asStaff(OFFICE),
+      });
+      expect(response.statusCode).toBe(200);
+      const photo = response.json<{ contentType: string; dataBase64: string }>();
+      expect(photo.contentType).toBe('image/jpeg');
+      expect(Buffer.from(photo.dataBase64, 'base64').toString('utf8')).toBe('a photo');
+    });
+
+    it('works a defect through acknowledged to fixed, and it leaves the list of those still to do', async () => {
+      const list = () =>
+        app.inject({
+          method: 'GET',
+          url: `/staff/checks/companies/${ACME}/defects`,
+          ...asStaff(OFFICE),
+        });
+      const first = (await list()).json<{ defects: { id: string; status: string }[] }>();
+      expect(first.defects).toHaveLength(1);
+      const id = first.defects[0]?.id as string;
+
+      const seen = await app.inject({
+        method: 'PUT',
+        url: `/staff/checks/defects/${id}/status`,
+        payload: { status: 'acknowledged' },
+        ...asStaff(OFFICE),
+      });
+      expect(seen.statusCode).toBe(200);
+      expect(seen.json()).toMatchObject({ status: 'acknowledged' });
+      expect(seen.json<{ statusChangedAt?: string }>().statusChangedAt).toBeDefined();
+      expect((await list()).json<{ defects: unknown[] }>().defects).toHaveLength(1);
+
+      await app.inject({
+        method: 'PUT',
+        url: `/staff/checks/defects/${id}/status`,
+        payload: { status: 'fixed' },
+        ...asStaff(OFFICE),
+      });
+      expect((await list()).json<{ defects: unknown[] }>().defects).toHaveLength(0);
+      const fixed = await app.inject({
+        method: 'GET',
+        url: `/staff/checks/companies/${ACME}/defects?status=fixed`,
+        ...asStaff(OFFICE),
+      });
+      expect(fixed.json<{ defects: unknown[] }>().defects).toHaveLength(1);
+
+      const { rows } = await ownerPool.query(
+        'select status, status_changed_by from checks.defects where id = $1',
+        [id],
+      );
+      expect(rows[0]).toMatchObject({ status: 'fixed' });
+    });
+
+    it('keeps another company out, and staff without access', async () => {
+      const detail = await app.inject({
+        method: 'GET',
+        url: `/staff/checks/results/${CHECK}`,
+        ...asStaff('rival'),
+      });
+      expect(detail.statusCode).toBe(404);
+      const photo = await app.inject({
+        method: 'GET',
+        url: `/staff/checks/results/${CHECK}/photos/tyres`,
+        ...asStaff('rival'),
+      });
+      expect(photo.statusCode).toBe(404);
+      const list = await app.inject({
+        method: 'GET',
+        url: `/staff/checks/companies/${ACME}/results`,
+        ...asStaff('rival'),
+      });
+      expect(list.statusCode).toBe(403);
+      const defects = await app.inject({
+        method: 'GET',
+        url: `/staff/checks/companies/${ACME}/defects`,
+        ...asStaff('nobody'),
+      });
+      expect(defects.statusCode).toBe(403);
+    });
   });
 });

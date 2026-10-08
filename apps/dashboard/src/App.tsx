@@ -12,6 +12,8 @@ import { Drivers } from './pages/fleet/Drivers';
 import { Jobs } from './pages/fleet/Jobs';
 import { Places } from './pages/fleet/Places';
 import { Checks } from './pages/fleet/Checks';
+import { CheckResults } from './pages/fleet/CheckResults';
+import { Defects } from './pages/fleet/Defects';
 import { Reports } from './pages/fleet/Reports';
 import { FleetOverview } from './pages/fleet/Overview';
 
@@ -56,6 +58,8 @@ export function App() {
             />
             <Route path="/fleet/places" element={<Places />} />
             <Route path="/fleet/checks" element={<Checks />} />
+            <Route path="/fleet/check-results" element={<CheckResults />} />
+            <Route path="/fleet/defects" element={<Defects />} />
             <Route path="/fleet/reports" element={<Reports />} />
             <Route path="/fleet/drivers" element={<Drivers />} />
             <Route path="/fleet/vehicle-profiles" element={<VehicleProfiles />} />

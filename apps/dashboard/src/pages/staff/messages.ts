@@ -37,6 +37,8 @@ const MESSAGES: Record<string, string> = {
   InvalidCapacity: 'Enter a whole number of vehicles.',
   InvalidTemplate: 'That check list is not complete. Check the name and every question.',
   TemplateNotFound: 'That check list could not be found.',
+  NotFound: 'That could not be found.',
+  InvalidRange: 'Pick a sensible range of days.',
   InvoiceNotFound: 'That invoice could not be found.',
   InvalidInvoiceState:
     "That can't be done to an invoice in its current state. Issued invoices can't be edited.",
