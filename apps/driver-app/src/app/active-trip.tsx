@@ -301,7 +301,7 @@ export default function ActiveTripScreen() {
           destination={plan.destination}
           routeLine={routeLine}
           currentPosition={location.point}
-          currentCourse={location.course}
+          currentCourse={location.bearing}
           navigating
           hazards={mapHazards}
           parkingSpots={mapParking}

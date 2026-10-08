@@ -92,8 +92,8 @@ interface Props {
    *  of following (design feedback, 2026-09-26: recentring on every fix fought a driver trying
    *  to look ahead) — a "Recenter" button reappears to opt back in; see `following` state below. */
   readonly currentPosition?: MapPoint;
-  /** The direction of travel from GPS, only while moving; undefined when stopped. While navigating the
-   *  map turns to this and keeps its last value when it is undefined, so it does not spin when stopped. */
+  /** The way to turn the map while navigating: the direction of travel while moving, the phone's compass
+   *  when stopped. The map keeps its last value when this is undefined. */
   readonly currentCourse?: number | undefined;
   /** Turn-by-turn driving (the trip screen): while following, the map turns to put the direction of
    *  travel at the top, tilts, and keeps the position low on the screen so most of it shows the road
