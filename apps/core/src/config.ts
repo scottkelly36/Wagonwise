@@ -77,6 +77,9 @@ const envSchema = z.object({
   // with itself as the note) rather than the process failing to boot, keeping the cold-start
   // promise for a dev machine with no key yet.
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  // Optional: the Met Office Weather DataHub key (NSWWS warnings). Unset means no weather warnings are
+  // fetched or shown. Server-side only; never sent to an app.
+  METOFFICE_API_KEY: z.string().min(1).optional(),
   // Optional pair: unset means OTP codes fall back to ConsoleOtpSender (logs the code, never
   // sends it) — fine for local dev, useless for a driver who isn't watching this process's
   // stdout. Both set wires ClickSendOtpSender instead. ClickSend's own auth uses the account
@@ -98,6 +101,8 @@ const envSchema = z.object({
   // Housekeeping timers inside core (platform/periodic-task.ts). Expiring a hazard only changes how
   // it is listed (routing already ignores an expired one), so every 5 minutes is plenty. Driver
   // positions are personal data: kept 30 days, swept hourly.
+  // Weather warnings change a few times a day; the Met Office suggests polling about once a minute at most.
+  WEATHER_POLL_INTERVAL_MS: z.coerce.number().int().min(30_000).default(300_000),
   HAZARD_EXPIRY_INTERVAL_MS: z.coerce.number().int().min(1000).default(300_000),
   POSITION_SWEEP_INTERVAL_MS: z.coerce.number().int().min(1000).default(3_600_000),
   JOB_POSITION_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
@@ -135,11 +140,13 @@ export interface Config {
   readonly valhallaUrl: string;
   readonly expoAccessToken: string | undefined;
   readonly anthropicApiKey: string | undefined;
+  readonly metOfficeApiKey: string | undefined;
   readonly clickSendUsername: string | undefined;
   readonly clickSendApiKey: string | undefined;
   readonly resendApiKey: string | undefined;
   readonly resendFromEmail: string | undefined;
   readonly outboxPollIntervalMs: number;
+  readonly weatherPollIntervalMs: number;
   readonly hazardExpiryIntervalMs: number;
   readonly positionSweepIntervalMs: number;
   readonly jobPositionRetentionDays: number;
@@ -182,11 +189,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     valhallaUrl: values.VALHALLA_URL,
     expoAccessToken: values.EXPO_ACCESS_TOKEN,
     anthropicApiKey: values.ANTHROPIC_API_KEY,
+    metOfficeApiKey: values.METOFFICE_API_KEY,
     clickSendUsername: values.CLICKSEND_USERNAME,
     clickSendApiKey: values.CLICKSEND_API_KEY,
     resendApiKey: values.RESEND_API_KEY,
     resendFromEmail: values.RESEND_FROM_EMAIL,
     outboxPollIntervalMs: values.OUTBOX_POLL_INTERVAL_MS,
+    weatherPollIntervalMs: values.WEATHER_POLL_INTERVAL_MS,
     hazardExpiryIntervalMs: values.HAZARD_EXPIRY_INTERVAL_MS,
     positionSweepIntervalMs: values.POSITION_SWEEP_INTERVAL_MS,
     jobPositionRetentionDays: values.JOB_POSITION_RETENTION_DAYS,

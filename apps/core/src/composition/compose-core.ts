@@ -35,6 +35,7 @@ import {
 } from '../modules/identity/api.js';
 import { createJobsModule, type UntypedDb as JobsUntypedDb } from '../modules/jobs/api.js';
 import { createParkingModule, type UntypedDb as ParkingUntypedDb } from '../modules/parking/api.js';
+import { createWeatherModule } from '../modules/weather/api.js';
 import { createPlacesModule, type UntypedDb as PlacesUntypedDb } from '../modules/places/api.js';
 import {
   createRoutingModule,
@@ -243,6 +244,7 @@ export function composeCore(
     callers: { getCaller: staffCaller },
     driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
   });
+  const weather = createWeatherModule({ clock, metOfficeApiKey: config.metOfficeApiKey });
   const jobs = createJobsModule({
     db: jobsDb,
     ids,
@@ -313,6 +315,11 @@ export function composeCore(
   // Housekeeping on timers, started once the app (and its logger) exists. Both passes are safe to
   // run twice, so a second core instance would do no harm.
   const periodicTasks = new PeriodicTasks(app.log);
+  const weatherTask = {
+    name: 'fetch-weather-warnings',
+    intervalMs: config.weatherPollIntervalMs,
+    run: () => weather.refresh(),
+  };
   periodicTasks.start({
     name: 'expire-hazards',
     intervalMs: config.hazardExpiryIntervalMs,
@@ -321,6 +328,11 @@ export function composeCore(
       if (expired > 0) app.log.info({ expired }, 'expired hazards');
     },
   });
+  if (weather.enabled) {
+    // First fetch now, so warnings are there soon after a restart rather than after one interval.
+    void periodicTasks.runOnce(weatherTask);
+    periodicTasks.start(weatherTask);
+  }
   periodicTasks.start({
     name: 'prune-job-positions',
     intervalMs: config.positionSweepIntervalMs,
@@ -349,6 +361,7 @@ export function composeCore(
   fleet.registerRoutes(app);
   jobs.registerRoutes(app);
   places.registerRoutes(app);
+  weather.registerRoutes(app);
 
   return {
     app,

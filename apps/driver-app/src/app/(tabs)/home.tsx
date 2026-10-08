@@ -20,6 +20,7 @@ import { RouteMap, type RouteMapHandle } from '../../components/route-map';
 import { ACTION_COLOURS, ActionCard } from '../../components/ui/action-card';
 import { Icon } from '../../components/ui/icon';
 import { RoundButton } from '../../components/ui/round-button';
+import { WeatherButton } from '../../components/weather-button';
 import { useJobArrivalGeofence } from '../../hooks/use-job-arrival-geofence';
 import { PositionSharingChip } from '../../components/position-sharing-chip';
 import { isSharingPosition } from '../../lib/job-position-reporting';
@@ -184,6 +185,7 @@ export default function HomeScreen() {
         style={[styles.rightColumn, { top: top + (currentJob.data ? 92 : 0) }]}
         pointerEvents="box-none"
       >
+        <WeatherButton point={location.point} />
         <RoundButton
           icon="navigation-variant"
           label="Centre the map on me"

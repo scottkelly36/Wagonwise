@@ -10,6 +10,7 @@ import { registerIdentityRoutes } from './identity-routes.js';
 import { registerJobsRoutes } from './jobs-routes.js';
 import { registerParkingRoutes } from './parking-routes.js';
 import { registerPlacesRoutes } from './places-routes.js';
+import { registerWeatherRoutes } from './weather-routes.js';
 import { registerRoutingRoutes } from './routing-routes.js';
 
 function bootConfig() {
@@ -38,6 +39,7 @@ registerFeedbackRoutes(app, routeDeps);
 registerCongestionRoutes(app, routeDeps);
 registerParkingRoutes(app, routeDeps);
 registerPlacesRoutes(app, routeDeps);
+registerWeatherRoutes(app, routeDeps);
 registerFleetRoutes(app, routeDeps);
 registerJobsRoutes(app, routeDeps);
 

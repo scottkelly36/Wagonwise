@@ -58,6 +58,11 @@
       "types": "./dist/jobs.d.ts",
       "import": "./dist/jobs.js",
       "default": "./dist/jobs.js"
+    },
+    "./weather": {
+      "types": "./dist/weather.d.ts",
+      "import": "./dist/weather.js",
+      "default": "./dist/weather.js"
     }
   },
   "scripts": {
