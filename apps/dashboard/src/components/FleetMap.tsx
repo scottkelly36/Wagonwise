@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 
 import { maptilerApiKey } from '../api/config';
 import { mapStyleUrl } from '../lib/live-map';
+import '../lib/map-worker';
 import { warningsGeoJson } from '../lib/weather';
 
 export interface MapMarker {
