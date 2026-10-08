@@ -274,12 +274,22 @@ export type SetDefectStatusRequest = z.infer<typeof setDefectStatusRequestSchema
 // ---------------------------------------------------------------------------------------------
 // A firm's rules about sending a vehicle out.
 
-/** `GET` and `PUT /staff/checks/companies/:companyId/settings`. Both off until a firm turns them on. */
+/** `GET /staff/checks/companies/:companyId/settings`. The two rules are off until a firm turns them on. */
+export const MIN_CHECK_RETENTION_MONTHS = 1;
+export const MAX_CHECK_RETENTION_MONTHS = 120;
+
 export const checkSettingsSchema = z.object({
   /** A driver cannot accept a job on a vehicle until its check lists for the day are done. */
   requiredBeforeJob: z.boolean(),
   /** A vehicle with a "do not drive" defect not yet marked fixed is not sent out. */
   blockOnDoNotDrive: z.boolean(),
+  /** How many months a check is kept; the firm chooses. A check with a defect not yet fixed is kept until it is. */
+  retentionMonths: z.number().int().min(MIN_CHECK_RETENTION_MONTHS).max(MAX_CHECK_RETENTION_MONTHS),
 });
 export type CheckSettingsDto = z.infer<typeof checkSettingsSchema>;
-export const updateCheckSettingsRequestSchema = checkSettingsSchema;
+
+/** `PUT` the same path. `retentionMonths` may be left out to keep what is set. */
+export const updateCheckSettingsRequestSchema = checkSettingsSchema.extend({
+  retentionMonths: checkSettingsSchema.shape.retentionMonths.optional(),
+});
+export type UpdateCheckSettingsRequest = z.infer<typeof updateCheckSettingsRequestSchema>;

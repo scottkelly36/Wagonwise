@@ -39,6 +39,7 @@ const MESSAGES: Record<string, string> = {
   TemplateNotFound: 'That check list could not be found.',
   NotFound: 'That could not be found.',
   InvalidRange: 'Pick a sensible range of days.',
+  InvalidRetention: 'Choose between 1 month and 10 years.',
   InvoiceNotFound: 'That invoice could not be found.',
   InvalidInvoiceState:
     "That can't be done to an invoice in its current state. Issued invoices can't be edited.",

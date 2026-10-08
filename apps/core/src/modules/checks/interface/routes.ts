@@ -114,7 +114,8 @@ export function registerChecksRoutes(app: FastifyInstance, deps: ChecksRouteDeps
         makeId<'CompanyId'>(params.data.companyId),
         body.data,
       );
-      return result.ok ? { status: 200, body: result.value } : { status: 403, body: result.error };
+      if (result.ok) return { status: 200, body: result.value };
+      return { status: result.error.tag === 'InvalidRetention' ? 400 : 403, body: result.error };
     }),
   );
 

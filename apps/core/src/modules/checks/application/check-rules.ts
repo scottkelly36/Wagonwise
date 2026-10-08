@@ -6,7 +6,13 @@ import {
   type StaffId,
   type VehicleId,
 } from '../domain/check-template.js';
-import { startVerdict, type CheckSettings, type StartVerdict } from '../domain/settings.js';
+import {
+  isValidRetention,
+  monthsAgo,
+  startVerdict,
+  type CheckSettings,
+  type StartVerdict,
+} from '../domain/settings.js';
 import { ukDay } from '../domain/uk-day.js';
 import type { CheckRepository } from './ports/check-repository.js';
 import type { StaffCaller } from './ports/directories.js';
@@ -46,20 +52,55 @@ export async function getCheckSettings(
   return ok(await deps.settings.get(companyId));
 }
 
+export type InvalidRetention = TaggedError<'InvalidRetention'>;
+
+export interface CheckSettingsInput {
+  readonly requiredBeforeJob: boolean;
+  readonly blockOnDoNotDrive: boolean;
+  /** Left out to keep what is set. */
+  readonly retentionMonths?: number | undefined;
+}
+
+/** Saves the firm's rules and how long it keeps its records. The retention may be left out to keep what is set. */
 export async function updateCheckSettings(
   deps: Pick<CheckRulesDeps, 'settings' | 'clock'>,
   caller: StaffCaller,
   staffId: StaffId,
   companyId: CompanyId,
-  settings: CheckSettings,
-): Promise<Result<CheckSettings, Forbidden>> {
+  input: CheckSettingsInput,
+): Promise<Result<CheckSettings, Forbidden | InvalidRetention>> {
   if (!canChange(caller, companyId)) return err({ tag: 'Forbidden' });
+  if (input.retentionMonths !== undefined && !isValidRetention(input.retentionMonths)) {
+    return err({ tag: 'InvalidRetention' });
+  }
+  const current = await deps.settings.get(companyId);
   const saved: CheckSettings = {
-    requiredBeforeJob: settings.requiredBeforeJob,
-    blockOnDoNotDrive: settings.blockOnDoNotDrive,
+    requiredBeforeJob: input.requiredBeforeJob,
+    blockOnDoNotDrive: input.blockOnDoNotDrive,
+    retentionMonths: input.retentionMonths ?? current.retentionMonths,
   };
   await deps.settings.save(companyId, saved, staffId, deps.clock.now());
   return ok(saved);
+}
+
+/**
+ * Deletes each company's checks older than that company's retention (a firm with nothing set has 12 months). The check
+ * goes with its photos and defects. A check with a defect still open or only seen is kept until the office marks it
+ * fixed, so an unresolved fault is never lost to the clock. Returns how many checks were deleted, for the log.
+ */
+export async function pruneOldChecks(
+  deps: Pick<CheckRulesDeps, 'settings' | 'clock'> & {
+    readonly checks: Pick<CheckRepository, 'deleteOlderThan'>;
+  },
+  companyIds: readonly CompanyId[],
+): Promise<number> {
+  const now = deps.clock.now();
+  let removed = 0;
+  for (const companyId of companyIds) {
+    const { retentionMonths } = await deps.settings.get(companyId);
+    removed += await deps.checks.deleteOlderThan(companyId, monthsAgo(now, retentionMonths));
+  }
+  return removed;
 }
 
 /**

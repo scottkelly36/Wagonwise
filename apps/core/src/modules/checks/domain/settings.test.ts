@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, startVerdict, type CheckSettings } from './settings.js';
+import {
+  DEFAULT_SETTINGS,
+  isValidRetention,
+  monthsAgo,
+  startVerdict,
+  type CheckSettings,
+} from './settings.js';
 
-const on: CheckSettings = { requiredBeforeJob: true, blockOnDoNotDrive: true };
+const on: CheckSettings = { ...DEFAULT_SETTINGS, requiredBeforeJob: true, blockOnDoNotDrive: true };
 const verdict = (settings: CheckSettings, listsStillToDo: number, hasUnfixedDoNotDrive: boolean) =>
   startVerdict({ settings, listsStillToDo, hasUnfixedDoNotDrive });
 
@@ -34,5 +40,25 @@ describe('startVerdict', () => {
     expect(verdict(on, 1, true)).toBe('vehicle_not_fit');
     expect(verdict(on, 1, false)).toBe('check_required');
     expect(verdict(on, 0, false)).toBe('ok');
+  });
+});
+
+describe('retention', () => {
+  it('is 12 months until a firm chooses', () => {
+    expect(DEFAULT_SETTINGS.retentionMonths).toBe(12);
+  });
+
+  it('accepts whole months from 1 to 120 and nothing else', () => {
+    for (const ok of [1, 12, 120]) expect(isValidRetention(ok)).toBe(true);
+    for (const bad of [0, -1, 121, 1.5, Number.NaN]) expect(isValidRetention(bad)).toBe(false);
+  });
+
+  it('counts back whole calendar months in UTC', () => {
+    expect(monthsAgo(new Date('2026-10-09T09:00:00.000Z'), 12).toISOString()).toBe(
+      '2025-10-09T09:00:00.000Z',
+    );
+    expect(monthsAgo(new Date('2026-03-15T00:00:00.000Z'), 3).toISOString()).toBe(
+      '2025-12-15T00:00:00.000Z',
+    );
   });
 });

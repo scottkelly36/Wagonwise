@@ -55,7 +55,7 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
 - **Decided defaults:** whether a check must be done before a job is a per-firm setting, off by default; a check is once per vehicle
   per day; defects go to an office inbox (open, acknowledged, fixed); the firm chooses how long records are kept.
 - **Slices:** 1 the list builder (built); 2a the server side of a driver doing a check (built); 2b the driver app screen, offline
-  with photos (built); 3a the office results page and defects inbox (built); 3b the before-a-job rules and gate (built); 3c retention; 4 defects feeding maintenance (M4). The
+  with photos (built); 3a the office results page and defects inbox (built); 3b the before-a-job rules and gate (built); 3c retention (built, so M5 is done); 4 defects feeding maintenance (M4). The
   example list is not a standard and the app does not make a firm compliant.
 
 ## Cross-cutting

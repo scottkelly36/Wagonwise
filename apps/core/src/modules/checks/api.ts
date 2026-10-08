@@ -16,7 +16,7 @@ import { PostgresSettingsRepository } from './infrastructure/postgres-settings-r
 import { PostgresTemplateRepository } from './infrastructure/postgres-template-repository.js';
 import { registerChecksDriverRoutes } from './interface/driver-routes.js';
 import { registerChecksOfficeRoutes } from './interface/office-routes.js';
-import { jobStartVerdict } from './application/check-rules.js';
+import { jobStartVerdict, pruneOldChecks } from './application/check-rules.js';
 import { makeId } from '../../shared/brand.js';
 import type { StartVerdict } from './domain/settings.js';
 import { registerChecksRoutes } from './interface/routes.js';
@@ -58,6 +58,12 @@ export interface ChecksModule {
    * composition. Reads in the caller's own data scope, so call it inside the driver's request.
    */
   jobStartVerdict(companyId: string, vehicleId: string): Promise<StartVerdict>;
+  /**
+   * Deletes each of these companies' checks older than its retention (12 months unless the firm chose otherwise), with
+   * their photos and defects. A check with a defect not yet fixed is kept. Returns how many went, for the log. A
+   * platform-wide housekeeping job, so it runs in the platform data scope; supplied the company ids by composition.
+   */
+  pruneOldChecks(companyIds: readonly string[]): Promise<number>;
   registerRoutes(app: FastifyInstance): void;
 }
 
@@ -73,6 +79,13 @@ export function createChecksModule(deps: ChecksModuleDeps): ChecksModule {
   const settings = new PostgresSettingsRepository(deps.db);
   const rules = { settings, templates, checks, office, clock: deps.clock };
   return {
+    pruneOldChecks: (companyIds) =>
+      deps.dataScopes.run({ kind: 'platform' }, () =>
+        pruneOldChecks(
+          { settings, checks, clock: deps.clock },
+          companyIds.map((id) => makeId<'CompanyId'>(id)),
+        ),
+      ),
     jobStartVerdict: (companyId, vehicleId) =>
       jobStartVerdict(rules, makeId<'CompanyId'>(companyId), makeId<'FleetVehicleId'>(vehicleId)),
     registerRoutes(app: FastifyInstance): void {

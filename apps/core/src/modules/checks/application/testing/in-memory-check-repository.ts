@@ -1,4 +1,4 @@
-import type { CheckTemplateId, VehicleId } from '../../domain/check-template.js';
+import type { CheckTemplateId, CompanyId, VehicleId } from '../../domain/check-template.js';
 import type { Check, CheckId } from '../../domain/check.js';
 import type { CheckPhoto, CheckRepository } from '../ports/check-repository.js';
 
@@ -24,6 +24,15 @@ export class InMemoryCheckRepository implements CheckRepository {
     this.#checks.set(check.id, check);
     this.defectIds.set(check.id, defectIds);
     return Promise.resolve();
+  }
+
+  /** Records the cutoff asked for, for tests; this fake keeps no defect statuses, so the real rule is tested on Postgres. */
+  readonly deleteCalls: { companyId: CompanyId; cutoff: Date }[] = [];
+  deleteResult = 0;
+
+  deleteOlderThan(companyId: CompanyId, cutoff: Date): Promise<number> {
+    this.deleteCalls.push({ companyId, cutoff });
+    return Promise.resolve(this.deleteResult);
   }
 
   savePhoto(check: Check, itemId: string, photo: CheckPhoto): Promise<void> {
