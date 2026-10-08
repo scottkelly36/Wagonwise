@@ -77,7 +77,7 @@ export interface Job {
 export type InvalidReference = TaggedError<'InvalidReference'>;
 
 export interface InvalidStops extends TaggedError<'InvalidStops'> {
-  readonly reason: 'empty' | 'no_pickup' | 'no_delivery';
+  readonly reason: 'empty' | 'no_delivery';
 }
 
 export function validateReference(raw: string): Result<string, InvalidReference> {
@@ -88,14 +88,12 @@ export function validateReference(raw: string): Result<string, InvalidReference>
   return ok(trimmed);
 }
 
-/** Design doc §5 step 1: "pickup and delivery stops" — at least one of each. Order (pickups
- *  before deliveries) is a dispatch-time concern, not validated here. */
+/** A job needs a delivery. A pickup is optional (2026-10-08): some firms always load at the same place, so
+ *  the driver does not need directing there, and just says when they are loaded. Order (pickups before
+ *  deliveries) is a dispatch-time concern, not validated here. */
 export function validateStops(stops: readonly JobStop[]): Result<JobStop[], InvalidStops> {
   if (stops.length === 0) {
     return err({ tag: 'InvalidStops', reason: 'empty' });
-  }
-  if (!stops.some((s) => s.kind === 'pickup')) {
-    return err({ tag: 'InvalidStops', reason: 'no_pickup' });
   }
   if (!stops.some((s) => s.kind === 'delivery')) {
     return err({ tag: 'InvalidStops', reason: 'no_delivery' });
@@ -119,7 +117,9 @@ export function isActive(status: JobStatus): boolean {
   return ACTIVE_STATUSES.includes(status);
 }
 
-/** The one forward step from each status (`draft -> assigned` is `assignJobToDriver`'s, not this). */
+/** The one forward step from each status (`draft -> assigned` is `assignJobToDriver`'s, not this). A job
+ *  with no pickup has nowhere to arrive at before loading, so it goes from `accepted` straight to `loaded`
+ *  (see `nextStatus`). */
 const NEXT: Readonly<Partial<Record<JobStatus, JobStatus>>> = {
   assigned: 'accepted',
   accepted: 'at_pickup',
@@ -128,6 +128,16 @@ const NEXT: Readonly<Partial<Record<JobStatus, JobStatus>>> = {
   en_route: 'at_delivery',
   at_delivery: 'delivered',
 };
+
+export function hasPickup(job: Pick<Job, 'stops'>): boolean {
+  return job.stops.some((s) => s.kind === 'pickup');
+}
+
+/** The one status a job can move to next, or undefined once it is over (or still a draft). */
+export function nextStatus(job: Pick<Job, 'status' | 'stops'>): JobStatus | undefined {
+  if (job.status === 'accepted' && !hasPickup(job)) return 'loaded';
+  return NEXT[job.status];
+}
 
 export interface InvalidTransition extends TaggedError<'InvalidTransition'> {
   readonly from: JobStatus;
@@ -166,7 +176,7 @@ export function advanceStatus(
   at: Date,
   position?: GeoPoint,
 ): Result<Job, InvalidTransition> {
-  if (NEXT[job.status] !== to) {
+  if (nextStatus(job) !== to) {
     return err({ tag: 'InvalidTransition', from: job.status, to });
   }
   return ok(moved(job, to, at, position));

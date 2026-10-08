@@ -20,19 +20,17 @@ import {
 } from '../../lib/postcodes';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { jobStatusText } from '../../lib/job-text';
 import { staffErrorMessage } from '../staff/messages';
 
 const COMPANIES_KEY = ['companies'] as const;
-/** A job's status as a person reads it: "at pickup", not "at_pickup". */
-function statusLabel(status: JobDto['status']): string {
-  const text = status.replaceAll('_', ' ');
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
 const TERMINAL: readonly JobDto['status'][] = ['delivered', 'cancelled', 'failed'];
 
 const EMPTY_FORM = {
   reference: '',
+  // Whether the load is collected from a place the driver is sent to. Some firms always load at the same
+  // place, so the job is just the delivery and the driver says when they are loaded.
+  hasPickup: true,
   pickupName: '',
   pickupPostcode: '',
   deliveryName: '',
@@ -105,7 +103,9 @@ export function Jobs() {
       // Resolved here rather than trusting the live hint's state, so a fast click on Create can't
       // outrun the lookup; the cache makes it free when the hint has already got the answer.
       const [pickup, delivery] = await Promise.all([
-        resolvePostcode(queryClient, form.pickupPostcode),
+        form.hasPickup
+          ? resolvePostcode(queryClient, form.pickupPostcode)
+          : Promise.resolve(undefined),
         resolvePostcode(queryClient, form.deliveryPostcode),
       ]);
       return withAccessToken((token) =>
@@ -113,12 +113,16 @@ export function Jobs() {
           companyId: companyIdSchema.parse(companyId),
           reference: form.reference,
           stops: [
-            {
-              kind: 'pickup',
-              name: form.pickupName,
-              location: pickupPlace?.location ?? pickup.location,
-              ...(pickupPlace?.note === undefined ? {} : { notes: pickupPlace.note }),
-            },
+            ...(form.hasPickup && pickup !== undefined
+              ? [
+                  {
+                    kind: 'pickup' as const,
+                    name: form.pickupName,
+                    location: pickupPlace?.location ?? pickup.location,
+                    ...(pickupPlace?.note === undefined ? {} : { notes: pickupPlace.note }),
+                  },
+                ]
+              : []),
             {
               kind: 'delivery',
               name: form.deliveryName,
@@ -131,7 +135,8 @@ export function Jobs() {
       );
     },
     onSuccess: () => {
-      setForm(EMPTY_FORM);
+      // Keep their choice of pickup or not: a firm that never has one should not have to switch it every time.
+      setForm({ ...EMPTY_FORM, hasPickup: form.hasPickup });
       setPickupPlace(undefined);
       setDeliveryPlace(undefined);
       setShowErrors(false);
@@ -145,7 +150,9 @@ export function Jobs() {
     'reference' | 'pickupName' | 'pickupPostcode' | 'deliveryName' | 'deliveryPostcode'
   > = {};
   if (form.reference.trim() === '') errors.reference = 'Enter a reference, like the order number.';
-  if (form.pickupName.trim() === '') errors.pickupName = 'Enter where the load is collected from.';
+  if (form.hasPickup && form.pickupName.trim() === '') {
+    errors.pickupName = 'Enter where the load is collected from.';
+  }
   if (form.deliveryName.trim() === '') errors.deliveryName = 'Enter where the load is going.';
   const postcodeProblem = (text: string, which: string): string | undefined => {
     if (text.trim() === '') return `Enter the ${which} postcode.`;
@@ -154,7 +161,9 @@ export function Jobs() {
     }
     return undefined;
   };
-  const pickupPostcodeProblem = postcodeProblem(form.pickupPostcode, 'pickup');
+  const pickupPostcodeProblem = form.hasPickup
+    ? postcodeProblem(form.pickupPostcode, 'pickup')
+    : undefined;
   if (pickupPostcodeProblem !== undefined) errors.pickupPostcode = pickupPostcodeProblem;
   const deliveryPostcodeProblem = postcodeProblem(form.deliveryPostcode, 'delivery');
   if (deliveryPostcodeProblem !== undefined) errors.deliveryPostcode = deliveryPostcodeProblem;
@@ -240,8 +249,8 @@ export function Jobs() {
     {
       key: 'status',
       header: 'Status',
-      sortValue: (j) => statusLabel(j.status),
-      cell: (j) => statusLabel(j.status),
+      sortValue: (j) => jobStatusText(j),
+      cell: (j) => jobStatusText(j),
     },
     {
       key: 'proof',
@@ -424,31 +433,62 @@ export function Jobs() {
                 </div>
                 <div className="job-form-break" />
                 <div className="field">
-                  <label htmlFor="job-pickup-name">Pickup name</label>
-                  <input
-                    id="job-pickup-name"
-                    value={form.pickupName}
-                    onChange={(e) => setForm((f) => ({ ...f, pickupName: e.target.value }))}
-                    placeholder="e.g. Hexham Quarry"
-                    aria-invalid={shown('pickupName') !== undefined}
-                    aria-describedby="job-pickup-name-error"
-                  />
-                  <FieldError id="job-pickup-name-error" message={shown('pickupName')} />
+                  <label>Collect from</label>
+                  <div className="seg" role="group" aria-label="Collect from">
+                    <button
+                      type="button"
+                      className={form.hasPickup ? 'on' : undefined}
+                      aria-pressed={form.hasPickup}
+                      onClick={() => setForm((f) => ({ ...f, hasPickup: true }))}
+                    >
+                      Add a pickup
+                    </button>
+                    <button
+                      type="button"
+                      className={form.hasPickup ? undefined : 'on'}
+                      aria-pressed={!form.hasPickup}
+                      onClick={() => setForm((f) => ({ ...f, hasPickup: false }))}
+                    >
+                      No pickup
+                    </button>
+                  </div>
+                  {!form.hasPickup && (
+                    <small className="hint">
+                      The driver is not sent anywhere to load. They tell the app when they are
+                      loaded and ready.
+                    </small>
+                  )}
                 </div>
-                <PostcodeField
-                  id="job-pickup-postcode"
-                  label="Pickup postcode"
-                  value={form.pickupPostcode}
-                  onChange={(value) => setForm((f) => ({ ...f, pickupPostcode: value }))}
-                  lookup={pickupPostcode}
-                  error={shown('pickupPostcode')}
-                />
-                <MarkedPlaces
-                  places={markedPlaces.data ?? []}
-                  near={pickupPostcode.data?.location}
-                  chosen={pickupPlace}
-                  onChoose={setPickupPlace}
-                />
+                {form.hasPickup && (
+                  <>
+                    <div className="field">
+                      <label htmlFor="job-pickup-name">Pickup name</label>
+                      <input
+                        id="job-pickup-name"
+                        value={form.pickupName}
+                        onChange={(e) => setForm((f) => ({ ...f, pickupName: e.target.value }))}
+                        placeholder="e.g. Hexham Quarry"
+                        aria-invalid={shown('pickupName') !== undefined}
+                        aria-describedby="job-pickup-name-error"
+                      />
+                      <FieldError id="job-pickup-name-error" message={shown('pickupName')} />
+                    </div>
+                    <PostcodeField
+                      id="job-pickup-postcode"
+                      label="Pickup postcode"
+                      value={form.pickupPostcode}
+                      onChange={(value) => setForm((f) => ({ ...f, pickupPostcode: value }))}
+                      lookup={pickupPostcode}
+                      error={shown('pickupPostcode')}
+                    />
+                    <MarkedPlaces
+                      places={markedPlaces.data ?? []}
+                      near={pickupPostcode.data?.location}
+                      chosen={pickupPlace}
+                      onChoose={setPickupPlace}
+                    />
+                  </>
+                )}
                 <div className="field">
                   <label htmlFor="job-delivery-name">Delivery name</label>
                   <input
@@ -504,7 +544,7 @@ export function Jobs() {
                 rows={jobs.data ?? []}
                 rowKey={(job) => job.id}
                 searchText={(job) =>
-                  `${job.reference} ${job.stops.map((stop) => stop.name).join(' ')} ${statusLabel(job.status)}`
+                  `${job.reference} ${job.stops.map((stop) => stop.name).join(' ')} ${jobStatusText(job)}`
                 }
                 emptyText="No jobs yet."
                 maxHeight="70vh"
@@ -662,6 +702,13 @@ function RoutePreview({ jobId, vehicleId }: { jobId: string; vehicleId: string }
     return <small style={{ ...style, color: '#6b7280' }}>Checking the route…</small>;
   if (preview.data === undefined) {
     return <small style={{ ...style, color: '#dc2626' }}>{staffErrorMessage(preview.error)}</small>;
+  }
+  if (preview.data.legs.length === 0) {
+    return (
+      <small style={{ ...style, color: '#374151' }}>
+        No pickup, so the route is planned from where the driver is when they set off.
+      </small>
+    );
   }
   return (
     <small style={{ ...style, color: '#374151' }}>

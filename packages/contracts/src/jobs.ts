@@ -56,8 +56,8 @@ export type JobDto = z.infer<typeof jobSchema>;
 
 /** No `id` field (unlike companies' own create request) — a job isn't created from an offline
  *  queue, so there's no idempotency reason to let the client pick the id; core's own
- *  `IdGenerator` does, same as fleet's `createFleetVehicleRequestSchema`. At least one pickup and
- *  one delivery stop (domain's own `validateStops`); the server re-validates regardless. */
+ *  `IdGenerator` does, same as fleet's `createFleetVehicleRequestSchema`. A delivery is needed, and
+ *  a pickup is optional (domain's own `validateStops`); the server re-validates regardless.  */
 export const createJobRequestSchema = z.object({
   companyId: companyIdSchema,
   reference: z.string().min(1),

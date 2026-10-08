@@ -1,4 +1,4 @@
-import type { JobStatus } from '@wagonwise/contracts/jobs';
+import type { JobDto, JobStatus } from '@wagonwise/contracts/jobs';
 
 /** Plain words for the status line on the job screen — not shown as a button label. */
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
@@ -29,6 +29,33 @@ export const NEXT_STEP: Partial<
   at_delivery: { to: 'delivered', label: 'Delivered' },
 };
 
+/** Whether the job has a pickup stop. A job without one has nowhere to arrive at before loading, so the
+ *  driver goes from accepted straight to loaded (core's `nextStatus` matches). */
+export function jobHasPickup(job: Pick<JobDto, 'stops'>): boolean {
+  return job.stops.some((s) => s.kind === 'pickup');
+}
+
+export const NO_PICKUP_STEP = { to: 'loaded', label: 'Loaded and ready' } as const satisfies {
+  to: JobStatus;
+  label: string;
+};
+
+/** The one step the driver can take next, for this job: `NEXT_STEP`, except that a job with no pickup goes
+ *  from accepted straight to loaded. */
+export function nextStepFor(
+  job: Pick<JobDto, 'status' | 'stops'>,
+): { readonly to: JobStatus; readonly label: string } | undefined {
+  return job.status === 'accepted' && !jobHasPickup(job) ? NO_PICKUP_STEP : NEXT_STEP[job.status];
+}
+
+/** The status in words for the job screen and cards. A job with no pickup that is accepted says it is not
+ *  loaded yet, since there is no pickup to head for. */
+export function jobStatusLabel(job: Pick<JobDto, 'status' | 'stops'>): string {
+  return job.status === 'accepted' && !jobHasPickup(job)
+    ? 'Accepted, not loaded yet'
+    : JOB_STATUS_LABELS[job.status];
+}
+
 // A short, hard-coded word list rather than a server round trip (M5.3, design doc §5: "loaded and
 // leaving") — same reasoning as yes-no-parser.ts's YES_WORDS/NO_WORDS. Only ever matched against
 // the one status a job can currently move on from (`NEXT_STEP`'s own keys), never a choice among
@@ -43,6 +70,9 @@ const STEP_TRIGGER_WORDS: Partial<Record<JobStatus, readonly string[]>> = {
   at_delivery: ['delivered', 'dropped off', 'done', 'finished'],
 };
 
+// A job with no pickup: from accepted the next step is loaded, so it is heard as loaded.
+const NO_PICKUP_TRIGGER_WORDS: readonly string[] = ['loaded', 'load', 'ready', 'ready to go'];
+
 function escapeRegExp(word: string): string {
   return word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -56,8 +86,13 @@ function matchesAny(normalized: string, words: readonly string[]): boolean {
 /** Whether a transcript sounds like the driver reporting the step a job at `status` can currently
  *  move to. `false` for a status with no next step (already finished, or not yet assigned) — there
  *  is nothing to confirm either way. */
-export function matchesJobStatusTrigger(transcript: string, status: JobStatus): boolean {
-  const words = STEP_TRIGGER_WORDS[status];
+export function matchesJobStatusTrigger(
+  transcript: string,
+  status: JobStatus,
+  hasPickup = true,
+): boolean {
+  const words =
+    status === 'accepted' && !hasPickup ? NO_PICKUP_TRIGGER_WORDS : STEP_TRIGGER_WORDS[status];
   if (words === undefined) return false;
   return matchesAny(transcript.toLowerCase(), words);
 }

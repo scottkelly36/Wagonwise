@@ -25,7 +25,7 @@ import {
   type JobAction,
 } from '../lib/job-navigation';
 import { isTrackedStatus } from '../lib/job-position-reporting';
-import { JOB_STATUS_LABELS, NEXT_STEP } from '../lib/job-status';
+import { jobHasPickup, jobStatusLabel, nextStepFor } from '../lib/job-status';
 import {
   isBusy as isVoiceBusy,
   isListening as isVoiceListening,
@@ -75,7 +75,11 @@ export default function JobScreen() {
   const plan = useCurrentRoutePlanStore((s) => s.plan);
   // Hooks can't be conditional, so this is wired up before `job.data` is known to exist — it does
   // nothing (and the button that would start it isn't rendered) until there's a real job.
-  const voice = useJobStatusVoice(job.data?.id ?? '', job.data?.status ?? 'draft');
+  const voice = useJobStatusVoice(
+    job.data?.id ?? '',
+    job.data?.status ?? 'draft',
+    !job.data || jobHasPickup(job.data),
+  );
   const proof = useProofOfDeliveryCapture(job.data?.id ?? '');
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -93,7 +97,7 @@ export default function JobScreen() {
   }
 
   const current = job.data;
-  const nextStep = NEXT_STEP[current.status];
+  const nextStep = nextStepFor(current);
   const voiceBusy = isVoiceBusy(voice.state);
   const voiceListening = isVoiceListening(voice.state);
   // The photo is taken at the drop, so the section only exists once the driver has arrived.
@@ -107,7 +111,7 @@ export default function JobScreen() {
     plan !== undefined &&
     target !== undefined &&
     isTripToTarget(plan.destination, target);
-  const actions = jobActions(current.status, tripToTarget);
+  const actions = jobActions(current.status, tripToTarget, jobHasPickup(current));
   const noVehicle = current.vehicleId === undefined;
   const blockedByProof =
     actions?.primary.kind === 'advance' &&
@@ -131,7 +135,7 @@ export default function JobScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ScreenHeader title={current.reference} subtitle={JOB_STATUS_LABELS[current.status]} />
+        <ScreenHeader title={current.reference} subtitle={jobStatusLabel(current)} />
         {isTrackedStatus(current.status) && (
           <View style={styles.notice}>
             <Icon name="map-marker-radius-outline" size={22} color={colors.accent} />

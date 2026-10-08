@@ -137,6 +137,11 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-08: **jobs with no pickup.** A job now needs only a delivery. The portal job form has Collect from: Add a pickup / No
+  pickup (the choice is remembered). For a job with no pickup the driver goes accepted, then Loaded and ready (no navigation
+  yet), then Set off as usual, planned from where they are; the portal says Accepted, not loaded yet. Core: `validateStops`
+  no longer needs a pickup, `nextStatus` takes accepted straight to loaded when there is none. Needs a core deploy, the
+  dashboard deploy and an OTA update. Stored company locations and a next-journey flow are still in docs/ideas.md.
 - 2026-10-08: **weather warnings, staff invitation emails, live map fix, Resend fix.** (1) Met Office warnings (NSWWS via
   Weather DataHub, key `METOFFICE_API_KEY` on core): core polls every 5 minutes and keeps them in memory; the portal shows a
   banner and a toggleable layer on Live trips; the driver app shows a badge (weather icon on the warning colour) when a
