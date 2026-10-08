@@ -3,6 +3,18 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **walk-round checks, slice 2b: the driver app screen (Phase 3 M5).** A "Daily check due" card appears on the Jobs tab and
+  the job screen while the vehicle on the driver's current job has a list still to do (nothing shows for a firm with no lists, or
+  once they are done). It opens `/check`: the questions as big buttons (OK or Defect, Yes or No, a number, a note, a photo), a
+  defect asks "What is wrong?" and, where the list wants it, for a photo. Finishing saves the check and its photos to the phone first
+  (`db/check-queue.ts`, SQLite) and sends them when there is signal (`hooks/use-check-queue-flush.ts`, on start and on coming back to
+  the app, same shape as the proof-of-delivery queue): the check, then each photo; a rejection the server will never accept drops
+  just that item, anything else retries. The driver is told the result straight away from the phone's own working: clear, fix soon,
+  or "Do not drive this vehicle... tell your office now". The last lists the server gave are kept on the phone so a check can start
+  offline, and a check finished offline counts as done ("waiting to send") rather than being asked for again. JavaScript only, so
+  it ships over the air with no new Play build, but only after core and the driver BFF with slice 2a are deployed.
+  Not built: saving a half-finished check if the app is closed, the office results page and defects inbox, the "must be done before a
+  job" setting, retention.
 - 2026-10-09: **walk-round checks, slice 2a: the server side of a driver doing a check (Phase 3 M5).** Migration 0044
   (`checks.checks`, `check_photos`, `defects`; driver and company Row-Level Security). A driver's `GET /checks/mine` (through the driver
   BFF) gives the lists for the vehicle on their current job and whether each is done today (by anyone: it is the vehicle's daily

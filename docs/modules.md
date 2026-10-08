@@ -279,7 +279,8 @@ second check on top — core alone decides ownership/authorization for those.
   answers against the questions into defects and a result (clear, fix soon, do not drive); the check is stored with a copy of the
   questions it was answered against, and each defect becomes a row with a status for the office. Proof it works against real
   Postgres: `composition/checks-end-to-end.test.ts`.
-- To come: the driver app screen, the office results page and defects inbox, the before-a-job setting and retention
+- **Driver app** (`apps/driver-app`): `components/check-due-card.tsx` (Jobs tab and job screen) opens `app/check.tsx`; the pure logic is `lib/check-flow.ts` and `lib/check-due.ts`, the offline queue `db/check-queue.ts` with `lib/check-queue-flush.ts`. JavaScript only.
+- To come: the office results page and defects inbox, the before-a-job setting and retention
   (`docs/phase-3-scope.md`).
 
 ## Staff BFF
