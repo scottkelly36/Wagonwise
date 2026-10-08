@@ -212,3 +212,22 @@ update --spec` (used once to add the job) wiped `core`'s App-Level `DATABASE_URL
   when they want to; To is a postcode, an address, what3words, a saved place or a map pin. A driver can then tap
   Start for From and type a postcode for To, or the other way round, and only sees the one input they chose
   instead of every option at once. **Update 2026-10-08: the From/To switches are built, without what3words** (From: My position / Search / Map; To: Search / Map; a driver sees only the input they chose). what3words then needs only a third option on each switch, a lookup in core and a key.
+
+- **2026-10-08: job flow that fits more than one kind of firm (raised by the owner before calling Phase 2 done).**
+  Today every job needs a pickup and a delivery stop (`validateStops` in jobs' domain, and the portal and driver
+  app follow). That does not suit every company. Three changes, in the order they would help:
+  1. **Pickup optional.** Some firms always load at the same place, so the driver does not need directing there.
+     A job with only a delivery would start from the driver's position (or the depot) and skip the "at pickup" step.
+     Related: the driver could simply mark **Loaded and ready**, then be sent to the next stop, with no pickup stop
+     to drive to. Needs the status path (`assigned, accepted, at_pickup, loaded, en_route, …`) to allow going
+     straight to loaded, the validation to accept a delivery-only job, ETAs and reports to cope with no pickup, and
+     the app's Where to / job card text to stop assuming one.
+  2. **Stored locations for a company.** Customers and contract sites the company uses again and again, kept by
+     the company with a name, address, a note (gate, contact) and a map point. The job form gets a switch: **New
+     address** (as now) or **Saved location**. Decide whether this is the existing saved places (a farm's real gate,
+     marked by drivers; PR #129) with a "site" type and a dispatcher-entered address, or its own list; most likely
+     the same table, so a marked gate and a contract site are one thing the driver sees on the map.
+  3. **Next journey, not only pickup then delivery.** The driver marks loaded and ready, then goes to the next
+     stop; the owner's wording was "indicate they are loaded and ready to go to the next journey". Possibly a job
+     of several legs. Worth settling with the pilot company before building: how they describe a job.
+     Not started. Should be shaped with the pilot company's real jobs, then built before Phase 3.
