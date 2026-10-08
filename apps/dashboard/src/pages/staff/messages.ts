@@ -35,6 +35,8 @@ const MESSAGES: Record<string, string> = {
   DayInPast: 'Pick today or a later day; a past day would change what was already billed.',
   InvalidPrice: 'Enter a price between £0 and £10,000.',
   InvalidCapacity: 'Enter a whole number of vehicles.',
+  InvalidTemplate: 'That check list is not complete. Check the name and every question.',
+  TemplateNotFound: 'That check list could not be found.',
   InvoiceNotFound: 'That invoice could not be found.',
   InvalidInvoiceState:
     "That can't be done to an invoice in its current state. Issued invoices can't be edited.",

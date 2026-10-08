@@ -3,6 +3,16 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **walk-round checks, slice 1: each company builds its own check lists (Phase 3 M5).** New `checks` module and migration
+  0043 (`checks.templates`, company Row-Level Security). A list is an ordered set of questions held as one JSON document: tick or
+  flag a defect, yes or no (one answer is the defect), a number (optional lowest and highest OK), a note, or a photo. Each question
+  can be required, can ask for a photo of a defect, and can mark a defect "fix soon" or "do not drive". A list applies to all of the
+  company's vehicles or only chosen ones (checked against the company's own vehicles through a `VehicleDirectory` port over fleet). A
+  firm that wants no checks has no lists. Editing raises `version`; removing archives (past checks will keep a copy of the questions
+  they were answered against). Built by `manage_fleet` (or WagonWise staff); anyone at the company can read. New dashboard page
+  "Walk-round checks" with a builder, "start blank" or "from the example" (a typical daily list; editable, and the page says it is
+  not complete and the firm is responsible for its checks). Drivers completing a check, the office results and defects inbox, and
+  retention follow in later slices.
 - 2026-10-09: **a company's own plan and invoices (Phase 3 item 0).** New "Plan and invoices" page for staff holding `manage_billing`
   (`GET /staff/billing/my/plan` and `/my/invoices`, through the staff BFF). Shows what the plan covers, what it costs a month, how many
   vehicles the company has set up against that ("you can add 2 more"), any scheduled change, and the issued, paid and cancelled invoices

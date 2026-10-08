@@ -1,4 +1,10 @@
 import {
+  checkTemplateIdParamsSchema,
+  checksCompanyParamsSchema,
+  createCheckTemplateRequestSchema,
+  updateCheckTemplateRequestSchema,
+} from '@wagonwise/contracts/checks';
+import {
   addInvoiceLineRequestSchema,
   generateInvoicesRequestSchema,
   invoiceIdParamsSchema,
@@ -71,6 +77,26 @@ const FORWARDS: readonly Forward[] = [
     params: companySettingsParamsSchema,
     body: updateCompanySettingsRequestSchema,
   },
+  // Walk-round check lists a company builds for itself: its staff see them, fleet managers build them. Core decides.
+  { method: 'GET', path: '/staff/checks/starter', params: noParams },
+  {
+    method: 'GET',
+    path: '/staff/checks/companies/:companyId/templates',
+    params: checksCompanyParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/checks/companies/:companyId/templates',
+    params: checksCompanyParamsSchema,
+    body: createCheckTemplateRequestSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/checks/templates/:id',
+    params: checkTemplateIdParamsSchema,
+    body: updateCheckTemplateRequestSchema,
+  },
+  { method: 'DELETE', path: '/staff/checks/templates/:id', params: checkTemplateIdParamsSchema },
   // WagonWise's own billing details, printed on invoices. WagonWise admins only; core decides.
   { method: 'GET', path: '/staff/billing/details', params: noParams },
   {

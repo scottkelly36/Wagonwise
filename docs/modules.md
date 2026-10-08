@@ -266,6 +266,8 @@ second check on top — core alone decides ownership/authorization for those.
 - Everything else under `/staff/billing/` is WagonWise-admin only.
 - Pricing model and what is next: `docs/phase-3-scope.md`.
 
+## Checks`apps/core/src/modules/checks`: the driver's daily walk-round check. So far, the lists (`checks.templates`, migration 0043): a companybuilds its own at `/staff/checks/...` (dashboard "Walk-round checks"), as a JSON set of questions (`domain/check-template.ts`), forall its vehicles or chosen ones, with `manage_fleet` to build and any company staff to read. Editing bumps `version`; removing archives.`domain/starter-template.ts` is the editable example list. Drivers answering, results, defects and retention are to come; see`docs/phase-3-scope.md`.
+
 ## Staff BFF
 
 `apps/staff-bff` (P2-M1.9) is the dashboard's back end for staff accounts. It does the same
