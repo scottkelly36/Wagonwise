@@ -31,6 +31,16 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
         shows: (s) => holds(s, 'manage_fleet'),
       },
       {
+        to: '/fleet/check-results',
+        label: 'Check results',
+        shows: (s) => holds(s, 'manage_fleet') || holds(s, 'dispatch') || holds(s, 'view_reports'),
+      },
+      {
+        to: '/fleet/defects',
+        label: 'Defects',
+        shows: (s) => holds(s, 'manage_fleet') || holds(s, 'dispatch') || holds(s, 'view_reports'),
+      },
+      {
         to: '/fleet/reports',
         label: 'Reports',
         shows: (s) => isPlatform(s) || holds(s, 'view_reports'),

@@ -186,3 +186,87 @@ export const attachCheckPhotoRequestSchema = z.object({
   dataBase64: z.base64().min(1).max(7_000_000),
 });
 export type AttachCheckPhotoRequest = z.infer<typeof attachCheckPhotoRequestSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// The office's side: the checks drivers have done, and the defects they found.
+
+export const defectStatusSchema = z.enum(['open', 'acknowledged', 'fixed']);
+export type DefectStatus = z.infer<typeof defectStatusSchema>;
+
+const dayString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+/** `GET /staff/checks/companies/:companyId/results?from=&to=`: days are UK days, both ends included. */
+export const checkResultsQuerySchema = z.object({
+  from: dayString.optional(),
+  to: dayString.optional(),
+});
+
+export const checkSummarySchema = z.object({
+  id: checkIdSchema,
+  templateName: z.string(),
+  vehicleId: z.string(),
+  vehicleName: z.string(),
+  /** The driver's sign-in (their phone or email); the portal has no driver names. */
+  driverLabel: z.string().optional(),
+  checkDay: dayString,
+  submittedAt: z.iso.datetime(),
+  result: checkResultSchema,
+  defectCount: z.number().int(),
+});
+export type CheckSummaryDto = z.infer<typeof checkSummarySchema>;
+
+export const listCheckResultsResponseSchema = z.object({ checks: z.array(checkSummarySchema) });
+
+export const defectSchema = z.object({
+  id: z.string(),
+  checkId: checkIdSchema,
+  vehicleId: z.string(),
+  vehicleName: z.string(),
+  itemId: z.string(),
+  label: z.string(),
+  severity: defectSeveritySchema,
+  /** What was found, in words. */
+  detail: z.string(),
+  /** What the driver said about it. */
+  note: z.string().optional(),
+  status: defectStatusSchema,
+  createdAt: z.iso.datetime(),
+  statusChangedAt: z.iso.datetime().optional(),
+});
+export type DefectDto = z.infer<typeof defectSchema>;
+
+/** `GET /staff/checks/results/:id`: one check in full, as it was answered. */
+export const checkDetailSchema = checkSummarySchema.extend({
+  templateVersion: z.number().int(),
+  deviceCompletedAt: z.iso.datetime().optional(),
+  /** The questions as they were when the check was done, not as the list reads now. */
+  items: z.array(checkItemSchema),
+  answers: z.array(checkAnswerSchema),
+  defects: z.array(defectSchema),
+  /** The questions that have a photo stored. */
+  photoItemIds: z.array(z.string()),
+});
+export type CheckDetailDto = z.infer<typeof checkDetailSchema>;
+
+export const checkResultParamsSchema = z.object({ id: z.string().min(1) });
+export const checkResultPhotoParamsSchema = z.object({
+  id: z.string().min(1),
+  itemId: z.string().min(1),
+});
+
+export const checkPhotoResponseSchema = z.object({
+  contentType: z.string(),
+  dataBase64: z.string(),
+  capturedAt: z.iso.datetime(),
+});
+export type CheckPhotoResponse = z.infer<typeof checkPhotoResponseSchema>;
+
+/** `GET /staff/checks/companies/:companyId/defects?status=`: with no status, those not yet fixed. */
+export const defectsQuerySchema = z.object({ status: defectStatusSchema.optional() });
+export const listDefectsResponseSchema = z.object({ defects: z.array(defectSchema) });
+
+export const defectIdParamsSchema = z.object({ id: z.string().min(1) });
+
+/** `PUT /staff/checks/defects/:id/status` */
+export const setDefectStatusRequestSchema = z.object({ status: defectStatusSchema });
+export type SetDefectStatusRequest = z.infer<typeof setDefectStatusRequestSchema>;

@@ -3,6 +3,16 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **walk-round checks, slice 3a: the office sees results and works through defects (Phase 3 M5).** Migration 0045
+  (`checks.defects.status_changed_by`). Dashboard: **Check results** lists the checks drivers have done (today, 7 or 30 days) with
+  vehicle, list, the driver's sign-in, result and defect count, and opens any one in full: the questions as they were when it was
+  done (not as the list reads now), the answers, each defect with its status, and the photos, fetched only when asked for.
+  **Defects** lists what checks found, "do not drive" first, with a filter (still to deal with, open, seen, fixed); fleet managers and
+  dispatchers mark each one seen, fixed, or reopen it, recording who and when. Seeing needs `manage_fleet`, `dispatch` or
+  `view_reports`; changing a defect needs `manage_fleet` or `dispatch`. Another company's checks are "not found". Core routes under
+  `/staff/checks/companies/:id/results`, `/staff/checks/results/:id` (+ `/photos/:itemId`), `/staff/checks/companies/:id/defects`,
+  `PUT /staff/checks/defects/:id/status`. Tested end to end on real Postgres. Not built: retention (and its cleanup), the "must be
+  done before a job" setting and gate, defects feeding maintenance.
 - 2026-10-09: **walk-round checks, slice 2b: the driver app screen (Phase 3 M5).** A "Daily check due" card appears on the Jobs tab and
   the job screen while the vehicle on the driver's current job has a list still to do (nothing shows for a firm with no lists, or
   once they are done). It opens `/check`: the questions as big buttons (OK or Defect, Yes or No, a number, a note, a photo), a

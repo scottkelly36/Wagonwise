@@ -11,8 +11,10 @@ import type {
 } from './application/ports/directories.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresCheckRepository } from './infrastructure/postgres-check-repository.js';
+import { PostgresOfficeCheckRepository } from './infrastructure/postgres-office-check-repository.js';
 import { PostgresTemplateRepository } from './infrastructure/postgres-template-repository.js';
 import { registerChecksDriverRoutes } from './interface/driver-routes.js';
+import { registerChecksOfficeRoutes } from './interface/office-routes.js';
 import { registerChecksRoutes } from './interface/routes.js';
 
 // Re-exported so composition/ can type its wiring without reaching past this facade.
@@ -55,11 +57,18 @@ export interface ChecksModule {
 export function createChecksModule(deps: ChecksModuleDeps): ChecksModule {
   const templates = new PostgresTemplateRepository(deps.db);
   const checks = new PostgresCheckRepository(deps.db);
+  const office = new PostgresOfficeCheckRepository(deps.db);
   return {
     registerRoutes(app: FastifyInstance): void {
       registerChecksRoutes(app, {
         templates: { templates, vehicles: deps.vehicles, ids: deps.ids, clock: deps.clock },
         callerDirectory: deps.callers,
+        dataScopes: deps.dataScopes,
+      });
+      registerChecksOfficeRoutes(app, {
+        office: { office, clock: deps.clock },
+        callerDirectory: deps.callers,
+        drivers: deps.driverIdentities,
         dataScopes: deps.dataScopes,
       });
       registerChecksDriverRoutes(app, {

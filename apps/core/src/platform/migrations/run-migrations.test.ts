@@ -75,6 +75,7 @@ describe('runMigrations', () => {
       '0042_billing_company_read.sql',
       '0043_checks_templates.sql',
       '0044_checks_checks.sql',
+      '0045_checks_defect_handling.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -226,6 +227,7 @@ describe('runMigrations', () => {
       '0042_billing_company_read.sql',
       '0043_checks_templates.sql',
       '0044_checks_checks.sql',
+      '0045_checks_defect_handling.sql',
     ]);
   });
 });
