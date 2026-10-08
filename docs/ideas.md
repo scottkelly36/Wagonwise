@@ -202,3 +202,13 @@ update --spec` (used once to add the job) wiped `core`'s App-Level `DATABASE_URL
   Email plus password would drop that dependency. It needs a password store (hashing, reset by email, which still
   needs Resend), so it is a real piece of work. For now the codes stay; the sign-in screen now says what kind of
   failure it was.
+
+- **2026-10-08: what3words lookup, and a simpler Where to? screen (next month).** Owner's call: both wait until
+  next month. what3words needs the Basic plan (£7.99 a month, 1,000 conversions; the free plan has no
+  convert-to-coordinates), a key kept on core as `WHAT3WORDS_API_KEY` and optional, and a core lookup that
+  caches converted addresses (check their terms on caching first). Alongside it, the Where to? screen can be
+  simpler than the two text boxes plus two buttons it has now. Idea: **From** and **To** each get a small
+  switch between the ways of setting it. From defaults to "My position" and says so, so a driver only changes it
+  when they want to; To is a postcode, an address, what3words, a saved place or a map pin. A driver can then tap
+  Start for From and type a postcode for To, or the other way round, and only sees the one input they chose
+  instead of every option at once. Sketch the layout before building.

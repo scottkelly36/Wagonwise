@@ -306,9 +306,18 @@ export default function PlanRouteScreen() {
                 vehicleMode === 'profile' && styles.vehicleModeTabActive,
               ]}
               onPress={() => handleSelectVehicleMode('profile')}
+              accessibilityRole="button"
+              accessibilityState={{ selected: vehicleMode === 'profile' }}
               testID="vehicle-mode-profile-button"
             >
-              <Text style={styles.vehicleModeTabText}>My vehicles</Text>
+              <Text
+                style={[
+                  styles.vehicleModeTabText,
+                  vehicleMode === 'profile' && styles.vehicleModeTabTextActive,
+                ]}
+              >
+                My vehicles
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -316,9 +325,18 @@ export default function PlanRouteScreen() {
                 vehicleMode === 'manual' && styles.vehicleModeTabActive,
               ]}
               onPress={() => handleSelectVehicleMode('manual')}
+              accessibilityRole="button"
+              accessibilityState={{ selected: vehicleMode === 'manual' }}
               testID="vehicle-mode-manual-button"
             >
-              <Text style={styles.vehicleModeTabText}>Enter details</Text>
+              <Text
+                style={[
+                  styles.vehicleModeTabText,
+                  vehicleMode === 'manual' && styles.vehicleModeTabTextActive,
+                ]}
+              >
+                Enter details
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -541,9 +559,12 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       gap: 10,
     },
+    // One split button: the two choices share a track and the active one is filled.
     vehicleModeRow: {
       flexDirection: 'row',
-      gap: 8,
+      padding: 4,
+      borderRadius: 26,
+      backgroundColor: colors.surface,
     },
     vehicleModeTab: {
       flex: 1,
@@ -551,17 +572,17 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'center',
       alignItems: 'center',
       borderRadius: 22,
-      backgroundColor: colors.surface,
     },
     vehicleModeTabActive: {
-      backgroundColor: colors.accentSoft,
-      borderWidth: 2,
-      borderColor: colors.accent,
+      backgroundColor: colors.accent,
     },
     vehicleModeTabText: {
       fontSize: 15,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.textMuted,
+    },
+    vehicleModeTabTextActive: {
+      color: colors.textOnAccent,
     },
     profileRow: {
       gap: 8,
