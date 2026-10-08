@@ -17,7 +17,10 @@ import type { LayoutChangeEvent, NativeSyntheticEvent } from 'react-native';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { config } from '../config';
+import type { PlaceCategory } from '@wagonwise/contracts/places';
 import { hazardSeverityFor } from '../lib/hazard-labels';
+import { PLACE_CATEGORY_ICONS } from '../lib/places';
+import { Icon } from './ui/icon';
 
 export interface MapPoint {
   readonly lat: number;
@@ -42,6 +45,14 @@ export interface CongestionMarker {
 /** A driver-vouched safe place to park an HGV (M9, docs/progress.md) — a third, visually distinct
  *  kind of marker: a square blue pin, unlike a hazard's square red/amber or congestion's round
  *  teal, so it reads as "a place," not a warning or a delay. */
+/** A place a driver or their company has marked (a farm's real gate, a yard entrance): drawn as a green
+ *  marker with its category's icon. */
+export interface PlaceMarker {
+  readonly id: string;
+  readonly category: PlaceCategory;
+  readonly location: MapPoint;
+}
+
 export interface ParkingSpotMarker {
   readonly id: string;
   readonly location: MapPoint;
@@ -116,6 +127,8 @@ interface Props {
   /** Driver-reported safe parking spots (M9) — same "caller decides the query, this component
    *  just draws what it's given" split as `hazards`/`congestion` above. */
   readonly parkingSpots?: readonly ParkingSpotMarker[];
+  readonly places?: readonly PlaceMarker[];
+  readonly onPlacePress?: (placeId: string) => void;
   /** Fired when a parking-spot marker is tapped (the home screen opens `ParkingSpotDrawer`). Same as
    *  `onCongestionPress`. */
   readonly onParkingSpotPress?: (parkingSpotId: string) => void;
@@ -198,6 +211,8 @@ export function RouteMap({
   onCongestionPress,
   parkingSpots,
   onParkingSpotPress,
+  places,
+  onPlacePress,
   followZoom = 16,
   onFollowingChange,
   hideRecenterButton = false,
@@ -459,6 +474,25 @@ export function RouteMap({
             </View>
           </ViewAnnotation>
         ))}
+        {places?.map((place) => (
+          <ViewAnnotation
+            key={place.id}
+            id={`place-${place.id}`}
+            lngLat={toLngLat(place.location)}
+            onPress={() => onPlacePress?.(place.id)}
+          >
+            <View
+              style={[styles.placeMarker, navigating && styles.placeMarkerSmall]}
+              testID={`place-pin-${place.id}`}
+            >
+              <Icon
+                name={PLACE_CATEGORY_ICONS[place.category]}
+                size={navigating ? 14 : 18}
+                color="#FFFFFF"
+              />
+            </View>
+          </ViewAnnotation>
+        ))}
         {parkingSpots?.map((spot) => (
           <ViewAnnotation
             key={spot.id}
@@ -609,6 +643,19 @@ const styles = StyleSheet.create({
   // parking spots along the route does not crowd the road.
   parkingMarkerSmall: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5 },
   parkingMarkerTextSmall: { fontSize: 12 },
+  // A place the driver or their company marked: green and rounded, unlike the square hazard, parking
+  // and traffic markers, so it reads as a destination.
+  placeMarker: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#16A34A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeMarkerSmall: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5 },
   parkingMarkerText: {
     fontSize: 15,
     fontWeight: '800',

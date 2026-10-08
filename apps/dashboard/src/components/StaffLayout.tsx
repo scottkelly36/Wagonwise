@@ -23,6 +23,7 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
       { to: '/fleet/jobs', label: 'Jobs', shows: everyone },
       { to: '/fleet/live-trips', label: 'Live trips', shows: everyone },
       { to: '/fleet/drivers', label: 'Drivers', shows: everyone },
+      { to: '/fleet/places', label: 'Places', shows: everyone },
       {
         to: '/fleet/reports',
         label: 'Reports',

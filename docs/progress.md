@@ -29,7 +29,8 @@ history file keeps the record.
 | P2-M4 Jobs in the portal           | Done — 2026-10-02                       | `history/p2-m4-portal-jobs.md`         |
 | P2-M5 Jobs in the driver app       | Done — live on app 1.2.1 (2026-10-06)   | `history/p2-m5-driver-app-jobs.md`     |
 | P2-M6 Live fleet map               | Done — 2026-10-03 (M6.4c deferred)      | `history/p2-m6-live-map.md`            |
-| P2-M8 Reports and CSV export       | Done 2026-10-08 — needs a core deploy   | `history/p2-m8-reports.md`             |
+| P2-M8 Reports and CSV export       | Done 2026-10-08 — needs a core deploy   | `history/saved-places.md`              | Saved places: a farm's real gate, company-wide, with notes | —   |
+| `history/p2-m8-reports.md`         |
 | P2-M10 Spoken turn-by-turn         | Live on app 1.2.1 — needs a drive test  | `history/p2-m10-spoken-directions.md`  |
 
 ## Next up
@@ -135,6 +136,18 @@ live map, moderation, reports).
   `valhalla-routing-engine.golden-test.ts`.
 
 ## Recent log
+
+- 2026-10-08: **saved places** (a farm's real gate, marked once, kept for future jobs). From the first drive and the owner's
+  field test: a farm's postcode often lands somewhere other than its gate. A driver stands at the real entrance, taps
+  _Mark this spot_, names it and adds a note ("gate on the left, tight turn"); it is saved where they stand. **Company
+  drivers' places are shared with the whole company** (owner's call); **a driver with no company marks personal places** that
+  only they see. Dispatchers can edit and remove the company's places in the dashboard (the _Places_ page, `dispatch`
+  privilege), and when creating a job, entrances marked near a typed postcode are offered: choosing one sends the driver to
+  the real spot and puts its note on the stop. In the driver app: a _Gates and entrances_ card on the job screen (places
+  near the stop, with notes, and _Mark this spot_), a _Places_ list on the Saved tab, and green markers on the home and trip
+  maps with a sheet to read or improve the note and _Take me there_. New `places` module and migration 0036 (row-level
+  security: company staff and WagonWise admins by company; drivers by an active company link, or their own personal places).
+  Core, both BFFs, dashboard and app. Core and BFF deploy first. See `history/saved-places.md`.
 
 - 2026-10-08: **P2-M8 reports and CSV export.** A Reports page in the dashboard (needs `view_reports`; WagonWise admins see
   any company): pick a period (last 7 or 30 days, this or last month, custom dates), see a summary (jobs, delivered, on

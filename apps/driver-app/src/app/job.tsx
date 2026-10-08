@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
 import { useJobNavigation } from '../hooks/use-job-navigation';
+import { JobPlacesCard } from '../components/job-places-card';
 import { OpenSettingsButton } from '../components/open-settings-button';
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { useJobStatusVoice } from '../hooks/use-job-status-voice';
@@ -159,6 +160,14 @@ export default function JobScreen() {
             </View>
           ))}
         </View>
+
+        <JobPlacesCard
+          stop={
+            target === undefined
+              ? undefined
+              : { name: target.stop.name, location: target.stop.location }
+          }
+        />
 
         {showProof && (
           <View style={styles.proof} testID="job-proof-section">

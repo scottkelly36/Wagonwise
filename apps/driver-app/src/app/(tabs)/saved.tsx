@@ -19,6 +19,7 @@ import { useCurrentLocation } from '../../hooks/use-current-location';
 import { formatDateTime } from '../../lib/format-date';
 import { HAZARD_TYPE_LABELS } from '../../lib/hazard-labels';
 import { formatHeightWithFeetInches } from '../../lib/units';
+import { PlacesSection } from '../../components/places-section';
 import { Icon } from '../../components/ui/icon';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
 import { cardStyle } from '../../theme/tokens';
@@ -116,34 +117,40 @@ export default function VoiceDraftsScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.title}>Saved</Text>
-        <Text style={styles.subtitle}>Reports to check and send when you are parked.</Text>
+        <Text style={styles.subtitle}>
+          Places you have marked, and reports to check and send when you are parked.
+        </Text>
       </View>
 
-      {isLoading ? (
-        <ActivityIndicator style={styles.loading} size="large" color={colors.text} />
-      ) : isError ? (
-        <View style={styles.empty}>
-          <Icon name="cloud-alert-outline" size={52} color={colors.textMuted} />
-          <Text style={styles.message}>Couldn’t load saved reports. Pull down to try again.</Text>
-        </View>
-      ) : data === undefined || data.length === 0 ? (
-        <View style={styles.empty}>
-          <Icon name="bookmark-outline" size={52} color={colors.textMuted} />
-          <Text style={styles.emptyTitle}>Nothing saved</Text>
-          <Text style={styles.message}>
-            Anything you don’t confirm by voice while driving shows up here.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={data}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          refreshing={isRefetching}
-          onRefresh={() => void refetch()}
-          renderItem={({ item }) => <DraftRow draft={item} fallbackOrigin={location.point} />}
-        />
-      )}
+      <FlatList
+        data={data ?? []}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        refreshing={isRefetching}
+        onRefresh={() => void refetch()}
+        ListHeaderComponent={<PlacesSection />}
+        ListEmptyComponent={
+          isLoading ? (
+            <ActivityIndicator style={styles.loading} size="large" color={colors.text} />
+          ) : isError ? (
+            <View style={styles.empty}>
+              <Icon name="cloud-alert-outline" size={52} color={colors.textMuted} />
+              <Text style={styles.message}>
+                Couldn’t load saved reports. Pull down to try again.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.empty}>
+              <Icon name="bookmark-outline" size={52} color={colors.textMuted} />
+              <Text style={styles.emptyTitle}>No reports waiting</Text>
+              <Text style={styles.message}>
+                Anything you don’t confirm by voice while driving shows up here.
+              </Text>
+            </View>
+          )
+        }
+        renderItem={({ item }) => <DraftRow draft={item} fallbackOrigin={location.point} />}
+      />
     </SafeAreaView>
   );
 }
