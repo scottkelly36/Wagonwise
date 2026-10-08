@@ -12,7 +12,7 @@ export class InMemoryPlanRepository implements PlanRepository {
     return Promise.resolve(new Map(this.prices));
   }
 
-  setPrice(companyId: CompanyId, pence: number, by: StaffId): Promise<void> {
+  setPrice(companyId: CompanyId, pence: number, by: StaffId, _at?: Date): Promise<void> {
     this.prices.set(companyId, pence);
     this.lastBy = by;
     return Promise.resolve();
@@ -26,7 +26,7 @@ export class InMemoryPlanRepository implements PlanRepository {
     return Promise.resolve([...this.#changes]);
   }
 
-  setCapacity(change: CapacityChange, by: StaffId): Promise<void> {
+  setCapacity(change: CapacityChange, by: StaffId, _at?: Date): Promise<void> {
     this.#changes = this.#changes.filter(
       (c) => !(c.companyId === change.companyId && c.effectiveFrom === change.effectiveFrom),
     );

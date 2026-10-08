@@ -77,3 +77,68 @@ export type CapacityChangeDto = z.infer<typeof capacityChangeSchema>;
 
 /** `GET /staff/billing/companies/:companyId/capacity`, newest first. */
 export const capacityHistoryResponseSchema = z.object({ changes: z.array(capacityChangeSchema) });
+
+/** Invoices WagonWise sends companies. Money is whole pence. */
+export const invoiceIdParamsSchema = z.object({ id: z.string().min(1) });
+export const invoiceLineParamsSchema = z.object({
+  id: z.string().min(1),
+  lineId: z.string().min(1),
+});
+
+const monthString = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+
+export const invoiceStatusSchema = z.enum(['draft', 'issued', 'paid', 'void']);
+export type InvoiceStatusDto = z.infer<typeof invoiceStatusSchema>;
+
+export const invoiceLineSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  quantity: z.number().int(),
+  unitPence: z.number().int(),
+  amountPence: z.number().int(),
+});
+export type InvoiceLineDto = z.infer<typeof invoiceLineSchema>;
+
+export const invoiceSchema = z.object({
+  id: z.string(),
+  companyId: z.string(),
+  companyName: z.string(),
+  month: monthString,
+  status: invoiceStatusSchema,
+  /** Absent until issued. */
+  number: z.string().optional(),
+  lines: z.array(invoiceLineSchema),
+  totalPence: z.number().int(),
+  createdAt: z.iso.datetime(),
+  issuedAt: z.iso.datetime().optional(),
+  paidAt: z.iso.datetime().optional(),
+  voidedAt: z.iso.datetime().optional(),
+  /** WagonWise's details as they stood at issue; absent on a draft. */
+  issuedDetails: billingDetailsFieldsSchema.optional(),
+});
+export type InvoiceDto = z.infer<typeof invoiceSchema>;
+
+/** `GET /staff/billing/invoices`: newest month first. */
+export const listInvoicesResponseSchema = z.object({ invoices: z.array(invoiceSchema) });
+
+/** `POST /staff/billing/invoices/generate`: draft the month's invoices. */
+export const generateInvoicesRequestSchema = z.object({ month: monthString });
+export type GenerateInvoicesRequest = z.infer<typeof generateInvoicesRequestSchema>;
+export const generateInvoicesResponseSchema = z.object({
+  created: z.array(invoiceSchema),
+  skipped: z.array(
+    z.object({
+      companyId: z.string(),
+      name: z.string(),
+      reason: z.enum(['already_invoiced', 'nothing_to_bill']),
+    }),
+  ),
+});
+export type GenerateInvoicesResponse = z.infer<typeof generateInvoicesResponseSchema>;
+
+/** `POST /staff/billing/invoices/:id/lines`: a credit (negative) or a one-off charge, on a draft. */
+export const addInvoiceLineRequestSchema = z.object({
+  description: z.string().trim().min(1).max(200),
+  amountPence: z.number().int().min(-100_000_000).max(100_000_000),
+});
+export type AddInvoiceLineRequest = z.infer<typeof addInvoiceLineRequestSchema>;

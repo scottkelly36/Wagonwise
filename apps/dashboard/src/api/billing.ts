@@ -1,10 +1,19 @@
 import {
+  addInvoiceLineRequestSchema,
   billingDetailsSchema,
+  generateInvoicesRequestSchema,
+  generateInvoicesResponseSchema,
+  invoiceSchema,
+  listInvoicesResponseSchema,
   listPlansResponseSchema,
   scheduleCapacityRequestSchema,
   setPriceRequestSchema,
   updateBillingDetailsRequestSchema,
+  type AddInvoiceLineRequest,
   type BillingDetailsDto,
+  type GenerateInvoicesRequest,
+  type GenerateInvoicesResponse,
+  type InvoiceDto,
   type PlanSummaryDto,
   type ScheduleCapacityRequest,
   type SetPriceRequest,
@@ -70,4 +79,75 @@ export async function setPricePerVehicle(
     authorization: `Bearer ${accessToken}`,
   });
   throwUnlessSuccess(status, json, [200]);
+}
+
+export async function listInvoices(accessToken: string): Promise<InvoiceDto[]> {
+  const { status, json } = await requestJson('GET', '/staff/billing/invoices', {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return listInvoicesResponseSchema.parse(json).invoices;
+}
+
+/** Drafts the month's invoices for every company that has something to bill and none yet. */
+export async function generateInvoices(
+  accessToken: string,
+  input: GenerateInvoicesRequest,
+): Promise<GenerateInvoicesResponse> {
+  const body = generateInvoicesRequestSchema.parse(input);
+  const { status, json } = await requestJson('POST', '/staff/billing/invoices/generate', {
+    body,
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [201]);
+  return generateInvoicesResponseSchema.parse(json);
+}
+
+async function invoiceCall(
+  accessToken: string,
+  method: 'POST' | 'DELETE',
+  path: string,
+  body?: unknown,
+): Promise<InvoiceDto> {
+  const { status, json } = await requestJson(method, path, {
+    ...(body === undefined ? {} : { body }),
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return invoiceSchema.parse(json);
+}
+
+export function addInvoiceLine(
+  accessToken: string,
+  invoiceId: string,
+  input: AddInvoiceLineRequest,
+): Promise<InvoiceDto> {
+  return invoiceCall(
+    accessToken,
+    'POST',
+    `/staff/billing/invoices/${invoiceId}/lines`,
+    addInvoiceLineRequestSchema.parse(input),
+  );
+}
+
+export function removeInvoiceLine(
+  accessToken: string,
+  invoiceId: string,
+  lineId: string,
+): Promise<InvoiceDto> {
+  return invoiceCall(accessToken, 'DELETE', `/staff/billing/invoices/${invoiceId}/lines/${lineId}`);
+}
+
+export const issueInvoice = (accessToken: string, id: string) =>
+  invoiceCall(accessToken, 'POST', `/staff/billing/invoices/${id}/issue`);
+export const markInvoicePaid = (accessToken: string, id: string) =>
+  invoiceCall(accessToken, 'POST', `/staff/billing/invoices/${id}/paid`);
+export const voidInvoice = (accessToken: string, id: string) =>
+  invoiceCall(accessToken, 'POST', `/staff/billing/invoices/${id}/void`);
+
+export async function deleteDraftInvoice(accessToken: string, id: string): Promise<void> {
+  const { status, json } = await requestJson('DELETE', `/staff/billing/invoices/${id}`, {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [204]);
 }

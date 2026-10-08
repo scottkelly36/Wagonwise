@@ -3,6 +3,16 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **invoices (Phase 3 item 0).** `billing.invoices`, `billing.invoice_lines` and a gapless `billing.invoice_counter`
+  (migration 0041), WagonWise-admin only through Row-Level Security. The dashboard's new Invoices page drafts a month's invoices for
+  every company from its plan (capacity in force on the 1st, whole month; a mid-month rise is billed pro rata by days; a mid-month fall
+  takes effect next month), lets an admin add a credit or one-off line or remove a line on a draft, then issues it: that gives the next
+  number (`INV-0001`, in order, never reused), stamps WagonWise's billing details as they were that day, and freezes it. Issuing is
+  refused while any billing detail still holds a `[placeholder]`, when the invoice has no lines, or when it totals less than nothing.
+  Mark paid by hand; cancel (void) an issued unpaid invoice, which keeps its number and frees the month to be invoiced again. One live
+  invoice per company per month (a partial unique index). Print or save as PDF opens a page in a new tab, as the delivery records do;
+  a draft prints with DRAFT across it. Generating twice is safe: a company already invoiced for the month is skipped. No VAT is
+  calculated (the VAT line prints the admin's text); the company's own view of its invoices, and emailing them, are not built.
 - 2026-10-09: **plans, vehicle capacity and one live job per vehicle (Phase 3 item 0).** `billing.plans` (price per vehicle in pence,
   default £10) and `billing.capacity_changes` (effective-dated capacity), migration 0040, backfilled so each existing company starts
   with a capacity equal to its current vehicle count (at least 1). WagonWise admins set both on the dashboard's new Plans page; a

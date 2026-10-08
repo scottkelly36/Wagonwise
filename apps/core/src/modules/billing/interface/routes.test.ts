@@ -5,6 +5,8 @@ import { RecordingDataScopes } from '../../../shared/testing/recording-data-scop
 import type { StaffCaller } from '../application/ports/directories.js';
 import { InMemoryBillingDetailsRepository } from '../application/testing/in-memory-billing-details-repository.js';
 import { InMemoryPlanRepository } from '../application/testing/in-memory-plan-repository.js';
+import { InMemoryInvoiceRepository } from '../application/testing/in-memory-invoice-repository.js';
+import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import { makeId } from '../../../shared/brand.js';
 import { registerBillingRoutes } from './routes.js';
 
@@ -29,11 +31,18 @@ function buildApp(): { app: FastifyInstance; scopes: RecordingDataScopes } {
     done();
   });
   const clock = new FakeClock('2026-10-09T09:00:00.000Z');
+  const details = new InMemoryBillingDetailsRepository();
+  const plans = new InMemoryPlanRepository();
+  const companies = { list: () => Promise.resolve([{ id: ACME, name: 'Acme Freight' }]) };
   registerBillingRoutes(app, {
-    billing: { repo: new InMemoryBillingDetailsRepository(), clock },
-    plans: {
-      plans: new InMemoryPlanRepository(),
-      companies: { list: () => Promise.resolve([{ id: ACME, name: 'Acme Freight' }]) },
+    billing: { repo: details, clock },
+    plans: { plans, companies, clock },
+    invoices: {
+      invoices: new InMemoryInvoiceRepository(),
+      details,
+      plans,
+      companies,
+      ids: new SequentialIdGenerator(),
       clock,
     },
     callerDirectory: { getCaller: (id) => Promise.resolve(staff[id] ?? null) },
@@ -204,6 +213,153 @@ describe('/staff/billing/companies', () => {
         payload: { capacity: 99, effectiveFrom: '2026-10-09' },
         ...as('manager'),
       }),
+    ];
+    for (const response of await Promise.all(attempts)) expect(response.statusCode).toBe(403);
+  });
+});
+
+describe('/staff/billing/invoices', () => {
+  const generate = (app: FastifyInstance, month = '2026-10') =>
+    app.inject({
+      method: 'POST',
+      url: '/staff/billing/invoices/generate',
+      payload: { month },
+      ...as('admin'),
+    });
+  async function withDraft() {
+    const { app } = buildApp();
+    await app.inject({
+      method: 'POST',
+      url: `/staff/billing/companies/${ACME}/capacity`,
+      payload: { capacity: 5, effectiveFrom: '2026-10-09' },
+      ...as('admin'),
+    });
+    const generated = await generate(app, '2026-10');
+    const draft = generated.json<{ created: { id: string; totalPence: number }[] }>().created[0]!;
+    return { app, draft };
+  }
+
+  it('drafts the month’s invoice, lists it, and shows it with its lines', async () => {
+    const { app, draft } = await withDraft();
+    // Capacity began on the 9th, after the 1st, so October is billed as a rise: 5 vehicles for 23 of 31 days.
+    expect(draft.totalPence).toBe(Math.round((5 * 1000 * 23) / 31));
+    const list = await app.inject({
+      method: 'GET',
+      url: '/staff/billing/invoices',
+      ...as('admin'),
+    });
+    expect(list.json<{ invoices: unknown[] }>().invoices).toHaveLength(1);
+    const one = await app.inject({
+      method: 'GET',
+      url: `/staff/billing/invoices/${draft.id}`,
+      ...as('admin'),
+    });
+    expect(one.json()).toMatchObject({
+      status: 'draft',
+      companyName: 'Acme Freight',
+      month: '2026-10',
+    });
+  });
+
+  it('will not issue while the billing details hold placeholders, then issues with a number once filled in', async () => {
+    const { app, draft } = await withDraft();
+    const refused = await app.inject({
+      method: 'POST',
+      url: `/staff/billing/invoices/${draft.id}/issue`,
+      ...as('admin'),
+    });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toMatchObject({ tag: 'BillingDetailsIncomplete' });
+
+    await app.inject({
+      method: 'PUT',
+      url: '/staff/billing/details',
+      payload: real,
+      ...as('admin'),
+    });
+    const issued = await app.inject({
+      method: 'POST',
+      url: `/staff/billing/invoices/${draft.id}/issue`,
+      ...as('admin'),
+    });
+    expect(issued.statusCode).toBe(200);
+    expect(issued.json()).toMatchObject({ status: 'issued', number: 'INV-0001' });
+
+    const paid = await app.inject({
+      method: 'POST',
+      url: `/staff/billing/invoices/${draft.id}/paid`,
+      ...as('admin'),
+    });
+    expect(paid.json()).toMatchObject({ status: 'paid' });
+  });
+
+  it('adds a credit line to a draft and refuses to touch it once issued', async () => {
+    const { app, draft } = await withDraft();
+    const credited = await app.inject({
+      method: 'POST',
+      url: `/staff/billing/invoices/${draft.id}/lines`,
+      payload: { description: 'Goodwill credit', amountPence: -500 },
+      ...as('admin'),
+    });
+    expect(credited.json<{ totalPence: number }>().totalPence).toBe(draft.totalPence - 500);
+    await app.inject({
+      method: 'PUT',
+      url: '/staff/billing/details',
+      payload: real,
+      ...as('admin'),
+    });
+    await app.inject({
+      method: 'POST',
+      url: `/staff/billing/invoices/${draft.id}/issue`,
+      ...as('admin'),
+    });
+    const late = await app.inject({
+      method: 'POST',
+      url: `/staff/billing/invoices/${draft.id}/lines`,
+      payload: { description: 'Too late', amountPence: 100 },
+      ...as('admin'),
+    });
+    expect(late.statusCode).toBe(409);
+    const deleted = await app.inject({
+      method: 'DELETE',
+      url: `/staff/billing/invoices/${draft.id}`,
+      ...as('admin'),
+    });
+    expect(deleted.statusCode).toBe(409);
+  });
+
+  it('deletes a draft with 204, and 400s a bad month, 404s an unknown invoice', async () => {
+    const { app, draft } = await withDraft();
+    const gone = await app.inject({
+      method: 'DELETE',
+      url: `/staff/billing/invoices/${draft.id}`,
+      ...as('admin'),
+    });
+    expect(gone.statusCode).toBe(204);
+    expect((await generate(app, '2026-13')).statusCode).toBe(400);
+    expect((await generate(app, '2026-12')).statusCode).toBe(400);
+    const missing = await app.inject({
+      method: 'GET',
+      url: '/staff/billing/invoices/nope',
+      ...as('admin'),
+    });
+    expect(missing.statusCode).toBe(404);
+  });
+
+  it('refuses a company manager on every invoice route', async () => {
+    const { app } = buildApp();
+    const attempts = [
+      app.inject({ method: 'GET', url: '/staff/billing/invoices', ...as('manager') }),
+      app.inject({
+        method: 'POST',
+        url: '/staff/billing/invoices/generate',
+        payload: { month: '2026-10' },
+        ...as('manager'),
+      }),
+      app.inject({ method: 'GET', url: '/staff/billing/invoices/x', ...as('manager') }),
+      app.inject({ method: 'POST', url: '/staff/billing/invoices/x/issue', ...as('manager') }),
+      app.inject({ method: 'POST', url: '/staff/billing/invoices/x/paid', ...as('manager') }),
+      app.inject({ method: 'DELETE', url: '/staff/billing/invoices/x', ...as('manager') }),
     ];
     for (const response of await Promise.all(attempts)) expect(response.statusCode).toBe(403);
   });

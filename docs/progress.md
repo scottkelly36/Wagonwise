@@ -36,10 +36,10 @@ item closes, delete it from this file; the history file keeps the record. Dated 
    `[brackets]` in the privacy notice, DPA and DPIA and get a solicitor to review them; the restriction audit around Hexham;
    turn on failure alerts in Resend.
 4. **Phase 3 has started** (`phase-3-scope.md`): item 0, billing. Built: WagonWise's billing details, each company's price and
-   vehicle capacity (migrations 0039, 0040; deploy core, staff-bff and the dashboard), and one live job per vehicle. Next:
-   invoices. After the deploy, check the Plans page: each company starts with its current vehicle count. Still to get: the
-   owner's running costs for M1, and what the pilot firm's lorries and tachographs have. Before the first real invoice, fill the
-   `[placeholders]` on the Billing details page.
+   vehicle capacity, one live job per vehicle, and invoices (migrations 0039 to 0041; deploy core, staff-bff and the dashboard).
+   Next: the company's own plan and invoices view, then emailing invoices. After the deploy, check the Plans page (each company
+   starts with its current vehicle count). Before the first real invoice, fill the `[placeholders]` on the Billing details page.
+   Still to get: the owner's running costs for M1, and what the pilot firm's lorries and tachographs have.
 
 **How the driver app ships now:** JavaScript-only changes go out over the air to the installed version (`runtimeVersion`
 follows `version`, currently **1.2.1**: `eas update` is published for that version only, so a phone on an older build

@@ -707,4 +707,46 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
       expect(rows).toEqual([{ capacity: 5 }, { capacity: 9 }]);
     });
   });
+
+  describe('billing invoices (migration 0041)', () => {
+    const INVOICE = 'a1000000-0000-4000-8000-0000000000aa';
+    beforeAll(async () => {
+      await ownerPool.query(`
+        insert into billing.invoices (id, company_id, company_name, month, status, created_at)
+          values ('${INVOICE}', '${ACME}', 'Acme', '2026-10', 'draft', now());
+        insert into billing.invoice_lines (id, invoice_id, position, description, quantity, unit_pence, amount_pence)
+          values (gen_random_uuid(), '${INVOICE}', 1, 'Plan', 5, 1000, 5000);
+      `);
+    });
+
+    const count = async () =>
+      Number(
+        (
+          await sql<{ n: string }>`
+            select (select count(*) from billing.invoices) + (select count(*) from billing.invoice_lines) as n
+          `.execute(db)
+        ).rows[0]?.n,
+      );
+
+    it('only WagonWise staff see invoices and their lines, never a company, a driver or an unscoped query', async () => {
+      await scopes.run({ kind: 'platform' }, async () => {
+        expect(await count()).toBe(2);
+      });
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await count()).toBe(0);
+      });
+      expect(await count()).toBe(0);
+    });
+
+    it('a company cannot change its own invoice', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        const paid = await sql`update billing.invoices set status = 'void'`.execute(db);
+        expect(paid.numAffectedRows).toBe(0n);
+      });
+      const { rows } = await ownerPool.query('select status from billing.invoices where id = $1', [
+        INVOICE,
+      ]);
+      expect(rows[0]).toEqual({ status: 'draft' });
+    });
+  });
 });

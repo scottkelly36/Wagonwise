@@ -71,6 +71,7 @@ describe('runMigrations', () => {
       '0038_company_photo_retention.sql',
       '0039_billing_details.sql',
       '0040_billing_plans.sql',
+      '0041_billing_invoices.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -218,6 +219,7 @@ describe('runMigrations', () => {
       '0038_company_photo_retention.sql',
       '0039_billing_details.sql',
       '0040_billing_plans.sql',
+      '0041_billing_invoices.sql',
     ]);
   });
 });
