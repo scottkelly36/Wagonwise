@@ -58,9 +58,6 @@ export async function startWatchingPosition(
 export function useLiveLocation(options: { readonly fast?: boolean } = {}): {
   readonly status: LiveLocationStatus;
   readonly point: MapPoint | undefined;
-  /** Which way the driver is facing, degrees clockwise from north: the GPS course while moving, the
-   *  compass when stopped. Undefined until known. */
-  readonly heading: number | undefined;
   /** The direction of travel from GPS, only while actually moving; undefined when stopped. For asking
    *  the server for a route that sets off the way the lorry is already going. */
   readonly course: number | undefined;
@@ -68,50 +65,27 @@ export function useLiveLocation(options: { readonly fast?: boolean } = {}): {
   const fast = options.fast ?? false;
   const [status, setStatus] = useState<LiveLocationStatus>('loading');
   const [point, setPoint] = useState<MapPoint | undefined>(undefined);
-  const [heading, setHeading] = useState<number | undefined>(undefined);
   const [course, setCourse] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     let subscription: Location.LocationSubscription | undefined;
     let cancelled = false;
 
-    // The latest of each input, so the arrow is recomputed whenever either one changes.
-    let motion: Motion = { gpsHeadingDeg: null, speedMps: null };
-    let compassDeg: number | null = null;
-    let shown: number | undefined;
+    // The latest fix's motion, to work out the direction of travel from GPS (only while moving).
     let shownCourse: number | undefined;
-    const refreshHeading = () => {
+    const refreshCourse = (motion: Motion) => {
       const nextCourse = facingDegrees({ ...motion, compassDeg: null });
       if (headingChangedEnough(shownCourse, nextCourse)) {
         shownCourse = nextCourse;
         setCourse(nextCourse);
       }
-      const next = facingDegrees({ ...motion, compassDeg });
-      if (headingChangedEnough(shown, next)) {
-        shown = next;
-        setHeading(next);
-      }
     };
-
-    let compass: Location.LocationSubscription | undefined;
-    void Location.watchHeadingAsync((reading) => {
-      if (cancelled) return;
-      compassDeg = reading.trueHeading >= 0 ? reading.trueHeading : reading.magHeading;
-      refreshHeading();
-    })
-      .then((sub) => {
-        if (cancelled) sub.remove();
-        else compass = sub;
-      })
-      // No compass just means no arrow while stopped; the GPS course still works while moving.
-      .catch(() => undefined);
 
     void startWatchingPosition((next, nextMotion) => {
       if (cancelled) return;
       setStatus('granted');
       setPoint(next);
-      motion = nextMotion;
-      refreshHeading();
+      refreshCourse(nextMotion);
     }, fast).then((result) => {
       if (cancelled) {
         if (result.ok) result.subscription.remove();
@@ -127,9 +101,8 @@ export function useLiveLocation(options: { readonly fast?: boolean } = {}): {
     return () => {
       cancelled = true;
       subscription?.remove();
-      compass?.remove();
     };
   }, [fast]);
 
-  return { status, point, heading, course };
+  return { status, point, course };
 }

@@ -11,6 +11,7 @@ import { HazardDetailDrawer } from '../../components/hazard-detail-drawer';
 import { useNavigateToPlace } from '../../hooks/use-navigate-to-spot';
 import { useDrivingProfileId } from '../../hooks/use-parking-drive-times';
 import { ParkingSpotDrawer } from '../../components/parking-spot-drawer';
+import { MarkPlaceSheet } from '../../components/mark-place-sheet';
 import { PlaceSheet } from '../../components/place-sheet';
 import { useMyPlaces } from '../../api/use-places';
 import type { SavedPlaceDto } from '@wagonwise/contracts/places';
@@ -25,7 +26,7 @@ import { isSharingPosition } from '../../lib/job-position-reporting';
 import { useCurrentActiveTripStore } from '../../state/current-active-trip-store';
 import { useJobPositionReporting } from '../../hooks/use-job-position-reporting';
 import { useLiveLocation } from '../../hooks/use-live-location';
-import { jobSubtitle } from '../../lib/job-navigation';
+import { jobSubtitle, navigationTarget } from '../../lib/job-navigation';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
 import { cardStyle, radius } from '../../theme/tokens';
 
@@ -74,6 +75,7 @@ export default function HomeScreen() {
     [myPlaces.places],
   );
   const [selectedPlace, setSelectedPlace] = useState<SavedPlaceDto | undefined>(undefined);
+  const [markingPlace, setMarkingPlace] = useState(false);
   const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
   const selectedParking = nearbyParkingSpots.data?.find((s) => s.id === selectedParkingId);
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
@@ -105,7 +107,6 @@ export default function HomeScreen() {
         origin={undefined}
         destination={undefined}
         currentPosition={location.point}
-        currentHeading={location.heading}
         followZoom={HOME_MAP_ZOOM}
         onFollowingChange={setFollowing}
         hideRecenterButton
@@ -132,6 +133,13 @@ export default function HomeScreen() {
             ? nearbyParkingSpots.data?.map((s) => ({ id: s.id, location: s.location }))
             : undefined
         }
+      />
+
+      <MarkPlaceSheet
+        visible={markingPlace}
+        onClose={() => setMarkingPlace(false)}
+        stopName={currentJob.data ? navigationTarget(currentJob.data)?.stop.name : undefined}
+        companyId={myPlaces.markingCompanyId}
       />
 
       <PlaceSheet
@@ -188,6 +196,12 @@ export default function HomeScreen() {
           label="Nearby parking"
           onPress={() => router.push('/nearby-parking')}
           testID="nearby-parking-button"
+        />
+        <RoundButton
+          icon="map-marker-plus-outline"
+          label="Mark a place here"
+          onPress={() => setMarkingPlace(true)}
+          testID="mark-place-button"
         />
         <RoundButton
           icon="layers-outline"
