@@ -3,6 +3,15 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **plans, vehicle capacity and one live job per vehicle (Phase 3 item 0).** `billing.plans` (price per vehicle in pence,
+  default £10) and `billing.capacity_changes` (effective-dated capacity), migration 0040, backfilled so each existing company starts
+  with a capacity equal to its current vehicle count (at least 1). WagonWise admins set both on the dashboard's new Plans page; a
+  capacity change takes effect from today or a later day, never a past one, so an earlier month's bill can't move. Fleet now refuses
+  to create a vehicle beyond today's capacity (`CapacityReached`, 409; a company with no plan covers none), through a
+  `VehicleCapacity` port supplied by composition over billing. Jobs now refuses to assign a vehicle already out on an active job
+  (`VehicleBusy`, 409), so capacity bounds how many drivers can work at once. No unique index on that, unlike the per-driver one
+  (0027): existing data may already hold two active jobs on a vehicle, and an index would fail the migration. A company can still
+  delete and re-add vehicles within its capacity; that costs the same. Company-facing plan view, invoices and email are next.
 - 2026-10-09: **billing details (Phase 3 item 0, first slice).** New `billing` module in core. `billing.details` (migration 0039) holds
   WagonWise's own trading name, address, billing email, payment details, VAT status and payment terms: one row, seeded with
   `[bracketed]` placeholders. WagonWise admins edit it on the dashboard's new Billing page (`GET`/`PUT /staff/billing/details`,

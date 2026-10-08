@@ -656,4 +656,55 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
       expect(rows[0]).toEqual({ trading_name: '[Trading name]' });
     });
   });
+
+  describe('billing plans (migration 0040)', () => {
+    beforeAll(async () => {
+      await ownerPool.query(`
+        insert into billing.plans (company_id) values ('${ACME}'), ('${BETA}');
+        insert into billing.capacity_changes (id, company_id, effective_from, capacity)
+          values (gen_random_uuid(), '${ACME}', '2026-10-01', 5),
+                 (gen_random_uuid(), '${BETA}', '2026-10-01', 9);
+      `);
+    });
+
+    const capacities = async () =>
+      (
+        await sql<{
+          capacity: number;
+        }>`select capacity from billing.capacity_changes order by capacity`.execute(db)
+      ).rows.map((r) => r.capacity);
+
+    it('a company reads only its own plan, a WagonWise admin reads all, and nothing outside a scope', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await capacities()).toEqual([5]);
+      });
+      await scopes.run({ kind: 'company', companyId: BETA }, async () => {
+        expect(await capacities()).toEqual([9]);
+      });
+      await scopes.run({ kind: 'platform' }, async () => {
+        expect(await capacities()).toEqual([5, 9]);
+      });
+      expect(await capacities()).toEqual([]);
+    });
+
+    it('a company cannot change its own capacity or price', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        const raised = await sql`update billing.capacity_changes set capacity = 500`.execute(db);
+        expect(raised.numAffectedRows).toBe(0n);
+        const cheaper = await sql`update billing.plans set price_per_vehicle_pence = 0`.execute(db);
+        expect(cheaper.numAffectedRows).toBe(0n);
+      });
+      // A refused insert aborts its transaction, so it gets a scope of its own.
+      await expect(
+        scopes.run({ kind: 'company', companyId: ACME }, () =>
+          sql`insert into billing.capacity_changes (id, company_id, effective_from, capacity)
+              values (gen_random_uuid(), ${ACME}, '2026-11-01', 500)`.execute(db),
+        ),
+      ).rejects.toThrow(/row-level security/);
+      const { rows } = await ownerPool.query(
+        'select capacity from billing.capacity_changes order by capacity',
+      );
+      expect(rows).toEqual([{ capacity: 5 }, { capacity: 9 }]);
+    });
+  });
 });

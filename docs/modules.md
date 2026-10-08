@@ -252,12 +252,17 @@ second check on top — core alone decides ownership/authorization for those.
 
 ## Billing
 
-`apps/core/src/modules/billing`: what WagonWise charges companies. So far, WagonWise's own billing details
-(`billing.details`, migration 0039): trading name, address, billing email, payment details, VAT status and payment terms, one
-row seeded with `[bracketed]` placeholders. WagonWise admins edit it on the dashboard's Billing page
-(`/staff/billing/details`); company staff are refused and Row-Level Security hides the row from every scope but the platform's.
-`placeholderFields()` lists fields still in brackets; invoice issuing must refuse while it is not empty. Pricing model and what
-is next: `docs/phase-3-scope.md`.
+`apps/core/src/modules/billing`: what WagonWise charges companies.
+
+- **Billing details** (`billing.details`, migration 0039): trading name, address, billing email, payment details, VAT status and
+  payment terms, one row seeded with `[bracketed]` placeholders. `placeholderFields()` lists fields still in brackets; invoice
+  issuing must refuse while it is not empty. Edited on the dashboard's Billing details page.
+- **Plans** (`billing.plans`, `billing.capacity_changes`, migration 0040): a price per vehicle in pence (default £10) and an
+  effective-dated vehicle capacity. The capacity in force is the latest change whose day (UK time) has arrived; a company with
+  none covers 0 vehicles. A change may start today or later, never in the past. Edited on the Plans page. Fleet refuses to create a
+  vehicle beyond it (`CapacityReached`), through its `VehicleCapacity` port; jobs refuses a second live job on a vehicle (`VehicleBusy`).
+- All of it is WagonWise-admin only (`/staff/billing/...`); a company's staff may read their own plan rows through
+  Row-Level Security but nothing is exposed to them yet. Pricing model and what is next: `docs/phase-3-scope.md`.
 
 ## Staff BFF
 

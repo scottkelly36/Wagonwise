@@ -1,4 +1,9 @@
-import { updateBillingDetailsRequestSchema } from '@wagonwise/contracts/billing';
+import {
+  planCompanyParamsSchema,
+  scheduleCapacityRequestSchema,
+  setPriceRequestSchema,
+  updateBillingDetailsRequestSchema,
+} from '@wagonwise/contracts/billing';
 import {
   companySettingsParamsSchema,
   createCompanyRequestSchema,
@@ -69,6 +74,25 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/billing/details',
     params: noParams,
     body: updateBillingDetailsRequestSchema,
+  },
+  // What each company pays for: price per vehicle and the vehicle capacity. WagonWise admins only; core decides.
+  { method: 'GET', path: '/staff/billing/companies', params: noParams },
+  {
+    method: 'GET',
+    path: '/staff/billing/companies/:companyId/capacity',
+    params: planCompanyParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/billing/companies/:companyId/capacity',
+    params: planCompanyParamsSchema,
+    body: scheduleCapacityRequestSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/billing/companies/:companyId/price',
+    params: planCompanyParamsSchema,
+    body: setPriceRequestSchema,
   },
   { method: 'GET', path: '/staff/invite-codes', params: noParams },
   { method: 'POST', path: '/staff/invite-codes', params: noParams },

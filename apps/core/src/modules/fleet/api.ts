@@ -9,6 +9,7 @@ import type {
   CompanyNameDirectory,
   DriverIdentityDirectory,
 } from './application/ports/directories.js';
+import type { VehicleCapacity } from './application/ports/vehicle-capacity.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import type { Dimensions as VehicleDimensions } from './domain/vehicle.js';
 import { SlidingWindowAttemptLimiter } from './application/sliding-window-attempt-limiter.js';
@@ -27,6 +28,7 @@ export type {
   DriverIdentityDirectory,
 } from './application/ports/directories.js';
 export type { Caller, CallerDirectory } from './application/ports/caller-directory.js';
+export type { VehicleCapacity } from './application/ports/vehicle-capacity.js';
 
 /** A vehicle's measurements as `fleet` records them (metres and tonnes). */
 export type { Dimensions as VehicleDimensions } from './domain/vehicle.js';
@@ -43,6 +45,8 @@ export interface FleetModuleDeps {
   /** For driver links (P2-M2): who a driver is, and company names, in fleet's own terms. */
   readonly driverIdentities: DriverIdentityDirectory;
   readonly companyNames: CompanyNameDirectory;
+  /** How many vehicles each company's plan covers. Supplied by composition over `billing`. */
+  readonly vehicleCapacity: VehicleCapacity;
 }
 
 export interface FleetModule {
@@ -82,7 +86,7 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
   const codeGenerator = new CryptoCompanyCodeGenerator();
 
   const routeDeps: FleetRouteDeps = {
-    createFleetVehicle: { repo, ids: deps.ids },
+    createFleetVehicle: { repo, ids: deps.ids, capacity: deps.vehicleCapacity },
     updateFleetVehicle: { repo },
     deleteFleetVehicle: { repo },
     listFleetVehicles: { repo },

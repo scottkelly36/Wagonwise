@@ -1,6 +1,7 @@
 import type {
   AlreadyInvited,
   AlreadyLinked,
+  CapacityReached,
   FleetVehicleNotFound,
   Forbidden,
   InvalidCode,
@@ -14,6 +15,7 @@ export type FleetError =
   | InvalidName
   | InvalidDimensions
   | FleetVehicleNotFound
+  | CapacityReached
   | Forbidden
   | InvalidIdentifier
   | InvalidCode
@@ -39,6 +41,7 @@ export function statusFor(error: FleetError): number {
     case 'Forbidden':
       return 403;
     case 'AlreadyLinked':
+    case 'CapacityReached':
     case 'AlreadyInvited':
     case 'InvalidLinkTransition':
       return 409;

@@ -33,3 +33,47 @@ export const billingDetailsSchema = billingDetailsFieldsSchema.extend({
   updatedAt: z.iso.datetime(),
 });
 export type BillingDetailsDto = z.infer<typeof billingDetailsSchema>;
+
+/** What a company pays for: a price per vehicle (in pence) and the number of vehicles the plan covers. */
+export const planCompanyParamsSchema = z.object({ companyId: z.string().min(1) });
+
+const dayString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const planSummarySchema = z.object({
+  companyId: z.string(),
+  name: z.string(),
+  pricePerVehiclePence: z.number().int(),
+  /** Vehicles the plan covers today. */
+  capacityToday: z.number().int(),
+  /** The next scheduled change, if any. */
+  next: z.object({ effectiveFrom: dayString, capacity: z.number().int() }).optional(),
+  /** Pence for a month at today's capacity. */
+  monthlyPence: z.number().int(),
+});
+export type PlanSummaryDto = z.infer<typeof planSummarySchema>;
+
+/** `GET /staff/billing/companies` */
+export const listPlansResponseSchema = z.object({ plans: z.array(planSummarySchema) });
+
+/** `PUT /staff/billing/companies/:companyId/price` */
+export const setPriceRequestSchema = z.object({
+  pricePerVehiclePence: z.number().int().min(0).max(1_000_000),
+});
+export type SetPriceRequest = z.infer<typeof setPriceRequestSchema>;
+
+/** `POST /staff/billing/companies/:companyId/capacity`: from this day (today or later), the plan covers
+ *  this many vehicles. */
+export const scheduleCapacityRequestSchema = z.object({
+  capacity: z.number().int().min(0).max(10_000),
+  effectiveFrom: dayString,
+});
+export type ScheduleCapacityRequest = z.infer<typeof scheduleCapacityRequestSchema>;
+
+export const capacityChangeSchema = z.object({
+  effectiveFrom: dayString,
+  capacity: z.number().int(),
+});
+export type CapacityChangeDto = z.infer<typeof capacityChangeSchema>;
+
+/** `GET /staff/billing/companies/:companyId/capacity`, newest first. */
+export const capacityHistoryResponseSchema = z.object({ changes: z.array(capacityChangeSchema) });

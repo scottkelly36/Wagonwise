@@ -109,6 +109,38 @@ describe('assignJob', () => {
     expect(r).toEqual({ ok: false, error: { tag: 'DriverBusy' } });
   });
 
+  it('refuses a vehicle that is already out on another active job, even with a different driver', async () => {
+    const { repo, deps } = setup();
+    await repo.save({ ...draft('out'), status: 'en_route', driverId: driver, vehicleId: vehicle });
+    await repo.save(draft('job-2'));
+    const r = await assignJob(deps, {
+      caller: ADMIN,
+      jobId: makeId<'JobId'>('job-2'),
+      driverId: driver2,
+      vehicleId: vehicle,
+    });
+    expect(r).toEqual({ ok: false, error: { tag: 'VehicleBusy' } });
+    expect(repo.events).toEqual([]);
+  });
+
+  it('lets a vehicle whose last job is finished take another', async () => {
+    const { repo, deps } = setup();
+    await repo.save({
+      ...draft('done'),
+      status: 'delivered',
+      driverId: driver,
+      vehicleId: vehicle,
+    });
+    await repo.save(draft('job-2'));
+    const r = await assignJob(deps, {
+      caller: ADMIN,
+      jobId: makeId<'JobId'>('job-2'),
+      driverId: driver2,
+      vehicleId: vehicle,
+    });
+    expect(r.ok).toBe(true);
+  });
+
   it('lets a driver whose last job is finished take another', async () => {
     const { repo, deps } = setup();
     await repo.save({ ...draft('done'), status: 'delivered', driverId: driver });

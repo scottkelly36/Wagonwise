@@ -14,7 +14,11 @@ function dimensions(overrides: Partial<Dimensions> = {}): Dimensions {
 }
 
 function buildDeps(repo: InMemoryFleetVehicleRepository): CreateFleetVehicleDeps {
-  return { repo, ids: new SequentialIdGenerator() };
+  return {
+    repo,
+    ids: new SequentialIdGenerator(),
+    capacity: { capacityFor: () => Promise.resolve(99) },
+  };
 }
 
 describe('createFleetVehicle', () => {
@@ -85,5 +89,44 @@ describe('createFleetVehicle', () => {
       });
     }
     expect(await repo.listForCompany(companyId)).toHaveLength(1);
+  });
+
+  describe("the plan's vehicle capacity", () => {
+    const input = { caller: ADMIN, companyId, name: 'Big Wagon', dimensions: dimensions() };
+    const withCapacity = (
+      repo: InMemoryFleetVehicleRepository,
+      n: number,
+    ): CreateFleetVehicleDeps => ({
+      repo,
+      ids: new SequentialIdGenerator(),
+      capacity: { capacityFor: () => Promise.resolve(n) },
+    });
+
+    it('lets a company add vehicles up to its capacity, then refuses the next, naming the capacity', async () => {
+      const repo = new InMemoryFleetVehicleRepository();
+      const deps = withCapacity(repo, 2);
+      expect((await createFleetVehicle(deps, input)).ok).toBe(true);
+      expect((await createFleetVehicle(deps, input)).ok).toBe(true);
+      expect(await createFleetVehicle(deps, input)).toEqual({
+        ok: false,
+        error: { tag: 'CapacityReached', capacity: 2 },
+      });
+      expect(await repo.listForCompany(companyId)).toHaveLength(2);
+    });
+
+    it('refuses everything when the company has no plan (capacity 0), even for a WagonWise admin', async () => {
+      const repo = new InMemoryFleetVehicleRepository();
+      expect(await createFleetVehicle(withCapacity(repo, 0), input)).toEqual({
+        ok: false,
+        error: { tag: 'CapacityReached', capacity: 0 },
+      });
+    });
+
+    it('does not count another company’s vehicles', async () => {
+      const repo = new InMemoryFleetVehicleRepository();
+      const other = makeId<'CompanyId'>('company-2');
+      await createFleetVehicle(withCapacity(repo, 1), { ...input, companyId: other });
+      expect((await createFleetVehicle(withCapacity(repo, 1), input)).ok).toBe(true);
+    });
   });
 });

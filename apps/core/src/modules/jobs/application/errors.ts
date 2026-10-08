@@ -29,3 +29,7 @@ export type NoVehicleAssigned = TaggedError<'NoVehicleAssigned'>;
 
 /** The chosen vehicle cannot get between the job's stops: no route exists for its dimensions. */
 export type NoRouteForVehicle = TaggedError<'NoRouteForVehicle'>;
+
+/** One active job per vehicle: a lorry cannot carry two drivers' jobs at once. This is what makes a
+ *  company's vehicle capacity (billing) mean something. */
+export type VehicleBusy = TaggedError<'VehicleBusy'>;

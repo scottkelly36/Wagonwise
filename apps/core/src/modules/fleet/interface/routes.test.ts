@@ -54,7 +54,7 @@ function buildApp(): {
     ],
   ]);
   const deps: FleetRouteDeps = {
-    createFleetVehicle: { repo, ids },
+    createFleetVehicle: { repo, ids, capacity: { capacityFor: () => Promise.resolve(99) } },
     updateFleetVehicle: { repo },
     deleteFleetVehicle: { repo },
     listFleetVehicles: { repo },

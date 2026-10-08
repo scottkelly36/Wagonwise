@@ -6,6 +6,7 @@ import {
   type DriverId,
   type Job,
   type JobId,
+  type VehicleId,
 } from '../../domain/job.js';
 import type {
   JobRepository,
@@ -22,6 +23,13 @@ export class InMemoryJobRepository implements JobRepository {
 
   findById(id: JobId): Promise<Job | null> {
     return Promise.resolve(this.#byId.get(id) ?? null);
+  }
+
+  findActiveForVehicle(vehicleId: VehicleId): Promise<Job | null> {
+    const found = [...this.#byId.values()].find(
+      (j) => j.vehicleId === vehicleId && isActive(j.status),
+    );
+    return Promise.resolve(found ?? null);
   }
 
   findActiveForDriver(driverId: DriverId): Promise<Job | null> {

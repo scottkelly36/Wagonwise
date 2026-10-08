@@ -54,7 +54,8 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
     items: [
       { to: '/admin/companies', label: 'Companies', shows: isPlatform },
       { to: '/admin/invite-codes', label: 'Invite codes', shows: isPlatform },
-      { to: '/admin/billing', label: 'Billing', shows: isPlatform },
+      { to: '/admin/plans', label: 'Plans', shows: isPlatform },
+      { to: '/admin/billing', label: 'Billing details', shows: isPlatform },
       { to: '/admin/moderation', label: 'Moderation', shows: isPlatform },
       { to: '/admin/hazard-reports', label: 'Hazard reports', shows: isPlatform },
       { to: '/admin/congestion-reports', label: 'Congestion reports', shows: isPlatform },

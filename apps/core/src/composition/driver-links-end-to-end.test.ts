@@ -76,6 +76,7 @@ describe('driver links end to end (real RLS, driver scope)', () => {
       clock: new FakeClock('2026-10-02T09:00:00.000Z'),
       dataScopes: scopes,
       callers: { getCaller: (staffId) => Promise.resolve(CALLERS[staffId] ?? null) },
+      vehicleCapacity: { capacityFor: () => Promise.resolve(99) },
       driverIdentities: { getIdentifier: (id) => Promise.resolve(IDENTITIES[id] ?? null) },
       companyNames: { namesFor: () => Promise.resolve(new Map([[ACME, 'Acme Haulage']])) },
     });
