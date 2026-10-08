@@ -270,3 +270,16 @@ export const defectIdParamsSchema = z.object({ id: z.string().min(1) });
 /** `PUT /staff/checks/defects/:id/status` */
 export const setDefectStatusRequestSchema = z.object({ status: defectStatusSchema });
 export type SetDefectStatusRequest = z.infer<typeof setDefectStatusRequestSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// A firm's rules about sending a vehicle out.
+
+/** `GET` and `PUT /staff/checks/companies/:companyId/settings`. Both off until a firm turns them on. */
+export const checkSettingsSchema = z.object({
+  /** A driver cannot accept a job on a vehicle until its check lists for the day are done. */
+  requiredBeforeJob: z.boolean(),
+  /** A vehicle with a "do not drive" defect not yet marked fixed is not sent out. */
+  blockOnDoNotDrive: z.boolean(),
+});
+export type CheckSettingsDto = z.infer<typeof checkSettingsSchema>;
+export const updateCheckSettingsRequestSchema = checkSettingsSchema;

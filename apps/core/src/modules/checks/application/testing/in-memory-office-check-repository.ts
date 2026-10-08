@@ -1,4 +1,4 @@
-import type { CompanyId, StaffId } from '../../domain/check-template.js';
+import type { CompanyId, StaffId, VehicleId } from '../../domain/check-template.js';
 import type { CheckId } from '../../domain/check.js';
 import type {
   CheckDetail,
@@ -72,6 +72,16 @@ export class InMemoryOfficeCheckRepository implements OfficeCheckRepository {
       if (found !== undefined) return Promise.resolve(found);
     }
     return Promise.resolve(null);
+  }
+
+  vehicleHasUnfixedDoNotDrive(vehicleId: VehicleId): Promise<boolean> {
+    return Promise.resolve(
+      [...this.#checks.values()]
+        .flatMap((c) => c.defects)
+        .some(
+          (d) => d.vehicleId === vehicleId && d.severity === 'do_not_drive' && d.status !== 'fixed',
+        ),
+    );
   }
 
   setDefectStatus(id: DefectId, status: DefectStatus, by: StaffId, at: Date): Promise<void> {

@@ -14,13 +14,23 @@ import {
   type JobStatus,
 } from '../domain/job.js';
 import { canAdvance, canSeeJob, type JobActor } from './authorization.js';
-import type { Forbidden, JobNotFound, ProofOfDeliveryRequired } from './errors.js';
+import type {
+  CheckRequired,
+  Forbidden,
+  JobNotFound,
+  ProofOfDeliveryRequired,
+  VehicleNotFit,
+} from './errors.js';
+import type { JobStartGate } from './ports/directories.js';
 import type { JobRepository } from './ports/job-repository.js';
 
 export interface ChangeJobStatusDeps {
   readonly repo: Pick<JobRepository, 'findById' | 'save'>;
   readonly ids: IdGenerator;
   readonly clock: Clock;
+  /** The walk-round check gate on a driver accepting a job. Only the driver's door supplies it: a dispatcher acting for
+   *  a driver is never held up by it. Without it there is no gate. */
+  readonly startGate?: JobStartGate | undefined;
 }
 
 export type ChangeJobStatusError = JobNotFound | Forbidden | InvalidTransition;
@@ -65,9 +75,24 @@ export interface AdvanceJobStatusInput {
 export async function advanceJobStatus(
   deps: ChangeJobStatusDeps,
   input: AdvanceJobStatusInput,
-): Promise<Result<Job, ChangeJobStatusError | ProofOfDeliveryRequired>> {
+): Promise<
+  Result<Job, ChangeJobStatusError | ProofOfDeliveryRequired | CheckRequired | VehicleNotFit>
+> {
   const loaded = await loadForAction(deps, input.actor, input.jobId);
   if (!loaded.ok) return loaded;
+  // A driver accepting an assigned job: the company may want the vehicle's walk-round check done first, and a vehicle
+  // with a "do not drive" defect held back. A dispatcher moving the job is not held up.
+  if (
+    deps.startGate !== undefined &&
+    input.actor.kind === 'driver' &&
+    input.to === 'accepted' &&
+    loaded.value.status === 'assigned' &&
+    loaded.value.vehicleId !== undefined
+  ) {
+    const verdict = await deps.startGate.check(loaded.value.companyId, loaded.value.vehicleId);
+    if (verdict === 'check_required') return err({ tag: 'CheckRequired' });
+    if (verdict === 'vehicle_not_fit') return err({ tag: 'VehicleNotFit' });
+  }
   // Finishing a delivery stop (the last one, or one of several) needs its photo when the job requires proof.
   if (
     loaded.value.status === 'at_delivery' &&

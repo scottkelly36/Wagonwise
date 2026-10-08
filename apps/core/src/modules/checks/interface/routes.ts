@@ -2,12 +2,18 @@ import {
   checkTemplateIdParamsSchema,
   checksCompanyParamsSchema,
   createCheckTemplateRequestSchema,
+  updateCheckSettingsRequestSchema,
   updateCheckTemplateRequestSchema,
 } from '@wagonwise/contracts/checks';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId } from '../../../shared/brand.js';
 import type { DataScope, DataScopes } from '../../../shared/ports/data-scope.js';
 import type { CallerDirectory, StaffCaller } from '../application/ports/directories.js';
+import {
+  getCheckSettings,
+  updateCheckSettings,
+  type CheckRulesDeps,
+} from '../application/check-rules.js';
 import {
   archiveTemplate,
   createTemplate,
@@ -24,6 +30,7 @@ import { templateDto } from './dto.js';
 
 export interface ChecksRouteDeps {
   readonly templates: TemplateDeps;
+  readonly rules: CheckRulesDeps;
   readonly callerDirectory: CallerDirectory;
   /** Row-Level Security scope per request (migration 0043). */
   readonly dataScopes: DataScopes;
@@ -66,7 +73,7 @@ export function registerChecksRoutes(app: FastifyInstance, deps: ChecksRouteDeps
   async function asStaff(
     request: FastifyRequest,
     reply: FastifyReply,
-    work: (caller: StaffCaller) => Promise<Outcome>,
+    work: (caller: StaffCaller, staffId: string) => Promise<Outcome>,
   ) {
     if (request.staffId === undefined) {
       return reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
@@ -75,10 +82,41 @@ export function registerChecksRoutes(app: FastifyInstance, deps: ChecksRouteDeps
     const outcome =
       caller === null
         ? { status: 403, body: { tag: 'Forbidden' } }
-        : await deps.dataScopes.run(scopeFor(caller), () => work(caller));
+        : await deps.dataScopes.run(scopeFor(caller), () =>
+            work(caller, request.staffId as string),
+          );
     const body = outcome.status >= 400 ? { ...outcome.body, requestId: request.id } : outcome.body;
     return reply.status(outcome.status).send(body);
   }
+
+  app.get('/staff/checks/companies/:companyId/settings', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = checksCompanyParamsSchema.safeParse(request.params);
+      if (!params.success) return INVALID;
+      const result = await getCheckSettings(
+        deps.rules,
+        caller,
+        makeId<'CompanyId'>(params.data.companyId),
+      );
+      return result.ok ? { status: 200, body: result.value } : { status: 403, body: result.error };
+    }),
+  );
+
+  app.put('/staff/checks/companies/:companyId/settings', (request, reply) =>
+    asStaff(request, reply, async (caller, staffId) => {
+      const params = checksCompanyParamsSchema.safeParse(request.params);
+      const body = updateCheckSettingsRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return INVALID;
+      const result = await updateCheckSettings(
+        deps.rules,
+        caller,
+        makeId<'StaffId'>(staffId),
+        makeId<'CompanyId'>(params.data.companyId),
+        body.data,
+      );
+      return result.ok ? { status: 200, body: result.value } : { status: 403, body: result.error };
+    }),
+  );
 
   app.get('/staff/checks/starter', (request, reply) =>
     asStaff(request, reply, () =>

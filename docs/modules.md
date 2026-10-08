@@ -281,7 +281,8 @@ second check on top — core alone decides ownership/authorization for those.
   Postgres: `composition/checks-end-to-end.test.ts`.
 - **Driver app** (`apps/driver-app`): `components/check-due-card.tsx` (Jobs tab and job screen) opens `app/check.tsx`; the pure logic is `lib/check-flow.ts` and `lib/check-due.ts`, the offline queue `db/check-queue.ts` with `lib/check-queue-flush.ts`. JavaScript only.
 - **Office** (dashboard "Check results" and "Defects"): `application/office-checks.ts` and `interface/office-routes.ts`, reading through `OfficeCheckRepository`. Defects move open, seen, fixed, recording who and when (`manage_fleet` or `dispatch`); reading needs `manage_fleet`, `dispatch` or `view_reports`.
-- To come: the before-a-job setting and gate, and retention
+- **Rules** (`checks.settings`, migration 0046; `application/check-rules.ts`): per firm, both off by default: do the check before the job, and hold back a vehicle with an unfixed "do not drive" defect. Jobs asks `checks.jobStartVerdict` through its `JobStartGate` when a driver accepts an assigned job (`CheckRequired`, `VehicleNotFit`); a dispatcher is never held up.
+- To come: retention
   (`docs/phase-3-scope.md`).
 
 ## Staff BFF

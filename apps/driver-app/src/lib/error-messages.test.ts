@@ -4,6 +4,7 @@ import {
   fleetErrorMessage,
   hazardsErrorMessage,
   identityErrorMessage,
+  jobNavigationErrorMessage,
   jobsErrorMessage,
   routingErrorMessage,
 } from './error-messages';
@@ -131,6 +132,19 @@ describe('jobsErrorMessage', () => {
     expect(jobsErrorMessage(new ApiError('InvalidTransition', 409))).toBe(
       'That job has already moved on — pull to refresh.',
     );
+  });
+
+  it('tells a driver held back by the walk-round check rules what to do, when accepting and when starting', () => {
+    expect(jobsErrorMessage(new ApiError('CheckRequired', 409))).toBe(
+      'Do your daily check first. Tap Daily check due.',
+    );
+    expect(jobsErrorMessage(new ApiError('VehicleNotFit', 409))).toBe(
+      'This vehicle has a defect marked do not drive. Tell your office.',
+    );
+    expect(jobNavigationErrorMessage(new ApiError('CheckRequired', 409))).toBe(
+      'Do your daily check first. Tap Daily check due.',
+    );
+    expect(jobNavigationErrorMessage(new ApiError('VehicleNotFit', 409))).toContain('do not drive');
   });
 
   it('falls back to a generic message for an unrecognised tag', () => {

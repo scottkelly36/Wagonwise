@@ -23,3 +23,11 @@ export interface VehicleNameDirectory {
 export interface DriverIdentityDirectory {
   getIdentifier(driverId: DriverId): Promise<string | null>;
 }
+
+/** What the walk-round checks say about sending a vehicle out: fine, its check is still to do, or it has a "do not
+ *  drive" defect open. Supplied by composition over `checks`, which holds the company's settings. */
+export type StartVerdict = 'ok' | 'check_required' | 'vehicle_not_fit';
+
+export interface JobStartGate {
+  check(companyId: CompanyId, vehicleId: VehicleId): Promise<StartVerdict>;
+}

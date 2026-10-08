@@ -12,9 +12,13 @@ import type {
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresCheckRepository } from './infrastructure/postgres-check-repository.js';
 import { PostgresOfficeCheckRepository } from './infrastructure/postgres-office-check-repository.js';
+import { PostgresSettingsRepository } from './infrastructure/postgres-settings-repository.js';
 import { PostgresTemplateRepository } from './infrastructure/postgres-template-repository.js';
 import { registerChecksDriverRoutes } from './interface/driver-routes.js';
 import { registerChecksOfficeRoutes } from './interface/office-routes.js';
+import { jobStartVerdict } from './application/check-rules.js';
+import { makeId } from '../../shared/brand.js';
+import type { StartVerdict } from './domain/settings.js';
 import { registerChecksRoutes } from './interface/routes.js';
 
 // Re-exported so composition/ can type its wiring without reaching past this facade.
@@ -45,7 +49,15 @@ export interface ChecksModuleDeps {
   readonly driverIdentities: DriverIdentityDirectory;
 }
 
+export type { StartVerdict } from './domain/settings.js';
+
 export interface ChecksModule {
+  /**
+   * What the firm's walk-round check rules say about a driver accepting a job on this vehicle: fine, the check still to
+   * do, or the vehicle held back by a "do not drive" defect. For `jobs`, which asks when a driver accepts; supplied by
+   * composition. Reads in the caller's own data scope, so call it inside the driver's request.
+   */
+  jobStartVerdict(companyId: string, vehicleId: string): Promise<StartVerdict>;
   registerRoutes(app: FastifyInstance): void;
 }
 
@@ -58,10 +70,15 @@ export function createChecksModule(deps: ChecksModuleDeps): ChecksModule {
   const templates = new PostgresTemplateRepository(deps.db);
   const checks = new PostgresCheckRepository(deps.db);
   const office = new PostgresOfficeCheckRepository(deps.db);
+  const settings = new PostgresSettingsRepository(deps.db);
+  const rules = { settings, templates, checks, office, clock: deps.clock };
   return {
+    jobStartVerdict: (companyId, vehicleId) =>
+      jobStartVerdict(rules, makeId<'CompanyId'>(companyId), makeId<'FleetVehicleId'>(vehicleId)),
     registerRoutes(app: FastifyInstance): void {
       registerChecksRoutes(app, {
         templates: { templates, vehicles: deps.vehicles, ids: deps.ids, clock: deps.clock },
+        rules,
         callerDirectory: deps.callers,
         dataScopes: deps.dataScopes,
       });

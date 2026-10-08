@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as checksApi from '../../api/checks';
 import * as fleetApi from '../../api/fleet';
+import { CheckRules } from '../../components/CheckRules';
 import { CompanySelect } from '../../components/CompanySelect';
 import {
   changeKind,
@@ -126,6 +127,7 @@ export function Checks() {
         />
       ) : (
         <>
+          <CheckRules companyId={companyId} canChange={canBuild} />
           {canBuild && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               <button type="button" onClick={() => setDraft(BLANK)}>

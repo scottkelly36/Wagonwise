@@ -273,6 +273,11 @@ export function composeCore(
     ids,
     clock,
     dataScopes,
+    // A driver accepting a job asks the walk-round check rules. checks is built just below (it needs jobs to find the
+    // driver's vehicle), so this is read only when called.
+    startGate: {
+      check: (companyId, vehicleId) => checks.jobStartVerdict(companyId, vehicleId),
+    },
     callers: { getCaller: staffCaller },
     drivers: {
       belongsToCompany: (driverId, companyId) => fleet.isActiveDriverOfCompany(driverId, companyId),

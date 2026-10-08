@@ -33,3 +33,9 @@ export type NoRouteForVehicle = TaggedError<'NoRouteForVehicle'>;
 /** One active job per vehicle: a lorry cannot carry two drivers' jobs at once. This is what makes a
  *  company's vehicle capacity (billing) mean something. */
 export type VehicleBusy = TaggedError<'VehicleBusy'>;
+
+/** The company wants the vehicle's walk-round check done before a driver accepts a job, and it has not been. */
+export type CheckRequired = TaggedError<'CheckRequired'>;
+
+/** The company has asked that a vehicle with a "do not drive" defect still open is not sent out, and this one has. */
+export type VehicleNotFit = TaggedError<'VehicleNotFit'>;

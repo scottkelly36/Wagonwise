@@ -69,6 +69,8 @@ const JOBS_MESSAGES: Record<string, string> = {
   JobNotFound: "That job isn't there any more.",
   InvalidTransition: 'That job has already moved on — pull to refresh.',
   ProofOfDeliveryRequired: 'Take a photo of the delivery first — this job needs one.',
+  CheckRequired: 'Do your daily check first. Tap Daily check due.',
+  VehicleNotFit: 'This vehicle has a defect marked do not drive. Tell your office.',
 };
 
 /** Raised when "Start" cannot get a position to plan the route from. */
@@ -81,6 +83,8 @@ export class LocationUnavailableError extends Error {
 const NAVIGATION_MESSAGES: Record<string, string> = {
   NoVehicleAssigned: 'No vehicle has been assigned to this job yet. Ask dispatch to assign one.',
   VehicleUnavailable: "This job's vehicle can't be used. Ask dispatch to check it.",
+  CheckRequired: 'Do your daily check first. Tap Daily check due.',
+  VehicleNotFit: 'This vehicle has a defect marked do not drive. Tell your office.',
   NotTracking: 'Accept the job first.',
   NoRouteFound: 'No route found for this vehicle. It may not fit the roads. Ask dispatch.',
   TripAlreadyActive: 'You already have a trip in progress. End it first.',

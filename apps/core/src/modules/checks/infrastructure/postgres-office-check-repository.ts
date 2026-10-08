@@ -4,7 +4,7 @@ import type {
   OfficeCheckRepository,
   StoredCheckPhoto,
 } from '../application/ports/office-check-repository.js';
-import type { CheckItem, CompanyId, StaffId } from '../domain/check-template.js';
+import type { CheckItem, CompanyId, StaffId, VehicleId } from '../domain/check-template.js';
 import type { Answer, CheckId, CheckResult } from '../domain/check.js';
 import type {
   CheckDetail,
@@ -188,6 +188,15 @@ export class PostgresOfficeCheckRepository implements OfficeCheckRepository {
       select ${sql.raw(DEFECT_COLUMNS)} from checks.defects where id = ${id}
     `.execute(this.db);
     return rows[0] ? toDefect(rows[0]) : null;
+  }
+
+  async vehicleHasUnfixedDoNotDrive(vehicleId: VehicleId): Promise<boolean> {
+    const { rows } = await sql<{ found: number }>`
+      select 1 as found from checks.defects
+      where vehicle_id = ${vehicleId} and severity = 'do_not_drive' and status <> 'fixed'
+      limit 1
+    `.execute(this.db);
+    return rows.length > 0;
   }
 
   async setDefectStatus(id: DefectId, status: DefectStatus, by: StaffId, at: Date): Promise<void> {
