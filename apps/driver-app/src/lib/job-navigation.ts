@@ -55,11 +55,19 @@ export interface JobActions {
  * navigation begins with the driver's tap, so no route is ever switched silently.
  * `tripToTarget` is whether a trip to the next stop is already running.
  */
-export function jobActions(status: JobStatus, tripToTarget: boolean): JobActions | undefined {
+export function jobActions(
+  status: JobStatus,
+  tripToTarget: boolean,
+  hasPickup = true,
+): JobActions | undefined {
   switch (status) {
     case 'assigned':
       return { primary: { kind: 'advance', to: 'accepted', label: 'Accept job' } };
     case 'accepted':
+      // No pickup: nowhere to drive to yet. The driver says when the load is on.
+      if (!hasPickup) {
+        return { primary: { kind: 'advance', to: 'loaded', label: 'Loaded and ready' } };
+      }
       return {
         primary: { kind: 'navigate', label: tripToTarget ? 'Continue navigation' : 'Start' },
         secondary: { kind: 'advance', to: 'at_pickup', label: 'Arrived at pickup' },
@@ -86,8 +94,11 @@ export function jobActions(status: JobStatus, tripToTarget: boolean): JobActions
 }
 
 /** The step a driver confirms from the trip screen (the job bar): arriving at the stop being driven to. */
-export function arrivalStep(status: JobStatus): { to: JobStatus; label: string } | undefined {
-  if (status === 'accepted') return { to: 'at_pickup', label: 'Arrived at pickup' };
+export function arrivalStep(
+  status: JobStatus,
+  hasPickup = true,
+): { to: JobStatus; label: string } | undefined {
+  if (status === 'accepted' && hasPickup) return { to: 'at_pickup', label: 'Arrived at pickup' };
   if (status === 'en_route') return { to: 'at_delivery', label: 'Arrived' };
   return undefined;
 }
@@ -108,6 +119,7 @@ export function jobSubtitle(job: Pick<JobDto, 'status' | 'stops'>): string | und
     case 'en_route':
       return named('delivery');
     default:
-      return named('pickup');
+      // Before the job starts it is the pickup, or the delivery when there is no pickup.
+      return named('pickup') ?? named('delivery');
   }
 }

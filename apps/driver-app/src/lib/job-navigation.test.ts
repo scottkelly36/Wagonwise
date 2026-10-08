@@ -150,3 +150,30 @@ describe('jobSubtitle', () => {
     expect(jobSubtitle({ status: 'accepted', stops: [] })).toBeUndefined();
   });
 });
+
+describe('a job with no pickup', () => {
+  const deliveryOnly = [DELIVERY] as unknown as JobDto['stops'];
+
+  it('goes from accepted to "Loaded and ready", with no navigation yet', () => {
+    expect(jobActions('accepted', false, false)).toEqual({
+      primary: { kind: 'advance', to: 'loaded', label: 'Loaded and ready' },
+    });
+    // The rest of the flow is as for any job.
+    expect(jobActions('loaded', false, false)?.primary).toMatchObject({ kind: 'navigate' });
+  });
+
+  it('has no arrival to confirm while accepted', () => {
+    expect(arrivalStep('accepted', false)).toBeUndefined();
+    expect(arrivalStep('en_route', false)).toEqual({ to: 'at_delivery', label: 'Arrived' });
+  });
+
+  it('has nowhere to navigate to until the load is on', () => {
+    expect(navigationTarget({ status: 'accepted', stops: deliveryOnly })).toBeUndefined();
+    expect(navigationTarget({ status: 'loaded', stops: deliveryOnly })?.kind).toBe('delivery');
+  });
+
+  it('names the delivery on its cards', () => {
+    expect(jobSubtitle({ status: 'assigned', stops: deliveryOnly })).toBe('Depot');
+    expect(jobSubtitle({ status: 'accepted', stops: deliveryOnly })).toBe('Depot');
+  });
+});

@@ -15,7 +15,7 @@ import { JobCard } from '../../components/job-card';
 import { Icon } from '../../components/ui/icon';
 import { jobEntry } from '../../lib/job-entry';
 import { jobSubtitle } from '../../lib/job-navigation';
-import { JOB_STATUS_LABELS } from '../../lib/job-status';
+import { jobStatusLabel } from '../../lib/job-status';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
 import { cardStyle } from '../../theme/tokens';
 
@@ -46,7 +46,7 @@ export default function JobsScreen() {
               testID="jobs-current-job"
             />
             <Text style={styles.status} testID="jobs-current-status">
-              {JOB_STATUS_LABELS[currentJob.data.status]}
+              {jobStatusLabel(currentJob.data)}
             </Text>
           </View>
         )}
