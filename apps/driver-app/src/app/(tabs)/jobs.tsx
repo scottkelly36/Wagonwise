@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCurrentJob } from '../../api/use-jobs';
+import { CheckDueCard } from '../../components/check-due-card';
 import { JobCard } from '../../components/job-card';
 import { Icon } from '../../components/ui/icon';
 import { jobEntry } from '../../lib/job-entry';
@@ -50,6 +51,8 @@ export default function JobsScreen() {
             </Text>
           </View>
         )}
+
+        {entry.kind === 'job' && <CheckDueCard />}
 
         {entry.kind === 'checking' && <ActivityIndicator size="large" color={colors.text} />}
 

@@ -36,11 +36,11 @@ item closes, delete it from this file; the history file keeps the record. Dated 
    `[brackets]` in the privacy notice, DPA and DPIA and get a solicitor to review them; the restriction audit around Hexham;
    turn on failure alerts in Resend.
 4. **Phase 3 has started** (`phase-3-scope.md`). Item 0, billing, is done (details, plans and capacity, one live job per vehicle,
-   invoices viewed in the portal; migrations 0039 to 0042). Next is M5, walk-round checks: slice 1, each company builds its own check
-   lists, and the server side of a driver doing one, are built (migrations 0043, 0044); the driver app screen is next. Deploy core, both BFFs and the dashboard. After the
-   deploy, check the Plans page (each company starts with its current vehicle count), and before the first real invoice fill the
-   `[placeholders]` on the Billing details page. Still to get: the owner's running costs for M1, and what the pilot firm's
-   lorries and tachographs have.
+   invoices viewed in the portal; migrations 0039 to 0042). Next is M5, walk-round checks: each company builds its own check lists,
+   and a driver does one in the app (migrations 0043, 0044; the app change is JavaScript only, so an over-the-air update, sent after
+   core and the driver BFF are deployed). Next: the office results page and defects inbox. After the deploy, check the Plans page
+   (each company starts with its current vehicle count), and before the first real invoice fill the `[placeholders]` on the
+   Billing details page. Still to get: the owner's running costs for M1, and what the pilot firm's lorries and tachographs have.
 
 **How the driver app ships now:** JavaScript-only changes go out over the air to the installed version (`runtimeVersion`
 follows `version`, currently **1.2.1**: `eas update` is published for that version only, so a phone on an older build

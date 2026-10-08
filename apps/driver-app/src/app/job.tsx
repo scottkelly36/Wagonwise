@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
 import { useJobNavigation } from '../hooks/use-job-navigation';
+import { CheckDueCard } from '../components/check-due-card';
 import { JobPlacesCard } from '../components/job-places-card';
 import { OpenSettingsButton } from '../components/open-settings-button';
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
@@ -141,6 +142,8 @@ export default function JobScreen() {
             </Text>
           </View>
         )}
+
+        <CheckDueCard />
 
         <View style={styles.section}>
           {current.stops.map((stop, index) => {
