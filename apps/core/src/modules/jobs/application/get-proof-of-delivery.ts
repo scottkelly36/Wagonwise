@@ -19,12 +19,12 @@ export type GetProofOfDeliveryError = JobNotFound | ProofOfDeliveryNotFound;
  */
 export async function getProofOfDelivery(
   deps: GetProofOfDeliveryDeps,
-  input: { readonly caller: Caller; readonly jobId: JobId },
+  input: { readonly caller: Caller; readonly jobId: JobId; readonly stop?: number | undefined },
 ): Promise<Result<StoredProofOfDelivery, GetProofOfDeliveryError>> {
   const job = await deps.repo.findById(input.jobId);
   if (job === null || !canViewJobs(input.caller, job.companyId)) {
     return err({ tag: 'JobNotFound' });
   }
-  const photo = await deps.repo.findProofOfDelivery(job.id);
+  const photo = await deps.repo.findProofOfDelivery(job.id, input.stop);
   return photo === null ? err({ tag: 'ProofOfDeliveryNotFound' }) : ok(photo);
 }

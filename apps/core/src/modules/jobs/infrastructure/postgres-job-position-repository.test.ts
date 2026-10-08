@@ -39,6 +39,8 @@ describe('PostgresJobPositionRepository', () => {
       timeline: [{ status: 'draft', at: new Date('2026-10-01T09:00:00.000Z') }],
       requiresProofOfDelivery: false,
       hasProofOfDelivery: false,
+      currentStop: 0,
+      proofStops: [],
       stops: [
         { kind: 'pickup', name: 'A', location: { lat: 54.97, lon: -2.1 } },
         { kind: 'delivery', name: 'B', location: { lat: 54.97, lon: -1.6 } },

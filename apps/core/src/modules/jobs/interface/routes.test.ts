@@ -124,6 +124,8 @@ describe('POST /staff/jobs/companies/:companyId/jobs', () => {
       status: 'draft',
       requiresProofOfDelivery: false,
       hasProofOfDelivery: false,
+      currentStop: 0,
+      proofStops: [],
     });
   });
 
@@ -330,7 +332,7 @@ describe('GET /staff/jobs/:id/proof-of-delivery', () => {
   it('returns the photo to staff in the job’s company, with no privilege needed', async () => {
     const { app, repo } = buildApp();
     const id = await createDraft(app);
-    await repo.saveProofOfDelivery(makeId<'JobId'>(id), photo);
+    await repo.saveProofOfDelivery(makeId<'JobId'>(id), 1, photo);
 
     const response = await app.inject({
       method: 'GET',
@@ -363,7 +365,7 @@ describe('GET /staff/jobs/:id/proof-of-delivery', () => {
   it('404s as JobNotFound for staff from another company, so ids can’t be probed', async () => {
     const { app, repo } = buildApp();
     const id = await createDraft(app);
-    await repo.saveProofOfDelivery(makeId<'JobId'>(id), photo);
+    await repo.saveProofOfDelivery(makeId<'JobId'>(id), 1, photo);
     const response = await app.inject({
       method: 'GET',
       url: `/staff/jobs/${id}/proof-of-delivery`,

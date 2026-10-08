@@ -33,7 +33,6 @@ import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow'
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { computeEta } from '../lib/eta';
 import { arrivalStep, navigationTarget } from '../lib/job-navigation';
-import { jobHasPickup } from '../lib/job-status';
 import { jobsErrorMessage, routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
 import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
@@ -133,7 +132,7 @@ export default function ActiveTripScreen() {
   // so a driver never has to leave the navigation to tell dispatch they have got there.
   const job = useCurrentJob();
   const advanceJob = useAdvanceJobStatus();
-  const arrival = job.data ? arrivalStep(job.data.status, jobHasPickup(job.data)) : undefined;
+  const arrival = job.data ? arrivalStep(job.data) : undefined;
   const voiceFlow = useVoiceHazardReportFlow(location.point);
   const quickReport = useQuickVoiceReport(location.point);
 

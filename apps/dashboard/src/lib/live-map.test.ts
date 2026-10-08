@@ -1,3 +1,4 @@
+import type { JobDto } from '@wagonwise/contracts/jobs';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -27,16 +28,29 @@ describe('isOnTheRoad', () => {
 
 describe('nextStop', () => {
   const stops = [pickup, delivery];
-  it('is the pickup until the load is on, then the delivery', () => {
-    expect(nextStop({ status: 'accepted', stops })).toBe(pickup);
-    expect(nextStop({ status: 'at_pickup', stops })).toBe(pickup);
-    expect(nextStop({ status: 'loaded', stops })).toBe(delivery);
-    expect(nextStop({ status: 'en_route', stops })).toBe(delivery);
-    expect(nextStop({ status: 'at_delivery', stops })).toBe(delivery);
+  const at = (status: JobDto['status'], jobStops = stops, currentStop = 0) => ({
+    status,
+    stops: jobStops,
+    currentStop,
   });
 
-  it('is undefined when the job has no such stop', () => {
-    expect(nextStop({ status: 'en_route', stops: [pickup] })).toBeUndefined();
+  it('is the stop the driver is heading for or at', () => {
+    expect(nextStop(at('accepted'))).toBe(pickup);
+    expect(nextStop(at('at_pickup'))).toBe(pickup);
+    expect(nextStop(at('loaded', stops, 1))).toBe(delivery);
+    expect(nextStop(at('en_route', stops, 1))).toBe(delivery);
+    expect(nextStop(at('at_delivery', stops, 1))).toBe(delivery);
+  });
+
+  it('follows a longer job from stop to stop', () => {
+    const drops = [pickup, delivery, { ...delivery, name: 'Second drop' }];
+    expect(nextStop(at('en_route', drops, 2))?.name).toBe('Second drop');
+  });
+
+  it('is nothing once there are no stops left, and nothing for an accepted job that starts with a delivery', () => {
+    expect(nextStop(at('delivered', stops, 2))).toBeUndefined();
+    expect(nextStop(at('accepted', [delivery]))).toBeUndefined();
+    expect(nextStop(at('loaded', [delivery]))).toBe(delivery);
   });
 });
 

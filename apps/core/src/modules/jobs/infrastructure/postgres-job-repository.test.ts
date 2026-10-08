@@ -38,6 +38,8 @@ describe('PostgresJobRepository', () => {
       timeline: [{ status: 'draft', at: new Date('2026-10-01T09:00:00.000Z') }],
       requiresProofOfDelivery: false,
       hasProofOfDelivery: false,
+      currentStop: 0,
+      proofStops: [],
       stops: [
         { kind: 'pickup', name: 'Hexham depot', location: { lat: 54.97, lon: -2.1 } },
         {
@@ -99,7 +101,7 @@ describe('PostgresJobRepository', () => {
     await repo().save(j);
     expect((await repo().findById(j.id))?.hasProofOfDelivery).toBe(false);
 
-    await repo().saveProofOfDelivery(j.id, {
+    await repo().saveProofOfDelivery(j.id, 1, {
       contentType: 'image/jpeg',
       data: Buffer.from('a photo'),
     });
@@ -108,7 +110,7 @@ describe('PostgresJobRepository', () => {
     expect(withProof?.hasProofOfDelivery).toBe(true);
 
     // Retaking replaces, rather than appending a second row.
-    await repo().saveProofOfDelivery(j.id, {
+    await repo().saveProofOfDelivery(j.id, 1, {
       contentType: 'image/png',
       data: Buffer.from('a different photo'),
     });
@@ -123,7 +125,7 @@ describe('PostgresJobRepository', () => {
     await repo().save(j);
     expect(await repo().findProofOfDelivery(j.id)).toBeNull();
 
-    await repo().saveProofOfDelivery(j.id, {
+    await repo().saveProofOfDelivery(j.id, 1, {
       contentType: 'image/jpeg',
       data: Buffer.from([0xff, 0xd8, 0xff, 0x00, 0x10]),
     });

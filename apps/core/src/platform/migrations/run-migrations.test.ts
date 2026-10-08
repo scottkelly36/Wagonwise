@@ -67,6 +67,7 @@ describe('runMigrations', () => {
       '0034_fleet_vehicles_assigned_driver_read.sql',
       '0035_route_plans_maneuvers.sql',
       '0036_places.sql',
+      '0037_jobs_multi_stop.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -210,6 +211,7 @@ describe('runMigrations', () => {
       '0034_fleet_vehicles_assigned_driver_read.sql',
       '0035_route_plans_maneuvers.sql',
       '0036_places.sql',
+      '0037_jobs_multi_stop.sql',
     ]);
   });
 });

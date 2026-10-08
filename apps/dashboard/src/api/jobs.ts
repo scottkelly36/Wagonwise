@@ -86,8 +86,10 @@ export async function cancelJob(accessToken: string, id: string): Promise<JobDto
 export async function getProofOfDelivery(
   accessToken: string,
   id: string,
+  stop?: number,
 ): Promise<ProofOfDeliveryResponse> {
-  const { status, json } = await requestJson('GET', `/staff/jobs/${id}/proof-of-delivery`, {
+  const query = stop === undefined ? '' : `?stop=${stop}`;
+  const { status, json } = await requestJson('GET', `/staff/jobs/${id}/proof-of-delivery${query}`, {
     authorization: `Bearer ${accessToken}`,
   });
   throwUnlessSuccess(status, json, [200]);

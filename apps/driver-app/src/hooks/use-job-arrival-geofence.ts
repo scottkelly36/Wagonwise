@@ -31,7 +31,7 @@ export function useJobArrivalGeofence(
 
   useEffect(() => {
     if (!job) return;
-    const key = `${job.id}:${job.status}`;
+    const key = `${job.id}:${job.status}:${job.currentStop}`;
     if (nudgedForRef.current === key) return;
 
     const nudge = arrivalNudgeFor(job, position);

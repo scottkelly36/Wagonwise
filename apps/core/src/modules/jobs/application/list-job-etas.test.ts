@@ -27,6 +27,8 @@ function job(id: string, overrides: Partial<Job> = {}): Job {
     timeline: [],
     requiresProofOfDelivery: false,
     hasProofOfDelivery: false,
+    currentStop: 0,
+    proofStops: [],
     ...overrides,
   };
 }
@@ -48,7 +50,7 @@ async function setup(jobs: Job[], positioned: string[] = jobs.map((j) => j.id)) 
 
 describe('listJobEtas', () => {
   it('routes from the last position to the delivery once the load is on, and says how old that start is', async () => {
-    const { deps, routes } = await setup([job('j1')]);
+    const { deps, routes } = await setup([job('j1', { currentStop: 1 })]);
 
     const result = await listJobEtas(deps, { caller: viewer, companyId: company });
 
