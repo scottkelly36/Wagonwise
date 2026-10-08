@@ -2,11 +2,13 @@ import type { FastifyInstance } from 'fastify';
 import { makeId } from '../../shared/brand.js';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
+import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import { vehicleCapacityToday } from './application/plans.js';
 import type { CompanyDirectory } from './application/ports/company-directory.js';
 import type { CallerDirectory } from './application/ports/directories.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresBillingDetailsRepository } from './infrastructure/postgres-billing-details-repository.js';
+import { PostgresInvoiceRepository } from './infrastructure/postgres-invoice-repository.js';
 import { PostgresPlanRepository } from './infrastructure/postgres-plan-repository.js';
 import { registerBillingRoutes } from './interface/routes.js';
 
@@ -18,6 +20,7 @@ export type { CompanyDirectory } from './application/ports/company-directory.js'
 export interface BillingModuleDeps {
   readonly db: UntypedDb;
   readonly clock: Clock;
+  readonly ids: IdGenerator;
   readonly dataScopes: DataScopes;
   /** Who a signed-in staff account is. Supplied by composition over `companies`. */
   readonly callers: CallerDirectory;
@@ -43,11 +46,20 @@ export interface BillingModule {
 export function createBillingModule(deps: BillingModuleDeps): BillingModule {
   const details = new PostgresBillingDetailsRepository(deps.db);
   const plans = new PostgresPlanRepository(deps.db);
+  const invoices = new PostgresInvoiceRepository(deps.db);
   return {
     registerRoutes(app: FastifyInstance): void {
       registerBillingRoutes(app, {
         billing: { repo: details, clock: deps.clock },
         plans: { plans, companies: deps.companies, clock: deps.clock },
+        invoices: {
+          invoices,
+          details,
+          plans,
+          companies: deps.companies,
+          ids: deps.ids,
+          clock: deps.clock,
+        },
         callerDirectory: deps.callers,
         dataScopes: deps.dataScopes,
       });

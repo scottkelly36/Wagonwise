@@ -14,6 +14,9 @@ import {
   type BillingDetailsView,
 } from '../application/billing-details.js';
 import type { CallerDirectory } from '../application/ports/directories.js';
+import type { InvoiceDeps } from '../application/invoices.js';
+import { registerInvoiceRoutes } from './invoice-routes.js';
+import type { Outcome } from './outcome.js';
 import {
   capacityHistory,
   listPlans,
@@ -25,6 +28,7 @@ import {
 export interface BillingRouteDeps {
   readonly billing: BillingDetailsDeps;
   readonly plans: PlanDeps;
+  readonly invoices: InvoiceDeps;
   readonly callerDirectory: CallerDirectory;
   /** Row-Level Security scope per request (migration 0039): billing data is platform-only. */
   readonly dataScopes: DataScopes;
@@ -47,7 +51,7 @@ export function registerBillingRoutes(app: FastifyInstance, deps: BillingRouteDe
   async function asStaff(
     request: FastifyRequest,
     reply: FastifyReply,
-    work: (staffId: string) => Promise<{ status: number; body: object }>,
+    work: (staffId: string) => Promise<Outcome>,
   ) {
     if (request.staffId === undefined) {
       return reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
@@ -181,4 +185,6 @@ export function registerBillingRoutes(app: FastifyInstance, deps: BillingRouteDe
         : planFailure(result.error);
     }),
   );
+
+  registerInvoiceRoutes(app, deps.invoices, asStaff);
 }

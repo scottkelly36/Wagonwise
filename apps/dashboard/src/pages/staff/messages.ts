@@ -35,6 +35,16 @@ const MESSAGES: Record<string, string> = {
   DayInPast: 'Pick today or a later day; a past day would change what was already billed.',
   InvalidPrice: 'Enter a price between £0 and £10,000.',
   InvalidCapacity: 'Enter a whole number of vehicles.',
+  InvoiceNotFound: 'That invoice could not be found.',
+  InvalidInvoiceState:
+    "That can't be done to an invoice in its current state. Issued invoices can't be edited.",
+  BillingDetailsIncomplete:
+    "Fill in WagonWise's billing details first (Billing details page): invoices can't be issued while any are in [brackets].",
+  EmptyInvoice: 'An invoice needs at least one line.',
+  NegativeTotal: "An invoice can't total less than nothing. Remove the credit or add a charge.",
+  MonthNotStarted: "That month hasn't started yet.",
+  InvalidMonth: 'Pick a valid month.',
+  InvalidLine: 'Enter a description and an amount in pounds and pence.',
   InvalidDay: 'Pick a valid date.',
   CompanyNotFound: 'That company could not be found.',
   ProofOfDeliveryNotFound: 'No photo has been received for that job yet.',

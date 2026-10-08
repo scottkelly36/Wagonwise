@@ -261,6 +261,7 @@ second check on top — core alone decides ownership/authorization for those.
   effective-dated vehicle capacity. The capacity in force is the latest change whose day (UK time) has arrived; a company with
   none covers 0 vehicles. A change may start today or later, never in the past. Edited on the Plans page. Fleet refuses to create a
   vehicle beyond it (`CapacityReached`), through its `VehicleCapacity` port; jobs refuses a second live job on a vehicle (`VehicleBusy`).
+- **Invoices** (`billing.invoices`, `invoice_lines`, `invoice_counter`, migration 0041): a month's invoice per company, drafted from its plan (`buildPlanLines`: the capacity on the 1st for the month, a mid-month rise pro rata, a fall next month), adjusted on the draft, then issued: numbered `INV-0001` in order with no gaps (the counter commits with the issue), WagonWise's details stamped, frozen. Refused while the billing details hold placeholders. Paid by hand; void keeps the number and frees the month. Printable page: `apps/dashboard/src/lib/invoice-print.ts`. No VAT calculation.
 - All of it is WagonWise-admin only (`/staff/billing/...`); a company's staff may read their own plan rows through
   Row-Level Security but nothing is exposed to them yet. Pricing model and what is next: `docs/phase-3-scope.md`.
 

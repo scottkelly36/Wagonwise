@@ -230,6 +230,7 @@ export function composeCore(
   const billing = createBillingModule({
     db: billingDb,
     clock,
+    ids,
     dataScopes,
     callers: { getCaller: staffCaller },
     companies: {
