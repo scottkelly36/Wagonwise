@@ -42,6 +42,8 @@ export function statusFor(error: IdentityError): number {
       return 401;
     case 'TooManyAttempts':
       return 429;
+    case 'CodeNotSent':
+      return 502;
     case 'Forbidden':
       return 403;
   }

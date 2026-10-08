@@ -108,6 +108,20 @@ describe('requestOtp', () => {
     ]);
   });
 
+  it('says the code was not sent when the provider fails, keeping why for the log', async () => {
+    const failure = new Error('Resend API returned 403');
+    const driverRepo = new InMemoryDriverRepository();
+    await driverRepo.save({
+      id: makeId<'DriverId'>('driver-1'),
+      identifier: 'driver@example.com',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    const deps = buildDeps({ driverRepo, otpSender: { send: () => Promise.reject(failure) } });
+
+    const result = await requestOtp(deps, { identifier: 'driver@example.com' });
+    expect(result).toEqual({ ok: false, error: { tag: 'CodeNotSent', cause: failure } });
+  });
+
   it('stores the OTP hashed, not raw, with the configured expiry', async () => {
     const otpRepo = new InMemoryOtpRepository();
     const driverRepo = new InMemoryDriverRepository();

@@ -105,6 +105,13 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     }
     const result = await requestOtp(deps.requestOtp, parsed.data);
     if (!result.ok) {
+      if (result.error.tag === 'CodeNotSent') {
+        // Why it failed (the provider's own message) goes to the log, not to the caller.
+        request.log.error({ err: result.error.cause }, 'could not send sign-in code');
+        return reply
+          .status(statusFor(result.error))
+          .send({ tag: 'CodeNotSent', requestId: request.id });
+      }
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(200).send({});
