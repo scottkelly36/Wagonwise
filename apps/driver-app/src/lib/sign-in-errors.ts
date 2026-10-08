@@ -4,6 +4,8 @@ export const REQUEST_OTP_MESSAGES: Record<string, string> = {
   InvalidIdentifier: 'Enter a valid email address or phone number.',
   InviteCodeRequired: "You'll need an invite code the first time you sign in.",
   InvalidInviteCode: "That invite code isn't recognised.",
+  CodeNotSent:
+    "We couldn't send your sign-in code. Try again in a minute. If it keeps happening, let your company or WagonWise know.",
 };
 
 export const VERIFY_OTP_MESSAGES: Record<string, string> = {

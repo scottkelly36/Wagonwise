@@ -14,13 +14,15 @@ export function isOnTheRoad(status: JobStatus): boolean {
   return ON_THE_ROAD.includes(status);
 }
 
-/** The stop the driver is heading for: the pickup until the load is on, the delivery after. Undefined
- *  for a job without such a stop. */
+/** The stop the driver is heading for or at. Undefined once there are none left, and for an accepted job that
+ *  starts with a delivery: there is nowhere to go until they say they are loaded. Mirrors core's `nextStopFor`. */
 export function nextStop(
-  job: Pick<JobDto, 'status' | 'stops'>,
+  job: Pick<JobDto, 'status' | 'stops' | 'currentStop'>,
 ): JobDto['stops'][number] | undefined {
-  const kind = job.status === 'accepted' || job.status === 'at_pickup' ? 'pickup' : 'delivery';
-  return job.stops.find((stop) => stop.kind === kind);
+  const stop = job.stops[job.currentStop];
+  if (stop === undefined) return undefined;
+  if (job.status === 'accepted' && stop.kind === 'delivery') return undefined;
+  return stop;
 }
 
 export type Freshness = 'live' | 'stale' | 'lost';

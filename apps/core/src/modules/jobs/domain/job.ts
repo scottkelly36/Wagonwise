@@ -49,6 +49,8 @@ export interface JobTimelineEntry {
   readonly status: JobStatus;
   readonly at: Date;
   readonly position?: GeoPoint | undefined;
+  /** The stop the driver was heading for or at when the status changed (0-based). */
+  readonly stopIndex?: number | undefined;
 }
 
 /** A dispatcher's job (design doc §3). `driverId`/`vehicleId`/`routePlanId` are set once dispatch
@@ -71,13 +73,20 @@ export interface Job {
   readonly plannedStart?: Date | undefined;
   readonly dueBy?: Date | undefined;
   readonly requiresProofOfDelivery: boolean;
+  /** The stop the driver is heading for or at (0-based into `stops`). Completing a stop moves it on; it is
+   *  `stops.length` once the job is delivered. */
+  readonly currentStop: number;
+  /** The delivery stops (by position) that have a proof photo. */
+  readonly proofStops: readonly number[];
+  /** Whether proof is attached for what the driver is delivering now (every delivery once the job is
+   *  delivered). Kept in step by `moved` and by the repository; see `hasProof`. */
   readonly hasProofOfDelivery: boolean;
 }
 
 export type InvalidReference = TaggedError<'InvalidReference'>;
 
 export interface InvalidStops extends TaggedError<'InvalidStops'> {
-  readonly reason: 'empty' | 'no_pickup' | 'no_delivery';
+  readonly reason: 'empty' | 'no_delivery' | 'too_many';
 }
 
 export function validateReference(raw: string): Result<string, InvalidReference> {
@@ -88,14 +97,18 @@ export function validateReference(raw: string): Result<string, InvalidReference>
   return ok(trimmed);
 }
 
-/** Design doc §5 step 1: "pickup and delivery stops" — at least one of each. Order (pickups
- *  before deliveries) is a dispatch-time concern, not validated here. */
+/** The most stops a job may have. */
+export const MAX_STOPS = 20;
+
+/** A job needs a delivery. A pickup is optional (2026-10-08): some firms always load at the same place, so
+ *  the driver does not need directing there, and just says when they are loaded. Order (pickups before
+ *  deliveries) is a dispatch-time concern, not validated here. */
 export function validateStops(stops: readonly JobStop[]): Result<JobStop[], InvalidStops> {
   if (stops.length === 0) {
     return err({ tag: 'InvalidStops', reason: 'empty' });
   }
-  if (!stops.some((s) => s.kind === 'pickup')) {
-    return err({ tag: 'InvalidStops', reason: 'no_pickup' });
+  if (stops.length > MAX_STOPS) {
+    return err({ tag: 'InvalidStops', reason: 'too_many' });
   }
   if (!stops.some((s) => s.kind === 'delivery')) {
     return err({ tag: 'InvalidStops', reason: 'no_delivery' });
@@ -119,30 +132,87 @@ export function isActive(status: JobStatus): boolean {
   return ACTIVE_STATUSES.includes(status);
 }
 
-/** The one forward step from each status (`draft -> assigned` is `assignJobToDriver`'s, not this). */
-const NEXT: Readonly<Partial<Record<JobStatus, JobStatus>>> = {
-  assigned: 'accepted',
-  accepted: 'at_pickup',
-  at_pickup: 'loaded',
-  loaded: 'en_route',
-  en_route: 'at_delivery',
-  at_delivery: 'delivered',
-};
+export function hasPickup(job: Pick<Job, 'stops'>): boolean {
+  return job.stops.some((s) => s.kind === 'pickup');
+}
+
+/**
+ * The one status a job can move to next, or undefined once it is over (or still a draft). The statuses are
+ * the same whatever the stops: the driver arrives at the current stop (`at_pickup` or `at_delivery`), finishes
+ * it (`loaded`, which means the load is on board and they are ready to set off, or `delivered` after the last
+ * stop), and sets off for the next (`en_route`). A job that starts with a delivery has nowhere to collect, so it
+ * goes from `accepted` straight to `loaded`.
+ */
+export function nextStatus(
+  job: Pick<Job, 'status' | 'stops' | 'currentStop'>,
+): JobStatus | undefined {
+  const stop = job.stops[job.currentStop];
+  switch (job.status) {
+    case 'assigned':
+      return 'accepted';
+    case 'accepted':
+      return stop?.kind === 'delivery' ? 'loaded' : 'at_pickup';
+    case 'at_pickup':
+      return 'loaded';
+    case 'loaded':
+      return 'en_route';
+    case 'en_route':
+      return stop?.kind === 'delivery' ? 'at_delivery' : 'at_pickup';
+    case 'at_delivery':
+      return job.currentStop + 1 >= job.stops.length ? 'delivered' : 'loaded';
+    case 'draft':
+    case 'delivered':
+    case 'cancelled':
+    case 'failed':
+      return undefined;
+  }
+}
+
+/** The delivery stop a proof photo belongs to now: the next delivery from where the driver is, or the last one. */
+export function proofStopFor(job: Pick<Job, 'stops' | 'currentStop'>): number | undefined {
+  const deliveries = job.stops.flatMap((s, i) => (s.kind === 'delivery' ? [i] : []));
+  return deliveries.find((i) => i >= job.currentStop) ?? deliveries.at(-1);
+}
+
+/** Whether proof is attached for what the driver is delivering now, or for every delivery once delivered. */
+export function hasProof(
+  job: Pick<Job, 'stops' | 'currentStop' | 'status' | 'proofStops'>,
+): boolean {
+  if (job.status === 'delivered') {
+    const deliveries = job.stops.flatMap((s, i) => (s.kind === 'delivery' ? [i] : []));
+    return deliveries.length > 0 && deliveries.every((i) => job.proofStops.includes(i));
+  }
+  const stop = proofStopFor(job);
+  return stop !== undefined && job.proofStops.includes(stop);
+}
 
 export interface InvalidTransition extends TaggedError<'InvalidTransition'> {
   readonly from: JobStatus;
   readonly to: JobStatus;
 }
 
-function moved(job: Job, to: JobStatus, at: Date, position?: GeoPoint): Job {
-  return {
+function moved(
+  job: Job,
+  to: JobStatus,
+  at: Date,
+  position?: GeoPoint,
+  stop?: { readonly index: number; readonly nextStop: number },
+): Job {
+  const next: Job = {
     ...job,
     status: to,
+    currentStop: stop?.nextStop ?? job.currentStop,
     timeline: [
       ...job.timeline,
-      { status: to, at, ...(position === undefined ? {} : { position }) },
+      {
+        status: to,
+        at,
+        ...(position === undefined ? {} : { position }),
+        ...(stop === undefined ? {} : { stopIndex: stop.index }),
+      },
     ],
   };
+  return { ...next, hasProofOfDelivery: hasProof(next) };
 }
 
 /** Dispatch: only a `draft` job can be assigned, and it goes straight to `assigned`. */
@@ -166,10 +236,17 @@ export function advanceStatus(
   at: Date,
   position?: GeoPoint,
 ): Result<Job, InvalidTransition> {
-  if (NEXT[job.status] !== to) {
+  if (nextStatus(job) !== to) {
     return err({ tag: 'InvalidTransition', from: job.status, to });
   }
-  return ok(moved(job, to, at, position));
+  // Finishing a stop (collected, delivered) moves on to the next one.
+  const finishesStop = job.status === 'at_pickup' || job.status === 'at_delivery';
+  return ok(
+    moved(job, to, at, position, {
+      index: job.currentStop,
+      nextStop: finishesStop ? job.currentStop + 1 : job.currentStop,
+    }),
+  );
 }
 
 /** Any job that isn't finished can be cancelled. */
@@ -203,10 +280,14 @@ export function isTracked(status: JobStatus): boolean {
   return TRACKED_STATUSES.includes(status);
 }
 
-/** The stop a driver on this job is heading for: the pickup until the load is on, the delivery
- *  after (P2-M6.4's ETA, and the dashboard's "heading for"). Undefined for a job with no such
- *  stop. */
-export function nextStopFor(job: Pick<Job, 'status' | 'stops'>): JobStop | undefined {
-  const kind = job.status === 'accepted' || job.status === 'at_pickup' ? 'pickup' : 'delivery';
-  return job.stops.find((stop) => stop.kind === kind);
+/** The stop a driver on this job is heading for or at (P2-M6.4's ETA, and the dashboard's "heading for").
+ *  Undefined once there are none left, and for an accepted job that starts with a delivery: there is nowhere to
+ *  go until they say they are loaded. */
+export function nextStopFor(
+  job: Pick<Job, 'status' | 'stops' | 'currentStop'>,
+): JobStop | undefined {
+  const stop = job.stops[job.currentStop];
+  if (stop === undefined) return undefined;
+  if (job.status === 'accepted' && stop.kind === 'delivery') return undefined;
+  return stop;
 }

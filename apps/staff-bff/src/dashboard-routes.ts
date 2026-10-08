@@ -1,4 +1,8 @@
-import { createCompanyRequestSchema } from '@wagonwise/contracts/companies';
+import {
+  companySettingsParamsSchema,
+  createCompanyRequestSchema,
+  updateCompanySettingsRequestSchema,
+} from '@wagonwise/contracts/companies';
 import {
   createFleetVehicleRequestSchema,
   driverLinkIdParamsSchema,
@@ -18,6 +22,7 @@ import {
   jobIdParamsSchema,
   jobReportRequestSchema,
   previewJobRouteRequestSchema,
+  proofOfDeliveryQuerySchema,
 } from '@wagonwise/contracts/jobs';
 import {
   markPlaceRequestSchema,
@@ -39,6 +44,8 @@ interface Forward {
   readonly path: string;
   readonly params: z.ZodType<Record<string, string>>;
   readonly body?: z.ZodType;
+  /** The query string, when the route takes one: validated, and passed on to core. */
+  readonly query?: z.ZodType<Record<string, unknown>>;
 }
 
 /** The dashboard's pages that moved from the driver sign-in to staff accounts (P2-M1.12c). */
@@ -46,6 +53,14 @@ const FORWARDS: readonly Forward[] = [
   // WagonWise admins only; core decides.
   { method: 'GET', path: '/staff/companies', params: noParams },
   { method: 'POST', path: '/staff/companies', params: noParams, body: createCompanyRequestSchema },
+  // A company's own settings: how long delivery photos are kept. Its managers choose; core decides who may.
+  { method: 'GET', path: '/staff/companies/:id/settings', params: companySettingsParamsSchema },
+  {
+    method: 'PUT',
+    path: '/staff/companies/:id/settings',
+    params: companySettingsParamsSchema,
+    body: updateCompanySettingsRequestSchema,
+  },
   { method: 'GET', path: '/staff/invite-codes', params: noParams },
   { method: 'POST', path: '/staff/invite-codes', params: noParams },
   { method: 'GET', path: '/staff/hazard-reports', params: noParams },
@@ -177,7 +192,12 @@ const FORWARDS: readonly Forward[] = [
     params: jobIdParamsSchema,
     body: previewJobRouteRequestSchema,
   },
-  { method: 'GET', path: '/staff/jobs/:id/proof-of-delivery', params: jobIdParamsSchema },
+  {
+    method: 'GET',
+    path: '/staff/jobs/:id/proof-of-delivery',
+    params: jobIdParamsSchema,
+    query: proofOfDeliveryQuerySchema,
+  },
   {
     method: 'POST',
     path: '/staff/jobs/:id/assign',
@@ -189,6 +209,13 @@ const FORWARDS: readonly Forward[] = [
 
 function corePath(pattern: string, params: Record<string, string>): string {
   return pattern.replace(/:(\w+)/g, (_, name: string) => encodeURIComponent(params[name] ?? ''));
+}
+
+function queryString(query: Record<string, unknown>): string {
+  const parts = Object.entries(query)
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+  return parts.length === 0 ? '' : `?${parts.join('&')}`;
 }
 
 /**
@@ -206,12 +233,17 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: StaffRouteDe
         if (token === undefined) return reply;
         const params = forward.params.safeParse(request.params ?? {});
         const body = forward.body?.safeParse(request.body);
-        if (!params.success || (body !== undefined && !body.success)) {
+        const query = forward.query?.safeParse(request.query ?? {});
+        if (
+          !params.success ||
+          (body !== undefined && !body.success) ||
+          (query !== undefined && !query.success)
+        ) {
           return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
         }
         const core = await deps.coreClient.request(
           forward.method,
-          corePath(forward.path, params.data),
+          corePath(forward.path, params.data) + (query?.success ? queryString(query.data) : ''),
           request.id,
           {
             authorization: `Bearer ${token}`,

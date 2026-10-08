@@ -34,6 +34,8 @@ export const jobTimelineEntrySchema = z.object({
   status: jobStatusSchema,
   at: z.iso.datetime(),
   position: geoPointSchema.optional(),
+  /** The stop the driver was heading for or at when the status changed (0-based). */
+  stopIndex: z.number().int().min(0).optional(),
 });
 
 export const jobSchema = z.object({
@@ -46,6 +48,11 @@ export const jobSchema = z.object({
   // P2-M5.5: the dispatcher's own call at creation, and whether one's actually been attached.
   requiresProofOfDelivery: z.boolean(),
   hasProofOfDelivery: z.boolean(),
+  /** The stop the driver is heading for or at (0-based into stops); stops.length once delivered. Defaults to 0 for
+   *  a server that predates multi-stop jobs. */
+  currentStop: z.number().int().min(0).default(0),
+  /** The delivery stops (by position) that have a proof photo. */
+  proofStops: z.array(z.number().int().min(0)).default([]),
   driverId: z.string().optional(),
   vehicleId: z.string().optional(),
   routePlanId: z.string().optional(),
@@ -56,12 +63,12 @@ export type JobDto = z.infer<typeof jobSchema>;
 
 /** No `id` field (unlike companies' own create request) — a job isn't created from an offline
  *  queue, so there's no idempotency reason to let the client pick the id; core's own
- *  `IdGenerator` does, same as fleet's `createFleetVehicleRequestSchema`. At least one pickup and
- *  one delivery stop (domain's own `validateStops`); the server re-validates regardless. */
+ *  `IdGenerator` does, same as fleet's `createFleetVehicleRequestSchema`. A delivery is needed, and
+ *  a pickup is optional (domain's own `validateStops`); the server re-validates regardless.  */
 export const createJobRequestSchema = z.object({
   companyId: companyIdSchema,
   reference: z.string().min(1),
-  stops: z.array(jobStopSchema).min(1),
+  stops: z.array(jobStopSchema).min(1).max(20),
   plannedStart: z.iso.datetime().optional(),
   dueBy: z.iso.datetime().optional(),
   requiresProofOfDelivery: z.boolean().optional(),
@@ -172,6 +179,11 @@ export const failJobRequestSchema = z.object({
   position: geoPointSchema.optional(),
 });
 export type FailJobRequest = z.infer<typeof failJobRequestSchema>;
+
+/** `GET /staff/jobs/:id/proof-of-delivery?stop=`: which delivery stop's photo (its position); the latest when absent. */
+export const proofOfDeliveryQuerySchema = z.object({
+  stop: z.coerce.number().int().min(0).optional(),
+});
 
 export const jobIdParamsSchema = z.object({
   id: z.uuid(),

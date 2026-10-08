@@ -60,6 +60,8 @@ export interface CompaniesModule {
   /** Company names by id, for screens in other modules that show who a link is with (fleet's
    *  driver links). Ids that match no company are simply absent. */
   getCompanyNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>>;
+  /** How many months each company keeps its proof-of-delivery photos, by company id, for the daily cleanup. */
+  listPhotoRetention(): Promise<ReadonlyMap<string, number>>;
 }
 
 /**
@@ -84,6 +86,7 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
 
   const staffDeps: StaffDeps = {
     accounts: new PostgresStaffAccountRepository(deps.db),
+    companies: repo,
     invites: new PostgresStaffInviteRepository(deps.db),
     sessions: new PostgresStaffSessionRepository(deps.db),
     challenges: new PostgresStaffChallengeRepository(deps.db),
@@ -118,6 +121,10 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     },
     getStaffCaller(staffId: string) {
       return staffCallers.get(makeId<'StaffId'>(staffId));
+    },
+    async listPhotoRetention(): Promise<ReadonlyMap<string, number>> {
+      const all = await repo.findAll();
+      return new Map(all.map((c) => [c.id, c.photoRetentionMonths]));
     },
     async getCompanyNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>> {
       // Few companies, and companies.companies carries no company-scoped RLS, so a driver can ask.

@@ -7,6 +7,7 @@ import {
   jobIdParamsSchema,
   jobReportRequestSchema,
   previewJobRouteRequestSchema,
+  proofOfDeliveryQuerySchema,
 } from '@wagonwise/contracts/jobs';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
@@ -234,9 +235,12 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
     asStaff(request, reply, async (caller) => {
       const params = jobIdParamsSchema.safeParse(request.params);
       if (!params.success) return INVALID;
+      const query = proofOfDeliveryQuerySchema.safeParse(request.query);
+      if (!query.success) return INVALID;
       const result = await getProofOfDelivery(deps.getProofOfDelivery, {
         caller,
         jobId: makeId<'JobId'>(params.data.id),
+        stop: query.data.stop,
       });
       return result.ok
         ? {

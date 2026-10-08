@@ -1,5 +1,5 @@
 import { err, ok, type Result } from '../../../shared/result.js';
-import type { JobId } from '../domain/job.js';
+import { proofStopFor, type JobId } from '../domain/job.js';
 import { canSeeJob, type JobActor } from './authorization.js';
 import type { Forbidden, JobNotFound } from './errors.js';
 import type { JobRepository, ProofOfDeliveryPhoto } from './ports/job-repository.js';
@@ -30,6 +30,9 @@ export async function attachProofOfDelivery(
   const job = await deps.repo.findById(input.jobId);
   if (job === null || !canSeeJob(input.actor, job)) return err({ tag: 'JobNotFound' });
   if (input.actor.kind !== 'driver') return err({ tag: 'Forbidden' });
-  await deps.repo.saveProofOfDelivery(job.id, input.photo);
+  // The photo belongs to the delivery the driver is at (or next heading for); a job always has one.
+  const stop = proofStopFor(job);
+  if (stop === undefined) return err({ tag: 'JobNotFound' });
+  await deps.repo.saveProofOfDelivery(job.id, stop, input.photo);
   return ok(undefined);
 }

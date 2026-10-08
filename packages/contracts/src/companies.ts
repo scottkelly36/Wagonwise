@@ -21,6 +21,22 @@ export const createCompanyRequestSchema = z.object({
 });
 export type CreateCompanyRequest = z.infer<typeof createCompanyRequestSchema>;
 
+/** How long a company's proof-of-delivery photos are kept, in months. The company chooses (it is the controller of
+ *  its delivery records); the default is 12. */
+export const PHOTO_RETENTION_MONTHS_MIN = 1;
+export const PHOTO_RETENTION_MONTHS_MAX = 120;
+export const companySettingsSchema = z.object({
+  photoRetentionMonths: z
+    .number()
+    .int()
+    .min(PHOTO_RETENTION_MONTHS_MIN)
+    .max(PHOTO_RETENTION_MONTHS_MAX),
+});
+export type CompanySettingsDto = z.infer<typeof companySettingsSchema>;
+/** `PUT /staff/companies/:id/settings` takes the same fields. */
+export const updateCompanySettingsRequestSchema = companySettingsSchema;
+export const companySettingsParamsSchema = z.object({ id: companyIdSchema });
+
 export const listCompaniesResponseSchema = z.object({
   companies: z.array(companySchema),
 });

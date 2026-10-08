@@ -10,7 +10,8 @@ work should be handed over.
 Then, depending on the task:
 
 - [`README.md`](README.md) — prerequisites, first-time set-up, commands. Source of truth
-  for getting the project running.
+  for getting the project running. Per-module notes (sign-in, routing, hazards, the BFFs,
+  the driver app) are in [`docs/modules.md`](docs/modules.md): open only the section you need.
 - [`docs/phase-1-tech-design.md`](docs/phase-1-tech-design.md) — the full design. Read
   before starting any milestone.
 - [`docs/progress.md`](docs/progress.md) — short: milestone status, what's next, open items,

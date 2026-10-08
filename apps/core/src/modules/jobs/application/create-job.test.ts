@@ -42,6 +42,8 @@ describe('createJob', () => {
       timeline: [{ status: 'draft', at: new Date('2026-10-01T09:00:00.000Z') }],
       requiresProofOfDelivery: false,
       hasProofOfDelivery: false,
+      currentStop: 0,
+      proofStops: [],
     });
 
     expect(await repo.findById(result.value.id)).toEqual(result.value);
@@ -97,7 +99,7 @@ describe('createJob', () => {
     expect(result).toEqual({ ok: false, error: { tag: 'InvalidReference' } });
   });
 
-  it('rejects stops with no pickup', async () => {
+  it('allows a job with a delivery and no pickup', async () => {
     const repo = new InMemoryJobRepository();
     const result = await createJob(buildDeps(repo), {
       caller: ADMIN,
@@ -105,7 +107,7 @@ describe('createJob', () => {
       reference: 'JOB-3',
       stops: [stops()[1]!],
     });
-    expect(result).toEqual({ ok: false, error: { tag: 'InvalidStops', reason: 'no_pickup' } });
+    expect(result.ok).toBe(true);
   });
 
   it('rejects stops with no delivery', async () => {

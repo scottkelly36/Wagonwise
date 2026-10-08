@@ -8,6 +8,10 @@ describe('signInErrorMessage', () => {
     expect(say(new ApiError('InvalidInviteCode', 400))).toBe("That invite code isn't recognised.");
   });
 
+  it('says the code could not be sent when delivery failed', () => {
+    expect(say(new ApiError('CodeNotSent', 502))).toMatch(/couldn't send your sign-in code/);
+  });
+
   it('counts down wrong-code attempts', () => {
     expect(say(new ApiError('OtpIncorrect', 400, 2))).toBe('Wrong code. 2 attempts left.');
     expect(say(new ApiError('OtpIncorrect', 400, 1))).toBe('Wrong code. 1 attempt left.');

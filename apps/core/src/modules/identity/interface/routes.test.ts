@@ -130,6 +130,31 @@ describe('POST /identity/otp/request', () => {
     expect(response.statusCode).toBe(200);
   });
 
+  it('502s with CodeNotSent, and no provider detail, when the code cannot be sent', async () => {
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>('driver-1'),
+      identifier: 'driver@example.com',
+      createdAt: now,
+    });
+    const failing = {
+      ...deps,
+      requestOtp: {
+        ...deps.requestOtp,
+        otpSender: { send: () => Promise.reject(new Error('Resend 403: domain not verified')) },
+      },
+    };
+    const failApp = Fastify();
+    registerIdentityRoutes(failApp, failing);
+    const response = await failApp.inject({
+      method: 'POST',
+      url: '/identity/otp/request',
+      payload: { identifier: 'driver@example.com' },
+    });
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toMatchObject({ tag: 'CodeNotSent' });
+    expect(response.body).not.toMatch(/Resend|domain/);
+  });
+
   it('400s a malformed body', async () => {
     const response = await app.inject({
       method: 'POST',

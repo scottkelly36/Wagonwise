@@ -6,37 +6,36 @@ import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import * as jobsApi from '../../api/jobs';
 import * as placesApi from '../../api/places';
-import type { SavedPlaceDto } from '@wagonwise/contracts/places';
-import { MarkedPlaces } from '../../components/MarkedPlaces';
+import { savedPlaceIdSchema } from '@wagonwise/contracts/places';
+import { StopEditor } from '../../components/StopEditor';
+import {
+  deliveryRecordHtml,
+  type RecordPhoto,
+  type RecordVariant,
+} from '../../lib/delivery-record';
 import { DataTable, type Column } from '../../components/DataTable';
 import { FieldError } from '../../components/FieldError';
-import { resolvePostcode, usePostcode } from '../../hooks/use-postcode';
+import { resolvePostcode } from '../../hooks/use-postcode';
 import { focusFirstInvalid, hasErrors, type FieldErrors } from '../../lib/forms';
 import { formatDuration, formatMiles } from '../../lib/live-map';
-import {
-  normalisePostcode,
-  PostcodeNotFoundError,
-  type ResolvedPostcode,
-} from '../../lib/postcodes';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
+import {
+  defaultStops,
+  effectiveSource,
+  moveStop,
+  newStopDraft,
+  stopsProblem,
+  type StopDraft,
+} from '../../lib/job-stops';
+import { jobStatusText } from '../../lib/job-text';
 import { staffErrorMessage } from '../staff/messages';
 
 const COMPANIES_KEY = ['companies'] as const;
-/** A job's status as a person reads it: "at pickup", not "at_pickup". */
-function statusLabel(status: JobDto['status']): string {
-  const text = status.replaceAll('_', ' ');
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
 const TERMINAL: readonly JobDto['status'][] = ['delivered', 'cancelled', 'failed'];
 
 const EMPTY_FORM = {
   reference: '',
-  pickupName: '',
-  pickupPostcode: '',
-  deliveryName: '',
-  deliveryPostcode: '',
   requiresProofOfDelivery: false,
 };
 
@@ -89,8 +88,6 @@ export function Jobs() {
   const refreshJobs = () => void queryClient.invalidateQueries({ queryKey: jobsKey });
 
   const [form, setForm] = useState(EMPTY_FORM);
-  const pickupPostcode = usePostcode(form.pickupPostcode);
-  const deliveryPostcode = usePostcode(form.deliveryPostcode);
   // A rural postcode often lands away from the gate. Entrances drivers have marked near it are offered,
   // and one chosen here sends the driver to the real spot, with its note on the stop.
   const markedPlaces = useQuery({
@@ -98,42 +95,75 @@ export function Jobs() {
     queryFn: () => withAccessToken((token) => placesApi.listPlaces(token, companyId as string)),
     enabled: companyId !== undefined,
   });
-  const [pickupPlace, setPickupPlace] = useState<SavedPlaceDto | undefined>(undefined);
-  const [deliveryPlace, setDeliveryPlace] = useState<SavedPlaceDto | undefined>(undefined);
+  const storedPlaces = markedPlaces.data ?? [];
+  // The job's stops, in the order the driver does them: collections and deliveries, each a stored location or
+  // a new address.
+  const [stops, setStops] = useState<StopDraft[]>(() => defaultStops());
   const createJob = useMutation({
     mutationFn: async () => {
-      // Resolved here rather than trusting the live hint's state, so a fast click on Create can't
-      // outrun the lookup; the cache makes it free when the hint has already got the answer.
-      const [pickup, delivery] = await Promise.all([
-        resolvePostcode(queryClient, form.pickupPostcode),
-        resolvePostcode(queryClient, form.deliveryPostcode),
-      ]);
-      return withAccessToken((token) =>
+      // A stored location supplies the stop as it is. A new address is resolved here rather than trusting the
+      // live hint's state, so a fast click on Create can't outrun the lookup; the cache makes it free when the
+      // hint has already got the answer.
+      const resolved = await Promise.all(
+        stops.map(async (draft) => {
+          const source = effectiveSource(draft, storedPlaces.length);
+          if (source === 'saved' && draft.place !== undefined) {
+            return {
+              stop: {
+                kind: draft.kind,
+                name: draft.place.name,
+                location: draft.place.location,
+                ...(draft.place.note === undefined ? {} : { notes: draft.place.note }),
+              },
+              store: false,
+            };
+          }
+          const point = await resolvePostcode(queryClient, draft.postcode);
+          return {
+            stop: {
+              kind: draft.kind,
+              name: draft.name.trim(),
+              location: draft.place?.location ?? point.location,
+              ...(draft.place?.note === undefined ? {} : { notes: draft.place.note }),
+            },
+            // A marked entrance chosen near the postcode is already stored.
+            store: draft.place === undefined && draft.save,
+          };
+        }),
+      );
+      const job = await withAccessToken((token) =>
         jobsApi.createJob(token, companyId as string, {
           companyId: companyIdSchema.parse(companyId),
           reference: form.reference,
-          stops: [
-            {
-              kind: 'pickup',
-              name: form.pickupName,
-              location: pickupPlace?.location ?? pickup.location,
-              ...(pickupPlace?.note === undefined ? {} : { notes: pickupPlace.note }),
-            },
-            {
-              kind: 'delivery',
-              name: form.deliveryName,
-              location: deliveryPlace?.location ?? delivery.location,
-              ...(deliveryPlace?.note === undefined ? {} : { notes: deliveryPlace.note }),
-            },
-          ],
+          stops: resolved.map((r) => r.stop),
           requiresProofOfDelivery: form.requiresProofOfDelivery,
         }),
       );
+      // New addresses ticked "Save this location for next time" are stored for the company. The job is already
+      // made, so a failure here is not the dispatcher's problem.
+      const toStore = resolved.filter((r) => r.store);
+      await Promise.all(
+        toStore.map((r) =>
+          withAccessToken((token) =>
+            placesApi.createPlace(token, companyId as string, {
+              id: savedPlaceIdSchema.parse(crypto.randomUUID()),
+              companyId: companyIdSchema.parse(companyId),
+              category: 'other',
+              name: r.stop.name,
+              location: r.stop.location,
+            }),
+          ).catch(() => undefined),
+        ),
+      );
+      if (toStore.length > 0)
+        void queryClient.invalidateQueries({ queryKey: ['places', companyId] });
+      return job;
     },
     onSuccess: () => {
+      // Keep the shape of the job just made (a firm that never has a collection should not have to remove it
+      // every time), with the stops emptied.
       setForm(EMPTY_FORM);
-      setPickupPlace(undefined);
-      setDeliveryPlace(undefined);
+      setStops(defaultStops(stops.map((s) => s.kind)));
       setShowErrors(false);
       refreshJobs();
     },
@@ -141,32 +171,23 @@ export function Jobs() {
 
   const [showErrors, setShowErrors] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const errors: FieldErrors<
-    'reference' | 'pickupName' | 'pickupPostcode' | 'deliveryName' | 'deliveryPostcode'
-  > = {};
+  const errors: FieldErrors<'reference' | 'stops'> = {};
   if (form.reference.trim() === '') errors.reference = 'Enter a reference, like the order number.';
-  if (form.pickupName.trim() === '') errors.pickupName = 'Enter where the load is collected from.';
-  if (form.deliveryName.trim() === '') errors.deliveryName = 'Enter where the load is going.';
-  const postcodeProblem = (text: string, which: string): string | undefined => {
-    if (text.trim() === '') return `Enter the ${which} postcode.`;
-    if (normalisePostcode(text) === undefined) {
-      return 'That does not look like a UK postcode. It should be like NE46 3JA.';
-    }
-    return undefined;
-  };
-  const pickupPostcodeProblem = postcodeProblem(form.pickupPostcode, 'pickup');
-  if (pickupPostcodeProblem !== undefined) errors.pickupPostcode = pickupPostcodeProblem;
-  const deliveryPostcodeProblem = postcodeProblem(form.deliveryPostcode, 'delivery');
-  if (deliveryPostcodeProblem !== undefined) errors.deliveryPostcode = deliveryPostcodeProblem;
+  const stopsError = stopsProblem(stops, storedPlaces.length);
+  if (stopsError !== undefined) errors.stops = stopsError;
   const shown = (field: keyof typeof errors): string | undefined =>
     showErrors ? errors[field] : undefined;
 
-  const [viewing, setViewing] = useState<{ id: string; reference: string } | undefined>();
+  const [viewing, setViewing] = useState<
+    { id: string; reference: string; stop: number; stopName: string } | undefined
+  >();
 
   const proofPhoto = useQuery({
-    queryKey: ['proof-of-delivery', viewing?.id],
+    queryKey: ['proof-of-delivery', viewing?.id, viewing?.stop],
     queryFn: () =>
-      withAccessToken((token) => jobsApi.getProofOfDelivery(token, viewing?.id as string)),
+      withAccessToken((token) =>
+        jobsApi.getProofOfDelivery(token, viewing?.id as string, viewing?.stop),
+      ),
     enabled: viewing !== undefined,
     retry: false,
     // A retake replaces the photo, so don't show a stale one from an earlier look.
@@ -224,6 +245,49 @@ export function Jobs() {
     (link) => link.status === 'active' && link.driverId !== undefined,
   );
 
+  const [recordError, setRecordError] = useState<string | undefined>(undefined);
+
+  /** Opens a delivery record in a new tab and offers it for printing or saving as a PDF. The tab is opened first,
+   *  on the click, so a pop-up blocker allows it; the photos are fetched one at a time (they are large). */
+  async function openRecord(job: JobDto, variant: RecordVariant): Promise<void> {
+    setRecordError(undefined);
+    const tab = window.open('', '_blank');
+    if (tab === null) {
+      setRecordError('Allow pop-ups for this site to open the record.');
+      return;
+    }
+    tab.document.write('<p style="font-family:system-ui">Preparing the record…</p>');
+    try {
+      const photos = new Map<number, RecordPhoto>();
+      for (const stopIndex of job.proofStops) {
+        const photo = await withAccessToken((token) =>
+          jobsApi.getProofOfDelivery(token, job.id, stopIndex),
+        );
+        photos.set(stopIndex, {
+          dataUrl: `data:${photo.contentType};base64,${photo.dataBase64}`,
+          capturedAt: photo.capturedAt,
+        });
+      }
+      const html = deliveryRecordHtml({
+        job,
+        variant,
+        photos,
+        generatedAt: new Date(),
+        driverLabel: drivers.data?.find((l) => l.driverId === job.driverId)?.driverIdentifier,
+        vehicleName: vehicles.data?.find((v) => v.id === job.vehicleId)?.name,
+      });
+      tab.document.open();
+      tab.document.write(html);
+      tab.document.close();
+      tab.focus();
+      // Give the photos a moment to draw before the print dialog (Save as PDF) opens.
+      setTimeout(() => tab.print(), 400);
+    } catch (e) {
+      tab.close();
+      setRecordError(staffErrorMessage(e));
+    }
+  }
+
   const jobColumns: Column<JobDto>[] = [
     {
       key: 'reference',
@@ -240,25 +304,68 @@ export function Jobs() {
     {
       key: 'status',
       header: 'Status',
-      sortValue: (j) => statusLabel(j.status),
-      cell: (j) => statusLabel(j.status),
+      sortValue: (j) => jobStatusText(j),
+      cell: (j) => jobStatusText(j),
     },
     {
       key: 'proof',
       header: 'Proof of delivery',
       cell: (job) =>
-        job.hasProofOfDelivery ? (
+        job.proofStops.length > 0 ? (
           <>
-            Received{' '}
-            <button
-              type="button"
-              onClick={() => setViewing({ id: job.id, reference: job.reference })}
-            >
-              View photo
-            </button>
+            {job.proofStops.map((stopIndex) => {
+              const stopName = job.stops[stopIndex]?.name ?? 'delivery';
+              return (
+                <div key={stopIndex}>
+                  {job.stops.length > 2 ? `${stopName}: ` : 'Received '}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setViewing({
+                        id: job.id,
+                        reference: job.reference,
+                        stop: stopIndex,
+                        stopName,
+                      })
+                    }
+                  >
+                    View photo
+                  </button>
+                </div>
+              );
+            })}
           </>
+        ) : job.requiresProofOfDelivery && job.status === 'delivered' ? (
+          // Core will not deliver a job that needs proof without its photo, so a delivered one with none had its
+          // photo deleted at the end of the company's retention period.
+          'Photo removed (retention period)'
         ) : job.requiresProofOfDelivery ? (
           'Required — not yet received'
+        ) : (
+          '—'
+        ),
+    },
+    {
+      key: 'record',
+      header: 'Delivery record',
+      cell: (job) =>
+        job.status === 'delivered' ? (
+          <>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void openRecord(job, 'internal')}
+            >
+              Internal
+            </button>{' '}
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void openRecord(job, 'customer')}
+            >
+              Customer copy
+            </button>
+          </>
         ) : (
           '—'
         ),
@@ -384,10 +491,12 @@ export function Jobs() {
       )}
 
       {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
+      {recordError !== undefined && <p style={{ color: '#dc2626' }}>{recordError}</p>}
 
       {viewing !== undefined && (
         <ProofPhotoDialog
           reference={viewing.reference}
+          stopName={viewing.stopName}
           photo={proofPhoto}
           onClose={() => setViewing(undefined)}
         />
@@ -423,58 +532,32 @@ export function Jobs() {
                   <FieldError id="job-reference-error" message={shown('reference')} />
                 </div>
                 <div className="job-form-break" />
-                <div className="field">
-                  <label htmlFor="job-pickup-name">Pickup name</label>
-                  <input
-                    id="job-pickup-name"
-                    value={form.pickupName}
-                    onChange={(e) => setForm((f) => ({ ...f, pickupName: e.target.value }))}
-                    placeholder="e.g. Hexham Quarry"
-                    aria-invalid={shown('pickupName') !== undefined}
-                    aria-describedby="job-pickup-name-error"
-                  />
-                  <FieldError id="job-pickup-name-error" message={shown('pickupName')} />
+                <div className="stops-editor" style={{ gridColumn: '1 / -1' }}>
+                  <label>Stops, in the order the driver does them</label>
+                  {stops.map((stop, index) => (
+                    <StopEditor
+                      key={stop.key}
+                      index={index}
+                      count={stops.length}
+                      stop={stop}
+                      places={storedPlaces}
+                      showErrors={showErrors}
+                      onChange={(next) =>
+                        setStops((list) => list.map((s) => (s.key === next.key ? next : s)))
+                      }
+                      onMove={(direction) => setStops((list) => moveStop(list, index, direction))}
+                      onRemove={() => setStops((list) => list.filter((s) => s.key !== stop.key))}
+                    />
+                  ))}
+                  <FieldError id="job-stops-error" message={shown('stops')} />
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => setStops((list) => [...list, newStopDraft('delivery')])}
+                  >
+                    + Add a stop
+                  </button>
                 </div>
-                <PostcodeField
-                  id="job-pickup-postcode"
-                  label="Pickup postcode"
-                  value={form.pickupPostcode}
-                  onChange={(value) => setForm((f) => ({ ...f, pickupPostcode: value }))}
-                  lookup={pickupPostcode}
-                  error={shown('pickupPostcode')}
-                />
-                <MarkedPlaces
-                  places={markedPlaces.data ?? []}
-                  near={pickupPostcode.data?.location}
-                  chosen={pickupPlace}
-                  onChoose={setPickupPlace}
-                />
-                <div className="field">
-                  <label htmlFor="job-delivery-name">Delivery name</label>
-                  <input
-                    id="job-delivery-name"
-                    value={form.deliveryName}
-                    onChange={(e) => setForm((f) => ({ ...f, deliveryName: e.target.value }))}
-                    placeholder="e.g. Hebburn depot"
-                    aria-invalid={shown('deliveryName') !== undefined}
-                    aria-describedby="job-delivery-name-error"
-                  />
-                  <FieldError id="job-delivery-name-error" message={shown('deliveryName')} />
-                </div>
-                <PostcodeField
-                  id="job-delivery-postcode"
-                  label="Delivery postcode"
-                  value={form.deliveryPostcode}
-                  onChange={(value) => setForm((f) => ({ ...f, deliveryPostcode: value }))}
-                  lookup={deliveryPostcode}
-                  error={shown('deliveryPostcode')}
-                />
-                <MarkedPlaces
-                  places={markedPlaces.data ?? []}
-                  near={deliveryPostcode.data?.location}
-                  chosen={deliveryPlace}
-                  onChoose={setDeliveryPlace}
-                />
                 <div className="job-form-actions">
                   <label className="check">
                     <input
@@ -504,7 +587,7 @@ export function Jobs() {
                 rows={jobs.data ?? []}
                 rowKey={(job) => job.id}
                 searchText={(job) =>
-                  `${job.reference} ${job.stops.map((stop) => stop.name).join(' ')} ${statusLabel(job.status)}`
+                  `${job.reference} ${job.stops.map((stop) => stop.name).join(' ')} ${jobStatusText(job)}`
                 }
                 emptyText="No jobs yet."
                 maxHeight="70vh"
@@ -517,68 +600,17 @@ export function Jobs() {
   );
 }
 
-/** A postcode box with the place it resolves to underneath, so a typo that happens to be another
- *  real postcode ("NE46" vs "NE45") is caught by the dispatcher before the driver is sent there. */
-function PostcodeField({
-  id,
-  label,
-  value,
-  onChange,
-  lookup,
-  error,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  lookup: UseQueryResult<ResolvedPostcode>;
-  /** A problem found on submit; shown in place of the live lookup's hint. */
-  error: string | undefined;
-}) {
-  let hint: { text: string; color: string } | undefined;
-  if (lookup.isFetching) {
-    hint = { text: 'Looking up…', color: 'var(--text-muted)' };
-  } else if (lookup.data !== undefined) {
-    hint = { text: `✓ ${lookup.data.place}`, color: 'var(--success)' };
-  } else if (lookup.error instanceof PostcodeNotFoundError) {
-    hint = { text: "Can't find that postcode", color: 'var(--danger)' };
-  } else if (lookup.error !== null) {
-    hint = { text: "Couldn't check it just now", color: '#b45309' };
-  }
-  return (
-    <div className="field">
-      <label htmlFor={id}>{label}</label>
-      <input
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="e.g. NE46 3JA"
-        autoComplete="off"
-        style={{ textTransform: 'uppercase' }}
-        aria-invalid={error !== undefined}
-        aria-describedby={`${id}-note`}
-      />
-      {/* One fixed-height line under the field, so a lookup result never moves what is below it. */}
-      <div className="field-note" id={`${id}-note`}>
-        {error !== undefined ? (
-          <FieldError id={`${id}-error`} message={error} />
-        ) : (
-          <small style={{ color: hint?.color }}>{hint?.text}</small>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /** The delivery photo a driver attached, full size over the page. Fetched when opened (photos are
  *  megabytes, so the job list never carries them) and shown from a `data:` URL — the response's
  *  content type is validated as `image/*` by the contract, so it can't be a web page. */
 function ProofPhotoDialog({
   reference,
+  stopName,
   photo,
   onClose,
 }: {
   reference: string;
+  stopName: string;
   photo: UseQueryResult<ProofOfDeliveryResponse>;
   onClose: () => void;
 }) {
@@ -620,7 +652,9 @@ function ProofPhotoDialog({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-          <strong>Proof of delivery — {reference}</strong>
+          <strong>
+            Proof of delivery — {reference}, {stopName}
+          </strong>
           <button type="button" onClick={onClose}>
             Close
           </button>
@@ -662,6 +696,13 @@ function RoutePreview({ jobId, vehicleId }: { jobId: string; vehicleId: string }
     return <small style={{ ...style, color: '#6b7280' }}>Checking the route…</small>;
   if (preview.data === undefined) {
     return <small style={{ ...style, color: '#dc2626' }}>{staffErrorMessage(preview.error)}</small>;
+  }
+  if (preview.data.legs.length === 0) {
+    return (
+      <small style={{ ...style, color: '#374151' }}>
+        No pickup, so the route is planned from where the driver is when they set off.
+      </small>
+    );
   }
   return (
     <small style={{ ...style, color: '#374151' }}>

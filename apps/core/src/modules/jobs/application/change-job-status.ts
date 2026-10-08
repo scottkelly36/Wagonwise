@@ -68,8 +68,9 @@ export async function advanceJobStatus(
 ): Promise<Result<Job, ChangeJobStatusError | ProofOfDeliveryRequired>> {
   const loaded = await loadForAction(deps, input.actor, input.jobId);
   if (!loaded.ok) return loaded;
+  // Finishing a delivery stop (the last one, or one of several) needs its photo when the job requires proof.
   if (
-    input.to === 'delivered' &&
+    loaded.value.status === 'at_delivery' &&
     loaded.value.requiresProofOfDelivery &&
     !loaded.value.hasProofOfDelivery
   ) {

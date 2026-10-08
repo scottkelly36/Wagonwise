@@ -5,6 +5,7 @@ import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import * as jobsApi from '../../api/jobs';
 import * as weatherApi from '../../api/weather';
+import { jobHasPickup, jobStatusText } from '../../lib/job-text';
 import { decodePolyline6 } from '../../lib/polyline';
 import { FleetMap, type MapMarker } from '../../components/FleetMap';
 import {
@@ -254,7 +255,11 @@ export function LiveTrips() {
                       <strong>{row.job.reference}</strong>
                       {row.driverName && <> · {row.driverName}</>}
                       {row.vehicleName && <> · {row.vehicleName}</>}
-                      <div>{STATUS_LABELS[row.job.status]}</div>
+                      <div>
+                        {row.job.status === 'accepted' && !jobHasPickup(row.job)
+                          ? jobStatusText(row.job)
+                          : STATUS_LABELS[row.job.status]}
+                      </div>
                       {row.next && (
                         <div style={{ color: '#6b7280' }}>
                           Heading for {row.next.kind}: {row.next.name}

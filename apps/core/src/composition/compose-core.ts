@@ -344,6 +344,16 @@ export function composeCore(
   });
 
   periodicTasks.start({
+    name: 'prune-proof-photos',
+    intervalMs: config.positionSweepIntervalMs,
+    run: async () => {
+      // Each company chooses how long its delivery photos are kept; the photo goes, the job record stays.
+      const removed = await jobs.pruneProofPhotos(await companies.listPhotoRetention());
+      if (removed > 0) app.log.info({ removed }, 'deleted old proof-of-delivery photos');
+    },
+  });
+
+  periodicTasks.start({
     name: 'prune-route-plans',
     intervalMs: config.positionSweepIntervalMs,
     run: async () => {

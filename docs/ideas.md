@@ -213,21 +213,57 @@ update --spec` (used once to add the job) wiped `core`'s App-Level `DATABASE_URL
   Start for From and type a postcode for To, or the other way round, and only sees the one input they chose
   instead of every option at once. **Update 2026-10-08: the From/To switches are built, without what3words** (From: My position / Search / Map; To: Search / Map; a driver sees only the input they chose). what3words then needs only a third option on each switch, a lookup in core and a key.
 
+<<<<<<< HEAD
+
 - **2026-10-08: job flow that fits more than one kind of firm (raised by the owner before calling Phase 2 done).**
   Today every job needs a pickup and a delivery stop (`validateStops` in jobs' domain, and the portal and driver
   app follow). That does not suit every company. Three changes, in the order they would help:
-  1. **Pickup optional.** Some firms always load at the same place, so the driver does not need directing there.
+  1. **Pickup optional (built 2026-10-08).** Some firms always load at the same place, so the driver does not need directing there.
      A job with only a delivery would start from the driver's position (or the depot) and skip the "at pickup" step.
      Related: the driver could simply mark **Loaded and ready**, then be sent to the next stop, with no pickup stop
      to drive to. Needs the status path (`assigned, accepted, at_pickup, loaded, en_route, …`) to allow going
      straight to loaded, the validation to accept a delivery-only job, ETAs and reports to cope with no pickup, and
      the app's Where to / job card text to stop assuming one.
-  2. **Stored locations for a company.** Customers and contract sites the company uses again and again, kept by
+  2. **Stored locations for a company (built 2026-10-08).** Customers and contract sites the company uses again and again, kept by
      the company with a name, address, a note (gate, contact) and a map point. The job form gets a switch: **New
      address** (as now) or **Saved location**. Decide whether this is the existing saved places (a farm's real gate,
      marked by drivers; PR #129) with a "site" type and a dispatcher-entered address, or its own list; most likely
      the same table, so a marked gate and a contract site are one thing the driver sees on the map.
-  3. **Next journey, not only pickup then delivery.** The driver marks loaded and ready, then goes to the next
+  3. **Several stops per job (built 2026-10-08).** The driver marks loaded and ready, then goes to the next
      stop; the owner's wording was "indicate they are loaded and ready to go to the next journey". Possibly a job
      of several legs. Worth settling with the pilot company before building: how they describe a job.
-     Not started. Should be shaped with the pilot company's real jobs, then built before Phase 3.
+     All three are built (see history/log.md). Still open: a stop-by-stop reorder by the driver, and re-planning a multi-stop job in flight.
+     \=======
+- **2026-10-08: Phase 3 goal, driver hours aware navigation ("smart break planning").** Raised by the owner. Idea:
+  the app knows how much legal driving time a driver has left, and plans the break into the route: it says when a
+  break is needed, offers the best HGV parking before the limit with the time to reach it, and gives an ETA that
+  includes the break. Dispatchers see each driver's status (driving, break soon, on break, time remaining) next to
+  their job on the live map. We already have most of the other half: HGV routing, parking with drive times
+  (nearby-parking), traffic, jobs and the live map. What is new is the driver-hours state, the rules, and putting a
+  required break into the ETA and the route.
+
+  **Rules to model (check each against current GOV.UK guidance before building; they differ between GB domestic,
+  assimilated EU and AETR rules, and by vehicle):** the break of 45 minutes (or 15 + 30) after 4.5 hours of driving,
+  the daily driving limit (9 hours, 10 twice a week), weekly and fortnightly limits, and daily and weekly rest.
+
+  **Where the data comes from, and what is not yet known** (the notes the owner pasted from ChatGPT are a pitch, not
+  a spec; none of it is verified here):
+  - A smart tachograph has a Bluetooth interface (the "ITS interface") meant for outside apps, but only newer
+    smart tachographs have it, only certain data goes over it, the driver has to enable pairing, and it differs by
+    manufacturer. Whether it gives "time remaining", or only driver activity from which the app works that out
+    itself, is the first thing to find out. Many pilot-fleet lorries may be older, with no such interface.
+  - Bluetooth from the app is a native change: a new package and permissions, so a Play build rather than an OTA
+    update, and iOS adds its own limits.
+  - It is personal data about working time. It needs the driver's clear consent and an update to the DPIA and
+    privacy notice, and a plain answer to "can my employer see this" before a driver turns it on.
+  - The app can only advise. The tachograph remains the legal record and the driver remains responsible; the screen
+    wording must not read as a compliance guarantee, and a wrong number is worse than none.
+    **Suggested order:** (1) find out what the pilot firm's lorries actually have, and read the ITS interface
+    specification for the data it exposes; (2) build the break-planning experience first on a driver-entered or
+    estimated clock (a "start my shift" timer fed by the movement we already see), because that tests the idea
+    with drivers and exercises the routing and parking without any Bluetooth; (3) add the tachograph source behind
+    the same screen; (4) send the status to core and show it in the portal; (5) put the break into the ETA and the
+    route, including re-planning when traffic eats the time left. Pricing is a business decision and is not recorded
+    here.
+
+> > > > > > > origin/main

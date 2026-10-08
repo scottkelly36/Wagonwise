@@ -1,6 +1,7 @@
 import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import type { CodeSender } from './ports/code-sender.js';
+import type { CompanyRepository } from './ports/company-repository.js';
 import type { InviteMailer } from './ports/invite-mailer.js';
 import type { PasswordHasher } from './ports/password-hasher.js';
 import type { RandomCodes } from './ports/random-codes.js';
@@ -21,6 +22,8 @@ import type { Totp } from './ports/totp.js';
  */
 export interface StaffDeps {
   readonly accounts: StaffAccountRepository;
+  /** For a company's own settings (how long delivery photos are kept). */
+  readonly companies: Pick<CompanyRepository, 'findById' | 'setPhotoRetention'>;
   readonly invites: StaffInviteRepository;
   readonly sessions: StaffSessionRepository;
   readonly challenges: StaffChallengeRepository;

@@ -12,4 +12,14 @@ export class InMemoryCompanyRepository implements CompanyRepository {
   findAll(): Promise<Company[]> {
     return Promise.resolve([...this.#byId.values()]);
   }
+
+  findById(id: CompanyId): Promise<Company | null> {
+    return Promise.resolve(this.#byId.get(id) ?? null);
+  }
+
+  setPhotoRetention(id: CompanyId, months: number): Promise<void> {
+    const company = this.#byId.get(id);
+    if (company) this.#byId.set(id, { ...company, photoRetentionMonths: months });
+    return Promise.resolve();
+  }
 }

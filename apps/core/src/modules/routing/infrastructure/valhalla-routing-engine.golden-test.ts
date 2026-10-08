@@ -6,7 +6,7 @@ import { ValhallaRoutingEngine } from './valhalla-routing-engine.js';
 
 /**
  * Golden-route tests: real requests against a real, tile-built Valhalla instance loaded with the
- * Northumberland extract (see README's Routing section for bringing it up). Not part of `pnpm
+ * Northumberland extract (see the README's Valhalla instructions for bringing it up). Not part of `pnpm
  * test`/`pnpm verify` — run with `pnpm test:golden` (decision 13: nightly and on map rebuild,
  * never per-PR, since building tiles takes minutes real hardware doesn't have to spend on every
  * push).

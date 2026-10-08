@@ -66,12 +66,38 @@ const VALID = [
   ['POST', `/staff/hazard-reports/${ID}/moderate`, { action: 'reject' }],
   ['GET', `/staff/hazard-reports/${ID}/decisions`, undefined],
   ['GET', `/staff/jobs/companies/${ACME}/etas`, undefined],
+  ['GET', `/staff/companies/${ID}/settings`, undefined],
+  ['PUT', `/staff/companies/${ID}/settings`, { photoRetentionMonths: 6 }],
   ['GET', `/staff/jobs/${ID}`, undefined],
   ['GET', `/staff/jobs/${ID}/proof-of-delivery`, undefined],
   ['POST', `/staff/jobs/${ID}/route-preview`, { vehicleId: 'vehicle-1' }],
   ['POST', `/staff/jobs/${ID}/assign`, { driverId: 'driver-1', vehicleId: 'vehicle-1' }],
   ['POST', `/staff/jobs/${ID}/cancel`, undefined],
 ] as const;
+
+describe('a proof-of-delivery photo for one stop of a job', () => {
+  it('passes the stop on to core', async () => {
+    const { app, core } = buildApp();
+    core.nextResponse = { status: 200, body: {} };
+    await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/${ID}/proof-of-delivery?stop=2`,
+      headers: AUTH,
+    });
+    expect(core.calls[0]).toMatchObject({ path: `/staff/jobs/${ID}/proof-of-delivery?stop=2` });
+  });
+
+  it('400s a stop that is not a number, without calling core', async () => {
+    const { app, core } = buildApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/${ID}/proof-of-delivery?stop=abc`,
+      headers: AUTH,
+    });
+    expect(res.statusCode).toBe(400);
+    expect(core.calls).toEqual([]);
+  });
+});
 
 describe('the moved dashboard pages (P2-M1.12c)', () => {
   it.each(VALID)(

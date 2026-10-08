@@ -1,10 +1,10 @@
-import type { JobStatus } from '@wagonwise/contracts/jobs';
+import type { JobDto } from '@wagonwise/contracts/jobs';
 import * as Speech from 'expo-speech';
 import { useEffect, useReducer, useRef } from 'react';
 
 import { useAdvanceJobStatus } from '../api/use-jobs';
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
-import { matchesJobStatusTrigger, NEXT_STEP } from '../lib/job-status';
+import { matchesJobStatusTrigger, nextStepFor } from '../lib/job-status';
 import {
   confirmationPrompt,
   INITIAL_JOB_STATUS_VOICE_STATE,
@@ -34,10 +34,7 @@ function speak(text: string, onDone?: () => void): void {
  * `currentStatus` is read fresh on every capture rather than closed over once, since a driver can
  * sit on the job screen for a while before tapping the mic.
  */
-export function useJobStatusVoice(
-  jobId: string,
-  currentStatus: JobStatus,
-): {
+export function useJobStatusVoice(currentJob: JobDto | undefined): {
   readonly state: JobStatusVoiceState;
   readonly start: () => void;
   readonly cancel: () => void;
@@ -46,10 +43,10 @@ export function useJobStatusVoice(
   const capture = useVoiceReportCapture();
   const advance = useAdvanceJobStatus();
 
-  const statusRef = useRef(currentStatus);
+  const jobRef = useRef(currentJob);
   useEffect(() => {
-    statusRef.current = currentStatus;
-  }, [currentStatus]);
+    jobRef.current = currentJob;
+  }, [currentJob]);
 
   // True only between our own `capture.start()` and the result we consume — same reasoning as
   // `use-quick-voice-report.ts`'s own ref: the capture hook keeps its last result after a session
@@ -77,11 +74,13 @@ export function useJobStatusVoice(
     }
     if (state.phase === 'capturing-report') {
       const heard = status === 'transcribed' ? transcript : undefined;
-      const nextStep = NEXT_STEP[statusRef.current];
+      const job = jobRef.current;
+      const nextStep = job === undefined ? undefined : nextStepFor(job);
       if (
+        job !== undefined &&
         nextStep !== undefined &&
         heard !== undefined &&
-        matchesJobStatusTrigger(heard, statusRef.current)
+        matchesJobStatusTrigger(heard, job)
       ) {
         dispatch({ type: 'report-matched', step: nextStep });
       } else {
@@ -105,6 +104,8 @@ export function useJobStatusVoice(
   // Advance on a yes.
   useEffect(() => {
     if (state.phase !== 'advancing') return;
+    const jobId = jobRef.current?.id;
+    if (jobId === undefined) return;
     advance.mutate(
       { jobId, status: state.step.to },
       {

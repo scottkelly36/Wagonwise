@@ -4,7 +4,7 @@ import { err, ok, type Result } from '../../../shared/result.js';
 import { normalizeIdentifier, type InvalidIdentifier } from '../domain/identifier.js';
 import { isRedeemed } from '../domain/invite-code.js';
 import type { Otp } from '../domain/otp.js';
-import type { InvalidInviteCode, InviteCodeRequired } from './errors.js';
+import type { CodeNotSent, InvalidInviteCode, InviteCodeRequired } from './errors.js';
 import { sha256Hex } from './hash.js';
 import type { DriverRepository } from './ports/driver-repository.js';
 import type { InviteCodeRepository } from './ports/invite-code-repository.js';
@@ -32,7 +32,8 @@ export interface RequestOtpInput {
 
 export const OTP_TTL_MS = 10 * 60 * 1000;
 
-export type RequestOtpError = InvalidIdentifier | InviteCodeRequired | InvalidInviteCode;
+export type RequestOtpError =
+  InvalidIdentifier | InviteCodeRequired | InvalidInviteCode | CodeNotSent;
 
 /**
  * Sends a one-time code. For a new identifier, validates an invite code without redeeming it —
@@ -70,6 +71,12 @@ export async function requestOtp(
     attempts: 0,
   };
   await deps.otpRepo.save(identifier, otp);
-  await deps.otpSender.send(identifier, code);
+  try {
+    await deps.otpSender.send(identifier, code);
+  } catch (cause) {
+    // The provider refused or could not be reached. The caller logs why; the driver is told the code was
+    // not sent, instead of an unexplained failure.
+    return err({ tag: 'CodeNotSent', cause });
+  }
   return ok(undefined);
 }

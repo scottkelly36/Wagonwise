@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { pruneProofPhotos } from './application/prune-proof-photos.js';
 import { pruneJobPositions } from './application/prune-job-positions.js';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
@@ -64,6 +65,8 @@ export interface JobsModule {
   /** Deletes driver positions older than `retentionDays`, across every company (a platform-wide
    *  housekeeping job, so it runs in the platform data scope), and says how many went. */
   pruneOldPositions(retentionDays: number): Promise<number>;
+  /** Deletes each company's proof-of-delivery photos older than its own retention (months, by company id). */
+  pruneProofPhotos(retentionMonthsByCompany: ReadonlyMap<string, number>): Promise<number>;
 }
 
 /**
@@ -113,6 +116,11 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     pruneOldPositions(retentionDays: number): Promise<number> {
       return deps.dataScopes.run({ kind: 'platform' }, () =>
         pruneJobPositions({ positions, clock: deps.clock }, { retentionDays }),
+      );
+    },
+    pruneProofPhotos(retentionMonthsByCompany: ReadonlyMap<string, number>): Promise<number> {
+      return deps.dataScopes.run({ kind: 'platform' }, () =>
+        pruneProofPhotos({ repo, clock: deps.clock }, { retentionMonthsByCompany }),
       );
     },
     registerRoutes(app: FastifyInstance): void {

@@ -60,6 +60,8 @@ export async function createJob(
     status: 'draft',
     timeline: [{ status: 'draft', at: now }],
     requiresProofOfDelivery: input.requiresProofOfDelivery ?? false,
+    currentStop: 0,
+    proofStops: [],
     hasProofOfDelivery: false,
     ...(input.plannedStart === undefined ? {} : { plannedStart: input.plannedStart }),
     ...(input.dueBy === undefined ? {} : { dueBy: input.dueBy }),

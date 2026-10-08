@@ -929,3 +929,75 @@ textarea {
   border-radius: var(--radius-sm);
   font-size: 0.9em;
 }
+
+/* A small split button: the choices share a track and the chosen one is filled */
+.seg {
+  display: inline-flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px;
+}
+
+.seg button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 17px;
+  padding: 6px 14px;
+  min-height: 32px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.seg button.on {
+  background: var(--blue-600);
+  color: #fff;
+}
+
+.hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+/* Stops on the job form: each is a card with its type and how it is entered along the top */
+.stops-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.stop-editor {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.stop-editor-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.stop-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--blue-600);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stop-editor-buttons {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 4px;
+}

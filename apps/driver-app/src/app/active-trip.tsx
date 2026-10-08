@@ -132,7 +132,7 @@ export default function ActiveTripScreen() {
   // so a driver never has to leave the navigation to tell dispatch they have got there.
   const job = useCurrentJob();
   const advanceJob = useAdvanceJobStatus();
-  const arrival = job.data ? arrivalStep(job.data.status) : undefined;
+  const arrival = job.data ? arrivalStep(job.data) : undefined;
   const voiceFlow = useVoiceHazardReportFlow(location.point);
   const quickReport = useQuickVoiceReport(location.point);
 
