@@ -58,6 +58,8 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
   with photos (built); 3a the office results page and defects inbox (built); 3b the before-a-job rules and gate (built); 3c retention (built, so M5 is done); 4 defects feeding maintenance (M4). The
   example list is not a standard and the app does not make a firm compliant.
 
+## Finances (M1, M2 and M6 reframed), decided with the owner 2026-10-09- The owner does not yet know the figures, so M1 and M2 became WagonWise's **own** books rather than a client's: an admin enters the running costs, revenue is taken from the invoices already issued, and M6's profit and look-ahead sit on the same page.- **Costs are standing**: entered once, they carry on every month until changed or stopped. Changing the amount from a month keeps the earlier months as they were. Automating the entry (reading a bill, a recurring payment feed) is a later idea.- **Built:** the Finances page (costs, revenue by month and by company, profit on invoiced and received, twelve months, look ahead). Per-vehicle and per-job costing for client companies is not built, and would follow only if a company asks.
+
 ## Cross-cutting
 
 - **Privacy and legal:** every new kind of data (fuel card data, vehicle checks, defect photos) needs the privacy notice, DPIA

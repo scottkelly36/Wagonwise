@@ -35,12 +35,15 @@ item closes, delete it from this file; the history file keeps the record. Dated 
    notice and DPA; register with the ICO; fill the
    `[brackets]` in the privacy notice, DPA and DPIA and get a solicitor to review them; the restriction audit around Hexham;
    turn on failure alerts in Resend.
-4. **Phase 3 has started** (`phase-3-scope.md`). Item 0, billing, is done (details, plans and capacity, one live job per vehicle,
-   invoices viewed in the portal; migrations 0039 to 0042). Next is M5, walk-round checks: each company builds its own check lists,
-   and a driver does one in the app (migrations 0043, 0044; the app change is JavaScript only, so an over-the-air update, sent after
-   core and the driver BFF are deployed). The office results page and defects inbox are built. Walk-round checks (M5) are done. After the deploy, check the Plans page
-   (each company starts with its current vehicle count), and before the first real invoice fill the `[placeholders]` on the
-   Billing details page. Also add the walk-round check records (daily checks, defect photos) and the firm-chosen retention to the privacy notice, DPA and DPIA. Still to get: the owner's running costs for M1, and what the pilot firm's lorries and tachographs have.
+4. **Phase 3 has started** (`phase-3-scope.md`). Done: item 0, billing (details, plans and capacity, one live job per vehicle,
+   invoices viewed in the portal; migrations 0039 to 0042); M5, walk-round checks (each company builds its own lists, drivers do
+   them in the app, the office sees results and defects, optional rules before a job, retention; migrations 0043 to 0047; the app
+   change is JavaScript only, so an over-the-air update sent after core and the driver BFF are deployed); and the Finances page
+   (WagonWise's own costs against invoiced revenue; migration 0048). After the deploy: check the Plans page (each company starts
+   with its current vehicle count), enter WagonWise's running costs on the Finances page, and fill the `[placeholders]` on the
+   Billing details page before the first real invoice. Also add the walk-round check records (daily checks, defect photos) and the
+   firm-chosen retention to the privacy notice, DPA and DPIA. Still to get: what the pilot firm's lorries and tachographs have,
+   and for the later modules a fuel card sample (M3) and the what3words key (M7).
 
 **How the driver app ships now:** JavaScript-only changes go out over the air to the installed version (`runtimeVersion`
 follows `version`, currently **1.2.1**: `eas update` is published for that version only, so a phone on an older build

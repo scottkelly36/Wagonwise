@@ -1,5 +1,10 @@
 import {
+  addCostRequestSchema,
   addInvoiceLineRequestSchema,
+  changeCostRequestSchema,
+  costSchema,
+  financeReportSchema,
+  stopCostRequestSchema,
   billingDetailsSchema,
   generateInvoicesRequestSchema,
   generateInvoicesResponseSchema,
@@ -10,7 +15,11 @@ import {
   scheduleCapacityRequestSchema,
   setPriceRequestSchema,
   updateBillingDetailsRequestSchema,
+  type AddCostRequest,
   type AddInvoiceLineRequest,
+  type ChangeCostRequest,
+  type CostDto,
+  type FinanceReportDto,
   type BillingDetailsDto,
   type GenerateInvoicesRequest,
   type GenerateInvoicesResponse,
@@ -170,4 +179,59 @@ export async function listOwnInvoices(accessToken: string): Promise<InvoiceDto[]
   });
   throwUnlessSuccess(status, json, [200]);
   return listInvoicesResponseSchema.parse(json).invoices;
+}
+
+/** WagonWise's own finances for a month (this one when left out): twelve months of revenue against costs, the
+ *  month in detail, and a look ahead. */
+export async function getFinanceReport(
+  accessToken: string,
+  month?: string,
+): Promise<FinanceReportDto> {
+  const query = month === undefined ? '' : `?month=${month}`;
+  const { status, json } = await requestJson('GET', `/staff/billing/finance${query}`, {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return financeReportSchema.parse(json);
+}
+
+export async function addCost(accessToken: string, input: AddCostRequest): Promise<CostDto> {
+  const body = addCostRequestSchema.parse(input);
+  const { status, json } = await requestJson('POST', '/staff/billing/costs', {
+    body,
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [201]);
+  return costSchema.parse(json);
+}
+
+/** The new values from `input.fromMonth` on; earlier months keep what they had. */
+export async function changeCost(
+  accessToken: string,
+  id: string,
+  input: ChangeCostRequest,
+): Promise<CostDto> {
+  const body = changeCostRequestSchema.parse(input);
+  const { status, json } = await requestJson('PUT', `/staff/billing/costs/${id}`, {
+    body,
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return costSchema.parse(json);
+}
+
+export async function stopCost(accessToken: string, id: string, fromMonth: string): Promise<void> {
+  const body = stopCostRequestSchema.parse({ fromMonth });
+  const { status, json } = await requestJson('POST', `/staff/billing/costs/${id}/stop`, {
+    body,
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [204]);
+}
+
+export async function deleteCost(accessToken: string, id: string): Promise<void> {
+  const { status, json } = await requestJson('DELETE', `/staff/billing/costs/${id}`, {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [204]);
 }

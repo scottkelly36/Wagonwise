@@ -5,6 +5,7 @@ import { RecordingDataScopes } from '../../../shared/testing/recording-data-scop
 import type { StaffCaller } from '../application/ports/directories.js';
 import { InMemoryBillingDetailsRepository } from '../application/testing/in-memory-billing-details-repository.js';
 import { InMemoryPlanRepository } from '../application/testing/in-memory-plan-repository.js';
+import { InMemoryCostRepository } from '../application/testing/in-memory-cost-repository.js';
 import { InMemoryInvoiceRepository } from '../application/testing/in-memory-invoice-repository.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import { makeId } from '../../../shared/brand.js';
@@ -51,6 +52,14 @@ function buildApp(): { app: FastifyInstance; scopes: RecordingDataScopes } {
     invoices: {
       invoices: invoiceRepo,
       details,
+      plans,
+      companies,
+      ids: new SequentialIdGenerator(),
+      clock,
+    },
+    finance: {
+      costs: new InMemoryCostRepository(),
+      invoices: invoiceRepo,
       plans,
       companies,
       ids: new SequentialIdGenerator(),
@@ -470,5 +479,136 @@ describe('a company’s own billing: /staff/billing/my', () => {
     expect((await app.inject({ method: 'GET', url: '/staff/billing/my/plan' })).statusCode).toBe(
       401,
     );
+  });
+});
+
+describe('/staff/billing/finance and costs', () => {
+  const addHosting = (app: FastifyInstance, extra: object = {}) =>
+    app.inject({
+      method: 'POST',
+      url: '/staff/billing/costs',
+      payload: {
+        category: 'hosting',
+        description: 'Servers',
+        amountPence: 5000,
+        fromMonth: '2026-08',
+        oneOff: false,
+        ...extra,
+      },
+      ...as('admin'),
+    });
+
+  it('adds a standing cost once and shows it in every month from then on', async () => {
+    const { app } = buildApp();
+    const added = await addHosting(app);
+    expect(added.statusCode).toBe(201);
+    expect(added.json()).toMatchObject({ description: 'Servers', fromMonth: '2026-08' });
+    const report = await app.inject({
+      method: 'GET',
+      url: '/staff/billing/finance?month=2026-10',
+      ...as('admin'),
+    });
+    expect(report.statusCode).toBe(200);
+    const body = report.json<{
+      months: { month: string; costsPence: number }[];
+      costs: { description: string }[];
+    }>();
+    expect(body.months.slice(-4).map((m) => [m.month, m.costsPence])).toEqual([
+      ['2026-07', 0],
+      ['2026-08', 5000],
+      ['2026-09', 5000],
+      ['2026-10', 5000],
+    ]);
+    expect(body.costs.map((c) => c.description)).toEqual(['Servers']);
+  });
+
+  it('changes a cost from a later month without rewriting the months before, and stops it', async () => {
+    const { app } = buildApp();
+    const id = (await addHosting(app)).json<{ id: string }>().id;
+    const changed = await app.inject({
+      method: 'PUT',
+      url: `/staff/billing/costs/${id}`,
+      payload: {
+        category: 'hosting',
+        description: 'Servers',
+        amountPence: 8000,
+        fromMonth: '2026-10',
+      },
+      ...as('admin'),
+    });
+    expect(changed.json()).toMatchObject({ amountPence: 8000, fromMonth: '2026-10' });
+    const newId = changed.json<{ id: string }>().id;
+    const stop = await app.inject({
+      method: 'POST',
+      url: `/staff/billing/costs/${newId}/stop`,
+      payload: { fromMonth: '2026-11' },
+      ...as('admin'),
+    });
+    expect(stop.statusCode).toBe(204);
+    const report = await app.inject({
+      method: 'GET',
+      url: '/staff/billing/finance?month=2026-11',
+      ...as('admin'),
+    });
+    const months = report.json<{ months: { costsPence: number }[] }>().months;
+    expect(months.slice(-4).map((m) => m.costsPence)).toEqual([5000, 5000, 8000, 0]);
+  });
+
+  it('removes a cost entered by mistake, and 404s an unknown one', async () => {
+    const { app } = buildApp();
+    const id = (await addHosting(app)).json<{ id: string }>().id;
+    const gone = await app.inject({
+      method: 'DELETE',
+      url: `/staff/billing/costs/${id}`,
+      ...as('admin'),
+    });
+    expect(gone.statusCode).toBe(204);
+    const again = await app.inject({
+      method: 'DELETE',
+      url: `/staff/billing/costs/${id}`,
+      ...as('admin'),
+    });
+    expect(again.statusCode).toBe(404);
+  });
+
+  it('400s a bad entry and 409s a change that makes no sense', async () => {
+    const { app } = buildApp();
+    expect((await addHosting(app, { amountPence: -1 })).statusCode).toBe(400);
+    expect((await addHosting(app, { category: 'lunch' })).statusCode).toBe(400);
+    const id = (await addHosting(app)).json<{ id: string }>().id;
+    const early = await app.inject({
+      method: 'PUT',
+      url: `/staff/billing/costs/${id}`,
+      payload: {
+        category: 'hosting',
+        description: 'Servers',
+        amountPence: 1,
+        fromMonth: '2026-01',
+      },
+      ...as('admin'),
+    });
+    expect(early.statusCode).toBe(409);
+    expect(early.json()).toMatchObject({ tag: 'InvalidCostChange' });
+  });
+
+  it('refuses a company manager on every finance route', async () => {
+    const { app } = buildApp();
+    const attempts = [
+      app.inject({ method: 'GET', url: '/staff/billing/finance', ...as('manager') }),
+      app.inject({
+        method: 'POST',
+        url: '/staff/billing/costs',
+        payload: {
+          category: 'hosting',
+          description: 'x',
+          amountPence: 1,
+          fromMonth: '2026-10',
+          oneOff: false,
+        },
+        ...as('manager'),
+      }),
+      app.inject({ method: 'DELETE', url: '/staff/billing/costs/x', ...as('manager') }),
+    ];
+    for (const response of await Promise.all(attempts)) expect(response.statusCode).toBe(403);
   });
 });

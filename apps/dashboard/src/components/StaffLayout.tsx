@@ -77,6 +77,7 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
       { to: '/admin/invite-codes', label: 'Invite codes', shows: isPlatform },
       { to: '/admin/plans', label: 'Plans', shows: isPlatform },
       { to: '/admin/invoices', label: 'Invoices', shows: isPlatform },
+      { to: '/admin/finances', label: 'Finances', shows: isPlatform },
       { to: '/admin/billing', label: 'Billing details', shows: isPlatform },
       { to: '/admin/moderation', label: 'Moderation', shows: isPlatform },
       { to: '/admin/hazard-reports', label: 'Hazard reports', shows: isPlatform },

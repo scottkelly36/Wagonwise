@@ -156,3 +156,92 @@ export const ownPlanSchema = z.object({
 });
 export type OwnPlanDto = z.infer<typeof ownPlanSchema>;
 // `GET /staff/billing/my/invoices` replies with `listInvoicesResponseSchema`: issued, paid and cancelled only.
+
+// ---------------------------------------------------------------------------------------------
+// WagonWise's own finances: what it costs to run, against what the companies are invoiced.
+
+export const COST_CATEGORIES = [
+  'hosting',
+  'maps',
+  'messaging',
+  'software',
+  'wages',
+  'other',
+] as const;
+export const costCategorySchema = z.enum(COST_CATEGORIES);
+export type CostCategoryDto = z.infer<typeof costCategorySchema>;
+
+const monthString2 = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+
+/** A cost WagonWise carries. It applies from `fromMonth` and every month after until `toMonth` (absent: for ever). */
+export const costSchema = z.object({
+  id: z.string(),
+  category: costCategorySchema,
+  description: z.string(),
+  amountPence: z.number().int(),
+  fromMonth: monthString2,
+  toMonth: monthString2.optional(),
+});
+export type CostDto = z.infer<typeof costSchema>;
+
+export const costFieldsSchema = z.object({
+  category: costCategorySchema,
+  description: z.string().trim().min(1).max(120),
+  amountPence: z.number().int().min(0).max(100_000_000),
+});
+
+/** `POST /staff/billing/costs`: from `fromMonth` on, every month, or just that month when `oneOff`. */
+export const addCostRequestSchema = costFieldsSchema.extend({
+  fromMonth: monthString2,
+  oneOff: z.boolean(),
+});
+export type AddCostRequest = z.infer<typeof addCostRequestSchema>;
+
+/** `PUT /staff/billing/costs/:id`: the new values from `fromMonth` on; earlier months keep what they had. */
+export const changeCostRequestSchema = costFieldsSchema.extend({ fromMonth: monthString2 });
+export type ChangeCostRequest = z.infer<typeof changeCostRequestSchema>;
+
+/** `POST /staff/billing/costs/:id/stop`: it last applies the month before `fromMonth`. */
+export const stopCostRequestSchema = z.object({ fromMonth: monthString2 });
+export type StopCostRequest = z.infer<typeof stopCostRequestSchema>;
+
+export const costIdParamsSchema = z.object({ id: z.string().min(1) });
+
+export const monthFiguresSchema = z.object({
+  month: monthString2,
+  invoicedPence: z.number().int(),
+  receivedPence: z.number().int(),
+  costsPence: z.number().int(),
+  profitInvoicedPence: z.number().int(),
+  profitReceivedPence: z.number().int(),
+});
+export type MonthFiguresDto = z.infer<typeof monthFiguresSchema>;
+
+/** `GET /staff/billing/finance?month=YYYY-MM` (this month when left out). */
+export const financeQuerySchema = z.object({ month: monthString2.optional() });
+
+export const financeReportSchema = z.object({
+  /** The twelve months ending at `month`, oldest first. */
+  months: z.array(monthFiguresSchema),
+  month: monthString2,
+  currentMonth: monthString2,
+  /** The costs in force in `month`. */
+  costs: z.array(costSchema),
+  revenueByCompany: z.array(
+    z.object({
+      companyId: z.string(),
+      name: z.string(),
+      invoicedPence: z.number().int(),
+      receivedPence: z.number().int(),
+    }),
+  ),
+  projection: z.object({
+    monthlyRevenuePence: z.number().int(),
+    monthlyCostsPence: z.number().int(),
+    projectedProfitPence: z.number().int(),
+    vehiclesCovered: z.number().int(),
+    averagePricePence: z.number().int(),
+    breakEvenVehicles: z.number().int().nullable(),
+  }),
+});
+export type FinanceReportDto = z.infer<typeof financeReportSchema>;

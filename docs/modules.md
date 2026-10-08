@@ -285,6 +285,7 @@ second check on top — core alone decides ownership/authorization for those.
 - **Retention** (`checks.settings.retention_months`, migration 0047): the firm chooses (default 12 months); the daily `prune-checks` task deletes older checks with their photos and defects, but keeps a check with a defect not yet fixed.
 - To come: defects feeding maintenance (M4)
   (`docs/phase-3-scope.md`).
+- **Finances** (`billing.costs`, migration 0048; `domain/finance.ts`, `application/finance.ts`): WagonWise's own costs, standing until changed or stopped (`planChange` splits a later change so earlier months keep their amount; `planStop` ends it the month before). The report (`GET /staff/billing/finance?month=`) sets twelve months of invoiced and received revenue (issued and paid invoices only) against the costs in force, with revenue by company and a look ahead. Admin only.
 
 ## Staff BFF
 

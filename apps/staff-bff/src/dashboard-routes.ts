@@ -12,13 +12,18 @@ import {
   updateCheckTemplateRequestSchema,
 } from '@wagonwise/contracts/checks';
 import {
+  addCostRequestSchema,
   addInvoiceLineRequestSchema,
+  changeCostRequestSchema,
+  costIdParamsSchema,
+  financeQuerySchema,
   generateInvoicesRequestSchema,
   invoiceIdParamsSchema,
   invoiceLineParamsSchema,
   planCompanyParamsSchema,
   scheduleCapacityRequestSchema,
   setPriceRequestSchema,
+  stopCostRequestSchema,
   updateBillingDetailsRequestSchema,
 } from '@wagonwise/contracts/billing';
 import {
@@ -172,6 +177,27 @@ const FORWARDS: readonly Forward[] = [
   // A company's own plan and issued invoices, for its billing managers (`manage_billing`). Core decides.
   { method: 'GET', path: '/staff/billing/my/plan', params: noParams },
   { method: 'GET', path: '/staff/billing/my/invoices', params: noParams },
+  // WagonWise's own finances: the costs an admin enters, and the report setting them against invoices. Admins only.
+  {
+    method: 'GET',
+    path: '/staff/billing/finance',
+    params: noParams,
+    query: financeQuerySchema,
+  },
+  { method: 'POST', path: '/staff/billing/costs', params: noParams, body: addCostRequestSchema },
+  {
+    method: 'PUT',
+    path: '/staff/billing/costs/:id',
+    params: costIdParamsSchema,
+    body: changeCostRequestSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/billing/costs/:id/stop',
+    params: costIdParamsSchema,
+    body: stopCostRequestSchema,
+  },
+  { method: 'DELETE', path: '/staff/billing/costs/:id', params: costIdParamsSchema },
   // Invoices: draft the month's, adjust a draft, issue, mark paid or void. WagonWise admins only; core decides.
   { method: 'GET', path: '/staff/billing/invoices', params: noParams },
   {
