@@ -137,6 +137,10 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-08: **stored locations.** A company keeps its customers and sites once. Places page: Add a location (name, type, postcode,
+  note for drivers); drivers' marked gates and these are one list. Job form: each stop is a Stored location or a New address; a stored
+  location fills in the name, map point and note; a new address has Save this location for next time (on by default). Portal
+  only, no core change (the staff create endpoint already existed). Needs a dashboard deploy.
 - 2026-10-08: **jobs with no pickup.** A job now needs only a delivery. The portal job form has Collect from: Add a pickup / No
   pickup (the choice is remembered). For a job with no pickup the driver goes accepted, then Loaded and ready (no navigation
   yet), then Set off as usual, planned from where they are; the portal says Accepted, not loaded yet. Core: `validateStops`

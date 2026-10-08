@@ -1,5 +1,7 @@
 import {
   listPlacesResponseSchema,
+  markPlaceRequestSchema,
+  type MarkPlaceRequest,
   savedPlaceSchema,
   updatePlaceRequestSchema,
   type SavedPlaceDto,
@@ -37,4 +39,23 @@ export async function deletePlace(accessToken: string, id: string): Promise<void
     authorization: `Bearer ${accessToken}`,
   });
   throwUnlessSuccess(status, json, [204]);
+}
+
+/** Stores a location for the company (a customer's site, a depot) from a postcode already looked up. */
+export async function createPlace(
+  accessToken: string,
+  companyId: string,
+  input: MarkPlaceRequest,
+): Promise<SavedPlaceDto> {
+  const body = markPlaceRequestSchema.parse(input);
+  const { status, json } = await requestJson(
+    'POST',
+    `/staff/places/companies/${companyId}/places`,
+    {
+      body,
+      authorization: `Bearer ${accessToken}`,
+    },
+  );
+  throwUnlessSuccess(status, json, [201]);
+  return savedPlaceSchema.parse(json);
 }
