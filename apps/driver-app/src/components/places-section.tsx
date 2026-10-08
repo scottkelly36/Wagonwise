@@ -11,13 +11,12 @@ import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
 import { shortDistance } from '../lib/uk-distance';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle } from '../theme/tokens';
-import { MarkPlaceSheet } from './mark-place-sheet';
 import { PlaceSheet } from './place-sheet';
 import { Icon } from './ui/icon';
 
 /**
  * The Saved tab's list of places the driver and their company have marked (a farm's real gate, a
- * yard entrance), nearest first when the position is known, with a button to mark the spot they are on.
+ * yard entrance), nearest first when the position is known. Marking one is done from the map buttons.
  */
 export function PlacesSection() {
   const colors = useThemeColors();
@@ -26,7 +25,6 @@ export function PlacesSection() {
   const location = useCurrentLocation();
   const profileId = useDrivingProfileId();
   const navigate = useNavigateToPlace(profileId);
-  const [marking, setMarking] = useState(false);
   const [selected, setSelected] = useState<SavedPlaceDto | undefined>(undefined);
 
   const rows = useMemo(() => {
@@ -57,7 +55,7 @@ export function PlacesSection() {
           <Icon name="barn" size={40} color={colors.textMuted} />
           <Text style={styles.emptyText}>
             Nothing marked yet. When a farm’s postcode takes you to the wrong place, stand at the
-            real gate and mark it. Next time it is there, with your note.
+            real gate and use the mark button on the map. Next time it is there, with your note.
           </Text>
         </View>
       )}
@@ -88,21 +86,6 @@ export function PlacesSection() {
         </TouchableOpacity>
       ))}
 
-      <TouchableOpacity
-        style={styles.mark}
-        onPress={() => setMarking(true)}
-        accessibilityRole="button"
-        testID="saved-mark-place-button"
-      >
-        <Icon name="map-marker-plus-outline" size={22} color={colors.textOnAccent} />
-        <Text style={styles.markText}>Mark a place here</Text>
-      </TouchableOpacity>
-
-      <MarkPlaceSheet
-        visible={marking}
-        onClose={() => setMarking(false)}
-        companyId={mine.markingCompanyId}
-      />
       <PlaceSheet
         place={selected}
         onClose={() => setSelected(undefined)}
@@ -134,15 +117,5 @@ function createStyles(colors: ThemeColors) {
     rowNote: { fontSize: 14, color: colors.textSecondary },
     rowMeta: { fontSize: 13, color: colors.textMuted },
     distance: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
-    mark: {
-      minHeight: 52,
-      borderRadius: 16,
-      backgroundColor: colors.accent,
-      flexDirection: 'row',
-      gap: 8,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    markText: { fontSize: 17, fontWeight: '700', color: colors.textOnAccent },
   });
 }
