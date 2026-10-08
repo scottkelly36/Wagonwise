@@ -1,8 +1,15 @@
-import type { PlaceCategory, SavedPlaceDto } from '@wagonwise/contracts/places';
+import {
+  savedPlaceIdSchema,
+  type PlaceCategory,
+  type SavedPlaceDto,
+} from '@wagonwise/contracts/places';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as placesApi from '../../api/places';
 import { CompanySelect } from '../../components/CompanySelect';
+import { PostcodeField } from '../../components/PostcodeField';
+import { resolvePostcode, usePostcode } from '../../hooks/use-postcode';
+import { companyIdSchema } from '@wagonwise/contracts/companies';
 import { DataTable, type Column } from '../../components/DataTable';
 import { mapLink, PLACE_CATEGORY_LABELS } from '../../lib/places';
 import { holds, isPlatform } from '../../state/access';
@@ -40,6 +47,42 @@ export function Places() {
   const [note, setNote] = useState('');
 
   const refresh = () => void queryClient.invalidateQueries({ queryKey: key });
+
+  // Adding a location: a customer's site or a depot, from a postcode (the driver marks the exact gate later).
+  const [newName, setNewName] = useState('');
+  const [newCategory, setNewCategory] = useState<PlaceCategory>('other');
+  const [newPostcode, setNewPostcode] = useState('');
+  const [newNote, setNewNote] = useState('');
+  const [showAddErrors, setShowAddErrors] = useState(false);
+  const newPostcodeLookup = usePostcode(newPostcode);
+  const add = useMutation({
+    mutationFn: async () => {
+      const resolved = await resolvePostcode(queryClient, newPostcode);
+      return withAccessToken((token) =>
+        placesApi.createPlace(token, companyId as string, {
+          id: savedPlaceIdSchema.parse(crypto.randomUUID()),
+          companyId: companyIdSchema.parse(companyId),
+          category: newCategory,
+          name: newName.trim(),
+          ...(newNote.trim() === '' ? {} : { note: newNote.trim() }),
+          location: resolved.location,
+        }),
+      );
+    },
+    onSuccess: () => {
+      setNewName('');
+      setNewPostcode('');
+      setNewNote('');
+      setShowAddErrors(false);
+      refresh();
+    },
+  });
+  const addProblem =
+    newName.trim() === ''
+      ? 'Enter a name.'
+      : newPostcodeLookup.data === undefined
+        ? 'Enter a postcode we can find.'
+        : undefined;
   const save = useMutation({
     mutationFn: (id: string) =>
       withAccessToken((token) => placesApi.updatePlace(token, id, { name, category, note })),
@@ -167,7 +210,7 @@ export function Places() {
     },
   ];
 
-  const error = places.error ?? save.error ?? remove.error;
+  const error = places.error ?? save.error ?? remove.error ?? add.error;
 
   return (
     <div>
@@ -195,6 +238,75 @@ export function Places() {
       )}
       {error !== null && error !== undefined && <p className="error">{staffErrorMessage(error)}</p>}
       {places.isPending && companyId !== undefined && <p>Loading…</p>}
+
+      {canEdit && companyId !== undefined && (
+        <section className="card" style={{ maxWidth: 720, marginBottom: 16 }}>
+          <h2>Add a location</h2>
+          <form
+            noValidate
+            className="job-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (addProblem !== undefined) {
+                setShowAddErrors(true);
+                return;
+              }
+              add.mutate();
+            }}
+          >
+            <div className="field">
+              <label htmlFor="place-name">Name</label>
+              <input
+                id="place-name"
+                value={newName}
+                maxLength={80}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g. Hexham Mart"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="place-type">Type</label>
+              <select
+                id="place-type"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value as PlaceCategory)}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {PLACE_CATEGORY_LABELS[c]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <PostcodeField
+              id="place-postcode"
+              label="Postcode"
+              value={newPostcode}
+              onChange={setNewPostcode}
+              lookup={newPostcodeLookup}
+              error={showAddErrors && addProblem?.includes('postcode') ? addProblem : undefined}
+            />
+            <div className="field">
+              <label htmlFor="place-note">Note for drivers (optional)</label>
+              <input
+                id="place-note"
+                value={newNote}
+                maxLength={500}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="e.g. Weighbridge first, then gate B"
+              />
+            </div>
+            <div className="job-form-actions">
+              {showAddErrors && addProblem === 'Enter a name.' && (
+                <span className="error">{addProblem}</span>
+              )}
+              <button type="submit" disabled={add.isPending}>
+                {add.isPending ? 'Adding…' : 'Add location'}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
 
       {places.data !== undefined && (
         <DataTable
