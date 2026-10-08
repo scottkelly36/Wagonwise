@@ -125,8 +125,11 @@ can subscribe later.
 - Keep `docs/progress.md` current with milestone status, what's next and what's still open,
   so the next session can pick up without re-explaining. **Keep it short (~150 lines):** a
   milestone's task breakdown, decisions and deviations go in its own `docs/history/<milestone>.md`;
-  `progress.md` gets one line plus any still-open items, and loses them once they close.
-  Field-testing ideas go in `docs/ideas.md`.
+  `progress.md` gets one line plus any still-open items, and loses them once they close. Dated
+  change entries go at the top of `docs/history/log.md`, not in `progress.md`. Field-testing
+  ideas go in `docs/ideas.md`. Per-module how-to notes go in `docs/modules.md`, not the README.
+  Docs are size-limited (`.github/scripts/doc-sizes.test.mjs`, run by the pre-push hook): when it
+  fails, move detail out as it says rather than raising the limit.
 - UK English in user-facing text. Show bridge heights in metres and feet/inches.
 
 ## Tooling gotchas
