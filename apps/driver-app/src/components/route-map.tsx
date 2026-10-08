@@ -381,12 +381,16 @@ export function RouteMap({
         )}
         {origin && (
           <ViewAnnotation id="origin" lngLat={toLngLat(origin)}>
-            <View style={[styles.pin, styles.originPin]} testID="origin-pin" />
+            <View style={[styles.letterPin, styles.originPin]} testID="origin-pin">
+              <Text style={styles.letterPinText}>A</Text>
+            </View>
           </ViewAnnotation>
         )}
         {destination && (
           <ViewAnnotation id="destination" lngLat={toLngLat(destination)}>
-            <View style={[styles.pin, styles.destinationPin]} testID="destination-pin" />
+            <View style={[styles.letterPin, styles.destinationPin]} testID="destination-pin">
+              <Text style={styles.letterPinText}>B</Text>
+            </View>
           </ViewAnnotation>
         )}
         {currentPosition && !navTracking && (
@@ -517,6 +521,17 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#FFFFFF',
   },
+  // The start (A) and destination (B): lettered, so which is which is never a matter of colour alone.
+  letterPin: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  letterPinText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
   originPin: {
     backgroundColor: '#38BDF8',
   },
