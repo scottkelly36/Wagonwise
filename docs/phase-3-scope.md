@@ -45,7 +45,7 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
   PDF). Issuing is refused while WagonWise's billing details still hold `[placeholders]`.
 - **Built:** WagonWise's billing details (Billing details page); each company's price per vehicle and effective-dated
   capacity (Plans page), enforced when a vehicle is created; one live job per vehicle; invoices (draft, adjust, issue, mark paid,
-  cancel, print as PDF); the company's own plan and invoices page (`manage_billing`). **Next:** emailing invoices.
+  cancel, print as PDF); the company's own plan and invoices page (`manage_billing`). Billing basics (item 0) is done. Invoices are viewed in the company's portal and are not emailed (owner's call, 2026-10-09: saves sending; revisit if a company asks).
 
 ## Cross-cutting
 

@@ -37,7 +37,7 @@ item closes, delete it from this file; the history file keeps the record. Dated 
    turn on failure alerts in Resend.
 4. **Phase 3 has started** (`phase-3-scope.md`): item 0, billing. Built: WagonWise's billing details, each company's price and
    vehicle capacity, one live job per vehicle, invoices, and the company's own plan and invoices page (migrations 0039 to 0042;
-   deploy core, staff-bff and the dashboard). Next: emailing invoices. After the deploy, check the Plans page (each company starts
+   deploy core, staff-bff and the dashboard). Item 0 is done (invoices are viewed in the portal, not emailed). After the deploy, check the Plans page (each company starts
    with its current vehicle count). Before the first real invoice, fill the `[placeholders]` on the Billing details page. Still to
    get: the owner's running costs for M1, and what the pilot firm's lorries and tachographs have.
 
