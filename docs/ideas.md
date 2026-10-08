@@ -211,4 +211,4 @@ update --spec` (used once to add the job) wiped `core`'s App-Level `DATABASE_URL
   switch between the ways of setting it. From defaults to "My position" and says so, so a driver only changes it
   when they want to; To is a postcode, an address, what3words, a saved place or a map pin. A driver can then tap
   Start for From and type a postcode for To, or the other way round, and only sees the one input they chose
-  instead of every option at once. Sketch the layout before building.
+  instead of every option at once. **Update 2026-10-08: the From/To switches are built, without what3words** (From: My position / Search / Map; To: Search / Map; a driver sees only the input they chose). what3words then needs only a third option on each switch, a lookup in core and a key.

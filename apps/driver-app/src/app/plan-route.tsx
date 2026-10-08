@@ -27,6 +27,7 @@ import { useCurrentLocation } from '../hooks/use-current-location';
 import type { GeocodingResult } from '../lib/geocoding';
 import { formatDateTime } from '../lib/format-date';
 import { routingErrorMessage } from '../lib/error-messages';
+import { mapTapTarget, type FromMode, type PointEnd, type ToMode } from '../lib/route-points';
 import {
   EMPTY_VEHICLE_PROFILE_FORM,
   parseVehicleProfileForm,
@@ -34,12 +35,29 @@ import {
 } from '../lib/vehicle-profile-form';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { Icon } from '../components/ui/icon';
+import { PointPicker } from '../components/point-picker';
 import { RoundButton } from '../components/ui/round-button';
+import { SegmentedControl } from '../components/ui/segmented-control';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle, radius } from '../theme/tokens';
 
-type PointMode = 'origin' | 'destination';
 type VehicleMode = 'profile' | 'manual';
+// How each end of the route is set. From starts on the driver's own position, so they only change it to
+// start somewhere else; To has no default.
+
+const VEHICLE_MODE_OPTIONS = [
+  { key: 'profile', label: 'My vehicles' },
+  { key: 'manual', label: 'Enter details' },
+] as const;
+const FROM_OPTIONS = [
+  { key: 'here', label: 'My position' },
+  { key: 'search', label: 'Search' },
+  { key: 'map', label: 'Map' },
+] as const;
+const TO_OPTIONS = [
+  { key: 'search', label: 'Search' },
+  { key: 'map', label: 'Map' },
+] as const;
 
 /** No name field shown here — a manually-entered vehicle is named automatically (design decision,
  *  2026-09-24: "silently creating a profile" so planning without picking a saved vehicle first
@@ -102,16 +120,19 @@ export default function PlanRouteScreen() {
   const [manualError, setManualError] = useState<string | undefined>(undefined);
   const [origin, setOrigin] = useState<MapPoint | undefined>(undefined);
   const [destination, setDestination] = useState<MapPoint | undefined>(undefined);
-  const [pointMode, setPointMode] = useState<PointMode>('destination');
+  const [fromMode, setFromMode] = useState<FromMode>('here');
+  const [toMode, setToMode] = useState<ToMode>('search');
+  // Which end a map tap sets, when both are on Map.
+  const [tapTarget, setTapTarget] = useState<PointEnd>('destination');
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  // Origin defaults to current location (design doc §8) once it arrives, but only until a
-  // driver has actually chosen one for themselves — a GPS fix landing late must never silently
-  // override a point they already tapped.
-  const effectiveOrigin = origin ?? location.point;
+  // From is the driver's own position (design doc §8) until they choose to start somewhere else, and
+  // then it is only what they set, never quietly their position: a GPS fix landing late must not
+  // override a start they searched for or tapped.
+  const effectiveOrigin = fromMode === 'here' ? location.point : origin;
 
   const corridor = [effectiveOrigin, destination].filter((p): p is MapPoint => p !== undefined);
   const nearbyHazards = useNearbyHazards(corridor, NEARBY_RADIUS_M);
@@ -136,9 +157,15 @@ export default function PlanRouteScreen() {
       : vehicleMode === 'profile' && selectedProfile === undefined
         ? 'Step 1: choose your vehicle above.'
         : effectiveOrigin === undefined
-          ? 'Waiting for your location. Or search for a start point, or tap the map.'
+          ? fromMode === 'here'
+            ? 'Waiting for your location. Or change From to Search or Map.'
+            : fromMode === 'search'
+              ? 'Search for your start point.'
+              : 'Tap the map to set your start.'
           : destination === undefined
-            ? 'Now choose where you are going: search above, or tap the map.'
+            ? toMode === 'search'
+              ? 'Now search for where you are going.'
+              : 'Now tap the map where you are going.'
             : undefined;
 
   function setDimensionField(field: keyof Omit<VehicleProfileFormValues, 'name'>) {
@@ -151,12 +178,32 @@ export default function PlanRouteScreen() {
 
   function handleMapPress(point: MapPoint): void {
     setRouteOptions(undefined);
-    if (pointMode === 'origin') {
+    // A tap sets the end that is on Map. With both on Map it sets the one last chosen; with neither, it
+    // sets the destination and puts To on Map.
+    const target = mapTapTarget(fromMode, toMode, tapTarget);
+    if (target === 'origin') {
       setOrigin(point);
-      setPointMode('destination');
+      if (toMode === 'map') setTapTarget('destination');
     } else {
       setDestination(point);
+      setToMode('map');
     }
+  }
+
+  function handleFromModeChange(mode: FromMode): void {
+    if (mode === fromMode) return;
+    setRouteOptions(undefined);
+    setFromMode(mode);
+    setOrigin(undefined);
+    if (mode === 'map') setTapTarget('origin');
+  }
+
+  function handleToModeChange(mode: ToMode): void {
+    if (mode === toMode) return;
+    setRouteOptions(undefined);
+    setToMode(mode);
+    setDestination(undefined);
+    if (mode === 'map') setTapTarget('destination');
   }
 
   function handleOriginSearchSelect(result: GeocodingResult): void {
@@ -299,46 +346,12 @@ export default function PlanRouteScreen() {
         </View>
 
         <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
-          <View style={styles.vehicleModeRow}>
-            <TouchableOpacity
-              style={[
-                styles.vehicleModeTab,
-                vehicleMode === 'profile' && styles.vehicleModeTabActive,
-              ]}
-              onPress={() => handleSelectVehicleMode('profile')}
-              accessibilityRole="button"
-              accessibilityState={{ selected: vehicleMode === 'profile' }}
-              testID="vehicle-mode-profile-button"
-            >
-              <Text
-                style={[
-                  styles.vehicleModeTabText,
-                  vehicleMode === 'profile' && styles.vehicleModeTabTextActive,
-                ]}
-              >
-                My vehicles
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.vehicleModeTab,
-                vehicleMode === 'manual' && styles.vehicleModeTabActive,
-              ]}
-              onPress={() => handleSelectVehicleMode('manual')}
-              accessibilityRole="button"
-              accessibilityState={{ selected: vehicleMode === 'manual' }}
-              testID="vehicle-mode-manual-button"
-            >
-              <Text
-                style={[
-                  styles.vehicleModeTabText,
-                  vehicleMode === 'manual' && styles.vehicleModeTabTextActive,
-                ]}
-              >
-                Enter details
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <SegmentedControl
+            options={VEHICLE_MODE_OPTIONS}
+            value={vehicleMode}
+            onChange={handleSelectVehicleMode}
+            testIDPrefix="vehicle-mode"
+          />
 
           {vehicleMode === 'profile' && noVehiclesYet ? (
             <View style={styles.firstUse} testID="first-vehicle-card">
@@ -420,39 +433,59 @@ export default function PlanRouteScreen() {
             </ScrollView>
           )}
 
-          <AddressSearchField
+          <PointPicker
             label="From"
-            placeholder="Search for an address, or tap the map"
-            apiKey={config.maptilerApiKey}
-            near={effectiveOrigin ?? location.point}
-            onSelect={handleOriginSearchSelect}
-            testID="origin-search"
-          />
-          <AddressSearchField
-            label="To"
-            placeholder="Search for an address, or tap the map"
-            apiKey={config.maptilerApiKey}
-            near={effectiveOrigin ?? location.point}
-            onSelect={handleDestinationSearchSelect}
-            testID="destination-search"
-          />
+            options={FROM_OPTIONS}
+            mode={fromMode}
+            onModeChange={handleFromModeChange}
+            testID="from"
+          >
+            {fromMode === 'here' ? (
+              <Text style={styles.pointHelp} testID="from-here-text">
+                {location.point === undefined
+                  ? 'Finding your position…'
+                  : 'Starting from where you are now.'}
+              </Text>
+            ) : fromMode === 'search' ? (
+              <AddressSearchField
+                placeholder="Search for an address or postcode"
+                apiKey={config.maptilerApiKey}
+                near={origin ?? location.point}
+                onSelect={handleOriginSearchSelect}
+                testID="origin-search"
+              />
+            ) : (
+              <Text style={styles.pointHelp} testID="from-map-text">
+                {origin === undefined
+                  ? 'Tap the map to set your start.'
+                  : 'Start set. Tap the map again to move it.'}
+              </Text>
+            )}
+          </PointPicker>
 
-          <View style={styles.modeRow}>
-            <TouchableOpacity
-              style={[styles.modeButton, pointMode === 'origin' && styles.modeButtonActive]}
-              onPress={() => setPointMode('origin')}
-              testID="mode-origin-button"
-            >
-              <Text style={styles.modeButtonText}>Tap to set start</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeButton, pointMode === 'destination' && styles.modeButtonActive]}
-              onPress={() => setPointMode('destination')}
-              testID="mode-destination-button"
-            >
-              <Text style={styles.modeButtonText}>Tap to set destination</Text>
-            </TouchableOpacity>
-          </View>
+          <PointPicker
+            label="To"
+            options={TO_OPTIONS}
+            mode={toMode}
+            onModeChange={handleToModeChange}
+            testID="to"
+          >
+            {toMode === 'search' ? (
+              <AddressSearchField
+                placeholder="Search for an address or postcode"
+                apiKey={config.maptilerApiKey}
+                near={effectiveOrigin ?? location.point}
+                onSelect={handleDestinationSearchSelect}
+                testID="destination-search"
+              />
+            ) : (
+              <Text style={styles.pointHelp} testID="to-map-text">
+                {destination === undefined
+                  ? 'Tap the map where you are going.'
+                  : 'Destination set. Tap the map again to move it.'}
+              </Text>
+            )}
+          </PointPicker>
 
           {displayedError !== undefined && <Text style={styles.error}>{displayedError}</Text>}
           {nextStepHint !== undefined && !pending && (
@@ -560,30 +593,6 @@ function createStyles(colors: ThemeColors) {
       gap: 10,
     },
     // One split button: the two choices share a track and the active one is filled.
-    vehicleModeRow: {
-      flexDirection: 'row',
-      padding: 4,
-      borderRadius: 26,
-      backgroundColor: colors.surface,
-    },
-    vehicleModeTab: {
-      flex: 1,
-      minHeight: 44,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderRadius: 22,
-    },
-    vehicleModeTabActive: {
-      backgroundColor: colors.accent,
-    },
-    vehicleModeTabText: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: colors.textMuted,
-    },
-    vehicleModeTabTextActive: {
-      color: colors.textOnAccent,
-    },
     profileRow: {
       gap: 8,
       minHeight: 44,
@@ -643,6 +652,7 @@ function createStyles(colors: ThemeColors) {
       color: colors.textMuted,
       marginTop: 8,
     },
+    pointHelp: { fontSize: 15, color: colors.textMuted, paddingHorizontal: 4 },
     input: {
       minHeight: 52,
       fontSize: 18,
@@ -651,28 +661,6 @@ function createStyles(colors: ThemeColors) {
       borderRadius: radius.badge,
       paddingHorizontal: 16,
       marginTop: 4,
-    },
-    modeRow: {
-      flexDirection: 'row',
-      gap: 8,
-    },
-    modeButton: {
-      flex: 1,
-      minHeight: 56,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderRadius: radius.badge,
-      backgroundColor: colors.surface,
-    },
-    modeButtonActive: {
-      backgroundColor: colors.accentSoft,
-      borderWidth: 2,
-      borderColor: colors.accent,
-    },
-    modeButtonText: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: colors.text,
     },
     button: {
       minHeight: 56,
