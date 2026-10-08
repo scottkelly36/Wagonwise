@@ -16,6 +16,7 @@ export type StaffAuditEntryId = Id<'StaffAuditEntryId'>;
  * - `second_factor_failed`: a wrong code at the second step.
  * - `privileges_changed`: details `before`, `after`.
  * - `staff_removed`: details `email`.
+ * - `company_settings_changed`: details `photoRetentionMonths` (before and after).
  */
 export const STAFF_AUDIT_ACTIONS = [
   'invite_created',
@@ -25,6 +26,7 @@ export const STAFF_AUDIT_ACTIONS = [
   'second_factor_failed',
   'privileges_changed',
   'staff_removed',
+  'company_settings_changed',
 ] as const;
 export type StaffAuditAction = (typeof STAFF_AUDIT_ACTIONS)[number];
 

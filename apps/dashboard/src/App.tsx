@@ -17,6 +17,7 @@ import { FleetOverview } from './pages/fleet/Overview';
 import { VehicleProfiles } from './pages/fleet/VehicleProfiles';
 import { InviteCodes } from './pages/admin/InviteCodes';
 import { Activity } from './pages/staff/Activity';
+import { Settings } from './pages/staff/Settings';
 import { Join } from './pages/staff/Join';
 import { StaffSignIn } from './pages/staff/StaffSignIn';
 import { Users } from './pages/staff/Users';
@@ -55,6 +56,7 @@ export function App() {
             <Route path="/staff" element={<Navigate to="/staff/users" replace />} />
             <Route path="/staff/users" element={<Users />} />
             <Route path="/staff/activity" element={<Activity />} />
+            <Route path="/staff/settings" element={<Settings />} />
             <Route path="/admin/companies" element={<Companies />} />
             <Route path="/admin/invite-codes" element={<InviteCodes />} />
             <Route path="/admin/moderation" element={<Moderation />} />

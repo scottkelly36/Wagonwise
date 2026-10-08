@@ -1,6 +1,6 @@
 import type { Clock } from '../../../shared/ports/clock.js';
 import { ok, type Result } from '../../../shared/result.js';
-import type { Company, CompanyId } from '../domain/company.js';
+import { DEFAULT_PHOTO_RETENTION_MONTHS, type Company, type CompanyId } from '../domain/company.js';
 import type { StaffId } from '../domain/staff-account.js';
 import type { Forbidden } from '../domain/staff-policy.js';
 import { requireCompanyAdmin } from './company-authorization.js';
@@ -34,6 +34,7 @@ export async function createCompany(
     id: input.id,
     name: input.name,
     createdAt: deps.clock.now(),
+    photoRetentionMonths: DEFAULT_PHOTO_RETENTION_MONTHS,
   };
   await deps.repo.save(company);
   return ok(company);

@@ -235,6 +235,15 @@ export class PostgresJobRepository implements JobRepository {
     `.execute(this.db);
   }
 
+  async deleteProofOfDeliveryOlderThan(companyId: CompanyId, cutoff: Date): Promise<number> {
+    const { rows } = await sql<{ job_id: string }>`
+      delete from jobs.proof_of_delivery p using jobs.jobs j
+      where p.job_id = j.id and j.company_id = ${companyId} and p.captured_at < ${cutoff}
+      returning p.job_id
+    `.execute(this.db);
+    return rows.length;
+  }
+
   async findProofOfDelivery(jobId: JobId, stop?: number): Promise<StoredProofOfDelivery | null> {
     const { rows } = await sql<{ content_type: string; data: Buffer; captured_at: Date }>`
       select content_type, data, captured_at from jobs.proof_of_delivery

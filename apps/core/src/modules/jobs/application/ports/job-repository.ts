@@ -27,4 +27,6 @@ export interface JobRepository {
   /** The photo for a delivery stop, or the latest one when no stop is given; `null` if none was attached.
    *  Never loaded by the plain job reads. */
   findProofOfDelivery(jobId: JobId, stop?: number): Promise<StoredProofOfDelivery | null>;
+  /** Deletes a company's proof photos taken before `cutoff`; returns how many went. */
+  deleteProofOfDeliveryOlderThan(companyId: CompanyId, cutoff: Date): Promise<number>;
 }

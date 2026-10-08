@@ -66,6 +66,8 @@ const VALID = [
   ['POST', `/staff/hazard-reports/${ID}/moderate`, { action: 'reject' }],
   ['GET', `/staff/hazard-reports/${ID}/decisions`, undefined],
   ['GET', `/staff/jobs/companies/${ACME}/etas`, undefined],
+  ['GET', `/staff/companies/${ID}/settings`, undefined],
+  ['PUT', `/staff/companies/${ID}/settings`, { photoRetentionMonths: 6 }],
   ['GET', `/staff/jobs/${ID}`, undefined],
   ['GET', `/staff/jobs/${ID}/proof-of-delivery`, undefined],
   ['POST', `/staff/jobs/${ID}/route-preview`, { vehicleId: 'vehicle-1' }],

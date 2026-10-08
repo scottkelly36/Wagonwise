@@ -42,6 +42,11 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
     items: [
       { to: '/staff/users', label: 'Users', shows: (s) => holds(s, 'manage_users') },
       { to: '/staff/activity', label: 'Activity', shows: (s) => holds(s, 'manage_users') },
+      {
+        to: '/staff/settings',
+        label: 'Settings',
+        shows: (s) => isPlatform(s) || holds(s, 'manage_users'),
+      },
     ],
   },
   {

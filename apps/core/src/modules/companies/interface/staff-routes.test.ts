@@ -30,6 +30,7 @@ import {
   InMemoryStaffRecoveryCodeRepository,
   InMemoryStaffSessionRepository,
 } from '../application/testing/in-memory-staff-repositories.js';
+import { InMemoryCompanyRepository } from '../application/testing/in-memory-company-repository.js';
 import type { PlatformStaff } from '../domain/staff-account.js';
 import { registerStaffRoutes } from './staff-routes.js';
 
@@ -61,6 +62,7 @@ let deps: StaffDeps & {
 beforeEach(async () => {
   deps = {
     accounts: new InMemoryStaffAccountRepository(),
+    companies: new InMemoryCompanyRepository(),
     invites: new InMemoryStaffInviteRepository(),
     sessions: new InMemoryStaffSessionRepository(),
     challenges: new InMemoryStaffChallengeRepository(),

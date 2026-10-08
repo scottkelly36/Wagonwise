@@ -39,6 +39,10 @@ function describe(entry: StaffAuditEntryDto, who: (id: string | undefined) => st
       )} to ${privilegeList(d.after)}`;
     case 'staff_removed':
       return `${who(entry.actorId)} removed ${String(d.email)}`;
+    case 'company_settings_changed':
+      return `${who(entry.actorId)} changed how long delivery photos are kept, from ${String(
+        d.photoRetentionMonthsBefore,
+      )} to ${String(d.photoRetentionMonthsAfter)} months`;
   }
 }
 

@@ -287,6 +287,10 @@ export function Jobs() {
               );
             })}
           </>
+        ) : job.requiresProofOfDelivery && job.status === 'delivered' ? (
+          // Core will not deliver a job that needs proof without its photo, so a delivered one with none had its
+          // photo deleted at the end of the company's retention period.
+          'Photo removed (retention period)'
         ) : job.requiresProofOfDelivery ? (
           'Required — not yet received'
         ) : (

@@ -30,6 +30,7 @@ describe('createCompany', () => {
       id: makeId<'CompanyId'>('company-1'),
       name: 'Acme Haulage',
       createdAt: deps.clock.now(),
+      photoRetentionMonths: 12,
     };
     expect(result).toEqual({ ok: true, value: company });
     expect(await deps.repo.findAll()).toEqual([company]);
