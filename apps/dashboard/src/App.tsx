@@ -21,6 +21,7 @@ import { Plans } from './pages/admin/Plans';
 import { InviteCodes } from './pages/admin/InviteCodes';
 import { Activity } from './pages/staff/Activity';
 import { Settings } from './pages/staff/Settings';
+import { PlanAndInvoices } from './pages/staff/PlanAndInvoices';
 import { Join } from './pages/staff/Join';
 import { StaffSignIn } from './pages/staff/StaffSignIn';
 import { Users } from './pages/staff/Users';
@@ -60,6 +61,7 @@ export function App() {
             <Route path="/staff/users" element={<Users />} />
             <Route path="/staff/activity" element={<Activity />} />
             <Route path="/staff/settings" element={<Settings />} />
+            <Route path="/staff/plan" element={<PlanAndInvoices />} />
             <Route path="/admin/companies" element={<Companies />} />
             <Route path="/admin/invite-codes" element={<InviteCodes />} />
             <Route path="/admin/plans" element={<Plans />} />

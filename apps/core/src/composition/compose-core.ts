@@ -240,6 +240,8 @@ export function composeCore(
           name: c.name,
         })),
     },
+    // fleet is built just below and needs billing for its capacity check, so this is read only when called.
+    vehicles: { countFor: (companyId) => fleet.countVehicles(companyId) },
   });
   const fleet = createFleetModule({
     db: fleetDb,

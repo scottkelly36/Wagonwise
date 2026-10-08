@@ -54,6 +54,8 @@ export interface FleetModule {
   /** The company a vehicle belongs to, or null. For `jobs' vehicle directory, supplied by
    *  composition (AGENTS.md rule 7). */
   getVehicleCompanyId(vehicleId: string): Promise<string | null>;
+  /** How many vehicles the company has. For billing's "4 of 5 vehicles used", supplied by composition. */
+  countVehicles(companyId: string): Promise<number>;
   /** A vehicle's measurements, or null. For `jobs` ETA (P2-M6.4): a job is routed for the company
    *  vehicle it is assigned to, not a driver's personal profile. Supplied by composition. */
   getVehicleDimensions(vehicleId: string): Promise<VehicleDimensions | null>;
@@ -118,6 +120,9 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
         companyNames: deps.companyNames,
         dataScopes: deps.dataScopes,
       });
+    },
+    async countVehicles(companyId: string): Promise<number> {
+      return (await repo.listForCompany(makeId<'CompanyId'>(companyId))).length;
     },
     async getVehicleCompanyId(vehicleId: string): Promise<string | null> {
       const vehicle = await repo.findById(makeId<'FleetVehicleId'>(vehicleId));

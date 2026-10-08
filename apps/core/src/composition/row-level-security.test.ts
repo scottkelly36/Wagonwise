@@ -749,4 +749,86 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
       expect(rows[0]).toEqual({ status: 'draft' });
     });
   });
+
+  describe('a company reading its own issued invoices (migration 0042)', () => {
+    const ACME_ISSUED = 'b1000000-0000-4000-8000-0000000000b1';
+    const BETA_ISSUED = 'b2000000-0000-4000-8000-0000000000b2';
+    const ACME_DRAFT = 'b3000000-0000-4000-8000-0000000000b3';
+    beforeAll(async () => {
+      const details = `'{"tradingName":"WagonWise"}'::jsonb`;
+      await ownerPool.query(`
+        insert into billing.invoices (id, company_id, company_name, month, status, number, seq, created_at, issued_at, issued_details)
+          values ('${ACME_ISSUED}', '${ACME}', 'Acme', '2026-08', 'issued', 'INV-9001', 9001, now(), now(), ${details}),
+                 ('${BETA_ISSUED}', '${BETA}', 'Beta', '2026-08', 'issued', 'INV-9002', 9002, now(), now(), ${details});
+        insert into billing.invoices (id, company_id, company_name, month, status, created_at)
+          values ('${ACME_DRAFT}', '${ACME}', 'Acme', '2026-09', 'draft', now());
+        insert into billing.invoice_lines (id, invoice_id, position, description, quantity, unit_pence, amount_pence)
+          values (gen_random_uuid(), '${ACME_ISSUED}', 1, 'Acme plan', 5, 1000, 5000),
+                 (gen_random_uuid(), '${BETA_ISSUED}', 1, 'Beta plan', 2, 1000, 2000),
+                 (gen_random_uuid(), '${ACME_DRAFT}', 1, 'Acme draft line', 5, 1000, 5000);
+      `);
+    });
+
+    const numbers = async () =>
+      (
+        await sql<{
+          number: string;
+        }>`select number from billing.invoices where number in ('INV-9001','INV-9002') order by number`.execute(
+          db,
+        )
+      ).rows.map((r) => r.number);
+    const lines = async () =>
+      (
+        await sql<{
+          description: string;
+        }>`select description from billing.invoice_lines where description like '% plan' or description like '% draft line' order by description`.execute(
+          db,
+        )
+      ).rows.map((r) => r.description);
+
+    it('a company sees its own issued invoices and their lines, not another’s', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await numbers()).toEqual(['INV-9001']);
+        expect(await lines()).toEqual(['Acme plan']);
+      });
+      await scopes.run({ kind: 'company', companyId: BETA }, async () => {
+        expect(await numbers()).toEqual(['INV-9002']);
+        expect(await lines()).toEqual(['Beta plan']);
+      });
+    });
+
+    it('never sees its own draft, or its draft’s lines', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        const drafts = await sql`select id from billing.invoices where status = 'draft'`.execute(
+          db,
+        );
+        expect(drafts.rows).toEqual([]);
+        expect(await lines()).not.toContain('Acme draft line');
+      });
+    });
+
+    it('still cannot change an issued invoice', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        const changed = await sql`update billing.invoices set status = 'paid'`.execute(db);
+        expect(changed.numAffectedRows).toBe(0n);
+      });
+      const { rows } = await ownerPool.query('select status from billing.invoices where id = $1', [
+        ACME_ISSUED,
+      ]);
+      expect(rows[0]).toEqual({ status: 'issued' });
+    });
+
+    it('a driver sees none of it', async () => {
+      await scopes.run(
+        {
+          kind: 'driver',
+          driverId: 'e1000000-0000-4000-8000-000000000001',
+          identifier: 'x@example.com',
+        },
+        async () => {
+          expect(await numbers()).toEqual([]);
+        },
+      );
+    });
+  });
 });

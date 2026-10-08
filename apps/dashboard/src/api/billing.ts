@@ -5,6 +5,7 @@ import {
   generateInvoicesResponseSchema,
   invoiceSchema,
   listInvoicesResponseSchema,
+  ownPlanSchema,
   listPlansResponseSchema,
   scheduleCapacityRequestSchema,
   setPriceRequestSchema,
@@ -14,6 +15,7 @@ import {
   type GenerateInvoicesRequest,
   type GenerateInvoicesResponse,
   type InvoiceDto,
+  type OwnPlanDto,
   type PlanSummaryDto,
   type ScheduleCapacityRequest,
   type SetPriceRequest,
@@ -150,4 +152,22 @@ export async function deleteDraftInvoice(accessToken: string, id: string): Promi
     authorization: `Bearer ${accessToken}`,
   });
   throwUnlessSuccess(status, json, [204]);
+}
+
+/** The signed-in company's own plan (needs `manage_billing`; core checks). */
+export async function getOwnPlan(accessToken: string): Promise<OwnPlanDto> {
+  const { status, json } = await requestJson('GET', '/staff/billing/my/plan', {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return ownPlanSchema.parse(json);
+}
+
+/** The signed-in company's issued, paid and cancelled invoices. */
+export async function listOwnInvoices(accessToken: string): Promise<InvoiceDto[]> {
+  const { status, json } = await requestJson('GET', '/staff/billing/my/invoices', {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return listInvoicesResponseSchema.parse(json).invoices;
 }

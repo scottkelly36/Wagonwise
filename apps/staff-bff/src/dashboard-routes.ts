@@ -98,6 +98,9 @@ const FORWARDS: readonly Forward[] = [
     params: planCompanyParamsSchema,
     body: setPriceRequestSchema,
   },
+  // A company's own plan and issued invoices, for its billing managers (`manage_billing`). Core decides.
+  { method: 'GET', path: '/staff/billing/my/plan', params: noParams },
+  { method: 'GET', path: '/staff/billing/my/invoices', params: noParams },
   // Invoices: draft the month's, adjust a draft, issue, mark paid or void. WagonWise admins only; core decides.
   { method: 'GET', path: '/staff/billing/invoices', params: noParams },
   {

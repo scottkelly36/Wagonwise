@@ -31,7 +31,7 @@ const MESSAGES: Record<string, string> = {
   DriverBusy: 'That driver is already on another active job.',
   VehicleBusy: 'That vehicle is already out on another active job.',
   CapacityReached:
-    "This company's plan doesn't cover any more vehicles. Raise it on the Plans page first.",
+    "The plan doesn't cover any more vehicles. Ask WagonWise to raise it (WagonWise staff: Plans page).",
   DayInPast: 'Pick today or a later day; a past day would change what was already billed.',
   InvalidPrice: 'Enter a price between £0 and £10,000.',
   InvalidCapacity: 'Enter a whole number of vehicles.',

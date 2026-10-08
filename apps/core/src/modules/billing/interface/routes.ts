@@ -16,6 +16,8 @@ import {
 import type { CallerDirectory } from '../application/ports/directories.js';
 import type { InvoiceDeps } from '../application/invoices.js';
 import { registerInvoiceRoutes } from './invoice-routes.js';
+import { registerOwnBillingRoutes } from './own-routes.js';
+import type { OwnBillingDeps } from '../application/own-billing.js';
 import type { Outcome } from './outcome.js';
 import {
   capacityHistory,
@@ -29,6 +31,7 @@ export interface BillingRouteDeps {
   readonly billing: BillingDetailsDeps;
   readonly plans: PlanDeps;
   readonly invoices: InvoiceDeps;
+  readonly own: OwnBillingDeps;
   readonly callerDirectory: CallerDirectory;
   /** Row-Level Security scope per request (migration 0039): billing data is platform-only. */
   readonly dataScopes: DataScopes;
@@ -187,4 +190,9 @@ export function registerBillingRoutes(app: FastifyInstance, deps: BillingRouteDe
   );
 
   registerInvoiceRoutes(app, deps.invoices, asStaff);
+  registerOwnBillingRoutes(app, {
+    own: deps.own,
+    callerDirectory: deps.callerDirectory,
+    dataScopes: deps.dataScopes,
+  });
 }

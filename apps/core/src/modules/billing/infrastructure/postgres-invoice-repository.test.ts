@@ -162,4 +162,21 @@ describe('PostgresInvoiceRepository', () => {
     const months = (await repo().list()).map((i) => i.month);
     expect(months).toEqual([...months].sort().reverse());
   });
+
+  it('lists a company’s issued invoices only: no drafts, nobody else’s', async () => {
+    const mine = draft(acme, '2026-03');
+    const myDraft = draft(acme, '2026-04');
+    const theirs = draft(beta, '2026-03');
+    for (const invoice of [mine, myDraft, theirs]) await repo().insertDraft(invoice, admin);
+    for (const invoice of [mine, theirs]) {
+      const sequence = await repo().nextSequence();
+      await repo().markIssued(invoice.id, { number: `INV-${sequence}`, sequence, at, details });
+    }
+    const listed = await repo().listIssuedForCompany(acme);
+    expect(listed.map((i) => i.id)).toContain(mine.id);
+    expect(listed.map((i) => i.id)).not.toContain(myDraft.id);
+    expect(listed.map((i) => i.id)).not.toContain(theirs.id);
+    expect(listed.every((i) => i.companyId === acme && i.status !== 'draft')).toBe(true);
+    expect(listed.find((i) => i.id === mine.id)?.lines).toHaveLength(1);
+  });
 });

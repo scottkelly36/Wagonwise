@@ -43,6 +43,12 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
       { to: '/staff/users', label: 'Users', shows: (s) => holds(s, 'manage_users') },
       { to: '/staff/activity', label: 'Activity', shows: (s) => holds(s, 'manage_users') },
       {
+        to: '/staff/plan',
+        label: 'Plan and invoices',
+        // A company's own billing. WagonWise staff use the admin Plans and Invoices pages instead.
+        shows: (s) => s?.kind === 'fleet' && s.privileges.includes('manage_billing'),
+      },
+      {
         to: '/staff/settings',
         label: 'Settings',
         shows: (s) => isPlatform(s) || holds(s, 'manage_users'),
