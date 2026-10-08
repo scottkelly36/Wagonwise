@@ -10,6 +10,8 @@ const STATUS_BY_TAG: Record<string, number> = {
   EnrolmentNotUsable: 410,
   InviteNotUsable: 410,
   EmailAlreadyInUse: 409,
+  CompanyNotFound: 404,
+  InvalidSetting: 400,
   CodeNotSent: 502,
   StaffSessionNotFound: 401,
   StaffSessionRevoked: 401,

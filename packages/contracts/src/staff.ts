@@ -275,6 +275,7 @@ export const STAFF_AUDIT_ACTIONS = [
   'second_factor_failed',
   'privileges_changed',
   'staff_removed',
+  'company_settings_changed',
 ] as const;
 export const staffAuditActionSchema = z.enum(STAFF_AUDIT_ACTIONS);
 export type StaffAuditAction = z.infer<typeof staffAuditActionSchema>;

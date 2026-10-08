@@ -53,6 +53,26 @@ export class InMemoryJobRepository implements JobRepository {
     return Promise.resolve();
   }
 
+  deleteProofOfDeliveryOlderThan(companyId: CompanyId, cutoff: Date): Promise<number> {
+    let removed = 0;
+    for (const [jobId, photos] of this.proofOfDelivery) {
+      const job = this.#byId.get(jobId);
+      if (job?.companyId !== companyId) continue;
+      for (const [stop, photo] of photos) {
+        if (photo.capturedAt < cutoff) {
+          photos.delete(stop);
+          removed += 1;
+        }
+      }
+      if (job) {
+        const proofStops = [...photos.keys()].sort();
+        const updated = { ...job, proofStops };
+        this.#byId.set(jobId, { ...updated, hasProofOfDelivery: hasProof(updated) });
+      }
+    }
+    return Promise.resolve(removed);
+  }
+
   findProofOfDelivery(jobId: JobId, stop?: number): Promise<StoredProofOfDelivery | null> {
     const photos = this.proofOfDelivery.get(jobId);
     if (photos === undefined) return Promise.resolve(null);

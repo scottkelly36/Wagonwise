@@ -31,7 +31,8 @@ item closes, delete it from this file; the history file keeps the record. Dated 
    old delivered job's photo after the migration; spoken directions; the map turning with the phone when stopped; one-tap
    parking with Undo; saved places and stored locations; the first real Met Office warning (portal and app); an email
    sign-in code to an address that is not the Resend account owner's.
-3. **Before the pilot, no code:** agree a retention period for proof-of-delivery photos; register with the ICO; fill the
+3. **Before the pilot, no code:** add the photo retention wording (each company chooses, default 12 months) to the privacy
+   notice and DPA; register with the ICO; fill the
    `[brackets]` in the privacy notice, DPA and DPIA and get a solicitor to review them; the restriction audit around Hexham;
    turn on failure alerts in Resend.
 4. **Scope Phase 3** from the owner's board (see Status) and `ideas.md`, starting with the driver-hours idea and what the

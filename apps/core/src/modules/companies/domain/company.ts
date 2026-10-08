@@ -14,4 +14,10 @@ export interface Company {
   readonly id: CompanyId;
   readonly name: string;
   readonly createdAt: Date;
+  /** How long proof-of-delivery photos are kept before a daily task deletes them. The company chooses. */
+  readonly photoRetentionMonths: number;
 }
+
+export const DEFAULT_PHOTO_RETENTION_MONTHS = 12;
+export const MIN_PHOTO_RETENTION_MONTHS = 1;
+export const MAX_PHOTO_RETENTION_MONTHS = 120;

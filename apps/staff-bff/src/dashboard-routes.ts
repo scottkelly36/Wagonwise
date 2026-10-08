@@ -1,4 +1,8 @@
-import { createCompanyRequestSchema } from '@wagonwise/contracts/companies';
+import {
+  companySettingsParamsSchema,
+  createCompanyRequestSchema,
+  updateCompanySettingsRequestSchema,
+} from '@wagonwise/contracts/companies';
 import {
   createFleetVehicleRequestSchema,
   driverLinkIdParamsSchema,
@@ -49,6 +53,14 @@ const FORWARDS: readonly Forward[] = [
   // WagonWise admins only; core decides.
   { method: 'GET', path: '/staff/companies', params: noParams },
   { method: 'POST', path: '/staff/companies', params: noParams, body: createCompanyRequestSchema },
+  // A company's own settings: how long delivery photos are kept. Its managers choose; core decides who may.
+  { method: 'GET', path: '/staff/companies/:id/settings', params: companySettingsParamsSchema },
+  {
+    method: 'PUT',
+    path: '/staff/companies/:id/settings',
+    params: companySettingsParamsSchema,
+    body: updateCompanySettingsRequestSchema,
+  },
   { method: 'GET', path: '/staff/invite-codes', params: noParams },
   { method: 'POST', path: '/staff/invite-codes', params: noParams },
   { method: 'GET', path: '/staff/hazard-reports', params: noParams },

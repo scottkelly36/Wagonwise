@@ -39,6 +39,7 @@ import {
   InMemoryStaffRecoveryCodeRepository,
   InMemoryStaffSessionRepository,
 } from './testing/in-memory-staff-repositories.js';
+import { InMemoryCompanyRepository } from './testing/in-memory-company-repository.js';
 import { verifyStaffSecondFactor } from './verify-staff-second-factor.js';
 
 const acme = makeId<'CompanyId'>('company-acme');
@@ -57,6 +58,7 @@ let admin: PlatformStaff;
 beforeEach(async () => {
   deps = {
     accounts: new InMemoryStaffAccountRepository(),
+    companies: new InMemoryCompanyRepository(),
     invites: new InMemoryStaffInviteRepository(),
     sessions: new InMemoryStaffSessionRepository(),
     challenges: new InMemoryStaffChallengeRepository(),

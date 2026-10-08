@@ -1,4 +1,8 @@
 import {
+  companySettingsParamsSchema,
+  updateCompanySettingsRequestSchema,
+} from '@wagonwise/contracts/companies';
+import {
   acceptStaffInviteRequestSchema,
   confirmStaffEnrolmentRequestSchema,
   createStaffInviteRequestSchema,
@@ -12,6 +16,7 @@ import {
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId } from '../../../shared/brand.js';
 import type { DataScope, DataScopes } from '../../../shared/ports/data-scope.js';
+import { getCompanySettings, updateCompanySettings } from '../application/company-settings.js';
 import { acceptStaffInvite } from '../application/accept-staff-invite.js';
 import { confirmStaffEnrolment } from '../application/confirm-staff-enrolment.js';
 import { createStaffInvite } from '../application/create-staff-invite.js';
@@ -276,6 +281,32 @@ export function registerStaffRoutes(
       });
       if (!result.ok) return fail(result.error);
       return ok(200, { entries: result.value.map(auditDto) });
+    });
+    return send(request, reply, outcome);
+  });
+
+  app.get('/staff/companies/:id/settings', async (request, reply) => {
+    const outcome = await asActor(request, async ({ actor }) => {
+      const params = companySettingsParamsSchema.safeParse(request.params);
+      if (!params.success) return badRequest();
+      const result = await getCompanySettings(deps, actor, makeId<'CompanyId'>(params.data.id));
+      return result.ok ? ok(200, result.value) : fail(result.error);
+    });
+    return send(request, reply, outcome);
+  });
+
+  app.put('/staff/companies/:id/settings', async (request, reply) => {
+    const outcome = await asActor(request, async ({ actor }) => {
+      const params = companySettingsParamsSchema.safeParse(request.params);
+      const body = updateCompanySettingsRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return badRequest();
+      const result = await updateCompanySettings(
+        deps,
+        actor,
+        makeId<'CompanyId'>(params.data.id),
+        body.data,
+      );
+      return result.ok ? ok(200, result.value) : fail(result.error);
     });
     return send(request, reply, outcome);
   });

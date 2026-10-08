@@ -89,8 +89,8 @@ describe('Postgres staff repositories', () => {
       companies.staff_sessions, companies.staff_invites, companies.staff_accounts,
       companies.companies cascade`.execute(db);
     const companies = new PostgresCompanyRepository(db);
-    await companies.save({ id: companyA, name: 'Acme', createdAt: t0 });
-    await companies.save({ id: companyB, name: 'Other', createdAt: t0 });
+    await companies.save({ id: companyA, name: 'Acme', createdAt: t0, photoRetentionMonths: 12 });
+    await companies.save({ id: companyB, name: 'Other', createdAt: t0, photoRetentionMonths: 12 });
   });
 
   describe('PostgresStaffAccountRepository', () => {

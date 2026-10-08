@@ -32,9 +32,18 @@ describe('PostgresCompanyRepository', () => {
       id: makeId<'CompanyId'>('11111111-1111-4111-8111-111111111111'),
       name: 'Acme Haulage',
       createdAt: new Date('2026-09-27T08:00:00.000Z'),
+      photoRetentionMonths: 12,
       ...overrides,
     };
   }
+
+  it('keeps a company photo retention setting, and can change it', async () => {
+    const c = company({ photoRetentionMonths: 6 });
+    await repo().save(c);
+    expect((await repo().findById(c.id))?.photoRetentionMonths).toBe(6);
+    await repo().setPhotoRetention(c.id, 24);
+    expect((await repo().findById(c.id))?.photoRetentionMonths).toBe(24);
+  });
 
   it('round-trips a company', async () => {
     const c = company();

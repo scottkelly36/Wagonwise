@@ -3,6 +3,13 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-08: **delivery photo retention, chosen by the company.** `companies.companies.photo_retention_months` (migration 0038,
+  default 12, 1 to 120). A manager (`manage_users`) or WagonWise staff sets it on the portal's new Settings page
+  (`PUT /staff/companies/:id/settings`, audited as `company_settings_changed`, shown on Activity). A daily task in core
+  (`prune-proof-photos`, every `POSITION_SWEEP_INTERVAL_MS`) deletes each company's photos older than its own setting; the job
+  record stays, and Jobs shows "Photo removed (retention period)". Why: the company is the controller of its delivery
+  records, so the number is its decision, not WagonWise's. Needs a core deploy (migration), then staff-bff and the dashboard.
+  The privacy notice and DPA still need a line saying so.
 - 2026-10-08: **jobs with several stops.** A job is an ordered list of stops, each a collection or a delivery (up to 20). The
   statuses are unchanged: the driver arrives at the current stop, finishes it (loaded, or delivered), and sets off for the next;
   finishing a delivery that is not the last leaves them loaded, and the job is delivered after the last stop. A job with one
