@@ -212,3 +212,35 @@ update --spec` (used once to add the job) wiped `core`'s App-Level `DATABASE_URL
   when they want to; To is a postcode, an address, what3words, a saved place or a map pin. A driver can then tap
   Start for From and type a postcode for To, or the other way round, and only sees the one input they chose
   instead of every option at once. **Update 2026-10-08: the From/To switches are built, without what3words** (From: My position / Search / Map; To: Search / Map; a driver sees only the input they chose). what3words then needs only a third option on each switch, a lookup in core and a key.
+
+- **2026-10-08: Phase 3 goal, driver hours aware navigation ("smart break planning").** Raised by the owner. Idea:
+  the app knows how much legal driving time a driver has left, and plans the break into the route: it says when a
+  break is needed, offers the best HGV parking before the limit with the time to reach it, and gives an ETA that
+  includes the break. Dispatchers see each driver's status (driving, break soon, on break, time remaining) next to
+  their job on the live map. We already have most of the other half: HGV routing, parking with drive times
+  (nearby-parking), traffic, jobs and the live map. What is new is the driver-hours state, the rules, and putting a
+  required break into the ETA and the route.
+
+  **Rules to model (check each against current GOV.UK guidance before building; they differ between GB domestic,
+  assimilated EU and AETR rules, and by vehicle):** the break of 45 minutes (or 15 + 30) after 4.5 hours of driving,
+  the daily driving limit (9 hours, 10 twice a week), weekly and fortnightly limits, and daily and weekly rest.
+
+  **Where the data comes from, and what is not yet known** (the notes the owner pasted from ChatGPT are a pitch, not
+  a spec; none of it is verified here):
+  - A smart tachograph has a Bluetooth interface (the "ITS interface") meant for outside apps, but only newer
+    smart tachographs have it, only certain data goes over it, the driver has to enable pairing, and it differs by
+    manufacturer. Whether it gives "time remaining", or only driver activity from which the app works that out
+    itself, is the first thing to find out. Many pilot-fleet lorries may be older, with no such interface.
+  - Bluetooth from the app is a native change: a new package and permissions, so a Play build rather than an OTA
+    update, and iOS adds its own limits.
+  - It is personal data about working time. It needs the driver's clear consent and an update to the DPIA and
+    privacy notice, and a plain answer to "can my employer see this" before a driver turns it on.
+  - The app can only advise. The tachograph remains the legal record and the driver remains responsible; the screen
+    wording must not read as a compliance guarantee, and a wrong number is worse than none.
+    **Suggested order:** (1) find out what the pilot firm's lorries actually have, and read the ITS interface
+    specification for the data it exposes; (2) build the break-planning experience first on a driver-entered or
+    estimated clock (a "start my shift" timer fed by the movement we already see), because that tests the idea
+    with drivers and exercises the routing and parking without any Bluetooth; (3) add the tachograph source behind
+    the same screen; (4) send the status to core and show it in the portal; (5) put the break into the ETA and the
+    route, including re-planning when traffic eats the time left. Pricing is a business decision and is not recorded
+    here.
