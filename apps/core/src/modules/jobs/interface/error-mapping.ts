@@ -1,6 +1,8 @@
 import type {
+  CheckRequired,
   DriverBusy,
   VehicleBusy,
+  VehicleNotFit,
   DriverNotInCompany,
   Forbidden,
   JobNotFound,
@@ -28,6 +30,8 @@ export type JobsError =
   | VehicleNotInCompany
   | DriverBusy
   | VehicleBusy
+  | CheckRequired
+  | VehicleNotFit
   | ProofOfDeliveryNotFound
   | ProofOfDeliveryRequired;
 
@@ -49,6 +53,8 @@ export function statusFor(error: JobsError): number {
     case 'InvalidTransition':
     case 'DriverBusy':
     case 'VehicleBusy':
+    case 'CheckRequired':
+    case 'VehicleNotFit':
     case 'NoRouteForVehicle':
     case 'NoVehicleAssigned':
     case 'VehicleUnavailable':

@@ -9,6 +9,7 @@ import type { CallerDirectory } from './application/ports/caller-directory.js';
 import type {
   DriverDirectory,
   DriverIdentityDirectory,
+  JobStartGate,
   VehicleDirectory,
   VehicleNameDirectory,
 } from './application/ports/directories.js';
@@ -59,6 +60,9 @@ export interface JobsModuleDeps {
   /** A routing profile carrying the assigned company vehicle's measurements, for the driver app's
    *  "Start". Supplied by composition over `fleet` and `routing`. */
   readonly navigationProfiles: NavigationProfileProvisioner;
+  /** Whether a driver may accept a job on its vehicle, by the company's walk-round check settings. Supplied by
+   *  composition over `checks`; without it, nothing is held back. Applies to drivers only, never to dispatchers. */
+  readonly startGate?: JobStartGate | undefined;
 }
 
 export interface JobsModule {
@@ -109,7 +113,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
 
   const driverRouteDeps: JobsDriverRouteDeps = {
     currentJob: { repo },
-    changeStatus: { repo, ids: deps.ids, clock: deps.clock },
+    changeStatus: { repo, ids: deps.ids, clock: deps.clock, startGate: deps.startGate },
     attachProofOfDelivery: { repo },
     recordPosition: { repo, positions, clock: deps.clock },
     navigationProfile: { repo, profiles: deps.navigationProfiles },

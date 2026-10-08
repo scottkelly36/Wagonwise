@@ -23,15 +23,17 @@ const PAT = 'dddddddd-0000-4000-8000-000000000001'; // an active driver of ACME,
 const SAM = 'dddddddd-0000-4000-8000-000000000002'; // an active driver of ACME, no job
 const OUTSIDER = 'dddddddd-0000-4000-8000-000000000003'; // drives for BETA
 const LORRY = 'eeeeeeee-0000-4000-8000-000000000001';
+const LORRY2 = 'eeeeeeee-0000-4000-8000-000000000002';
 const CHECK = 'cccccccc-0000-4000-8000-000000000001';
 const LIST = 'aaaaaaaa-0000-4000-8000-000000000001';
 const OFFICE = '50000000-0000-4000-8000-000000000001'; // a dispatcher at ACME (staff ids are UUIDs)
+const BUILDER = '50000000-0000-4000-8000-000000000002'; // a fleet manager at ACME
 
 const dispatchers: Record<string, Caller> = {
   dispatcher: { kind: 'fleet', companyId: ACME as never, privileges: ['dispatch'] },
 };
 const builders: Record<string, StaffCaller> = {
-  builder: { kind: 'fleet', companyId: ACME as never, privileges: ['manage_fleet'] },
+  [BUILDER]: { kind: 'fleet', companyId: ACME as never, privileges: ['manage_fleet'] },
   [OFFICE]: { kind: 'fleet', companyId: ACME as never, privileges: ['dispatch'] },
   nobody: { kind: 'fleet', companyId: ACME as never, privileges: ['view_live_map'] },
   rival: { kind: 'fleet', companyId: BETA as never, privileges: ['manage_fleet', 'dispatch'] },
@@ -80,7 +82,8 @@ describe('walk-round checks end to end (real RLS, real scopes)', () => {
     await ownerPool.query(`alter role wagonwise_app with login password 'app-password'`);
     await ownerPool.query(`
       insert into fleet.vehicles (id, company_id, name, height_m, width_m, length_m, gross_weight_t)
-        values ('${LORRY}', '${ACME}', 'Big Wagon', 4, 2.5, 16, 44);
+        values ('${LORRY}', '${ACME}', 'Big Wagon', 4, 2.5, 16, 44),
+               ('${LORRY2}', '${ACME}', 'Little Wagon', 4, 2.5, 12, 18);
       insert into fleet.driver_links (id, company_id, driver_id, status, created_at, decided_at)
         values ('f1000000-0000-4000-8000-000000000001', '${ACME}', '${PAT}', 'active', now(), now()),
                ('f1000000-0000-4000-8000-000000000002', '${ACME}', '${SAM}', 'active', now(), now()),
@@ -125,7 +128,8 @@ describe('walk-round checks end to end (real RLS, real scopes)', () => {
       callers: { getCaller: (staffId) => Promise.resolve(dispatchers[staffId] ?? null) },
       drivers: { belongsToCompany: (id, company) => fleet.isActiveDriverOfCompany(id, company) },
       vehicles: {
-        belongsToCompany: (id, company) => Promise.resolve(id === LORRY && company === ACME),
+        belongsToCompany: (id, company) =>
+          Promise.resolve((id === LORRY || id === LORRY2) && company === ACME),
       },
       vehicleNames: { getName: () => Promise.resolve(null) },
       routes: {
@@ -134,6 +138,8 @@ describe('walk-round checks end to end (real RLS, real scopes)', () => {
       },
       navigationProfiles: { provision: () => Promise.resolve(err({ tag: 'VehicleUnavailable' })) },
       driverIdentities,
+      // A driver accepting a job asks the checks rules, wired as compose-core.ts does it.
+      startGate: { check: (companyId, vehicleId) => checks.jobStartVerdict(companyId, vehicleId) },
     });
     // Wired exactly as compose-core.ts does it.
     const checks = createChecksModule({
@@ -200,11 +206,11 @@ describe('walk-round checks end to end (real RLS, real scopes)', () => {
 
   const asStaff = (id: string) => ({ headers: { 'x-test-staff-id': id } });
   const asDriver = (id: string) => ({ headers: { 'x-test-driver-id': id } });
-  const submit = (driver: string, answers: unknown[], id = CHECK) =>
+  const submit = (driver: string, answers: unknown[], id = CHECK, vehicleId = LORRY) =>
     app.inject({
       method: 'POST',
       url: '/checks',
-      payload: { id, templateId: LIST, vehicleId: LORRY, answers },
+      payload: { id, templateId: LIST, vehicleId, answers },
       ...asDriver(driver),
     });
 
@@ -213,7 +219,7 @@ describe('walk-round checks end to end (real RLS, real scopes)', () => {
       method: 'POST',
       url: `/staff/checks/companies/${ACME}/templates`,
       payload: list,
-      ...asStaff('builder'),
+      ...asStaff(BUILDER),
     });
     expect(built.statusCode).toBe(201);
 
@@ -453,6 +459,94 @@ describe('walk-round checks end to end (real RLS, real scopes)', () => {
         ...asStaff('nobody'),
       });
       expect(defects.statusCode).toBe(403);
+    });
+  });
+
+  describe('the rules about sending a vehicle out', () => {
+    let jobId = '';
+    const settings = (payload: object) =>
+      app.inject({
+        method: 'PUT',
+        url: `/staff/checks/companies/${ACME}/settings`,
+        payload,
+        ...asStaff(BUILDER),
+      });
+    const accept = (driver: string) =>
+      app.inject({
+        method: 'POST',
+        url: `/jobs/${jobId}/status`,
+        payload: { status: 'accepted' },
+        ...asDriver(driver),
+      });
+
+    it('sets up: dispatch puts Sam on a job with the little wagon', async () => {
+      const created = await app.inject({
+        method: 'POST',
+        url: `/staff/jobs/companies/${ACME}/jobs`,
+        payload: { companyId: ACME, reference: 'GATE-1', stops },
+        ...asStaff('dispatcher'),
+      });
+      jobId = created.json<{ id: string }>().id;
+      const assigned = await app.inject({
+        method: 'POST',
+        url: `/staff/jobs/${jobId}/assign`,
+        payload: { driverId: SAM, vehicleId: LORRY2 },
+        ...asStaff('dispatcher'),
+      });
+      expect(assigned.statusCode).toBe(200);
+    });
+
+    it('makes a firm that asks for it do the check before the driver can accept the job', async () => {
+      expect(
+        (await settings({ requiredBeforeJob: true, blockOnDoNotDrive: false })).statusCode,
+      ).toBe(200);
+      const held = await accept(SAM);
+      expect(held.statusCode).toBe(409);
+      expect(held.json()).toMatchObject({ tag: 'CheckRequired' });
+    });
+
+    it('holds the vehicle back for a do-not-drive defect, even with the check done', async () => {
+      const filed = await submit(
+        SAM,
+        [{ itemId: 'tyres', value: 'defect', note: 'Split sidewall' }],
+        'cccccccc-0000-4000-8000-0000000000a1',
+        LORRY2,
+      );
+      expect(filed.statusCode).toBe(201);
+
+      await settings({ requiredBeforeJob: true, blockOnDoNotDrive: true });
+      const held = await accept(SAM);
+      expect(held.statusCode).toBe(409);
+      expect(held.json()).toMatchObject({ tag: 'VehicleNotFit' });
+    });
+
+    it('lets the driver accept once the office has marked the defect fixed', async () => {
+      const list = await app.inject({
+        method: 'GET',
+        url: `/staff/checks/companies/${ACME}/defects`,
+        ...asStaff(OFFICE),
+      });
+      const open = list.json<{ defects: { id: string; vehicleId: string }[] }>().defects;
+      expect(open.map((d) => d.vehicleId)).toEqual([LORRY2]);
+
+      // Seen is not fixed: still held back.
+      await app.inject({
+        method: 'PUT',
+        url: `/staff/checks/defects/${open[0]?.id}/status`,
+        payload: { status: 'acknowledged' },
+        ...asStaff(OFFICE),
+      });
+      expect((await accept(SAM)).statusCode).toBe(409);
+
+      await app.inject({
+        method: 'PUT',
+        url: `/staff/checks/defects/${open[0]?.id}/status`,
+        payload: { status: 'fixed' },
+        ...asStaff(OFFICE),
+      });
+      const accepted = await accept(SAM);
+      expect(accepted.statusCode).toBe(200);
+      expect(accepted.json()).toMatchObject({ status: 'accepted' });
     });
   });
 });

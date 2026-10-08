@@ -173,3 +173,86 @@ describe('failJob', () => {
     });
   });
 });
+
+describe('the walk-round check gate on accepting a job', () => {
+  const vehicle = makeId<'FleetVehicleId'>('vehicle-1');
+
+  async function gated(
+    verdict: 'ok' | 'check_required' | 'vehicle_not_fit',
+    status: JobStatus = 'assigned',
+  ) {
+    const { repo, deps } = await setup(status);
+    const job = await repo.findById(jobId);
+    await repo.save({ ...(job as Job), vehicleId: vehicle });
+    const asked: [string, string][] = [];
+    return {
+      repo,
+      asked,
+      deps: {
+        ...deps,
+        startGate: {
+          check: (c: string, v: string) => {
+            asked.push([c, v]);
+            return Promise.resolve(verdict);
+          },
+        },
+      } as ChangeJobStatusDeps,
+    };
+  }
+
+  it('lets a driver accept when the gate says the vehicle is fine, asking about this company and vehicle', async () => {
+    const { deps, asked } = await gated('ok');
+    const r = await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'accepted' });
+    expect(r.ok).toBe(true);
+    expect(asked).toEqual([[company, vehicle]]);
+  });
+
+  it('holds a driver back when the check is still to do, and the job stays assigned', async () => {
+    const { deps, repo } = await gated('check_required');
+    const r = await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'accepted' });
+    expect(r).toEqual({ ok: false, error: { tag: 'CheckRequired' } });
+    expect((await repo.findById(jobId))?.status).toBe('assigned');
+  });
+
+  it('holds a driver back when the vehicle has a "do not drive" defect open', async () => {
+    const { deps } = await gated('vehicle_not_fit');
+    const r = await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'accepted' });
+    expect(r).toEqual({ ok: false, error: { tag: 'VehicleNotFit' } });
+  });
+
+  it('never holds back a dispatcher moving the job', async () => {
+    const { deps, asked } = await gated('check_required');
+    const r = await advanceJobStatus(deps, { actor: ADMIN, jobId, to: 'accepted' });
+    expect(r.ok).toBe(true);
+    expect(asked).toEqual([]);
+  });
+
+  it('asks only when accepting an assigned job, not at later steps', async () => {
+    const { deps, asked } = await gated('check_required', 'accepted');
+    const r = await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'at_pickup' });
+    expect(r.ok).toBe(true);
+    expect(asked).toEqual([]);
+  });
+
+  it('does nothing at all when there is no gate, and asks nothing of a job with no vehicle yet', async () => {
+    const { deps: bare } = await setup('assigned');
+    expect((await advanceJobStatus(bare, { actor: DRIVER, jobId, to: 'accepted' })).ok).toBe(true);
+
+    // A gate is wired, but this job has no vehicle for it to ask about.
+    const asked: string[] = [];
+    const { deps } = await setup('assigned');
+    const withGate: ChangeJobStatusDeps = {
+      ...deps,
+      startGate: {
+        check: () => {
+          asked.push('asked');
+          return Promise.resolve('check_required');
+        },
+      },
+    };
+    expect((await advanceJobStatus(withGate, { actor: DRIVER, jobId, to: 'accepted' })).ok).toBe(
+      true,
+    );
+    expect(asked).toEqual([]);
+  });
+});

@@ -1,4 +1,4 @@
-import type { CompanyId, StaffId } from '../../domain/check-template.js';
+import type { CompanyId, StaffId, VehicleId } from '../../domain/check-template.js';
 import type { CheckId } from '../../domain/check.js';
 import type {
   CheckDetail,
@@ -24,4 +24,6 @@ export interface OfficeCheckRepository {
   listDefects(companyId: CompanyId, statuses: readonly DefectStatus[]): Promise<DefectRecord[]>;
   findDefect(id: DefectId): Promise<DefectRecord | null>;
   setDefectStatus(id: DefectId, status: DefectStatus, by: StaffId, at: Date): Promise<void>;
+  /** Whether the vehicle has a "do not drive" defect that is open or seen, but not yet fixed. */
+  vehicleHasUnfixedDoNotDrive(vehicleId: VehicleId): Promise<boolean>;
 }

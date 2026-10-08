@@ -1,5 +1,6 @@
 import {
   checkDetailSchema,
+  checkSettingsSchema,
   checkPhotoResponseSchema,
   checkTemplateBodySchema,
   checkTemplateSchema,
@@ -9,9 +10,11 @@ import {
   listCheckTemplatesResponseSchema,
   listDefectsResponseSchema,
   setDefectStatusRequestSchema,
+  updateCheckSettingsRequestSchema,
   starterTemplateResponseSchema,
   type CheckDetailDto,
   type CheckPhotoResponse,
+  type CheckSettingsDto,
   type CheckSummaryDto,
   type CheckTemplateBody,
   type CheckTemplateDto,
@@ -150,4 +153,38 @@ export async function setDefectStatus(
   });
   throwUnlessSuccess(status, json, [200]);
   return defectSchema.parse(json);
+}
+
+/** A firm's rules about sending a vehicle out. */
+export async function getCheckSettings(
+  accessToken: string,
+  companyId: string,
+): Promise<CheckSettingsDto> {
+  const { status, json } = await requestJson(
+    'GET',
+    `/staff/checks/companies/${companyId}/settings`,
+    {
+      authorization: `Bearer ${accessToken}`,
+    },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return checkSettingsSchema.parse(json);
+}
+
+export async function updateCheckSettings(
+  accessToken: string,
+  companyId: string,
+  input: CheckSettingsDto,
+): Promise<CheckSettingsDto> {
+  const body = updateCheckSettingsRequestSchema.parse(input);
+  const { status, json } = await requestJson(
+    'PUT',
+    `/staff/checks/companies/${companyId}/settings`,
+    {
+      body,
+      authorization: `Bearer ${accessToken}`,
+    },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return checkSettingsSchema.parse(json);
 }

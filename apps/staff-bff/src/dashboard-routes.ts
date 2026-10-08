@@ -8,6 +8,7 @@ import {
   defectIdParamsSchema,
   defectsQuerySchema,
   setDefectStatusRequestSchema,
+  updateCheckSettingsRequestSchema,
   updateCheckTemplateRequestSchema,
 } from '@wagonwise/contracts/checks';
 import {
@@ -128,6 +129,18 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/checks/defects/:id/status',
     params: defectIdParamsSchema,
     body: setDefectStatusRequestSchema,
+  },
+  // A firm's rules about sending a vehicle out: its staff read them, fleet managers change them. Core decides.
+  {
+    method: 'GET',
+    path: '/staff/checks/companies/:companyId/settings',
+    params: checksCompanyParamsSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/checks/companies/:companyId/settings',
+    params: checksCompanyParamsSchema,
+    body: updateCheckSettingsRequestSchema,
   },
   // WagonWise's own billing details, printed on invoices. WagonWise admins only; core decides.
   { method: 'GET', path: '/staff/billing/details', params: noParams },

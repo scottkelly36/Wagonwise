@@ -4,6 +4,9 @@ import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { RecordingDataScopes } from '../../../shared/testing/recording-data-scopes.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { StaffCaller } from '../application/ports/directories.js';
+import { InMemoryCheckRepository } from '../application/testing/in-memory-check-repository.js';
+import { InMemoryOfficeCheckRepository } from '../application/testing/in-memory-office-check-repository.js';
+import { InMemorySettingsRepository } from '../application/testing/in-memory-settings-repository.js';
 import { InMemoryTemplateRepository } from '../application/testing/in-memory-template-repository.js';
 import { makeId } from '../../../shared/brand.js';
 import { registerChecksRoutes } from './routes.js';
@@ -29,9 +32,18 @@ function buildApp(): { app: FastifyInstance; scopes: RecordingDataScopes } {
     if (typeof id === 'string') request.staffId = id;
     done();
   });
+  const templateRepo = new InMemoryTemplateRepository();
+  const clock = new FakeClock('2026-10-09T09:00:00.000Z');
   registerChecksRoutes(app, {
+    rules: {
+      settings: new InMemorySettingsRepository(),
+      templates: templateRepo,
+      checks: new InMemoryCheckRepository(),
+      office: new InMemoryOfficeCheckRepository(),
+      clock,
+    },
     templates: {
-      templates: new InMemoryTemplateRepository(),
+      templates: templateRepo,
       vehicles: {
         belongsToCompany: (v, c) => Promise.resolve(v === LORRY && c === ACME),
         find: (v) =>
@@ -40,7 +52,7 @@ function buildApp(): { app: FastifyInstance; scopes: RecordingDataScopes } {
           ),
       },
       ids: new SequentialIdGenerator(),
-      clock: new FakeClock('2026-10-09T09:00:00.000Z'),
+      clock,
     },
     callerDirectory: { getCaller: (id) => Promise.resolve(staff[id] ?? null) },
     dataScopes: scopes,
@@ -207,5 +219,36 @@ describe('/staff/checks', () => {
     expect((await app.inject({ method: 'GET', url: '/staff/checks/starter' })).statusCode).toBe(
       401,
     );
+  });
+
+  it('starts a company with both rules off, lets a fleet manager turn them on, and keeps others from changing them', async () => {
+    const { app } = buildApp();
+    const url = `/staff/checks/companies/${ACME}/settings`;
+    const first = await app.inject({ method: 'GET', url, ...as('viewer') });
+    expect(first.json()).toEqual({ requiredBeforeJob: false, blockOnDoNotDrive: false });
+
+    const on = { requiredBeforeJob: true, blockOnDoNotDrive: true };
+    expect(
+      (await app.inject({ method: 'PUT', url, payload: on, ...as('viewer') })).statusCode,
+    ).toBe(403);
+    expect(
+      (await app.inject({ method: 'PUT', url, payload: on, ...as('outsider') })).statusCode,
+    ).toBe(403);
+    const put = await app.inject({ method: 'PUT', url, payload: on, ...as('builder') });
+    expect(put.statusCode).toBe(200);
+    expect(put.json()).toEqual(on);
+    expect((await app.inject({ method: 'GET', url, ...as('viewer') })).json()).toEqual(on);
+    expect((await app.inject({ method: 'GET', url, ...as('outsider') })).statusCode).toBe(403);
+  });
+
+  it('400s a settings body that is not two true-or-false answers', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/staff/checks/companies/${ACME}/settings`,
+      payload: { requiredBeforeJob: 'yes' },
+      ...as('builder'),
+    });
+    expect(response.statusCode).toBe(400);
   });
 });

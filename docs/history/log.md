@@ -3,6 +3,18 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **walk-round checks, slice 3b: rules about sending a vehicle out (Phase 3 M5).** Migration 0046 (`checks.settings`; and a
+  driver may now read their company's settings and defects). Two rules per firm, both off by default, set by a fleet manager on the
+  Walk-round checks page: **do the check before the job** (a driver cannot accept a job until every list for the vehicle is done
+  today, by anyone) and **hold back a vehicle with a "do not drive" defect** (not sent out until the office marks the defect fixed;
+  "seen" is not fixed). They apply when a driver accepts an assigned job (`assigned` to `accepted`): jobs' `advanceJobStatus` asks a
+  `JobStartGate`, supplied by composition over `checks.jobStartVerdict`, and returns `CheckRequired` or `VehicleNotFit` (409). A
+  dispatcher moving a job for a driver is never held up, and the gate is only wired into the driver's door. A vehicle with no lists
+  has nothing to do, so a firm that turns the rule on before building a list is not locked out; a vehicle with an open do-not-drive
+  defect comes before a missing check, because doing the check does not make it safe. The driver app says "Do your daily check
+  first" or "This vehicle has a defect marked do not drive. Tell your office" (also when "Start" tries to accept the job). Tested
+  end to end on real Postgres, including that a driver's own database view can see the rules and the open defects (a missing policy
+  would have silently let everything through). Not built: retention, defects feeding maintenance.
 - 2026-10-09: **walk-round checks, slice 3a: the office sees results and works through defects (Phase 3 M5).** Migration 0045
   (`checks.defects.status_changed_by`). Dashboard: **Check results** lists the checks drivers have done (today, 7 or 30 days) with
   vehicle, list, the driver's sign-in, result and defect count, and opens any one in full: the questions as they were when it was
