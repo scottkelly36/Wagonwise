@@ -6,7 +6,7 @@ import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import * as jobsApi from '../../api/jobs';
 import * as placesApi from '../../api/places';
-import type { SavedPlaceDto } from '@wagonwise/contracts/places';
+import { savedPlaceIdSchema, type SavedPlaceDto } from '@wagonwise/contracts/places';
 import { MarkedPlaces } from '../../components/MarkedPlaces';
 import { PostcodeField } from '../../components/PostcodeField';
 import { SavedLocationPicker } from '../../components/SavedLocationPicker';
@@ -178,7 +178,7 @@ export function Jobs() {
         toStore.map((s) =>
           withAccessToken((token) =>
             placesApi.createPlace(token, companyId as string, {
-              id: crypto.randomUUID(),
+              id: savedPlaceIdSchema.parse(crypto.randomUUID()),
               companyId: companyIdSchema.parse(companyId),
               category: 'other',
               name: s.stop.name,

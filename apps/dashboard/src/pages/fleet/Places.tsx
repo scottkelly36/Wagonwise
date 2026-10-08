@@ -1,4 +1,8 @@
-import type { PlaceCategory, SavedPlaceDto } from '@wagonwise/contracts/places';
+import {
+  savedPlaceIdSchema,
+  type PlaceCategory,
+  type SavedPlaceDto,
+} from '@wagonwise/contracts/places';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as placesApi from '../../api/places';
@@ -56,7 +60,7 @@ export function Places() {
       const resolved = await resolvePostcode(queryClient, newPostcode);
       return withAccessToken((token) =>
         placesApi.createPlace(token, companyId as string, {
-          id: crypto.randomUUID(),
+          id: savedPlaceIdSchema.parse(crypto.randomUUID()),
           companyId: companyIdSchema.parse(companyId),
           category: newCategory,
           name: newName.trim(),
