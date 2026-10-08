@@ -250,6 +250,15 @@ second check on top — core alone decides ownership/authorization for those.
 | `CORE_INTERNAL_URL` | `http://127.0.0.1:3001`  | Where core lives                         |
 | `CORE_INTERNAL_KEY` | `local-dev-internal-key` | Must match one of core's `INTERNAL_KEYS` |
 
+## Billing
+
+`apps/core/src/modules/billing`: what WagonWise charges companies. So far, WagonWise's own billing details
+(`billing.details`, migration 0039): trading name, address, billing email, payment details, VAT status and payment terms, one
+row seeded with `[bracketed]` placeholders. WagonWise admins edit it on the dashboard's Billing page
+(`/staff/billing/details`); company staff are refused and Row-Level Security hides the row from every scope but the platform's.
+`placeholderFields()` lists fields still in brackets; invoice issuing must refuse while it is not empty. Pricing model and what
+is next: `docs/phase-3-scope.md`.
+
 ## Staff BFF
 
 `apps/staff-bff` (P2-M1.9) is the dashboard's back end for staff accounts. It does the same

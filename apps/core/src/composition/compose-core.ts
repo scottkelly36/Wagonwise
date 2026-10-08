@@ -36,6 +36,7 @@ import {
 import { createJobsModule, type UntypedDb as JobsUntypedDb } from '../modules/jobs/api.js';
 import { createParkingModule, type UntypedDb as ParkingUntypedDb } from '../modules/parking/api.js';
 import { createWeatherModule } from '../modules/weather/api.js';
+import { createBillingModule, type UntypedDb as BillingUntypedDb } from '../modules/billing/api.js';
 import { createPlacesModule, type UntypedDb as PlacesUntypedDb } from '../modules/places/api.js';
 import {
   createRoutingModule,
@@ -186,6 +187,7 @@ export function composeCore(
   const companiesDb: CompaniesUntypedDb = identityDb;
   const parkingDb: ParkingUntypedDb = identityDb;
   const placesDb: PlacesUntypedDb = identityDb;
+  const billingDb: BillingUntypedDb = identityDb;
   const fleetDb: FleetUntypedDb = identityDb;
   const jobsDb: JobsUntypedDb = identityDb;
 
@@ -244,6 +246,12 @@ export function composeCore(
     },
     callers: { getCaller: staffCaller },
     driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+  });
+  const billing = createBillingModule({
+    db: billingDb,
+    clock,
+    dataScopes,
+    callers: { getCaller: staffCaller },
   });
   const weather = createWeatherModule({ clock, metOfficeApiKey: config.metOfficeApiKey });
   const jobs = createJobsModule({
@@ -372,6 +380,7 @@ export function composeCore(
   fleet.registerRoutes(app);
   jobs.registerRoutes(app);
   places.registerRoutes(app);
+  billing.registerRoutes(app);
   weather.registerRoutes(app);
 
   return {
