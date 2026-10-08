@@ -16,7 +16,8 @@ const SEARCH_DEBOUNCE_MS = 400;
 const MIN_QUERY_LENGTH = 3;
 
 interface Props {
-  readonly label: string;
+  /** Shown above the box; the route screen leaves it off because its own picker names the field. */
+  readonly label?: string | undefined;
   readonly placeholder: string;
   /** Undefined means address search is unavailable (no MapTiler key configured) — the field
    *  still renders as a plain text input, just never shows suggestions, same "degrade, don't
@@ -86,7 +87,7 @@ export function AddressSearchField({ label, placeholder, apiKey, near, onSelect,
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      {label !== undefined && <Text style={styles.label}>{label}</Text>}
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
