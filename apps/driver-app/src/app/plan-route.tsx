@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -27,7 +27,13 @@ import { useCurrentLocation } from '../hooks/use-current-location';
 import type { GeocodingResult } from '../lib/geocoding';
 import { formatDateTime } from '../lib/format-date';
 import { routingErrorMessage } from '../lib/error-messages';
-import { mapTapTarget, type FromMode, type PointEnd, type ToMode } from '../lib/route-points';
+import {
+  mapTapTarget,
+  targetAfterTap,
+  type FromMode,
+  type PointEnd,
+  type ToMode,
+} from '../lib/route-points';
 import {
   EMPTY_VEHICLE_PROFILE_FORM,
   parseVehicleProfileForm,
@@ -50,7 +56,6 @@ const VEHICLE_MODE_OPTIONS = [
   { key: 'manual', label: 'Enter details' },
 ] as const;
 const FROM_OPTIONS = [
-  { key: 'here', label: 'My position' },
   { key: 'search', label: 'Search' },
   { key: 'map', label: 'Map' },
 ] as const;
@@ -158,7 +163,7 @@ export default function PlanRouteScreen() {
         ? 'Step 1: choose your vehicle above.'
         : effectiveOrigin === undefined
           ? fromMode === 'here'
-            ? 'Waiting for your location. Or change From to Search or Map.'
+            ? 'Waiting for your location. Or tap Change on From.'
             : fromMode === 'search'
               ? 'Search for your start point.'
               : 'Tap the map to set your start.'
@@ -176,22 +181,68 @@ export default function PlanRouteScreen() {
     };
   }
 
+  /** The line under an end that is set on the map. With both ends on Map it also says which one the next
+   *  tap moves (highlighted), and tapping the other end's line aims taps at it. */
+  function mapHelp(end: PointEnd): ReactElement {
+    const both = fromMode === 'map' && toMode === 'map';
+    const isNext = both && tapTarget === end;
+    const point = end === 'origin' ? origin : destination;
+    const name = end === 'origin' ? 'start' : 'destination';
+    const text =
+      point === undefined
+        ? isNext || !both
+          ? end === 'origin'
+            ? 'Tap the map to set your start.'
+            : 'Tap the map where you are going.'
+          : `Tap here to set your ${name}.`
+        : `${end === 'origin' ? 'Start' : 'Destination'} set.${
+            both
+              ? isNext
+                ? ' Next tap moves it.'
+                : ' Tap here to move it.'
+              : ' Tap the map to move it.'
+          }`;
+    return (
+      <TouchableOpacity
+        disabled={!both || isNext}
+        onPress={() => setTapTarget(end)}
+        accessibilityRole="button"
+        style={isNext ? styles.pointHelpNext : undefined}
+        testID={`${end}-map-help`}
+      >
+        <Text style={isNext ? styles.pointHelpNextText : styles.pointHelp}>{text}</Text>
+      </TouchableOpacity>
+    );
+  }
+
   function handleMapPress(point: MapPoint): void {
     setRouteOptions(undefined);
     // A tap sets the end that is on Map. With both on Map it sets the one last chosen; with neither, it
     // sets the destination and puts To on Map.
     const target = mapTapTarget(fromMode, toMode, tapTarget);
-    if (target === 'origin') {
-      setOrigin(point);
-      if (toMode === 'map') setTapTarget('destination');
-    } else {
+    if (target === 'origin') setOrigin(point);
+    else {
       setDestination(point);
       setToMode('map');
     }
+    setTapTarget(
+      targetAfterTap(
+        target,
+        fromMode,
+        // A tap with To on Search puts To on Map, so it counts as Map here.
+        target === 'destination' ? 'map' : toMode,
+        target === 'origin' ? destination !== undefined : origin !== undefined,
+        target,
+      ),
+    );
   }
 
   function handleFromModeChange(mode: FromMode): void {
-    if (mode === fromMode) return;
+    if (mode === fromMode) {
+      // Pressing Map again aims the next tap at the start without clearing it.
+      if (mode === 'map') setTapTarget('origin');
+      return;
+    }
     setRouteOptions(undefined);
     setFromMode(mode);
     setOrigin(undefined);
@@ -199,7 +250,10 @@ export default function PlanRouteScreen() {
   }
 
   function handleToModeChange(mode: ToMode): void {
-    if (mode === toMode) return;
+    if (mode === toMode) {
+      if (mode === 'map') setTapTarget('destination');
+      return;
+    }
     setRouteOptions(undefined);
     setToMode(mode);
     setDestination(undefined);
@@ -436,17 +490,20 @@ export default function PlanRouteScreen() {
           <PointPicker
             label="From"
             options={FROM_OPTIONS}
-            mode={fromMode}
+            mode={fromMode === 'here' ? 'search' : fromMode}
             onModeChange={handleFromModeChange}
             testID="from"
+            collapsed={
+              fromMode === 'here'
+                ? {
+                    text: location.point === undefined ? 'Finding your position…' : 'Your position',
+                    actionLabel: 'Change',
+                    onAction: () => handleFromModeChange('search'),
+                  }
+                : undefined
+            }
           >
-            {fromMode === 'here' ? (
-              <Text style={styles.pointHelp} testID="from-here-text">
-                {location.point === undefined
-                  ? 'Finding your position…'
-                  : 'Starting from where you are now.'}
-              </Text>
-            ) : fromMode === 'search' ? (
+            {fromMode === 'search' ? (
               <AddressSearchField
                 placeholder="Search for an address or postcode"
                 apiKey={config.maptilerApiKey}
@@ -455,12 +512,15 @@ export default function PlanRouteScreen() {
                 testID="origin-search"
               />
             ) : (
-              <Text style={styles.pointHelp} testID="from-map-text">
-                {origin === undefined
-                  ? 'Tap the map to set your start.'
-                  : 'Start set. Tap the map again to move it.'}
-              </Text>
+              mapHelp('origin')
             )}
+            <TouchableOpacity
+              onPress={() => handleFromModeChange('here')}
+              accessibilityRole="button"
+              testID="from-use-position-button"
+            >
+              <Text style={styles.linkText}>Use my position instead</Text>
+            </TouchableOpacity>
           </PointPicker>
 
           <PointPicker
@@ -479,11 +539,7 @@ export default function PlanRouteScreen() {
                 testID="destination-search"
               />
             ) : (
-              <Text style={styles.pointHelp} testID="to-map-text">
-                {destination === undefined
-                  ? 'Tap the map where you are going.'
-                  : 'Destination set. Tap the map again to move it.'}
-              </Text>
+              mapHelp('destination')
             )}
           </PointPicker>
 
@@ -652,7 +708,18 @@ function createStyles(colors: ThemeColors) {
       color: colors.textMuted,
       marginTop: 8,
     },
-    pointHelp: { fontSize: 15, color: colors.textMuted, paddingHorizontal: 4 },
+    pointHelp: { fontSize: 15, color: colors.textMuted, paddingHorizontal: 4, paddingVertical: 6 },
+    // The end the next map tap will set: filled, so it is plain which pin is being placed.
+    pointHelpNext: {
+      backgroundColor: colors.accentSoft,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.accent,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    pointHelpNextText: { fontSize: 15, fontWeight: '700', color: colors.text },
+    linkText: { fontSize: 15, fontWeight: '600', color: colors.accent, paddingVertical: 8 },
     input: {
       minHeight: 52,
       fontSize: 18,

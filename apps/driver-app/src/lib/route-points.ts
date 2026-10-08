@@ -10,3 +10,19 @@ export function mapTapTarget(from: FromMode, to: ToMode, lastChosen: PointEnd): 
   if (from === 'map' && to === 'map') return lastChosen;
   return from === 'map' ? 'origin' : 'destination';
 }
+
+/**
+ * Which end the next map tap sets, once `tapped` has just been set. With both ends on Map: after the
+ * start, on to the destination if it is not set yet (otherwise taps keep moving the start until the
+ * driver picks the other end); after the destination, back to the start if that is not set yet.
+ */
+export function targetAfterTap(
+  tapped: PointEnd,
+  from: FromMode,
+  to: ToMode,
+  otherIsSet: boolean,
+  current: PointEnd,
+): PointEnd {
+  if (tapped === 'origin') return to === 'map' && !otherIsSet ? 'destination' : current;
+  return from === 'map' && !otherIsSet ? 'origin' : current;
+}
