@@ -831,4 +831,49 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
       );
     });
   });
+
+  describe('check lists (migration 0043)', () => {
+    const L_ACME = 'c1000000-0000-4000-8000-0000000000c1';
+    const L_BETA = 'c2000000-0000-4000-8000-0000000000c2';
+    beforeAll(async () => {
+      await ownerPool.query(`
+        insert into checks.templates (id, company_id, name, applies_to, items, version, created_at, updated_at)
+          values ('${L_ACME}', '${ACME}', 'Acme list', 'all', '[]'::jsonb, 1, now(), now()),
+                 ('${L_BETA}', '${BETA}', 'Beta list', 'all', '[]'::jsonb, 1, now(), now());
+      `);
+    });
+    const names = async () =>
+      (
+        await sql<{ name: string }>`select name from checks.templates order by name`.execute(db)
+      ).rows.map((r) => r.name);
+
+    it('a company sees its own lists, a WagonWise admin sees all, and nothing outside a scope', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await names()).toEqual(['Acme list']);
+      });
+      await scopes.run({ kind: 'company', companyId: BETA }, async () => {
+        expect(await names()).toEqual(['Beta list']);
+      });
+      await scopes.run({ kind: 'platform' }, async () => {
+        expect(await names()).toEqual(['Acme list', 'Beta list']);
+      });
+      expect(await names()).toEqual([]);
+    });
+
+    it('a company cannot change or add to another company’s lists', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        const changed =
+          await sql`update checks.templates set name = 'Hacked' where id = ${L_BETA}`.execute(db);
+        expect(changed.numAffectedRows).toBe(0n);
+      });
+      await expect(
+        scopes.run({ kind: 'company', companyId: ACME }, () =>
+          sql`insert into checks.templates (id, company_id, name, applies_to, items, version, created_at, updated_at)
+              values (gen_random_uuid(), ${BETA}, 'Planted', 'all', '[]'::jsonb, 1, now(), now())`.execute(
+            db,
+          ),
+        ),
+      ).rejects.toThrow(/row-level security/);
+    });
+  });
 });

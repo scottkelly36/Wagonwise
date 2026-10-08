@@ -39,6 +39,11 @@
       "import": "./dist/billing.js",
       "default": "./dist/billing.js"
     },
+    "./checks": {
+      "types": "./dist/checks.d.ts",
+      "import": "./dist/checks.js",
+      "default": "./dist/checks.js"
+    },
     "./places": {
       "types": "./dist/places.d.ts",
       "import": "./dist/places.js",

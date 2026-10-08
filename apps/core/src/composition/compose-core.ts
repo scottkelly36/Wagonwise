@@ -3,6 +3,7 @@ import { err, ok } from '../shared/result.js';
 import type { FastifyInstance } from 'fastify';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
+import { createChecksModule, type UntypedDb as ChecksUntypedDb } from '../modules/checks/api.js';
 import {
   createLocalStaffAccessTokenVerifier,
   type AccessTokenVerifier,
@@ -189,6 +190,7 @@ export function composeCore(
   const parkingDb: ParkingUntypedDb = identityDb;
   const placesDb: PlacesUntypedDb = identityDb;
   const billingDb: BillingUntypedDb = identityDb;
+  const checksDb: ChecksUntypedDb = identityDb;
   const fleetDb: FleetUntypedDb = identityDb;
   const jobsDb: JobsUntypedDb = identityDb;
 
@@ -264,6 +266,17 @@ export function composeCore(
     },
     callers: { getCaller: staffCaller },
     driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+  });
+  const checks = createChecksModule({
+    db: checksDb,
+    ids,
+    clock,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+    vehicles: {
+      belongsToCompany: async (vehicleId, companyId) =>
+        (await fleet.getVehicleCompanyId(vehicleId)) === companyId,
+    },
   });
   const weather = createWeatherModule({ clock, metOfficeApiKey: config.metOfficeApiKey });
   const jobs = createJobsModule({
@@ -393,6 +406,7 @@ export function composeCore(
   jobs.registerRoutes(app);
   places.registerRoutes(app);
   billing.registerRoutes(app);
+  checks.registerRoutes(app);
   weather.registerRoutes(app);
 
   return {

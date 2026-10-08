@@ -47,6 +47,8 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
   capacity (Plans page), enforced when a vehicle is created; one live job per vehicle; invoices (draft, adjust, issue, mark paid,
   cancel, print as PDF); the company's own plan and invoices page (`manage_billing`). Billing basics (item 0) is done. Invoices are viewed in the company's portal and are not emailed (owner's call, 2026-10-09: saves sending; revisit if a company asks).
 
+## Walk-round checks (M5), decided with the owner 2026-10-09- **Each firm builds its own check lists**, because firms differ and some want none. Question types: tick or flag a defect, yes or no, a number, a note, a photo; per question: required, photo on defect, severity (fix soon or do not drive). Built by `manage_fleet`.- **Decided defaults:** whether a check must be done before a job is a per-firm setting, off by default; a check is once per vehicle per day; defects go to an office inbox (open, acknowledged, fixed); the firm chooses how long records are kept.- **Slices:** 1 the list builder (built); 2 the driver app completing a check offline with photos; 3 the office page, defects inbox, the before-a-job setting and retention; 4 defects feeding maintenance (M4). The example list is not a standard and the app does not make a firm compliant.
+
 ## Cross-cutting
 
 - **Privacy and legal:** every new kind of data (fuel card data, vehicle checks, defect photos) needs the privacy notice, DPIA

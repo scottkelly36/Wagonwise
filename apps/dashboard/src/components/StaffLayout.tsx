@@ -26,6 +26,11 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
       { to: '/fleet/drivers', label: 'Drivers', shows: everyone },
       { to: '/fleet/places', label: 'Places', shows: everyone },
       {
+        to: '/fleet/checks',
+        label: 'Walk-round checks',
+        shows: (s) => holds(s, 'manage_fleet'),
+      },
+      {
         to: '/fleet/reports',
         label: 'Reports',
         shows: (s) => isPlatform(s) || holds(s, 'view_reports'),
