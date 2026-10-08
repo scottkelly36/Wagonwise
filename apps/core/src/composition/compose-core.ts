@@ -1,3 +1,4 @@
+import { makeId } from '../shared/brand.js';
 import { err, ok } from '../shared/result.js';
 import type { FastifyInstance } from 'fastify';
 import { Kysely, PostgresDialect } from 'kysely';
@@ -226,6 +227,19 @@ export function composeCore(
   });
   composed.companies = companies;
   const parking = createParkingModule({ db: parkingDb, clock });
+  const billing = createBillingModule({
+    db: billingDb,
+    clock,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+    companies: {
+      list: async () =>
+        (await companies.listCompanyNames()).map((c) => ({
+          id: makeId<'CompanyId'>(c.id),
+          name: c.name,
+        })),
+    },
+  });
   const fleet = createFleetModule({
     db: fleetDb,
     ids,
@@ -234,6 +248,7 @@ export function composeCore(
     clock,
     driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
     companyNames: { namesFor: (ids) => companies.getCompanyNames(ids) },
+    vehicleCapacity: { capacityFor: (companyId) => billing.vehicleCapacityFor(companyId) },
   });
   const places = createPlacesModule({
     db: placesDb,
@@ -246,12 +261,6 @@ export function composeCore(
     },
     callers: { getCaller: staffCaller },
     driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
-  });
-  const billing = createBillingModule({
-    db: billingDb,
-    clock,
-    dataScopes,
-    callers: { getCaller: staffCaller },
   });
   const weather = createWeatherModule({ clock, metOfficeApiKey: config.metOfficeApiKey });
   const jobs = createJobsModule({

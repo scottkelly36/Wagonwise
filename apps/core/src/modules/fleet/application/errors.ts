@@ -19,3 +19,8 @@ export type TooManyAttempts = TaggedError<'TooManyAttempts'>;
 
 /** That phone or email already has a pending invitation from this company. */
 export type AlreadyInvited = TaggedError<'AlreadyInvited'>;
+
+/** The company already has as many vehicles as its plan covers. WagonWise raises the capacity (billing). */
+export interface CapacityReached extends TaggedError<'CapacityReached'> {
+  readonly capacity: number;
+}

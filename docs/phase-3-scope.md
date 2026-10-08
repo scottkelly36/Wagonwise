@@ -43,8 +43,9 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
 - **One live job per vehicle**, so capacity means something (a vehicle cannot carry several drivers' jobs at once).
 - **Invoices are generated from the admin portal** (draft, review, issue, mark paid by hand; printable page that saves as a
   PDF). Issuing is refused while WagonWise's billing details still hold `[placeholders]`.
-- **Built:** WagonWise's billing details, editable by admins (Billing page). **Next:** plan and capacity history with
-  enforcement, then invoice generation, then the company's own plan and invoices view, then email.
+- **Built:** WagonWise's billing details (Billing details page); each company's price per vehicle and effective-dated
+  capacity (Plans page), enforced when a vehicle is created; one live job per vehicle. **Next:** invoice generation, then the
+  company's own plan and invoices view, then email.
 
 ## Cross-cutting
 

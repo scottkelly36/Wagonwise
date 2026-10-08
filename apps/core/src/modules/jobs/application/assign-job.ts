@@ -13,6 +13,7 @@ import {
 import { canDispatch, canViewJobs } from './authorization.js';
 import type {
   DriverBusy,
+  VehicleBusy,
   DriverNotInCompany,
   Forbidden,
   JobNotFound,
@@ -23,7 +24,10 @@ import type { Caller } from './ports/caller-directory.js';
 import type { JobRepository } from './ports/job-repository.js';
 
 export interface AssignJobDeps {
-  readonly repo: Pick<JobRepository, 'findById' | 'findActiveForDriver' | 'save'>;
+  readonly repo: Pick<
+    JobRepository,
+    'findById' | 'findActiveForDriver' | 'findActiveForVehicle' | 'save'
+  >;
   readonly drivers: DriverDirectory;
   readonly vehicles: VehicleDirectory;
   readonly ids: IdGenerator;
@@ -43,6 +47,7 @@ export type AssignJobError =
   | DriverNotInCompany
   | VehicleNotInCompany
   | DriverBusy
+  | VehicleBusy
   | InvalidTransition;
 
 /** Design doc §5 steps 2-3: dispatch picks a driver and a vehicle from the job's own company and
@@ -66,6 +71,8 @@ export async function assignJob(
   }
   const busy = await deps.repo.findActiveForDriver(input.driverId);
   if (busy !== null) return err({ tag: 'DriverBusy' });
+  const vehicleBusy = await deps.repo.findActiveForVehicle(input.vehicleId);
+  if (vehicleBusy !== null) return err({ tag: 'VehicleBusy' });
 
   const assigned = assignJobToDriver(job, input.driverId, input.vehicleId, deps.clock.now());
   if (!assigned.ok) return assigned;

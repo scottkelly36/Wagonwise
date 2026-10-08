@@ -16,6 +16,7 @@ import { FleetOverview } from './pages/fleet/Overview';
 
 import { VehicleProfiles } from './pages/fleet/VehicleProfiles';
 import { BillingDetails } from './pages/admin/BillingDetails';
+import { Plans } from './pages/admin/Plans';
 import { InviteCodes } from './pages/admin/InviteCodes';
 import { Activity } from './pages/staff/Activity';
 import { Settings } from './pages/staff/Settings';
@@ -60,6 +61,7 @@ export function App() {
             <Route path="/staff/settings" element={<Settings />} />
             <Route path="/admin/companies" element={<Companies />} />
             <Route path="/admin/invite-codes" element={<InviteCodes />} />
+            <Route path="/admin/plans" element={<Plans />} />
             <Route path="/admin/billing" element={<BillingDetails />} />
             <Route path="/admin/moderation" element={<Moderation />} />
             <Route path="/admin/hazard-reports" element={<HazardReports />} />

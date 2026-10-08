@@ -77,6 +77,7 @@ describe('jobs dispatch end to end (real RLS, real scopes)', () => {
       callers: { getCaller: () => Promise.resolve(null) },
       driverIdentities: { getIdentifier: () => Promise.resolve(null) },
       companyNames: { namesFor: () => Promise.resolve(new Map()) },
+      vehicleCapacity: { capacityFor: () => Promise.resolve(99) },
     });
     const jobs = createJobsModule({
       db,

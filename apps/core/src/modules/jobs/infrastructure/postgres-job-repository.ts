@@ -14,6 +14,7 @@ import {
   type GeoPoint,
   type Job,
   type JobId,
+  type VehicleId,
   type JobStatus,
   type JobStop,
   type JobStopKind,
@@ -126,6 +127,16 @@ export class PostgresJobRepository implements JobRepository {
     if (!jobRow) return null;
 
     const [job] = await this.#withStops([jobRow]);
+    return job ?? null;
+  }
+
+  async findActiveForVehicle(vehicleId: VehicleId): Promise<Job | null> {
+    const { rows } = await sql<JobRow>`
+      select ${sql.raw(JOB_SELECT_COLUMNS)} from jobs.jobs
+      where vehicle_id = ${vehicleId} and status in (${sql.join(ACTIVE_STATUSES)})
+      limit 1
+    `.execute(this.db);
+    const [job] = await this.#withStops(rows);
     return job ?? null;
   }
 

@@ -11,12 +11,14 @@ import {
   type InvalidName,
 } from '../domain/vehicle.js';
 import { canManageFleet } from './authorization.js';
-import type { Forbidden } from './errors.js';
+import type { CapacityReached, Forbidden } from './errors.js';
 import type { Caller } from './ports/caller-directory.js';
 import type { FleetVehicleRepository } from './ports/fleet-vehicle-repository.js';
+import type { VehicleCapacity } from './ports/vehicle-capacity.js';
 
 export interface CreateFleetVehicleDeps {
-  readonly repo: Pick<FleetVehicleRepository, 'save'>;
+  readonly repo: Pick<FleetVehicleRepository, 'save' | 'listForCompany'>;
+  readonly capacity: VehicleCapacity;
   readonly ids: IdGenerator;
 }
 
@@ -27,7 +29,7 @@ export interface CreateFleetVehicleInput {
   readonly dimensions: Dimensions;
 }
 
-export type CreateFleetVehicleError = Forbidden | InvalidName | InvalidDimensions;
+export type CreateFleetVehicleError = Forbidden | InvalidName | InvalidDimensions | CapacityReached;
 
 export async function createFleetVehicle(
   deps: CreateFleetVehicleDeps,
@@ -42,6 +44,11 @@ export async function createFleetVehicle(
   if (!dimensions.ok) {
     return dimensions;
   }
+
+  // The plan covers a number of vehicles (billing). Counted after validation so a typo gets its own message.
+  const capacity = await deps.capacity.capacityFor(input.companyId);
+  const existing = await deps.repo.listForCompany(input.companyId);
+  if (existing.length >= capacity) return err({ tag: 'CapacityReached', capacity });
 
   const vehicle: FleetVehicle = {
     id: makeId<'FleetVehicleId'>(deps.ids.newId()),

@@ -62,6 +62,8 @@ export interface CompaniesModule {
   getCompanyNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>>;
   /** How many months each company keeps its proof-of-delivery photos, by company id, for the daily cleanup. */
   listPhotoRetention(): Promise<ReadonlyMap<string, number>>;
+  /** Every company's id and name, for billing's admin screens. */
+  listCompanyNames(): Promise<readonly { readonly id: string; readonly name: string }[]>;
 }
 
 /**
@@ -121,6 +123,10 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     },
     getStaffCaller(staffId: string) {
       return staffCallers.get(makeId<'StaffId'>(staffId));
+    },
+    async listCompanyNames() {
+      const all = await repo.findAll();
+      return all.map((c) => ({ id: c.id, name: c.name }));
     },
     async listPhotoRetention(): Promise<ReadonlyMap<string, number>> {
       const all = await repo.findAll();

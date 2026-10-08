@@ -1,4 +1,9 @@
-import { updateBillingDetailsRequestSchema } from '@wagonwise/contracts/billing';
+import {
+  planCompanyParamsSchema,
+  scheduleCapacityRequestSchema,
+  setPriceRequestSchema,
+  updateBillingDetailsRequestSchema,
+} from '@wagonwise/contracts/billing';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId } from '../../../shared/brand.js';
 import type { DataScopes } from '../../../shared/ports/data-scope.js';
@@ -9,9 +14,17 @@ import {
   type BillingDetailsView,
 } from '../application/billing-details.js';
 import type { CallerDirectory } from '../application/ports/directories.js';
+import {
+  capacityHistory,
+  listPlans,
+  scheduleCapacity,
+  setPricePerVehicle,
+  type PlanDeps,
+} from '../application/plans.js';
 
 export interface BillingRouteDeps {
   readonly billing: BillingDetailsDeps;
+  readonly plans: PlanDeps;
   readonly callerDirectory: CallerDirectory;
   /** Row-Level Security scope per request (migration 0039): billing data is platform-only. */
   readonly dataScopes: DataScopes;
@@ -73,6 +86,99 @@ export function registerBillingRoutes(app: FastifyInstance, deps: BillingRouteDe
       return result.error.tag === 'Forbidden'
         ? { status: 403, body: result.error }
         : { status: 400, body: result.error };
+    }),
+  );
+
+  // What each company pays for: the price per vehicle and the capacity the plan covers.
+  type PlanError =
+    | { readonly tag: 'Forbidden' }
+    | { readonly tag: 'CompanyNotFound' }
+    | { readonly tag: 'InvalidPrice' | 'InvalidCapacity' | 'InvalidDay' | 'DayInPast' };
+  const planFailure = (error: PlanError) => ({
+    status: error.tag === 'Forbidden' ? 403 : error.tag === 'CompanyNotFound' ? 404 : 400,
+    body: error,
+  });
+  const badRequest = { status: 400, body: { error: 'invalid_request' } };
+
+  app.get('/staff/billing/companies', (request, reply) =>
+    asStaff(request, reply, async () => {
+      const result = await listPlans(deps.plans, { kind: 'platform' });
+      if (!result.ok) return planFailure(result.error);
+      return {
+        status: 200,
+        body: {
+          plans: result.value.map((p) => ({
+            companyId: p.companyId,
+            name: p.name,
+            pricePerVehiclePence: p.pricePerVehiclePence,
+            capacityToday: p.capacityToday,
+            ...(p.next === undefined ? {} : { next: p.next }),
+            monthlyPence: p.monthlyPence,
+          })),
+        },
+      };
+    }),
+  );
+
+  app.get('/staff/billing/companies/:companyId/capacity', (request, reply) =>
+    asStaff(request, reply, async () => {
+      const params = planCompanyParamsSchema.safeParse(request.params);
+      if (!params.success) return badRequest;
+      const result = await capacityHistory(
+        deps.plans,
+        { kind: 'platform' },
+        makeId<'CompanyId'>(params.data.companyId),
+      );
+      return result.ok
+        ? {
+            status: 200,
+            body: {
+              changes: result.value.map((c) => ({
+                effectiveFrom: c.effectiveFrom,
+                capacity: c.capacity,
+              })),
+            },
+          }
+        : planFailure(result.error);
+    }),
+  );
+
+  app.put('/staff/billing/companies/:companyId/price', (request, reply) =>
+    asStaff(request, reply, async (staffId) => {
+      const params = planCompanyParamsSchema.safeParse(request.params);
+      const body = setPriceRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return badRequest;
+      const result = await setPricePerVehicle(
+        deps.plans,
+        { kind: 'platform' },
+        makeId<'StaffId'>(staffId),
+        makeId<'CompanyId'>(params.data.companyId),
+        body.data.pricePerVehiclePence,
+      );
+      return result.ok
+        ? { status: 200, body: { pricePerVehiclePence: result.value } }
+        : planFailure(result.error);
+    }),
+  );
+
+  app.post('/staff/billing/companies/:companyId/capacity', (request, reply) =>
+    asStaff(request, reply, async (staffId) => {
+      const params = planCompanyParamsSchema.safeParse(request.params);
+      const body = scheduleCapacityRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return badRequest;
+      const result = await scheduleCapacity(
+        deps.plans,
+        { kind: 'platform' },
+        makeId<'StaffId'>(staffId),
+        makeId<'CompanyId'>(params.data.companyId),
+        body.data,
+      );
+      return result.ok
+        ? {
+            status: 201,
+            body: { effectiveFrom: result.value.effectiveFrom, capacity: result.value.capacity },
+          }
+        : planFailure(result.error);
     }),
   );
 }
