@@ -67,7 +67,7 @@ describe('places routes', () => {
     const { app, coreClient } = buildApp();
     for (const [method, url, payload] of [
       ['POST', '/places', { nonsense: true }],
-      ['POST', '/places/list', {}],
+      ['POST', '/places/list', { companyId: 'not-a-company' }],
       ['POST', '/places/nearby', { companyId: COMPANY, location, radiusM: -1 }],
       ['PUT', `/places/${ID}`, {}],
       ['PUT', '/places/not-a-uuid', { note: 'x' }],
