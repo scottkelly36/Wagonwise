@@ -324,6 +324,108 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
     });
   });
 
+  describe('saved places (migration 0036)', () => {
+    const PD_ACME = 'e1000000-0000-4000-8000-000000000001'; // an active driver of ACME
+    const PD_BETA = 'e2000000-0000-4000-8000-000000000002'; // an active driver of BETA
+    const PD_PENDING = 'e3000000-0000-4000-8000-000000000003'; // has only asked to join ACME
+    const PLACE_ACME = 'f1000000-0000-4000-8000-000000000001';
+    const PLACE_BETA = 'f2000000-0000-4000-8000-000000000002';
+    const as = (driverId: string) =>
+      ({ kind: 'driver', driverId, identifier: `${driverId}@example.com` }) as const;
+    const insertPlace = (id: string, company: string) =>
+      sql`insert into places.saved_places
+            (id, company_id, category, name, location, created_at, updated_at)
+          values (${id}, ${company}, 'farm', 'A farm',
+                  ST_SetSRID(ST_MakePoint(-2.2, 54.95), 4326)::geography, now(), now())`.execute(
+        db,
+      );
+    const visible = async () =>
+      (
+        await sql<{ id: string }>`select id from places.saved_places order by id`.execute(db)
+      ).rows.map((r) => r.id);
+
+    beforeAll(async () => {
+      await ownerPool.query(`
+        insert into fleet.driver_links (id, company_id, driver_id, status, created_at)
+          values ('b1000000-0000-4000-8000-000000000001', '${ACME}', '${PD_ACME}', 'active', now()),
+                 ('b2000000-0000-4000-8000-000000000002', '${BETA}', '${PD_BETA}', 'active', now()),
+                 ('b3000000-0000-4000-8000-000000000003', '${ACME}', '${PD_PENDING}', 'requested', now());
+        insert into places.saved_places (id, company_id, category, name, location, created_at, updated_at)
+          values ('${PLACE_ACME}', '${ACME}', 'farm', 'Acme farm',
+                  ST_SetSRID(ST_MakePoint(-2.2, 54.95), 4326)::geography, now(), now()),
+                 ('${PLACE_BETA}', '${BETA}', 'yard', 'Beta yard',
+                  ST_SetSRID(ST_MakePoint(-1.6, 54.97), 4326)::geography, now(), now());
+      `);
+    });
+
+    it('a company sees its own places, a WagonWise admin sees all, and nothing outside a scope', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await visible()).toEqual([PLACE_ACME]);
+      });
+      await scopes.run({ kind: 'company', companyId: BETA }, async () => {
+        expect(await visible()).toEqual([PLACE_BETA]);
+      });
+      await scopes.run({ kind: 'platform' }, async () => {
+        expect(await visible()).toEqual([PLACE_ACME, PLACE_BETA]);
+      });
+      expect(await visible()).toEqual([]);
+    });
+
+    it('a driver sees the places of the company they have an active link with, and no other', async () => {
+      await scopes.run(as(PD_ACME), async () => {
+        expect(await visible()).toEqual([PLACE_ACME]);
+      });
+      await scopes.run(as(PD_BETA), async () => {
+        expect(await visible()).toEqual([PLACE_BETA]);
+      });
+    });
+
+    it('a driver who has only asked to join sees nothing yet', async () => {
+      await scopes.run(as(PD_PENDING), async () => {
+        expect(await visible()).toEqual([]);
+      });
+    });
+
+    it('a driver with no company keeps personal places that only they can see', async () => {
+      const solo = 'e4000000-0000-4000-8000-000000000004';
+      const other = 'e5000000-0000-4000-8000-000000000005';
+      const personal = (driver: string, id: string) =>
+        sql`insert into places.saved_places
+              (id, company_id, category, name, location, created_by, created_at, updated_at)
+            values (${id}, null, 'farm', 'My farm',
+                    ST_SetSRID(ST_MakePoint(-2.2, 54.95), 4326)::geography, ${driver}, now(), now())`.execute(
+          db,
+        );
+      await scopes.run(as(solo), () => personal(solo, 'f5000000-0000-4000-8000-000000000005'));
+      await scopes.run(as(solo), async () => {
+        expect(await visible()).toEqual(['f5000000-0000-4000-8000-000000000005']);
+      });
+      await scopes.run(as(other), async () => {
+        expect(await visible()).toEqual([]);
+      });
+      // Not the company's staff, nor a WagonWise admin's company view, and not for someone else.
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await visible()).not.toContain('f5000000-0000-4000-8000-000000000005');
+      });
+      await expect(
+        scopes.run(as(other), () => personal(solo, 'f6000000-0000-4000-8000-000000000006')),
+      ).rejects.toThrow(/row-level security/);
+    });
+
+    it('a driver can mark a place for their own company, not for another', async () => {
+      await scopes.run(as(PD_ACME), () =>
+        insertPlace('f3000000-0000-4000-8000-000000000003', ACME),
+      );
+      // Its own scope: a refused insert aborts the transaction it runs in.
+      await expect(
+        scopes.run(as(PD_ACME), () => insertPlace('f4000000-0000-4000-8000-000000000004', BETA)),
+      ).rejects.toThrow(/row-level security/);
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await visible()).toEqual([PLACE_ACME, 'f3000000-0000-4000-8000-000000000003']);
+      });
+    });
+  });
+
   describe('jobs driver scope (migration 0030)', () => {
     const JOB_DRIVER_1 = 'e1000000-0000-4000-8000-000000000001';
     const JOB_DRIVER_2 = 'e2000000-0000-4000-8000-000000000002';

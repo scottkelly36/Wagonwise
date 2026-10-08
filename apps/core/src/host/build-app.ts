@@ -30,6 +30,7 @@ const DRIVER_AUTH_PREFIXES = [
   '/feedback/',
   '/congestion/',
   '/parking/',
+  '/places/',
   '/fleet/',
   '/jobs/',
   '/identity/devices/',

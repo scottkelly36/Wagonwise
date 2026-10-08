@@ -34,6 +34,11 @@
       "import": "./dist/companies.js",
       "default": "./dist/companies.js"
     },
+    "./places": {
+      "types": "./dist/places.d.ts",
+      "import": "./dist/places.js",
+      "default": "./dist/places.js"
+    },
     "./parking": {
       "types": "./dist/parking.d.ts",
       "import": "./dist/parking.js",

@@ -9,6 +9,7 @@ import { buildApp } from './host/build-app.js';
 import { registerIdentityRoutes } from './identity-routes.js';
 import { registerJobsRoutes } from './jobs-routes.js';
 import { registerParkingRoutes } from './parking-routes.js';
+import { registerPlacesRoutes } from './places-routes.js';
 import { registerRoutingRoutes } from './routing-routes.js';
 
 function bootConfig() {
@@ -36,6 +37,7 @@ registerHazardsRoutes(app, routeDeps);
 registerFeedbackRoutes(app, routeDeps);
 registerCongestionRoutes(app, routeDeps);
 registerParkingRoutes(app, routeDeps);
+registerPlacesRoutes(app, routeDeps);
 registerFleetRoutes(app, routeDeps);
 registerJobsRoutes(app, routeDeps);
 
