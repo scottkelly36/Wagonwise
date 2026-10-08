@@ -10,7 +10,7 @@ something changed, not to start work: `progress.md` has the current state. Add n
   scope. Migration 0042 lets a company read its own non-draft invoices and their lines (read only; Row-Level Security still refuses any
   write and every other company's rows). WagonWise admins use the admin pages, not these. Vehicle count comes from fleet
   (`countVehicles`) through a `VehicleCount` port; billing and fleet now reference each other through ports in composition (billing
-  reads fleet's count lazily). The "plan full" message now tells company staff to ask WagonWise. Emailing invoices is still to do.
+  reads fleet's count lazily). The "plan full" message now tells company staff to ask WagonWise. Invoices are not emailed: the owner chose the portal alone (2026-10-09), which saves sending.
 - 2026-10-09: **invoices (Phase 3 item 0).** `billing.invoices`, `billing.invoice_lines` and a gapless `billing.invoice_counter`
   (migration 0041), WagonWise-admin only through Row-Level Security. The dashboard's new Invoices page drafts a month's invoices for
   every company from its plan (capacity in force on the 1st, whole month; a mid-month rise is billed pro rata by days; a mid-month fall
