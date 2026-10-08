@@ -86,6 +86,59 @@ export const listJobsResponseSchema = z.object({
 });
 export type ListJobsResponse = z.infer<typeof listJobsResponseSchema>;
 
+/** `POST /staff/jobs/companies/:companyId/report` (P2-M8): the jobs with any activity between `from`
+ *  (inclusive) and `to` (exclusive), for the reports page and its CSV download. A POST, like the other
+ *  staff lists with a body, so the staff BFF forwards it the same way. */
+export const jobReportRequestSchema = z.object({
+  from: z.iso.datetime(),
+  to: z.iso.datetime(),
+});
+export type JobReportRequest = z.infer<typeof jobReportRequestSchema>;
+
+export const jobReportRowSchema = z.object({
+  jobId: z.string(),
+  reference: z.string(),
+  status: jobStatusSchema,
+  pickup: z.string().optional(),
+  delivery: z.string().optional(),
+  /** The driver's sign-in (email or phone) and the vehicle's name, looked up by the server so a
+   *  report reader needs no access to the fleet pages. Absent when unassigned or unknown. */
+  driver: z.string().optional(),
+  vehicle: z.string().optional(),
+  createdAt: z.iso.datetime().optional(),
+  plannedStart: z.iso.datetime().optional(),
+  dueBy: z.iso.datetime().optional(),
+  acceptedAt: z.iso.datetime().optional(),
+  setOffAt: z.iso.datetime().optional(),
+  deliveredAt: z.iso.datetime().optional(),
+  endedAt: z.iso.datetime().optional(),
+  minutesAcceptedToDelivered: z.number().optional(),
+  onTime: z.boolean().optional(),
+  requiresProofOfDelivery: z.boolean(),
+  hasProofOfDelivery: z.boolean(),
+});
+export type JobReportRowDto = z.infer<typeof jobReportRowSchema>;
+
+export const jobReportSummarySchema = z.object({
+  total: z.number(),
+  delivered: z.number(),
+  cancelled: z.number(),
+  failed: z.number(),
+  inProgress: z.number(),
+  deliveredOnTime: z.number(),
+  deliveredLate: z.number(),
+  averageMinutes: z.number().optional(),
+  proofRequired: z.number(),
+  proofReceived: z.number(),
+});
+export type JobReportSummaryDto = z.infer<typeof jobReportSummarySchema>;
+
+export const jobReportResponseSchema = z.object({
+  rows: z.array(jobReportRowSchema),
+  summary: jobReportSummarySchema,
+});
+export type JobReportResponse = z.infer<typeof jobReportResponseSchema>;
+
 /** `GET /jobs/current` (P2-M5.1): the one job a driver is on right now, or `null`. */
 export const currentJobResponseSchema = z.object({
   job: jobSchema.nullable(),

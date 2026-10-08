@@ -42,6 +42,11 @@ const VALID = [
   ['POST', `/staff/fleet/companies/${ACME}/code/regenerate`, undefined],
   ['GET', `/staff/jobs/companies/${ACME}/jobs`, undefined],
   ['POST', `/staff/jobs/companies/${ACME}/jobs`, JOB],
+  [
+    'POST',
+    `/staff/jobs/companies/${ACME}/report`,
+    { from: '2026-10-01T00:00:00.000Z', to: '2026-11-01T00:00:00.000Z' },
+  ],
   ['GET', `/staff/jobs/companies/${ACME}/positions`, undefined],
   ['GET', '/staff/hazard-reports/moderation-queue', undefined],
   ['POST', `/staff/hazard-reports/${ID}/moderate`, { action: 'reject' }],

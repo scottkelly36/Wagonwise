@@ -92,6 +92,7 @@ describe('jobs dispatch end to end (real RLS, real scopes)', () => {
         belongsToCompany: (id, company) => Promise.resolve(id === VEHICLE && company === ACME),
       },
       // A fixed answer: what is under test here is jobs' own use of the estimator, not Valhalla.
+      vehicleNames: { getName: () => Promise.resolve(null) },
       routes: {
         estimate: () =>
           Promise.resolve(ok({ distanceKm: 40, durationMin: 50, geometry: 'a-line' })),

@@ -30,6 +30,7 @@ const ADMIN_ID = makeId<'StaffId'>('admin');
 const DISPATCHER_ID = makeId<'StaffId'>('dispatcher'); // companyA, dispatch
 const VIEWER_ID = makeId<'StaffId'>('viewer'); // companyA, no privilege
 const OUTSIDER_ID = makeId<'StaffId'>('outsider'); // companyB, dispatch
+const REPORTER_ID = makeId<'StaffId'>('reporter'); // companyA, view_reports
 
 function buildApp(): {
   app: FastifyInstance;
@@ -52,6 +53,10 @@ function buildApp(): {
       { kind: 'fleet', companyId: makeId<'CompanyId'>(companyA), privileges: ['dispatch'] },
     ],
     [VIEWER_ID, { kind: 'fleet', companyId: makeId<'CompanyId'>(companyA), privileges: [] }],
+    [
+      REPORTER_ID,
+      { kind: 'fleet', companyId: makeId<'CompanyId'>(companyA), privileges: ['view_reports'] },
+    ],
     [
       OUTSIDER_ID,
       { kind: 'fleet', companyId: makeId<'CompanyId'>(companyB), privileges: ['dispatch'] },
@@ -77,6 +82,13 @@ function buildApp(): {
     listPositions: { positions },
     listEtas: { repo, positions, routes: estimator },
     previewRoute: { repo, vehicles: vehicleDirectory, routes: estimator },
+    report: {
+      repo,
+      drivers: {
+        getIdentifier: (id) => Promise.resolve(id === DRIVER_A ? 'driver-a@example.com' : null),
+      },
+      vehicles: { getName: (id) => Promise.resolve(id === VEHICLE_A ? 'Big Wagon' : null) },
+    },
     callerDirectory: new StubCallerDirectory(callers),
     dataScopes: scopes,
   };
@@ -482,5 +494,108 @@ describe('POST /staff/jobs/:id/route-preview', () => {
     const id = await createDraft(app);
     expect((await preview(app, id, VIEWER_ID)).statusCode).toBe(403);
     expect((await preview(app, id, OUTSIDER_ID)).statusCode).toBe(404);
+  });
+});
+
+describe('POST /staff/jobs/companies/:companyId/report (P2-M8)', () => {
+  const window = { from: '2026-10-01T00:00:00.000Z', to: '2026-11-01T00:00:00.000Z' };
+
+  async function seedJob(app: FastifyInstance): Promise<string> {
+    // A newly created job has a first timeline entry (now), which is activity in the wide windows below.
+    const created = await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/companies/${companyA}/jobs`,
+      payload: { companyId: companyA, reference: 'JOB-R1', stops },
+      ...asStaff(DISPATCHER_ID),
+    });
+    return created.json<{ id: string }>().id;
+  }
+
+  it('403s for staff without view_reports, even at their own company', async () => {
+    const { app } = buildApp();
+    for (const staff of [VIEWER_ID, DISPATCHER_ID]) {
+      const response = await app.inject({
+        method: 'POST',
+        url: `/staff/jobs/companies/${companyA}/report`,
+        payload: window,
+        ...asStaff(staff),
+      });
+      expect(response.statusCode).toBe(403);
+    }
+  });
+
+  it('403s for view_reports at another company', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/companies/${companyB}/report`,
+      payload: window,
+      ...asStaff(REPORTER_ID),
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('200s with the rows and a summary for view_reports, and for a WagonWise admin', async () => {
+    const { app } = buildApp();
+    await seedJob(app);
+    for (const staff of [REPORTER_ID, ADMIN_ID]) {
+      const response = await app.inject({
+        method: 'POST',
+        url: `/staff/jobs/companies/${companyA}/report`,
+        payload: { from: '2020-01-01T00:00:00.000Z', to: '2100-01-01T00:00:00.000Z' },
+        ...asStaff(staff),
+      });
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ rows: { reference: string }[]; summary: { total: number } }>();
+      expect(body.rows.map((r) => r.reference)).toEqual(['JOB-R1']);
+      expect(body.summary.total).toBe(1);
+    }
+  });
+
+  it('leaves out jobs with no activity in the period', async () => {
+    const { app } = buildApp();
+    await seedJob(app);
+    const response = await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/companies/${companyA}/report`,
+      payload: { from: '2001-01-01T00:00:00.000Z', to: '2001-02-01T00:00:00.000Z' },
+      ...asStaff(REPORTER_ID),
+    });
+    expect(response.json()).toMatchObject({ rows: [], summary: { total: 0 } });
+  });
+
+  it('400s a malformed body, and a period that ends before it starts', async () => {
+    const { app } = buildApp();
+    const url = `/staff/jobs/companies/${companyA}/report`;
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url,
+          payload: { from: 'yesterday' },
+          ...asStaff(REPORTER_ID),
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url,
+          payload: { from: window.to, to: window.from },
+          ...asStaff(REPORTER_ID),
+        })
+      ).statusCode,
+    ).toBe(400);
+  });
+
+  it('401s with no signed-in staff member', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/companies/${companyA}/report`,
+      payload: window,
+    });
+    expect(response.statusCode).toBe(401);
   });
 });
