@@ -26,7 +26,11 @@ export type CreateCompanyRequest = z.infer<typeof createCompanyRequestSchema>;
 export const PHOTO_RETENTION_MONTHS_MIN = 1;
 export const PHOTO_RETENTION_MONTHS_MAX = 120;
 export const companySettingsSchema = z.object({
-  photoRetentionMonths: z.number().int().min(PHOTO_RETENTION_MONTHS_MIN).max(PHOTO_RETENTION_MONTHS_MAX),
+  photoRetentionMonths: z
+    .number()
+    .int()
+    .min(PHOTO_RETENTION_MONTHS_MIN)
+    .max(PHOTO_RETENTION_MONTHS_MAX),
 });
 export type CompanySettingsDto = z.infer<typeof companySettingsSchema>;
 /** `PUT /staff/companies/:id/settings` takes the same fields. */
