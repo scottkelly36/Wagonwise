@@ -2,7 +2,6 @@ import {
   Camera,
   type CameraRef,
   GeoJSONSource,
-  Images,
   Layer,
   Map as MapLibreMap,
   ViewAnnotation,
@@ -93,9 +92,6 @@ interface Props {
    *  of following (design feedback, 2026-09-26: recentring on every fix fought a driver trying
    *  to look ahead) — a "Recenter" button reappears to opt back in; see `following` state below. */
   readonly currentPosition?: MapPoint;
-  /** Which way the driver is facing, degrees clockwise from north. When known, the position is drawn
-   *  as an arrow pointing that way instead of a plain dot. */
-  readonly currentHeading?: number | undefined;
   /** The direction of travel from GPS, only while moving; undefined when stopped. While navigating the
    *  map turns to this and keeps its last value when it is undefined, so it does not spin when stopped. */
   readonly currentCourse?: number | undefined;
@@ -181,19 +177,6 @@ const NAV_TOP_PADDING_FRACTION = 0.45;
 const NAV_DOT_SIZE = 26;
 const NAV_EASE_MS = 1100;
 
-// The arrow drawn at the driver's position on the north-up maps: a picture made by
-// scripts/make-heading-arrow.js, drawn at a third of its size (it is 128 px for sharpness).
-const HEADING_ARROW_IMAGE = require('../../assets/images/heading-arrow.png') as number;
-const HEADING_ARROW_SCALE = 0.34;
-
-/**
- * The riskiest, least-verifiable part of M5.4/M5.5 — a native map library with no Android SDK
- * or macOS on this machine to actually run it on (see docs/progress.md's verification notes).
- * Kept small and isolated for exactly that reason: everything else in the plan-route/route-
- * overview screens (profile picking, point state, the API call, polyline decoding) is plain
- * RN/TS, fully unit-testable; this component is the one piece verified by design (against
- * MapLibre's own real source, not guessed) rather than by a real run.
- */
 export function RouteMap({
   origin,
   destination,
@@ -202,7 +185,6 @@ export function RouteMap({
   routeOptionLines,
   onMapPress,
   currentPosition,
-  currentHeading,
   currentCourse,
   navigating = false,
   hazards,
@@ -320,16 +302,6 @@ export function RouteMap({
       // second later, moves the camera.
     }
   }, [navTracking, lat, lon, currentCourse, followZoom, navPadding]);
-  // The arrow is a native map layer (below), not a React Native marker, so it can be turned smoothly.
-  const showArrowLayer =
-    currentPosition !== undefined && !navTracking && !navigating && currentHeading !== undefined;
-  const arrowData = useMemo(
-    () =>
-      currentPosition
-        ? { type: 'Point' as const, coordinates: [currentPosition.lon, currentPosition.lat] }
-        : undefined,
-    [currentPosition],
-  );
   // Anchor of the camera on screen when tracking: the middle of the area left under the top padding.
   const navAnchorY = (mapHeight + navTopPadding) / 2;
 
@@ -417,29 +389,7 @@ export function RouteMap({
             <View style={[styles.pin, styles.destinationPin]} testID="destination-pin" />
           </ViewAnnotation>
         )}
-        {showArrowLayer && arrowData && (
-          <>
-            <Images images={{ 'heading-arrow': HEADING_ARROW_IMAGE }} />
-            {/* Drawn by the map itself and turned with `icon-rotate`. A React Native marker is drawn once to a
-                picture on Android, so turning it meant replacing it, which flickered (found on a phone). */}
-            <GeoJSONSource id="heading-arrow-source" data={arrowData}>
-              <Layer
-                type="symbol"
-                id="heading-arrow-layer"
-                source="heading-arrow-source"
-                layout={{
-                  'icon-image': 'heading-arrow',
-                  'icon-rotate': currentHeading ?? 0,
-                  'icon-rotation-alignment': 'map',
-                  'icon-allow-overlap': true,
-                  'icon-ignore-placement': true,
-                  'icon-size': HEADING_ARROW_SCALE,
-                }}
-              />
-            </GeoJSONSource>
-          </>
-        )}
-        {currentPosition && !navTracking && !showArrowLayer && (
+        {currentPosition && !navTracking && (
           <ViewAnnotation id="current-position" lngLat={toLngLat(currentPosition)}>
             <View style={[styles.pin, styles.currentPositionPin]} testID="current-position-pin" />
           </ViewAnnotation>

@@ -11,6 +11,7 @@ import { useNearbySafeParkingSpots } from '../api/use-parking';
 import { ACTION_COLOURS, ActionCard } from '../components/ui/action-card';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { ParkingSpotDrawer } from '../components/parking-spot-drawer';
+import { MarkPlaceSheet } from '../components/mark-place-sheet';
 import { PlaceSheet } from '../components/place-sheet';
 import { useMyPlaces } from '../api/use-places';
 import type { SavedPlaceDto } from '@wagonwise/contracts/places';
@@ -30,7 +31,7 @@ import { useTurnGuidance } from '../hooks/use-turn-guidance';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { computeEta } from '../lib/eta';
-import { arrivalStep } from '../lib/job-navigation';
+import { arrivalStep, navigationTarget } from '../lib/job-navigation';
 import { jobsErrorMessage, routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
 import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
@@ -161,6 +162,7 @@ export default function ActiveTripScreen() {
     [myPlaces.places],
   );
   const [selectedPlace, setSelectedPlace] = useState<SavedPlaceDto | undefined>(undefined);
+  const [markingPlace, setMarkingPlace] = useState(false);
   const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
   const selectedParking = nearbyParking.data?.find((s) => s.id === selectedParkingId);
   const nearbyHazardsData = nearbyHazards.data;
@@ -299,7 +301,6 @@ export default function ActiveTripScreen() {
           destination={plan.destination}
           routeLine={routeLine}
           currentPosition={location.point}
-          currentHeading={location.heading}
           currentCourse={location.course}
           navigating
           hazards={mapHazards}
@@ -325,22 +326,30 @@ export default function ActiveTripScreen() {
           />
         </View>
 
-        {!following && (
-          <View
-            style={[
-              styles.recenter,
-              { top: insets.top + (guidance.next || guidance.offRoute ? 96 : 8) },
-            ]}
-            pointerEvents="box-none"
-          >
+        {/* Always there, on the map and not behind a menu: mark the spot you are on (a farm gate, a yard
+            entrance). Recenter joins it below once the map has been moved away. */}
+        <View
+          style={[
+            styles.recenter,
+            { top: insets.top + (guidance.next || guidance.offRoute ? 96 : 8) },
+          ]}
+          pointerEvents="box-none"
+        >
+          <RoundButton
+            icon="map-marker-plus-outline"
+            label="Mark a place here"
+            onPress={() => setMarkingPlace(true)}
+            testID="mark-place-button"
+          />
+          {!following && (
             <RoundButton
               icon="crosshairs-gps"
               label="Centre the map on me"
               onPress={() => mapRef.current?.recenter()}
               testID="recenter-button"
             />
-          </View>
-        )}
+          )}
+        </View>
 
         {eta && (
           <View
@@ -357,6 +366,13 @@ export default function ActiveTripScreen() {
             </View>
           </View>
         )}
+
+        <MarkPlaceSheet
+          visible={markingPlace}
+          onClose={() => setMarkingPlace(false)}
+          stopName={job.data ? navigationTarget(job.data)?.stop.name : undefined}
+          companyId={myPlaces.markingCompanyId}
+        />
 
         <PlaceSheet
           place={selectedPlace}
@@ -571,7 +587,7 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
     },
     // Under the turn card, on the right, clear of the ETA card on the left.
-    recenter: { position: 'absolute', right: 16 },
+    recenter: { position: 'absolute', right: 16, gap: 12 },
     turnBanner: { position: 'absolute', left: 16, right: 16 },
     etaCard: {
       ...cardStyle(colors),
