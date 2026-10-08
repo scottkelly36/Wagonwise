@@ -34,6 +34,11 @@
       "import": "./dist/companies.js",
       "default": "./dist/companies.js"
     },
+    "./billing": {
+      "types": "./dist/billing.d.ts",
+      "import": "./dist/billing.js",
+      "default": "./dist/billing.js"
+    },
     "./places": {
       "types": "./dist/places.d.ts",
       "import": "./dist/places.js",

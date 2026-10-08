@@ -69,6 +69,7 @@ describe('runMigrations', () => {
       '0036_places.sql',
       '0037_jobs_multi_stop.sql',
       '0038_company_photo_retention.sql',
+      '0039_billing_details.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -214,6 +215,7 @@ describe('runMigrations', () => {
       '0036_places.sql',
       '0037_jobs_multi_stop.sql',
       '0038_company_photo_retention.sql',
+      '0039_billing_details.sql',
     ]);
   });
 });

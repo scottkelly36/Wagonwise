@@ -3,6 +3,14 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **billing details (Phase 3 item 0, first slice).** New `billing` module in core. `billing.details` (migration 0039) holds
+  WagonWise's own trading name, address, billing email, payment details, VAT status and payment terms: one row, seeded with
+  `[bracketed]` placeholders. WagonWise admins edit it on the dashboard's new Billing page (`GET`/`PUT /staff/billing/details`,
+  through the staff BFF). Company staff get 403 and Row-Level Security hides the row from every scope but the platform's.
+  `placeholderFields()` names fields still in brackets: invoice issuing (not built yet) must refuse while any remain. Not audited
+  yet (stores `updated_by` and `updated_at` only). Pricing decided with the owner: bill the **vehicle capacity a company
+  commits to**, changed month to month by an admin, not vehicles in use; price per vehicle overridable per company (default
+  £10); invoices to be generated from the admin portal. Plan, capacity history, one-live-job-per-vehicle and invoices are next.
 - 2026-10-08: **delivery records.** Jobs shows, for a delivered job, Internal and Customer copy buttons. Each opens a printable page in a
   new tab (the browser's Save as PDF) with the reference, each stop with arrival and finish times, and the delivery photos. The
   customer copy has nothing about the driver or vehicle and no driver instructions; the internal one adds the driver (the sign-in

@@ -1,3 +1,4 @@
+import { updateBillingDetailsRequestSchema } from '@wagonwise/contracts/billing';
 import {
   companySettingsParamsSchema,
   createCompanyRequestSchema,
@@ -60,6 +61,14 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/companies/:id/settings',
     params: companySettingsParamsSchema,
     body: updateCompanySettingsRequestSchema,
+  },
+  // WagonWise's own billing details, printed on invoices. WagonWise admins only; core decides.
+  { method: 'GET', path: '/staff/billing/details', params: noParams },
+  {
+    method: 'PUT',
+    path: '/staff/billing/details',
+    params: noParams,
+    body: updateBillingDetailsRequestSchema,
   },
   { method: 'GET', path: '/staff/invite-codes', params: noParams },
   { method: 'POST', path: '/staff/invite-codes', params: noParams },

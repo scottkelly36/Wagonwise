@@ -620,4 +620,40 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
       });
     });
   });
+
+  describe('billing details (migration 0039)', () => {
+    const tradingName = async () =>
+      (
+        await sql<{ trading_name: string }>`select trading_name from billing.details`.execute(db)
+      ).rows.map((r) => r.trading_name);
+
+    it('only WagonWise staff see the billing details, never a company or a driver', async () => {
+      await scopes.run({ kind: 'platform' }, async () => {
+        expect(await tradingName()).toEqual(['[Trading name]']);
+      });
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await tradingName()).toEqual([]);
+      });
+      await scopes.run(
+        {
+          kind: 'driver',
+          driverId: 'e1000000-0000-4000-8000-000000000001',
+          identifier: 'x@example.com',
+        },
+        async () => {
+          expect(await tradingName()).toEqual([]);
+        },
+      );
+      expect(await tradingName()).toEqual([]);
+    });
+
+    it('a company scope cannot change them', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        const updated = await sql`update billing.details set trading_name = 'Hacked'`.execute(db);
+        expect(updated.numAffectedRows).toBe(0n);
+      });
+      const { rows } = await ownerPool.query('select trading_name from billing.details');
+      expect(rows[0]).toEqual({ trading_name: '[Trading name]' });
+    });
+  });
 });
