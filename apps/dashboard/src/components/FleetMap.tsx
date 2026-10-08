@@ -1,9 +1,11 @@
+import type { WeatherWarningsWithAreasResponse } from '@wagonwise/contracts/weather';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useRef } from 'react';
 
 import { maptilerApiKey } from '../api/config';
 import { mapStyleUrl } from '../lib/live-map';
+import { warningsGeoJson } from '../lib/weather';
 
 export interface MapMarker {
   readonly id: string;
@@ -22,9 +24,12 @@ interface Props {
   readonly onSelect: (id: string) => void;
   /** The selected vehicle's route to its next stop, as [lon, lat] pairs; none draws nothing. */
   readonly line?: readonly [number, number][] | undefined;
+  /** Met Office warning areas to shade on the map; none draws nothing. */
+  readonly warnings?: WeatherWarningsWithAreasResponse['warnings'] | undefined;
 }
 
 const ROUTE_SOURCE = 'selected-route';
+const WEATHER_SOURCE = 'weather-warnings';
 
 // The whole of Great Britain and the top of Northern Ireland, as [west, south, east, north]. The
 // view until there is a vehicle to fit to; fitted to the box, so it fits whatever size it is.
@@ -51,7 +56,7 @@ function markerElement(marker: MapMarker, onSelect: (id: string) => void): HTMLE
 /** The dispatcher's map (P2-M6.2): one marker per vehicle on the road, plus the selected job's
  *  stops. Imperative MapLibre inside one effect each for creating the map and for syncing markers —
  *  React owns the data, MapLibre owns the pixels. */
-export function FleetMap({ markers, selectedId, onSelect, line }: Props) {
+export function FleetMap({ markers, selectedId, onSelect, line, warnings }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const live = useRef(new Map<string, maplibregl.Marker>());
@@ -142,6 +147,48 @@ export function FleetMap({ markers, selectedId, onSelect, line }: Props) {
     if (instance.isStyleLoaded()) apply();
     else instance.once('load', apply);
   }, [line]);
+
+  // Warning areas, shaded in the Met Office's colours beneath the route and the vehicles.
+  useEffect(() => {
+    const instance = map.current;
+    if (instance === null) return;
+    const data = warningsGeoJson(warnings ?? []);
+    const apply = () => {
+      const source = instance.getSource(WEATHER_SOURCE) as maplibregl.GeoJSONSource | undefined;
+      if (source !== undefined) {
+        source.setData(data);
+        return;
+      }
+      instance.addSource(WEATHER_SOURCE, { type: 'geojson', data });
+      const beforeRoute = instance.getLayer(ROUTE_SOURCE) === undefined ? undefined : ROUTE_SOURCE;
+      instance.addLayer(
+        {
+          id: `${WEATHER_SOURCE}-fill`,
+          type: 'fill',
+          source: WEATHER_SOURCE,
+          paint: { 'fill-color': ['get', 'colour'], 'fill-opacity': 0.28 },
+        },
+        beforeRoute,
+      );
+      instance.addLayer(
+        {
+          id: `${WEATHER_SOURCE}-line`,
+          type: 'line',
+          source: WEATHER_SOURCE,
+          paint: { 'line-color': ['get', 'colour'], 'line-width': 2 },
+        },
+        beforeRoute,
+      );
+      instance.on('click', `${WEATHER_SOURCE}-fill`, (event) => {
+        const title = event.features?.[0]?.properties?.['title'];
+        if (typeof title === 'string') {
+          new maplibregl.Popup().setLngLat(event.lngLat).setText(title).addTo(instance);
+        }
+      });
+    };
+    if (instance.isStyleLoaded()) apply();
+    else instance.once('load', apply);
+  }, [warnings]);
 
   useEffect(() => {
     const target = markers.find((m) => m.kind === 'vehicle' && m.id === selectedId);

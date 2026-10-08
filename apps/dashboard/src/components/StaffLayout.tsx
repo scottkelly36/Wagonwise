@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { holds, isPlatform } from '../state/access';
 import { useStaffAuthStore } from '../state/staff-auth-store';
+import { WeatherBanner } from './WeatherBanner';
 
 interface NavItem {
   readonly to: string;
@@ -136,6 +137,7 @@ export function StaffLayout() {
           )}
         </header>
         <main className="content">
+          <WeatherBanner />
           <Outlet />
         </main>
       </div>

@@ -175,7 +175,7 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
 4. **App Platform App**, two components, both built from this repo via the Dockerfiles above:
    - `core`: `internal_ports: [3001]`, no public route. Env: `DATABASE_URL`,
      `IDENTITY_PRIVATE_KEY`, `INTERNAL_KEYS`, `VALHALLA_URL` (the droplet's private IP),
-     `ANTHROPIC_API_KEY`, `CLICKSEND_USERNAME`, `CLICKSEND_API_KEY`, `RESEND_API_KEY`,
+     `ANTHROPIC_API_KEY`, `METOFFICE_API_KEY` (weather warnings; optional), `CLICKSEND_USERNAME`, `CLICKSEND_API_KEY`, `RESEND_API_KEY`,
      `STAFF_SECRET_KEY` (`openssl rand -base64 32`; keep a copy somewhere safe: losing it
      makes every staff authenticator-app enrolment unreadable), `APP_DATABASE_URL` (below),
      `NODE_ENV=production`.

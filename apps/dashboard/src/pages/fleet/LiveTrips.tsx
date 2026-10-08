@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import * as jobsApi from '../../api/jobs';
+import * as weatherApi from '../../api/weather';
 import { decodePolyline6 } from '../../lib/polyline';
 import { FleetMap, type MapMarker } from '../../components/FleetMap';
 import {
@@ -60,6 +61,13 @@ export function LiveTrips() {
     queryFn: () => withAccessToken((token) => jobsApi.listJobs(token, companyId as string)),
     enabled: companyId !== undefined,
     refetchInterval: POLL_MS,
+  });
+  const [showWeather, setShowWeather] = useState(true);
+  const weather = useQuery({
+    queryKey: ['weather-warnings'],
+    queryFn: () => withAccessToken((token) => weatherApi.listWeatherWarnings(token)),
+    refetchInterval: 5 * 60_000,
+    retry: false,
   });
   const positions = useQuery({
     queryKey: ['job-positions', companyId],
@@ -201,7 +209,18 @@ export function LiveTrips() {
             {!markers.some((m) => m.kind === 'vehicle') && (
               <p className="map-empty">No vehicles on the road right now.</p>
             )}
+            {(weather.data?.warnings.length ?? 0) > 0 && (
+              <label className="map-toggle">
+                <input
+                  type="checkbox"
+                  checked={showWeather}
+                  onChange={(e) => setShowWeather(e.target.checked)}
+                />
+                Weather warnings
+              </label>
+            )}
             <FleetMap
+              warnings={showWeather ? weather.data?.warnings : undefined}
               markers={markers}
               selectedId={selectedJobId}
               onSelect={setSelectedJobId}

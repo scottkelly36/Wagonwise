@@ -13,6 +13,7 @@ import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { ParkingSpotDrawer } from '../components/parking-spot-drawer';
 import { MarkPlaceSheet } from '../components/mark-place-sheet';
 import { PlaceSheet } from '../components/place-sheet';
+import { WeatherButton } from '../components/weather-button';
 import { useMyPlaces } from '../api/use-places';
 import type { SavedPlaceDto } from '@wagonwise/contracts/places';
 import { thinPoints } from '../lib/thin-points';
@@ -335,6 +336,7 @@ export default function ActiveTripScreen() {
           ]}
           pointerEvents="box-none"
         >
+          <WeatherButton point={location.point} />
           <RoundButton
             icon="map-marker-plus-outline"
             label="Mark a place here"

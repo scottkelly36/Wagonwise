@@ -151,6 +151,8 @@ const FORWARDS: readonly Forward[] = [
     body: updatePlaceRequestSchema,
   },
   { method: 'DELETE', path: '/staff/places/:id', params: placeIdParamsSchema },
+  // Met Office weather warnings for the banner and the live map; the same for every company.
+  { method: 'GET', path: '/staff/weather/warnings', params: noParams },
   // P2-M8: the jobs report (needs `view_reports`, which core checks).
   {
     method: 'POST',
