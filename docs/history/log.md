@@ -3,6 +3,17 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **walk-round checks, slice 2a: the server side of a driver doing a check (Phase 3 M5).** Migration 0044
+  (`checks.checks`, `check_photos`, `defects`; driver and company Row-Level Security). A driver's `GET /checks/mine` (through the driver
+  BFF) gives the lists for the vehicle on their current job and whether each is done today (by anyone: it is the vehicle's daily
+  check). `POST /checks` files a completed check: the answers are checked against the list's questions (right kind, each once,
+  required ones answered), defects are worked out (a flagged tick, the defect answer to a yes-or-no, a number outside its range), the
+  result is the worst severity (clear, fix soon, do not drive), and the check is stored with a copy of the questions as they were.
+  Sending the same id again returns the check already made. `PUT /checks/:id/photos/:itemId` adds or replaces a photo for a photo
+  question or a defect that asks for one. Defects are rows with a status (open, acknowledged, fixed) for the office page to come.
+  The driver must belong to the list's company; another company's driver gets "not found", as the database hides the list. The jobs
+  facade gained `activeVehicleFor`. Tested end to end against real Postgres (`composition/checks-end-to-end.test.ts`). Not built:
+  the driver app screen and offline queue (2b), and the office results and defects page, before-a-job setting and retention (3).
 - 2026-10-09: **walk-round checks, slice 1: each company builds its own check lists (Phase 3 M5).** New `checks` module and migration
   0043 (`checks.templates`, company Row-Level Security). A list is an ordered set of questions held as one JSON document: tick or
   flag a defect, yes or no (one answer is the defect), a number (optional lowest and highest OK), a note, or a photo. Each question

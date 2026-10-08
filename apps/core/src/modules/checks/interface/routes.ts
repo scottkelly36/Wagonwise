@@ -19,7 +19,8 @@ import {
   type TemplateNotFound,
   type VehicleNotInCompany,
 } from '../application/templates.js';
-import type { CheckTemplate, InvalidTemplate } from '../domain/check-template.js';
+import type { InvalidTemplate } from '../domain/check-template.js';
+import { templateDto } from './dto.js';
 
 export interface ChecksRouteDeps {
   readonly templates: TemplateDeps;
@@ -49,20 +50,6 @@ interface Outcome {
 
 const INVALID: Outcome = { status: 400, body: { error: 'invalid_request' } };
 const failure = (error: ChecksError): Outcome => ({ status: statusFor(error), body: error });
-
-function templateDto(t: CheckTemplate) {
-  return {
-    id: t.id,
-    companyId: t.companyId,
-    name: t.name,
-    appliesTo: t.appliesTo,
-    vehicleIds: t.vehicleIds,
-    items: t.items,
-    version: t.version,
-    createdAt: t.createdAt.toISOString(),
-    updatedAt: t.updatedAt.toISOString(),
-  };
-}
 
 function scopeFor(caller: StaffCaller): DataScope {
   return caller.kind === 'platform'

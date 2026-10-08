@@ -37,7 +37,7 @@ item closes, delete it from this file; the history file keeps the record. Dated 
    turn on failure alerts in Resend.
 4. **Phase 3 has started** (`phase-3-scope.md`). Item 0, billing, is done (details, plans and capacity, one live job per vehicle,
    invoices viewed in the portal; migrations 0039 to 0042). Next is M5, walk-round checks: slice 1, each company builds its own check
-   lists, is built (migration 0043); the driver app completing them is next. Deploy core, staff-bff and the dashboard. After the
+   lists, and the server side of a driver doing one, are built (migrations 0043, 0044); the driver app screen is next. Deploy core, both BFFs and the dashboard. After the
    deploy, check the Plans page (each company starts with its current vehicle count), and before the first real invoice fill the
    `[placeholders]` on the Billing details page. Still to get: the owner's running costs for M1, and what the pilot firm's
    lorries and tachographs have.

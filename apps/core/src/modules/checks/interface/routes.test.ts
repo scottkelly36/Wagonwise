@@ -32,7 +32,13 @@ function buildApp(): { app: FastifyInstance; scopes: RecordingDataScopes } {
   registerChecksRoutes(app, {
     templates: {
       templates: new InMemoryTemplateRepository(),
-      vehicles: { belongsToCompany: (v, c) => Promise.resolve(v === LORRY && c === ACME) },
+      vehicles: {
+        belongsToCompany: (v, c) => Promise.resolve(v === LORRY && c === ACME),
+        find: (v) =>
+          Promise.resolve(
+            v === LORRY ? { companyId: makeId<'CompanyId'>(ACME), name: 'Big Wagon' } : null,
+          ),
+      },
       ids: new SequentialIdGenerator(),
       clock: new FakeClock('2026-10-09T09:00:00.000Z'),
     },

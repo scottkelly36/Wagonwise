@@ -266,7 +266,21 @@ second check on top — core alone decides ownership/authorization for those.
 - Everything else under `/staff/billing/` is WagonWise-admin only.
 - Pricing model and what is next: `docs/phase-3-scope.md`.
 
-## Checks`apps/core/src/modules/checks`: the driver's daily walk-round check. So far, the lists (`checks.templates`, migration 0043): a companybuilds its own at `/staff/checks/...` (dashboard "Walk-round checks"), as a JSON set of questions (`domain/check-template.ts`), forall its vehicles or chosen ones, with `manage_fleet` to build and any company staff to read. Editing bumps `version`; removing archives.`domain/starter-template.ts` is the editable example list. Drivers answering, results, defects and retention are to come; see`docs/phase-3-scope.md`.
+## Checks
+
+`apps/core/src/modules/checks`: the driver's daily walk-round check.
+
+- **Lists** (`checks.templates`, migration 0043): a company builds its own at `/staff/checks/...` (dashboard "Walk-round checks"),
+  as a JSON set of questions (`domain/check-template.ts`), for all its vehicles or chosen ones. `manage_fleet` builds; any company
+  staff read. Editing bumps `version`; removing archives. `domain/starter-template.ts` is the editable example list.
+- **Doing a check** (migration 0044): the driver's door is `GET /checks/mine` (the lists for the vehicle on their current job, and
+  whether each is done today by anyone), `POST /checks` (file a check; idempotent on its id) and
+  `PUT /checks/:id/photos/:itemId` (a photo for a photo question, or a defect that asks for one). `domain/check.ts` evaluates the
+  answers against the questions into defects and a result (clear, fix soon, do not drive); the check is stored with a copy of the
+  questions it was answered against, and each defect becomes a row with a status for the office. Proof it works against real
+  Postgres: `composition/checks-end-to-end.test.ts`.
+- To come: the driver app screen, the office results page and defects inbox, the before-a-job setting and retention
+  (`docs/phase-3-scope.md`).
 
 ## Staff BFF
 
