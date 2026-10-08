@@ -14,6 +14,8 @@ export interface InvoiceRepository {
   list(): Promise<Invoice[]>;
   /** The company's invoice for the month that is not void, if there is one. */
   findLive(companyId: CompanyId, month: MonthString): Promise<Invoice | null>;
+  /** A company's own invoices that have been issued (never its drafts), newest month first. */
+  listIssuedForCompany(companyId: CompanyId): Promise<Invoice[]>;
   /** A new draft with its lines. */
   insertDraft(invoice: Invoice, createdBy: StaffId): Promise<void>;
   addLine(invoiceId: InvoiceId, line: InvoiceLine): Promise<void>;

@@ -3,6 +3,14 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **a company's own plan and invoices (Phase 3 item 0).** New "Plan and invoices" page for staff holding `manage_billing`
+  (`GET /staff/billing/my/plan` and `/my/invoices`, through the staff BFF). Shows what the plan covers, what it costs a month, how many
+  vehicles the company has set up against that ("you can add 2 more"), any scheduled change, and the issued, paid and cancelled invoices
+  with Print or save as PDF. Never drafts. The company is the caller's own, never a parameter, and the work runs in that company's data
+  scope. Migration 0042 lets a company read its own non-draft invoices and their lines (read only; Row-Level Security still refuses any
+  write and every other company's rows). WagonWise admins use the admin pages, not these. Vehicle count comes from fleet
+  (`countVehicles`) through a `VehicleCount` port; billing and fleet now reference each other through ports in composition (billing
+  reads fleet's count lazily). The "plan full" message now tells company staff to ask WagonWise. Emailing invoices is still to do.
 - 2026-10-09: **invoices (Phase 3 item 0).** `billing.invoices`, `billing.invoice_lines` and a gapless `billing.invoice_counter`
   (migration 0041), WagonWise-admin only through Row-Level Security. The dashboard's new Invoices page drafts a month's invoices for
   every company from its plan (capacity in force on the 1st, whole month; a mid-month rise is billed pro rata by days; a mid-month fall

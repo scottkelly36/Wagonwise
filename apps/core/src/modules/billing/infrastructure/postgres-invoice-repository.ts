@@ -90,6 +90,15 @@ export class PostgresInvoiceRepository implements InvoiceRepository {
     return this.#withLines(rows).then((all) => all[0] ?? null);
   }
 
+  async listIssuedForCompany(companyId: CompanyId): Promise<Invoice[]> {
+    const { rows } = await sql<InvoiceRow>`
+      select ${sql.raw(INVOICE_COLUMNS)} from billing.invoices
+      where company_id = ${companyId} and status <> 'draft'
+      order by month desc, created_at desc
+    `.execute(this.db);
+    return this.#withLines(rows);
+  }
+
   async insertDraft(invoice: Invoice, createdBy: StaffId): Promise<void> {
     await sql`
       insert into billing.invoices (id, company_id, company_name, month, status, created_at, created_by)

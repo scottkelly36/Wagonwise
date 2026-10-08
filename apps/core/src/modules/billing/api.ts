@@ -11,11 +11,13 @@ import { PostgresBillingDetailsRepository } from './infrastructure/postgres-bill
 import { PostgresInvoiceRepository } from './infrastructure/postgres-invoice-repository.js';
 import { PostgresPlanRepository } from './infrastructure/postgres-plan-repository.js';
 import { registerBillingRoutes } from './interface/routes.js';
+import type { VehicleCount } from './application/ports/vehicle-count.js';
 
 // Re-exported so composition/ can type its wiring without reaching past this facade.
 export type { UntypedDb } from './infrastructure/db.js';
 export type { CallerDirectory, StaffCaller } from './application/ports/directories.js';
 export type { CompanyDirectory } from './application/ports/company-directory.js';
+export type { VehicleCount } from './application/ports/vehicle-count.js';
 
 export interface BillingModuleDeps {
   readonly db: UntypedDb;
@@ -26,6 +28,8 @@ export interface BillingModuleDeps {
   readonly callers: CallerDirectory;
   /** The companies WagonWise bills. Supplied by composition over `companies`. */
   readonly companies: CompanyDirectory;
+  /** How many vehicles a company has now. Supplied by composition over `fleet`. */
+  readonly vehicles: VehicleCount;
 }
 
 export interface BillingModule {
@@ -60,6 +64,7 @@ export function createBillingModule(deps: BillingModuleDeps): BillingModule {
           ids: deps.ids,
           clock: deps.clock,
         },
+        own: { plans, invoices, vehicles: deps.vehicles, clock: deps.clock },
         callerDirectory: deps.callers,
         dataScopes: deps.dataScopes,
       });

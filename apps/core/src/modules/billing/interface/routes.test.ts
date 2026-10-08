@@ -15,6 +15,16 @@ const ACME = makeId<'CompanyId'>('11111111-1111-4111-8111-111111111111');
 
 const staff: Record<string, StaffCaller> = {
   admin: { kind: 'platform' },
+  billing: {
+    kind: 'fleet',
+    companyId: '11111111-1111-4111-8111-111111111111',
+    privileges: ['manage_billing'],
+  },
+  other: {
+    kind: 'fleet',
+    companyId: '22222222-2222-4222-8222-222222222222',
+    privileges: ['manage_billing'],
+  },
   manager: {
     kind: 'fleet',
     companyId: '11111111-1111-4111-8111-111111111111',
@@ -34,15 +44,22 @@ function buildApp(): { app: FastifyInstance; scopes: RecordingDataScopes } {
   const details = new InMemoryBillingDetailsRepository();
   const plans = new InMemoryPlanRepository();
   const companies = { list: () => Promise.resolve([{ id: ACME, name: 'Acme Freight' }]) };
+  const invoiceRepo = new InMemoryInvoiceRepository();
   registerBillingRoutes(app, {
     billing: { repo: details, clock },
     plans: { plans, companies, clock },
     invoices: {
-      invoices: new InMemoryInvoiceRepository(),
+      invoices: invoiceRepo,
       details,
       plans,
       companies,
       ids: new SequentialIdGenerator(),
+      clock,
+    },
+    own: {
+      plans,
+      invoices: invoiceRepo,
+      vehicles: { countFor: () => Promise.resolve(3) },
       clock,
     },
     callerDirectory: { getCaller: (id) => Promise.resolve(staff[id] ?? null) },
@@ -362,5 +379,96 @@ describe('/staff/billing/invoices', () => {
       app.inject({ method: 'DELETE', url: '/staff/billing/invoices/x', ...as('manager') }),
     ];
     for (const response of await Promise.all(attempts)) expect(response.statusCode).toBe(403);
+  });
+});
+
+describe('a company’s own billing: /staff/billing/my', () => {
+  it('shows a billing manager their own plan, in their own company’s data scope', async () => {
+    const { app, scopes } = buildApp();
+    await app.inject({
+      method: 'POST',
+      url: `/staff/billing/companies/${ACME}/capacity`,
+      payload: { capacity: 5, effectiveFrom: '2026-10-09' },
+      ...as('admin'),
+    });
+    scopes.used.length = 0;
+    const response = await app.inject({
+      method: 'GET',
+      url: '/staff/billing/my/plan',
+      ...as('billing'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      capacityToday: 5,
+      vehiclesInUse: 3,
+      pricePerVehiclePence: 1000,
+      monthlyPence: 5000,
+    });
+    expect(scopes.used).toEqual([{ kind: 'company', companyId: ACME }]);
+  });
+
+  it('lists the company’s issued invoices and never its drafts', async () => {
+    const { app } = buildApp();
+    await app.inject({
+      method: 'POST',
+      url: `/staff/billing/companies/${ACME}/capacity`,
+      payload: { capacity: 5, effectiveFrom: '2026-10-09' },
+      ...as('admin'),
+    });
+    const generated = await app.inject({
+      method: 'POST',
+      url: '/staff/billing/invoices/generate',
+      payload: { month: '2026-10' },
+      ...as('admin'),
+    });
+    const id = generated.json<{ created: { id: string }[] }>().created[0]!.id;
+
+    const beforeIssue = await app.inject({
+      method: 'GET',
+      url: '/staff/billing/my/invoices',
+      ...as('billing'),
+    });
+    expect(beforeIssue.json()).toEqual({ invoices: [] });
+
+    await app.inject({
+      method: 'PUT',
+      url: '/staff/billing/details',
+      payload: real,
+      ...as('admin'),
+    });
+    await app.inject({
+      method: 'POST',
+      url: `/staff/billing/invoices/${id}/issue`,
+      ...as('admin'),
+    });
+    const after = await app.inject({
+      method: 'GET',
+      url: '/staff/billing/my/invoices',
+      ...as('billing'),
+    });
+    expect(after.json<{ invoices: { number: string }[] }>().invoices.map((i) => i.number)).toEqual([
+      'INV-0001',
+    ]);
+
+    // Another company's billing manager sees none of it.
+    const other = await app.inject({
+      method: 'GET',
+      url: '/staff/billing/my/invoices',
+      ...as('other'),
+    });
+    expect(other.json()).toEqual({ invoices: [] });
+  });
+
+  it('refuses staff without billing, and WagonWise admins here, and needs a sign-in', async () => {
+    const { app } = buildApp();
+    for (const who of ['manager', 'admin', 'nobody']) {
+      for (const path of ['/staff/billing/my/plan', '/staff/billing/my/invoices']) {
+        const response = await app.inject({ method: 'GET', url: path, ...as(who) });
+        expect(response.statusCode).toBe(403);
+      }
+    }
+    expect((await app.inject({ method: 'GET', url: '/staff/billing/my/plan' })).statusCode).toBe(
+      401,
+    );
   });
 });

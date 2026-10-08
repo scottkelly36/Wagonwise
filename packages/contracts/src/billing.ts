@@ -142,3 +142,17 @@ export const addInvoiceLineRequestSchema = z.object({
   amountPence: z.number().int().min(-100_000_000).max(100_000_000),
 });
 export type AddInvoiceLineRequest = z.infer<typeof addInvoiceLineRequestSchema>;
+
+/** `GET /staff/billing/my/plan`: a company's own plan, for its billing managers (`manage_billing`). */
+export const ownPlanSchema = z.object({
+  /** Vehicles the plan covers today. */
+  capacityToday: z.number().int(),
+  /** Vehicles the company has set up now. */
+  vehiclesInUse: z.number().int(),
+  pricePerVehiclePence: z.number().int(),
+  /** Pence for a month at today's capacity. */
+  monthlyPence: z.number().int(),
+  next: z.object({ effectiveFrom: dayString, capacity: z.number().int() }).optional(),
+});
+export type OwnPlanDto = z.infer<typeof ownPlanSchema>;
+// `GET /staff/billing/my/invoices` replies with `listInvoicesResponseSchema`: issued, paid and cancelled only.

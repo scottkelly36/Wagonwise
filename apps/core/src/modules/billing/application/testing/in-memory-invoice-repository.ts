@@ -32,6 +32,12 @@ export class InMemoryInvoiceRepository implements InvoiceRepository {
     return Promise.resolve(found ?? null);
   }
 
+  listIssuedForCompany(companyId: CompanyId): Promise<Invoice[]> {
+    return this.list().then((all) =>
+      all.filter((i) => i.companyId === companyId && i.status !== 'draft'),
+    );
+  }
+
   insertDraft(invoice: Invoice, _createdBy: StaffId): Promise<void> {
     this.#byId.set(invoice.id, invoice);
     return Promise.resolve();
