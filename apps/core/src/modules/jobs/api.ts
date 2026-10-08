@@ -1,3 +1,4 @@
+import { makeId } from '../../shared/brand.js';
 import type { FastifyInstance } from 'fastify';
 import { pruneProofPhotos } from './application/prune-proof-photos.js';
 import { pruneJobPositions } from './application/prune-job-positions.js';
@@ -67,6 +68,10 @@ export interface JobsModule {
   pruneOldPositions(retentionDays: number): Promise<number>;
   /** Deletes each company's proof-of-delivery photos older than its own retention (months, by company id). */
   pruneProofPhotos(retentionMonthsByCompany: ReadonlyMap<string, number>): Promise<number>;
+  /** The vehicle on the job a driver is on right now (assigned up to at_delivery), or null. For walk-round
+   *  checks, which are done on the vehicle the driver is about to take out; supplied by composition. Reads in
+   *  the caller's own data scope, so call it inside the driver's request. */
+  activeVehicleFor(driverId: string): Promise<string | null>;
 }
 
 /**
@@ -117,6 +122,10 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
       return deps.dataScopes.run({ kind: 'platform' }, () =>
         pruneJobPositions({ positions, clock: deps.clock }, { retentionDays }),
       );
+    },
+    async activeVehicleFor(driverId: string): Promise<string | null> {
+      const job = await repo.findActiveForDriver(makeId<'DriverId'>(driverId));
+      return job?.vehicleId ?? null;
     },
     pruneProofPhotos(retentionMonthsByCompany: ReadonlyMap<string, number>): Promise<number> {
       return deps.dataScopes.run({ kind: 'platform' }, () =>

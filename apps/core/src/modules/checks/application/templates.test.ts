@@ -47,7 +47,10 @@ function setup() {
     templates,
     clock,
     ids: new SequentialIdGenerator(),
-    vehicles: { belongsToCompany: (v, c) => Promise.resolve(v === lorry && c === acme) },
+    vehicles: {
+      belongsToCompany: (v, c) => Promise.resolve(v === lorry && c === acme),
+      find: (v) => Promise.resolve(v === lorry ? { companyId: acme, name: 'Big Wagon' } : null),
+    },
   };
   return { deps, templates, clock };
 }

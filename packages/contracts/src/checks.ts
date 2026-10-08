@@ -113,3 +113,76 @@ export const starterTemplateResponseSchema = z.object({
   name: z.string(),
   items: z.array(checkItemSchema),
 });
+
+// ---------------------------------------------------------------------------------------------
+// The driver's side: doing a check on the vehicle they are about to take out.
+
+export const checkIdSchema = brandedId<'CheckId'>();
+export type CheckId = z.infer<typeof checkIdSchema>;
+
+export const checkResultSchema = z.enum(['clear', 'advisory', 'do_not_drive']);
+export type CheckResult = z.infer<typeof checkResultSchema>;
+
+export const ANSWER_NOTE_MAX = 500;
+
+/**
+ * One answer. `value` is `ok` or `defect` for a tick-or-flag question; `yes` or `no` for a yes-or-no one; a
+ * number for a number question; the text for a note; `photo` for a photo question (the photo is sent on its own).
+ * `note` is what the driver says about a defect.
+ */
+export const checkAnswerSchema = z.object({
+  itemId: z.string().min(1).max(64),
+  value: z.union([z.string().max(ANSWER_NOTE_MAX), z.number().finite()]),
+  note: z.string().trim().max(ANSWER_NOTE_MAX).optional(),
+});
+export type CheckAnswer = z.infer<typeof checkAnswerSchema>;
+
+/** `POST /checks`. `id` is chosen by the app so a retry after a dropped connection makes no second check. */
+export const submitCheckRequestSchema = z.object({
+  id: checkIdSchema,
+  templateId: checkTemplateIdSchema,
+  vehicleId: z.string().min(1),
+  answers: z.array(checkAnswerSchema).max(MAX_ITEMS),
+  /** When the driver finished it on the phone (the phone may have been offline). */
+  completedAt: z.iso.datetime().optional(),
+});
+export type SubmitCheckRequest = z.infer<typeof submitCheckRequestSchema>;
+
+export const submittedCheckSchema = z.object({
+  id: checkIdSchema,
+  result: checkResultSchema,
+  defects: z.array(
+    z.object({
+      itemId: z.string(),
+      label: z.string(),
+      severity: defectSeveritySchema,
+      detail: z.string(),
+    }),
+  ),
+});
+export type SubmittedCheckDto = z.infer<typeof submittedCheckSchema>;
+
+/** `GET /checks/mine`: the check lists for the vehicle on the driver's current job, and which are done today. */
+export const checksDueResponseSchema = z.object({
+  vehicle: z.object({ id: z.string(), name: z.string() }).nullable(),
+  lists: z.array(
+    z.object({
+      template: checkTemplateSchema,
+      /** Someone has already done this list on this vehicle today. */
+      doneToday: z.boolean(),
+    }),
+  ),
+});
+export type ChecksDueResponse = z.infer<typeof checksDueResponseSchema>;
+
+export const checkPhotoParamsSchema = z.object({
+  id: z.string().min(1),
+  itemId: z.string().min(1),
+});
+
+/** `PUT /checks/:id/photos/:itemId`: a photo for one question; a retake replaces it. */
+export const attachCheckPhotoRequestSchema = z.object({
+  contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+  dataBase64: z.base64().min(1).max(7_000_000),
+});
+export type AttachCheckPhotoRequest = z.infer<typeof attachCheckPhotoRequestSchema>;

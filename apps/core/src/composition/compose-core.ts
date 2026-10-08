@@ -267,17 +267,6 @@ export function composeCore(
     callers: { getCaller: staffCaller },
     driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
   });
-  const checks = createChecksModule({
-    db: checksDb,
-    ids,
-    clock,
-    dataScopes,
-    callers: { getCaller: staffCaller },
-    vehicles: {
-      belongsToCompany: async (vehicleId, companyId) =>
-        (await fleet.getVehicleCompanyId(vehicleId)) === companyId,
-    },
-  });
   const weather = createWeatherModule({ clock, metOfficeApiKey: config.metOfficeApiKey });
   const jobs = createJobsModule({
     db: jobsDb,
@@ -329,6 +318,50 @@ export function composeCore(
           : err({ tag: 'RouteUnavailable' });
       },
     },
+  });
+  const checks = createChecksModule({
+    db: checksDb,
+    ids,
+    clock,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+    vehicles: {
+      belongsToCompany: async (vehicleId, companyId) =>
+        (await fleet.getVehicleCompanyId(vehicleId)) === companyId,
+      find: async (vehicleId) => {
+        const [companyId, vehicle] = await Promise.all([
+          fleet.getVehicleCompanyId(vehicleId),
+          fleet.getVehicle(vehicleId),
+        ]);
+        return companyId === null || vehicle === null
+          ? null
+          : { companyId: makeId<'CompanyId'>(companyId), name: vehicle.name };
+      },
+    },
+    // The vehicle on the driver's current job: jobs says which, fleet says whose and what it is called. Both
+    // read in the driver's own request scope, which is where this is called from.
+    driverVehicle: {
+      currentVehicle: async (driverId) => {
+        const vehicleId = await jobs.activeVehicleFor(driverId);
+        if (vehicleId === null) return null;
+        const [companyId, vehicle] = await Promise.all([
+          fleet.getVehicleCompanyId(vehicleId),
+          fleet.getVehicle(vehicleId),
+        ]);
+        return companyId === null || vehicle === null
+          ? null
+          : {
+              id: makeId<'FleetVehicleId'>(vehicleId),
+              companyId: makeId<'CompanyId'>(companyId),
+              name: vehicle.name,
+            };
+      },
+    },
+    membership: {
+      isActiveDriverOfCompany: (driverId, companyId) =>
+        fleet.isActiveDriverOfCompany(driverId, companyId),
+    },
+    driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
   });
 
   const outboxDispatcher = new OutboxDispatcher(
