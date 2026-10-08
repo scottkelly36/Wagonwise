@@ -23,6 +23,8 @@ function job(overrides: Partial<Job> = {}): Job {
     timeline: [],
     requiresProofOfDelivery: false,
     hasProofOfDelivery: false,
+    currentStop: 0,
+    proofStops: [],
     ...overrides,
   };
 }

@@ -42,6 +42,8 @@ describe('createJob', () => {
       timeline: [{ status: 'draft', at: new Date('2026-10-01T09:00:00.000Z') }],
       requiresProofOfDelivery: false,
       hasProofOfDelivery: false,
+      currentStop: 0,
+      proofStops: [],
     });
 
     expect(await repo.findById(result.value.id)).toEqual(result.value);

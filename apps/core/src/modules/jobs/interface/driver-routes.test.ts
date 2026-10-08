@@ -66,6 +66,14 @@ const JOB: Job = {
   timeline: [{ status: 'assigned', at: new Date('2026-10-01T09:00:00.000Z') }],
   requiresProofOfDelivery: false,
   hasProofOfDelivery: false,
+  currentStop: 0,
+  proofStops: [],
+};
+
+const DELIVERY_STOP = {
+  kind: 'delivery' as const,
+  name: 'Port',
+  location: { lat: 55.0, lon: -1.6 },
 };
 
 describe('GET /jobs/current', () => {
@@ -158,7 +166,12 @@ describe('POST /jobs/:id/status', () => {
 describe('POST /jobs/:id/proof-of-delivery', () => {
   it('204s and records the photo for the driver on it', async () => {
     const { app, repo } = buildApp();
-    await repo.save({ ...JOB, status: 'at_delivery', requiresProofOfDelivery: true });
+    await repo.save({
+      ...JOB,
+      stops: [DELIVERY_STOP],
+      status: 'at_delivery',
+      requiresProofOfDelivery: true,
+    });
     const response = await app.inject({
       method: 'POST',
       url: `/jobs/${JOB_ID}/proof-of-delivery`,
@@ -167,12 +180,17 @@ describe('POST /jobs/:id/proof-of-delivery', () => {
     });
     expect(response.statusCode).toBe(204);
     expect((await repo.findById(JOB_ID))?.hasProofOfDelivery).toBe(true);
-    expect(repo.proofOfDelivery.get(JOB_ID)).toMatchObject({ contentType: 'image/jpeg' });
+    expect(repo.proofOfDelivery.get(JOB_ID)?.get(0)).toMatchObject({ contentType: 'image/jpeg' });
   });
 
   it('lets the delivered step through once proof is attached, and refuses it before that', async () => {
     const { app, repo } = buildApp();
-    await repo.save({ ...JOB, status: 'at_delivery', requiresProofOfDelivery: true });
+    await repo.save({
+      ...JOB,
+      stops: [DELIVERY_STOP],
+      status: 'at_delivery',
+      requiresProofOfDelivery: true,
+    });
     const tooSoon = await app.inject({
       method: 'POST',
       url: `/jobs/${JOB_ID}/status`,

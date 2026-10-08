@@ -22,8 +22,9 @@ export interface JobRepository {
   listForCompany(companyId: CompanyId): Promise<Job[]>;
   /** `events` are written to the outbox together with the job. */
   save(job: Job, events?: readonly DomainEvent[]): Promise<void>;
-  /** Replaces any existing photo for this job — one at a time, retaking replaces, not appends. */
-  saveProofOfDelivery(jobId: JobId, photo: ProofOfDeliveryPhoto): Promise<void>;
-  /** The photo itself, or `null` if none was attached. Never loaded by the plain job reads. */
-  findProofOfDelivery(jobId: JobId): Promise<StoredProofOfDelivery | null>;
+  /** Replaces any existing photo for this delivery stop (by position) — retaking replaces, not appends. */
+  saveProofOfDelivery(jobId: JobId, stop: number, photo: ProofOfDeliveryPhoto): Promise<void>;
+  /** The photo for a delivery stop, or the latest one when no stop is given; `null` if none was attached.
+   *  Never loaded by the plain job reads. */
+  findProofOfDelivery(jobId: JobId, stop?: number): Promise<StoredProofOfDelivery | null>;
 }

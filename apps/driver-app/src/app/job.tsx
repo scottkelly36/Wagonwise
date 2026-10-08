@@ -25,7 +25,7 @@ import {
   type JobAction,
 } from '../lib/job-navigation';
 import { isTrackedStatus } from '../lib/job-position-reporting';
-import { jobHasPickup, jobStatusLabel, nextStepFor } from '../lib/job-status';
+import { jobStatusLabel, nextStepFor } from '../lib/job-status';
 import {
   isBusy as isVoiceBusy,
   isListening as isVoiceListening,
@@ -75,11 +75,7 @@ export default function JobScreen() {
   const plan = useCurrentRoutePlanStore((s) => s.plan);
   // Hooks can't be conditional, so this is wired up before `job.data` is known to exist — it does
   // nothing (and the button that would start it isn't rendered) until there's a real job.
-  const voice = useJobStatusVoice(
-    job.data?.id ?? '',
-    job.data?.status ?? 'draft',
-    !job.data || jobHasPickup(job.data),
-  );
+  const voice = useJobStatusVoice(job.data ?? undefined);
   const proof = useProofOfDeliveryCapture(job.data?.id ?? '');
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -111,11 +107,11 @@ export default function JobScreen() {
     plan !== undefined &&
     target !== undefined &&
     isTripToTarget(plan.destination, target);
-  const actions = jobActions(current.status, tripToTarget, jobHasPickup(current));
+  const actions = jobActions(current, tripToTarget);
   const noVehicle = current.vehicleId === undefined;
   const blockedByProof =
     actions?.primary.kind === 'advance' &&
-    actions.primary.to === 'delivered' &&
+    current.status === 'at_delivery' &&
     isDeliveryBlockedByProof(current);
   const working = advance.isPending || navigation.isPending;
 
@@ -147,22 +143,34 @@ export default function JobScreen() {
         )}
 
         <View style={styles.section}>
-          {current.stops.map((stop, index) => (
-            <View key={index} style={styles.stop}>
-              <View style={styles.stopBadge}>
-                <Icon
-                  name={stop.kind === 'pickup' ? 'package-variant' : 'flag-checkered'}
-                  size={26}
-                  color={colors.accent}
-                />
+          {current.stops.map((stop, index) => {
+            // Finished stops are ticked; the one being driven to or at is outlined. Only a job with several stops
+            // shows this, since for a simple one it is plain.
+            const done = index < current.currentStop;
+            const here = index === current.currentStop && isTrackedStatus(current.status);
+            return (
+              <View
+                key={index}
+                style={[styles.stop, done && styles.stopDone, here && styles.stopHere]}
+                testID={`job-stop-${index}`}
+              >
+                <View style={styles.stopBadge}>
+                  <Icon
+                    name={
+                      done ? 'check' : stop.kind === 'pickup' ? 'package-variant' : 'flag-checkered'
+                    }
+                    size={26}
+                    color={done ? colors.textMuted : colors.accent}
+                  />
+                </View>
+                <View style={styles.stopText}>
+                  <Text style={styles.stopKind}>{STOP_KIND_LABELS[stop.kind]}</Text>
+                  <Text style={styles.stopName}>{stop.name}</Text>
+                  {stop.notes !== undefined && <Text style={styles.stopNotes}>{stop.notes}</Text>}
+                </View>
               </View>
-              <View style={styles.stopText}>
-                <Text style={styles.stopKind}>{STOP_KIND_LABELS[stop.kind]}</Text>
-                <Text style={styles.stopName}>{stop.name}</Text>
-                {stop.notes !== undefined && <Text style={styles.stopNotes}>{stop.notes}</Text>}
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         <JobPlacesCard
@@ -327,6 +335,8 @@ function createStyles(colors: ThemeColors) {
       gap: 14,
       padding: 14,
     },
+    stopDone: { opacity: 0.55 },
+    stopHere: { borderWidth: 2, borderColor: colors.accent },
     stopBadge: {
       width: 52,
       height: 52,

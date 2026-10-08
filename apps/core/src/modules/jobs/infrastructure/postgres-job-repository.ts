@@ -8,6 +8,7 @@ import type {
 } from '../application/ports/job-repository.js';
 import {
   ACTIVE_STATUSES,
+  hasProof,
   type CompanyId,
   type DriverId,
   type GeoPoint,
@@ -32,6 +33,7 @@ interface JobRow {
   readonly due_by: Date | null;
   readonly timeline: unknown;
   readonly requires_proof_of_delivery: boolean;
+  readonly current_stop: number;
 }
 
 interface StopRow {
@@ -46,7 +48,7 @@ interface StopRow {
 
 const JOB_SELECT_COLUMNS = `
   id, company_id, reference, status, driver_id, vehicle_id, route_plan_id, planned_start, due_by,
-  timeline, requires_proof_of_delivery
+  timeline, requires_proof_of_delivery, current_stop
 `;
 
 const STOP_SELECT_COLUMNS = `
@@ -66,10 +68,12 @@ function timelineFrom(value: unknown): JobTimelineEntry[] {
     const at = record.at;
     if (typeof status !== 'string' || typeof at !== 'string') continue;
     const position = record.position as GeoPoint | undefined;
+    const stopIndex = typeof record.stopIndex === 'number' ? record.stopIndex : undefined;
     entries.push({
       status: status as JobStatus,
       at: new Date(at),
       ...(position === undefined ? {} : { position }),
+      ...(stopIndex === undefined ? {} : { stopIndex }),
     });
   }
   return entries;
@@ -86,8 +90,8 @@ function stopFromRow(row: StopRow): JobStop {
   };
 }
 
-function jobFromRows(job: JobRow, stops: readonly StopRow[], hasProofOfDelivery: boolean): Job {
-  return {
+function jobFromRows(job: JobRow, stops: readonly StopRow[], proofStops: readonly number[]): Job {
+  const base = {
     id: makeId<'JobId'>(job.id),
     companyId: makeId<'CompanyId'>(job.company_id),
     reference: job.reference,
@@ -95,7 +99,9 @@ function jobFromRows(job: JobRow, stops: readonly StopRow[], hasProofOfDelivery:
     status: job.status,
     timeline: timelineFrom(job.timeline),
     requiresProofOfDelivery: job.requires_proof_of_delivery,
-    hasProofOfDelivery,
+    currentStop: job.current_stop,
+    proofStops,
+    hasProofOfDelivery: false,
     ...(job.driver_id === null ? {} : { driverId: makeId<'DriverId'>(job.driver_id) }),
     ...(job.vehicle_id === null ? {} : { vehicleId: makeId<'FleetVehicleId'>(job.vehicle_id) }),
     ...(job.route_plan_id === null
@@ -104,6 +110,7 @@ function jobFromRows(job: JobRow, stops: readonly StopRow[], hasProofOfDelivery:
     ...(job.planned_start === null ? {} : { plannedStart: job.planned_start }),
     ...(job.due_by === null ? {} : { dueBy: job.due_by }),
   };
+  return { ...base, hasProofOfDelivery: hasProof(base) };
 }
 
 /** Raw `sql` tagged-template queries, not Kysely's typed query builder — same reasoning as every
@@ -150,16 +157,15 @@ export class PostgresJobRepository implements JobRepository {
         select job_id, ${sql.raw(STOP_SELECT_COLUMNS)} from jobs.job_stops
         where job_id in (${sql.join(ids)}) order by job_id, sequence
       `.execute(this.db),
-      sql<{ job_id: string }>`
-        select job_id from jobs.proof_of_delivery where job_id in (${sql.join(ids)})
+      sql<{ job_id: string; stop_sequence: number }>`
+        select job_id, stop_sequence from jobs.proof_of_delivery where job_id in (${sql.join(ids)})
       `.execute(this.db),
     ]);
-    const podJobIds = new Set(podRows.map((r) => r.job_id));
     return jobRows.map((jobRow) =>
       jobFromRows(
         jobRow,
         stopRows.filter((s) => s.job_id === jobRow.id),
-        podJobIds.has(jobRow.id),
+        podRows.filter((p) => p.job_id === jobRow.id).map((p) => p.stop_sequence),
       ),
     );
   }
@@ -178,12 +184,12 @@ export class PostgresJobRepository implements JobRepository {
     await sql`
       insert into jobs.jobs
         (id, company_id, reference, status, driver_id, vehicle_id, route_plan_id, planned_start,
-         due_by, created_at, timeline, requires_proof_of_delivery)
+         due_by, created_at, timeline, requires_proof_of_delivery, current_stop)
       values (
         ${job.id}, ${job.companyId}, ${job.reference}, ${job.status},
         ${job.driverId ?? null}, ${job.vehicleId ?? null}, ${job.routePlanId ?? null},
         ${job.plannedStart ?? null}, ${job.dueBy ?? null}, now(),
-        ${JSON.stringify(job.timeline)}::jsonb, ${job.requiresProofOfDelivery}
+        ${JSON.stringify(job.timeline)}::jsonb, ${job.requiresProofOfDelivery}, ${job.currentStop}
       )
       on conflict (id) do update set
         reference = excluded.reference,
@@ -194,7 +200,8 @@ export class PostgresJobRepository implements JobRepository {
         planned_start = excluded.planned_start,
         due_by = excluded.due_by,
         timeline = excluded.timeline,
-        requires_proof_of_delivery = excluded.requires_proof_of_delivery
+        requires_proof_of_delivery = excluded.requires_proof_of_delivery,
+        current_stop = excluded.current_stop
     `.execute(this.db);
 
     // Stops are replaced wholesale rather than diffed: nothing edits them after creation, and
@@ -213,20 +220,26 @@ export class PostgresJobRepository implements JobRepository {
     }
   }
 
-  async saveProofOfDelivery(jobId: JobId, photo: ProofOfDeliveryPhoto): Promise<void> {
+  async saveProofOfDelivery(
+    jobId: JobId,
+    stop: number,
+    photo: ProofOfDeliveryPhoto,
+  ): Promise<void> {
     await sql`
-      insert into jobs.proof_of_delivery (job_id, content_type, data, captured_at)
-      values (${jobId}, ${photo.contentType}, ${photo.data}, now())
-      on conflict (job_id) do update set
+      insert into jobs.proof_of_delivery (job_id, stop_sequence, content_type, data, captured_at)
+      values (${jobId}, ${stop}, ${photo.contentType}, ${photo.data}, now())
+      on conflict (job_id, stop_sequence) do update set
         content_type = excluded.content_type,
         data = excluded.data,
         captured_at = excluded.captured_at
     `.execute(this.db);
   }
 
-  async findProofOfDelivery(jobId: JobId): Promise<StoredProofOfDelivery | null> {
+  async findProofOfDelivery(jobId: JobId, stop?: number): Promise<StoredProofOfDelivery | null> {
     const { rows } = await sql<{ content_type: string; data: Buffer; captured_at: Date }>`
-      select content_type, data, captured_at from jobs.proof_of_delivery where job_id = ${jobId}
+      select content_type, data, captured_at from jobs.proof_of_delivery
+      where job_id = ${jobId} and (${stop ?? null}::integer is null or stop_sequence = ${stop ?? null})
+      order by stop_sequence desc limit 1
     `.execute(this.db);
     const row = rows[0];
     return row === undefined

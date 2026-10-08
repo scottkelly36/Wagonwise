@@ -18,6 +18,7 @@ import {
   jobIdParamsSchema,
   jobReportRequestSchema,
   previewJobRouteRequestSchema,
+  proofOfDeliveryQuerySchema,
 } from '@wagonwise/contracts/jobs';
 import {
   markPlaceRequestSchema,
@@ -39,6 +40,8 @@ interface Forward {
   readonly path: string;
   readonly params: z.ZodType<Record<string, string>>;
   readonly body?: z.ZodType;
+  /** The query string, when the route takes one: validated, and passed on to core. */
+  readonly query?: z.ZodType<Record<string, unknown>>;
 }
 
 /** The dashboard's pages that moved from the driver sign-in to staff accounts (P2-M1.12c). */
@@ -177,7 +180,12 @@ const FORWARDS: readonly Forward[] = [
     params: jobIdParamsSchema,
     body: previewJobRouteRequestSchema,
   },
-  { method: 'GET', path: '/staff/jobs/:id/proof-of-delivery', params: jobIdParamsSchema },
+  {
+    method: 'GET',
+    path: '/staff/jobs/:id/proof-of-delivery',
+    params: jobIdParamsSchema,
+    query: proofOfDeliveryQuerySchema,
+  },
   {
     method: 'POST',
     path: '/staff/jobs/:id/assign',
@@ -189,6 +197,13 @@ const FORWARDS: readonly Forward[] = [
 
 function corePath(pattern: string, params: Record<string, string>): string {
   return pattern.replace(/:(\w+)/g, (_, name: string) => encodeURIComponent(params[name] ?? ''));
+}
+
+function queryString(query: Record<string, unknown>): string {
+  const parts = Object.entries(query)
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+  return parts.length === 0 ? '' : `?${parts.join('&')}`;
 }
 
 /**
@@ -206,12 +221,17 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: StaffRouteDe
         if (token === undefined) return reply;
         const params = forward.params.safeParse(request.params ?? {});
         const body = forward.body?.safeParse(request.body);
-        if (!params.success || (body !== undefined && !body.success)) {
+        const query = forward.query?.safeParse(request.query ?? {});
+        if (
+          !params.success ||
+          (body !== undefined && !body.success) ||
+          (query !== undefined && !query.success)
+        ) {
           return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
         }
         const core = await deps.coreClient.request(
           forward.method,
-          corePath(forward.path, params.data),
+          corePath(forward.path, params.data) + (query?.success ? queryString(query.data) : ''),
           request.id,
           {
             authorization: `Bearer ${token}`,

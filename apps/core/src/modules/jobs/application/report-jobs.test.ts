@@ -24,6 +24,8 @@ function job(id: string, createdIso: string, overrides: Partial<Job> = {}): Job 
     timeline: [{ status: 'draft', at: new Date(createdIso) }],
     requiresProofOfDelivery: false,
     hasProofOfDelivery: false,
+    currentStop: 0,
+    proofStops: [],
     ...overrides,
   };
 }

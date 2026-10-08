@@ -137,6 +137,16 @@ live map, moderation, reports).
 
 ## Recent log
 
+- 2026-10-08: **jobs with several stops.** A job is an ordered list of stops, each a collection or a delivery (up to 20). The
+  statuses are unchanged: the driver arrives at the current stop, finishes it (loaded, or delivered), and sets off for the next;
+  finishing a delivery that is not the last leaves them loaded, and the job is delivered after the last stop. A job with one
+  pickup and one delivery behaves as before. Core: `jobs.jobs.current_stop` (migration 0037, which also backfills jobs in
+  flight), `nextStatus` and `nextStopFor` follow it, timeline entries carry `stopIndex`. Proof of delivery is per delivery stop
+  (`jobs.proof_of_delivery` is keyed by job and stop; the photo attaches to the delivery the driver is at; each delivery stop
+  of a job that needs proof needs its photo before it can be finished). Driver app: the job screen ticks finished stops and
+  outlines the current one; cards and the status line say which stop (a job with more than two). Portal: the job form is a
+  list of stops (type, stored location or new address, move up or down, remove, add); Jobs shows a photo per delivery stop;
+  Live trips heads for the current stop. Needs a core deploy first (migration), then the dashboard, staff-bff and an OTA update.
 - 2026-10-08: **stored locations.** A company keeps its customers and sites once. Places page: Add a location (name, type, postcode,
   note for drivers); drivers' marked gates and these are one list. Job form: each stop is a Stored location or a New address; a stored
   location fills in the name, map point and note; a new address has Save this location for next time (on by default). Portal

@@ -33,6 +33,8 @@ async function setup(
     timeline: [{ status: 'draft', at: new Date('2026-10-01T09:00:00.000Z') }],
     requiresProofOfDelivery: pod.requiresProofOfDelivery ?? false,
     hasProofOfDelivery: pod.hasProofOfDelivery ?? false,
+    currentStop: 0,
+    proofStops: [],
   };
   await repo.save(job);
   const deps: ChangeJobStatusDeps = {
@@ -56,6 +58,7 @@ describe('advanceJobStatus', () => {
       status: 'accepted',
       at: new Date('2026-10-01T11:00:00.000Z'),
       position: { lat: 54.9, lon: -2.1 },
+      stopIndex: 0,
     });
     expect(repo.events.map((e) => e.eventType)).toEqual(['JobStatusChanged']);
   });
@@ -98,6 +101,31 @@ describe('advanceJobStatus', () => {
       ok: false,
       error: { tag: 'ProofOfDeliveryRequired' },
     });
+  });
+
+  it('wants a photo at each delivery of a multi-drop job, and moves on to the next stop, not to delivered', async () => {
+    const { repo, deps } = await setup('at_delivery', { requiresProofOfDelivery: true });
+    const stop = (name: string, kind: 'pickup' | 'delivery') => ({
+      kind,
+      name,
+      location: { lat: 54.9, lon: -2.1 },
+    });
+    const atFirstDrop = {
+      ...(await repo.findById(jobId))!,
+      stops: [stop('Farm', 'pickup'), stop('Mart', 'delivery'), stop('Depot', 'delivery')],
+      currentStop: 1,
+    };
+    await repo.save(atFirstDrop);
+    expect(await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'loaded' })).toEqual({
+      ok: false,
+      error: { tag: 'ProofOfDeliveryRequired' },
+    });
+
+    await repo.saveProofOfDelivery(jobId, 1, { contentType: 'image/jpeg', data: Buffer.from('a') });
+    const moved = await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'loaded' });
+    expect(moved.ok && moved.value).toMatchObject({ status: 'loaded', currentStop: 2 });
+    // The second drop has no photo yet.
+    expect(moved.ok && moved.value.hasProofOfDelivery).toBe(false);
   });
 
   it('reaches delivered once proof is attached', async () => {
