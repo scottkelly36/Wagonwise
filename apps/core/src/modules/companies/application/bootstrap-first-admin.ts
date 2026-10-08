@@ -47,5 +47,5 @@ export async function bootstrapFirstAdmin(
     action: 'invite_created',
     details: { email: invite.email, kind: 'platform', via: 'bootstrap' },
   });
-  return ok({ invite, token });
+  return ok({ invite, token, emailed: false });
 }

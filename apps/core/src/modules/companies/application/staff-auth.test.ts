@@ -28,6 +28,7 @@ import {
   FakeStaffTokenIssuer,
   FakeTotp,
   RecordingCodeSender,
+  RecordingInviteMailer,
   SequentialRandomCodes,
 } from './testing/fake-staff-crypto.js';
 import {
@@ -65,6 +66,8 @@ beforeEach(async () => {
     secretBox: new FakeSecretBox(),
     totp: new FakeTotp(),
     codeSender: new RecordingCodeSender(),
+    inviteMailer: new RecordingInviteMailer(),
+    dashboardUrl: 'https://dashboard.example.com',
     randomCodes: new SequentialRandomCodes(),
     tokenIssuer: new FakeStaffTokenIssuer(),
     clock: new FakeClock('2026-09-28T12:00:00.000Z'),

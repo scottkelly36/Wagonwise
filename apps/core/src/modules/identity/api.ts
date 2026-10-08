@@ -10,6 +10,7 @@ import type { PlatformStaffDirectory } from './application/ports/platform-staff.
 import { ChannelRoutingOtpSender } from './infrastructure/channel-routing-otp-sender.js';
 import { ClickSendOtpSender } from './infrastructure/clicksend-otp-sender.js';
 import { ConsoleOtpSender } from './infrastructure/console-otp-sender.js';
+import { ResendMailer } from './infrastructure/resend-mailer.js';
 import { ResendOtpSender } from './infrastructure/resend-otp-sender.js';
 import { CryptoInviteCodeGenerator } from './infrastructure/crypto-invite-code-generator.js';
 import { CryptoOtpCodeGenerator } from './infrastructure/crypto-otp-code-generator.js';
@@ -95,6 +96,10 @@ export interface IdentityModule {
    *  (P2-M1.4) reach it through `companies`' own `CodeSender` port, so ClickSend/Resend accounts
    *  and credentials stay configured in one place. */
   sendOneTimeCode(destination: string, code: string): Promise<void>;
+  /** Sends a plain-text email through the same Resend account as sign-in codes (or logs it in local dev,
+   *  where no key is set). Throws when the email cannot be sent, with the provider's reason. Used for
+   *  staff invitations (`companies`' own `InviteMailer` port). */
+  sendEmail(to: string, subject: string, text: string): Promise<void>;
   /** Signs a staff access token (`kind: 'staff'`) with core's one Ed25519 key, so the staff BFF
    *  verifies it from the same JWKS as drivers' tokens. `companies` owns staff sessions and wraps
    *  this in its own `StaffTokenIssuer` port (P2-M1.6). */
@@ -120,6 +125,10 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     deps.resendApiKey !== undefined
       ? new ResendOtpSender(deps.resendApiKey, deps.resendFromEmail)
       : new ConsoleOtpSender();
+  const mailer =
+    deps.resendApiKey !== undefined
+      ? new ResendMailer(deps.resendApiKey, deps.resendFromEmail)
+      : undefined;
   const otpSender = deps.otpSender ?? new ChannelRoutingOtpSender(smsSender, emailSender);
   const otpCodeGenerator = new CryptoOtpCodeGenerator();
   const refreshTokenGenerator = new CryptoRefreshTokenGenerator();
@@ -186,6 +195,13 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     },
     sendOneTimeCode(destination: string, code: string): Promise<void> {
       return otpSender.send(destination, code);
+    },
+    sendEmail(to: string, subject: string, text: string): Promise<void> {
+      if (mailer === undefined) {
+        console.log(`[dev] email to ${to}: ${subject}\n${text}`);
+        return Promise.resolve();
+      }
+      return mailer.send({ to, subject, text });
     },
     signStaffAccessToken(staffId: string, sessionId: string): Promise<string> {
       return deps.tokenSigner.signStaffAccessToken({ staffId, sessionId });

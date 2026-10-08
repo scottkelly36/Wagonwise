@@ -19,6 +19,7 @@ import {
   FakeStaffTokenIssuer,
   FakeTotp,
   RecordingCodeSender,
+  RecordingInviteMailer,
   SequentialRandomCodes,
 } from '../application/testing/fake-staff-crypto.js';
 import {
@@ -51,7 +52,11 @@ function fakeStaffAuth(app: FastifyInstance): void {
 
 let app: FastifyInstance;
 let scopes: RecordingDataScopes;
-let deps: StaffDeps & { totp: FakeTotp; codeSender: RecordingCodeSender };
+let deps: StaffDeps & {
+  totp: FakeTotp;
+  codeSender: RecordingCodeSender;
+  inviteMailer: RecordingInviteMailer;
+};
 
 beforeEach(async () => {
   deps = {
@@ -65,6 +70,8 @@ beforeEach(async () => {
     secretBox: new FakeSecretBox(),
     totp: new FakeTotp(),
     codeSender: new RecordingCodeSender(),
+    inviteMailer: new RecordingInviteMailer(),
+    dashboardUrl: 'https://dashboard.example.com',
     randomCodes: new SequentialRandomCodes(),
     tokenIssuer: new FakeStaffTokenIssuer(),
     clock: new FakeClock('2026-09-28T12:00:00.000Z'),
@@ -362,5 +369,51 @@ describe('staff routes', () => {
       payload: { refreshToken: next },
     });
     expect(again.statusCode).toBe(401);
+  });
+  describe('emailing an invitation', () => {
+    const invitePayload = {
+      kind: 'platform',
+      email: 'new@wagon-wise.co.uk',
+      name: 'New Person',
+      privileges: [],
+    };
+
+    async function invite() {
+      const { accessToken } = await signIn('support@wagon-wise.co.uk');
+      return app.inject({
+        method: 'POST',
+        url: '/staff/invites',
+        headers: bearer(accessToken),
+        payload: invitePayload,
+      });
+    }
+
+    it('emails the link, and says so', async () => {
+      const res = await invite();
+      expect(res.statusCode).toBe(201);
+      const body = res.json<CreateStaffInviteResponse>();
+      expect(body.emailed).toBe(true);
+      expect(deps.inviteMailer.sent).toHaveLength(1);
+      expect(deps.inviteMailer.sent[0]).toMatchObject({
+        to: 'new@wagon-wise.co.uk',
+        name: 'New Person',
+        link: `https://dashboard.example.com/join?token=${encodeURIComponent(body.inviteToken)}`,
+      });
+    });
+
+    it('still makes the invite when the email fails, and says it was not emailed', async () => {
+      deps.inviteMailer.fail = true;
+      const res = await invite();
+      expect(res.statusCode).toBe(201);
+      expect(res.json<CreateStaffInviteResponse>().emailed).toBe(false);
+      expect(res.json<CreateStaffInviteResponse>().inviteToken.length).toBeGreaterThan(0);
+    });
+
+    it('sends nothing when no dashboard address is configured', async () => {
+      (deps as { dashboardUrl: string | undefined }).dashboardUrl = undefined;
+      const res = await invite();
+      expect(res.json<CreateStaffInviteResponse>().emailed).toBe(false);
+      expect(deps.inviteMailer.sent).toEqual([]);
+    });
   });
 });

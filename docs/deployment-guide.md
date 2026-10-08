@@ -73,6 +73,18 @@ knowing about now rather than discovering them after the infra is up.
    provider's own delivery log (ClickSend/Resend history), not just the HTTP status, to actually
    verify a deploy. All four env vars (`CLICKSEND_USERNAME`/`CLICKSEND_API_KEY`,
    `RESEND_API_KEY`/`RESEND_FROM_EMAIL`) need to reach `core` in App Platform (§4).
+   **Resend needs a verified domain (found 2026-10-08).** Without `RESEND_FROM_EMAIL`, core sends
+   from Resend's sandbox address, which only delivers to the Resend account owner's own email;
+   everyone else gets a 403 (`The wagon-wise.co.uk domain is not verified` / `You can only send
+testing emails to your own email address`) and sign-in answers "something went wrong". Fix:
+   Resend → Domains → add `wagon-wise.co.uk`, add the records it shows in Cloudflare (DNS only,
+   not proxied), wait for **Verified**, then set `RESEND_FROM_EMAIL` on core to
+   `WagonWise <noreply@wagon-wise.co.uk>`. Core logs the reason on a failed send (`Resend API
+returned 403 …`): search core's runtime logs for the request id. Only core talks to Resend.
+   A fast 500 from `/identity/otp/request` means core tried and Resend refused; a 200 with no
+   email means the key is missing and the log-only sender ran. Staff sign-in (portal) sends no
+   code: it is email + password + authenticator app. Staff **invitations** are emailed as a link
+   (needs `DASHBOARD_URL` on core, below); without it the inviter shares the link by hand.
 2. **`IDENTITY_PRIVATE_KEY` must be set for real.** Unset, core generates a fresh Ed25519 key
    at every boot — fine for dev (a restart just invalidates sessions), not for anything meant
    to stay up. Generate one PKCS8 PEM and set it as a secret.
@@ -175,7 +187,11 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
 4. **App Platform App**, two components, both built from this repo via the Dockerfiles above:
    - `core`: `internal_ports: [3001]`, no public route. Env: `DATABASE_URL`,
      `IDENTITY_PRIVATE_KEY`, `INTERNAL_KEYS`, `VALHALLA_URL` (the droplet's private IP),
-     `ANTHROPIC_API_KEY`, `METOFFICE_API_KEY` (weather warnings; optional), `CLICKSEND_USERNAME`, `CLICKSEND_API_KEY`, `RESEND_API_KEY`,
+     `ANTHROPIC_API_KEY`, `CLICKSEND_USERNAME`, `CLICKSEND_API_KEY`, `RESEND_API_KEY`,
+     `RESEND_FROM_EMAIL` (an address on the verified domain, see §3 item 1), `DASHBOARD_URL`
+     (`https://dashboard.wagon-wise.co.uk`, no trailing path; lets staff invitations be emailed),
+     `METOFFICE_API_KEY` (Met Office weather warnings from Weather DataHub; optional, unset means
+     no warnings; core only, never the BFFs or apps),
      `STAFF_SECRET_KEY` (`openssl rand -base64 32`; keep a copy somewhere safe: losing it
      makes every staff authenticator-app enrolment unreadable), `APP_DATABASE_URL` (below),
      `NODE_ENV=production`.
@@ -246,6 +262,14 @@ dist`), on its own subdomain `dashboard.wagon-wise.co.uk` (also added to `domain
      it here too doubles it to `/staff/staff/...` and 404s every request; found and fixed for
      real 2026-10-01, `docs/progress.md`) — not a secret (it ends up in the shipped JS
      regardless), set in the spec file directly.
+   - **Map tiles: `VITE_MAPTILER_API_KEY`** on the dashboard component, as a **build-time**
+     variable (Vite bakes it in; a run-time-only variable does nothing), then redeploy with a
+     rebuild. Unset, Live trips falls back to a plain demo map with no roads. The same MapTiler
+     key as the driver app works (a free plan allows one active key, and restricting it to the
+     dashboard's address would break the app's maps). The dashboard bundles MapLibre's tile worker
+     itself (`src/lib/map-worker.ts`); without that, a production build shows only the map's
+     background colour and the vehicle dot, because MapLibre 6 looks for a worker file the build
+     does not contain and the host answers with the home page.
    - **`APP_DATABASE_URL`, the Row-Level Security role (P2-M1.7).** Migration 0021 creates
      `wagonwise_app` (owns no tables, so RLS actually applies to it — the owner role bypasses
      RLS) with no password. Give it one once, connected as `doadmin` (DO console → the cluster →

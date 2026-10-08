@@ -1,4 +1,5 @@
 import type { CodeSender } from '../ports/code-sender.js';
+import type { InviteMailer } from '../ports/invite-mailer.js';
 import type { PasswordHasher } from '../ports/password-hasher.js';
 import type { RandomCodes } from '../ports/random-codes.js';
 import type { SecretBox } from '../ports/secret-box.js';
@@ -60,6 +61,17 @@ export class RecordingCodeSender implements CodeSender {
 
   lastCodeFor(destination: string): string | undefined {
     return this.sent.filter((s) => s.destination === destination).at(-1)?.code;
+  }
+}
+
+export class RecordingInviteMailer implements InviteMailer {
+  readonly sent: { to: string; name: string; link: string; expiresAt: Date }[] = [];
+  fail = false;
+
+  send(invite: { to: string; name: string; link: string; expiresAt: Date }): Promise<void> {
+    if (this.fail) return Promise.reject(new Error('delivery failed'));
+    this.sent.push(invite);
+    return Promise.resolve();
   }
 }
 

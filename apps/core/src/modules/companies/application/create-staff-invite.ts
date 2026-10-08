@@ -30,10 +30,25 @@ export interface CreatedStaffInvite {
   /** The secret for the invite link. Returned once, never stored (only its hash is). The
    *  dashboard shows the link for the inviter to send; emailing it directly comes later. */
   readonly token: string;
+  /** Whether the invitation was emailed to them. False when no dashboard address is configured or
+   *  the email could not be sent: the invite itself is still made, and the link can be shared. */
+  readonly emailed: boolean;
+  /** Why the email failed, for the log; never shown to the inviter. */
+  readonly emailError?: unknown;
 }
 
 export async function createStaffInvite(
-  deps: Pick<StaffDeps, 'accounts' | 'invites' | 'auditLog' | 'randomCodes' | 'clock' | 'ids'>,
+  deps: Pick<
+    StaffDeps,
+    | 'accounts'
+    | 'invites'
+    | 'auditLog'
+    | 'randomCodes'
+    | 'clock'
+    | 'ids'
+    | 'inviteMailer'
+    | 'dashboardUrl'
+  >,
   actor: Actor,
   input: CreateStaffInviteInput,
 ): Promise<Result<CreatedStaffInvite, Forbidden | PrivilegeNotHeld | EmailAlreadyInUse>> {
@@ -69,5 +84,16 @@ export async function createStaffInvite(
     companyId: invite.companyId,
     details: { email: invite.email, kind: invite.kind, privileges: invite.privileges },
   });
-  return ok({ invite, token });
+  if (deps.dashboardUrl === undefined) return ok({ invite, token, emailed: false });
+  try {
+    await deps.inviteMailer.send({
+      to: invite.email,
+      name: invite.name,
+      link: `${deps.dashboardUrl.replace(/\/+$/, '')}/join?token=${encodeURIComponent(token)}`,
+      expiresAt: invite.expiresAt,
+    });
+    return ok({ invite, token, emailed: true });
+  } catch (emailError) {
+    return ok({ invite, token, emailed: false, emailError });
+  }
 }
