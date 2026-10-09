@@ -70,6 +70,7 @@ function vehicleDto(vehicle: FleetVehicle) {
     companyId: vehicle.companyId,
     name: vehicle.name,
     dimensions: vehicle.dimensions,
+    ...(vehicle.registration === undefined ? {} : { registration: vehicle.registration }),
   };
 }
 
@@ -189,6 +190,7 @@ export function registerFleetRoutes(app: FastifyInstance, deps: FleetRouteDeps):
         companyId: makeId<'CompanyId'>(params.data.companyId),
         name: body.data.name,
         dimensions: body.data.dimensions,
+        registration: body.data.registration,
       });
       if (!result.ok) return { status: statusFor(result.error), body: result.error };
       return { status: 201, body: vehicleDto(result.value) };
@@ -212,6 +214,7 @@ export function registerFleetRoutes(app: FastifyInstance, deps: FleetRouteDeps):
         id: makeId<'FleetVehicleId'>(params.data.id),
         name: body.data.name,
         dimensions: body.data.dimensions,
+        registration: body.data.registration,
       });
       if (!result.ok) return { status: statusFor(result.error), body: result.error };
       return { status: 200, body: vehicleDto(result.value) };

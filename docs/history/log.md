@@ -3,6 +3,13 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **registration number on vehicle profiles (Phase 3 M4, slice 1).** Migration 0049 (`fleet.vehicles.registration`,
+  optional, kept tidy: capitals, no spaces, dashes or dots, 2 to 8 letters and digits; unique within a company by a partial index,
+  so two companies may each have the same plate). The Vehicle profiles page gains a Registration field when adding a vehicle, a
+  Registration column, and an **Edit** panel (name, registration, measurements), which the page did not have before. Core refuses a
+  registration another vehicle in the company has (`RegistrationTaken`, 409) or one that is not 2 to 8 letters and digits
+  (`InvalidRegistration`, 400); on an update, leaving it out keeps it and sending it blank clears it. It is the key the rest of
+  maintenance hangs on, and what a later automatic MOT lookup would use.
 - 2026-10-09: **Finances page: WagonWise's own costs against what companies are invoiced (Phase 3 M1, M2 and M6, reframed by the
   owner).** Migration 0048 (`billing.costs`, platform-only Row-Level Security). An admin enters what it costs to run WagonWise on the
   new **Finances** page (types: hosting, maps and routing, email and text, software and tools, wages or your time, other; amounts ex

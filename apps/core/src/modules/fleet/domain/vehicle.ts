@@ -31,6 +31,8 @@ export interface FleetVehicle {
   readonly companyId: CompanyId;
   readonly name: string;
   readonly dimensions: Dimensions;
+  /** The registration number, tidy (see `normaliseRegistration`), if the company has entered one. */
+  readonly registration?: string | undefined;
 }
 
 export interface InvalidDimensions extends TaggedError<'InvalidDimensions'> {
@@ -60,4 +62,30 @@ export function validateName(raw: string): Result<string, InvalidName> {
     return err({ tag: 'InvalidName' });
   }
   return ok(trimmed);
+}
+
+export interface InvalidRegistration extends TaggedError<'InvalidRegistration'> {
+  readonly reason: 'too_short' | 'too_long' | 'bad_characters';
+}
+
+/** A registration as it is kept: capitals, with spaces, dashes and the like taken out, so "ab12 cde" is "AB12CDE". */
+export function normaliseRegistration(raw: string): string {
+  return raw.toUpperCase().replace(/[\s\-.]/g, '');
+}
+
+/**
+ * A registration number the way it is stored, or `undefined` when none was given (a vehicle may have none yet). Two to
+ * eight letters and digits, which covers current plates, older ones and private ones.
+ */
+export function validateRegistration(
+  raw: string | undefined,
+): Result<string | undefined, InvalidRegistration> {
+  if (raw === undefined) return ok(undefined);
+  const registration = normaliseRegistration(raw);
+  if (registration === '') return ok(undefined);
+  if (!/^[A-Z0-9]+$/.test(registration))
+    return err({ tag: 'InvalidRegistration', reason: 'bad_characters' });
+  if (registration.length < 2) return err({ tag: 'InvalidRegistration', reason: 'too_short' });
+  if (registration.length > 8) return err({ tag: 'InvalidRegistration', reason: 'too_long' });
+  return ok(registration);
 }

@@ -11,6 +11,8 @@ export const fleetVehicleSchema = z.object({
   companyId: companyIdSchema,
   name: z.string(),
   dimensions: dimensionsSchema,
+  /** Tidy (capitals, no spaces), if entered. */
+  registration: z.string().optional(),
 });
 export type FleetVehicleDto = z.infer<typeof fleetVehicleSchema>;
 
@@ -21,12 +23,16 @@ export const createFleetVehicleRequestSchema = z.object({
   companyId: companyIdSchema,
   name: z.string().min(1),
   dimensions: dimensionsSchema,
+  /** As typed; core tidies it. Blank means none. */
+  registration: z.string().max(20).optional(),
 });
 export type CreateFleetVehicleRequest = z.infer<typeof createFleetVehicleRequestSchema>;
 
 export const updateFleetVehicleRequestSchema = z.object({
   name: z.string().min(1),
   dimensions: dimensionsSchema,
+  /** As typed; core tidies it. Blank clears it, and leaving it out keeps what is there. */
+  registration: z.string().max(20).optional(),
 });
 export type UpdateFleetVehicleRequest = z.infer<typeof updateFleetVehicleRequestSchema>;
 

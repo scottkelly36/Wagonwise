@@ -4,18 +4,21 @@ import type {
   CapacityReached,
   FleetVehicleNotFound,
   Forbidden,
+  RegistrationTaken,
   InvalidCode,
   LinkNotFound,
   TooManyAttempts,
 } from '../application/errors.js';
 import type { InvalidIdentifier, InvalidLinkTransition } from '../domain/driver-link.js';
-import type { InvalidDimensions, InvalidName } from '../domain/vehicle.js';
+import type { InvalidDimensions, InvalidName, InvalidRegistration } from '../domain/vehicle.js';
 
 export type FleetError =
   | InvalidName
   | InvalidDimensions
   | FleetVehicleNotFound
   | CapacityReached
+  | InvalidRegistration
+  | RegistrationTaken
   | Forbidden
   | InvalidIdentifier
   | InvalidCode
@@ -32,6 +35,7 @@ export function statusFor(error: FleetError): number {
   switch (error.tag) {
     case 'InvalidName':
     case 'InvalidDimensions':
+    case 'InvalidRegistration':
     case 'InvalidIdentifier':
     case 'InvalidCode':
       return 400;
@@ -42,6 +46,7 @@ export function statusFor(error: FleetError): number {
       return 403;
     case 'AlreadyLinked':
     case 'CapacityReached':
+    case 'RegistrationTaken':
     case 'AlreadyInvited':
     case 'InvalidLinkTransition':
       return 409;

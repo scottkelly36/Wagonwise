@@ -13,6 +13,7 @@ interface FleetVehicleRow {
   readonly length_m: number;
   readonly gross_weight_t: number;
   readonly axle_weight_t: number | null;
+  readonly registration: string | null;
 }
 
 function toDomain(row: FleetVehicleRow): FleetVehicle {
@@ -20,6 +21,7 @@ function toDomain(row: FleetVehicleRow): FleetVehicle {
     id: makeId<'FleetVehicleId'>(row.id),
     companyId: makeId<'CompanyId'>(row.company_id),
     name: row.name,
+    ...(row.registration === null ? {} : { registration: row.registration }),
     dimensions: {
       heightM: row.height_m,
       widthM: row.width_m,
@@ -31,7 +33,7 @@ function toDomain(row: FleetVehicleRow): FleetVehicle {
 }
 
 const SELECT_COLUMNS = `
-  id, company_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t
+  id, company_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t, registration
 `;
 
 /** Raw `sql` tagged-template queries, not Kysely's typed query builder — same reasoning as every
@@ -54,14 +56,26 @@ export class PostgresFleetVehicleRepository implements FleetVehicleRepository {
     return rows.map(toDomain);
   }
 
+  async findByRegistration(
+    companyId: CompanyId,
+    registration: string,
+  ): Promise<FleetVehicle | null> {
+    const { rows } = await sql<FleetVehicleRow>`
+      select ${sql.raw(SELECT_COLUMNS)} from fleet.vehicles
+      where company_id = ${companyId} and registration = ${registration}
+    `.execute(this.db);
+    return rows[0] ? toDomain(rows[0]) : null;
+  }
+
   async save(vehicle: FleetVehicle): Promise<void> {
     await sql`
       insert into fleet.vehicles
-        (id, company_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t)
+        (id, company_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t, registration)
       values (
         ${vehicle.id}, ${vehicle.companyId}, ${vehicle.name},
         ${vehicle.dimensions.heightM}, ${vehicle.dimensions.widthM}, ${vehicle.dimensions.lengthM},
-        ${vehicle.dimensions.grossWeightT}, ${vehicle.dimensions.axleWeightT ?? null}
+        ${vehicle.dimensions.grossWeightT}, ${vehicle.dimensions.axleWeightT ?? null},
+        ${vehicle.registration ?? null}
       )
       on conflict (id) do update set
         name = excluded.name,
@@ -69,7 +83,8 @@ export class PostgresFleetVehicleRepository implements FleetVehicleRepository {
         width_m = excluded.width_m,
         length_m = excluded.length_m,
         gross_weight_t = excluded.gross_weight_t,
-        axle_weight_t = excluded.axle_weight_t
+        axle_weight_t = excluded.axle_weight_t,
+        registration = excluded.registration
     `.execute(this.db);
   }
 

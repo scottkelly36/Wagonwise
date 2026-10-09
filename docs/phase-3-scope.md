@@ -60,6 +60,20 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
 
 ## Finances (M1, M2 and M6 reframed), decided with the owner 2026-10-09- The owner does not yet know the figures, so M1 and M2 became WagonWise's **own** books rather than a client's: an admin enters the running costs, revenue is taken from the invoices already issued, and M6's profit and look-ahead sit on the same page.- **Costs are standing**: entered once, they carry on every month until changed or stopped. Changing the amount from a month keeps the earlier months as they were. Automating the entry (reading a bill, a recurring payment feed) is a later idea.- **Built:** the Finances page (costs, revenue by month and by company, profit on invoiced and received, twelve months, look ahead). Per-vehicle and per-job costing for client companies is not built, and would follow only if a company asks.
 
+## Fleet maintenance (M4), decided with the owner 2026-10-09
+
+- **Dates and reminders per vehicle, built like the check lists:** each firm has its own list of things that fall due (MOT,
+  6-weekly safety inspection, service, tachograph calibration, tail-lift, road tax...), a starter list to edit, a repeat interval
+  and a warn-me-before period. Per vehicle: when last done or next due; "mark done" rolls it forward and keeps a history.
+- **It lives on the vehicle profiles page** (a maintenance panel per vehicle), plus a Maintenance overview of what is overdue or due
+  soon.
+- **Who:** a new assignable privilege (`manage_maintenance`) so a manager can give it to whoever books vehicles in; managers keep it.
+- **Reminders:** each person chooses how they are told (email, text, or only in the portal); the portal always shows what is due.
+- **Advisory only for now:** an overdue item never stops a vehicle being sent out. Out of scope for now: mileage intervals, automatic
+  MOT lookup by registration, certificate uploads.
+- **Slices:** 1 registration on vehicle profiles (built); 2 items, the per-vehicle schedule and the Maintenance views; 3 the privilege
+  and reminders with a notification preference; 4 defects into repair tasks; 5 a CSV import for firms with many vehicles.
+
 ## Cross-cutting
 
 - **Privacy and legal:** every new kind of data (fuel card data, vehicle checks, defect photos) needs the privacy notice, DPIA
