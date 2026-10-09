@@ -43,6 +43,11 @@ const SECTIONS: readonly NavSection[] = [
       { to: '/fleet/live-trips', label: 'Live trips', shows: everyone },
       { to: '/fleet/drivers', label: 'Drivers', shows: everyone },
       { to: '/fleet/places', label: 'Places', shows: everyone },
+      {
+        to: '/fleet/reports',
+        label: 'Reports',
+        shows: (s) => isPlatform(s) || holds(s, 'view_reports'),
+      },
     ],
   },
   {
@@ -61,17 +66,6 @@ const SECTIONS: readonly NavSection[] = [
         to: '/fleet/vehicle-profiles',
         label: 'Vehicle profiles',
         shows: (s) => holds(s, 'manage_fleet'),
-      },
-    ],
-  },
-  {
-    title: 'Insights',
-    area: 'ops',
-    items: [
-      {
-        to: '/fleet/reports',
-        label: 'Reports',
-        shows: (s) => isPlatform(s) || holds(s, 'view_reports'),
       },
     ],
   },
