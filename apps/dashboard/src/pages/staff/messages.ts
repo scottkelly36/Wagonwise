@@ -50,6 +50,8 @@ const MESSAGES: Record<string, string> = {
   FirmNotEnabled: 'Your company has not turned this on.',
   NotOnAJob: 'You are not on a job.',
   NotSharing: 'Sharing is switched off.',
+  InvalidCommercial:
+    'Check the customer (120 characters at most) and the price (pounds and pence, up to £1,000,000).',
   NothingToSend: 'That job is no longer waiting for its driver, so there is nothing to send.',
   TooManyRows: 'That is too many rows for one go. Split the file in two.',
   InvalidItemType: 'Check the name, how often it repeats, and the warning period.',

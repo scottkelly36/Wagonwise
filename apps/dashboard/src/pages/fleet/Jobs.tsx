@@ -30,6 +30,7 @@ import {
 } from '../../lib/job-stops';
 import { noticeText } from '../../lib/job-notice';
 import { jobStatusText } from '../../lib/job-text';
+import { formatPence, parsePounds } from '../../lib/money';
 import { staffErrorMessage } from '../staff/messages';
 
 const COMPANIES_KEY = ['companies'] as const;
@@ -37,6 +38,8 @@ const TERMINAL: readonly JobDto['status'][] = ['delivered', 'cancelled', 'failed
 
 const EMPTY_FORM = {
   reference: '',
+  customer: '',
+  price: '',
   requiresProofOfDelivery: false,
 };
 
@@ -152,6 +155,8 @@ export function Jobs() {
           reference: form.reference,
           stops: resolved.map((r) => r.stop),
           requiresProofOfDelivery: form.requiresProofOfDelivery,
+          ...(form.customer.trim() === '' ? {} : { customer: form.customer.trim() }),
+          ...(price === undefined ? {} : { pricePence: price }),
         }),
       );
       // New addresses ticked "Save this location for next time" are stored for the company. The job is already
@@ -184,9 +189,18 @@ export function Jobs() {
     },
   });
 
+  // Customers already written on this company's jobs, offered as suggestions so a name is spelt the same each time.
+  const customers = [
+    ...new Set((jobs.data ?? []).flatMap((j) => (j.customer === undefined ? [] : [j.customer]))),
+  ].sort((a, b) => a.localeCompare(b));
+
   const [showErrors, setShowErrors] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const errors: FieldErrors<'reference' | 'stops'> = {};
+  const errors: FieldErrors<'reference' | 'stops' | 'price'> = {};
+  const price = form.price.trim() === '' ? undefined : parsePounds(form.price);
+  if (form.price.trim() !== '' && price === undefined) {
+    errors.price = 'Enter the price in pounds and pence, like 450 or 450.50.';
+  }
   if (form.reference.trim() === '') errors.reference = 'Enter a reference, like the order number.';
   const stopsError = stopsProblem(stops, storedPlaces.length);
   if (stopsError !== undefined) errors.stops = stopsError;
@@ -238,6 +252,28 @@ export function Jobs() {
   }
 
   // Assign stays clickable; if a driver or vehicle is missing it says so under the controls.
+  // Changing who a job is for or what it earns, after it has been made.
+  const [pricing, setPricing] = useState<
+    { id: string; reference: string; customer: string; price: string } | undefined
+  >(undefined);
+  const pricingAmount =
+    pricing === undefined || pricing.price.trim() === '' ? undefined : parsePounds(pricing.price);
+  const pricingInvalid =
+    pricing !== undefined && pricing.price.trim() !== '' && pricingAmount === undefined;
+  const saveCommercial = useMutation({
+    mutationFn: (p: { id: string; customer: string; price: string }) =>
+      withAccessToken((token) =>
+        jobsApi.setJobCommercial(token, p.id, {
+          customer: p.customer.trim() === '' ? null : p.customer.trim(),
+          pricePence: p.price.trim() === '' ? null : (parsePounds(p.price) ?? null),
+        }),
+      ),
+    onSuccess: () => {
+      setPricing(undefined);
+      refreshJobs();
+    },
+  });
+
   const [assignHint, setAssignHint] = useState<Record<string, string>>({});
   function handleAssign(jobId: string, picked: { driverId: string; vehicleId: string }): void {
     if (picked.driverId === '' || picked.vehicleId === '') {
@@ -316,6 +352,23 @@ export function Jobs() {
       sortValue: (j) => j.stops.map((stop) => stop.name).join(' '),
       cell: (j) => j.stops.map((stop) => stop.name).join(' → '),
     },
+    ...(canDispatch
+      ? [
+          {
+            key: 'money',
+            header: 'Customer, price',
+            sortValue: (j: JobDto) => j.pricePence ?? -1,
+            cell: (j: JobDto) => (
+              <div>
+                {j.customer ?? <span className="muted">No customer</span>}
+                <div className="muted" style={{ fontSize: 13 }}>
+                  {j.pricePence === undefined ? 'No price' : formatPence(j.pricePence)}
+                </div>
+              </div>
+            ),
+          },
+        ]
+      : []),
     {
       key: 'status',
       header: 'Status',
@@ -469,6 +522,22 @@ export function Jobs() {
                       )}
                     </>
                   )}
+                  {job.status !== 'cancelled' && (
+                    <button
+                      onClick={() =>
+                        setPricing({
+                          id: job.id,
+                          reference: job.reference,
+                          customer: job.customer ?? '',
+                          price:
+                            job.pricePence === undefined ? '' : (job.pricePence / 100).toFixed(2),
+                        })
+                      }
+                      style={{ marginRight: 6 }}
+                    >
+                      Customer and price
+                    </button>
+                  )}
                   {job.status === 'assigned' && (
                     <button
                       className="btn-caution"
@@ -500,6 +569,7 @@ export function Jobs() {
   ];
 
   const error =
+    saveCommercial.error ??
     resend.error ??
     companies.error ??
     jobs.error ??
@@ -538,6 +608,60 @@ export function Jobs() {
       {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
       {recordError !== undefined && <p style={{ color: 'var(--danger)' }}>{recordError}</p>}
 
+      {pricing !== undefined && (
+        <form
+          className="card"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!pricingInvalid) saveCommercial.mutate(pricing);
+          }}
+        >
+          <h2>Customer and price: {pricing.reference}</h2>
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="edit-customer">Customer</label>
+              <input
+                id="edit-customer"
+                list="job-customers"
+                value={pricing.customer}
+                maxLength={120}
+                onChange={(e) => setPricing({ ...pricing, customer: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="edit-price">Price in £</label>
+              <input
+                id="edit-price"
+                inputMode="decimal"
+                value={pricing.price}
+                placeholder="450.00"
+                onChange={(e) => setPricing({ ...pricing, price: e.target.value })}
+                aria-invalid={pricingInvalid}
+              />
+              <FieldError
+                id="edit-price-error"
+                message={
+                  pricingInvalid
+                    ? 'Enter the price in pounds and pence, like 450 or 450.50.'
+                    : undefined
+                }
+              />
+            </div>
+          </div>
+          <p className="muted" style={{ fontSize: 13 }}>
+            The price counts as revenue when the job is delivered. Drivers never see it.
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" disabled={pricingInvalid || saveCommercial.isPending}>
+              {saveCommercial.isPending ? 'Saving…' : 'Save'}
+            </button>
+            <button type="button" onClick={() => setPricing(undefined)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
       {viewing !== undefined && (
         <ProofPhotoDialog
           reference={viewing.reference}
@@ -575,6 +699,34 @@ export function Jobs() {
                     aria-describedby="job-reference-error"
                   />
                   <FieldError id="job-reference-error" message={shown('reference')} />
+                </div>
+                <div className="field">
+                  <label htmlFor="job-customer">Customer (optional)</label>
+                  <input
+                    id="job-customer"
+                    list="job-customers"
+                    value={form.customer}
+                    maxLength={120}
+                    onChange={(e) => setForm((f) => ({ ...f, customer: e.target.value }))}
+                  />
+                  <datalist id="job-customers">
+                    {customers.map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="field">
+                  <label htmlFor="job-price">Price in £ (optional)</label>
+                  <input
+                    id="job-price"
+                    inputMode="decimal"
+                    value={form.price}
+                    placeholder="450.00"
+                    onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                    aria-invalid={shown('price') !== undefined}
+                    aria-describedby="job-price-error"
+                  />
+                  <FieldError id="job-price-error" message={shown('price')} />
                 </div>
                 <div className="job-form-break" />
                 <div className="stops-editor" style={{ gridColumn: '1 / -1' }}>

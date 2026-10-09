@@ -80,6 +80,7 @@ function buildApp(): {
       clock,
     },
     changeStatus: { repo, ids, clock },
+    setCommercial: { repo },
     listJobs: { repo },
     getJob: { repo },
     getProofOfDelivery: { repo },
@@ -237,6 +238,64 @@ async function createDraft(app: FastifyInstance): Promise<string> {
   });
   return created.json<{ id: string }>().id;
 }
+
+describe('the customer and price of a job', () => {
+  it('is saved on create, shown to a dispatcher and a reporter, and left out for a viewer', async () => {
+    const { app } = buildApp();
+    const created = await app.inject({
+      method: 'POST',
+      url: `/staff/jobs/companies/${companyA}/jobs`,
+      payload: {
+        companyId: companyA,
+        reference: 'JOB-£',
+        stops,
+        customer: 'Acme Ltd',
+        pricePence: 45_000,
+      },
+      ...asStaff(DISPATCHER_ID),
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ customer: 'Acme Ltd', pricePence: 45_000 });
+    const id = created.json<{ id: string }>().id;
+    const get = (staff: string) =>
+      app.inject({ method: 'GET', url: `/staff/jobs/${id}`, ...asStaff(staff) });
+    expect((await get(REPORTER_ID)).json()).toMatchObject({
+      pricePence: 45_000,
+      customer: 'Acme Ltd',
+    });
+    const viewer = (await get(VIEWER_ID)).json<Record<string, unknown>>();
+    expect(viewer.pricePence).toBeUndefined();
+    expect(viewer.customer).toBeUndefined();
+    const list = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/companies/${companyA}/jobs`,
+      ...asStaff(VIEWER_ID),
+    });
+    expect(JSON.stringify(list.json())).not.toContain('45000');
+  });
+
+  it('is changed with PUT, cleared with null, and is for dispatchers in the job’s company', async () => {
+    const { app } = buildApp();
+    const id = await createDraft(app);
+    const put = (staff: string, payload: object) =>
+      app.inject({
+        method: 'PUT',
+        url: `/staff/jobs/${id}/commercial`,
+        payload,
+        ...asStaff(staff),
+      });
+    const set = await put(DISPATCHER_ID, { customer: 'Beta Ltd', pricePence: 1_234 });
+    expect(set.statusCode).toBe(200);
+    expect(set.json()).toMatchObject({ customer: 'Beta Ltd', pricePence: 1_234 });
+    const cleared = await put(DISPATCHER_ID, { customer: null });
+    expect(cleared.json<Record<string, unknown>>().customer).toBeUndefined();
+    expect(cleared.json()).toMatchObject({ pricePence: 1_234 });
+    expect((await put(VIEWER_ID, { pricePence: 1 })).statusCode).toBe(403);
+    expect((await put(OUTSIDER_ID, { pricePence: 1 })).statusCode).toBe(404);
+    expect((await put(DISPATCHER_ID, { pricePence: -1 })).statusCode).toBe(400);
+    expect((await put(DISPATCHER_ID, { pricePence: 1.5 })).statusCode).toBe(400);
+  });
+});
 
 describe('dispatching a job', () => {
   it('assigns, then steps through to delivered, each step kept on the timeline', async () => {

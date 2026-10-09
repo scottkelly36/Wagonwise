@@ -15,9 +15,15 @@ import type {
 } from '../application/errors.js';
 import type { NothingToSend } from '../application/job-notices.js';
 import type { VehicleUnavailable } from '../application/ports/navigation-profile.js';
-import type { InvalidReference, InvalidStops, InvalidTransition } from '../domain/job.js';
+import type {
+  InvalidCommercial,
+  InvalidReference,
+  InvalidStops,
+  InvalidTransition,
+} from '../domain/job.js';
 
 export type JobsError =
+  | InvalidCommercial
   | InvalidReference
   | InvalidStops
   | InvalidTransition
@@ -42,6 +48,7 @@ export type JobsError =
  *  compilation here instead of silently becoming a 500. */
 export function statusFor(error: JobsError): number {
   switch (error.tag) {
+    case 'InvalidCommercial':
     case 'InvalidReference':
     case 'InvalidStops':
     case 'DriverNotInCompany':

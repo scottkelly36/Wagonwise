@@ -87,6 +87,17 @@ describe('GET /jobs/current', () => {
     expect(response.json()).toMatchObject({ job: { id: JOB_ID, status: 'assigned' } });
   });
 
+  it('never shows the driver the customer or price of the job', async () => {
+    const { app, repo } = buildApp();
+    await repo.save({ ...JOB, customer: 'Acme Ltd', pricePence: 45_000 });
+    const response = await app.inject({ method: 'GET', url: '/jobs/current', ...asDriver(DRIVER) });
+    expect(response.statusCode).toBe(200);
+    const body = JSON.stringify(response.json());
+    expect(body).not.toContain('Acme Ltd');
+    expect(body).not.toContain('45000');
+    expect(body).not.toContain('pricePence');
+  });
+
   it('200s with null when the driver has no active job', async () => {
     const { app } = buildApp();
     const response = await app.inject({

@@ -29,6 +29,8 @@ export interface JobReportRow {
   readonly onTime?: boolean | undefined;
   readonly requiresProofOfDelivery: boolean;
   readonly hasProofOfDelivery: boolean;
+  readonly customer?: string | undefined;
+  readonly pricePence?: number | undefined;
 }
 
 function firstAt(job: Job, status: JobStatus): Date | undefined {
@@ -65,6 +67,8 @@ export function jobReportRow(job: Job): JobReportRow {
         : undefined,
     requiresProofOfDelivery: job.requiresProofOfDelivery,
     hasProofOfDelivery: job.hasProofOfDelivery,
+    customer: job.customer,
+    pricePence: job.pricePence,
   };
 }
 
@@ -83,10 +87,25 @@ export interface JobReportSummary {
   /** Jobs that needed a proof-of-delivery photo, and how many of those have one. */
   readonly proofRequired: number;
   readonly proofReceived: number;
+  /** Revenue: the price of the jobs delivered in the period, in pence. Jobs with no price add nothing. */
+  readonly revenuePence: number;
+  /** Jobs delivered in the period that have no price, so the revenue is not the whole story. */
+  readonly deliveredWithoutPrice: number;
 }
 
-export function summariseJobReport(rows: readonly JobReportRow[]): JobReportSummary {
+export function summariseJobReport(
+  rows: readonly JobReportRow[],
+  period?: { readonly from: Date; readonly to: Date },
+): JobReportSummary {
   const delivered = rows.filter((r) => r.status === 'delivered');
+  // Revenue counts when the job was delivered, so one finished in the period counts once, in that period.
+  const earned = delivered.filter(
+    (r) =>
+      period === undefined ||
+      (r.deliveredAt !== undefined &&
+        r.deliveredAt.getTime() >= period.from.getTime() &&
+        r.deliveredAt.getTime() < period.to.getTime()),
+  );
   const durations = delivered
     .map((r) => r.minutesAcceptedToDelivered)
     .filter((m): m is number => m !== undefined);
@@ -105,5 +124,7 @@ export function summariseJobReport(rows: readonly JobReportRow[]): JobReportSumm
         : durations.reduce((sum, m) => sum + m, 0) / durations.length,
     proofRequired: needingProof.length,
     proofReceived: needingProof.filter((r) => r.hasProofOfDelivery).length,
+    revenuePence: earned.reduce((sum, r) => sum + (r.pricePence ?? 0), 0),
+    deliveredWithoutPrice: earned.filter((r) => r.pricePence === undefined).length,
   };
 }

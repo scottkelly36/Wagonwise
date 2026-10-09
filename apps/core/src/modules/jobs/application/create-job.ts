@@ -3,9 +3,11 @@ import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import { err, ok, type Result } from '../../../shared/result.js';
 import {
+  validateCommercial,
   validateReference,
   validateStops,
   type CompanyId,
+  type InvalidCommercial,
   type InvalidReference,
   type InvalidStops,
   type Job,
@@ -31,9 +33,11 @@ export interface CreateJobInput {
   readonly plannedStart?: Date | undefined;
   readonly dueBy?: Date | undefined;
   readonly requiresProofOfDelivery?: boolean | undefined;
+  readonly customer?: string | undefined;
+  readonly pricePence?: number | undefined;
 }
 
-export type CreateJobError = Forbidden | InvalidReference | InvalidStops;
+export type CreateJobError = Forbidden | InvalidReference | InvalidStops | InvalidCommercial;
 
 /** Design doc §5 step 1: a dispatcher creates a job with a reference and its stops. It starts
  *  `draft` — no driver, vehicle or route plan until dispatch (not built yet) assigns it. */
@@ -51,6 +55,11 @@ export async function createJob(
     return stops;
   }
 
+  const commercial = validateCommercial(input);
+  if (!commercial.ok) {
+    return commercial;
+  }
+
   const now = deps.clock.now();
   const job: Job = {
     id: makeId<'JobId'>(deps.ids.newId()),
@@ -65,6 +74,10 @@ export async function createJob(
     hasProofOfDelivery: false,
     ...(input.plannedStart === undefined ? {} : { plannedStart: input.plannedStart }),
     ...(input.dueBy === undefined ? {} : { dueBy: input.dueBy }),
+    ...(commercial.value.customer === undefined ? {} : { customer: commercial.value.customer }),
+    ...(commercial.value.pricePence === undefined
+      ? {}
+      : { pricePence: commercial.value.pricePence }),
   };
   await deps.repo.save(job, [jobCreatedEvent(deps.ids.newId(), job)]);
   return ok(job);

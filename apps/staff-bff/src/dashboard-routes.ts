@@ -68,6 +68,7 @@ import {
   jobReportRequestSchema,
   previewJobRouteRequestSchema,
   proofOfDeliveryQuerySchema,
+  setJobCommercialRequestSchema,
 } from '@wagonwise/contracts/jobs';
 import {
   markPlaceRequestSchema,
@@ -480,6 +481,12 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/jobs/:id/assign',
     params: jobIdParamsSchema,
     body: assignJobRequestSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/jobs/:id/commercial',
+    params: jobIdParamsSchema,
+    body: setJobCommercialRequestSchema,
   },
   { method: 'POST', path: '/staff/jobs/:id/cancel', params: jobIdParamsSchema },
 ];

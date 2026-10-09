@@ -122,6 +122,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
       },
     },
     changeStatus: { repo, ids: deps.ids, clock: deps.clock },
+    setCommercial: { repo },
     listJobs: { repo },
     getJob: { repo },
     getProofOfDelivery: { repo },
