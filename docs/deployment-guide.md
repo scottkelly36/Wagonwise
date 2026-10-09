@@ -435,8 +435,8 @@ Then restart the container. Nothing breaks if this is skipped.
 `.github/workflows/driver-app-release.yml` ("Driver app release") publishes the driver app to production
 when a pull request carries the **`release`** label:
 
-- labelled **before** it merges: it releases when it merges, once CI has passed on `main`;
-- labelled **after** it merged: it releases `main` as it is now, once CI has passed on `main`.
+- labelled **before** it merges: it releases when it merges, if CI passed on the pull request;
+- labelled **after** it merged: it releases `main` as it is now, if CI passed on that pull request. (CI no longer runs again on `main` after a merge, to save Actions minutes.)
 
 "Release" always means "publish `main` as it is now", never an older commit (an older over-the-air update
 published after a newer one would undo it). What goes out is **everything on `main` since the last release**,

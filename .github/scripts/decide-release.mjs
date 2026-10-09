@@ -21,6 +21,8 @@ import {
 const mode = process.env.MODE ?? 'release';
 const trigger = process.env.TRIGGER ?? 'manual';
 const repo = process.env.GITHUB_REPOSITORY;
+// The commit whose CI run must have passed: the pull request's last commit (there is no CI run on main).
+const ciSha = process.env.CI_SHA || undefined;
 
 function run(command, args) {
   return execFileSync(command, args, {
@@ -66,7 +68,7 @@ if (mode === 'release') {
   }
 }
 
-// Adding the label later releases main's tip, so it must have passed CI.
+// A release goes out only if the labelled pull request's own CI run passed.
 if (mode === 'release' && labelled && trigger === 'label') {
   const runsJson = tryRun('gh', [
     'run',
@@ -74,7 +76,7 @@ if (mode === 'release' && labelled && trigger === 'label') {
     '--workflow',
     'CI',
     '--commit',
-    target,
+    ciSha ?? target,
     '--json',
     'status,conclusion',
     '--limit',
@@ -86,7 +88,7 @@ if (mode === 'release' && labelled && trigger === 'label') {
       kind: 'none',
       text:
         `## Driver app release: not published\n\n${verdict.why} (main is at \`${short}\`). ` +
-        `Nothing was published. Once CI is green on main, remove and re-add the \`${RELEASE_LABEL}\` label, ` +
+        `Nothing was published. Once CI is green on the pull request, remove and re-add the \`${RELEASE_LABEL}\` label, ` +
         `or run this workflow by hand.\n`,
     });
     process.exit(0);
