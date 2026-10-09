@@ -44,6 +44,11 @@
       "import": "./dist/checks.js",
       "default": "./dist/checks.js"
     },
+    "./usage": {
+      "types": "./dist/usage.d.ts",
+      "import": "./dist/usage.js",
+      "default": "./dist/usage.js"
+    },
     "./signups": {
       "types": "./dist/signups.d.ts",
       "import": "./dist/signups.js",

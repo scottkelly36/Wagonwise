@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
 import { createChecksModule, type UntypedDb as ChecksUntypedDb } from '../modules/checks/api.js';
+import { createUsageModule, type UntypedDb as UsageUntypedDb } from '../modules/usage/api.js';
 import { createSignupsModule, type UntypedDb as SignupsUntypedDb } from '../modules/signups/api.js';
 import { createCostingModule, type UntypedDb as CostingUntypedDb } from '../modules/costing/api.js';
 import { createHoursModule, type UntypedDb as HoursUntypedDb } from '../modules/hours/api.js';
@@ -211,6 +212,7 @@ export function composeCore(
   const hoursDb: HoursUntypedDb = identityDb;
   const costingDb: CostingUntypedDb = identityDb;
   const signupsDb: SignupsUntypedDb = identityDb;
+  const usageDb: UsageUntypedDb = identityDb;
   const fleetDb: FleetUntypedDb = identityDb;
   const jobsDb: JobsUntypedDb = identityDb;
 
@@ -317,6 +319,13 @@ export function composeCore(
   const signups = createSignupsModule({
     db: signupsDb,
     ids,
+    clock,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+  });
+  // How the app is being used: counts across the app, for WagonWise staff.
+  const usage = createUsageModule({
+    db: usageDb,
     clock,
     dataScopes,
     callers: { getCaller: staffCaller },
@@ -654,6 +663,7 @@ export function composeCore(
   hours.registerRoutes(app);
   costing.registerRoutes(app);
   signups.registerRoutes(app);
+  usage.registerRoutes(app);
   weather.registerRoutes(app);
 
   return {
