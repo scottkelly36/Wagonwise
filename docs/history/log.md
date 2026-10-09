@@ -3,6 +3,18 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **projections: a look ahead (Phase 3 M6 for a client).** New **Looking ahead** page (Costs and profit) and
+  `GET /staff/costing/companies/:companyId/outlook?month=` (needs `manage_billing`). It shows the last six months of what came in and
+  what it cost (the current month last, marked "so far") and a **three-month guess** (`domain/outlook.ts`, with tests). **How the guess
+  is made, plainly:** revenue, wages and fuel are each the average of the **last three complete months that had jobs** (they move
+  with how much work there is); vehicle running costs and overheads are **what the firm already pays in each month ahead**, taken from
+  the costs entered (so a cost stopped or started is reflected, and they are not averaged). The month in progress is shown but not used.
+  It says which months it is built from, shows the revenue a typical month ahead needs to break even, and **does not invent a
+  forecast** when no complete month has a delivered job. Three **what-if sliders** (revenue, fuel price, driver cost, each plus or
+  minus 30% in steps of 5) recompute the next three months in the browser; **nothing is saved**. Each month is worked out the same
+  way as Job profit, from one read of the jobs, fuel, costs and rates for the whole six months. No migration. Deploy core, staff-bff
+  and dashboard together. **This finishes the money board: price and customer on jobs, fuel import, running costs and pay, job profit,
+  and the look ahead.**
 - 2026-10-09: **job profit: what each job cost and made (Phase 3 M1 and M2 for a client, costing per job).** New **Job profit** page under a new menu section
   **Costs and profit** (Fuel, Running costs and pay, Job profit), and `GET /staff/costing/companies/:companyId/job-costs?month=YYYY-MM`
   (needs `manage_billing`, as it shows wages). For a month it shows revenue, wages, fuel, vehicle running costs, overheads and the

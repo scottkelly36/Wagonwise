@@ -240,3 +240,46 @@ export const costReportSchema = z.object({
   }),
 });
 export type CostReportDto = z.infer<typeof costReportSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// A look ahead from what has happened.
+
+/** `GET /staff/costing/companies/:companyId/outlook?month=YYYY-MM`, where `month` is the current month. */
+export const outlookQuerySchema = z.object({ month });
+
+const monthFiguresFields = {
+  month,
+  revenuePence: z.number().int(),
+  wagesPence: z.number().int(),
+  fuelPence: z.number().int(),
+  runningPence: z.number().int(),
+  overheadsPence: z.number().int(),
+  costPence: z.number().int(),
+  profitPence: z.number().int(),
+};
+
+export const monthActualSchema = z.object({
+  ...monthFiguresFields,
+  /** The current month, still going. */
+  partial: z.boolean(),
+  jobs: z.number().int(),
+});
+export type MonthActualDto = z.infer<typeof monthActualSchema>;
+
+export const monthForecastSchema = z.object(monthFiguresFields);
+export type MonthForecastDto = z.infer<typeof monthForecastSchema>;
+
+export const outlookSchema = z.object({
+  /** The last six months, oldest first, the current month last. */
+  history: z.array(monthActualSchema),
+  /** Absent when no complete month has any delivered job to work from. */
+  forecast: z
+    .object({
+      /** The complete months it was averaged from. */
+      basedOn: z.array(month),
+      months: z.array(monthForecastSchema),
+      breakEvenRevenuePence: z.number().int(),
+    })
+    .optional(),
+});
+export type OutlookDto = z.infer<typeof outlookSchema>;

@@ -64,6 +64,11 @@ const SECTIONS: readonly NavSection[] = [
         label: 'Job profit',
         shows: (s) => isPlatform(s) || holds(s, 'manage_billing'),
       },
+      {
+        to: '/fleet/outlook',
+        label: 'Looking ahead',
+        shows: (s) => isPlatform(s) || holds(s, 'manage_billing'),
+      },
     ],
   },
   {

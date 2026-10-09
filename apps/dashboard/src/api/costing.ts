@@ -1,6 +1,7 @@
 import {
   addRunningCostRequestSchema,
   costReportSchema,
+  outlookSchema,
   changeRunningCostRequestSchema,
   driverRateSchema,
   listDriverRatesResponseSchema,
@@ -17,6 +18,7 @@ import {
   rematchFuelResponseSchema,
   type AddRunningCostRequest,
   type CostReportDto,
+  type OutlookDto,
   type ChangeRunningCostRequest,
   type DriverRatesDto,
   type RunningCostDto,
@@ -238,4 +240,19 @@ export async function getJobCosts(
   );
   throwUnlessSuccess(status, json, [200]);
   return costReportSchema.parse(json);
+}
+
+/** The last six months and a three-month look ahead; `month` is the current month. Needs `manage_billing`. */
+export async function getOutlook(
+  accessToken: string,
+  companyId: string,
+  month: string,
+): Promise<OutlookDto> {
+  const { status, json } = await requestJson(
+    'GET',
+    `/staff/costing/companies/${companyId}/outlook?month=${encodeURIComponent(month)}`,
+    { authorization: bearer(accessToken) },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return outlookSchema.parse(json);
 }
