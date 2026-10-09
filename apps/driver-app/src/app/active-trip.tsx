@@ -33,6 +33,7 @@ import { useTurnGuidance } from '../hooks/use-turn-guidance';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { BreakCard } from '../components/break-card';
+import { HoursQuickBar } from '../components/hours-quick-bar';
 import { parkingBeforeStop, planBreak } from '../lib/break-plan';
 import { hoursStatus } from '../lib/driver-hours';
 import { currentActivity } from '../lib/shift-log';
@@ -449,6 +450,8 @@ export default function ActiveTripScreen() {
             mic is available throughout a trip, but shouldn't compete with the map for attention
             until a driver actually wants it. */}
         <View style={styles.micOverlay} pointerEvents="box-none">
+          {/* The driving-hours clock, one tap from the map: what they are doing, the time left, and four big buttons to change it. */}
+          <HoursQuickBar />
           {voiceFlow.state.phase === 'speaking-summary' && (
             <Text style={styles.overlayFootnote} testID="voice-report-summary">
               “{voiceFlow.state.summary}”

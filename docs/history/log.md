@@ -3,6 +3,7 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **driving-hours clock on the navigation screen.** A small clock above the report buttons on the trip screen (`components/hours-quick-bar.tsx`) shows what the driver is doing and the driving left (amber under 30 minutes, or an invitation to start when no shift is on). One tap opens four large buttons (Driving, Other work, Break, Rest, plus Finish for now); one tap changes it and closes it. Same store and rules as More > Driving hours; no typing, no leaving the map.
 - 2026-10-09: **GitHub Actions minutes.** The free allowance ran out (about 1,500 minutes used in a week). CI now runs on pull requests only (not again on main after a merge) and can be run by hand; the driver app release workflow no longer waits on a CI run on main, and runs only when a pull request carrying the `release` label merges or is labelled after merging, checking that pull request own CI run. Pull requests that do not carry the label skip the release job, so cost nothing.
 - 2026-10-09: **app usage page for WagonWise admin.** New **App usage** page (Customers, WagonWise staff only) and
   `GET /staff/usage`, from a read-only core module `usage` (no table of its own; one SQL read-model adapter). It shows drivers and
