@@ -82,6 +82,7 @@ describe('runMigrations', () => {
       '0049_fleet_vehicle_registration.sql',
       '0050_maintenance.sql',
       '0051_maintenance_reminders.sql',
+      '0052_maintenance_repairs.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -240,6 +241,7 @@ describe('runMigrations', () => {
       '0049_fleet_vehicle_registration.sql',
       '0050_maintenance.sql',
       '0051_maintenance_reminders.sql',
+      '0052_maintenance_repairs.sql',
     ]);
   });
 });

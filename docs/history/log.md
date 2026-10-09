@@ -3,6 +3,15 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **maintenance, slice 4: defects into repair tasks (Phase 3 M4).** Migration 0052 (`maintenance.repairs`, one open
+  repair per defect, company-scoped by Row-Level Security). Whoever has `manage_maintenance` books a repair for a defect from the
+  Defects page, with a due date (today or later); that marks the defect seen. On the Maintenance page's new **Repairs** tab they
+  mark it done (optionally with a note, and a tick, on by default, that marks the defect fixed too, which releases a vehicle a firm
+  holds back for a "do not drive" defect) or cancel one booked in error. An overdue repair is shown in red; it is advisory like the
+  rest of maintenance. Booking twice returns the repair already booked. The defect stays in `checks`: maintenance reaches it only
+  through a `DefectDirectory` port that composition fills from new `findDefect` / `setDefectStatus` methods on the checks facade
+  (the caller's right to book is checked in maintenance, so a booker needs no checks privilege). The new staff-bff forwards are four
+  routes. Deploy core, staff-bff and dashboard together; the migration runs with core.
 - 2026-10-09: **maintenance, slice 3: the morning reminder (Phase 3 M4).** Migration 0051 (`maintenance.reminder_preferences`,
   `reminder_log`). Each person with `manage_maintenance` is emailed once a day, from 7am UK time, when something is overdue or due
   soon in their company: overdue first, then due soon, each with the vehicle and registration and how late or soon, and a link to

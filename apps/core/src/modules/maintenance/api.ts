@@ -4,6 +4,7 @@ import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { CallerDirectory, VehicleDirectory } from './application/ports/directories.js';
 import type { Mailer } from './application/ports/reminders.js';
+import type { DefectDirectory } from './application/ports/repairs.js';
 import {
   sendDueReminders,
   type ReminderCompany,
@@ -15,6 +16,7 @@ import {
   PostgresPreferenceRepository,
   PostgresReminderLog,
 } from './infrastructure/postgres-reminders.js';
+import { PostgresRepairRepository } from './infrastructure/postgres-repair-repository.js';
 import { PostgresScheduleRepository } from './infrastructure/postgres-schedule-repository.js';
 import { registerMaintenanceRoutes } from './interface/routes.js';
 
@@ -26,6 +28,7 @@ export type {
   VehicleDirectory,
 } from './application/ports/directories.js';
 export type { Mailer } from './application/ports/reminders.js';
+export type { DefectDirectory, DefectInfo } from './application/ports/repairs.js';
 export type { Recipient, ReminderCompany, ReminderOutcome } from './application/reminders.js';
 
 export interface MaintenanceModuleDeps {
@@ -39,6 +42,8 @@ export interface MaintenanceModuleDeps {
   readonly vehicles: VehicleDirectory;
   /** Sends a plain-text email. Supplied by composition over `identity`. */
   readonly mailer: Mailer;
+  /** Defects found by the walk-round checks, to book repairs for. Supplied by composition over `checks`. */
+  readonly defects: DefectDirectory;
   /** The portal's address, for the link in reminder emails; none if it is not known. */
   readonly dashboardUrl: string | undefined;
 }
@@ -63,6 +68,7 @@ export function createMaintenanceModule(deps: MaintenanceModuleDeps): Maintenanc
   const schedules = new PostgresScheduleRepository(deps.db);
   const preferences = new PostgresPreferenceRepository(deps.db);
   const log = new PostgresReminderLog(deps.db);
+  const repairs = new PostgresRepairRepository(deps.db);
   return {
     registerRoutes(app: FastifyInstance): void {
       registerMaintenanceRoutes(app, {
@@ -75,6 +81,7 @@ export function createMaintenanceModule(deps: MaintenanceModuleDeps): Maintenanc
           clock: deps.clock,
         },
         reminders: { preferences, clock: deps.clock },
+        repairs: { repairs, defects: deps.defects, ids: deps.ids, clock: deps.clock },
         callerDirectory: deps.callers,
         dataScopes: deps.dataScopes,
       });

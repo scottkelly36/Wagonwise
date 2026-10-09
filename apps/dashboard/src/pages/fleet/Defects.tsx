@@ -2,6 +2,7 @@ import type { DefectDto, DefectStatus } from '@wagonwise/contracts/checks';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as checksApi from '../../api/checks';
+import * as maintenanceApi from '../../api/maintenance';
 import { CompanySelect } from '../../components/CompanySelect';
 import { DataTable, type Column } from '../../components/DataTable';
 import { STATUS_LABELS, whenText } from '../../lib/check-results';
@@ -60,6 +61,27 @@ export function Defects() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['check-defects'] }),
   });
 
+  // Whoever keeps maintenance can book a defect in for repair; the repairs already booked show against each defect.
+  const canBook = everyCompany || holds(me, 'manage_maintenance');
+  const [booking, setBooking] = useState<DefectDto | undefined>(undefined);
+  const [dueDate, setDueDate] = useState('');
+  const repairs = useQuery({
+    queryKey: ['repairs', companyId, 'open'],
+    queryFn: () =>
+      withAccessToken((token) => maintenanceApi.listRepairs(token, companyId as string, 'open')),
+    enabled: companyId !== undefined && canBook,
+  });
+  const bookedFor = new Map((repairs.data ?? []).map((r) => [r.defectId, r]));
+  const book = useMutation({
+    mutationFn: (input: { defectId: string; dueDate: string }) =>
+      withAccessToken((token) => maintenanceApi.bookRepair(token, input.defectId, input.dueDate)),
+    onSuccess: () => {
+      setBooking(undefined);
+      void queryClient.invalidateQueries({ queryKey: ['repairs'] });
+      void queryClient.invalidateQueries({ queryKey: ['check-defects'] });
+    },
+  });
+
   const columns: Column<DefectDto>[] = [
     {
       key: 'severity',
@@ -111,18 +133,35 @@ export function Defects() {
       header: '',
       align: 'right',
       cell: (d) =>
-        canHandle ? (
-          <span style={{ display: 'inline-flex', gap: 6 }}>
-            {NEXT_STEPS[d.status].map((step) => (
+        canHandle || canBook ? (
+          <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+            {bookedFor.has(d.id) && (
+              <span style={{ color: '#047857' }}>
+                Repair booked for {bookedFor.get(d.id)?.dueDate}
+              </span>
+            )}
+            {canBook && d.status !== 'fixed' && !bookedFor.has(d.id) && (
               <button
-                key={step.to}
                 type="button"
-                disabled={change.isPending}
-                onClick={() => change.mutate({ id: d.id, to: step.to })}
+                onClick={() => {
+                  setBooking(d);
+                  setDueDate('');
+                }}
               >
-                {step.label}
+                Book repair
               </button>
-            ))}
+            )}
+            {canHandle &&
+              NEXT_STEPS[d.status].map((step) => (
+                <button
+                  key={step.to}
+                  type="button"
+                  disabled={change.isPending}
+                  onClick={() => change.mutate({ id: d.id, to: step.to })}
+                >
+                  {step.label}
+                </button>
+              ))}
           </span>
         ) : null,
     },
@@ -164,6 +203,36 @@ export function Defects() {
               </select>
             </label>
           </div>
+          {booking !== undefined && (
+            <form
+              style={{ border: '1px solid #e5e7eb', padding: 12, marginBottom: 16 }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (dueDate !== '') book.mutate({ defectId: booking.id, dueDate });
+              }}
+            >
+              <strong>
+                Book a repair: {booking.vehicleName}, {booking.label}
+              </strong>
+              <label style={{ display: 'block', margin: '8px 0' }}>
+                Due by{' '}
+                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              </label>
+              <p style={{ color: '#6b7280', fontSize: 13 }}>
+                This marks the defect seen. The vehicle stays held back, if you hold it back for
+                this, until the repair is marked done with the defect fixed.
+              </p>
+              {book.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(book.error)}</p>}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="submit" disabled={dueDate === '' || book.isPending}>
+                  {book.isPending ? 'Booking…' : 'Book'}
+                </button>
+                <button type="button" onClick={() => setBooking(undefined)}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
           {(defects.isError || change.isError) && (
             <p style={{ color: '#dc2626' }}>{staffErrorMessage(defects.error ?? change.error)}</p>
           )}

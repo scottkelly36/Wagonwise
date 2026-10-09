@@ -1,12 +1,16 @@
 import {
   createItemTypeRequestSchema,
   itemTypeBodySchema,
+  bookRepairRequestSchema,
+  completeRepairRequestSchema,
   maintenanceCompanyParamsSchema,
   maintenanceItemParamsSchema,
   maintenanceVehicleItemParamsSchema,
   maintenanceVehicleParamsSchema,
   markDoneRequestSchema,
   myRemindersSchema,
+  repairParamsSchema,
+  repairsQuerySchema,
   setDueRequestSchema,
 } from '@wagonwise/contracts/maintenance';
 import {
@@ -259,6 +263,26 @@ const FORWARDS: readonly Forward[] = [
     params: maintenanceVehicleItemParamsSchema,
     body: markDoneRequestSchema,
   },
+  // Repairs: a defect a driver found, booked for fixing, then done (which can mark the defect fixed).
+  {
+    method: 'POST',
+    path: '/staff/maintenance/repairs',
+    params: noParams,
+    body: bookRepairRequestSchema,
+  },
+  {
+    method: 'GET',
+    path: '/staff/maintenance/companies/:companyId/repairs',
+    params: maintenanceCompanyParamsSchema,
+    query: repairsQuerySchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/maintenance/repairs/:id/done',
+    params: repairParamsSchema,
+    body: completeRepairRequestSchema,
+  },
+  { method: 'DELETE', path: '/staff/maintenance/repairs/:id', params: repairParamsSchema },
   // Invoices: draft the month's, adjust a draft, issue, mark paid or void. WagonWise admins only; core decides.
   { method: 'GET', path: '/staff/billing/invoices', params: noParams },
   {

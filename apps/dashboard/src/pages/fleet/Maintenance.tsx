@@ -11,6 +11,7 @@ import * as maintenanceApi from '../../api/maintenance';
 import { CompanySelect } from '../../components/CompanySelect';
 import { DataTable, type Column } from '../../components/DataTable';
 import { MyReminders } from '../../components/MyReminders';
+import { Repairs } from '../../components/Repairs';
 import { VehicleMaintenance } from '../../components/VehicleMaintenance';
 import {
   dueText,
@@ -23,7 +24,7 @@ import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
 
-type Tab = 'due' | 'items';
+type Tab = 'due' | 'repairs' | 'items';
 type Filter = 'needs' | 'all';
 
 /**
@@ -66,12 +67,17 @@ export function Maintenance() {
             <button type="button" disabled={tab === 'due'} onClick={() => setTab('due')}>
               What is due
             </button>
+            <button type="button" disabled={tab === 'repairs'} onClick={() => setTab('repairs')}>
+              Repairs
+            </button>
             <button type="button" disabled={tab === 'items'} onClick={() => setTab('items')}>
               What you keep track of
             </button>
           </div>
           {tab === 'due' ? (
             <Due companyId={companyId} canManage={canManage} />
+          ) : tab === 'repairs' ? (
+            <Repairs companyId={companyId} canManage={canManage} />
           ) : (
             <Items companyId={companyId} canManage={canManage} />
           )}

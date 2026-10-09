@@ -101,6 +101,8 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
       dataScopes: scopes,
       mailer,
       dashboardUrl: 'https://portal.example.com',
+      // Repairs are exercised in repairs-end-to-end.test.ts, with the real checks module behind this.
+      defects: { find: () => Promise.resolve(null), setStatus: () => Promise.resolve() },
       callers: { getCaller: (id) => Promise.resolve(staff[id] ?? null) },
       vehicles: {
         listForCompany: async (companyId) =>

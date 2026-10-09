@@ -278,6 +278,26 @@ export function composeCore(
     clock,
     dataScopes,
     mailer: { send: (to, subject, text) => identity.sendEmail(to, subject, text) },
+    // The defects checks found: read when a repair is booked or finished, in the booker's own request. checks is built
+    // after jobs, so this is read only when called.
+    defects: {
+      find: async (defectId) => {
+        const d = await checks.findDefect(defectId);
+        return d === null
+          ? null
+          : {
+              id: d.id,
+              companyId: makeId<'CompanyId'>(d.companyId),
+              vehicleId: d.vehicleId,
+              vehicleName: d.vehicleName,
+              label: d.label,
+              detail: d.detail,
+              severity: d.severity,
+              status: d.status,
+            };
+      },
+      setStatus: (defectId, status, staffId) => checks.setDefectStatus(defectId, status, staffId),
+    },
     dashboardUrl: config.dashboardUrl,
     callers: { getCaller: staffCaller },
     vehicles: {
