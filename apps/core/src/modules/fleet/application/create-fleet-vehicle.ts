@@ -4,20 +4,22 @@ import { err, ok, type Result } from '../../../shared/result.js';
 import {
   validateDimensions,
   validateName,
+  validateRegistration,
   type CompanyId,
   type Dimensions,
   type FleetVehicle,
   type InvalidDimensions,
   type InvalidName,
+  type InvalidRegistration,
 } from '../domain/vehicle.js';
 import { canManageFleet } from './authorization.js';
-import type { CapacityReached, Forbidden } from './errors.js';
+import type { CapacityReached, Forbidden, RegistrationTaken } from './errors.js';
 import type { Caller } from './ports/caller-directory.js';
 import type { FleetVehicleRepository } from './ports/fleet-vehicle-repository.js';
 import type { VehicleCapacity } from './ports/vehicle-capacity.js';
 
 export interface CreateFleetVehicleDeps {
-  readonly repo: Pick<FleetVehicleRepository, 'save' | 'listForCompany'>;
+  readonly repo: Pick<FleetVehicleRepository, 'save' | 'listForCompany' | 'findByRegistration'>;
   readonly capacity: VehicleCapacity;
   readonly ids: IdGenerator;
 }
@@ -27,9 +29,17 @@ export interface CreateFleetVehicleInput {
   readonly companyId: CompanyId;
   readonly name: string;
   readonly dimensions: Dimensions;
+  /** Optional: tidied before it is kept. Blank means none. */
+  readonly registration?: string | undefined;
 }
 
-export type CreateFleetVehicleError = Forbidden | InvalidName | InvalidDimensions | CapacityReached;
+export type CreateFleetVehicleError =
+  | Forbidden
+  | InvalidName
+  | InvalidDimensions
+  | CapacityReached
+  | InvalidRegistration
+  | RegistrationTaken;
 
 export async function createFleetVehicle(
   deps: CreateFleetVehicleDeps,
@@ -45,6 +55,15 @@ export async function createFleetVehicle(
     return dimensions;
   }
 
+  const registration = validateRegistration(input.registration);
+  if (!registration.ok) return registration;
+  if (
+    registration.value !== undefined &&
+    (await deps.repo.findByRegistration(input.companyId, registration.value)) !== null
+  ) {
+    return err({ tag: 'RegistrationTaken' });
+  }
+
   // The plan covers a number of vehicles (billing). Counted after validation so a typo gets its own message.
   const capacity = await deps.capacity.capacityFor(input.companyId);
   const existing = await deps.repo.listForCompany(input.companyId);
@@ -55,6 +74,7 @@ export async function createFleetVehicle(
     companyId: input.companyId,
     name: name.value,
     dimensions: dimensions.value,
+    ...(registration.value === undefined ? {} : { registration: registration.value }),
   };
   await deps.repo.save(vehicle);
   return ok(vehicle);

@@ -24,3 +24,6 @@ export type AlreadyInvited = TaggedError<'AlreadyInvited'>;
 export interface CapacityReached extends TaggedError<'CapacityReached'> {
   readonly capacity: number;
 }
+
+/** Another vehicle in this company already has that registration number. */
+export type RegistrationTaken = TaggedError<'RegistrationTaken'>;

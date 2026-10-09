@@ -6,6 +6,7 @@ import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import { DataTable, IconButton, type Column } from '../../components/DataTable';
 import { FieldError } from '../../components/FieldError';
+import { VehicleEditor } from '../../components/VehicleEditor';
 import { focusFirstInvalid, hasErrors, type FieldErrors } from '../../lib/forms';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -19,7 +20,14 @@ const DIMENSION_FIELDS = [
   { key: 'grossWeightT', label: 'Gross weight (t)', noun: 'gross weight in tonnes', example: '44' },
 ] as const;
 
-const EMPTY_FORM = { name: '', heightM: '', widthM: '', lengthM: '', grossWeightT: '' };
+const EMPTY_FORM = {
+  name: '',
+  registration: '',
+  heightM: '',
+  widthM: '',
+  lengthM: '',
+  grossWeightT: '',
+};
 
 /** A company's own vehicles (Phase 2 tech design doc §3's `fleet` context, first slice).
  *  WagonWise staff pick which company to view; a company's own staff with "Manage fleet" only
@@ -50,12 +58,14 @@ export function VehicleProfiles() {
   });
 
   const [form, setForm] = useState(EMPTY_FORM);
+  const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const createVehicle = useMutation({
     mutationFn: () =>
       withAccessToken((token) =>
         fleetApi.createFleetVehicle(token, companyId as string, {
           companyId: companyIdSchema.parse(companyId),
           name: form.name,
+          registration: form.registration,
           dimensions: {
             heightM: Number(form.heightM),
             widthM: Number(form.widthM),
@@ -101,6 +111,12 @@ export function VehicleProfiles() {
   const vehicleColumns: Column<FleetVehicleDto>[] = [
     { key: 'name', header: 'Name', sortValue: (v) => v.name, cell: (v) => v.name },
     {
+      key: 'registration',
+      header: 'Registration',
+      sortValue: (v) => v.registration ?? '',
+      cell: (v) => v.registration ?? '—',
+    },
+    {
       key: 'height',
       header: 'Height',
       sortValue: (v) => v.dimensions.heightM,
@@ -125,6 +141,16 @@ export function VehicleProfiles() {
       cell: (v) => `${v.dimensions.grossWeightT} t`,
     },
     {
+      key: 'edit',
+      header: '',
+      align: 'right',
+      cell: (v) => (
+        <button type="button" onClick={() => setEditingId(v.id)}>
+          Edit
+        </button>
+      ),
+    },
+    {
       key: 'actions',
       header: '',
       align: 'right',
@@ -142,6 +168,7 @@ export function VehicleProfiles() {
     },
   ];
 
+  const editing = (vehicles.data ?? []).find((v) => v.id === editingId);
   const error = companies.error ?? vehicles.error ?? createVehicle.error ?? deleteVehicle.error;
 
   if (!canManage) {
@@ -209,6 +236,16 @@ export function VehicleProfiles() {
               />
               <FieldError id="vehicle-name-error" message={shown('name')} />
             </div>
+            <div className="field" style={{ flex: '1 1 140px' }}>
+              <label htmlFor="vehicle-registration">Registration</label>
+              <input
+                id="vehicle-registration"
+                value={form.registration}
+                maxLength={20}
+                onChange={(e) => setForm((f) => ({ ...f, registration: e.target.value }))}
+                placeholder="e.g. NX21 ABC"
+              />
+            </div>
             {DIMENSION_FIELDS.map((field) => (
               <div key={field.key} className="field" style={{ flex: '1 1 120px' }}>
                 <label htmlFor={`vehicle-${field.key}`}>{field.label}</label>
@@ -236,8 +273,19 @@ export function VehicleProfiles() {
               columns={vehicleColumns}
               rows={vehicles.data ?? []}
               rowKey={(vehicle) => vehicle.id}
-              searchText={(vehicle) => vehicle.name}
+              searchText={(vehicle) => `${vehicle.name} ${vehicle.registration ?? ''}`}
               emptyText="No vehicles yet."
+            />
+          )}
+          {editing !== undefined && (
+            <VehicleEditor
+              key={editing.id}
+              vehicle={editing}
+              onCancel={() => setEditingId(undefined)}
+              onDone={() => {
+                setEditingId(undefined);
+                void queryClient.invalidateQueries({ queryKey: vehiclesKey });
+              }}
             />
           )}
         </>
