@@ -3,6 +3,15 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **driving hours, break planning on the route (Phase 3 M9, Track A second slice).** Driver app only, JavaScript only
+  (over the air). While the driving-hours clock is running and a trip is active, the trip screen works out whether the route runs
+  past the time the driver has (`lib/break-plan.ts`): if so a card says **Break needed in 1h 20m** (or **Rest needed before you
+  arrive** when the day's driving limit comes first), the ETA card reads "with break" and moves by the break (45 minutes each, a
+  second break on a long route), and the reported safe parking spots beside the route (within 3 km, ahead of the driver, before
+  the limit, the one nearest the limit first) are listed with the driving time to each; tapping one opens it on the map. A driver
+  who has not started the clock sees none of this. It only advises, and uses only the break rule and daily limit already in the
+  clock; weekly limits are still not counted. Nothing new is sent anywhere. Next: weekly limits, then status to core and the
+  portal (which needs the driver's consent and the privacy changes first).
 - 2026-10-09: **driving hours, Track A first slice (Phase 3 M9): a driver-entered clock.** Driver app only, JavaScript only, so it
   ships over the air once merged and the release label is used. More tab, **Driving hours**: the driver taps Driving, Other work,
   Break or Rest (and Finish for now), and the screen counts down the driving left before the next break or the day's limit,
