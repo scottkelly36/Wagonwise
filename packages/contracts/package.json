@@ -44,6 +44,11 @@
       "import": "./dist/checks.js",
       "default": "./dist/checks.js"
     },
+    "./costing": {
+      "types": "./dist/costing.d.ts",
+      "import": "./dist/costing.js",
+      "default": "./dist/costing.js"
+    },
     "./hours": {
       "types": "./dist/hours.d.ts",
       "import": "./dist/hours.js",

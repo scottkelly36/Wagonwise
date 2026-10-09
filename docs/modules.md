@@ -304,6 +304,15 @@ second check on top — core alone decides ownership/authorization for those.
 - **Import** (`application/import.ts`): sets next-due dates in bulk by registration and item name, row by row; the CSV is read in the dashboard (`lib/maintenance-import.ts`).
 - To come: text reminders.
 
+## Costing
+
+`apps/core/src/modules/costing`: what a company's vehicles cost to run. First fuel (migration 0056); wages, running costs and the cost of a job build on it.
+
+- **Fuel** (`application/fuel.ts`): `importFuel` checks each row (`domain/fuel.ts`), skips what is already held (`dedupeKeys`: the moment, registration, amount, litres and description, plus which of identical rows it is), matches each purchase to a vehicle by registration through the `VehicleDirectory` port (composition over `fleet`), and keeps a purchase that matches none (`vehicle_id` null). `rematchFuel` and `assignVehicle` fix those later; `undoImport` deletes an import and its purchases (`on delete cascade`).
+- **Reading** (`listFuel`): totals by vehicle (`summariseByVehicle`: spend, litres, and pence a litre over purchases that gave litres), for a period given as two instants.
+- **Who:** `manage_fleet` (or WagonWise) imports, matches and undoes; `view_reports` can also read. A dispatcher alone cannot.
+- **Dashboard:** `pages/fleet/Fuel.tsx` and `lib/fuel-import.ts` (the CSV is read in the browser; the column choice is remembered per company in `localStorage`).
+
 ## Job notifications
 
 `apps/core/src/modules/jobs`: telling a driver a job is theirs, and letting the office see and repeat it.
