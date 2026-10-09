@@ -8,9 +8,9 @@ export interface BreakPlan {
   /**
    * `none`: the driver can reach the end within the time they have.
    * `break`: they can, with `breaks` break(s) on the way.
-   * `daily_limit`: they cannot reach the end within today's driving limit, and a rest is needed first.
+   * `limit`: they cannot reach the end within their driving limit (today's, the week's or the fortnight's), and a rest is needed first.
    */
-  readonly kind: 'none' | 'break' | 'daily_limit';
+  readonly kind: 'none' | 'break' | 'limit';
   readonly breaks: number;
   /** Driving time until the first stop is needed; `null` when none is. */
   readonly firstStopInMs: number | null;
@@ -42,9 +42,9 @@ export function planBreak(
     };
   }
   const fraction = Math.min(1, status.drivingLeftMs / remainingMs);
-  if (remainingMs > status.untilDailyLimitMs) {
+  if (remainingMs > status.untilLimitMs) {
     return {
-      kind: 'daily_limit',
+      kind: 'limit',
       breaks: 0,
       firstStopInMs: status.drivingLeftMs,
       arrivalMs: null,

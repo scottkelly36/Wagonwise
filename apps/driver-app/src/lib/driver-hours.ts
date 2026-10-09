@@ -6,9 +6,11 @@
  *   - https://www.gov.uk/drivers-hours/gb-domestic-rules  (10 hours driving in a day for goods vehicles)
  *   - https://www.gov.uk/drivers-hours/eu-rules  (assimilated rules: 9 hours a day, 10 twice a week; a break of 45 minutes
  *     after 4 hours 30 minutes of driving; 11 hours' daily rest, 9 hours three times between weekly rests)
- * The 15 minutes then 30 minutes split of the 45-minute break is from the underlying regulation, not that page, so it is
- * worth re-reading before it is relied on. Not modelled yet, and never guessed: weekly and fortnightly limits, weekly rest,
- * GB domestic duty time, ferry and out-of-scope rules. `driving_limit_unknown` style answers are `null`, not zero.
+ * The 15 minutes then 30 minutes split of the 45-minute break, and a week running Monday 00:00 to Sunday 24:00, are from the
+ * underlying regulation, not those pages (GOV.UK does not define a week on any page we could reach), so re-read both before
+ * they are relied on. The weekly (56 hour) and fortnightly (90 hour, this week and the last) driving limits are counted from
+ * the 15 days kept on the phone. Not modelled yet, and never guessed: weekly rest, reduced daily rests, GB domestic duty
+ * time, ferry and out-of-scope rules.
  */
 
 export type RuleSet = 'gb_domestic' | 'assimilated_eu';
@@ -29,6 +31,9 @@ interface Rules {
   readonly splitBreakMs: readonly [number, number] | null;
   /** A rest this long starts a new day. */
   readonly dailyRestMs: number;
+  /** The most driving in a fixed week, and in two weeks running; `null` when this rule set has none that we model. */
+  readonly weeklyDrivingMs: number | null;
+  readonly fortnightlyDrivingMs: number | null;
 }
 
 export const RULES: Record<RuleSet, Rules> = {
@@ -39,6 +44,8 @@ export const RULES: Record<RuleSet, Rules> = {
     breakMs: 45 * MINUTE,
     splitBreakMs: [15 * MINUTE, 30 * MINUTE],
     dailyRestMs: 9 * HOUR,
+    weeklyDrivingMs: 56 * HOUR,
+    fortnightlyDrivingMs: 90 * HOUR,
   },
   gb_domestic: {
     dailyDrivingMs: 10 * HOUR,
@@ -47,6 +54,8 @@ export const RULES: Record<RuleSet, Rules> = {
     breakMs: 0,
     splitBreakMs: null,
     dailyRestMs: 9 * HOUR,
+    weeklyDrivingMs: null,
+    fortnightlyDrivingMs: null,
   },
 };
 
@@ -72,10 +81,26 @@ export interface HoursStatus {
   readonly dailyLimitMs: number;
   /** Driving time left today; zero once the limit is reached. */
   readonly untilDailyLimitMs: number;
-  /** Which comes first. */
-  readonly next: 'break' | 'daily_limit';
+  /** Driving this week (a week runs Monday 00:00 to Sunday 24:00) and in this week and the one before. */
+  readonly weeklyDrivingMs: number;
+  readonly fortnightDrivingMs: number;
+  /** Driving time left this week, and in the fortnight; `null` when this rule set has no such limit. */
+  readonly untilWeeklyLimitMs: number | null;
+  readonly untilFortnightLimitMs: number | null;
+  /** Driving time left before the nearest of the daily, weekly and fortnightly limits, and which of them it is. */
+  readonly untilLimitMs: number;
+  readonly limit: 'daily' | 'weekly' | 'fortnightly';
+  /** Which comes first: a break, or a limit that needs a rest. */
+  readonly next: 'break' | 'limit';
   /** Time to whichever comes first. */
   readonly drivingLeftMs: number;
+}
+
+/** Monday 00:00 (the phone's own time, which is UK time for a UK driver) of the week `ms` falls in. */
+export function weekStart(ms: number): number {
+  const d = new Date(ms);
+  const sinceMonday = (d.getDay() + 6) % 7;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - sinceMonday).getTime();
 }
 
 export interface HoursOptions {
@@ -83,6 +108,9 @@ export interface HoursOptions {
   /** Times this week the 10 hour day is still unused. Zero (the default) plans on 9 hours: the safe side. */
   readonly extensionsLeft?: number;
 }
+
+const overlap = (from: number, to: number, windowFrom: number, windowTo: number): number =>
+  Math.max(0, Math.min(to, windowTo) - Math.max(from, windowFrom));
 
 /** Activities in order, each clipped to `now`, with a still-open one running up to `now`. */
 function clipped(activities: readonly Activity[], now: number): Activity[] {
@@ -107,6 +135,11 @@ export function hoursStatus(
       ? rules.extendedDailyDrivingMs
       : rules.dailyDrivingMs;
 
+  const thisWeek = weekStart(now);
+  const lastWeek = new Date(thisWeek);
+  lastWeek.setDate(lastWeek.getDate() - 7);
+  let drivingThisWeek = 0;
+  let drivingLastWeek = 0;
   let drivingToday = 0;
   let drivingSinceBreak = 0;
   let firstPartTaken = false;
@@ -138,6 +171,8 @@ export function hoursStatus(
     if (a.kind === 'driving') {
       drivingToday += end - a.start;
       drivingSinceBreak += end - a.start;
+      drivingThisWeek += overlap(a.start, end, thisWeek, now);
+      drivingLastWeek += overlap(a.start, end, lastWeek.getTime(), thisWeek);
     } else if (a.kind === 'break') {
       rested(end - a.start);
     } else if (a.kind === 'rest') {
@@ -164,7 +199,24 @@ export function hoursStatus(
       ? null
       : Math.max(0, rules.drivingBeforeBreakMs - drivingSinceBreak);
   const untilDaily = Math.max(0, limit - drivingToday);
-  const breakFirst = untilBreak !== null && untilBreak < untilDaily;
+  const untilWeekly =
+    rules.weeklyDrivingMs === null ? null : Math.max(0, rules.weeklyDrivingMs - drivingThisWeek);
+  const fortnight = drivingThisWeek + drivingLastWeek;
+  const untilFortnight =
+    rules.fortnightlyDrivingMs === null
+      ? null
+      : Math.max(0, rules.fortnightlyDrivingMs - fortnight);
+  let untilLimit = untilDaily;
+  let nearest: HoursStatus['limit'] = 'daily';
+  if (untilWeekly !== null && untilWeekly < untilLimit) {
+    untilLimit = untilWeekly;
+    nearest = 'weekly';
+  }
+  if (untilFortnight !== null && untilFortnight < untilLimit) {
+    untilLimit = untilFortnight;
+    nearest = 'fortnightly';
+  }
+  const breakFirst = untilBreak !== null && untilBreak < untilLimit;
   return {
     state: current,
     drivingSinceBreakMs: drivingSinceBreak,
@@ -172,8 +224,14 @@ export function hoursStatus(
     dailyDrivingMs: drivingToday,
     dailyLimitMs: limit,
     untilDailyLimitMs: untilDaily,
-    next: breakFirst ? 'break' : 'daily_limit',
-    drivingLeftMs: breakFirst ? untilBreak : untilDaily,
+    weeklyDrivingMs: drivingThisWeek,
+    fortnightDrivingMs: fortnight,
+    untilWeeklyLimitMs: untilWeekly,
+    untilFortnightLimitMs: untilFortnight,
+    untilLimitMs: untilLimit,
+    limit: nearest,
+    next: breakFirst ? 'break' : 'limit',
+    drivingLeftMs: breakFirst ? untilBreak : untilLimit,
   };
 }
 

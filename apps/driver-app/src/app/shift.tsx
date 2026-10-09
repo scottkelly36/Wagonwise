@@ -32,6 +32,12 @@ const STATE_TEXT: Record<HoursStatus['state'], string> = {
   on_break: 'On a break',
 };
 
+const LIMIT_TEXT: Record<HoursStatus['limit'], string> = {
+  daily: 'the day’s limit',
+  weekly: 'the week’s limit',
+  fortnightly: 'the fortnight’s limit',
+};
+
 const RULE_TEXT: Record<RuleSet, string> = {
   assimilated_eu: 'EU / assimilated rules (9 hours a day, a break after 4h 30m)',
   gb_domestic: 'GB domestic rules (10 hours driving a day)',
@@ -84,7 +90,7 @@ export default function ShiftScreen() {
               </Text>
               <Text style={styles.line}>
                 of driving left before{' '}
-                {status.next === 'break' ? 'your next break' : 'the day’s limit'}
+                {status.next === 'break' ? 'your next break' : LIMIT_TEXT[status.limit]}
               </Text>
               <Text style={styles.line}>
                 Driven since your last break:{' '}
@@ -96,6 +102,17 @@ export default function ShiftScreen() {
                   {durationText(status.dailyDrivingMs)} of {durationText(status.dailyLimitMs)}
                 </Text>
               </Text>
+              {status.untilWeeklyLimitMs !== null && (
+                <Text style={styles.line}>
+                  This week (from Monday):{' '}
+                  <Text style={styles.strong}>{durationText(status.weeklyDrivingMs)} of 56h</Text>
+                  {'; '}
+                  this and last week:{' '}
+                  <Text style={styles.strong}>
+                    {durationText(status.fortnightDrivingMs)} of 90h
+                  </Text>
+                </Text>
+              )}
             </>
           )}
         </View>
@@ -172,8 +189,8 @@ export default function ShiftScreen() {
 
         <Text style={styles.note}>
           This is a guide, not a record. Your tachograph is the legal record and you are responsible
-          for staying within the rules. Weekly limits and weekly rest are not counted here yet. What
-          you tap stays on this phone and is kept for 15 days.
+          for staying within the rules. Weekly rest and reduced daily rests are not counted here
+          yet. What you tap stays on this phone and is kept for 15 days.
         </Text>
         <TouchableOpacity
           onPress={() => void clear()}
