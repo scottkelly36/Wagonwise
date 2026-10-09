@@ -107,6 +107,13 @@ EU, AETR) **and per vehicle.** They are not copied from memory into code. The fi
 driving (45 minutes, or 15 then 30), the daily driving limit (9 hours, 10 twice a week), the weekly and fortnightly limits, and
 daily and weekly rest. A firm picks which rule set applies to each vehicle.
 
+**Decided with the owner 2026-10-09:** there is no pilot firm, so assume lorries with a Bluetooth (smart) tachograph. The driver
+chooses, per shift, either to **connect the tachograph** or to **start the clock by hand**. Both feed the same screen and the
+same rules, through one "hours source" that is either the driver's own taps or the tachograph. Starting by hand is always there:
+it is the fallback when pairing fails, the lorry has no smart unit, or the driver would rather not connect. Track A is built
+first and works alone; Track B plugs into it later. Nothing can be proved against a real tachograph until a unit and its
+interface specification are to hand, so Track B is built against the specification and tested with a simulated source first.
+
 ### Track A: driver-entered clock (no connection to the vehicle)
 
 - The driver taps **Start shift** (and Break, Rest, Finish); the app also suggests a start from movement it already sees, which the
@@ -144,11 +151,11 @@ daily and weekly rest. A firm picks which rule set applies to each vehicle.
 
 ### Order
 
-1. Ask the pilot firm what their lorries and tachographs have, and which rule set each runs under (this is the one question).
+1. Get the Bluetooth interface specification (and, when possible, a smart tachograph unit to test with), and decide which rule set applies to the first vehicles.
 2. Check the rules against GOV.UK and write them down as a table with the source for each.
 3. Track A, in slices: the clock and rules with tests; the screen and shift controls; break planning with parking and the ETA;
    status to core and the portal.
-4. Track B only once the answer to step 1 says it is worth it.
+4. Track B: pairing, reading activity, the simulated source for tests, then a real unit when there is one.
 
 ## Goals for the end of Phase 3
 
@@ -169,4 +176,4 @@ deviations. Phase 4 ends with the product ready for big fleets.
 2. Which pilot company, and which of walk-round checks or maintenance they would want first.
 3. Which fuel card provider the pilot firm uses, and a sample CSV.
 4. How the first paying company should be billed.
-5. What tachographs the pilot firm's lorries have, and which rule set each runs under (for M9; see "Driver hours and tachograph").
+5. A smart tachograph unit and its interface specification to test against (for M9; see "Driver hours and tachograph").
