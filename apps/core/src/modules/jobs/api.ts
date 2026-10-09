@@ -13,10 +13,13 @@ import type {
   VehicleDirectory,
   VehicleNameDirectory,
 } from './application/ports/directories.js';
+import { sendAssignmentNotice } from './application/job-notices.js';
+import type { DriverNotifier } from './application/ports/notices.js';
 import type { NavigationProfileProvisioner } from './application/ports/navigation-profile.js';
 import type { JobRouteEstimator } from './application/ports/route-estimator.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { CachingRouteEstimator } from './infrastructure/caching-route-estimator.js';
+import { PostgresJobNoticeRepository } from './infrastructure/postgres-job-notice-repository.js';
 import { PostgresJobPositionRepository } from './infrastructure/postgres-job-position-repository.js';
 import { PostgresJobRepository } from './infrastructure/postgres-job-repository.js';
 import { registerJobsDriverRoutes, type JobsDriverRouteDeps } from './interface/driver-routes.js';
@@ -31,6 +34,8 @@ export type {
   RouteEstimate,
   RouteUnavailable,
 } from './application/ports/route-estimator.js';
+export { ExpoDriverNotifier, type DriverDevices } from './infrastructure/expo-driver-notifier.js';
+export type { DeliveryReport, DriverMessage, DriverNotifier } from './application/ports/notices.js';
 export type {
   DriverDirectory,
   DriverIdentityDirectory,
@@ -63,6 +68,9 @@ export interface JobsModuleDeps {
   /** Whether a driver may accept a job on its vehicle, by the company's walk-round check settings. Supplied by
    *  composition over `checks`; without it, nothing is held back. Applies to drivers only, never to dispatchers. */
   readonly startGate?: JobStartGate | undefined;
+  /** Pushes a notification to a driver's phones, so they know a job has been assigned. Supplied by composition over
+   *  `identity`'s devices; without it nothing is sent and the office sees "no device". */
+  readonly notifier?: DriverNotifier | undefined;
 }
 
 export interface JobsModule {
@@ -89,6 +97,12 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
   const repo = new PostgresJobRepository(deps.db);
   const positions = new PostgresJobPositionRepository(deps.db);
   const routes = new CachingRouteEstimator(deps.routes, deps.clock);
+  const notices = new PostgresJobNoticeRepository(deps.db);
+  const noticeDeps = {
+    notifier: deps.notifier ?? { notify: () => Promise.resolve({ devices: 0, accepted: 0 }) },
+    notices,
+    clock: deps.clock,
+  };
 
   const routeDeps: JobsRouteDeps = {
     createJob: { repo, ids: deps.ids, clock: deps.clock },
@@ -98,6 +112,9 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
       vehicles: deps.vehicles,
       ids: deps.ids,
       clock: deps.clock,
+      announce: async (job) => {
+        await sendAssignmentNotice(noticeDeps, job);
+      },
     },
     changeStatus: { repo, ids: deps.ids, clock: deps.clock },
     listJobs: { repo },
@@ -105,6 +122,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     getProofOfDelivery: { repo },
     listPositions: { positions },
     listEtas: { repo, positions, routes },
+    notices: { ...noticeDeps, repo },
     report: { repo, drivers: deps.driverIdentities, vehicles: deps.vehicleNames },
     previewRoute: { repo, vehicles: deps.vehicles, routes },
     callerDirectory: deps.callers,
@@ -118,6 +136,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     recordPosition: { repo, positions, clock: deps.clock },
     navigationProfile: { repo, profiles: deps.navigationProfiles },
     identities: deps.driverIdentities,
+    seen: { notices, clock: deps.clock },
     dataScopes: deps.dataScopes,
   };
 

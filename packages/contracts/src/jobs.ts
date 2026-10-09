@@ -272,3 +272,23 @@ export const jobRoutePreviewSchema = z.object({
   durationMin: z.number(),
 });
 export type JobRoutePreviewDto = z.infer<typeof jobRoutePreviewSchema>;
+
+/**
+ * How telling the driver about their job went. `sent`: the push went to at least one of their phones (that is all it
+ * says: it cannot tell whether they read it); `no_device`: the driver has no phone registered for notifications;
+ * `failed`: the push service refused it or could not be reached. `seenAt` is when the driver first opened the job in
+ * the app, which is the better sign that they have it.
+ */
+export const jobNoticeSchema = z.object({
+  jobId: jobIdSchema,
+  driverId: z.string(),
+  result: z.enum(['sent', 'no_device', 'failed']).nullable(),
+  devices: z.number().int().min(0),
+  attempts: z.number().int().min(0),
+  lastAttemptAt: z.iso.datetime().nullable(),
+  seenAt: z.iso.datetime().nullable(),
+});
+export type JobNoticeDto = z.infer<typeof jobNoticeSchema>;
+
+/** `GET /staff/jobs/companies/:companyId/notices`: the notice for each job assigned and not yet accepted. */
+export const listJobNoticesResponseSchema = z.object({ notices: z.array(jobNoticeSchema) });

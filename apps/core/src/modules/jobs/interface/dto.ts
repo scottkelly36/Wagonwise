@@ -1,4 +1,5 @@
 import type { JobReport } from '../application/report-jobs.js';
+import type { JobNotice } from '../application/ports/notices.js';
 import type { Job, JobStop } from '../domain/job.js';
 
 function stopDto(stop: JobStop) {
@@ -73,5 +74,18 @@ export function jobReportDto(report: JobReport) {
         ? {}
         : { averageMinutes: report.summary.averageMinutes }),
     },
+  };
+}
+
+/** How telling a driver about a job went, as it goes over the wire. */
+export function noticeDto(notice: JobNotice) {
+  return {
+    jobId: notice.jobId,
+    driverId: notice.driverId,
+    result: notice.result,
+    devices: notice.devices,
+    attempts: notice.attempts,
+    lastAttemptAt: notice.lastAttemptAt === null ? null : notice.lastAttemptAt.toISOString(),
+    seenAt: notice.seenAt === null ? null : notice.seenAt.toISOString(),
   };
 }

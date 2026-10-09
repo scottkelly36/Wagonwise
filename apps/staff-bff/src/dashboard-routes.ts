@@ -438,6 +438,12 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/jobs/companies/:companyId/etas',
     params: jobCompanyIdParamsSchema,
   },
+  {
+    method: 'GET',
+    path: '/staff/jobs/companies/:companyId/notices',
+    params: jobCompanyIdParamsSchema,
+  },
+  { method: 'POST', path: '/staff/jobs/:id/resend-notice', params: jobIdParamsSchema },
   { method: 'GET', path: '/staff/jobs/:id', params: jobIdParamsSchema },
   {
     method: 'POST',

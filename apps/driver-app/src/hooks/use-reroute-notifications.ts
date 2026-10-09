@@ -2,6 +2,9 @@ import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
 
+import { CURRENT_JOB_KEY } from '../api/use-jobs';
+import { queryClient } from '../api/query-client';
+import { assignedJobIdFrom } from '../lib/job-notification';
 import { newRoutePlanIdFrom } from '../lib/reroute-notification';
 import { useAuthStore } from '../state/auth-store';
 
@@ -41,11 +44,22 @@ export function useRerouteNotifications(): void {
       router.push({ pathname: '/reroute/[id]', params: { id: newRoutePlanId } });
     }
 
+    // A job assigned to the driver: refresh their job straight away, so it is there when they open the app, and
+    // take them to it when they tap the notification.
+    function handleAssigned(data: unknown, opened: boolean): void {
+      if (assignedJobIdFrom(data) === undefined) return;
+      if (useAuthStore.getState().state.status !== 'signedIn') return;
+      void queryClient.invalidateQueries({ queryKey: CURRENT_JOB_KEY });
+      if (opened) router.push('/jobs');
+    }
+
     const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
       handle(newRoutePlanIdFrom(notification.request.content.data));
+      handleAssigned(notification.request.content.data, false);
     });
     const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
       handle(newRoutePlanIdFrom(response.notification.request.content.data));
+      handleAssigned(response.notification.request.content.data, true);
     });
 
     return () => {

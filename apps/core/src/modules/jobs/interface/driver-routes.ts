@@ -27,6 +27,7 @@ import {
   recordJobPosition,
   type RecordJobPositionDeps,
 } from '../application/record-job-position.js';
+import { noteSeen, type NoticeDeps } from '../application/job-notices.js';
 import type { DriverIdentityDirectory } from '../application/ports/directories.js';
 import { jobDto } from './dto.js';
 import { statusFor, type JobsError } from './error-mapping.js';
@@ -38,6 +39,8 @@ export interface JobsDriverRouteDeps {
   readonly recordPosition: RecordJobPositionDeps;
   readonly navigationProfile: GetNavigationProfileDeps;
   readonly identities: DriverIdentityDirectory;
+  /** Notes when the driver first opens a job waiting for them. */
+  readonly seen: Pick<NoticeDeps, 'notices' | 'clock'>;
   /** Row-Level Security scope per request (migration 0030). */
   readonly dataScopes: DataScopes;
 }
@@ -88,6 +91,7 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
   app.get('/jobs/current', (request, reply) =>
     asDriver(request, reply, async (actor) => {
       const job = await getCurrentJob(deps.currentJob, { driverId: actor.driverId });
+      if (job !== null) await noteSeen(deps.seen, job);
       return { status: 200, body: { job: job === null ? null : jobDto(job) } };
     }),
   );

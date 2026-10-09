@@ -304,6 +304,15 @@ second check on top — core alone decides ownership/authorization for those.
 - **Import** (`application/import.ts`): sets next-due dates in bulk by registration and item name, row by row; the CSV is read in the dashboard (`lib/maintenance-import.ts`).
 - To come: text reminders.
 
+## Job notifications
+
+`apps/core/src/modules/jobs`: telling a driver a job is theirs, and letting the office see and repeat it.
+
+- **Sending** (`application/job-notices.ts`): `assignJob` takes an `announce` hook; the module fills it with `sendAssignmentNotice`, which asks a `DriverNotifier` (a port; composition builds `ExpoDriverNotifier` over `identity.getPushTokensForDriver`, or a test passes a fake as `overrides.driverNotifier`) and records the result. It never throws.
+- **Recording** (migration 0053, columns on `jobs.jobs`, read and written by `PostgresJobNoticeRepository`, not through the `Job` aggregate): `notice_result` (`sent`, `no_device`, `failed`), `notice_devices`, `notice_attempts`, `notice_at`, `seen_at`. The first `GET /jobs/current` the driver makes while the job is still `assigned` sets `seen_at`.
+- **Office:** `GET /staff/jobs/companies/:companyId/notices` (anyone in the company) and `POST /staff/jobs/:id/resend-notice` (`dispatch`; refused with 409 once the job is not `assigned`).
+- **Driver app:** `use-reroute-notifications.ts` also handles `data.type === 'job_assigned'` (`lib/job-notification.ts`): refresh the current job, and open the Jobs tab on a tap.
+
 ## Staff BFF
 
 `apps/staff-bff` (P2-M1.9) is the dashboard's back end for staff accounts. It does the same

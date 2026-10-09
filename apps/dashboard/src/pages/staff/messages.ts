@@ -47,6 +47,7 @@ const MESSAGES: Record<string, string> = {
   RepairNotOpen: 'That repair has already been finished or cancelled.',
   InvalidRepair:
     'Pick a due date from today on, or a done date no later than today; notes are 500 characters at most.',
+  NothingToSend: 'That job is no longer waiting for its driver, so there is nothing to send.',
   TooManyRows: 'That is too many rows for one go. Split the file in two.',
   InvalidItemType: 'Check the name, how often it repeats, and the warning period.',
   ItemNotFound: 'That item could not be found.',

@@ -39,7 +39,12 @@ import {
   type TokenSigner,
   type UntypedDb,
 } from '../modules/identity/api.js';
-import { createJobsModule, type UntypedDb as JobsUntypedDb } from '../modules/jobs/api.js';
+import {
+  createJobsModule,
+  ExpoDriverNotifier,
+  type DriverNotifier,
+  type UntypedDb as JobsUntypedDb,
+} from '../modules/jobs/api.js';
 import { createParkingModule, type UntypedDb as ParkingUntypedDb } from '../modules/parking/api.js';
 import { createWeatherModule } from '../modules/weather/api.js';
 import { createBillingModule, type UntypedDb as BillingUntypedDb } from '../modules/billing/api.js';
@@ -87,6 +92,9 @@ export interface CoreOverrides {
    *  as `otpSender` above: a test substitutes a fake here rather than letting a real push reach
    *  Expo's actual endpoint (M6.7's end-to-end reroute test). */
   readonly pushNotifier?: PushNotifier | undefined;
+  /** Defaults to `ExpoDriverNotifier` over identity's registered devices: tells a driver a job was assigned. A test
+   *  substitutes a fake here so no real push can leave. */
+  readonly driverNotifier?: DriverNotifier | undefined;
   /** Defaults to `AnthropicHazardParser`/`NullHazardParser` (per `config.anthropicApiKey`) inside
    *  `createHazardsModule` itself — same reasoning as `pushNotifier` above: a test substitutes a
    *  fake here rather than letting a real call reach Anthropic's actual endpoint (M7.1). */
@@ -331,6 +339,13 @@ export function composeCore(
     startGate: {
       check: (companyId, vehicleId) => checks.jobStartVerdict(companyId, vehicleId),
     },
+    // A driver is pushed a notification when a job is assigned; their phones are identity's registered devices.
+    notifier:
+      overrides.driverNotifier ??
+      new ExpoDriverNotifier(
+        { pushTokensFor: (driverId) => identity.getPushTokensForDriver(driverId) },
+        config.expoAccessToken,
+      ),
     callers: { getCaller: staffCaller },
     drivers: {
       belongsToCompany: (driverId, companyId) => fleet.isActiveDriverOfCompany(driverId, companyId),

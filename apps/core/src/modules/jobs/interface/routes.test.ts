@@ -1,4 +1,8 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import {
+  FakeDriverNotifier,
+  InMemoryNoticeRepository,
+} from '../application/testing/in-memory-notices.js';
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
@@ -81,6 +85,12 @@ function buildApp(): {
     getProofOfDelivery: { repo },
     listPositions: { positions },
     listEtas: { repo, positions, routes: estimator },
+    notices: {
+      repo,
+      notifier: new FakeDriverNotifier(),
+      notices: new InMemoryNoticeRepository(),
+      clock,
+    },
     previewRoute: { repo, vehicles: vehicleDirectory, routes: estimator },
     report: {
       repo,

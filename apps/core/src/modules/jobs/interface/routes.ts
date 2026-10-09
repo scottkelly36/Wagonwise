@@ -19,6 +19,7 @@ import {
   failJob,
   type ChangeJobStatusDeps,
 } from '../application/change-job-status.js';
+import { listNotices, resendNotice, type NoticeDeps } from '../application/job-notices.js';
 import { createJob, type CreateJobDeps } from '../application/create-job.js';
 import {
   getProofOfDelivery,
@@ -31,7 +32,7 @@ import { listJobPositions, type ListJobPositionsDeps } from '../application/list
 import { getJob, listJobs, type GetJobDeps, type ListJobsDeps } from '../application/list-jobs.js';
 import type { Caller, CallerDirectory } from '../application/ports/caller-directory.js';
 import type { JobStop } from '../domain/job.js';
-import { jobDto, jobReportDto } from './dto.js';
+import { jobDto, jobReportDto, noticeDto } from './dto.js';
 import { statusFor } from './error-mapping.js';
 
 export interface JobsRouteDeps {
@@ -43,6 +44,7 @@ export interface JobsRouteDeps {
   readonly getProofOfDelivery: GetProofOfDeliveryDeps;
   readonly listPositions: ListJobPositionsDeps;
   readonly listEtas: ListJobEtasDeps;
+  readonly notices: NoticeDeps & { readonly repo: GetJobDeps['repo'] };
   readonly previewRoute: PreviewJobRouteDeps;
   readonly report: ReportJobsDeps;
   /** Resolves who's calling, for the use cases' own permission checks
@@ -252,6 +254,30 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
             },
           }
         : failure(result.error);
+    }),
+  );
+
+  app.get('/staff/jobs/companies/:companyId/notices', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = jobCompanyIdParamsSchema.safeParse(request.params);
+      if (!params.success) return INVALID;
+      const result = await listNotices(
+        deps.notices,
+        caller,
+        makeId<'CompanyId'>(params.data.companyId),
+      );
+      return result.ok
+        ? { status: 200, body: { notices: result.value.map(noticeDto) } }
+        : failure(result.error);
+    }),
+  );
+
+  app.post('/staff/jobs/:id/resend-notice', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = jobIdParamsSchema.safeParse(request.params);
+      if (!params.success) return INVALID;
+      const result = await resendNotice(deps.notices, caller, makeId<'JobId'>(params.data.id));
+      return result.ok ? { status: 200, body: noticeDto(result.value) } : failure(result.error);
     }),
   );
 

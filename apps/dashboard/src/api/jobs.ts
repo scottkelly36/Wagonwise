@@ -4,7 +4,9 @@ import {
   jobReportRequestSchema,
   jobReportResponseSchema,
   jobSchema,
+  jobNoticeSchema,
   jobRoutePreviewSchema,
+  listJobNoticesResponseSchema,
   listJobEtasResponseSchema,
   listJobPositionsResponseSchema,
   listJobsResponseSchema,
@@ -15,6 +17,7 @@ import {
   type JobReportRequest,
   type JobReportResponse,
   type JobEtaDto,
+  type JobNoticeDto,
   type JobRoutePreviewDto,
   type JobDto,
   type JobPositionDto,
@@ -134,4 +137,25 @@ export async function previewJobRoute(
   });
   throwUnlessSuccess(status, json, [200]);
   return jobRoutePreviewSchema.parse(json);
+}
+
+/** How telling each waiting driver went (a push notification), for jobs assigned and not yet accepted. */
+export async function listJobNotices(
+  accessToken: string,
+  companyId: string,
+): Promise<JobNoticeDto[]> {
+  const { status, json } = await requestJson('GET', `/staff/jobs/companies/${companyId}/notices`, {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return listJobNoticesResponseSchema.parse(json).notices;
+}
+
+/** Sends the driver the notification again. */
+export async function resendJobNotice(accessToken: string, id: string): Promise<JobNoticeDto> {
+  const { status, json } = await requestJson('POST', `/staff/jobs/${id}/resend-notice`, {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return jobNoticeSchema.parse(json);
 }

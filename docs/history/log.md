@@ -3,6 +3,18 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **push notification when a job is assigned, and a resend from the portal.** Migration 0053 (five columns on `jobs.jobs`:
+  how the notice went, to how many phones, how many tries, when, and when the driver first opened the job). Assigning a job now pushes
+  "New job assigned: JOB-1: Hexham depot" to every phone the driver has registered (Expo push, through the new `ExpoDriverNotifier`
+  over identity's registered devices; jobs never reaches into identity). A push that cannot go never undoes the assignment: it is
+  recorded as `no_device` (no phone registered), `failed` (the push service refused or was down) or `sent` (at least one phone
+  accepted it). The Jobs page shows it under the status of each assigned job ("Notified at 09:05 (1 phone), not opened yet", or "No
+  phone registered for notifications"), refreshed every 30 seconds, in amber until the driver opens the job; **Send notification
+  again** (needs `dispatch`) tries once more. "Opened" is when the driver's app first fetches the job. A push being accepted is not proof
+  it was read, so the page says "not opened yet" rather than "delivered". Resend is refused once the driver has accepted. In the
+  driver app a notification refreshes their job straight away, and tapping it opens the Jobs tab (JavaScript only, so over the air once
+  core and the driver BFF are deployed; the BFF needs no change). No text-message fallback: a driver with no phone registered has to open
+  the app once while signed in, which registers it. Deploy core, staff-bff and dashboard together.
 - 2026-10-09: **driving hours: consent and privacy drafted, not built.** `docs/driver-hours-consent.md` sets out what would be shared
   with a driver's company (live status and driving time left, on a job only; no history), the rules the build must follow (off at
   both the firm and the driver, per company; withdraw at any time; no consequence for saying no; latest status only, gone after

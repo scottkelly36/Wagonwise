@@ -13,6 +13,7 @@ import type {
   ProofOfDeliveryRequired,
   VehicleNotInCompany,
 } from '../application/errors.js';
+import type { NothingToSend } from '../application/job-notices.js';
 import type { VehicleUnavailable } from '../application/ports/navigation-profile.js';
 import type { InvalidReference, InvalidStops, InvalidTransition } from '../domain/job.js';
 
@@ -33,7 +34,8 @@ export type JobsError =
   | CheckRequired
   | VehicleNotFit
   | ProofOfDeliveryNotFound
-  | ProofOfDeliveryRequired;
+  | ProofOfDeliveryRequired
+  | NothingToSend;
 
 /** Tag -> HTTP status, in exactly one table (AGENTS.md rule 13), mirroring every other module's
  *  error-mapping.ts. `switch-exhaustiveness-check` means a new domain error tag breaks
@@ -60,6 +62,7 @@ export function statusFor(error: JobsError): number {
     case 'VehicleUnavailable':
     case 'NotTracking':
     case 'ProofOfDeliveryRequired':
+    case 'NothingToSend':
       return 409;
   }
 }

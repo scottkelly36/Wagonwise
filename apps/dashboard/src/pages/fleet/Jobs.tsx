@@ -28,6 +28,7 @@ import {
   stopsProblem,
   type StopDraft,
 } from '../../lib/job-stops';
+import { noticeText } from '../../lib/job-notice';
 import { jobStatusText } from '../../lib/job-text';
 import { staffErrorMessage } from '../staff/messages';
 
@@ -70,6 +71,20 @@ export function Jobs() {
     queryKey: jobsKey,
     queryFn: () => withAccessToken((token) => jobsApi.listJobs(token, companyId as string)),
     enabled: companyId !== undefined,
+  });
+
+  // How telling each waiting driver went. Checked every half minute so the office sees when a driver opens the job.
+  const notices = useQuery({
+    queryKey: ['job-notices', companyId],
+    queryFn: () => withAccessToken((token) => jobsApi.listJobNotices(token, companyId as string)),
+    enabled: companyId !== undefined,
+    refetchInterval: 30_000,
+  });
+  const noticeByJob = new Map((notices.data ?? []).map((n) => [n.jobId as string, n]));
+  const resend = useMutation({
+    mutationFn: (jobId: string) =>
+      withAccessToken((token) => jobsApi.resendJobNotice(token, jobId)),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['job-notices'] }),
   });
 
   const drivers = useQuery({
@@ -305,7 +320,18 @@ export function Jobs() {
       key: 'status',
       header: 'Status',
       sortValue: (j) => jobStatusText(j),
-      cell: (j) => jobStatusText(j),
+      cell: (j) => {
+        if (j.status !== 'assigned') return jobStatusText(j);
+        const notice = noticeText(noticeByJob.get(j.id));
+        return (
+          <div>
+            {jobStatusText(j)}
+            <div style={{ fontSize: 13, color: notice.trouble ? '#b45309' : '#6b7280' }}>
+              {notice.text}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: 'proof',
@@ -437,6 +463,15 @@ export function Jobs() {
                       )}
                     </>
                   )}
+                  {job.status === 'assigned' && (
+                    <button
+                      onClick={() => resend.mutate(job.id)}
+                      disabled={resend.isPending}
+                      style={{ marginRight: 6 }}
+                    >
+                      Send notification again
+                    </button>
+                  )}
                   {!TERMINAL.includes(job.status) && (
                     <button
                       className="btn-danger"
@@ -458,6 +493,7 @@ export function Jobs() {
   ];
 
   const error =
+    resend.error ??
     companies.error ??
     jobs.error ??
     drivers.error ??
