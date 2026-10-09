@@ -3,6 +3,7 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **driving-hours clock on the navigation screen.** A small clock above the report buttons on the trip screen (`components/hours-quick-bar.tsx`) shows what the driver is doing and the driving left (amber under 30 minutes, or an invitation to start when no shift is on). One tap opens four large buttons (Driving, Other work, Break, Rest, plus Finish for now); one tap changes it and closes it. Same store and rules as More > Driving hours; no typing, no leaving the map.
 - 2026-10-09: **arrival times with breaks.** (1) Driver app: the route overview shows "ETA 14:35 with a break" (or "N breaks") for a
   driver whose shift is on and who is leaving now, and says when a rest is needed first (`planForShift` in `lib/break-plan.ts`). (2)
   Portal: the live map's ETA for a driver who shares their hours adds the breaks they will need ("+ a break"), or says the driver needs a
