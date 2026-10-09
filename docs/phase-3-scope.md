@@ -139,6 +139,9 @@ screen in the More tab. Still to build: weekly rest, then status to core and the
 
 ### Privacy and safeguards (both tracks)
 
+The consent wording, the rules for sharing status with a company, the privacy-notice text and the questions for a solicitor are
+drafted in [`driver-hours-consent.md`](driver-hours-consent.md) (a draft for the owner to approve; nothing built).
+
 - This is personal data about working time. It needs the driver's clear consent and a plain answer to "can my employer see this"
   before a driver turns it on; the DPIA and privacy notice are updated first. Whether the office sees status at all is a firm
   setting, off by default, and the driver sees that it is on.
