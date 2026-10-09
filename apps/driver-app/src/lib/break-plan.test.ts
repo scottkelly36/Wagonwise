@@ -1,5 +1,5 @@
 import { hoursStatus, type Activity } from './driver-hours';
-import { parkingBeforeStop, planBreak } from './break-plan';
+import { parkingBeforeStop, planBreak, planForShift } from './break-plan';
 
 const H = 3_600_000;
 const t0 = Date.UTC(2026, 9, 9, 6, 0, 0);
@@ -89,5 +89,24 @@ describe('parkingBeforeStop', () => {
     expect(parkingBeforeStop([spot('far', 0.15, 55.2)], line, start, plan, 120)).toEqual([]);
     const none = { ...plan, kind: 'none' as const, firstStopFraction: null };
     expect(parkingBeforeStop([spot('mid', 0.15)], line, start, none, 120)).toEqual([]);
+  });
+});
+
+describe('planForShift', () => {
+  it('has no plan when no shift is on', () => {
+    expect(planForShift([], { rules: 'assimilated_eu' }, 120, t0)).toBeUndefined();
+    const finished = [driving(0, 1)];
+    expect(planForShift(finished, { rules: 'assimilated_eu' }, 120, t0 + 2 * H)).toBeUndefined();
+  });
+
+  it('puts a break into a route longer than the driving left, and none into a short one', () => {
+    const log = [driving(0)];
+    const at = t0 + 3 * H;
+    const long = planForShift(log, { rules: 'assimilated_eu' }, 180, at);
+    expect(long?.kind).toBe('break');
+    expect(long?.arrivalMs).toBe(at + 180 * 60_000 + 45 * 60_000);
+    const short = planForShift(log, { rules: 'assimilated_eu' }, 60, at);
+    expect(short?.kind).toBe('none');
+    expect(short?.arrivalMs).toBe(at + 60 * 60_000);
   });
 });

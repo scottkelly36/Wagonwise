@@ -24,6 +24,10 @@ export interface HoursStatus {
   /** Whole minutes of driving left before `next`. */
   readonly drivingLeftMin: number;
   readonly next: NextStop;
+  /** Length of a break, the driving allowed between breaks, and the driving left before a rest; absent from an older app. */
+  readonly breakMin?: number | undefined;
+  readonly stretchMin?: number | undefined;
+  readonly untilLimitMin?: number | undefined;
   readonly updatedAt: Date;
 }
 
@@ -41,6 +45,9 @@ export function validateStatus(input: {
   readonly state: string;
   readonly drivingLeftMin: number;
   readonly next: string;
+  readonly breakMin?: number | undefined;
+  readonly stretchMin?: number | undefined;
+  readonly untilLimitMin?: number | undefined;
 }): InvalidStatus | undefined {
   if (!STATES.includes(input.state as HoursState) || !['break', 'limit'].includes(input.next)) {
     return { tag: 'InvalidStatus', reason: 'bad_state' };
@@ -51,6 +58,11 @@ export function validateStatus(input: {
     input.drivingLeftMin > 24 * 60
   ) {
     return { tag: 'InvalidStatus', reason: 'bad_minutes' };
+  }
+  for (const extra of [input.breakMin, input.stretchMin, input.untilLimitMin]) {
+    if (extra !== undefined && (!Number.isInteger(extra) || extra < 0 || extra > 24 * 60)) {
+      return { tag: 'InvalidStatus', reason: 'bad_minutes' };
+    }
   }
   return undefined;
 }

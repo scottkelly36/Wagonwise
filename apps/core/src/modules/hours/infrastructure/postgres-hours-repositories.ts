@@ -72,6 +72,9 @@ interface StatusRow {
   readonly state: HoursStatus['state'];
   readonly driving_left_min: number;
   readonly next: HoursStatus['next'];
+  readonly break_min: number | null;
+  readonly stretch_min: number | null;
+  readonly until_limit_min: number | null;
   readonly updated_at: Date;
 }
 
@@ -80,18 +83,22 @@ export class PostgresStatusRepository implements StatusRepository {
 
   async upsert(status: HoursStatus): Promise<void> {
     await sql`
-      insert into hours.status (company_id, driver_id, state, driving_left_min, next, updated_at)
+      insert into hours.status (company_id, driver_id, state, driving_left_min, next, break_min, stretch_min,
+                                until_limit_min, updated_at)
       values (${status.companyId}, ${status.driverId}, ${status.state}, ${status.drivingLeftMin},
-              ${status.next}, ${status.updatedAt})
+              ${status.next}, ${status.breakMin ?? null}, ${status.stretchMin ?? null},
+              ${status.untilLimitMin ?? null}, ${status.updatedAt})
       on conflict (company_id, driver_id) do update
         set state = excluded.state, driving_left_min = excluded.driving_left_min,
-            next = excluded.next, updated_at = excluded.updated_at
+            next = excluded.next, break_min = excluded.break_min, stretch_min = excluded.stretch_min,
+            until_limit_min = excluded.until_limit_min, updated_at = excluded.updated_at
     `.execute(this.db);
   }
 
   async listForCompany(companyId: CompanyId): Promise<HoursStatus[]> {
     const { rows } = await sql<StatusRow>`
-      select company_id, driver_id, state, driving_left_min, next, updated_at
+      select company_id, driver_id, state, driving_left_min, next, break_min, stretch_min, until_limit_min,
+             updated_at
       from hours.status where company_id = ${companyId} order by updated_at desc
     `.execute(this.db);
     return rows.map((r) => ({
@@ -100,6 +107,9 @@ export class PostgresStatusRepository implements StatusRepository {
       state: r.state,
       drivingLeftMin: r.driving_left_min,
       next: r.next,
+      breakMin: r.break_min ?? undefined,
+      stretchMin: r.stretch_min ?? undefined,
+      untilLimitMin: r.until_limit_min ?? undefined,
       updatedAt: r.updated_at,
     }));
   }

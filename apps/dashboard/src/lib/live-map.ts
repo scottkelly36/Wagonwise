@@ -1,5 +1,7 @@
 import type { JobDto, JobStatus } from '@wagonwise/contracts/jobs';
 
+import type { BreakEffect } from './breaks-in-journey';
+
 /** Jobs the driver is out doing — mirrors core's `TRACKED_STATUSES` (jobs/domain/job.ts), which is
  *  what decides whether a position is accepted and served. */
 const ON_THE_ROAD: readonly JobStatus[] = [
@@ -106,11 +108,22 @@ export function etaText(
   eta: { readonly durationMin: number; readonly fromRecordedAt: string },
   freshness: Freshness,
   now: Date,
+  breaks: BreakEffect = { kind: 'none' },
 ): string {
   const journey = formatDuration(eta.durationMin);
   if (freshness === 'lost') return `${journey} from where they were last seen`;
-  const arrival = new Date(new Date(eta.fromRecordedAt).getTime() + eta.durationMin * 60_000);
-  if (arrival.getTime() <= now.getTime()) return `${journey} journey · due about now`;
+  if (breaks.kind === 'rest') {
+    return `${journey} journey · the driver needs a rest before arriving, so not today`;
+  }
+  const extraMin = breaks.kind === 'breaks' ? breaks.extraMin : 0;
+  const arrival = new Date(
+    new Date(eta.fromRecordedAt).getTime() + (eta.durationMin + extraMin) * 60_000,
+  );
+  const withBreaks =
+    breaks.kind === 'breaks'
+      ? ` + ${breaks.breaks === 1 ? 'a break' : `${breaks.breaks} breaks`}`
+      : '';
+  if (arrival.getTime() <= now.getTime()) return `${journey} journey${withBreaks} · due about now`;
   const clock = arrival.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  return `${journey} journey · around ${clock}`;
+  return `${journey} journey${withBreaks} · around ${clock}`;
 }

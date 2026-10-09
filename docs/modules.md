@@ -327,6 +327,8 @@ second check on top — core alone decides ownership/authorization for those.
 
 ## Driver hours sharing
 
+The shared status also carries optional `breakMin`, `stretchMin` and `untilLimitMin` (migration 0059) so the dashboard's live map can put a sharing driver's breaks into their ETA (`lib/breaks-in-journey.ts`, mirroring the driver app's `planBreak`).
+
 `apps/core/src/modules/hours`: a driver can share their live driving-hours status with a company they drive for. See `driver-hours-consent.md` for the wording and rules.
 
 - **Tables** (migration 0054): `hours.settings` (the firm's switch, off by default), `hours.sharing` (a row while a driver shares with a company, with the wording version agreed to), `hours.status` (the latest status per driver and company).

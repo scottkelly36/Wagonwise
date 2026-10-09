@@ -6,6 +6,7 @@ import * as fleetApi from '../../api/fleet';
 import * as hoursApi from '../../api/hours';
 import * as jobsApi from '../../api/jobs';
 import * as weatherApi from '../../api/weather';
+import { breakEffectFor } from '../../lib/breaks-in-journey';
 import { hoursStatusText, hoursStatusUrgent } from '../../lib/hours-status';
 import { jobHasPickup, jobStatusText } from '../../lib/job-text';
 import { decodePolyline6 } from '../../lib/polyline';
@@ -117,6 +118,7 @@ export function LiveTrips() {
 
   const rows = useMemo(() => {
     const positionByJob = new Map((positions.data ?? []).map((p) => [p.jobId as string, p]));
+    const sharedByDriver = new Map((hoursStatuses.data ?? []).map((s) => [s.driverId, s]));
     return (jobs.data ?? [])
       .filter((job) => isOnTheRoad(job.status))
       .map((job) => {
@@ -132,7 +134,19 @@ export function LiveTrips() {
           seen,
           eta,
           etaLabel:
-            eta !== undefined && seen !== undefined ? etaText(eta, seen.freshness, now) : undefined,
+            eta !== undefined && seen !== undefined
+              ? etaText(
+                  eta,
+                  seen.freshness,
+                  now,
+                  // For a driver sharing their hours: the breaks they will need on the way.
+                  breakEffectFor(
+                    eta.durationMin,
+                    job.driverId === undefined ? undefined : sharedByDriver.get(job.driverId),
+                    now,
+                  ),
+                )
+              : undefined,
           driverName: driver?.driverIdentifier ?? undefined,
           vehicleName: vehicle?.name,
           next,
@@ -142,7 +156,7 @@ export function LiveTrips() {
               : undefined,
         };
       });
-  }, [jobs.data, positions.data, etas.data, drivers.data, vehicles.data, now]);
+  }, [jobs.data, positions.data, etas.data, drivers.data, vehicles.data, hoursStatuses.data, now]);
 
   // The selected vehicle's route to where it is heading, drawn on the map.
   const routeLine = useMemo(() => {
