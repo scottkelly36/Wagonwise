@@ -3,6 +3,11 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **driving hours: consent and privacy drafted, not built.** `docs/driver-hours-consent.md` sets out what would be shared
+  with a driver's company (live status and driving time left, on a job only; no history), the rules the build must follow (off at
+  both the firm and the driver, per company; withdraw at any time; no consequence for saying no; latest status only, gone after
+  12 hours or on withdrawal), the driver and firm wording, text for the privacy notice, DPIA points for the company, and the main
+  question for a solicitor: whether consent is the right basis between an employer and a driver. For the owner to approve first.
 - 2026-10-09: **driving hours, weekly and fortnightly limits (Phase 3 M9, Track A third slice).** Driver app only, JavaScript only
   (over the air). Under the EU/assimilated rules the clock now counts driving this week (a fixed week, Monday 00:00 to Sunday
   24:00 on the phone's clock) against 56 hours, and this and last week against 90 hours (GOV.UK: "56 hours in a week", "90 hours in
