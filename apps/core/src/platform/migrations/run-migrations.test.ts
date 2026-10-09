@@ -87,6 +87,7 @@ describe('runMigrations', () => {
       '0054_driver_hours_sharing.sql',
       '0055_jobs_customer_price.sql',
       '0056_costing_fuel.sql',
+      '0057_costing_inputs.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -250,6 +251,7 @@ describe('runMigrations', () => {
       '0054_driver_hours_sharing.sql',
       '0055_jobs_customer_price.sql',
       '0056_costing_fuel.sql',
+      '0057_costing_inputs.sql',
     ]);
   });
 });

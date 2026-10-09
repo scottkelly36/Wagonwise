@@ -50,6 +50,11 @@ const MESSAGES: Record<string, string> = {
   FirmNotEnabled: 'Your company has not turned this on.',
   NotOnAJob: 'You are not on a job.',
   NotSharing: 'Sharing is switched off.',
+  InvalidRunningCost:
+    'Give it a name (80 characters at most), a monthly amount in pounds and pence, and a month.',
+  InvalidRate:
+    'Enter what the driver costs an hour, in pounds and pence (up to £500), and the day it starts.',
+  DriverNotFound: 'That driver could not be found.',
   NoRows: 'There is nothing in that file to import.',
   InvalidCommercial:
     'Check the customer (120 characters at most) and the price (pounds and pence, up to £1,000,000).',

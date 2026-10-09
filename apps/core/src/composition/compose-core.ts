@@ -317,6 +317,20 @@ export function composeCore(
     clock,
     dataScopes,
     callers: { getCaller: staffCaller },
+    // The firm's drivers, named as staff know them (their sign-in). fleet knows who is active; identity knows the name.
+    drivers: {
+      listForCompany: async (companyId) => {
+        const ids = await fleet.activeDriverIdsOfCompany(companyId);
+        const named = await Promise.all(
+          ids.map(async (id) => ({
+            id: makeId<'DriverId'>(id),
+            name: (await identity.getDriverIdentifier(makeId<'DriverId'>(id))) ?? 'A driver',
+          })),
+        );
+        return named.sort((a, b) => a.name.localeCompare(b.name));
+      },
+      belongsToCompany: (driverId, companyId) => fleet.isActiveDriverOfCompany(driverId, companyId),
+    },
     vehicles: {
       listForCompany: async (companyId) =>
         (await fleet.listCompanyVehicles(companyId)).map((v) => ({

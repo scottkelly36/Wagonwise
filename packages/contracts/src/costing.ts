@@ -98,3 +98,64 @@ export const fuelImportSchema = z.object({
 });
 export type FuelImportDto = z.infer<typeof fuelImportSchema>;
 export const listFuelImportsResponseSchema = z.object({ imports: z.array(fuelImportSchema) });
+
+// ---------------------------------------------------------------------------------------------
+// What a firm tells WagonWise about its own costs, so the cost of a job can be worked out.
+
+const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+/** A cost carried every month from `fromMonth` until `toMonth` (for ever when absent): for one vehicle, or with no vehicle
+ *  for the firm as a whole (an overhead). */
+export const runningCostSchema = z.object({
+  id: z.string(),
+  vehicleId: z.string().optional(),
+  description: z.string(),
+  monthlyPence: z.number().int(),
+  fromMonth: month,
+  toMonth: month.optional(),
+});
+export type RunningCostDto = z.infer<typeof runningCostSchema>;
+export const listRunningCostsResponseSchema = z.object({ costs: z.array(runningCostSchema) });
+
+/** `POST /staff/costing/companies/:companyId/running-costs`. */
+export const addRunningCostRequestSchema = z.object({
+  vehicleId: z.string().min(1).nullable().optional(),
+  description: z.string().min(1).max(80),
+  monthlyPence: z.number().int().min(0).max(100_000_000),
+  fromMonth: month,
+});
+export type AddRunningCostRequest = z.infer<typeof addRunningCostRequestSchema>;
+
+/** `POST /staff/costing/running-costs/:id/change`: from a month on. Earlier months keep what they had. */
+export const changeRunningCostRequestSchema = z.object({
+  description: z.string().min(1).max(80),
+  monthlyPence: z.number().int().min(0).max(100_000_000),
+  fromMonth: month,
+});
+export type ChangeRunningCostRequest = z.infer<typeof changeRunningCostRequestSchema>;
+
+/** `POST /staff/costing/running-costs/:id/stop`: it last applies the month before. */
+export const stopRunningCostRequestSchema = z.object({ fromMonth: month });
+
+export const driverRateSchema = z.object({
+  id: z.string(),
+  hourlyPence: z.number().int(),
+  fromDay: day,
+});
+export const driverRatesSchema = z.object({
+  driverId: z.string(),
+  name: z.string(),
+  /** Newest first. */
+  rates: z.array(driverRateSchema),
+});
+export type DriverRatesDto = z.infer<typeof driverRatesSchema>;
+export const listDriverRatesResponseSchema = z.object({ drivers: z.array(driverRatesSchema) });
+
+/** `PUT /staff/costing/companies/:companyId/driver-rates`: what the driver costs an hour from a day on. */
+export const setDriverRateRequestSchema = z.object({
+  driverId: z.string().min(1),
+  hourlyPence: z.number().int().min(1).max(50_000),
+  fromDay: day,
+});
+export type SetDriverRateRequest = z.infer<typeof setDriverRateRequestSchema>;

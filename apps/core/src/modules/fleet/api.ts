@@ -84,6 +84,7 @@ export interface FleetModule {
   isActiveDriverOfCompany(driverId: string, companyId: string): Promise<boolean>;
   /** The companies the driver is an active member of, with their names. For `hours`, supplied by composition. Reads
    *  in the driver's own data scope, so call it inside the driver's request. */
+  activeDriverIdsOfCompany(companyId: string): Promise<string[]>;
   activeCompaniesOfDriver(
     driverId: string,
     identifier: string,
@@ -176,6 +177,12 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
     },
     isActiveDriverOfCompany(driverId: string, companyId: string): Promise<boolean> {
       return links.isActive(makeId<'CompanyId'>(companyId), makeId<'DriverId'>(driverId));
+    },
+    async activeDriverIdsOfCompany(companyId: string): Promise<string[]> {
+      const all = await links.listForCompany(makeId<'CompanyId'>(companyId));
+      return all.flatMap((l) =>
+        l.status === 'active' && l.driverId !== undefined ? [l.driverId] : [],
+      );
     },
     async activeCompaniesOfDriver(driverId: string, identifier: string) {
       const mine = await links.listForDriver(makeId<'DriverId'>(driverId), identifier);
