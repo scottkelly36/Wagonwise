@@ -46,6 +46,12 @@ const ROWS: readonly MenuRow[] = [
     href: '/companies',
     testID: 'companies-button',
   },
+  {
+    label: 'Driving hours',
+    icon: 'timer-outline',
+    href: '/shift',
+    testID: 'shift-button',
+  },
   { label: 'Feedback', icon: 'message-text-outline', href: '/feedback', testID: 'feedback-button' },
 ];
 

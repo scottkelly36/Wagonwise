@@ -3,6 +3,19 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **driving hours, Track A first slice (Phase 3 M9): a driver-entered clock.** Driver app only, JavaScript only, so it
+  ships over the air once merged and the release label is used. More tab, **Driving hours**: the driver taps Driving, Other work,
+  Break or Rest (and Finish for now), and the screen counts down the driving left before the next break or the day's limit,
+  turning red under 30 minutes. The rules are in `lib/driver-hours.ts`, with the GOV.UK pages they were checked against on
+  2026-10-09: assimilated EU (9 hours a day, 10 allowed twice a week, a break of 45 minutes after 4h 30m driving, also taken as 15
+  then 30, 9 hours' rest starts a new day) and GB domestic (10 hours driving; no break countdown, as the GOV.UK page gives none
+  for goods vehicles). The 15 + 30 split is from the regulation and not that page, so re-read it before relying on it. Time not
+  recorded counts as a rest, so a driver who stops tapping is never told they have time they do not. The app plans on 9 hours
+  unless the driver says a 10-hour day is unused. **Not counted yet:** weekly and fortnightly limits, weekly rest, GB domestic
+  duty time. The record stays on the phone (SecureStore, 15 days, with a Clear button) and nothing is sent to core, so no
+  privacy change is needed yet; that changes with the slice that shows status to the office. `state/shift-store.ts` has a
+  `source: 'manual'` field where a tachograph source will plug in. Next: break planning on the route (parking before the limit,
+  ETA with the break), then status to core and the portal.
 - 2026-10-09: **maintenance, slice 5: import dates from a spreadsheet (Phase 3 M4, so M4 is done).** No migration. On the
   Maintenance page, whoever has `manage_maintenance` picks a CSV: a Registration column then a column per thing tracked (`MOT`,
   `Tail lift`), or rows of Registration / Item / Due date; UK dates (31/01/2027) are read. The dashboard parses the file and shows how
