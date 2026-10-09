@@ -37,7 +37,11 @@ export type SetHoursSharingRequest = z.infer<typeof setHoursSharingRequestSchema
 export const reportHoursStatusRequestSchema = z.object({
   state: hoursStateSchema,
   /** Driving time left before the next break or limit, in whole minutes. */
-  drivingLeftMin: z.number().int().min(0).max(24 * 60),
+  drivingLeftMin: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 60),
   /** Which comes first: a break, or a limit that needs a rest. */
   next: z.enum(['break', 'limit']),
 });
