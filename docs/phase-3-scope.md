@@ -122,6 +122,9 @@ daily and weekly rest. A firm picks which rule set applies to each vehicle.
 - **Why first:** it works for every lorry, old or new, and tests the idea with drivers and exercises routing and parking without
   any Bluetooth.
 
+**Built so far (Track A):** the rules and the clock (`lib/driver-hours.ts`), the shift record on the phone, and the Driving hours
+screen in the More tab. Still to build: break planning on the route, weekly limits, then status to core and the portal.
+
 ### Track B: tachograph source (a connection)
 
 - Smart tachographs have a Bluetooth interface meant for outside apps, but only newer units, only certain data, the driver must

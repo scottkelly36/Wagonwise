@@ -12,6 +12,7 @@ import { useRegisterPushToken } from '../hooks/use-register-push-token';
 import { useRerouteNotifications } from '../hooks/use-reroute-notifications';
 import { useAuthStore } from '../state/auth-store';
 import { useGuidanceStore } from '../state/guidance-store';
+import { useShiftStore } from '../state/shift-store';
 import { useThemeStore } from '../state/theme-store';
 
 export default function RootLayout() {
@@ -19,12 +20,14 @@ export default function RootLayout() {
   const restoreAuth = useAuthStore((s) => s.restore);
   const restoreTheme = useThemeStore((s) => s.restore);
   const restoreGuidance = useGuidanceStore((s) => s.restore);
+  const restoreShift = useShiftStore((s) => s.restore);
 
   useEffect(() => {
     void restoreAuth();
     void restoreTheme();
     void restoreGuidance();
-  }, [restoreAuth, restoreTheme, restoreGuidance]);
+    void restoreShift();
+  }, [restoreAuth, restoreTheme, restoreGuidance, restoreShift]);
 
   useOpportunisticRefresh();
   useHazardQueueFlush();
