@@ -260,6 +260,77 @@ describe('job costs end to end (real RLS, real scopes)', () => {
     });
   });
 
+  it('looks back six months and ahead three, from the same figures', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/staff/costing/companies/${ACME}/outlook?month=2026-11`,
+      ...as(MONEY),
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{
+      history: {
+        month: string;
+        partial: boolean;
+        jobs: number;
+        revenuePence: number;
+        costPence: number;
+        profitPence: number;
+        fuelPence: number;
+      }[];
+      forecast: {
+        basedOn: string[];
+        months: { month: string; revenuePence: number; costPence: number; profitPence: number }[];
+        breakEvenRevenuePence: number;
+      };
+    }>();
+    expect(body.history.map((m) => m.month)).toEqual([
+      '2026-06',
+      '2026-07',
+      '2026-08',
+      '2026-09',
+      '2026-10',
+      '2026-11',
+    ]);
+    expect(body.history.at(-1)).toMatchObject({ month: '2026-11', partial: true, jobs: 0 });
+    // October is the one complete month with jobs; September had fuel but no job.
+    expect(body.history.find((m) => m.month === '2026-10')).toMatchObject({
+      jobs: 2,
+      revenuePence: 60_000,
+      costPence: 133_000,
+      profitPence: -73_000,
+    });
+    expect(body.history.find((m) => m.month === '2026-09')).toMatchObject({
+      jobs: 0,
+      fuelPence: 99_000,
+    });
+    expect(body.forecast.basedOn).toEqual(['2026-10']);
+    expect(body.forecast.months.map((m) => m.month)).toEqual(['2026-12', '2027-01', '2027-02']);
+    expect(body.forecast.months[0]).toMatchObject({
+      revenuePence: 60_000,
+      costPence: 133_000,
+      profitPence: -73_000,
+    });
+    expect(body.forecast.breakEvenRevenuePence).toBe(133_000);
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: `/staff/costing/companies/${ACME}/outlook?month=2026-11`,
+          ...as(MANAGER),
+        })
+      ).statusCode,
+    ).toBe(403);
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: `/staff/costing/companies/${ACME}/outlook?month=bad`,
+          ...as(MONEY),
+        })
+      ).statusCode,
+    ).toBe(400);
+  });
+
   it('is for the money person only, and another company sees nothing of it', async () => {
     expect((await report(MANAGER)).statusCode).toBe(403);
     expect((await report(RIVAL, '2026-10', ACME)).statusCode).toBe(403);

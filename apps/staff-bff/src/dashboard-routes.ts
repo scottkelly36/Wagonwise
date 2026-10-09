@@ -1,6 +1,7 @@
 import {
   addRunningCostRequestSchema,
   jobCostsQuerySchema,
+  outlookQuerySchema,
   changeRunningCostRequestSchema,
   setDriverRateRequestSchema,
   stopRunningCostRequestSchema,
@@ -325,6 +326,13 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/costing/companies/:companyId/job-costs',
     params: costingCompanyParamsSchema,
     query: jobCostsQuerySchema,
+  },
+  // The last six months and a look ahead (manage_billing; core decides).
+  {
+    method: 'GET',
+    path: '/staff/costing/companies/:companyId/outlook',
+    params: costingCompanyParamsSchema,
+    query: outlookQuerySchema,
   },
   // Running costs and what drivers cost an hour (manage_billing; core decides).
   {

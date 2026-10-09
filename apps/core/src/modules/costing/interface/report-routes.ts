@@ -1,4 +1,8 @@
-import { costingCompanyParamsSchema, jobCostsQuerySchema } from '@wagonwise/contracts/costing';
+import {
+  costingCompanyParamsSchema,
+  jobCostsQuerySchema,
+  outlookQuerySchema,
+} from '@wagonwise/contracts/costing';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId } from '../../../shared/brand.js';
 import type { DataScope, DataScopes } from '../../../shared/ports/data-scope.js';
@@ -8,6 +12,7 @@ import {
   type InvalidMonth,
   type JobCostReportDeps,
 } from '../application/job-cost-report.js';
+import { outlook } from '../application/outlook.js';
 import type { CallerDirectory, StaffCaller } from '../application/ports.js';
 
 export interface CostingReportRouteDeps {
@@ -55,6 +60,23 @@ export function registerCostingReportRoutes(
     const body = outcome.status >= 400 ? { ...outcome.body, requestId: request.id } : outcome.body;
     return reply.status(outcome.status).send(body);
   }
+
+  // The last six months and a three-month look ahead. Needs `manage_billing`, like the report it is built from.
+  app.get('/staff/costing/companies/:companyId/outlook', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = costingCompanyParamsSchema.safeParse(request.params);
+      const query = outlookQuerySchema.safeParse(request.query);
+      if (!params.success || !query.success) return INVALID;
+      const result = await outlook(
+        deps.report,
+        caller,
+        makeId<'CompanyId'>(params.data.companyId),
+        query.data.month,
+      );
+      if (!result.ok) return failure(result.error);
+      return { status: 200, body: result.value };
+    }),
+  );
 
   app.get('/staff/costing/companies/:companyId/job-costs', (request, reply) =>
     asStaff(request, reply, async (caller) => {
