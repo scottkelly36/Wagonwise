@@ -3,6 +3,13 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **maintenance, slice 5: import dates from a spreadsheet (Phase 3 M4, so M4 is done).** No migration. On the
+  Maintenance page, whoever has `manage_maintenance` picks a CSV: a Registration column then a column per thing tracked (`MOT`,
+  `Tail lift`), or rows of Registration / Item / Due date; UK dates (31/01/2027) are read. The dashboard parses the file and shows how
+  many dates it read; on confirming, core matches vehicles by registration (spaces and case ignored) and items by name and sets
+  each date (`POST /staff/maintenance/companies/:companyId/import`, up to 500 rows a go; bigger files go in chunks). Every row
+  stands alone: a row that cannot go in (unknown or duplicated registration, unknown item, item not for that vehicle, unreadable date)
+  is listed, the rest still go in, and sending the file again is harmless. Another company's registrations are never found.
 - 2026-10-09: **maintenance, slice 4: defects into repair tasks (Phase 3 M4).** Migration 0052 (`maintenance.repairs`, one open
   repair per defect, company-scoped by Row-Level Security). Whoever has `manage_maintenance` books a repair for a defect from the
   Defects page, with a due date (today or later); that marks the defect seen. On the Maintenance page's new **Repairs** tab they

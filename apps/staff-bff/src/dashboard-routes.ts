@@ -2,6 +2,7 @@ import {
   createItemTypeRequestSchema,
   itemTypeBodySchema,
   bookRepairRequestSchema,
+  importDatesRequestSchema,
   completeRepairRequestSchema,
   maintenanceCompanyParamsSchema,
   maintenanceItemParamsSchema,
@@ -262,6 +263,12 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/maintenance/vehicles/:vehicleId/items/:itemId/done',
     params: maintenanceVehicleItemParamsSchema,
     body: markDoneRequestSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/maintenance/companies/:companyId/import',
+    params: maintenanceCompanyParamsSchema,
+    body: importDatesRequestSchema,
   },
   // Repairs: a defect a driver found, booked for fixing, then done (which can mark the defect fixed).
   {

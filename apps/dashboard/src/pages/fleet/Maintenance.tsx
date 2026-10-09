@@ -10,6 +10,7 @@ import * as fleetApi from '../../api/fleet';
 import * as maintenanceApi from '../../api/maintenance';
 import { CompanySelect } from '../../components/CompanySelect';
 import { DataTable, type Column } from '../../components/DataTable';
+import { ImportDates } from '../../components/ImportDates';
 import { MyReminders } from '../../components/MyReminders';
 import { Repairs } from '../../components/Repairs';
 import { VehicleMaintenance } from '../../components/VehicleMaintenance';
@@ -91,6 +92,7 @@ function Due({ companyId, canManage }: { companyId: string; canManage: boolean }
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
   const [filter, setFilter] = useState<Filter>('needs');
   const [openVehicle, setOpenVehicle] = useState<string | undefined>(undefined);
+  const [importing, setImporting] = useState(false);
 
   const rows = useQuery({
     queryKey: ['maintenance-overview', companyId],
@@ -134,6 +136,17 @@ function Due({ companyId, canManage }: { companyId: string; canManage: boolean }
 
   return (
     <>
+      {canManage && (
+        <div style={{ marginBottom: 12 }}>
+          {importing ? (
+            <ImportDates companyId={companyId} onClose={() => setImporting(false)} />
+          ) : (
+            <button type="button" onClick={() => setImporting(true)}>
+              Import dates from a spreadsheet
+            </button>
+          )}
+        </div>
+      )}
       <label style={{ display: 'block', marginBottom: 12 }}>
         Show{' '}
         <select value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
