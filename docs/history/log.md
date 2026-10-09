@@ -3,6 +3,7 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **GitHub Actions minutes.** The free allowance ran out (about 1,500 minutes used in a week). CI now runs on pull requests only (not again on main after a merge) and can be run by hand; the driver app release workflow no longer waits on a CI run on main, and runs only when a pull request carrying the `release` label merges or is labelled after merging, checking that pull request own CI run. Pull requests that do not carry the label skip the release job, so cost nothing.
 - 2026-10-09: **app usage page for WagonWise admin.** New **App usage** page (Customers, WagonWise staff only) and
   `GET /staff/usage`, from a read-only core module `usage` (no table of its own; one SQL read-model adapter). It shows drivers and
   office staff by when they last used the app (last day, week, month, never signed in), firms and how many were used this week,

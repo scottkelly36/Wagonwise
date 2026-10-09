@@ -3,8 +3,8 @@ name: Driver app release
 # Merging to main never releases the driver app by itself. Adding the `release` label to a pull request
 # publishes the driver app to production:
 #
-#   - labelled before it merges: releases when it merges, once CI has passed on main
-#   - labelled after it merged:  releases main as it is now (once CI has passed on main)
+#   - labelled before it merges: releases when it merges, if CI passed on the pull request
+#   - labelled after it merged:  releases main as it is now, if CI passed on that pull request
 #
 # "Release" always means "publish main as it is now", never an older commit, which could undo a newer
 # over-the-air update. What goes out is everything on main since the last release (the
@@ -24,13 +24,10 @@ name: Driver app release
 # Secrets needed (see docs/deployment-guide.md, "Automated app releases"):
 #   EXPO_TOKEN                        an Expo access token
 #   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON  the Google Play service account key (the whole JSON)
+# It no longer waits for a CI run on main (there is none; see ci.yml): it checks the pull request's own CI run.
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
   pull_request:
-    types: [labeled]
+    types: [labeled, closed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -52,16 +49,20 @@ concurrency:
 env:
   # What to release: the commit CI just passed (the labelled pull request merging), main's tip (the
   # label added to a pull request that had already merged), or the commit a manual run started on.
-  RELEASE_REF: ${{ github.event.workflow_run.head_sha || (github.event_name == 'pull_request' && 'main') || github.sha }}
-  TRIGGER: ${{ github.event_name == 'workflow_run' && 'merge' || github.event_name == 'pull_request' && 'label' || 'manual' }}
+  RELEASE_REF: ${{ (github.event_name == 'pull_request' && 'main') || github.sha }}
+  TRIGGER: ${{ github.event_name == 'pull_request' && 'label' || 'manual' }}
+  # The commit whose CI run must have passed: the pull request's last commit.
+  CI_SHA: ${{ github.event.pull_request.head.sha }}
 
 jobs:
   decide:
-    # CI must have passed on the merge, and only the release label on a merged pull request counts.
+    # Only the release label on a merged pull request counts: the label being added to one that has merged, or one that
+    # carries it being merged. Any other pull request closing skips this job, so it costs no minutes.
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.label.name == 'release')
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true &&
+        ((github.event.action == 'labeled' && github.event.label.name == 'release') ||
+         (github.event.action == 'closed' && contains(github.event.pull_request.labels.*.name, 'release'))))
     runs-on: ubuntu-latest
     outputs:
       kind: ${{ steps.decide.outputs.kind }}
