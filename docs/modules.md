@@ -313,6 +313,16 @@ second check on top — core alone decides ownership/authorization for those.
 - **Office:** `GET /staff/jobs/companies/:companyId/notices` (anyone in the company) and `POST /staff/jobs/:id/resend-notice` (`dispatch`; refused with 409 once the job is not `assigned`).
 - **Driver app:** `use-reroute-notifications.ts` also handles `data.type === 'job_assigned'` (`lib/job-notification.ts`): refresh the current job, and open the Jobs tab on a tap.
 
+## Driver hours sharing
+
+`apps/core/src/modules/hours`: a driver can share their live driving-hours status with a company they drive for. See `driver-hours-consent.md` for the wording and rules.
+
+- **Tables** (migration 0054): `hours.settings` (the firm's switch, off by default), `hours.sharing` (a row while a driver shares with a company, with the wording version agreed to), `hours.status` (the latest status per driver and company).
+- **The rule** (`application/hours.ts`): `reportStatus` stores nothing unless the driver is on a job (`ActiveJobs`, over `jobs`), the firm's switch is on and the driver is sharing; the company is the job's, never the phone's. `listStatuses` shows only sharing drivers who are on a job now and updated within 12 hours, and nothing at all when the firm's switch is off.
+- **Removal:** stopping removes that company's status; the firm switching off removes the company's; finishing a shift (`DELETE /hours/status`) removes the driver's; account deletion removes it all (`eraseDriverData`, in the identity eraser); the hourly `prune-hours-status` task deletes anything 12 hours old.
+- **Routes:** staff `GET/PUT /staff/hours/companies/:companyId/settings` (read: company staff; change: `manage_fleet`), `GET /staff/hours/companies/:companyId/status`; driver `GET /hours/sharing`, `PUT /hours/sharing/:companyId`, `PUT /hours/status`, `DELETE /hours/status`.
+- **Driver app:** `state/hours-sharing-store.ts`, `hooks/use-share-hours.ts` (sends on change and every minute), `lib/hours-share.ts` (the payload and the consent wording), the Share section of the Driving hours screen, and a chip on the trip screen.
+
 ## Staff BFF
 
 `apps/staff-bff` (P2-M1.9) is the dashboard's back end for staff accounts. It does the same

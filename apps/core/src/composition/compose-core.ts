@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
 import { createChecksModule, type UntypedDb as ChecksUntypedDb } from '../modules/checks/api.js';
+import { createHoursModule, type UntypedDb as HoursUntypedDb } from '../modules/hours/api.js';
 import {
   createMaintenanceModule,
   type UntypedDb as MaintenanceUntypedDb,
@@ -188,6 +189,7 @@ export function composeCore(
         await feedback.eraseDriverData(driverId);
         await fleet.eraseDriverData(driverId, identifier);
         await places.eraseDriverData(driverId);
+        await hours.eraseDriverData(driverId);
       },
     },
   });
@@ -204,6 +206,7 @@ export function composeCore(
   const billingDb: BillingUntypedDb = identityDb;
   const checksDb: ChecksUntypedDb = identityDb;
   const maintenanceDb: MaintenanceUntypedDb = identityDb;
+  const hoursDb: HoursUntypedDb = identityDb;
   const fleetDb: FleetUntypedDb = identityDb;
   const jobsDb: JobsUntypedDb = identityDb;
 
@@ -279,6 +282,31 @@ export function composeCore(
     },
     callers: { getCaller: staffCaller },
     driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+  });
+  // A driver can share their live driving-hours status with a company: off until the firm and the driver both choose.
+  const hours = createHoursModule({
+    db: hoursDb,
+    clock,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+    driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+    // The companies a driver is an active member of, and who is on a job now; composition is where fleet and jobs
+    // meet hours (AGENTS.md rule 7). `jobs` is built just below, so these are read only when called.
+    driverCompanies: {
+      activeCompanies: async (driverId, identifier) =>
+        (await fleet.activeCompaniesOfDriver(driverId, identifier)).map((c) => ({
+          id: makeId<'CompanyId'>(c.id),
+          name: c.name,
+        })),
+    },
+    activeJobs: {
+      companyOfActiveJob: async (driverId) => {
+        const company = await jobs.activeCompanyFor(driverId);
+        return company === null ? null : makeId<'CompanyId'>(company);
+      },
+      driversOnJobs: async (companyId) =>
+        (await jobs.activeDriverIds(companyId)).map((id) => makeId<'DriverId'>(id)),
+    },
   });
   const maintenance = createMaintenanceModule({
     db: maintenanceDb,
@@ -493,6 +521,16 @@ export function composeCore(
   });
 
   periodicTasks.start({
+    name: 'prune-hours-status',
+    intervalMs: config.positionSweepIntervalMs,
+    run: async () => {
+      // A shared driving-hours status is only the latest; one not updated for 12 hours is deleted.
+      const removed = await hours.pruneStaleStatuses();
+      if (removed > 0) app.log.info({ removed }, 'deleted stale driving-hours statuses');
+    },
+  });
+
+  periodicTasks.start({
     name: 'prune-checks',
     intervalMs: config.positionSweepIntervalMs,
     run: async () => {
@@ -550,6 +588,7 @@ export function composeCore(
   billing.registerRoutes(app);
   checks.registerRoutes(app);
   maintenance.registerRoutes(app);
+  hours.registerRoutes(app);
   weather.registerRoutes(app);
 
   return {

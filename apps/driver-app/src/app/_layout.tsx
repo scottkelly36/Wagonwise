@@ -9,6 +9,7 @@ import { useCheckQueueFlush } from '../hooks/use-check-queue-flush';
 import { useProofOfDeliveryQueueFlush } from '../hooks/use-proof-of-delivery-queue-flush';
 import { useOpportunisticRefresh } from '../hooks/use-opportunistic-refresh';
 import { useRegisterPushToken } from '../hooks/use-register-push-token';
+import { useShareHours } from '../hooks/use-share-hours';
 import { useRerouteNotifications } from '../hooks/use-reroute-notifications';
 import { useAuthStore } from '../state/auth-store';
 import { useGuidanceStore } from '../state/guidance-store';
@@ -33,6 +34,7 @@ export default function RootLayout() {
   useHazardQueueFlush();
   useProofOfDeliveryQueueFlush();
   useCheckQueueFlush();
+  useShareHours();
   useRegisterPushToken();
   useRerouteNotifications();
 

@@ -3,6 +3,18 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **driving hours: sharing a driver's status with their company (Phase 3 M9, built to `driver-hours-consent.md`, approved by
+  the owner).** Migration 0054 (`hours.settings`, `hours.sharing`, `hours.status`, all under Row-Level Security; a driver may read the
+  firm's switch only for a company they are an active member of). New core module `hours`. **Two switches, both off by default:** a
+  manager (`manage_fleet`) switches it on for the firm (Checks page), and each driver chooses per company in Driving hours, shown the
+  agreed wording first (the version they agreed to is stored). The app sends the driver's status (driving, other work or on a break, and
+  whole minutes of driving left before a break or limit) when it changes and once a minute; **core decides the company** (the one the
+  driver's job is for) and stores nothing unless the driver is on a job, the firm has it on and the driver is sharing. Only the latest
+  status is kept (replaced on each update). The live map shows "Driving, about 1h 20m of driving left before a break" for sharing
+  drivers on a job, in red under 30 minutes. Stopping sharing, finishing a shift, the firm switching it off, or deleting the account
+  removes the status at once; an old one is hidden when the job ends and deleted after 12 hours by the hourly clean-up. The driver sees a
+  "Sharing your driving status with X" chip on the Driving hours and trip screens. The driver BFF forwards four routes and the staff BFF
+  three. No SMS or history. Deploy core, driver-bff, staff-bff and dashboard together; the app change goes out over the air.
 - 2026-10-09: **push notification when a job is assigned, and a resend from the portal.** Migration 0053 (five columns on `jobs.jobs`:
   how the notice went, to how many phones, how many tries, when, and when the driver first opened the job). Assigning a job now pushes
   "New job assigned: JOB-1: Hexham depot" to every phone the driver has registered (Expo push, through the new `ExpoDriverNotifier`

@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
+import * as hoursApi from '../../api/hours';
 import * as jobsApi from '../../api/jobs';
 import * as weatherApi from '../../api/weather';
+import { hoursStatusText, hoursStatusUrgent } from '../../lib/hours-status';
 import { jobHasPickup, jobStatusText } from '../../lib/job-text';
 import { decodePolyline6 } from '../../lib/polyline';
 import { FleetMap, type MapMarker } from '../../components/FleetMap';
@@ -100,6 +102,16 @@ export function LiveTrips() {
     const timer = setInterval(() => setNow(new Date()), 15_000);
     return () => clearInterval(timer);
   }, []);
+
+  // Drivers' hours status, for those who chose to share and whose firm has it on (core shows nothing otherwise).
+  const hoursStatuses = useQuery({
+    queryKey: ['hours-status', companyId],
+    queryFn: () =>
+      withAccessToken((token) => hoursApi.listHoursStatuses(token, companyId as string)),
+    enabled: companyId !== undefined,
+    refetchInterval: 60_000,
+  });
+  const hoursByDriver = new Map((hoursStatuses.data ?? []).map((s) => [s.driverId, s]));
 
   const [selectedJobId, setSelectedJobId] = useState<string | undefined>(undefined);
 
@@ -269,6 +281,24 @@ export function LiveTrips() {
                         </div>
                       )}
                       {row.etaLabel && <div>{row.etaLabel}</div>}
+                      {(() => {
+                        const shared =
+                          row.job.driverId === undefined
+                            ? undefined
+                            : hoursByDriver.get(row.job.driverId);
+                        if (shared === undefined) return null;
+                        const ageMin = Math.max(
+                          0,
+                          Math.round(
+                            (now.getTime() - new Date(shared.updatedAt).getTime()) / 60_000,
+                          ),
+                        );
+                        return (
+                          <div style={{ color: hoursStatusUrgent(shared) ? '#dc2626' : '#6b7280' }}>
+                            {hoursStatusText(shared, ageMin)}
+                          </div>
+                        );
+                      })()}
                       <div
                         style={{
                           color: row.seen ? COLOURS[row.seen.freshness] : '#6b7280',

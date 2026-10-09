@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { HoursSharingChip } from '../components/hours-sharing-chip';
 import { Icon, type IconName } from '../components/ui/icon';
 import { ScreenHeader } from '../components/ui/screen-header';
 import {
@@ -11,7 +12,9 @@ import {
   type HoursStatus,
   type RuleSet,
 } from '../lib/driver-hours';
+import { consentText } from '../lib/hours-share';
 import { currentActivity } from '../lib/shift-log';
+import { useHoursSharingStore } from '../state/hours-sharing-store';
 import { useShiftStore } from '../state/shift-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle, radius } from '../theme/tokens';
@@ -53,6 +56,29 @@ export default function ShiftScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { log, rules, extensionsLeft, record, setRules, setExtensionsLeft, clear } =
     useShiftStore();
+
+  const companies = useHoursSharingStore((s) => s.companies);
+  const refreshSharing = useHoursSharingStore((s) => s.refresh);
+  const setSharing = useHoursSharingStore((s) => s.setSharing);
+  const [shareError, setShareError] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    void refreshSharing();
+  }, [refreshSharing]);
+  // Offered only where the company has switched it on. Agreeing shows the wording first; stopping needs no question.
+  const offered = companies.filter((c) => c.firmEnabled || c.sharing);
+  const changeSharing = (companyId: string, sharing: boolean): void => {
+    setShareError(undefined);
+    setSharing(companyId, sharing).catch(() =>
+      setShareError("Couldn't change that. Check your connection and try again."),
+    );
+  };
+  const askToShare = (companyId: string, companyName: string): void => {
+    const text = consentText(companyName);
+    Alert.alert(text.title, text.body, [
+      { text: 'No thanks', style: 'cancel' },
+      { text: `Share with ${companyName}`, onPress: () => changeSharing(companyId, true) },
+    ]);
+  };
 
   // Re-read the clock every 30 seconds so the countdown moves while the screen is open.
   const [now, setNow] = useState(clockNow);
@@ -147,6 +173,35 @@ export default function ShiftScreen() {
         >
           <Text style={styles.finishText}>Finish for now</Text>
         </TouchableOpacity>
+
+        {offered.length > 0 && (
+          <>
+            <Text style={styles.label}>Share with your company</Text>
+            <HoursSharingChip />
+            {offered.map((c) => (
+              <View key={c.companyId} style={styles.option} testID={`share-${c.companyId}`}>
+                <Text style={styles.optionText}>
+                  {c.sharing
+                    ? `Sharing with ${c.companyName}`
+                    : `${c.companyName} can show your driving status on their live map if you choose to share it.`}
+                </Text>
+                <TouchableOpacity
+                  style={styles.finish}
+                  onPress={() =>
+                    c.sharing
+                      ? changeSharing(c.companyId, false)
+                      : askToShare(c.companyId, c.companyName)
+                  }
+                  accessibilityRole="button"
+                  testID={`share-toggle-${c.companyId}`}
+                >
+                  <Text style={styles.finishText}>{c.sharing ? 'Stop sharing' : 'Share…'}</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            {shareError !== undefined && <Text style={styles.note}>{shareError}</Text>}
+          </>
+        )}
 
         <Text style={styles.label}>Which rules?</Text>
         {(Object.keys(RULE_TEXT) as RuleSet[]).map((r) => (
