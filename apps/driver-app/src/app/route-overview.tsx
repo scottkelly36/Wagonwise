@@ -15,6 +15,7 @@ import { useStartTrip } from '../api/use-active-trip';
 import { useNearbyHazards } from '../api/use-hazards';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
+import { planForShift } from '../lib/break-plan';
 import { computeEta } from '../lib/eta';
 import { routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
@@ -22,6 +23,7 @@ import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { useShiftStore } from '../state/shift-store';
 import { Icon } from '../components/ui/icon';
 import { RoundButton } from '../components/ui/round-button';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
@@ -31,6 +33,8 @@ import { cardStyle, radius } from '../theme/tokens';
 // own on-route hazard query — wider than a routing-avoidance check (30m, design doc §5), since
 // this is just an on-map warning icon, not a decision to reroute around.
 const ON_ROUTE_HAZARD_RADIUS_M = 750;
+
+const clockNow = (): number => Date.now();
 
 export default function RouteOverviewScreen() {
   const router = useRouter();
@@ -75,6 +79,28 @@ export default function RouteOverviewScreen() {
   }, [plan, nearbyHazardsData]);
 
   const eta = plan ? computeEta(leaveAt ?? new Date(), plan.durationMin) : undefined;
+
+  // For a driver using the driving-hours clock who is leaving now: the arrival with the breaks they will need on the way.
+  // Not offered for a later departure, since their hours by then are not known.
+  const shiftLog = useShiftStore((s) => s.log);
+  const shiftRules = useShiftStore((s) => s.rules);
+  const shiftExtensions = useShiftStore((s) => s.extensionsLeft);
+  const breakPlan = useMemo(
+    () =>
+      plan && leaveAt === undefined
+        ? planForShift(
+            shiftLog,
+            { rules: shiftRules, extensionsLeft: shiftExtensions },
+            plan.durationMin,
+            clockNow(),
+          )
+        : undefined,
+    [plan, leaveAt, shiftLog, shiftRules, shiftExtensions],
+  );
+  const arrival =
+    breakPlan?.kind === 'break' && breakPlan.arrivalMs !== null
+      ? new Date(breakPlan.arrivalMs)
+      : eta;
 
   function handleTimeChange(event: DateTimePickerEvent, selected?: Date): void {
     // Android's picker is a self-dismissing dialog; iOS's spinner stays open until the
@@ -146,7 +172,12 @@ export default function RouteOverviewScreen() {
         </Text>
 
         <View style={styles.etaRow}>
-          <Text style={styles.eta}>ETA {eta ? formatTime(eta) : '—'}</Text>
+          <Text style={styles.eta}>
+            ETA {arrival ? formatTime(arrival) : '—'}
+            {breakPlan?.kind === 'break'
+              ? ` with ${breakPlan.breaks === 1 ? 'a break' : `${breakPlan.breaks} breaks`}`
+              : ''}
+          </Text>
           <TouchableOpacity onPress={() => setShowPicker(true)} testID="change-departure-button">
             <Text style={styles.etaChangeLink}>
               {leaveAt ? `Leaving ${formatTime(leaveAt)} · change` : 'Leaving now · change'}
@@ -158,6 +189,12 @@ export default function RouteOverviewScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {breakPlan?.kind === 'limit' && (
+          <Text style={styles.etaChangeLink} testID="route-needs-rest">
+            You would run out of driving time before arriving: a rest is needed on the way.
+          </Text>
+        )}
 
         {showPicker && (
           <View style={styles.pickerWrap}>

@@ -140,7 +140,14 @@ export async function setMySharing(
 export async function reportStatus(
   deps: HoursDeps,
   driverId: DriverId,
-  input: { readonly state: string; readonly drivingLeftMin: number; readonly next: string },
+  input: {
+    readonly state: string;
+    readonly drivingLeftMin: number;
+    readonly next: string;
+    readonly breakMin?: number | undefined;
+    readonly stretchMin?: number | undefined;
+    readonly untilLimitMin?: number | undefined;
+  },
 ): Promise<Result<void, InvalidStatus | NotOnAJob | NotSharing>> {
   const bad = validateStatus(input);
   if (bad !== undefined) return err(bad);
@@ -154,6 +161,9 @@ export async function reportStatus(
     state: input.state as HoursStatus['state'],
     drivingLeftMin: input.drivingLeftMin,
     next: input.next as HoursStatus['next'],
+    breakMin: input.breakMin,
+    stretchMin: input.stretchMin,
+    untilLimitMin: input.untilLimitMin,
     updatedAt: deps.clock.now(),
   });
   return ok(undefined);

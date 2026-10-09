@@ -20,6 +20,9 @@ describe('statusToShare', () => {
       state: 'driving',
       drivingLeftMin: 89,
       next: 'break',
+      breakMin: 45,
+      stretchMin: 270,
+      untilLimitMin: expect.any(Number),
     });
   });
 
@@ -43,6 +46,24 @@ describe('statusToShare', () => {
     ];
     const status = statusToShare(log, options, t0 + 9.5 * H);
     expect(status?.next).toBe('limit');
+  });
+});
+
+describe('the break figures', () => {
+  it('give the rule’s break and stretch, and the driving left before a rest', () => {
+    const log: Activity[] = [{ kind: 'driving', start: t0 }];
+    const shared = statusToShare(log, options, t0 + 3 * H);
+    expect(shared?.breakMin).toBe(45);
+    expect(shared?.stretchMin).toBe(270);
+    // A 9 hour day with 3 hours driven leaves 6 hours.
+    expect(shared?.untilLimitMin).toBe(360);
+  });
+
+  it('say there is no break rule where the rule set has none', () => {
+    const log: Activity[] = [{ kind: 'driving', start: t0 }];
+    const shared = statusToShare(log, { rules: 'gb_domestic' }, t0 + 3 * H);
+    expect(shared?.breakMin).toBe(0);
+    expect(shared?.stretchMin).toBe(0);
   });
 });
 
