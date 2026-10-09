@@ -4,6 +4,7 @@ import {
   itemTypeSchema,
   listItemTypesResponseSchema,
   markDoneRequestSchema,
+  myRemindersSchema,
   overviewResponseSchema,
   scheduleSchema,
   setDueRequestSchema,
@@ -14,6 +15,7 @@ import {
   type ItemTypeDto,
   type MarkDoneRequest,
   type OverviewRowDto,
+  type ReminderChannel,
   type ScheduleDto,
   type VehicleMaintenanceResponse,
 } from '@wagonwise/contracts/maintenance';
@@ -138,4 +140,26 @@ export async function markDone(
   );
   throwUnlessSuccess(status, json, [200]);
   return scheduleSchema.parse(json);
+}
+
+/** How the signed-in person is reminded: an email each morning (until they choose otherwise), or only in the portal. */
+export async function getMyReminders(accessToken: string): Promise<ReminderChannel> {
+  const { status, json } = await requestJson('GET', '/staff/maintenance/my-reminders', {
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return myRemindersSchema.parse(json).channel;
+}
+
+export async function setMyReminders(
+  accessToken: string,
+  channel: ReminderChannel,
+): Promise<ReminderChannel> {
+  const body = myRemindersSchema.parse({ channel });
+  const { status, json } = await requestJson('PUT', '/staff/maintenance/my-reminders', {
+    body,
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return myRemindersSchema.parse(json).channel;
 }

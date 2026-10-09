@@ -6,6 +6,7 @@ import {
   maintenanceVehicleItemParamsSchema,
   maintenanceVehicleParamsSchema,
   markDoneRequestSchema,
+  myRemindersSchema,
   setDueRequestSchema,
 } from '@wagonwise/contracts/maintenance';
 import {
@@ -208,6 +209,14 @@ const FORWARDS: readonly Forward[] = [
     body: stopCostRequestSchema,
   },
   { method: 'DELETE', path: '/staff/billing/costs/:id', params: costIdParamsSchema },
+  // How the signed-in person who books vehicles in is reminded: email each morning, or only in the portal.
+  { method: 'GET', path: '/staff/maintenance/my-reminders', params: noParams },
+  {
+    method: 'PUT',
+    path: '/staff/maintenance/my-reminders',
+    params: noParams,
+    body: myRemindersSchema,
+  },
   // Fleet maintenance: what a company tracks, and when each item is next due on each vehicle. Core decides who may.
   { method: 'GET', path: '/staff/maintenance/starter', params: noParams },
   {

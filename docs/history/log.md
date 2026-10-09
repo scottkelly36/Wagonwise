@@ -3,6 +3,19 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **maintenance, slice 3: the morning reminder (Phase 3 M4).** Migration 0051 (`maintenance.reminder_preferences`,
+  `reminder_log`). Each person with `manage_maintenance` is emailed once a day, from 7am UK time, when something is overdue or due
+  soon in their company: overdue first, then due soon, each with the vehicle and registration and how late or soon, and a link to
+  the Maintenance page (when `DASHBOARD_URL` is set). Nothing is sent on a quiet day, and an item with no date is not a reminder. A
+  person chooses for themselves on the Maintenance page, **Your reminders**: email each morning (the default until they choose) or
+  only the portal. Others (dispatchers, viewers) are not emailed. The task (`maintenance-reminders`) runs hourly; a person's day
+  is **claimed in the database before the email goes and given back if sending fails**, so nobody gets two in a day and a failure
+  is retried on the next pass. The people to tell are gathered first (`companies.listFleetContacts`, each in its own scope), then the
+  run works in the platform scope, because scopes cannot nest. Tested on real Postgres (one a day however often it runs, the choice
+  honoured the next morning, retry after a failed send, 06:30 UK held back and 07:00 sent, other companies not emailed).
+  **Text messages are not offered yet**: there is no general text sender (texts only carry sign-in codes), a staff account has a
+  mobile number only if it signs in by text, and each message costs; the channel type and the choice are built so text can be
+  added. Not built: defects into repair tasks (slice 4), a CSV import (slice 5).
 - 2026-10-09: **maintenance, slice 2: what a firm tracks, and when it is due on each vehicle (Phase 3 M4).** Migration 0050 (new
   `maintenance` schema: `item_types`, `schedules`, `history`; company Row-Level Security). Each firm keeps **its own list** of things
   that fall due (name, repeats every N days, weeks or months, warn N days before, all vehicles or chosen ones), from "Add one" or "Add

@@ -299,7 +299,8 @@ second check on top — core alone decides ownership/authorization for those.
 - **Permissions:** `manage_maintenance` changes anything; `manage_fleet`, `dispatch` and `view_reports` read. The migration gave the
   new privilege to every account that could manage users or vehicles.
 - **Dashboard:** Maintenance page (what is due, and what the firm tracks) and a panel per vehicle on Vehicle profiles. Advisory only.
-- To come: reminders with a per-person notification preference, defects into repair tasks, a CSV import.
+- **Reminders** (migration 0051; `domain/reminders.ts`, `application/reminders.ts`): an hourly task emails each person with `manage_maintenance` once a day from 7am UK, if something is overdue or due soon; they choose email or portal-only on the Maintenance page. The day is claimed in `reminder_log` before sending and released on failure. The people to tell are passed in (gathered with `companies.listFleetContacts`) because the run uses one data scope. Text messages are not offered yet.
+- To come: defects into repair tasks, a CSV import, text reminders.
 
 ## Staff BFF
 
