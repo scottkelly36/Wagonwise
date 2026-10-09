@@ -7,6 +7,12 @@
   --blue-500: #2e9eff;
   --blue-600: #1f7fe6;
   --blue-700: #1565d8;
+  /* One colour per area of the product: a dot by the menu section and the edge of its current link. Blue stays the brand. */
+  --area-ops: #2e9eff;
+  --area-compliance: #14b8a6;
+  --area-money: #a78bfa;
+  --area-team: #94a3b8;
+  --area-admin: #64748b;
   --bg: #f1f5fb;
   --surface: #ffffff;
   --border: #e3e9f3;
@@ -164,6 +170,67 @@ td {
   text-transform: uppercase;
   color: var(--on-dark-muted);
   padding: 18px 10px 6px;
+}
+
+/* A section that folds is a button, and must not take the page's blue button look. */
+button.nav-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+button.nav-toggle:hover:not(:disabled) {
+  background: var(--navy-700);
+  color: var(--on-dark);
+}
+
+.nav-chevron {
+  font-size: 12px;
+}
+
+.nav-group > .nav-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-group > .nav-section::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--area-color, var(--area-ops));
+  flex: none;
+}
+
+.nav-group > .nav-toggle > span:first-child {
+  flex: 1;
+}
+
+.nav-group[data-area='ops'] {
+  --area-color: var(--area-ops);
+}
+.nav-group[data-area='compliance'] {
+  --area-color: var(--area-compliance);
+}
+.nav-group[data-area='money'] {
+  --area-color: var(--area-money);
+}
+.nav-group[data-area='team'] {
+  --area-color: var(--area-team);
+}
+.nav-group[data-area='admin'] {
+  --area-color: var(--area-admin);
+}
+
+.nav-group .nav-link.active {
+  border-left-color: var(--area-color, var(--blue-500));
 }
 
 .nav-link {
