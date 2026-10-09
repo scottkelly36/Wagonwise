@@ -343,6 +343,13 @@ public, validates and forwards) and on to core's `signups` module (`POST /signup
 `GET /staff/signups`, `DELETE /staff/signups/:id`). Table `signups.testers` is readable only in the platform scope. Honeypot
 field `website`, daily cap 500. The dashboard's Testers page (`/admin/testers`) lists and exports it.
 
+## App usage (admin)
+
+`apps/core/src/modules/usage`: read-only. `GET /staff/usage` (platform staff only, checked in the route and the use case) runs in
+the platform scope and reads counts across identity, companies, fleet, jobs, checks, routing and signups through
+`PostgresUsageReader` (the read-model adapter, AGENTS.md rule 7). Dashboard page `/admin/usage`. Real-RLS test:
+`composition/usage-end-to-end.test.ts`.
+
 ## Staff BFF
 
 `apps/staff-bff` (P2-M1.9) is the dashboard's back end for staff accounts. It does the same

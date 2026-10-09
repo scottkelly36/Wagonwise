@@ -3,6 +3,13 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **app usage page for WagonWise admin.** New **App usage** page (Customers, WagonWise staff only) and
+  `GET /staff/usage`, from a read-only core module `usage` (no table of its own; one SQL read-model adapter). It shows drivers and
+  office staff by when they last used the app (last day, week, month, never signed in), firms and how many were used this week,
+  phones registered for alerts, trips running now, people waiting to test, trips per day (14 days), jobs created and delivered
+  and vehicle checks per week (8 weeks), and a table of firms (drivers, vehicles, office staff, jobs this month, last used).
+  Counts only: no driver is named. "Used" is the last time a session was signed in or renewed, so it lags a little for someone
+  who keeps the app open. App version and Android/iPhone split are not stored, so are not shown.
 - 2026-10-09: **tester sign-up landing page.** A one-page site (`sites/landing/index.html`, no build) at wagon-wise.co.uk where
   drivers and firms leave an email to test the app: email, optional name, "driver / fleet / both / other", optional company and
   fleet size, and a ticked consent box. It posts same-origin to `/signups`, which the DO ingress sends to driver-bff (so no

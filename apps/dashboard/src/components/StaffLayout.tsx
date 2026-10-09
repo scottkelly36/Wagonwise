@@ -114,6 +114,7 @@ const SECTIONS: readonly NavSection[] = [
     area: 'admin',
     items: [
       { to: '/admin/companies', label: 'Companies', shows: isPlatform },
+      { to: '/admin/usage', label: 'App usage', shows: isPlatform },
       { to: '/admin/invite-codes', label: 'Invite codes', shows: isPlatform },
       { to: '/admin/testers', label: 'Testers', shows: isPlatform },
     ],

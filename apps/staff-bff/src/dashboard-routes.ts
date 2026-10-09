@@ -372,6 +372,8 @@ const FORWARDS: readonly Forward[] = [
     body: setDriverRateRequestSchema,
   },
   { method: 'DELETE', path: '/staff/costing/driver-rates/:id', params: fuelIdParamsSchema },
+  // How the app is being used (WagonWise staff only; core decides).
+  { method: 'GET', path: '/staff/usage', params: noParams },
   // The landing page's tester list (WagonWise staff only; core decides).
   { method: 'GET', path: '/staff/signups', params: noParams },
   { method: 'DELETE', path: '/staff/signups/:id', params: testerIdParamsSchema },
