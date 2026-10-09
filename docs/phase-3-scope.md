@@ -3,6 +3,16 @@
 A draft to agree with the owner before building. The modules and their numbering come from the owner's whiteboard; the
 order, sizes and "proof it works" are proposals. Update this file as decisions are made, and keep it short.
 
+## Where Phase 3 stands (2026-10-09)
+
+- **Built:** item 0 billing; M5 walk-round checks (each firm builds its own, with rules before a job and retention); M4 fleet
+  maintenance (registration numbers, items and dates per vehicle, the `manage_maintenance` privilege, morning email reminders,
+  defects into repair tasks, spreadsheet import); M1, M2 and M6 as WagonWise's own books (the Finances page).
+- **Waiting on something from the owner:** M3 fuel card (a sample statement and the provider); M7 what3words (the key);
+  M8 UK coverage (a customer outside Northumberland); M9 (what the pilot's lorries have; see below); text reminders (a text
+  sender, mobile numbers, cost sign-off).
+- **Not built, only if a client asks:** a client's cost and revenue per job and vehicle (the original M1, M2 and M6).
+
 ## Principles (the owner's)
 
 - **Small first companies at the end of Phase 3; no big companies until the end of Phase 4**, when it is a finished product
@@ -14,18 +24,18 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
 
 ## Order and why
 
-| #   | Module                                    | What it is                                                                                                                                         | Needs from the owner                                                                       | Proof it works                                                                  | Size |
-| --- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | ---- |
-| 0   | Billing basics (not on the board, add it) | Bill the vehicle capacity a company commits to (admin-set, changed month to month), not vehicles in use. Invoices generated from the admin portal. | How the first paying company wants to be billed; WagonWise's trading name and bank details | The first invoice is right without a spreadsheet                                | S    |
-| M1  | Costing                                   | Running costs per vehicle and per job (fuel, wages, vehicle costs, overheads)                                                                      | Their own monthly costs, and the pilot firm's cost headings                                | Cost per job matches the owner's own working for one month                      | M    |
-| M2  | Revenue                                   | What each job earns: rates, customers, revenue per job, vehicle and customer                                                                       | How the pilot firm prices jobs and whether they invoice per job or load                    | Reproduces roughly a month of their invoices                                    | M    |
-| M3  | Fuel card CSV                             | Import a fuel card statement and match fuel to vehicles and jobs                                                                                   | A sample CSV and which card provider the pilot firm uses                                   | A month's fuel matches the card statement to the pound                          | M    |
-| M6  | Profit projection                         | Revenue minus costs and fuel, per job, vehicle and month, with a simple forecast                                                                   | Nothing new once M1 to M3 exist                                                            | The owner trusts the number for a decision they were already making             | M    |
-| M5  | Driver walk-round checks                  | The daily vehicle check in the app, with photos and defects                                                                                        | The pilot firm's current check form                                                        | Drivers do it daily and a defect reaches the office the same day                | M-L  |
-| M4  | Fleet maintenance                         | Service, MOT and inspection due dates per vehicle, reminders, defects from M5                                                                      | The pilot firm's inspection routine                                                        | Nothing due is missed for a month                                               | M    |
-| M7  | what3words                                | Look up three words on the Where to? screen and the job form                                                                                       | The Basic plan key (£7.99 a month)                                                         | A driver finds a farm gate from three words                                     | S-M  |
-| M8  | UK coverage                               | National GB routing tiles                                                                                                                          | A customer outside the Northumberland tiles; the plan is in the deployment guide           | Routes work in a new county                                                     | M-L  |
-| M9  | Tachograph / driver hours                 | Driver-hours aware navigation and break planning (`ideas.md`)                                                                                      | What the pilot firm's lorries and tachographs actually have                                | A research spike first, then a driver-entered clock, then the tachograph source | L    |
+| #   | Module                                    | What it is                                                                                                                                         | Needs from the owner                                                                       | Proof it works                                                      | Size |
+| --- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- | ---- |
+| 0   | Billing basics (not on the board, add it) | Bill the vehicle capacity a company commits to (admin-set, changed month to month), not vehicles in use. Invoices generated from the admin portal. | How the first paying company wants to be billed; WagonWise's trading name and bank details | The first invoice is right without a spreadsheet                    | S    |
+| M1  | Costing                                   | WagonWise's own running costs, entered once and carried on (built as the Finances page). A client's cost per vehicle and per job is not built      | Nothing for now; a client's own cost headings if one asks                                  | The owner trusts the monthly cost figure                            | M    |
+| M2  | Revenue                                   | Revenue taken from the invoices WagonWise issues (built, Finances page). A client's revenue per job, rates and customers is not built              | How a pilot firm prices jobs and whether they invoice per job or load, if one asks         | The Finances figures match the invoices                             | M    |
+| M3  | Fuel card CSV                             | Import a fuel card statement and match fuel to vehicles and jobs                                                                                   | A sample CSV and which card provider the pilot firm uses                                   | A month's fuel matches the card statement to the pound              | M    |
+| M6  | Profit projection                         | Profit and a look-ahead on the Finances page (built, for WagonWise's own books). Per job and per vehicle needs the client-side M1 and M2           | Nothing new                                                                                | The owner trusts the number for a decision they were already making | M    |
+| M5  | Driver walk-round checks                  | The daily vehicle check in the app, with photos and defects                                                                                        | The pilot firm's current check form                                                        | Drivers do it daily and a defect reaches the office the same day    | M-L  |
+| M4  | Fleet maintenance                         | Service, MOT and inspection due dates per vehicle, reminders, defects from M5                                                                      | The pilot firm's inspection routine                                                        | Nothing due is missed for a month                                   | M    |
+| M7  | what3words                                | Look up three words on the Where to? screen and the job form                                                                                       | The Basic plan key (£7.99 a month)                                                         | A driver finds a farm gate from three words                         | S-M  |
+| M8  | UK coverage                               | National GB routing tiles                                                                                                                          | A customer outside the Northumberland tiles; the plan is in the deployment guide           | Routes work in a new county                                         | M-L  |
+| M9  | Tachograph / driver hours                 | Driver-entered clock first (no connection), then a tachograph source: see "Driver hours and tachograph" below                                      | What the pilot firm's lorries and tachographs have, and their rule set                     | Break advice drivers use and trust                                  | L    |
 
 ## Suggested sequence
 
@@ -58,7 +68,11 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
   with photos (built); 3a the office results page and defects inbox (built); 3b the before-a-job rules and gate (built); 3c retention (built, so M5 is done); 4 defects feeding maintenance (M4). The
   example list is not a standard and the app does not make a firm compliant.
 
-## Finances (M1, M2 and M6 reframed), decided with the owner 2026-10-09- The owner does not yet know the figures, so M1 and M2 became WagonWise's **own** books rather than a client's: an admin enters the running costs, revenue is taken from the invoices already issued, and M6's profit and look-ahead sit on the same page.- **Costs are standing**: entered once, they carry on every month until changed or stopped. Changing the amount from a month keeps the earlier months as they were. Automating the entry (reading a bill, a recurring payment feed) is a later idea.- **Built:** the Finances page (costs, revenue by month and by company, profit on invoiced and received, twelve months, look ahead). Per-vehicle and per-job costing for client companies is not built, and would follow only if a company asks.
+## Finances (M1, M2 and M6 reframed), decided with the owner 2026-10-09
+
+- The owner does not yet know the figures, so M1 and M2 became WagonWise's **own** books rather than a client's: an admin enters the running costs, revenue is taken from the invoices already issued, and M6's profit and look-ahead sit on the same page.
+- **Costs are standing**: entered once, they carry on every month until changed or stopped. Changing the amount from a month keeps the earlier months as they were. Automating the entry (reading a bill, a recurring payment feed) is a later idea.
+- **Built:** the Finances page (costs, revenue by month and by company, profit on invoiced and received, twelve months, look ahead). Per-vehicle and per-job costing for client companies is not built, and would follow only if a company asks.
 
 ## Fleet maintenance (M4), decided with the owner 2026-10-09
 
@@ -82,6 +96,60 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
 - **Deploys:** core, the BFFs and the dashboard auto-deploy on merge; the app ships by `driver-app-release.yml` (OTA for
   JavaScript, a Play build for native changes such as camera or Bluetooth).
 
+## Driver hours and tachograph (M9), outlined 2026-10-09
+
+The aim is the owner's "smart break planning": the app knows how much legal driving time a driver has left, and plans the break
+into the route (when it is needed, the best HGV parking before the limit, an ETA that includes it). The background and open
+facts are in `ideas.md` (2026-10-08). It is built in two tracks, the first needing no connection to the vehicle.
+
+**The rules to model are checked against current GOV.UK guidance before anything is built, per rule set** (GB domestic, assimilated
+EU, AETR) **and per vehicle.** They are not copied from memory into code. The first pass covers the break after 4.5 hours of
+driving (45 minutes, or 15 then 30), the daily driving limit (9 hours, 10 twice a week), the weekly and fortnightly limits, and
+daily and weekly rest. A firm picks which rule set applies to each vehicle.
+
+### Track A: driver-entered clock (no connection to the vehicle)
+
+- The driver taps **Start shift** (and Break, Rest, Finish); the app also suggests a start from movement it already sees, which the
+  driver confirms. Driving time is counted from the app's own movement and the driver can correct it.
+- The screen shows driving time used, time to the next break, and the day's limit. Wording is advice only: the tachograph is the
+  legal record and the driver is responsible. A number the app is unsure of is shown as unknown, never guessed: a wrong number is
+  worse than none.
+- Break planning on the route: when a break will fall due before the destination, the app offers HGV parking along the route
+  before the limit (the existing nearby-parking search) with the drive time to each, and the ETA includes the break. Re-plan when
+  traffic eats the time left.
+- Dispatchers see each driver's status (driving, break soon, on break, time left) beside the job, if the driver has allowed it.
+- A JavaScript-only change at first (over the air); core stores the shift state per driver so the portal can show it.
+- **Why first:** it works for every lorry, old or new, and tests the idea with drivers and exercises routing and parking without
+  any Bluetooth.
+
+### Track B: tachograph source (a connection)
+
+- Smart tachographs have a Bluetooth interface meant for outside apps, but only newer units, only certain data, the driver must
+  enable pairing, and it differs by manufacturer. **First find out, with the pilot firm, which lorries have what** (analogue,
+  digital, smart v1, smart v2), then read the interface specification for what it exposes, and whether it gives time remaining
+  or only activity from which the app works it out.
+- Bluetooth is a native change (new package and permissions): a version bump and a Play build, not an over-the-air update, and iOS
+  has its own limits. It plugs in behind the same screen as Track A, replacing the driver-entered clock where a vehicle has it,
+  so nothing the driver sees changes.
+- Reading the driver card or downloading tachograph files for the office is a different thing (the office's legal duty to
+  download and keep data). Not in this scope; revisit if a firm asks.
+
+### Privacy and safeguards (both tracks)
+
+- This is personal data about working time. It needs the driver's clear consent and a plain answer to "can my employer see this"
+  before a driver turns it on; the DPIA and privacy notice are updated first. Whether the office sees status at all is a firm
+  setting, off by default, and the driver sees that it is on.
+- Retention follows the firm-chosen setting used for checks.
+- The app never says a driver is compliant, never blocks a job, and never overrides the tachograph.
+
+### Order
+
+1. Ask the pilot firm what their lorries and tachographs have, and which rule set each runs under (this is the one question).
+2. Check the rules against GOV.UK and write them down as a table with the source for each.
+3. Track A, in slices: the clock and rules with tests; the screen and shift controls; break planning with parking and the ETA;
+   status to core and the portal.
+4. Track B only once the answer to step 1 says it is worth it.
+
 ## Goals for the end of Phase 3
 
 - 5 companies using the app, 1 paying (aim for 2), at £10 per vehicle. Realistic income is small (about £80 to £200 a month);
@@ -101,4 +169,4 @@ deviations. Phase 4 ends with the product ready for big fleets.
 2. Which pilot company, and which of walk-round checks or maintenance they would want first.
 3. Which fuel card provider the pilot firm uses, and a sample CSV.
 4. How the first paying company should be billed.
-5. What tachographs the pilot firm's lorries have (for M9).
+5. What tachographs the pilot firm's lorries have, and which rule set each runs under (for M9; see "Driver hours and tachograph").
