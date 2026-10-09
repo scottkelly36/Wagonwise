@@ -1,5 +1,6 @@
 import {
   addRunningCostRequestSchema,
+  jobCostsQuerySchema,
   changeRunningCostRequestSchema,
   setDriverRateRequestSchema,
   stopRunningCostRequestSchema,
@@ -318,6 +319,13 @@ const FORWARDS: readonly Forward[] = [
     body: assignFuelVehicleRequestSchema,
   },
   { method: 'DELETE', path: '/staff/costing/fuel/imports/:id', params: fuelIdParamsSchema },
+  // What each job delivered in a month cost, and what each vehicle and customer made (manage_billing; core decides).
+  {
+    method: 'GET',
+    path: '/staff/costing/companies/:companyId/job-costs',
+    params: costingCompanyParamsSchema,
+    query: jobCostsQuerySchema,
+  },
   // Running costs and what drivers cost an hour (manage_billing; core decides).
   {
     method: 'GET',

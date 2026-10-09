@@ -43,6 +43,12 @@ const SECTIONS: readonly NavSection[] = [
       { to: '/fleet/live-trips', label: 'Live trips', shows: everyone },
       { to: '/fleet/drivers', label: 'Drivers', shows: everyone },
       { to: '/fleet/places', label: 'Places', shows: everyone },
+    ],
+  },
+  {
+    title: 'Costs and profit',
+    area: 'money',
+    items: [
       {
         to: '/fleet/fuel',
         label: 'Fuel',
@@ -50,13 +56,13 @@ const SECTIONS: readonly NavSection[] = [
       },
       {
         to: '/fleet/costs',
-        label: 'Costs',
+        label: 'Running costs and pay',
         shows: (s) => isPlatform(s) || holds(s, 'manage_billing'),
       },
       {
-        to: '/fleet/reports',
-        label: 'Reports',
-        shows: (s) => isPlatform(s) || holds(s, 'view_reports'),
+        to: '/fleet/job-costs',
+        label: 'Job profit',
+        shows: (s) => isPlatform(s) || holds(s, 'manage_billing'),
       },
     ],
   },

@@ -89,6 +89,27 @@ export interface JobsModule {
   activeCompanyFor(driverId: string): Promise<string | null>;
   /** The drivers on a job for the company right now. */
   activeDriverIds(companyId: string): Promise<string[]>;
+  /**
+   * The company's jobs delivered from `from` (inclusive) to `to` (exclusive), with the customer and price, who drove,
+   * and when the driver accepted and delivered. For `costing`, supplied by composition. Reads in the caller's own data
+   * scope, so call it inside a request.
+   */
+  deliveredBetween(
+    companyId: string,
+    from: Date,
+    to: Date,
+  ): Promise<
+    {
+      readonly id: string;
+      readonly reference: string;
+      readonly customer: string | undefined;
+      readonly pricePence: number | undefined;
+      readonly vehicleId: string | undefined;
+      readonly driverId: string | undefined;
+      readonly acceptedAt: Date | undefined;
+      readonly deliveredAt: Date;
+    }[]
+  >;
 }
 
 /**
@@ -155,6 +176,25 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     async activeCompanyFor(driverId: string): Promise<string | null> {
       const job = await repo.findActiveForDriver(makeId<'DriverId'>(driverId));
       return job?.companyId ?? null;
+    },
+    async deliveredBetween(companyId: string, from: Date, to: Date) {
+      const jobs = await repo.listForCompany(makeId<'CompanyId'>(companyId));
+      return jobs.flatMap((j) => {
+        const deliveredAt = j.timeline.find((e) => e.status === 'delivered')?.at;
+        if (deliveredAt === undefined || deliveredAt < from || deliveredAt >= to) return [];
+        return [
+          {
+            id: j.id,
+            reference: j.reference,
+            customer: j.customer,
+            pricePence: j.pricePence,
+            vehicleId: j.vehicleId,
+            driverId: j.driverId,
+            acceptedAt: j.timeline.find((e) => e.status === 'accepted')?.at,
+            deliveredAt,
+          },
+        ];
+      });
     },
     async activeDriverIds(companyId: string): Promise<string[]> {
       const jobs = await repo.listForCompany(makeId<'CompanyId'>(companyId));

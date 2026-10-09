@@ -8,6 +8,7 @@ import { HazardReports } from './pages/admin/HazardReports';
 import { Moderation } from './pages/admin/Moderation';
 import { Drivers } from './pages/fleet/Drivers';
 import { Costs } from './pages/fleet/Costs';
+import { JobCosts } from './pages/fleet/JobCosts';
 import { Fuel } from './pages/fleet/Fuel';
 import { Jobs } from './pages/fleet/Jobs';
 import { Places } from './pages/fleet/Places';
@@ -60,6 +61,7 @@ export function App() {
             />
             <Route path="/fleet/fuel" element={<Fuel />} />
             <Route path="/fleet/costs" element={<Costs />} />
+            <Route path="/fleet/job-costs" element={<JobCosts />} />
             <Route path="/fleet/places" element={<Places />} />
             <Route path="/fleet/checks" element={<Checks />} />
             <Route path="/fleet/maintenance" element={<Maintenance />} />
