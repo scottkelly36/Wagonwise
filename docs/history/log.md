@@ -3,6 +3,17 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **dashboard home (clean-up step 3).** **Overview** is now everyone's landing page (sign-in used to send managers to a "TODO"
+  page and admins to Users). Built from calls the other pages already make, so no new backend; a part the person has no privilege for is
+  not asked for, and one that fails simply leaves its part out. **A company's staff** see four tiles (unassigned jobs and how many are due
+  today; assigned jobs the driver has not opened, with the longest wait; "do not drive" defects not fixed; maintenance overdue and due
+  soon), then **On the road now** (job, driver and vehicle, ETA, and late jobs with how late; sharing drivers with under half an hour of
+  driving left) and **Compliance today** (walk-round checks done against the vehicles, open defects, overdue repairs, vehicles against
+  the plan, driver requests waiting). **WagonWise staff** see this month's invoiced, costs, profit and drafts to issue, a six-month
+  revenue and costs chart, and what needs action (hazard reports to review, invoices issued and not paid). A tile is amber or red only
+  when there is something to do, and links to the page that deals with it. `lib/home.ts` holds the sums, with tests; no data model,
+  route or privilege changed. Not there yet: congestion reports, companies over plan capacity, and any per-job money (that comes with
+  revenue and costing).
 - 2026-10-09: **dashboard buttons and colour tokens (clean-up step 2).** Every button used to be the big blue. Now a plain button is the quiet
   one (white, outlined), and the page's main action is blue: any form's submit button, or one marked `.btn-primary` (for example Add
   one, Assign, Issue invoice, Download CSV, Import them). Others got a variant: `.btn-confirm` soft green for saying yes to something

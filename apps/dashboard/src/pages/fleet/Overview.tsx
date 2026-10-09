@@ -1,10 +1,13 @@
-import { Placeholder } from '../../components/Placeholder';
+import { isPlatform } from '../../state/access';
+import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { ManagerHome } from '../home/ManagerHome';
+import { PlatformHome } from '../home/PlatformHome';
 
+/** Everyone's landing page: WagonWise staff see the business, a company's staff see their own fleet today. */
 export function FleetOverview() {
-  return (
-    <Placeholder
-      title="Fleet overview"
-      note="TODO — needs a decided data model for which business owns which drivers before this can call core for anything real."
-    />
-  );
+  const me = useStaffAuthStore((s) => s.session?.staff);
+  if (me === undefined) return null;
+  if (isPlatform(me)) return <PlatformHome />;
+  if (me.companyId === undefined) return null;
+  return <ManagerHome companyId={me.companyId} />;
 }

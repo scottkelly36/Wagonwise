@@ -1,7 +1,5 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
-import { holds } from './state/access';
-import { useStaffAuthStore } from './state/staff-auth-store';
 import { RequireStaff } from './components/RequireStaff';
 import { StaffLayout } from './components/StaffLayout';
 import { Companies } from './pages/admin/Companies';
@@ -93,9 +91,7 @@ export function App() {
   );
 }
 
-/** Where signing in lands: Users for those who manage people (and WagonWise staff, whose first
- *  job is inviting everyone else), the fleet pages for everyone else. */
+/** Where signing in lands: the Overview, for everyone. */
 function Home() {
-  const staff = useStaffAuthStore((s) => s.session?.staff);
-  return <Navigate to={holds(staff, 'manage_users') ? '/staff/users' : '/fleet'} replace />;
+  return <Navigate to="/fleet" replace />;
 }
