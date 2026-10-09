@@ -107,7 +107,7 @@ export function StaffSignIn() {
             onChange={(e) => setCode(e.target.value)}
             style={fieldStyle}
           />
-          <p style={{ fontSize: 13, color: '#6b7280' }}>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
             Lost your device? Enter one of your recovery codes instead.
           </p>
           <button type="submit" disabled={pending || code.trim() === ''}>
@@ -126,7 +126,7 @@ export function StaffSignIn() {
         </form>
       )}
 
-      {error !== undefined && <p style={{ color: '#dc2626' }}>{error}</p>}
+      {error !== undefined && <p style={{ color: 'var(--danger)' }}>{error}</p>}
 
       <p style={{ marginTop: 32, fontSize: 13 }}>
         <Link to="/sign-in">Driver account sign-in</Link>

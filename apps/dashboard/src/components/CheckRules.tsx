@@ -51,10 +51,17 @@ export function CheckRules({ companyId, canChange }: { companyId: string; canCha
 
   return (
     <section
-      style={{ margin: '16px 0 24px', padding: 16, border: '1px solid #e5e7eb', borderRadius: 8 }}
+      style={{
+        margin: '16px 0 24px',
+        padding: 16,
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+      }}
     >
       <h2 style={{ marginTop: 0 }}>Rules for sending a vehicle out</h2>
-      {settings.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(settings.error)}</p>}
+      {settings.isError && (
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(settings.error)}</p>
+      )}
       {current !== undefined && (
         <>
           <label style={{ display: 'block', marginBottom: 8 }}>
@@ -91,18 +98,18 @@ export function CheckRules({ companyId, canChange }: { companyId: string; canCha
               ))}
             </select>
           </label>
-          <p style={{ color: '#6b7280', fontSize: 13 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
             After this, a check is deleted with its photos each day. You are in charge of these
             records, and WagonWise deletes them on your say. A check with a defect not yet fixed is
             kept until the defect is marked fixed.
           </p>
-          <p style={{ color: '#6b7280', fontSize: 13 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
             The two rules are off until you turn them on. A dispatcher moving a job is never held up
             by these.
             {!canChange && ' Fleet managers can change them.'}
           </p>
           {saved && <p style={{ color: '#15803d' }}>Saved.</p>}
-          <hr style={{ border: 0, borderTop: '1px solid #e5e7eb', margin: '16px 0' }} />
+          <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '16px 0' }} />
           <label style={{ display: 'block' }}>
             <input
               type="checkbox"
@@ -113,18 +120,20 @@ export function CheckRules({ companyId, canChange }: { companyId: string; canCha
             <strong>Show drivers&apos; hours status on the live map.</strong> Drivers choose for
             themselves whether to share. Nothing is shown for a driver who has not agreed.
           </label>
-          <p style={{ color: '#6b7280', fontSize: 13 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
             The status is a live guide the driver enters, not a record of hours; it is not stored as
             history and should not be used for pay or discipline. You remain responsible for your
             own drivers&apos;-hours records and for the lawful basis for any monitoring of your
             staff. Turning this off removes every status straight away.
           </p>
           {(hours.isError || saveHours.isError) && (
-            <p style={{ color: '#dc2626' }}>{staffErrorMessage(hours.error ?? saveHours.error)}</p>
+            <p style={{ color: 'var(--danger)' }}>
+              {staffErrorMessage(hours.error ?? saveHours.error)}
+            </p>
           )}
         </>
       )}
-      {save.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(save.error)}</p>}
+      {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
     </section>
   );
 }

@@ -123,7 +123,7 @@ export function Drivers() {
   return (
     <div>
       <h1>Drivers</h1>
-      <p style={{ color: '#6b7280' }}>Who drives for your company.</p>
+      <p style={{ color: 'var(--text-muted)' }}>Who drives for your company.</p>
 
       {everyCompany && (
         <div style={{ marginBottom: 16 }}>
@@ -144,17 +144,17 @@ export function Drivers() {
         </div>
       )}
 
-      {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
 
       {companyId === undefined ? (
-        <p style={{ color: '#6b7280' }}>
+        <p style={{ color: 'var(--text-muted)' }}>
           {everyCompany ? 'Choose a company above.' : 'No company assigned to your account.'}
         </p>
       ) : (
         <>
           <section style={{ marginBottom: 24 }}>
             <h2>Join code</h2>
-            <p style={{ color: '#6b7280' }}>
+            <p style={{ color: 'var(--text-muted)' }}>
               Give this to a driver to ask to join. It never admits anyone by itself — every request
               still needs approval below.
             </p>
@@ -162,6 +162,7 @@ export function Drivers() {
               {code.isPending ? 'Loading…' : code.data}
             </p>
             <button
+              className="btn-caution"
               onClick={() => {
                 if (
                   window.confirm(
@@ -182,7 +183,7 @@ export function Drivers() {
               <h2>Do you drive too?</h2>
               {myLink === undefined ? (
                 <>
-                  <p style={{ color: '#6b7280', marginTop: 0 }}>
+                  <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
                     Sends an invitation to your own email ({myEmail}) so you can be given jobs like
                     any other driver. Then open the WagonWise driver app, sign in with that email
                     and accept under Settings, My companies. If you have not used the app before,
@@ -255,7 +256,11 @@ export function Drivers() {
             links={requested}
             renderActions={(link) => (
               <>
-                <button onClick={() => approve.mutate(link.id)} disabled={approve.isPending}>
+                <button
+                  className="btn-confirm"
+                  onClick={() => approve.mutate(link.id)}
+                  disabled={approve.isPending}
+                >
                   Approve
                 </button>{' '}
                 <button

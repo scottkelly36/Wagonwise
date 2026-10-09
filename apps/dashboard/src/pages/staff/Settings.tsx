@@ -100,6 +100,7 @@ export function Settings() {
               </select>{' '}
               {canEdit && (
                 <button
+                  className="btn-primary"
                   type="button"
                   disabled={save.isPending || chosen === undefined || chosen === current}
                   onClick={() => chosen !== undefined && save.mutate(chosen)}

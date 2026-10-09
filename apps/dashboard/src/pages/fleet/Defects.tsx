@@ -89,9 +89,9 @@ export function Defects() {
       sortValue: (d) => (d.severity === 'do_not_drive' ? 0 : 1),
       cell: (d) =>
         d.severity === 'do_not_drive' ? (
-          <strong style={{ color: '#dc2626' }}>Do not drive</strong>
+          <strong style={{ color: 'var(--danger)' }}>Do not drive</strong>
         ) : (
-          <span style={{ color: '#b45309' }}>Fix soon</span>
+          <span style={{ color: 'var(--warning)' }}>Fix soon</span>
         ),
     },
     {
@@ -155,6 +155,7 @@ export function Defects() {
               NEXT_STEPS[d.status].map((step) => (
                 <button
                   key={step.to}
+                  className={step.to === 'fixed' ? 'btn-confirm' : undefined}
                   type="button"
                   disabled={change.isPending}
                   onClick={() => change.mutate({ id: d.id, to: step.to })}
@@ -170,7 +171,7 @@ export function Defects() {
   return (
     <div>
       <h1>Defects</h1>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         What your drivers&apos; walk-round checks found. Mark each one seen when you have read it,
         and fixed when it has been dealt with.
       </p>
@@ -205,7 +206,7 @@ export function Defects() {
           </div>
           {booking !== undefined && (
             <form
-              style={{ border: '1px solid #e5e7eb', padding: 12, marginBottom: 16 }}
+              style={{ border: '1px solid var(--border)', padding: 12, marginBottom: 16 }}
               onSubmit={(e) => {
                 e.preventDefault();
                 if (dueDate !== '') book.mutate({ defectId: booking.id, dueDate });
@@ -218,11 +219,13 @@ export function Defects() {
                 Due by{' '}
                 <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               </label>
-              <p style={{ color: '#6b7280', fontSize: 13 }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
                 This marks the defect seen. The vehicle stays held back, if you hold it back for
                 this, until the repair is marked done with the defect fixed.
               </p>
-              {book.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(book.error)}</p>}
+              {book.isError && (
+                <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(book.error)}</p>
+              )}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button type="submit" disabled={dueDate === '' || book.isPending}>
                   {book.isPending ? 'Booking…' : 'Book'}
@@ -234,7 +237,9 @@ export function Defects() {
             </form>
           )}
           {(defects.isError || change.isError) && (
-            <p style={{ color: '#dc2626' }}>{staffErrorMessage(defects.error ?? change.error)}</p>
+            <p style={{ color: 'var(--danger)' }}>
+              {staffErrorMessage(defects.error ?? change.error)}
+            </p>
           )}
           {defects.isPending ? (
             <p>Loading…</p>

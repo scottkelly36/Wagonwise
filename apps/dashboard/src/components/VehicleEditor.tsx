@@ -60,7 +60,9 @@ export function VehicleEditor({
   });
 
   return (
-    <section style={{ marginTop: 24, padding: 16, border: '1px solid #e5e7eb', borderRadius: 8 }}>
+    <section
+      style={{ marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
+    >
       <h2 style={{ marginTop: 0 }}>Edit {vehicle.name}</h2>
       <form
         onSubmit={(e) => {
@@ -101,7 +103,7 @@ export function VehicleEditor({
           Cancel
         </button>
       </form>
-      {save.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(save.error)}</p>}
+      {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
     </section>
   );
 }

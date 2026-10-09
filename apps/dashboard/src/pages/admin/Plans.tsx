@@ -74,13 +74,13 @@ export function Plans() {
   return (
     <div>
       <h1>Plans</h1>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         Each company is billed for the vehicles its plan covers, whether or not they are all in use.
         A company can&apos;t add more vehicles than its plan covers, so raise the number here when
         it asks. A new company starts with none.
       </p>
 
-      {plans.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(plans.error)}</p>}
+      {plans.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(plans.error)}</p>}
       {plans.isPending ? (
         <p>Loading…</p>
       ) : (
@@ -144,7 +144,9 @@ function PlanEditor({ plan, onClose }: { plan: PlanSummaryDto; onClose: () => vo
   });
 
   return (
-    <section style={{ marginTop: 24, padding: 16, border: '1px solid #e5e7eb', borderRadius: 8 }}>
+    <section
+      style={{ marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
+    >
       <h2 style={{ marginTop: 0 }}>{plan.name}</h2>
 
       <form
@@ -177,14 +179,14 @@ function PlanEditor({ plan, onClose }: { plan: PlanSummaryDto; onClose: () => vo
           {saveCapacity.isPending ? 'Saving…' : 'Set capacity'}
         </button>
       </form>
-      <p style={{ color: '#6b7280', fontSize: 13 }}>
+      <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
         Takes effect on that day. Pick today to change it now, or a later date to schedule it.
         Lowering it below the vehicles the company already has doesn&apos;t remove any; it only
         stops them adding more.
       </p>
       {saveCapacity.isSuccess && <p style={{ color: '#15803d' }}>Capacity saved.</p>}
       {saveCapacity.isError && (
-        <p style={{ color: '#dc2626' }}>{staffErrorMessage(saveCapacity.error)}</p>
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(saveCapacity.error)}</p>
       )}
 
       <form
@@ -203,11 +205,13 @@ function PlanEditor({ plan, onClose }: { plan: PlanSummaryDto; onClose: () => vo
         </button>
       </form>
       {pence === undefined && (
-        <p style={{ color: '#b45309', fontSize: 13 }}>Enter an amount such as 10 or 12.50.</p>
+        <p style={{ color: 'var(--warning)', fontSize: 13 }}>
+          Enter an amount such as 10 or 12.50.
+        </p>
       )}
       {savePrice.isSuccess && <p style={{ color: '#15803d' }}>Price saved.</p>}
       {savePrice.isError && (
-        <p style={{ color: '#dc2626' }}>{staffErrorMessage(savePrice.error)}</p>
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(savePrice.error)}</p>
       )}
 
       <button type="button" onClick={onClose} style={{ marginTop: 16 }}>

@@ -18,7 +18,11 @@ import { isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
 
-const RESULT_COLOURS = { clear: '#15803d', advisory: '#b45309', do_not_drive: '#dc2626' } as const;
+const RESULT_COLOURS = {
+  clear: '#15803d',
+  advisory: 'var(--warning)',
+  do_not_drive: 'var(--danger)',
+} as const;
 
 /**
  * Check results: the walk-round checks drivers have done, newest first, and any one in full with the questions as
@@ -92,7 +96,7 @@ export function CheckResults() {
   return (
     <div>
       <h1>Check results</h1>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         The walk-round checks your drivers have done. Defects they found are on the Defects page.
       </p>
 
@@ -124,7 +128,9 @@ export function CheckResults() {
               </select>
             </label>
           </div>
-          {checks.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(checks.error)}</p>}
+          {checks.isError && (
+            <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(checks.error)}</p>
+          )}
           {checks.isPending ? (
             <p>Loading…</p>
           ) : (
@@ -162,14 +168,18 @@ function CheckDetail({ id, onClose }: { id: string; onClose: () => void }) {
   });
 
   return (
-    <section style={{ marginTop: 24, padding: 16, border: '1px solid #e5e7eb', borderRadius: 8 }}>
+    <section
+      style={{ marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
+    >
       {detail.isPending && <p>Loading…</p>}
-      {detail.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(detail.error)}</p>}
+      {detail.isError && (
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(detail.error)}</p>
+      )}
       {detail.data !== undefined && (
         <Body detail={detail.data} photos={photos} onPhoto={(item) => loadPhoto.mutate(item)} />
       )}
       {loadPhoto.isError && (
-        <p style={{ color: '#dc2626' }}>{staffErrorMessage(loadPhoto.error)}</p>
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(loadPhoto.error)}</p>
       )}
       <button type="button" onClick={onClose} style={{ marginTop: 12 }}>
         Close
@@ -192,7 +202,7 @@ function Body({
       <h2 style={{ marginTop: 0 }}>
         {detail.templateName} on {detail.vehicleName}
       </h2>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         Done {whenText(detail.submittedAt)} by {detail.driverLabel ?? 'an unknown driver'}. List
         version {detail.templateVersion}. Result:{' '}
         <strong style={{ color: RESULT_COLOURS[detail.result] }}>
@@ -206,11 +216,13 @@ function Body({
             const answer = detail.answers.find((a) => a.itemId === item.id);
             const defect = detail.defects.find((d) => d.itemId === item.id);
             return (
-              <tr key={item.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+              <tr key={item.id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '8px 6px', verticalAlign: 'top' }}>{item.label}</td>
                 <td style={{ padding: '8px 6px', verticalAlign: 'top' }}>
                   <span
-                    style={defect === undefined ? undefined : { color: '#dc2626', fontWeight: 700 }}
+                    style={
+                      defect === undefined ? undefined : { color: 'var(--danger)', fontWeight: 700 }
+                    }
                   >
                     {answerText(item, answer)}
                   </span>

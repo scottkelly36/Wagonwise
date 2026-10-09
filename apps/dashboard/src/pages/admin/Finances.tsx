@@ -20,7 +20,7 @@ const CATEGORY_LABELS: Record<Category, string> = {
 };
 
 const KEY = ['finance'] as const;
-const colour = (pence: number): string => (pence < 0 ? '#dc2626' : '#15803d');
+const colour = (pence: number): string => (pence < 0 ? 'var(--danger)' : '#15803d');
 
 /** When a cost applies, in words: "Carries on from August 2026", "Just September 2026", "August to October 2026". */
 function whenText(c: CostDto): string {
@@ -46,11 +46,13 @@ export function Finances() {
   return (
     <div>
       <h1>Finances</h1>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         What it costs to run WagonWise, against what companies are invoiced. Costs carry on every
         month until you change or stop them. Enter amounts without VAT.
       </p>
-      {report.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(report.error)}</p>}
+      {report.isError && (
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(report.error)}</p>
+      )}
       {report.isPending ? (
         <p>Loading…</p>
       ) : (
@@ -112,7 +114,7 @@ function Report({ data, onMonth }: { data: FinanceReportDto; onMonth: (m: string
       />
 
       <h2>Looking ahead</h2>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         On today&apos;s plans and the costs standing this month. Nothing here is guaranteed.
       </p>
       <section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -193,9 +195,14 @@ function Figure({
 }) {
   return (
     <div
-      style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: 8, minWidth: 130 }}
+      style={{
+        padding: '10px 14px',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        minWidth: 130,
+      }}
     >
-      <div style={{ color: '#6b7280', fontSize: 13 }}>{label}</div>
+      <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{label}</div>
       <div
         style={{
           fontSize: big === true ? 24 : 18,
@@ -263,7 +270,9 @@ function Costs({ month, costs }: { month: string; costs: CostDto[] }) {
       <p>
         <strong>Total: {formatPence(total)}</strong>
       </p>
-      {remove.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(remove.error)}</p>}
+      {remove.isError && (
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(remove.error)}</p>
+      )}
       {selected !== undefined && (
         <EditCost
           key={selected.id}
@@ -322,7 +331,7 @@ function AddCost({ month, onAdded }: { month: string; onAdded: () => void }) {
         e.preventDefault();
         if (pence !== undefined && description.trim() !== '') add.mutate();
       }}
-      style={{ marginTop: 16, padding: 16, border: '1px solid #e5e7eb', borderRadius: 8 }}
+      style={{ marginTop: 16, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
     >
       <strong>Add a cost from {monthLabel(month)}</strong>
       <div
@@ -368,11 +377,11 @@ function AddCost({ month, onAdded }: { month: string; onAdded: () => void }) {
         </button>
       </div>
       {!oneOff && (
-        <p style={{ color: '#6b7280', fontSize: 13 }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
           It carries on every month from {monthLabel(month)} until you change or stop it.
         </p>
       )}
-      {add.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(add.error)}</p>}
+      {add.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(add.error)}</p>}
     </form>
   );
 }
@@ -412,7 +421,9 @@ function EditCost({
   });
 
   return (
-    <section style={{ marginTop: 16, padding: 16, border: '1px solid #e5e7eb', borderRadius: 8 }}>
+    <section
+      style={{ marginTop: 16, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
+    >
       <strong>
         {cost.description}: {whenText(cost)}
       </strong>
@@ -457,19 +468,24 @@ function EditCost({
           {save.isPending ? 'Saving…' : `Change from ${monthLabel(month)}`}
         </button>
       </form>
-      <p style={{ color: '#6b7280', fontSize: 13 }}>
+      <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
         The months before {monthLabel(month)} keep what they had, so past profit does not move.
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" disabled={stop.isPending} onClick={() => stop.mutate()}>
+        <button
+          className="btn-caution"
+          type="button"
+          disabled={stop.isPending}
+          onClick={() => stop.mutate()}
+        >
           Stop from {monthLabel(month)}
         </button>
-        <button type="button" onClick={onDelete}>
+        <button className="btn-danger" type="button" onClick={onDelete}>
           Remove entry
         </button>
       </div>
       {(save.isError || stop.isError) && (
-        <p style={{ color: '#dc2626' }}>{staffErrorMessage(save.error ?? stop.error)}</p>
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error ?? stop.error)}</p>
       )}
     </section>
   );

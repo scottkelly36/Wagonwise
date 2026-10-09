@@ -44,7 +44,7 @@ export function Maintenance() {
   return (
     <div>
       <h1>Maintenance</h1>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         When MOTs, inspections and services fall due on your vehicles. It reminds you; it never
         stops a vehicle being sent out.
       </p>
@@ -154,7 +154,7 @@ function Due({ companyId, canManage }: { companyId: string; canManage: boolean }
           <option value="all">Everything</option>
         </select>
       </label>
-      {rows.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(rows.error)}</p>}
+      {rows.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(rows.error)}</p>}
       {rows.isPending ? (
         <p>Loading…</p>
       ) : (
@@ -269,14 +269,18 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
 
   return (
     <>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         The things that fall due on your vehicles, and how often. The examples are only a starting
         point and aren&apos;t complete: you are responsible for what your own vehicles need and how
         often.
       </p>
       {canManage && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <button type="button" onClick={() => setDraft({ id: undefined, body: BLANK })}>
+          <button
+            className="btn-primary"
+            type="button"
+            onClick={() => setDraft({ id: undefined, body: BLANK })}
+          >
             Add one
           </button>
           <button
@@ -289,7 +293,7 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
         </div>
       )}
       {(items.isError || archive.isError || addExamples.isError) && (
-        <p style={{ color: '#dc2626' }}>
+        <p style={{ color: 'var(--danger)' }}>
           {staffErrorMessage(items.error ?? archive.error ?? addExamples.error)}
         </p>
       )}
@@ -307,12 +311,12 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
                 justifyContent: 'space-between',
                 gap: 12,
                 padding: '12px 0',
-                borderBottom: '1px solid #e5e7eb',
+                borderBottom: '1px solid var(--border)',
               }}
             >
               <div>
                 <strong>{i.name}</strong>
-                <div style={{ color: '#6b7280' }}>
+                <div style={{ color: 'var(--text-muted)' }}>
                   {intervalText(i)}, warns {i.warnDays} days before.{' '}
                   {i.appliesTo === 'all'
                     ? 'All vehicles.'
@@ -325,6 +329,7 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
                     Edit
                   </button>
                   <button
+                    className="btn-caution"
                     type="button"
                     disabled={archive.isPending}
                     onClick={() => {
@@ -484,13 +489,13 @@ function ItemEditor({
         )}
       </fieldset>
       {problems.length > 0 && (
-        <ul style={{ color: '#b45309' }}>
+        <ul style={{ color: 'var(--warning)' }}>
           {problems.map((p) => (
             <li key={p}>{p}</li>
           ))}
         </ul>
       )}
-      {save.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(save.error)}</p>}
+      {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="submit" disabled={problems.length > 0 || save.isPending}>
           {save.isPending ? 'Saving…' : 'Save'}

@@ -71,26 +71,26 @@ export function Moderation() {
   return (
     <div>
       <h1>Moderation</h1>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         New low bridge, weight, width and no-HGV reports, and reports drivers disagree about. A
         report waiting here still affects routes, unless it says routing is ignoring it; rejecting
         it is what takes it away.
       </p>
 
       {(queue.error ?? decide.error) !== null && (
-        <p style={{ color: '#dc2626' }}>{staffErrorMessage(queue.error ?? decide.error)}</p>
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(queue.error ?? decide.error)}</p>
       )}
 
       {queue.isPending ? (
         <p>Loading…</p>
       ) : queue.data?.length === 0 ? (
-        <p style={{ color: '#6b7280' }}>Nothing waiting for review.</p>
+        <p style={{ color: 'var(--text-muted)' }}>Nothing waiting for review.</p>
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
           {queue.data?.map(({ hazard, reasons, trust, heldBackFromRouting }) => (
             <section
               key={hazard.id}
-              style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}
+              style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}
             >
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
                 <strong>{TYPE_LABELS[hazard.type]}</strong>
@@ -98,7 +98,7 @@ export function Moderation() {
                 <span>
                   {hazard.confirmations} confirmed · {hazard.dismissals} dismissed
                 </span>
-                <span style={{ color: '#6b7280' }}>
+                <span style={{ color: 'var(--text-muted)' }}>
                   reported {new Date(hazard.createdAt).toLocaleString('en-GB')} · driver{' '}
                   {hazard.reporterId.slice(0, 8)} ({TRUST_LABELS[trust]})
                 </span>
@@ -134,6 +134,7 @@ export function Moderation() {
               ) : (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button
+                    className="btn-confirm"
                     disabled={decide.isPending}
                     onClick={() => decide.mutate({ id: hazard.id, input: { action: 'approve' } })}
                   >
@@ -251,7 +252,7 @@ function EditForm({
           Remove measurement
         </label>
       )}
-      <button disabled={busy} onClick={save}>
+      <button className="btn-primary" disabled={busy} onClick={save}>
         Save
       </button>
       <button disabled={busy} onClick={onCancel}>

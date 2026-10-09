@@ -326,7 +326,12 @@ export function Jobs() {
         return (
           <div>
             {jobStatusText(j)}
-            <div style={{ fontSize: 13, color: notice.trouble ? '#b45309' : '#6b7280' }}>
+            <div
+              style={{
+                fontSize: 13,
+                color: notice.trouble ? 'var(--warning)' : 'var(--text-muted)',
+              }}
+            >
               {notice.text}
             </div>
           </div>
@@ -447,6 +452,7 @@ export function Jobs() {
                           ))}
                         </select>
                         <button
+                          className="btn-primary"
                           onClick={() => handleAssign(job.id, picked)}
                           disabled={assign.isPending}
                         >
@@ -465,6 +471,7 @@ export function Jobs() {
                   )}
                   {job.status === 'assigned' && (
                     <button
+                      className="btn-caution"
                       onClick={() => resend.mutate(job.id)}
                       disabled={resend.isPending}
                       style={{ marginRight: 6 }}
@@ -505,7 +512,9 @@ export function Jobs() {
   return (
     <div>
       <h1>Jobs</h1>
-      <p style={{ color: '#6b7280' }}>Create jobs, and assign a driver and vehicle to each.</p>
+      <p style={{ color: 'var(--text-muted)' }}>
+        Create jobs, and assign a driver and vehicle to each.
+      </p>
 
       {everyCompany && (
         <div style={{ marginBottom: 16 }}>
@@ -526,8 +535,8 @@ export function Jobs() {
         </div>
       )}
 
-      {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
-      {recordError !== undefined && <p style={{ color: '#dc2626' }}>{recordError}</p>}
+      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {recordError !== undefined && <p style={{ color: 'var(--danger)' }}>{recordError}</p>}
 
       {viewing !== undefined && (
         <ProofPhotoDialog
@@ -539,7 +548,7 @@ export function Jobs() {
       )}
 
       {companyId === undefined ? (
-        <p style={{ color: '#6b7280' }}>
+        <p style={{ color: 'var(--text-muted)' }}>
           {everyCompany ? 'Choose a company above.' : 'No company assigned to your account.'}
         </p>
       ) : (
@@ -698,7 +707,7 @@ function ProofPhotoDialog({
         {photo.isPending ? (
           <p>Loading…</p>
         ) : photo.data === undefined ? (
-          <p style={{ color: '#dc2626' }}>{staffErrorMessage(photo.error)}</p>
+          <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(photo.error)}</p>
         ) : (
           <>
             <img
@@ -706,7 +715,7 @@ function ProofPhotoDialog({
               alt={`Proof of delivery for ${reference}`}
               style={{ display: 'block', maxWidth: '100%', maxHeight: '75vh', marginTop: 12 }}
             />
-            <p style={{ color: '#6b7280', marginBottom: 0 }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 0 }}>
               Taken {new Date(photo.data.capturedAt).toLocaleString('en-GB')}
             </p>
           </>
@@ -729,9 +738,11 @@ function RoutePreview({ jobId, vehicleId }: { jobId: string; vehicleId: string }
   });
   const style = { display: 'block', marginTop: 4, fontSize: 13 } as const;
   if (preview.isPending)
-    return <small style={{ ...style, color: '#6b7280' }}>Checking the route…</small>;
+    return <small style={{ ...style, color: 'var(--text-muted)' }}>Checking the route…</small>;
   if (preview.data === undefined) {
-    return <small style={{ ...style, color: '#dc2626' }}>{staffErrorMessage(preview.error)}</small>;
+    return (
+      <small style={{ ...style, color: 'var(--danger)' }}>{staffErrorMessage(preview.error)}</small>
+    );
   }
   if (preview.data.legs.length === 0) {
     return (

@@ -87,10 +87,15 @@ export function PlanAndInvoices() {
     <div>
       <h1>Plan and invoices</h1>
 
-      {plan.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(plan.error)}</p>}
+      {plan.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(plan.error)}</p>}
       {p !== undefined && (
         <section
-          style={{ padding: 16, border: '1px solid #e5e7eb', borderRadius: 8, marginBottom: 24 }}
+          style={{
+            padding: 16,
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            marginBottom: 24,
+          }}
         >
           <h2 style={{ marginTop: 0 }}>Your plan</h2>
           <p style={{ fontSize: 18, margin: '4px 0' }}>
@@ -107,7 +112,7 @@ export function PlanAndInvoices() {
                 : ', all that the plan covers. To add another, ask WagonWise to raise your plan.'}
           </p>
           {p.next !== undefined && (
-            <p style={{ margin: '4px 0', color: '#6b7280' }}>
+            <p style={{ margin: '4px 0', color: 'var(--text-muted)' }}>
               From {formatDay(p.next.effectiveFrom)} your plan covers {p.next.capacity} vehicle
               {p.next.capacity === 1 ? '' : 's'}.
             </p>
@@ -116,8 +121,10 @@ export function PlanAndInvoices() {
       )}
 
       <h2>Invoices</h2>
-      {printError !== undefined && <p style={{ color: '#dc2626' }}>{printError}</p>}
-      {invoices.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(invoices.error)}</p>}
+      {printError !== undefined && <p style={{ color: 'var(--danger)' }}>{printError}</p>}
+      {invoices.isError && (
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(invoices.error)}</p>
+      )}
       {invoices.isPending ? (
         <p>Loading…</p>
       ) : (

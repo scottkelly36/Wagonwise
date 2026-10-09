@@ -89,12 +89,12 @@ export function Checks() {
   return (
     <div>
       <h1>Walk-round checks</h1>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         Build the check list your drivers answer before taking a vehicle out. Every firm builds its
         own, so ask what suits you, and make different lists for different vehicles. If you
         don&apos;t want checks, leave this empty.
       </p>
-      <p style={{ color: '#6b7280', fontSize: 13 }}>
+      <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
         The example list is only a starting point and isn&apos;t complete. You are responsible for
         what your checks cover.
       </p>
@@ -130,7 +130,7 @@ export function Checks() {
           <CheckRules companyId={companyId} canChange={canBuild} />
           {canBuild && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-              <button type="button" onClick={() => setDraft(BLANK)}>
+              <button className="btn-primary" type="button" onClick={() => setDraft(BLANK)}>
                 New blank list
               </button>
               <button type="button" onClick={() => starter.mutate()} disabled={starter.isPending}>
@@ -139,7 +139,7 @@ export function Checks() {
             </div>
           )}
           {(templates.isError || archive.isError || starter.isError) && (
-            <p style={{ color: '#dc2626' }}>
+            <p style={{ color: 'var(--danger)' }}>
               {staffErrorMessage(templates.error ?? archive.error ?? starter.error)}
             </p>
           )}
@@ -158,12 +158,12 @@ export function Checks() {
                     alignItems: 'center',
                     gap: 12,
                     padding: '12px 0',
-                    borderBottom: '1px solid #e5e7eb',
+                    borderBottom: '1px solid var(--border)',
                   }}
                 >
                   <div>
                     <strong>{t.name}</strong>
-                    <div style={{ color: '#6b7280' }}>{describeList(t)}</div>
+                    <div style={{ color: 'var(--text-muted)' }}>{describeList(t)}</div>
                   </div>
                   {canBuild && (
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -171,6 +171,7 @@ export function Checks() {
                         Edit
                       </button>
                       <button
+                        className="btn-caution"
                         type="button"
                         disabled={archive.isPending}
                         onClick={() => {
@@ -299,7 +300,12 @@ function Builder({
         {items.map((item, index) => (
           <li
             key={item.id}
-            style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}
+            style={{
+              marginBottom: 16,
+              padding: 12,
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+            }}
           >
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <input
@@ -383,13 +389,13 @@ function Builder({
       </div>
 
       {problems.length > 0 && (
-        <ul style={{ color: '#b45309' }}>
+        <ul style={{ color: 'var(--warning)' }}>
           {problems.map((p) => (
             <li key={p}>{p}</li>
           ))}
         </ul>
       )}
-      {save.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(save.error)}</p>}
+      {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
 
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="submit" disabled={problems.length > 0 || save.isPending}>

@@ -181,7 +181,12 @@ export function Places() {
       cell: (p) =>
         !canEdit ? null : editingId === p.id ? (
           <>
-            <button type="button" disabled={save.isPending} onClick={() => save.mutate(p.id)}>
+            <button
+              className="btn-primary"
+              type="button"
+              disabled={save.isPending}
+              onClick={() => save.mutate(p.id)}
+            >
               {save.isPending ? 'Saving…' : 'Save'}
             </button>{' '}
             <button type="button" className="secondary" onClick={() => setEditingId(undefined)}>

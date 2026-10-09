@@ -193,7 +193,7 @@ export function VehicleProfiles() {
   return (
     <div>
       <h1>Vehicle profiles</h1>
-      <p style={{ color: '#6b7280' }}>Your company's own fleet.</p>
+      <p style={{ color: 'var(--text-muted)' }}>Your company's own fleet.</p>
 
       {everyCompany && (
         <div style={{ marginBottom: 16 }}>
@@ -214,10 +214,10 @@ export function VehicleProfiles() {
         </div>
       )}
 
-      {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
 
       {companyId === undefined ? (
-        <p style={{ color: '#6b7280' }}>
+        <p style={{ color: 'var(--text-muted)' }}>
           {everyCompany ? 'Choose a company above.' : 'No company assigned to your account.'}
         </p>
       ) : (
