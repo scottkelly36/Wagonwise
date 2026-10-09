@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WagonWise – help test the HGV driver app</title>
+    <meta
+      name="description"
+      content="WagonWise is a driver app and fleet dashboard for UK HGV firms: routes that suit your vehicle, vehicle checks, jobs and driver hours. Register your email to help test it."
+    />
+    <style>
+      :root {
+        --bg: #f1f5fb;
+        --card: #ffffff;
+        --text: #0f1a2e;
+        --muted: #55617a;
+        --blue: #1d4ed8;
+        --blue-dark: #1e40af;
+        --line: #d5deee;
+        --ok: #166534;
+        --bad: #b91c1c;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b1220;
+          --card: #121c30;
+          --text: #e8eefb;
+          --muted: #a3b0c9;
+          --blue: #3b82f6;
+          --blue-dark: #2563eb;
+          --line: #263553;
+          --ok: #4ade80;
+          --bad: #f87171;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          16px/1.55 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 0 16px 64px;
+      }
+      header {
+        padding: 56px 0 24px;
+      }
+      .brand {
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: var(--blue);
+      }
+      h1 {
+        font-size: clamp(2rem, 6vw, 2.8rem);
+        line-height: 1.15;
+        margin: 12px 0;
+      }
+      h2 {
+        font-size: 1.25rem;
+        margin: 0 0 8px;
+      }
+      .lead {
+        font-size: 1.15rem;
+        color: var(--muted);
+        margin: 0;
+      }
+      section,
+      form {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+      ul {
+        margin: 8px 0 0;
+        padding-left: 20px;
+      }
+      li {
+        margin: 6px 0;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-top: 14px;
+      }
+      .hint {
+        font-weight: 400;
+        color: var(--muted);
+      }
+      input[type='email'],
+      input[type='text'],
+      select {
+        width: 100%;
+        margin-top: 4px;
+        padding: 10px 12px;
+        font: inherit;
+        color: var(--text);
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      .check {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        font-weight: 400;
+        margin-top: 18px;
+      }
+      .check input {
+        margin-top: 5px;
+        width: 18px;
+        height: 18px;
+        flex: none;
+      }
+      button {
+        margin-top: 18px;
+        padding: 12px 20px;
+        font: inherit;
+        font-weight: 600;
+        color: #fff;
+        background: var(--blue);
+        border: 0;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: var(--blue-dark);
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      button.link {
+        background: none;
+        color: var(--blue);
+        padding: 0;
+        margin: 0;
+        text-decoration: underline;
+        font-weight: 400;
+      }
+      .msg {
+        margin: 14px 0 0;
+        font-weight: 600;
+      }
+      .msg.ok {
+        color: var(--ok);
+      }
+      .msg.bad {
+        color: var(--bad);
+      }
+      .trap {
+        position: absolute;
+        left: -10000px;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+      }
+      footer {
+        margin-top: 28px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="brand">WagonWise</div>
+        <h1>A driver app built for HGVs, and a dashboard for the firm that runs them.</h1>
+        <p class="lead">
+          We are getting ready to test it with real drivers and small fleets. Put your email down
+          and we will tell you when there is a place for you.
+        </p>
+      </header>
+
+      <section>
+        <h2>What it does</h2>
+        <ul>
+          <li>
+            Routes that suit your vehicle’s height, weight and length, with hazards other drivers
+            have reported.
+          </li>
+          <li>
+            Daily vehicle checks on the phone, with defects and photos going straight to the office.
+          </li>
+          <li>Jobs sent to the driver, with the delivery record kept.</li>
+          <li>A driver-hours clock that helps plan breaks.</li>
+          <li>
+            For the firm: live map, maintenance reminders, reports, and what each job cost and made.
+          </li>
+        </ul>
+        <p class="hint">
+          It is still in testing, so things will change. Testers get it free and tell us what is
+          wrong with it.
+        </p>
+      </section>
+
+      <form id="signup" novalidate>
+        <h2>Register to test</h2>
+
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" />
+
+        <label for="name">Name <span class="hint">(optional)</span></label>
+        <input id="name" name="name" type="text" autocomplete="name" maxlength="80" />
+
+        <label for="role">I am</label>
+        <select id="role" name="role" required>
+          <option value="driver">A driver</option>
+          <option value="company">Running a fleet or haulage firm</option>
+          <option value="both">Both: I drive and run the firm</option>
+          <option value="other">Something else</option>
+        </select>
+
+        <div id="firm" hidden>
+          <label for="company">Company <span class="hint">(optional)</span></label>
+          <input
+            id="company"
+            name="company"
+            type="text"
+            autocomplete="organization"
+            maxlength="120"
+          />
+
+          <label for="fleet">How many vehicles? <span class="hint">(optional)</span></label>
+          <select id="fleet" name="fleetSize">
+            <option value="">Prefer not to say</option>
+            <option value="1-5">1 to 5</option>
+            <option value="6-15">6 to 15</option>
+            <option value="16-40">16 to 40</option>
+            <option value="40+">More than 40</option>
+          </select>
+        </div>
+
+        <div class="trap" aria-hidden="true">
+          <label for="website">Leave this empty</label>
+          <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <label class="check" for="consent">
+          <input id="consent" name="consent" type="checkbox" />
+          <span>
+            I agree to WagonWise emailing me about testing the app. I can ask to be removed at any
+            time.
+          </span>
+        </label>
+
+        <button id="submit" type="submit">Register my interest</button>
+        <p id="result" class="msg" role="status" hidden></p>
+      </form>
+
+      <footer>
+        <p>
+          We keep only what you type above, use it only to write to you about testing WagonWise, and
+          never share or sell it.
+        </p>
+        <p>
+          Changed your mind?
+          <button id="show-remove" class="link" type="button">Remove my email</button>
+        </p>
+        <form id="remove" hidden novalidate>
+          <label for="remove-email">Email to remove</label>
+          <input id="remove-email" type="email" autocomplete="email" maxlength="254" />
+          <button type="submit">Remove it</button>
+          <p id="remove-result" class="msg" role="status" hidden></p>
+        </form>
+      </footer>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      function show(el, text, ok) {
+        el.hidden = false;
+        el.textContent = text;
+        el.className = 'msg ' + (ok ? 'ok' : 'bad');
+      }
+
+      $('role').addEventListener('change', () => {
+        $('firm').hidden = !['company', 'both'].includes($('role').value);
+      });
+
+      $('signup').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const result = $('result');
+        const email = $('email').value.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          return show(result, 'That email does not look right. Please check it.', false);
+        }
+        if (!$('consent').checked) {
+          return show(result, 'Please tick the box so we know you are happy to be emailed.', false);
+        }
+        const firm = !$('firm').hidden;
+        const body = {
+          email,
+          role: $('role').value,
+          consent: true,
+          website: $('website').value,
+        };
+        if ($('name').value.trim()) body.name = $('name').value.trim();
+        if (firm && $('company').value.trim()) body.company = $('company').value.trim();
+        if (firm && $('fleet').value) body.fleetSize = $('fleet').value;
+
+        $('submit').disabled = true;
+        try {
+          const response = await fetch('/signups', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (response.status === 204) {
+            $('signup').reset();
+            $('firm').hidden = true;
+            show(result, 'Thank you. You are on the list and we will be in touch.', true);
+          } else if (response.status === 429) {
+            show(
+              result,
+              'We are getting a lot of sign-ups today. Please try again tomorrow.',
+              false,
+            );
+          } else {
+            show(
+              result,
+              'Something in the form is not right. Please check it and try again.',
+              false,
+            );
+          }
+        } catch {
+          show(result, 'We could not reach the server. Please try again in a moment.', false);
+        } finally {
+          $('submit').disabled = false;
+        }
+      });
+
+      $('show-remove').addEventListener('click', () => {
+        $('remove').hidden = !$('remove').hidden;
+      });
+
+      $('remove').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const result = $('remove-result');
+        const email = $('remove-email').value.trim();
+        if (!email) return show(result, 'Please type the email to remove.', false);
+        try {
+          const response = await fetch('/signups/remove', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+          if (response.status === 204) {
+            show(result, 'Done. If that email was on the list, it has been removed.', true);
+          } else {
+            show(result, 'That did not work. Please try again.', false);
+          }
+        } catch {
+          show(result, 'We could not reach the server. Please try again in a moment.', false);
+        }
+      });
+    </script>
+  </body>
+</html>

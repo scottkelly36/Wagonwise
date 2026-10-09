@@ -88,6 +88,7 @@ describe('runMigrations', () => {
       '0055_jobs_customer_price.sql',
       '0056_costing_fuel.sql',
       '0057_costing_inputs.sql',
+      '0058_signups.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -252,6 +253,7 @@ describe('runMigrations', () => {
       '0055_jobs_customer_price.sql',
       '0056_costing_fuel.sql',
       '0057_costing_inputs.sql',
+      '0058_signups.sql',
     ]);
   });
 });
