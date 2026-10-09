@@ -143,6 +143,22 @@ describe('etaText', () => {
     expect(etaText(eta, 'stale', now)).toMatch(/around \d{2}:\d{2}$/);
   });
 
+  it('puts the driver’s breaks into the arrival, and says so', () => {
+    const plain = etaText(eta, 'live', now);
+    const withBreak = etaText(eta, 'live', now, { kind: 'breaks', breaks: 1, extraMin: 45 });
+    expect(withBreak.startsWith('50 min journey + a break · around ')).toBe(true);
+    expect(withBreak).not.toBe(plain);
+    expect(etaText(eta, 'live', now, { kind: 'breaks', breaks: 2, extraMin: 90 })).toContain(
+      '+ 2 breaks',
+    );
+  });
+
+  it('says a rest is needed rather than a time the driver cannot reach today', () => {
+    expect(etaText(eta, 'live', now, { kind: 'rest' })).toBe(
+      '50 min journey · the driver needs a rest before arriving, so not today',
+    );
+  });
+
   it('claims no clock time once the position is lost', () => {
     expect(etaText(eta, 'lost', now)).toBe('50 min from where they were last seen');
   });

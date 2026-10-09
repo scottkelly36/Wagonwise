@@ -44,6 +44,24 @@ export const reportHoursStatusRequestSchema = z.object({
     .max(24 * 60),
   /** Which comes first: a break, or a limit that needs a rest. */
   next: z.enum(['break', 'limit']),
+  /**
+   * What the office needs to put the driver's breaks into an arrival time: the length of a break, the driving allowed
+   * between breaks, and the driving left before a rest is needed. All in whole minutes and all optional (an older app
+   * leaves them out, and then no break is added to an arrival).
+   */
+  breakMin: z.number().int().min(0).max(120).optional(),
+  stretchMin: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 60)
+    .optional(),
+  untilLimitMin: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 60)
+    .optional(),
 });
 export type ReportHoursStatusRequest = z.infer<typeof reportHoursStatusRequestSchema>;
 
@@ -52,6 +70,9 @@ export const hoursStatusSchema = z.object({
   state: hoursStateSchema,
   drivingLeftMin: z.number().int().min(0),
   next: z.enum(['break', 'limit']),
+  breakMin: z.number().int().min(0).optional(),
+  stretchMin: z.number().int().min(0).optional(),
+  untilLimitMin: z.number().int().min(0).optional(),
   updatedAt: z.iso.datetime(),
 });
 export type HoursStatusDto = z.infer<typeof hoursStatusSchema>;

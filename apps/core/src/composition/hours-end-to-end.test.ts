@@ -197,6 +197,27 @@ describe('driver hours sharing end to end (real RLS, real scopes)', () => {
     expect((await statuses(RIVAL, BETA)).json()).toEqual({ statuses: [] });
   });
 
+  it('carries the break figures to the office when the phone sends them', async () => {
+    expect(
+      (
+        await report(SAM, {
+          state: 'driving',
+          drivingLeftMin: 80,
+          next: 'break',
+          breakMin: 45,
+          stretchMin: 270,
+          untilLimitMin: 400,
+        })
+      ).statusCode,
+    ).toBe(204);
+    const shown = (await statuses(DISPATCHER)).json<{ statuses: Record<string, unknown>[] }>();
+    expect(shown.statuses[0]).toMatchObject({ breakMin: 45, stretchMin: 270, untilLimitMin: 400 });
+    // An older phone sends none, and the office gets none.
+    expect((await report(SAM)).statusCode).toBe(204);
+    const older = (await statuses(DISPATCHER)).json<{ statuses: Record<string, unknown>[] }>();
+    expect(older.statuses[0]).not.toHaveProperty('breakMin');
+  });
+
   it('refuses a driver who has not chosen, and a status for a job at another company', async () => {
     onJob.set(KIM, BETA);
     expect((await report(KIM)).statusCode).toBe(409);

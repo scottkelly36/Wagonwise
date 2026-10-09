@@ -3,6 +3,14 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **arrival times with breaks.** (1) Driver app: the route overview shows "ETA 14:35 with a break" (or "N breaks") for a
+  driver whose shift is on and who is leaving now, and says when a rest is needed first (`planForShift` in `lib/break-plan.ts`). (2)
+  Portal: the live map's ETA for a driver who shares their hours adds the breaks they will need ("+ a break"), or says the driver needs a
+  rest before arriving. For this the shared status now also carries three optional numbers (migration 0059, `hours.status`:
+  `break_min`, `stretch_min`, `until_limit_min`: the rule's break length and allowed stretch, and the driving left before a rest). An
+  older app sends none, and then nothing is added. The office ignores a status older than 15 minutes. The sharing consent wording
+  (version 1) is unchanged: it already says "roughly how much driving time you have left"; the solicitor review should see these three
+  figures. Only the break rule is modelled, as in the trip screen.
 - 2026-10-09: **GitHub Actions minutes.** The free allowance ran out (about 1,500 minutes used in a week). CI now runs on pull requests only (not again on main after a merge) and can be run by hand; the driver app release workflow no longer waits on a CI run on main, and runs only when a pull request carrying the `release` label merges or is labelled after merging, checking that pull request own CI run. Pull requests that do not carry the label skip the release job, so cost nothing.
 - 2026-10-09: **app usage page for WagonWise admin.** New **App usage** page (Customers, WagonWise staff only) and
   `GET /staff/usage`, from a read-only core module `usage` (no table of its own; one SQL read-model adapter). It shows drivers and

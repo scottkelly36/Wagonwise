@@ -190,6 +190,20 @@ describe('reporting a status', () => {
     expect(s.statuses.rows.size).toBe(0);
   });
 
+  it('keeps the break figures the phone sends, and refuses nonsense ones', async () => {
+    const s = await sharingSetup();
+    const withBreaks = { ...live, breakMin: 45, stretchMin: 270, untilLimitMin: 400 };
+    expect((await reportStatus(s.deps, sam, withBreaks)).ok).toBe(true);
+    expect([...s.statuses.rows.values()][0]).toMatchObject({
+      breakMin: 45,
+      stretchMin: 270,
+      untilLimitMin: 400,
+    });
+    expect((await reportStatus(s.deps, sam, { ...live, breakMin: -5 })).ok).toBe(false);
+    expect((await reportStatus(s.deps, sam, { ...live, stretchMin: 1.5 })).ok).toBe(false);
+    expect((await reportStatus(s.deps, sam, { ...live, untilLimitMin: 5000 })).ok).toBe(false);
+  });
+
   it('clears the driver’s status when they finish', async () => {
     const s = await sharingSetup();
     await reportStatus(s.deps, sam, live);

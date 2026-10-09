@@ -1,6 +1,6 @@
 import type { ReportHoursStatusRequest } from '@wagonwise/contracts/hours';
 
-import { hoursStatus, type Activity, type HoursOptions } from './driver-hours';
+import { hoursStatus, RULES, type Activity, type HoursOptions } from './driver-hours';
 import { currentActivity } from './shift-log';
 
 /** The version of the consent wording below. Bump it whenever the wording changes. */
@@ -33,9 +33,16 @@ export function statusToShare(
   const open = currentActivity(log);
   if (open === undefined || open.kind === 'rest') return null;
   const status = hoursStatus(log, now, options);
+  const rule = RULES[options.rules];
+  const minutes = (ms: number): number => Math.max(0, Math.min(24 * 60, Math.floor(ms / 60_000)));
   return {
     state: open.kind === 'driving' ? 'driving' : open.kind === 'break' ? 'on_break' : 'working',
     drivingLeftMin: Math.max(0, Math.min(24 * 60, Math.floor(status.drivingLeftMs / 60_000))),
     next: status.next,
+    // Just enough for the office to put your breaks into an arrival time: the rule's break length and stretch, and the
+    // driving left before a rest. Rule lengths and a time left; nothing about what you did.
+    breakMin: Math.round(rule.breakMs / 60_000),
+    stretchMin: rule.drivingBeforeBreakMs === null ? 0 : minutes(rule.drivingBeforeBreakMs),
+    untilLimitMin: minutes(status.untilLimitMs),
   };
 }

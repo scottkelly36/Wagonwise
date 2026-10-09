@@ -1,5 +1,13 @@
-import { RULES, type HoursStatus, type RuleSet } from './driver-hours';
+import {
+  hoursStatus,
+  RULES,
+  type Activity,
+  type HoursOptions,
+  type HoursStatus,
+  type RuleSet,
+} from './driver-hours';
 import { routeProgress, type RoutePoint } from './route-progress';
+import { currentActivity } from './shift-log';
 
 /** The most a stop may be off the route to be offered, in metres. */
 export const MAX_OFF_ROUTE_M = 3000;
@@ -68,6 +76,20 @@ export function planBreak(
     arrivalMs: now + remainingMs + breaks * rule.breakMs,
     firstStopFraction: fraction,
   };
+}
+
+/**
+ * The break plan for a route of `durationMin` minutes starting now, for a driver whose shift is on; `undefined` when it
+ * is not (no clock, no plan). For showing the arrival with the breaks in it before the trip starts.
+ */
+export function planForShift(
+  log: readonly Activity[],
+  options: HoursOptions,
+  durationMin: number,
+  now: number,
+): BreakPlan | undefined {
+  if (currentActivity(log) === undefined) return undefined;
+  return planBreak(hoursStatus(log, now, options), options.rules, durationMin, now);
 }
 
 export interface ParkingCandidate {
