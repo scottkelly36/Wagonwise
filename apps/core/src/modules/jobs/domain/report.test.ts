@@ -136,7 +136,42 @@ describe('summariseJobReport', () => {
       averageMinutes: 180,
       proofRequired: 2,
       proofReceived: 1,
+      revenuePence: 0,
+      deliveredWithoutPrice: 2,
     });
+  });
+
+  it('adds up the price of jobs delivered in the period, and counts delivered jobs with no price', () => {
+    const delivered = (price: number | undefined, iso: string, customer?: string) =>
+      jobReportRow(
+        job({
+          status: 'delivered',
+          pricePence: price,
+          customer,
+          timeline: [step('draft', '2026-10-01T08:00:00Z'), step('delivered', iso)],
+        }),
+      );
+    const rows = [
+      delivered(10_000, '2026-10-05T10:00:00Z', 'Acme'),
+      delivered(2_550, '2026-10-06T10:00:00Z'),
+      delivered(undefined, '2026-10-07T10:00:00Z'),
+      // Delivered before the period: it was last month's revenue, not this period's.
+      delivered(99_999, '2026-09-30T10:00:00Z'),
+      jobReportRow(
+        job({
+          status: 'cancelled',
+          pricePence: 5_000,
+          timeline: [step('cancelled', '2026-10-05T08:00:00Z')],
+        }),
+      ),
+    ];
+    const period = { from: at('2026-10-01T00:00:00Z'), to: at('2026-11-01T00:00:00Z') };
+    const summary = summariseJobReport(rows, period);
+    expect(summary.revenuePence).toBe(12_550);
+    expect(summary.deliveredWithoutPrice).toBe(1);
+    expect(rows[0]?.customer).toBe('Acme');
+    // With no period given every delivered job counts.
+    expect(summariseJobReport(rows).revenuePence).toBe(112_549);
   });
 
   it('has no average when nothing was delivered', () => {

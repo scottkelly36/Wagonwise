@@ -73,6 +73,10 @@ export interface Job {
   readonly plannedStart?: Date | undefined;
   readonly dueBy?: Date | undefined;
   readonly requiresProofOfDelivery: boolean;
+  /** Who the job is for, as the firm writes it. Staff only: never sent to a driver. */
+  readonly customer?: string | undefined;
+  /** What the firm will be paid for it, in whole pence. Staff only: never sent to a driver. */
+  readonly pricePence?: number | undefined;
   /** The stop the driver is heading for or at (0-based into `stops`). Completing a stop moves it on; it is
    *  `stops.length` once the job is delivered. */
   readonly currentStop: number;
@@ -84,6 +88,35 @@ export interface Job {
 }
 
 export type InvalidReference = TaggedError<'InvalidReference'>;
+
+/** The most a job's price may be, in pence (£1,000,000): a typing slip, not a price. */
+export const MAX_PRICE_PENCE = 100_000_000;
+export const MAX_CUSTOMER = 120;
+
+export interface InvalidCommercial extends TaggedError<'InvalidCommercial'> {
+  readonly reason: 'customer_too_long' | 'bad_price';
+}
+
+/** A job's customer and price, checked. A blank customer means none; `null` clears either. */
+export function validateCommercial(input: {
+  readonly customer?: string | null | undefined;
+  readonly pricePence?: number | null | undefined;
+}): Result<{ customer: string | undefined; pricePence: number | undefined }, InvalidCommercial> {
+  const customer = input.customer?.trim();
+  if (customer !== undefined && customer.length > MAX_CUSTOMER) {
+    return err({ tag: 'InvalidCommercial', reason: 'customer_too_long' });
+  }
+  const price = input.pricePence;
+  if (price !== undefined && price !== null) {
+    if (!Number.isInteger(price) || price < 0 || price > MAX_PRICE_PENCE) {
+      return err({ tag: 'InvalidCommercial', reason: 'bad_price' });
+    }
+  }
+  return ok({
+    customer: customer === undefined || customer === '' ? undefined : customer,
+    pricePence: price === null ? undefined : price,
+  });
+}
 
 export interface InvalidStops extends TaggedError<'InvalidStops'> {
   readonly reason: 'empty' | 'no_delivery' | 'too_many';

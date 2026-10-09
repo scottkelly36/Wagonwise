@@ -61,6 +61,21 @@ describe('PostgresJobRepository', () => {
     expect(await repo().findById(j.id)).toEqual(j);
   });
 
+  it('round-trips a customer and a price in pence, and clears them', async () => {
+    const j = job({
+      id: makeId<'JobId'>('bbbbbbbb-0000-4000-8000-bbbbbbbbbbbb'),
+      customer: 'Acme Ltd',
+      pricePence: 45_050,
+    });
+    await repo().save(j);
+    expect(await repo().findById(j.id)).toEqual(j);
+    const { customer: _c, pricePence: _p, ...cleared } = j;
+    await repo().save(cleared);
+    const after = await repo().findById(j.id);
+    expect(after?.customer).toBeUndefined();
+    expect(after?.pricePence).toBeUndefined();
+  });
+
   it('returns null for an unknown id', async () => {
     expect(
       await repo().findById(makeId<'JobId'>('00000000-0000-4000-8000-000000000000')),

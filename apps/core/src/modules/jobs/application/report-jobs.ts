@@ -73,6 +73,6 @@ export async function reportJobs(
       vehicle:
         (row.vehicleId !== undefined ? vehicleNames.get(row.vehicleId) : undefined) ?? undefined,
     })),
-    summary: summariseJobReport(rows),
+    summary: summariseJobReport(rows, { from: input.from, to: input.to }),
   });
 }

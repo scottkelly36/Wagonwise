@@ -1,4 +1,6 @@
 import type { JobReport } from '../application/report-jobs.js';
+import { canDispatch, canViewReports } from '../application/authorization.js';
+import type { Caller } from '../application/ports/caller-directory.js';
 import type { JobNotice } from '../application/ports/notices.js';
 import type { Job, JobStop } from '../domain/job.js';
 
@@ -39,6 +41,20 @@ export function jobDto(job: Job) {
   };
 }
 
+/**
+ * A job as the office sees it: the driver's view plus who it is for and what it earns, but only for staff who can dispatch
+ * or read reports. A driver never gets those (`jobDto` above is theirs), and a viewer without either privilege gets the job
+ * without the money.
+ */
+export function staffJobDto(job: Job, caller: Caller) {
+  const showMoney = canDispatch(caller, job.companyId) || canViewReports(caller, job.companyId);
+  return {
+    ...jobDto(job),
+    ...(showMoney && job.customer !== undefined ? { customer: job.customer } : {}),
+    ...(showMoney && job.pricePence !== undefined ? { pricePence: job.pricePence } : {}),
+  };
+}
+
 const iso = (date: Date | undefined) => (date === undefined ? {} : { value: date.toISOString() });
 
 /** The jobs report as it goes over the wire (P2-M8): dates as ISO text, absent fields left out. */
@@ -67,6 +83,8 @@ export function jobReportDto(report: JobReport) {
       ...(row.onTime === undefined ? {} : { onTime: row.onTime }),
       requiresProofOfDelivery: row.requiresProofOfDelivery,
       hasProofOfDelivery: row.hasProofOfDelivery,
+      ...(row.customer === undefined ? {} : { customer: row.customer }),
+      ...(row.pricePence === undefined ? {} : { pricePence: row.pricePence }),
     })),
     summary: {
       ...report.summary,

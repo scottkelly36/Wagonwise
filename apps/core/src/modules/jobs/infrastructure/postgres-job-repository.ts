@@ -35,6 +35,8 @@ interface JobRow {
   readonly timeline: unknown;
   readonly requires_proof_of_delivery: boolean;
   readonly current_stop: number;
+  readonly customer: string | null;
+  readonly price_pence: string | number | null;
 }
 
 interface StopRow {
@@ -49,7 +51,7 @@ interface StopRow {
 
 const JOB_SELECT_COLUMNS = `
   id, company_id, reference, status, driver_id, vehicle_id, route_plan_id, planned_start, due_by,
-  timeline, requires_proof_of_delivery, current_stop
+  timeline, requires_proof_of_delivery, current_stop, customer, price_pence
 `;
 
 const STOP_SELECT_COLUMNS = `
@@ -110,6 +112,8 @@ function jobFromRows(job: JobRow, stops: readonly StopRow[], proofStops: readonl
       : { routePlanId: makeId<'RoutePlanId'>(job.route_plan_id) }),
     ...(job.planned_start === null ? {} : { plannedStart: job.planned_start }),
     ...(job.due_by === null ? {} : { dueBy: job.due_by }),
+    ...(job.customer === null ? {} : { customer: job.customer }),
+    ...(job.price_pence === null ? {} : { pricePence: Number(job.price_pence) }),
   };
   return { ...base, hasProofOfDelivery: hasProof(base) };
 }
@@ -195,12 +199,13 @@ export class PostgresJobRepository implements JobRepository {
     await sql`
       insert into jobs.jobs
         (id, company_id, reference, status, driver_id, vehicle_id, route_plan_id, planned_start,
-         due_by, created_at, timeline, requires_proof_of_delivery, current_stop)
+         due_by, created_at, timeline, requires_proof_of_delivery, current_stop, customer, price_pence)
       values (
         ${job.id}, ${job.companyId}, ${job.reference}, ${job.status},
         ${job.driverId ?? null}, ${job.vehicleId ?? null}, ${job.routePlanId ?? null},
         ${job.plannedStart ?? null}, ${job.dueBy ?? null}, now(),
-        ${JSON.stringify(job.timeline)}::jsonb, ${job.requiresProofOfDelivery}, ${job.currentStop}
+        ${JSON.stringify(job.timeline)}::jsonb, ${job.requiresProofOfDelivery}, ${job.currentStop},
+        ${job.customer ?? null}, ${job.pricePence ?? null}
       )
       on conflict (id) do update set
         reference = excluded.reference,
@@ -212,7 +217,9 @@ export class PostgresJobRepository implements JobRepository {
         due_by = excluded.due_by,
         timeline = excluded.timeline,
         requires_proof_of_delivery = excluded.requires_proof_of_delivery,
-        current_stop = excluded.current_stop
+        current_stop = excluded.current_stop,
+        customer = excluded.customer,
+        price_pence = excluded.price_pence
     `.execute(this.db);
 
     // Stops are replaced wholesale rather than diffed: nothing edits them after creation, and

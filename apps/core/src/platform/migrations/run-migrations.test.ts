@@ -85,6 +85,7 @@ describe('runMigrations', () => {
       '0052_maintenance_repairs.sql',
       '0053_jobs_assignment_notice.sql',
       '0054_driver_hours_sharing.sql',
+      '0055_jobs_customer_price.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -246,6 +247,7 @@ describe('runMigrations', () => {
       '0052_maintenance_repairs.sql',
       '0053_jobs_assignment_notice.sql',
       '0054_driver_hours_sharing.sql',
+      '0055_jobs_customer_price.sql',
     ]);
   });
 });

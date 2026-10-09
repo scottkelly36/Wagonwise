@@ -9,7 +9,9 @@ import {
   customRange,
   dateTimeText,
   PRESET_LABELS,
+  moneyText,
   presetRange,
+  revenueBy,
   statusText,
   toCsv,
   type ReportPreset,
@@ -62,6 +64,19 @@ const columns: readonly Column<JobReportRowDto>[] = [
     header: 'Vehicle',
     cell: (r) => r.vehicle ?? '',
     sortValue: (r) => r.vehicle ?? '',
+  },
+  {
+    key: 'customer',
+    header: 'Customer',
+    cell: (r) => r.customer ?? '',
+    sortValue: (r) => r.customer ?? '',
+  },
+  {
+    key: 'price',
+    header: 'Price',
+    align: 'right',
+    cell: (r) => moneyText(r.pricePence),
+    sortValue: (r) => r.pricePence ?? -1,
   },
   {
     key: 'created',
@@ -245,6 +260,15 @@ export function Reports() {
           />
           <Stat label="Cancelled or failed" value={String(summary.cancelled + summary.failed)} />
           <Stat label="Still in progress" value={String(summary.inProgress)} />
+          <Stat
+            label="Revenue"
+            value={moneyText(summary.revenuePence)}
+            note={
+              summary.deliveredWithoutPrice > 0
+                ? `${summary.deliveredWithoutPrice} delivered without a price`
+                : 'jobs delivered in the period'
+            }
+          />
           {summary.proofRequired > 0 && (
             <Stat
               label="Proof photos"
@@ -254,6 +278,16 @@ export function Reports() {
           )}
         </div>
       )}
+
+      {report.data !== undefined &&
+        range !== undefined &&
+        summary !== undefined &&
+        summary.delivered > 0 && (
+          <div className="report-revenue">
+            <RevenueTable title="Revenue by customer" lines={revenueBy(rows, range, 'customer')} />
+            <RevenueTable title="Revenue by vehicle" lines={revenueBy(rows, range, 'vehicle')} />
+          </div>
+        )}
 
       {report.data !== undefined && (
         <DataTable
@@ -269,6 +303,32 @@ export function Reports() {
         />
       )}
     </div>
+  );
+}
+
+function RevenueTable({ title, lines }: { title: string; lines: ReturnType<typeof revenueBy> }) {
+  return (
+    <section className="card">
+      <h2>{title}</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style={{ textAlign: 'left' }}>Name</th>
+            <th style={{ textAlign: 'right' }}>Jobs</th>
+            <th style={{ textAlign: 'right' }}>Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((line) => (
+            <tr key={line.name}>
+              <td>{line.name}</td>
+              <td style={{ textAlign: 'right' }}>{line.jobs}</td>
+              <td style={{ textAlign: 'right' }}>{moneyText(line.revenuePence)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   );
 }
 

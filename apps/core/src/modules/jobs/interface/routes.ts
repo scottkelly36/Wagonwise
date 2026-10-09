@@ -1,6 +1,7 @@
 import {
   advanceJobStatusRequestSchema,
   assignJobRequestSchema,
+  setJobCommercialRequestSchema,
   createJobRequestSchema,
   failJobRequestSchema,
   jobCompanyIdParamsSchema,
@@ -21,6 +22,7 @@ import {
 } from '../application/change-job-status.js';
 import { listNotices, resendNotice, type NoticeDeps } from '../application/job-notices.js';
 import { createJob, type CreateJobDeps } from '../application/create-job.js';
+import { setJobCommercial, type SetJobCommercialDeps } from '../application/set-job-commercial.js';
 import {
   getProofOfDelivery,
   type GetProofOfDeliveryDeps,
@@ -32,12 +34,13 @@ import { listJobPositions, type ListJobPositionsDeps } from '../application/list
 import { getJob, listJobs, type GetJobDeps, type ListJobsDeps } from '../application/list-jobs.js';
 import type { Caller, CallerDirectory } from '../application/ports/caller-directory.js';
 import type { JobStop } from '../domain/job.js';
-import { jobDto, jobReportDto, noticeDto } from './dto.js';
+import { jobReportDto, noticeDto, staffJobDto } from './dto.js';
 import { statusFor } from './error-mapping.js';
 
 export interface JobsRouteDeps {
   readonly createJob: CreateJobDeps;
   readonly assignJob: AssignJobDeps;
+  readonly setCommercial: SetJobCommercialDeps;
   readonly changeStatus: ChangeJobStatusDeps;
   readonly listJobs: ListJobsDeps;
   readonly getJob: GetJobDeps;
@@ -137,8 +140,12 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
         ...(body.data.requiresProofOfDelivery === undefined
           ? {}
           : { requiresProofOfDelivery: body.data.requiresProofOfDelivery }),
+        ...(body.data.customer === undefined ? {} : { customer: body.data.customer }),
+        ...(body.data.pricePence === undefined ? {} : { pricePence: body.data.pricePence }),
       });
-      return result.ok ? { status: 201, body: jobDto(result.value) } : failure(result.error);
+      return result.ok
+        ? { status: 201, body: staffJobDto(result.value, caller) }
+        : failure(result.error);
     }),
   );
 
@@ -151,7 +158,7 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
         companyId: makeId<'CompanyId'>(params.data.companyId),
       });
       return result.ok
-        ? { status: 200, body: { jobs: result.value.map(jobDto) } }
+        ? { status: 200, body: { jobs: result.value.map((j) => staffJobDto(j, caller)) } }
         : failure(result.error);
     }),
   );
@@ -229,7 +236,9 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
       const params = jobIdParamsSchema.safeParse(request.params);
       if (!params.success) return INVALID;
       const result = await getJob(deps.getJob, { caller, jobId: makeId<'JobId'>(params.data.id) });
-      return result.ok ? { status: 200, body: jobDto(result.value) } : failure(result.error);
+      return result.ok
+        ? { status: 200, body: staffJobDto(result.value, caller) }
+        : failure(result.error);
     }),
   );
 
@@ -295,6 +304,24 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
     }),
   );
 
+  // Who a job is for and what it earns. Needs `dispatch`, checked in the use case.
+  app.put('/staff/jobs/:id/commercial', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = jobIdParamsSchema.safeParse(request.params);
+      const body = setJobCommercialRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return INVALID;
+      const result = await setJobCommercial(deps.setCommercial, {
+        caller,
+        jobId: makeId<'JobId'>(params.data.id),
+        customer: body.data.customer,
+        pricePence: body.data.pricePence,
+      });
+      return result.ok
+        ? { status: 200, body: staffJobDto(result.value, caller) }
+        : failure(result.error);
+    }),
+  );
+
   app.post('/staff/jobs/:id/assign', (request, reply) =>
     asStaff(request, reply, async (caller) => {
       const params = jobIdParamsSchema.safeParse(request.params);
@@ -306,7 +333,9 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
         driverId: makeId<'DriverId'>(body.data.driverId),
         vehicleId: makeId<'FleetVehicleId'>(body.data.vehicleId),
       });
-      return result.ok ? { status: 200, body: jobDto(result.value) } : failure(result.error);
+      return result.ok
+        ? { status: 200, body: staffJobDto(result.value, caller) }
+        : failure(result.error);
     }),
   );
 
@@ -321,7 +350,9 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
         to: body.data.status,
         position: body.data.position,
       });
-      return result.ok ? { status: 200, body: jobDto(result.value) } : failure(result.error);
+      return result.ok
+        ? { status: 200, body: staffJobDto(result.value, caller) }
+        : failure(result.error);
     }),
   );
 
@@ -333,7 +364,9 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
         actor: caller,
         jobId: makeId<'JobId'>(params.data.id),
       });
-      return result.ok ? { status: 200, body: jobDto(result.value) } : failure(result.error);
+      return result.ok
+        ? { status: 200, body: staffJobDto(result.value, caller) }
+        : failure(result.error);
     }),
   );
 
@@ -347,7 +380,9 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
         jobId: makeId<'JobId'>(params.data.id),
         position: body.data.position,
       });
-      return result.ok ? { status: 200, body: jobDto(result.value) } : failure(result.error);
+      return result.ok
+        ? { status: 200, body: staffJobDto(result.value, caller) }
+        : failure(result.error);
     }),
   );
 }

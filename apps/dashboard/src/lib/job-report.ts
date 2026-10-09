@@ -1,4 +1,5 @@
 import type { JobReportRowDto } from '@wagonwise/contracts/jobs';
+import { formatPence } from './money';
 
 /** The periods the reports page offers, besides a custom range. */
 export type ReportPreset = 'last7' | 'last30' | 'thisMonth' | 'lastMonth' | 'custom';
@@ -92,6 +93,11 @@ const COLUMNS: readonly {
   { header: 'Delivery', value: (r) => r.delivery ?? '' },
   { header: 'Driver', value: (r) => r.driver ?? '' },
   { header: 'Vehicle', value: (r) => r.vehicle ?? '' },
+  { header: 'Customer', value: (r) => r.customer ?? '' },
+  {
+    header: 'Price (£)',
+    value: (r) => (r.pricePence === undefined ? '' : (r.pricePence / 100).toFixed(2)),
+  },
   { header: 'Created', value: (r) => dateTimeText(r.createdAt) },
   { header: 'Due by', value: (r) => dateTimeText(r.dueBy) },
   { header: 'Accepted', value: (r) => dateTimeText(r.acceptedAt) },
@@ -133,3 +139,42 @@ export function csvFileName(range: ReportRange): string {
   const day = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   return `wagonwise-jobs-${day(range.from)}-to-${day(addDays(range.to, -1))}.csv`;
 }
+
+export interface RevenueLine {
+  readonly name: string;
+  readonly jobs: number;
+  readonly revenuePence: number;
+}
+
+/**
+ * Revenue split by customer or by vehicle: the price of each job delivered in the period, grouped, largest first. A delivered
+ * job with no price is counted in `jobs` but adds nothing, so a gap shows up as a line with jobs and no money. Jobs with no
+ * customer (or vehicle) are grouped as "No customer" ("No vehicle").
+ */
+export function revenueBy(
+  rows: readonly JobReportRowDto[],
+  range: ReportRange,
+  by: 'customer' | 'vehicle',
+): RevenueLine[] {
+  const lines = new Map<string, { jobs: number; revenuePence: number }>();
+  for (const row of rows) {
+    if (row.status !== 'delivered' || row.deliveredAt === undefined) continue;
+    const at = new Date(row.deliveredAt).getTime();
+    if (at < range.from.getTime() || at >= range.to.getTime()) continue;
+    const name =
+      (by === 'customer' ? row.customer : row.vehicle) ??
+      (by === 'customer' ? 'No customer' : 'No vehicle');
+    const line = lines.get(name) ?? { jobs: 0, revenuePence: 0 };
+    lines.set(name, {
+      jobs: line.jobs + 1,
+      revenuePence: line.revenuePence + (row.pricePence ?? 0),
+    });
+  }
+  return [...lines]
+    .map(([name, l]) => ({ name, ...l }))
+    .sort((a, b) => b.revenuePence - a.revenuePence || a.name.localeCompare(b.name));
+}
+
+/** "£1,234.00", or a dash when there is nothing to show. */
+export const moneyText = (pence: number | undefined): string =>
+  pence === undefined ? '–' : formatPence(pence);

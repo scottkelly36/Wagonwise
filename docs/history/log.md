@@ -3,6 +3,16 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **revenue, first slice: a customer and a price on each job (Phase 3 M2, a client's own revenue).** Migration 0055 (`customer`
+  text, `price_pence` on `jobs.jobs`). A dispatcher can write who a job is for (free text, with the firm's earlier customers offered as
+  suggestions so a name is spelt the same each time) and an agreed price in pounds and pence, when creating it or any time after
+  (`PUT /staff/jobs/:id/commercial`, needs `dispatch`; the Jobs page has **Customer and price**), since a price is often agreed, or
+  corrected, late. Both are the firm's own business: **a driver never sees them** (`jobDto`, the driver's view, has no money in it; a test
+  checks the driver's job leaks neither) and staff see them only if they can dispatch or read reports (`staffJobDto`). The jobs report
+  gains Customer and Price columns (in the CSV too) and a **Revenue** figure: the price of jobs delivered in the period, counted when
+  delivered, with how many delivered jobs have no price so a gap is visible; plus **Revenue by customer** and **by vehicle**. A price
+  is in whole pence, up to £1,000,000, as a guard against a typing slip. No rate cards, no invoicing a client and no per-job cost yet:
+  costing is next, then projections. Deploy core, staff-bff and dashboard together; the migration runs with core.
 - 2026-10-09: **dashboard menu: Reports moved into Operations.** It sat on its own as a lone link between sections and looked odd. It now lives
   under Operations (Jobs, Live trips, Drivers, Places, Reports), which has five links and so folds like the other long sections. The only
   standalone link left is Overview.

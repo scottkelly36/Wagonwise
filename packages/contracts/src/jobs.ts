@@ -53,6 +53,10 @@ export const jobSchema = z.object({
   currentStop: z.number().int().min(0).default(0),
   /** The delivery stops (by position) that have a proof photo. */
   proofStops: z.array(z.number().int().min(0)).default([]),
+  /** Who the job is for, and what it earns in whole pence. Only for staff who can dispatch or read reports; never sent
+   *  to a driver. */
+  customer: z.string().optional(),
+  pricePence: z.number().int().min(0).optional(),
   driverId: z.string().optional(),
   vehicleId: z.string().optional(),
   routePlanId: z.string().optional(),
@@ -72,6 +76,9 @@ export const createJobRequestSchema = z.object({
   plannedStart: z.iso.datetime().optional(),
   dueBy: z.iso.datetime().optional(),
   requiresProofOfDelivery: z.boolean().optional(),
+  customer: z.string().max(120).optional(),
+  /** In whole pence. */
+  pricePence: z.number().int().min(0).max(100_000_000).optional(),
 });
 export type CreateJobRequest = z.infer<typeof createJobRequestSchema>;
 
@@ -123,6 +130,8 @@ export const jobReportRowSchema = z.object({
   onTime: z.boolean().optional(),
   requiresProofOfDelivery: z.boolean(),
   hasProofOfDelivery: z.boolean(),
+  customer: z.string().optional(),
+  pricePence: z.number().int().min(0).optional(),
 });
 export type JobReportRowDto = z.infer<typeof jobReportRowSchema>;
 
@@ -137,6 +146,9 @@ export const jobReportSummarySchema = z.object({
   averageMinutes: z.number().optional(),
   proofRequired: z.number(),
   proofReceived: z.number(),
+  /** The price of the jobs delivered in the period, in pence, and how many of them have no price. */
+  revenuePence: z.number().int().default(0),
+  deliveredWithoutPrice: z.number().int().default(0),
 });
 export type JobReportSummaryDto = z.infer<typeof jobReportSummarySchema>;
 
@@ -292,3 +304,11 @@ export type JobNoticeDto = z.infer<typeof jobNoticeSchema>;
 
 /** `GET /staff/jobs/companies/:companyId/notices`: the notice for each job assigned and not yet accepted. */
 export const listJobNoticesResponseSchema = z.object({ notices: z.array(jobNoticeSchema) });
+
+/** `PUT /staff/jobs/:id/commercial`: who the job is for and what it earns. `null` clears a field; a field left out is left
+ *  as it is. Needs `dispatch`. */
+export const setJobCommercialRequestSchema = z.object({
+  customer: z.string().max(120).nullable().optional(),
+  pricePence: z.number().int().min(0).max(100_000_000).nullable().optional(),
+});
+export type SetJobCommercialRequest = z.infer<typeof setJobCommercialRequestSchema>;

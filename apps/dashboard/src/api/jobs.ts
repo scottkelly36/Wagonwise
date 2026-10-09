@@ -11,6 +11,7 @@ import {
   listJobPositionsResponseSchema,
   listJobsResponseSchema,
   previewJobRouteRequestSchema,
+  setJobCommercialRequestSchema,
   proofOfDeliveryResponseSchema,
   type AssignJobRequest,
   type CreateJobRequest,
@@ -19,6 +20,7 @@ import {
   type JobEtaDto,
   type JobNoticeDto,
   type JobRoutePreviewDto,
+  type SetJobCommercialRequest,
   type JobDto,
   type JobPositionDto,
   type ProofOfDeliveryResponse,
@@ -158,4 +160,19 @@ export async function resendJobNotice(accessToken: string, id: string): Promise<
   });
   throwUnlessSuccess(status, json, [200]);
   return jobNoticeSchema.parse(json);
+}
+
+/** Sets (or clears, with null) who a job is for and what it earns. Needs `dispatch`. */
+export async function setJobCommercial(
+  accessToken: string,
+  id: string,
+  input: SetJobCommercialRequest,
+): Promise<JobDto> {
+  const body = setJobCommercialRequestSchema.parse(input);
+  const { status, json } = await requestJson('PUT', `/staff/jobs/${id}/commercial`, {
+    body,
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return jobSchema.parse(json);
 }
