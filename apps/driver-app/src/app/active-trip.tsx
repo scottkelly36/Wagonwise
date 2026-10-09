@@ -18,6 +18,7 @@ import { useMyPlaces } from '../api/use-places';
 import type { SavedPlaceDto } from '@wagonwise/contracts/places';
 import { thinPoints } from '../lib/thin-points';
 import { OpenSettingsButton } from '../components/open-settings-button';
+import { HoursSharingChip } from '../components/hours-sharing-chip';
 import { PositionSharingChip } from '../components/position-sharing-chip';
 import { isSharingPosition } from '../lib/job-position-reporting';
 import { TurnBanner } from '../components/turn-banner';
@@ -519,6 +520,7 @@ export default function ActiveTripScreen() {
 
       <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
         {job.data && isSharingPosition(job.data.status, true) && <PositionSharingChip />}
+        <HoursSharingChip />
 
         {location.status === 'denied' && (
           <Text style={styles.hint}>

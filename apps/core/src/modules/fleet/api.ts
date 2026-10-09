@@ -82,6 +82,12 @@ export interface FleetModule {
   /** Whether the driver has an active link with the company (P2-M2.8). For `jobs`' driver
    *  directory, supplied by composition — replaces identity's old single `drivers.company_id`. */
   isActiveDriverOfCompany(driverId: string, companyId: string): Promise<boolean>;
+  /** The companies the driver is an active member of, with their names. For `hours`, supplied by composition. Reads
+   *  in the driver's own data scope, so call it inside the driver's request. */
+  activeCompaniesOfDriver(
+    driverId: string,
+    identifier: string,
+  ): Promise<{ readonly id: string; readonly name: string }[]>;
   /** Removes a deleted driver from fleet: their unanswered invitations are deleted, their own links
    *  lose the identifier and end. For account deletion, supplied to `identity` by composition. Safe
    *  to run twice. */
@@ -170,6 +176,15 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
     },
     isActiveDriverOfCompany(driverId: string, companyId: string): Promise<boolean> {
       return links.isActive(makeId<'CompanyId'>(companyId), makeId<'DriverId'>(driverId));
+    },
+    async activeCompaniesOfDriver(driverId: string, identifier: string) {
+      const mine = await links.listForDriver(makeId<'DriverId'>(driverId), identifier);
+      const active = mine.filter((l) => l.status === 'active');
+      const names = await deps.companyNames.namesFor(active.map((l) => l.companyId));
+      return active.map((l) => ({
+        id: l.companyId,
+        name: names.get(l.companyId) ?? 'Your company',
+      }));
     },
   };
 }

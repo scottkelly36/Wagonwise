@@ -1,3 +1,4 @@
+import { hoursCompanyParamsSchema, hoursSettingsSchema } from '@wagonwise/contracts/hours';
 import {
   createItemTypeRequestSchema,
   itemTypeBodySchema,
@@ -269,6 +270,23 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/maintenance/companies/:companyId/import',
     params: maintenanceCompanyParamsSchema,
     body: importDatesRequestSchema,
+  },
+  // Driver hours sharing: the firm's switch, and the statuses of drivers who agreed to share. Core decides who may.
+  {
+    method: 'GET',
+    path: '/staff/hours/companies/:companyId/settings',
+    params: hoursCompanyParamsSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/hours/companies/:companyId/settings',
+    params: hoursCompanyParamsSchema,
+    body: hoursSettingsSchema,
+  },
+  {
+    method: 'GET',
+    path: '/staff/hours/companies/:companyId/status',
+    params: hoursCompanyParamsSchema,
   },
   // Repairs: a defect a driver found, booked for fixing, then done (which can mark the defect fixed).
   {

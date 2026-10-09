@@ -1,4 +1,5 @@
 import { makeId } from '../../shared/brand.js';
+import { isActive } from './domain/job.js';
 import type { FastifyInstance } from 'fastify';
 import { pruneProofPhotos } from './application/prune-proof-photos.js';
 import { pruneJobPositions } from './application/prune-job-positions.js';
@@ -84,6 +85,10 @@ export interface JobsModule {
    *  checks, which are done on the vehicle the driver is about to take out; supplied by composition. Reads in
    *  the caller's own data scope, so call it inside the driver's request. */
   activeVehicleFor(driverId: string): Promise<string | null>;
+  /** The company of the job a driver is on right now (assigned up to at_delivery), or null. Same scope rule. */
+  activeCompanyFor(driverId: string): Promise<string | null>;
+  /** The drivers on a job for the company right now. */
+  activeDriverIds(companyId: string): Promise<string[]>;
 }
 
 /**
@@ -144,6 +149,16 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     pruneOldPositions(retentionDays: number): Promise<number> {
       return deps.dataScopes.run({ kind: 'platform' }, () =>
         pruneJobPositions({ positions, clock: deps.clock }, { retentionDays }),
+      );
+    },
+    async activeCompanyFor(driverId: string): Promise<string | null> {
+      const job = await repo.findActiveForDriver(makeId<'DriverId'>(driverId));
+      return job?.companyId ?? null;
+    },
+    async activeDriverIds(companyId: string): Promise<string[]> {
+      const jobs = await repo.listForCompany(makeId<'CompanyId'>(companyId));
+      return jobs.flatMap((j) =>
+        j.driverId !== undefined && isActive(j.status) ? [j.driverId] : [],
       );
     },
     async activeVehicleFor(driverId: string): Promise<string | null> {

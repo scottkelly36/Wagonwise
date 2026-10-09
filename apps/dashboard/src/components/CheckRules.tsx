@@ -2,6 +2,7 @@ import type { CheckSettingsDto } from '@wagonwise/contracts/checks';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as checksApi from '../api/checks';
+import * as hoursApi from '../api/hours';
 import { retentionChoices } from '../lib/retention';
 import { staffErrorMessage } from '../pages/staff/messages';
 import { useStaffAuthStore } from '../state/staff-auth-store';
@@ -24,6 +25,21 @@ export function CheckRules({ companyId, canChange }: { companyId: string; canCha
     mutationFn: (next: CheckSettingsDto) =>
       withAccessToken((token) => checksApi.updateCheckSettings(token, companyId, next)),
     onSuccess: (saved) => queryClient.setQueryData(key, saved),
+  });
+
+  // Showing drivers' hours status on the live map: off until the firm chooses, and each driver still chooses for themselves.
+  const hoursKey = ['hours-setting', companyId] as const;
+  const hours = useQuery({
+    queryKey: hoursKey,
+    queryFn: () => withAccessToken((token) => hoursApi.getHoursSetting(token, companyId)),
+  });
+  const saveHours = useMutation({
+    mutationFn: (enabled: boolean) =>
+      withAccessToken((token) => hoursApi.setHoursSetting(token, companyId, enabled)),
+    onSuccess: (enabled) => {
+      queryClient.setQueryData(hoursKey, enabled);
+      void queryClient.invalidateQueries({ queryKey: ['hours-status'] });
+    },
   });
 
   const [saved, setSaved] = useState(false);
@@ -86,6 +102,26 @@ export function CheckRules({ companyId, canChange }: { companyId: string; canCha
             {!canChange && ' Fleet managers can change them.'}
           </p>
           {saved && <p style={{ color: '#15803d' }}>Saved.</p>}
+          <hr style={{ border: 0, borderTop: '1px solid #e5e7eb', margin: '16px 0' }} />
+          <label style={{ display: 'block' }}>
+            <input
+              type="checkbox"
+              checked={hours.data === true}
+              disabled={!canChange || hours.isPending || saveHours.isPending}
+              onChange={(e) => saveHours.mutate(e.target.checked)}
+            />{' '}
+            <strong>Show drivers&apos; hours status on the live map.</strong> Drivers choose for
+            themselves whether to share. Nothing is shown for a driver who has not agreed.
+          </label>
+          <p style={{ color: '#6b7280', fontSize: 13 }}>
+            The status is a live guide the driver enters, not a record of hours; it is not stored as
+            history and should not be used for pay or discipline. You remain responsible for your
+            own drivers&apos;-hours records and for the lawful basis for any monitoring of your
+            staff. Turning this off removes every status straight away.
+          </p>
+          {(hours.isError || saveHours.isError) && (
+            <p style={{ color: '#dc2626' }}>{staffErrorMessage(hours.error ?? saveHours.error)}</p>
+          )}
         </>
       )}
       {save.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(save.error)}</p>}

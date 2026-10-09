@@ -123,7 +123,7 @@ daily and weekly rest. A firm picks which rule set applies to each vehicle.
   any Bluetooth.
 
 **Built so far (Track A):** the rules and the clock (`lib/driver-hours.ts`), the shift record on the phone, break planning on the trip screen (`lib/break-plan.ts`), weekly and fortnightly driving limits, and the Driving hours
-screen in the More tab. Still to build: weekly rest, then status to core and the portal.
+screen in the More tab. Status sharing with the company is built. Still to build: weekly rest.
 
 ### Track B: tachograph source (a connection)
 
@@ -140,7 +140,7 @@ screen in the More tab. Still to build: weekly rest, then status to core and the
 ### Privacy and safeguards (both tracks)
 
 The consent wording, the rules for sharing status with a company, the privacy-notice text and the questions for a solicitor are
-drafted in [`driver-hours-consent.md`](driver-hours-consent.md) (a draft for the owner to approve; nothing built).
+in [`driver-hours-consent.md`](driver-hours-consent.md) (approved by the owner and built on 2026-10-09; a solicitor has not read it).
 
 - This is personal data about working time. It needs the driver's clear consent and a plain answer to "can my employer see this"
   before a driver turns it on; the DPIA and privacy notice are updated first. Whether the office sees status at all is a firm

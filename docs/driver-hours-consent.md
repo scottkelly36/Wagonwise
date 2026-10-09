@@ -1,7 +1,7 @@
-# Driver hours: sharing a driver's status with their company (draft)
+# Driver hours: sharing a driver's status with their company
 
-**Status: a draft for the owner to approve, then for a solicitor to read. Nothing here is built.** It is the wording and the
-rules the build must follow, written before any code, as agreed on 2026-10-09. It is not legal advice.
+**Status: approved by the owner on 2026-10-09 and built (migration 0054). The wording and rules below are what the app and portal
+do. Still for a solicitor to read before it is used with real drivers; the main question is below.** It is not legal advice.
 
 The driving-hours clock (built: the clock, break planning, weekly limits) stays on the driver's phone and tells nobody. This
 document is about the one step beyond that: letting a driver's company see their **status** next to their job on the live map.
@@ -102,9 +102,13 @@ drivers. WagonWise provides the text above and the controls. Points for the comp
 2. Approve the wording, or change it.
 3. Whether the firm's switch sits with the walk-round check settings, or somewhere of its own.
 
-## What gets built once this is approved
+## What was built (2026-10-09)
 
 A small `driver-hours` area in core with the firm switch, the driver's choice per company and the latest status; one call from
 the driver app (only when both switches are on); a status chip on the live map; a "Sharing with {company}" line and Stop sharing
 button in the app; a daily clean-up of stale statuses. Tests prove nothing is stored or shown unless both switches are on, that
 withdrawing removes it at once, and that another company never sees it.
+
+**Where it differs from the draft.** The firm's switch sits on the Checks page, under the rules for sending a vehicle out (owner's
+choice). A status is hidden from the office the moment the driver's job ends or the driver stops sharing, but a row left by a job
+that ended is physically deleted by the hourly clean-up once it is 12 hours old, not at the instant the job ends.
