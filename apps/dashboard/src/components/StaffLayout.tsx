@@ -1,6 +1,7 @@
 import type { StaffAccountDto } from '@wagonwise/contracts/staff';
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { foldingSections, sectionForPath, toggled } from '../lib/nav';
 import { holds, isPlatform } from '../state/access';
 import { useStaffAuthStore } from '../state/staff-auth-store';
 import { WeatherBanner } from './WeatherBanner';
@@ -12,47 +13,49 @@ interface NavItem {
   readonly shows: (staff: StaffAccountDto) => boolean;
 }
 
-const everyone = () => true;
+/** The colour a section carries (a dot by its title and the edge of its current link), so areas are told apart at a glance. */
+type Area = 'ops' | 'compliance' | 'money' | 'team' | 'admin';
 
-/** Three sections: a company's own fleet, its people, and WagonWise's own admin pages. Since
- *  P2-M1.12c this is the dashboard's only layout, under the one staff sign-in. */
-const SECTIONS: readonly { readonly title: string; readonly items: readonly NavItem[] }[] = [
+interface NavSection {
+  readonly title: string;
+  readonly area: Area;
+  readonly items: readonly NavItem[];
+}
+
+const everyone = () => true;
+const seesChecks = (s: StaffAccountDto) =>
+  holds(s, 'manage_fleet') || holds(s, 'dispatch') || holds(s, 'view_reports');
+
+/** Where a person starts. Sits above the sections. */
+const HOME: NavItem = { to: '/fleet', label: 'Overview', shows: everyone };
+
+/**
+ * The menu, grouped by what the work is. A long section folds away and only one is open at a time (`lib/nav.ts` has the
+ * rule); the section holding the current page opens by itself. Since P2-M1.12c this is the dashboard's only layout, under the
+ * one staff sign-in.
+ */
+const SECTIONS: readonly NavSection[] = [
   {
-    title: 'Fleet',
+    title: 'Operations',
+    area: 'ops',
     items: [
-      { to: '/fleet', label: 'Overview', shows: everyone },
       { to: '/fleet/jobs', label: 'Jobs', shows: everyone },
       { to: '/fleet/live-trips', label: 'Live trips', shows: everyone },
       { to: '/fleet/drivers', label: 'Drivers', shows: everyone },
       { to: '/fleet/places', label: 'Places', shows: everyone },
-      {
-        to: '/fleet/checks',
-        label: 'Walk-round checks',
-        shows: (s) => holds(s, 'manage_fleet'),
-      },
+    ],
+  },
+  {
+    title: 'Compliance',
+    area: 'compliance',
+    items: [
+      { to: '/fleet/checks', label: 'Walk-round checks', shows: (s) => holds(s, 'manage_fleet') },
+      { to: '/fleet/check-results', label: 'Check results', shows: seesChecks },
+      { to: '/fleet/defects', label: 'Defects', shows: seesChecks },
       {
         to: '/fleet/maintenance',
         label: 'Maintenance',
-        shows: (s) =>
-          holds(s, 'manage_maintenance') ||
-          holds(s, 'manage_fleet') ||
-          holds(s, 'dispatch') ||
-          holds(s, 'view_reports'),
-      },
-      {
-        to: '/fleet/check-results',
-        label: 'Check results',
-        shows: (s) => holds(s, 'manage_fleet') || holds(s, 'dispatch') || holds(s, 'view_reports'),
-      },
-      {
-        to: '/fleet/defects',
-        label: 'Defects',
-        shows: (s) => holds(s, 'manage_fleet') || holds(s, 'dispatch') || holds(s, 'view_reports'),
-      },
-      {
-        to: '/fleet/reports',
-        label: 'Reports',
-        shows: (s) => isPlatform(s) || holds(s, 'view_reports'),
+        shows: (s) => holds(s, 'manage_maintenance') || seesChecks(s),
       },
       {
         to: '/fleet/vehicle-profiles',
@@ -62,7 +65,19 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
     ],
   },
   {
+    title: 'Insights',
+    area: 'ops',
+    items: [
+      {
+        to: '/fleet/reports',
+        label: 'Reports',
+        shows: (s) => isPlatform(s) || holds(s, 'view_reports'),
+      },
+    ],
+  },
+  {
     title: 'Your team',
+    area: 'team',
     items: [
       { to: '/staff/users', label: 'Users', shows: (s) => holds(s, 'manage_users') },
       { to: '/staff/activity', label: 'Activity', shows: (s) => holds(s, 'manage_users') },
@@ -80,14 +95,27 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
     ],
   },
   {
-    title: 'WagonWise admin',
+    title: 'Customers',
+    area: 'admin',
     items: [
       { to: '/admin/companies', label: 'Companies', shows: isPlatform },
       { to: '/admin/invite-codes', label: 'Invite codes', shows: isPlatform },
+    ],
+  },
+  {
+    title: 'Money',
+    area: 'money',
+    items: [
       { to: '/admin/plans', label: 'Plans', shows: isPlatform },
       { to: '/admin/invoices', label: 'Invoices', shows: isPlatform },
       { to: '/admin/finances', label: 'Finances', shows: isPlatform },
       { to: '/admin/billing', label: 'Billing details', shows: isPlatform },
+    ],
+  },
+  {
+    title: 'Content',
+    area: 'admin',
+    items: [
       { to: '/admin/moderation', label: 'Moderation', shows: isPlatform },
       { to: '/admin/hazard-reports', label: 'Hazard reports', shows: isPlatform },
       { to: '/admin/congestion-reports', label: 'Congestion reports', shows: isPlatform },
@@ -97,6 +125,7 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
 
 export function StaffLayout() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const session = useStaffAuthStore((s) => s.session);
   const signOut = useStaffAuthStore((s) => s.signOut);
   const staff = session?.staff;
@@ -112,6 +141,26 @@ export function StaffLayout() {
     return () => window.removeEventListener('keydown', onKey);
   }, [navOpen]);
 
+  // The sections this person can see, and which of them fold.
+  const visible =
+    staff === undefined
+      ? []
+      : SECTIONS.map((section) => ({
+          ...section,
+          items: section.items.filter((item) => item.shows(staff)),
+        })).filter((section) => section.items.length > 0);
+  const folding = foldingSections(visible);
+
+  // Only one folded section is open at a time. Going to a page opens the section it belongs to; a click on a heading
+  // overrides that until the person moves to another page.
+  const [choice, setChoice] = useState<{ path: string; title: string | undefined } | undefined>(
+    undefined,
+  );
+  const open =
+    choice !== undefined && choice.path === pathname
+      ? choice.title
+      : sectionForPath(visible, pathname);
+
   return (
     <div className="shell">
       <nav id="main-nav" className={navOpen ? 'sidebar open' : 'sidebar'} aria-label="Main">
@@ -120,14 +169,56 @@ export function StaffLayout() {
           WagonWise
         </div>
 
-        {staff !== undefined &&
-          SECTIONS.map((section) => {
-            const items = section.items.filter((item) => item.shows(staff));
-            if (items.length === 0) return null;
+        {staff !== undefined && HOME.shows(staff) && (
+          <NavLink
+            to={HOME.to}
+            end
+            onClick={() => setNavOpen(false)}
+            className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+          >
+            {HOME.label}
+          </NavLink>
+        )}
+
+        {visible.map((section) => {
+          // A section of one link is just that link: a heading over a single entry says nothing.
+          const [only] = section.items;
+          if (section.items.length === 1 && only !== undefined) {
             return (
-              <div key={section.title}>
+              <NavLink
+                key={section.title}
+                to={only.to}
+                end
+                onClick={() => setNavOpen(false)}
+                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+              >
+                {only.label}
+              </NavLink>
+            );
+          }
+          const folds = folding.has(section.title);
+          const expanded = !folds || open === section.title;
+          const listId = `nav-${section.title.toLowerCase().replace(/\s+/g, '-')}`;
+          return (
+            <div key={section.title} className="nav-group" data-area={section.area}>
+              {folds ? (
+                <button
+                  type="button"
+                  className="nav-section nav-toggle"
+                  aria-expanded={expanded}
+                  aria-controls={listId}
+                  onClick={() => setChoice({ path: pathname, title: toggled(open, section.title) })}
+                >
+                  <span>{section.title}</span>
+                  <span className="nav-chevron" aria-hidden="true">
+                    {expanded ? '▾' : '▸'}
+                  </span>
+                </button>
+              ) : (
                 <p className="nav-section">{section.title}</p>
-                {items.map((item) => (
+              )}
+              <div id={listId} hidden={!expanded}>
+                {section.items.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
@@ -139,8 +230,9 @@ export function StaffLayout() {
                   </NavLink>
                 ))}
               </div>
-            );
-          })}
+            </div>
+          );
+        })}
       </nav>
 
       {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}

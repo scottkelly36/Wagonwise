@@ -3,6 +3,15 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **dashboard menu regrouped and folding (clean-up step 1).** The sidebar was one 11-link "Fleet" list plus a 9-link admin list. Now:
+  a standalone **Overview**; **Operations** (Jobs, Live trips, Drivers, Places); **Compliance** (Walk-round checks, Check results,
+  Defects, Maintenance, Vehicle profiles); **Reports** as a plain link; **Your team**; and for WagonWise staff **Customers**, **Money**
+  and **Content** (moderation and the report queues). `lib/nav.ts` has the rule: a section with more than 4 links folds; when the whole
+  menu has more than 12 links every section of two or more folds (so a WagonWise admin gets a short menu); a section of one link
+  is just the link. Only one folded section is open at a time, the one holding the current page opens by itself, and clicking a heading
+  overrides that until the next page. Each area carries a quiet colour (a dot by the heading and the edge of the current link):
+  blue operations, teal compliance, violet money, slate team and admin. No page, route or privilege changed. Next: button variants and
+  colour tokens, then the home dashboard.
 - 2026-10-09: **driving hours: sharing a driver's status with their company (Phase 3 M9, built to `driver-hours-consent.md`, approved by
   the owner).** Migration 0054 (`hours.settings`, `hours.sharing`, `hours.status`, all under Row-Level Security; a driver may read the
   firm's switch only for a company they are an active member of). New core module `hours`. **Two switches, both off by default:** a
