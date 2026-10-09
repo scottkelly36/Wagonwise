@@ -64,6 +64,18 @@ export interface CompaniesModule {
   listPhotoRetention(): Promise<ReadonlyMap<string, number>>;
   /** Every company's id and name, for billing's admin screens. */
   listCompanyNames(): Promise<readonly { readonly id: string; readonly name: string }[]>;
+  /**
+   * The live fleet accounts of a company, with their email and what they may do, for maintenance's morning reminder.
+   * Opens its own data scope, so call it outside any other `DataScopes.run`.
+   */
+  listFleetContacts(companyId: string): Promise<
+    readonly {
+      readonly staffId: string;
+      readonly name: string;
+      readonly email: string;
+      readonly privileges: readonly string[];
+    }[]
+  >;
 }
 
 /**
@@ -123,6 +135,23 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     },
     getStaffCaller(staffId: string) {
       return staffCallers.get(makeId<'StaffId'>(staffId));
+    },
+    async listFleetContacts(companyId: string) {
+      const accounts = await deps.dataScopes.run({ kind: 'platform' }, () =>
+        staffDeps.accounts.listByCompany(makeId<'CompanyId'>(companyId)),
+      );
+      return accounts.flatMap((a) =>
+        a.kind === 'fleet'
+          ? [
+              {
+                staffId: a.id,
+                name: a.name,
+                email: a.email,
+                privileges: a.privileges,
+              },
+            ]
+          : [],
+      );
     },
     async listCompanyNames() {
       const all = await repo.findAll();

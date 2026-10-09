@@ -277,6 +277,8 @@ export function composeCore(
     ids,
     clock,
     dataScopes,
+    mailer: { send: (to, subject, text) => identity.sendEmail(to, subject, text) },
+    dashboardUrl: config.dashboardUrl,
     callers: { getCaller: staffCaller },
     vehicles: {
       listForCompany: async (companyId) =>
@@ -463,6 +465,31 @@ export function composeCore(
       const ids = (await companies.listCompanyNames()).map((c) => c.id);
       const removed = await checks.pruneOldChecks(ids);
       if (removed > 0) app.log.info({ removed }, 'deleted old walk-round checks');
+    },
+  });
+
+  periodicTasks.start({
+    name: 'maintenance-reminders',
+    intervalMs: 60 * 60 * 1000,
+    run: async () => {
+      // The people to tell are gathered first, each lookup in its own data scope; the run then works in one scope.
+      const all = await companies.listCompanyNames();
+      const recipients = await Promise.all(
+        all.map(async (c) => ({
+          id: makeId<'CompanyId'>(c.id),
+          name: c.name,
+          recipients: (await companies.listFleetContacts(c.id)).map((p) => ({
+            staffId: makeId<'StaffId'>(p.staffId),
+            name: p.name,
+            email: p.email,
+            privileges: p.privileges,
+          })),
+        })),
+      );
+      const { sent, failed } = await maintenance.sendDueReminders(recipients);
+      if (sent > 0 || failed > 0) {
+        app.log.info({ sent, failed }, 'maintenance reminders');
+      }
     },
   });
 

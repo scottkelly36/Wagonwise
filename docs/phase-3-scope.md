@@ -68,7 +68,7 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
 - **It lives on the vehicle profiles page** (a maintenance panel per vehicle), plus a Maintenance overview of what is overdue or due
   soon.
 - **Who:** a new assignable privilege (`manage_maintenance`) so a manager can give it to whoever books vehicles in; managers keep it.
-- **Reminders:** each person chooses how they are told (email, text, or only in the portal); the portal always shows what is due.
+- **Reminders:** each person chooses how they are told (email or only the portal built; text to follow once there is a general text sender and a mobile number on file); the portal always shows what is due.
 - **Advisory only for now:** an overdue item never stops a vehicle being sent out. Out of scope for now: mileage intervals, automatic
   MOT lookup by registration, certificate uploads.
 - **Slices:** 1 registration on vehicle profiles (built); 2 items, the per-vehicle schedule, the Maintenance views and the `manage_maintenance` privilege (built); 3 the

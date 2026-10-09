@@ -6,6 +6,7 @@ import {
   maintenanceVehicleItemParamsSchema,
   maintenanceVehicleParamsSchema,
   markDoneRequestSchema,
+  myRemindersSchema,
   setDueRequestSchema,
 } from '@wagonwise/contracts/maintenance';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -23,6 +24,7 @@ import {
   type VehicleNotInCompany,
 } from '../application/item-types.js';
 import type { CallerDirectory, StaffCaller } from '../application/ports/directories.js';
+import { getMyReminders, setMyReminders, type ReminderDeps } from '../application/reminders.js';
 import {
   maintenanceOverview,
   markDone,
@@ -44,6 +46,7 @@ import type {
 export interface MaintenanceRouteDeps {
   readonly items: ItemTypeDeps;
   readonly schedule: ScheduleDeps;
+  readonly reminders: Pick<ReminderDeps, 'preferences' | 'clock'>;
   readonly callerDirectory: CallerDirectory;
   /** Row-Level Security scope per request (migration 0050). */
   readonly dataScopes: DataScopes;
@@ -144,6 +147,27 @@ export function registerMaintenanceRoutes(app: FastifyInstance, deps: Maintenanc
     const body = outcome.status >= 400 ? { ...outcome.body, requestId: request.id } : outcome.body;
     return reply.status(outcome.status).send(body);
   }
+
+  app.get('/staff/maintenance/my-reminders', (request, reply) =>
+    asStaff(request, reply, async (caller, staffId) => {
+      const result = await getMyReminders(deps.reminders, caller, makeId<'StaffId'>(staffId));
+      return result.ok ? { status: 200, body: { channel: result.value } } : failure(result.error);
+    }),
+  );
+
+  app.put('/staff/maintenance/my-reminders', (request, reply) =>
+    asStaff(request, reply, async (caller, staffId) => {
+      const body = myRemindersSchema.safeParse(request.body);
+      if (!body.success) return INVALID;
+      const result = await setMyReminders(
+        deps.reminders,
+        caller,
+        makeId<'StaffId'>(staffId),
+        body.data.channel,
+      );
+      return result.ok ? { status: 200, body: { channel: result.value } } : failure(result.error);
+    }),
+  );
 
   app.get('/staff/maintenance/starter', (request, reply) =>
     asStaff(request, reply, () =>

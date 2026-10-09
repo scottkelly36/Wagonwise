@@ -13,6 +13,17 @@ import { makeId } from '../shared/brand.js';
 import { FakeClock } from '../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../shared/testing/sequential-id-generator.js';
 
+/** Records what would have been emailed; `failFor` makes sending to that address fail. */
+class RecordingMailer {
+  readonly sent: { to: string; subject: string; text: string }[] = [];
+  readonly failFor = new Set<string>();
+  send(to: string, subject: string, text: string): Promise<void> {
+    if (this.failFor.has(to)) return Promise.reject(new Error('mail provider said no'));
+    this.sent.push({ to, subject, text });
+    return Promise.resolve();
+  }
+}
+
 const migrationsDir = fileURLToPath(new URL('../../migrations', import.meta.url));
 
 const ACME = '11111111-1111-4111-8111-111111111111';
@@ -23,11 +34,13 @@ const THEIRS = 'eeeeeeee-0000-4000-8000-000000000003';
 const BOOKER = '50000000-0000-4000-8000-000000000001';
 const DISPATCHER = '50000000-0000-4000-8000-000000000002';
 const RIVAL = '50000000-0000-4000-8000-000000000003';
+const PAT = '50000000-0000-4000-8000-000000000004';
 const MOT = 'cccccccc-0000-4000-8000-000000000001';
 
 const staff: Record<string, StaffCaller> = {
   [BOOKER]: { kind: 'fleet', companyId: ACME as never, privileges: ['manage_maintenance'] },
   [DISPATCHER]: { kind: 'fleet', companyId: ACME as never, privileges: ['dispatch'] },
+  [PAT]: { kind: 'fleet', companyId: ACME as never, privileges: ['manage_maintenance'] },
   [RIVAL]: { kind: 'fleet', companyId: BETA as never, privileges: ['manage_maintenance'] },
 };
 
@@ -41,6 +54,9 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
   let ownerPool: Pool;
   let appPool: Pool;
   let app: FastifyInstance;
+  let maintenance: ReturnType<typeof createMaintenanceModule>;
+  let clock: FakeClock;
+  const mailer = new RecordingMailer();
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgis/postgis:16-3.4').start();
@@ -64,7 +80,7 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
     const db = new Kysely<Record<string, unknown>>({
       dialect: new PostgresDialect({ pool: scopes.pool }),
     });
-    const clock = new FakeClock('2026-10-09T09:00:00.000Z');
+    clock = new FakeClock('2026-10-09T09:00:00.000Z');
     const ids = new SequentialIdGenerator();
 
     const fleet = createFleetModule({
@@ -78,11 +94,13 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
       vehicleCapacity: { capacityFor: () => Promise.resolve(99) },
     });
     // Wired exactly as compose-core.ts does it.
-    const maintenance = createMaintenanceModule({
+    maintenance = createMaintenanceModule({
       db,
       ids,
       clock,
       dataScopes: scopes,
+      mailer,
+      dashboardUrl: 'https://portal.example.com',
       callers: { getCaller: (id) => Promise.resolve(staff[id] ?? null) },
       vehicles: {
         listForCompany: async (companyId) =>
@@ -252,5 +270,132 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
       (await app.inject({ method: 'GET', url: `/staff/maintenance/companies/${ACME}/overview` }))
         .statusCode,
     ).toBe(401);
+  });
+
+  describe('the morning reminder', () => {
+    const contacts = () => [
+      {
+        id: makeId<'CompanyId'>(ACME),
+        name: 'Acme Freight',
+        recipients: [
+          {
+            staffId: makeId<'StaffId'>(BOOKER),
+            name: 'Sam',
+            email: 'sam@acme.test',
+            privileges: ['manage_maintenance'],
+          },
+          {
+            staffId: makeId<'StaffId'>(PAT),
+            name: 'Pat',
+            email: 'pat@acme.test',
+            privileges: ['manage_maintenance'],
+          },
+          {
+            staffId: makeId<'StaffId'>(DISPATCHER),
+            name: 'Dee',
+            email: 'dee@acme.test',
+            privileges: ['dispatch'],
+          },
+        ],
+      },
+    ];
+
+    it('sets up: the lorry’s MOT is overdue', async () => {
+      clock.set('2026-10-10T08:00:00.000Z');
+      const set = await app.inject({
+        method: 'PUT',
+        url: `/staff/maintenance/vehicles/${LORRY}/items/${MOT}/due`,
+        payload: { dueDate: '2026-10-01' },
+        ...as(BOOKER),
+      });
+      expect(set.statusCode).toBe(200);
+    });
+
+    it('emails each person who books vehicles in, once, and records the day in the database', async () => {
+      const first = await maintenance.sendDueReminders(contacts());
+      expect(first).toEqual({ sent: 2, failed: 0 });
+      expect(mailer.sent.map((m) => m.to).sort()).toEqual(['pat@acme.test', 'sam@acme.test']);
+      expect(mailer.sent[0]?.text).toContain('Big Wagon: MOT, overdue by 9 days');
+      expect(mailer.sent[0]?.text).toContain('https://portal.example.com/fleet/maintenance');
+
+      expect(await maintenance.sendDueReminders(contacts())).toEqual({ sent: 0, failed: 0 });
+      const { rows } = await ownerPool.query(
+        'select count(*)::int as n from maintenance.reminder_log',
+      );
+      expect(rows[0]).toEqual({ n: 2 });
+    });
+
+    it('lets a person choose portal only, and honours it the next morning', async () => {
+      const chosen = await app.inject({
+        method: 'PUT',
+        url: '/staff/maintenance/my-reminders',
+        payload: { channel: 'none' },
+        ...as(BOOKER),
+      });
+      expect(chosen.json()).toEqual({ channel: 'none' });
+      expect(
+        (
+          await app.inject({ method: 'GET', url: '/staff/maintenance/my-reminders', ...as(BOOKER) })
+        ).json(),
+      ).toEqual({ channel: 'none' });
+      expect(
+        (
+          await app.inject({ method: 'GET', url: '/staff/maintenance/my-reminders', ...as(PAT) })
+        ).json(),
+      ).toEqual({ channel: 'email' });
+
+      mailer.sent.length = 0;
+      clock.set('2026-10-11T08:00:00.000Z');
+      await maintenance.sendDueReminders(contacts());
+      expect(mailer.sent.map((m) => m.to)).toEqual(['pat@acme.test']);
+    });
+
+    it('tries again after a failed send, and does not wait for 7am UK time', async () => {
+      mailer.sent.length = 0;
+      clock.set('2026-10-12T05:30:00.000Z'); // 06:30 in the UK
+      expect(await maintenance.sendDueReminders(contacts())).toEqual({ sent: 0, failed: 0 });
+      clock.set('2026-10-12T06:00:00.000Z'); // 07:00 in the UK
+      mailer.failFor.add('pat@acme.test');
+      expect(await maintenance.sendDueReminders(contacts())).toEqual({ sent: 0, failed: 1 });
+      mailer.failFor.clear();
+      expect(await maintenance.sendDueReminders(contacts())).toEqual({ sent: 1, failed: 0 });
+      expect(mailer.sent.map((m) => m.to)).toEqual(['pat@acme.test']);
+    });
+
+    it('keeps reminders for the people who book vehicles in: not a dispatcher, not WagonWise', async () => {
+      for (const who of [DISPATCHER]) {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/staff/maintenance/my-reminders',
+          ...as(who),
+        });
+        expect(response.statusCode).toBe(403);
+      }
+      const bad = await app.inject({
+        method: 'PUT',
+        url: '/staff/maintenance/my-reminders',
+        payload: { channel: 'sms' },
+        ...as(BOOKER),
+      });
+      expect(bad.statusCode).toBe(400);
+    });
+
+    it('does not email a company with nothing due', async () => {
+      mailer.sent.length = 0;
+      clock.set('2026-10-13T08:00:00.000Z');
+      const other = {
+        id: makeId<'CompanyId'>(BETA),
+        name: 'Beta Haulage',
+        recipients: [
+          {
+            staffId: makeId<'StaffId'>(RIVAL),
+            name: 'Kim',
+            email: 'kim@beta.test',
+            privileges: ['manage_maintenance'],
+          },
+        ],
+      };
+      expect(await maintenance.sendDueReminders([other])).toEqual({ sent: 0, failed: 0 });
+    });
   });
 });

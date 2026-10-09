@@ -107,3 +107,11 @@ export type MarkDoneRequest = z.infer<typeof markDoneRequestSchema>;
 
 export const scheduleSchema = z.object({ dueDate: day, lastDone: day.optional() });
 export type ScheduleDto = z.infer<typeof scheduleSchema>;
+
+/** How a person who books vehicles in is told what is due: an email each morning, or only by looking at the portal. */
+export const reminderChannelSchema = z.enum(['email', 'none']);
+export type ReminderChannel = z.infer<typeof reminderChannelSchema>;
+
+/** `GET` and `PUT /staff/maintenance/my-reminders`: the signed-in person's own choice (email until they choose). */
+export const myRemindersSchema = z.object({ channel: reminderChannelSchema });
+export type MyRemindersDto = z.infer<typeof myRemindersSchema>;

@@ -3,6 +3,7 @@ import type {
   HistoryEntry,
   ItemTypeId,
   Schedule,
+  StaffId,
   VehicleId,
 } from '../../domain/maintenance.js';
 import type { ScheduleRepository } from '../ports/schedule-repository.js';
@@ -32,7 +33,7 @@ export class InMemoryScheduleRepository implements ScheduleRepository {
     );
   }
 
-  upsert(companyId: CompanyId, schedule: Schedule): Promise<void> {
+  upsert(companyId: CompanyId, schedule: Schedule, _by?: StaffId, _at?: Date): Promise<void> {
     this.#schedules.set(InMemoryScheduleRepository.key(schedule.vehicleId, schedule.itemTypeId), {
       companyId,
       schedule,

@@ -10,6 +10,7 @@ import * as fleetApi from '../../api/fleet';
 import * as maintenanceApi from '../../api/maintenance';
 import { CompanySelect } from '../../components/CompanySelect';
 import { DataTable, type Column } from '../../components/DataTable';
+import { MyReminders } from '../../components/MyReminders';
 import { VehicleMaintenance } from '../../components/VehicleMaintenance';
 import {
   dueText,
@@ -56,6 +57,7 @@ export function Maintenance() {
           />
         </div>
       )}
+      {!everyCompany && holds(me, 'manage_maintenance') && <MyReminders />}
       {companyId === undefined ? (
         <p>Choose a company.</p>
       ) : (
