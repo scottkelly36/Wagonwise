@@ -203,6 +203,7 @@ export function Reports() {
           </>
         )}
         <button
+          className="btn-primary"
           type="button"
           disabled={range === undefined || rows.length === 0}
           onClick={() => range && download(csvFileName(range), toCsv(rows))}

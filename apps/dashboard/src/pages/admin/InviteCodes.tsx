@@ -55,11 +55,12 @@ export function InviteCodes() {
   return (
     <div>
       <h1>Invite codes</h1>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         A tester needs one of these the first time they sign in to the driver app.
       </p>
 
       <button
+        className="btn-primary"
         onClick={() => generateCode.mutate()}
         disabled={generateCode.isPending}
         style={{ marginBottom: 24 }}
@@ -67,7 +68,7 @@ export function InviteCodes() {
         {generateCode.isPending ? 'Generating…' : 'Generate code'}
       </button>
 
-      {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
 
       {inviteCodes.isPending ? (
         <p>Loading…</p>

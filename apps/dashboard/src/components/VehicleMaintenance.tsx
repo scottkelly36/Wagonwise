@@ -43,10 +43,12 @@ export function VehicleMaintenance({
   const name = rows[0] === undefined ? undefined : vehicleLabel(rows[0]);
 
   return (
-    <section style={{ marginTop: 24, padding: 16, border: '1px solid #e5e7eb', borderRadius: 8 }}>
+    <section
+      style={{ marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
+    >
       <h2 style={{ marginTop: 0 }}>Maintenance{name === undefined ? '' : `: ${name}`}</h2>
       {data.isPending && <p>Loading…</p>}
-      {data.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(data.error)}</p>}
+      {data.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(data.error)}</p>}
       {data.data !== undefined && rows.length === 0 && (
         <p>
           Nothing is tracked for this vehicle yet. Add what you keep track of (MOT, inspections...)
@@ -103,7 +105,7 @@ function ItemRow({
   onDone: () => void;
 }) {
   return (
-    <div style={{ padding: '10px 0', borderBottom: '1px solid #e5e7eb' }}>
+    <div style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
       <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <div>
           <strong>{row.itemName}</strong>
@@ -113,13 +115,20 @@ function ItemRow({
             </span>{' '}
             · {dueText(row)}
             {row.lastDone !== undefined && (
-              <span style={{ color: '#6b7280' }}> · last done {dayText(row.lastDone)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>
+                {' '}
+                · last done {dayText(row.lastDone)}
+              </span>
             )}
           </div>
         </div>
         {canManage && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-            <button type="button" onClick={() => onAction(action === 'done' ? undefined : 'done')}>
+            <button
+              className="btn-confirm"
+              type="button"
+              onClick={() => onAction(action === 'done' ? undefined : 'done')}
+            >
               Mark done
             </button>
             <button type="button" onClick={() => onAction(action === 'set' ? undefined : 'set')}>
@@ -169,7 +178,9 @@ function SetDue({
       <button type="submit" disabled={date === '' || save.isPending}>
         {save.isPending ? 'Saving…' : 'Save date'}
       </button>
-      {save.isError && <span style={{ color: '#dc2626' }}>{staffErrorMessage(save.error)}</span>}
+      {save.isError && (
+        <span style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</span>
+      )}
     </form>
   );
 }
@@ -233,10 +244,10 @@ function MarkDone({
           {save.isPending ? 'Saving…' : 'Record it'}
         </button>
       </div>
-      <p style={{ color: '#6b7280', fontSize: 13 }}>
+      <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
         Leave the next date blank to use the usual interval after the day it was done.
       </p>
-      {save.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(save.error)}</p>}
+      {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
     </form>
   );
 }

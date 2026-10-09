@@ -60,7 +60,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
       header: 'Due',
       sortValue: (r) => r.dueDate,
       cell: (r) => (
-        <span style={r.overdue ? { color: '#dc2626', fontWeight: 600 } : undefined}>
+        <span style={r.overdue ? { color: 'var(--danger)', fontWeight: 600 } : undefined}>
           {dueWords(r)}
         </span>
       ),
@@ -78,7 +78,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
       cell: (r) => (
         <div>
           {r.severity === 'do_not_drive' && (
-            <strong style={{ color: '#dc2626' }}>Do not drive </strong>
+            <strong style={{ color: 'var(--danger)' }}>Do not drive </strong>
           )}
           {r.title}
           {r.note !== undefined && (
@@ -96,10 +96,11 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
       cell: (r) =>
         canManage && r.status === 'open' ? (
           <span style={{ display: 'inline-flex', gap: 6 }}>
-            <button type="button" onClick={() => setFinishing(r)}>
+            <button className="btn-confirm" type="button" onClick={() => setFinishing(r)}>
               Mark done
             </button>
             <button
+              className="btn-caution"
               type="button"
               disabled={cancel.isPending}
               onClick={() => {
@@ -117,7 +118,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
 
   return (
     <>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         Repairs booked for defects your drivers found. Book one from the Defects page.
       </p>
       <label style={{ display: 'block', marginBottom: 12 }}>
@@ -129,7 +130,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
       </label>
       {finishing !== undefined && (
         <form
-          style={{ border: '1px solid #e5e7eb', padding: 12, marginBottom: 16 }}
+          style={{ border: '1px solid var(--border)', padding: 12, marginBottom: 16 }}
           onSubmit={(e) => {
             e.preventDefault();
             finish.mutate(finishing);
@@ -156,7 +157,9 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
             />{' '}
             Mark the defect fixed too (this lets the vehicle go out again)
           </label>
-          {finish.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(finish.error)}</p>}
+          {finish.isError && (
+            <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(finish.error)}</p>
+          )}
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="submit" disabled={finish.isPending}>
               {finish.isPending ? 'Saving…' : 'Save'}
@@ -168,7 +171,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
         </form>
       )}
       {(repairs.isError || cancel.isError) && (
-        <p style={{ color: '#dc2626' }}>{staffErrorMessage(repairs.error ?? cancel.error)}</p>
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(repairs.error ?? cancel.error)}</p>
       )}
       {repairs.isPending ? (
         <p>Loading…</p>

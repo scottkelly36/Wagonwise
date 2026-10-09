@@ -3,6 +3,15 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **dashboard buttons and colour tokens (clean-up step 2).** Every button used to be the big blue. Now a plain button is the quiet
+  one (white, outlined), and the page's main action is blue: any form's submit button, or one marked `.btn-primary` (for example Add
+  one, Assign, Issue invoice, Download CSV, Import them). Others got a variant: `.btn-confirm` soft green for saying yes to something
+  safe (Mark done, Approve, Mark as paid, Mark fixed), `.btn-caution` soft amber for something to think twice about (Send notification
+  again, Cancel a repair or invoice, Remove a list or item, Stop a cost, Regenerate code), and `.btn-danger` red outline for deleting
+  (Delete draft, Remove entry). The colours are tokens in `styles/theme.css` (`--btn-*`, `--warning`, `--danger`, `--border`,
+  `--text-muted`), and the four hex values pasted most often into pages (red, grey, border, amber) now use them. LiveTrips, the
+  maintenance status colours and the printable delivery record keep their hex on purpose (map and print contexts). No behaviour
+  changed. Next: the home dashboard.
 - 2026-10-09: **dashboard menu regrouped and folding (clean-up step 1).** The sidebar was one 11-link "Fleet" list plus a 9-link admin list. Now:
   a standalone **Overview**; **Operations** (Jobs, Live trips, Drivers, Places); **Compliance** (Walk-round checks, Check results,
   Defects, Maintenance, Vehicle profiles); **Reports** as a plain link; **Your team**; and for WagonWise staff **Customers**, **Money**

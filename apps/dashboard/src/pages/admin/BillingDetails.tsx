@@ -48,7 +48,7 @@ export function BillingDetails() {
 
   if (details.isPending) return <p>Loading…</p>;
   if (details.isError) {
-    return <p style={{ color: '#dc2626' }}>{staffErrorMessage(details.error)}</p>;
+    return <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(details.error)}</p>;
   }
   return (
     <BillingForm
@@ -85,13 +85,13 @@ function BillingForm({
   return (
     <div style={{ maxWidth: 560 }}>
       <h1>Billing details</h1>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         These print on every invoice you send. Replace anything in [square brackets]; invoices
         can&apos;t be issued while any are left.
       </p>
 
       {stillPlaceholders.length > 0 ? (
-        <p style={{ color: '#b45309' }}>
+        <p style={{ color: 'var(--warning)' }}>
           Still to fill in: {stillPlaceholders.map((f) => f.label).join(', ')}.
         </p>
       ) : (
@@ -107,7 +107,9 @@ function BillingForm({
         {FIELDS.map((f) => (
           <label key={f.name} style={{ display: 'block', marginBottom: 16 }}>
             <strong>{f.label}</strong>
-            <span style={{ display: 'block', color: '#6b7280', fontSize: 13 }}>{f.hint}</span>
+            <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: 13 }}>
+              {f.hint}
+            </span>
             {f.multiline === true ? (
               <textarea
                 value={values[f.name]}
@@ -131,7 +133,7 @@ function BillingForm({
           {save.isPending ? 'Saving…' : 'Save'}
         </button>
         {save.isSuccess && !dirty && <span style={{ marginLeft: 12 }}>Saved.</span>}
-        {save.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(save.error)}</p>}
+        {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
       </form>
     </div>
   );

@@ -39,10 +39,17 @@ export function MyReminders() {
 
   return (
     <section
-      style={{ margin: '0 0 24px', padding: 16, border: '1px solid #e5e7eb', borderRadius: 8 }}
+      style={{
+        margin: '0 0 24px',
+        padding: 16,
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+      }}
     >
       <h2 style={{ marginTop: 0 }}>Your reminders</h2>
-      {current.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(current.error)}</p>}
+      {current.isError && (
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(current.error)}</p>
+      )}
       {current.data !== undefined &&
         CHOICES.map((choice) => (
           <label key={choice.value} style={{ display: 'block', marginBottom: 8 }}>
@@ -54,10 +61,10 @@ export function MyReminders() {
               onChange={() => save.mutate(choice.value)}
             />{' '}
             <strong>{choice.label}.</strong>{' '}
-            <span style={{ color: '#6b7280' }}>{choice.detail}</span>
+            <span style={{ color: 'var(--text-muted)' }}>{choice.detail}</span>
           </label>
         ))}
-      {save.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(save.error)}</p>}
+      {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
     </section>
   );
 }

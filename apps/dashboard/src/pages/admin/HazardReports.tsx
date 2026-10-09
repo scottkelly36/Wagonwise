@@ -76,7 +76,7 @@ export function HazardReports() {
     <div>
       <h1>Hazard reports</h1>
 
-      {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
 
       {hazards.isPending ? (
         <p>Loading…</p>

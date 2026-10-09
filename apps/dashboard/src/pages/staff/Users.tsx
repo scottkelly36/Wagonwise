@@ -201,7 +201,7 @@ function PrivilegesCell(props: {
     <>
       <PrivilegeChecklist value={draft} allowed={props.myPrivileges} onChange={setDraft} />
       {changed && (
-        <button disabled={props.saving} onClick={() => props.onSave(draft)}>
+        <button className="btn-primary" disabled={props.saving} onClick={() => props.onSave(draft)}>
           {props.saving ? 'Saving…' : 'Save'}
         </button>
       )}

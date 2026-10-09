@@ -21,6 +21,20 @@
   --on-dark: #e8eefb;
   --on-dark-muted: #8d9bb5;
   --danger: #dc2626;
+  --warning: #b45309;
+  --info: #2563eb;
+  /* Button variants. Blue is for the one main action on a page; the rest are quieter. */
+  --btn-primary: var(--blue-600);
+  --btn-primary-hover: var(--blue-700);
+  --btn-secondary-fg: var(--blue-700);
+  --btn-confirm-bg: #ecfdf5;
+  --btn-confirm-fg: #047857;
+  --btn-confirm-border: #a7f3d0;
+  --btn-confirm-hover: #d1fae5;
+  --btn-caution-bg: #fffbeb;
+  --btn-caution-fg: #b45309;
+  --btn-caution-border: #fde68a;
+  --btn-caution-hover: #fef3c7;
   --success: #16a34a;
   --radius: 12px;
   --radius-sm: 8px;
@@ -90,19 +104,54 @@ input[type='radio'] {
   accent-color: var(--blue-600);
 }
 
+/* Buttons. A plain button is the quiet one (white, outlined); the page's one main action is blue (a form's submit button, or
+   .btn-primary); .btn-confirm is for saying yes to something safe, .btn-caution for something to think twice about, and
+   .btn-danger for something that deletes. */
 button {
   font: inherit;
   font-weight: 600;
   padding: 8px 16px;
-  border: 0;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--blue-600);
-  color: #fff;
+  background: var(--surface);
+  color: var(--btn-secondary-fg);
   cursor: pointer;
 }
 
 button:hover:not(:disabled) {
-  background: var(--blue-700);
+  background: var(--bg);
+}
+
+button[type='submit'],
+.btn-primary {
+  background: var(--btn-primary);
+  border-color: transparent;
+  color: #fff;
+}
+
+button[type='submit']:hover:not(:disabled),
+.btn-primary:hover:not(:disabled) {
+  background: var(--btn-primary-hover);
+}
+
+.btn-confirm {
+  background: var(--btn-confirm-bg);
+  border-color: var(--btn-confirm-border);
+  color: var(--btn-confirm-fg);
+}
+
+.btn-confirm:hover:not(:disabled) {
+  background: var(--btn-confirm-hover);
+}
+
+.btn-caution {
+  background: var(--btn-caution-bg);
+  border-color: var(--btn-caution-border);
+  color: var(--btn-caution-fg);
+}
+
+.btn-caution:hover:not(:disabled) {
+  background: var(--btn-caution-hover);
 }
 
 button:disabled {
@@ -293,6 +342,7 @@ button.nav-toggle:hover:not(:disabled) {
 
 .btn-light {
   background: #fff;
+  border: 0;
   color: var(--blue-700);
 }
 
@@ -372,6 +422,8 @@ button.nav-toggle:hover:not(:disabled) {
   padding: 0;
   place-items: center;
   font-size: 22px;
+  border: 0;
+  color: #fff;
   background: rgba(255, 255, 255, 0.15);
 }
 
@@ -674,6 +726,7 @@ select[aria-invalid='true']:focus {
   display: inline-grid;
   place-items: center;
   border-radius: 50%;
+  border: 0;
   background: #e8ecf3;
   color: #0e8a9b;
   margin-left: 6px;

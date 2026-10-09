@@ -29,7 +29,7 @@ export function PostcodeField({
   } else if (lookup.error instanceof PostcodeNotFoundError) {
     hint = { text: "Can't find that postcode", color: 'var(--danger)' };
   } else if (lookup.error !== null) {
-    hint = { text: "Couldn't check it just now", color: '#b45309' };
+    hint = { text: "Couldn't check it just now", color: 'var(--warning)' };
   }
   return (
     <div className="field">

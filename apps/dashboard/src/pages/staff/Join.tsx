@@ -233,6 +233,7 @@ export function Join() {
             ))}
           </ol>
           <button
+            className="btn-primary"
             onClick={() => {
               signIn({
                 accessToken: step.result.accessToken,
@@ -247,11 +248,11 @@ export function Join() {
         </div>
       )}
 
-      {error !== undefined && <p style={{ color: '#dc2626' }}>{error}</p>}
+      {error !== undefined && <p style={{ color: 'var(--danger)' }}>{error}</p>}
     </div>
   );
 }
 
 const pageStyle = { maxWidth: 420, margin: '60px auto' } as const;
 const fieldStyle = { display: 'block', width: '100%', marginBottom: 12 } as const;
-const hintStyle = { color: '#b45309', fontSize: 13, marginTop: -6 } as const;
+const hintStyle = { color: 'var(--warning)', fontSize: 13, marginTop: -6 } as const;

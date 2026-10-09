@@ -98,7 +98,7 @@ export function Invoices() {
   return (
     <div>
       <h1>Invoices</h1>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         Each invoice bills a company for the vehicles its plan covers. Draft the month&apos;s, check
         each one, then issue it. Issued invoices are numbered and can&apos;t be edited; cancel one
         to correct it.
@@ -126,8 +126,12 @@ export function Invoices() {
         </button>
       </form>
       {notice !== undefined && <p style={{ color: '#15803d' }}>{notice}</p>}
-      {generate.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(generate.error)}</p>}
-      {invoices.isError && <p style={{ color: '#dc2626' }}>{staffErrorMessage(invoices.error)}</p>}
+      {generate.isError && (
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(generate.error)}</p>
+      )}
+      {invoices.isError && (
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(invoices.error)}</p>
+      )}
 
       {invoices.isPending ? (
         <p>Loading…</p>
@@ -221,11 +225,13 @@ function InvoicePanel({
   }
 
   return (
-    <section style={{ marginTop: 24, padding: 16, border: '1px solid #e5e7eb', borderRadius: 8 }}>
+    <section
+      style={{ marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
+    >
       <h2 style={{ marginTop: 0 }}>
         {invoice.number ?? 'Draft'}: {invoice.companyName}, {monthLabel(invoice.month)}
       </h2>
-      <p style={{ color: '#6b7280' }}>{STATUS_TEXT[invoice.status]}</p>
+      <p style={{ color: 'var(--text-muted)' }}>{STATUS_TEXT[invoice.status]}</p>
 
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
@@ -304,8 +310,8 @@ function InvoicePanel({
         </form>
       )}
 
-      {error !== undefined && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
-      {printError !== undefined && <p style={{ color: '#dc2626' }}>{printError}</p>}
+      {error !== undefined && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {printError !== undefined && <p style={{ color: 'var(--danger)' }}>{printError}</p>}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
         <button type="button" onClick={print}>
@@ -313,20 +319,36 @@ function InvoicePanel({
         </button>
         {isDraft && (
           <>
-            <button type="button" onClick={() => issue.mutate()} disabled={issue.isPending}>
+            <button
+              className="btn-primary"
+              type="button"
+              onClick={() => issue.mutate()}
+              disabled={issue.isPending}
+            >
               {issue.isPending ? 'Issuing…' : 'Issue invoice'}
             </button>
-            <button type="button" onClick={() => discard.mutate()} disabled={discard.isPending}>
+            <button
+              className="btn-danger"
+              type="button"
+              onClick={() => discard.mutate()}
+              disabled={discard.isPending}
+            >
               Delete draft
             </button>
           </>
         )}
         {invoice.status === 'issued' && (
           <>
-            <button type="button" onClick={() => paid.mutate()} disabled={paid.isPending}>
+            <button
+              className="btn-confirm"
+              type="button"
+              onClick={() => paid.mutate()}
+              disabled={paid.isPending}
+            >
               Mark as paid
             </button>
             <button
+              className="btn-caution"
               type="button"
               onClick={() => {
                 if (

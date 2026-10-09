@@ -99,7 +99,7 @@ export function Activity() {
       key: 'what',
       header: 'What happened',
       cell: (entry) => (
-        <span style={{ color: WARNING_ACTIONS.has(entry.action) ? '#b45309' : undefined }}>
+        <span style={{ color: WARNING_ACTIONS.has(entry.action) ? 'var(--warning)' : undefined }}>
           {describe(entry, who)}
         </span>
       ),
@@ -109,7 +109,7 @@ export function Activity() {
   return (
     <div>
       <h1>Activity</h1>
-      <p style={{ color: '#6b7280' }}>
+      <p style={{ color: 'var(--text-muted)' }}>
         Sign-ins, invites and every change to who can do what. The latest 200 entries.
       </p>
 
@@ -126,7 +126,7 @@ export function Activity() {
       )}
 
       {entries.error !== null && (
-        <p style={{ color: '#dc2626' }}>{staffErrorMessage(entries.error)}</p>
+        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(entries.error)}</p>
       )}
 
       {entries.isPending ? (
