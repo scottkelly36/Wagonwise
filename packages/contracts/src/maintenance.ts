@@ -160,3 +160,38 @@ export const completeRepairRequestSchema = z.object({
   markDefectFixed: z.boolean(),
 });
 export type CompleteRepairRequest = z.infer<typeof completeRepairRequestSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// Import: next-due dates from a spreadsheet.
+
+export const IMPORT_MAX_ROWS = 500;
+
+/** `POST /staff/maintenance/companies/:companyId/import`. A row's date is checked per row, so one bad date does not stop the rest. */
+export const importDatesRequestSchema = z.object({
+  rows: z
+    .array(
+      z.object({
+        registration: z.string().max(40),
+        itemName: z.string().max(120),
+        dueDate: z.string().max(40),
+      }),
+    )
+    .max(IMPORT_MAX_ROWS),
+});
+export type ImportDatesRequest = z.infer<typeof importDatesRequestSchema>;
+
+export const importRowResultSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('applied') }),
+  z.object({
+    status: z.literal('skipped'),
+    reason: z.enum([
+      'unknown_vehicle',
+      'ambiguous_vehicle',
+      'unknown_item',
+      'not_for_vehicle',
+      'invalid_date',
+    ]),
+  }),
+]);
+export type ImportRowResultDto = z.infer<typeof importRowResultSchema>;
+export const importDatesResponseSchema = z.object({ results: z.array(importRowResultSchema) });

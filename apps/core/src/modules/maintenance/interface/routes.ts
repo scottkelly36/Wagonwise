@@ -11,6 +11,7 @@ import {
   myRemindersSchema,
   repairParamsSchema,
   repairsQuerySchema,
+  importDatesRequestSchema,
   setDueRequestSchema,
 } from '@wagonwise/contracts/maintenance';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -42,6 +43,7 @@ import {
 } from '../application/repairs.js';
 import { ukDay } from '../domain/maintenance.js';
 import { daysLeft, isOverdue, type Repair } from '../domain/repair.js';
+import { importDueDates, type TooManyRows } from '../application/import.js';
 import { getMyReminders, setMyReminders, type ReminderDeps } from '../application/reminders.js';
 import {
   maintenanceOverview,
@@ -84,7 +86,8 @@ type MaintenanceError =
   | DefectAlreadyFixed
   | RepairNotFound
   | RepairNotOpen
-  | InvalidRepair;
+  | InvalidRepair
+  | TooManyRows;
 
 function statusFor(error: MaintenanceError): number {
   switch (error.tag) {
@@ -99,6 +102,7 @@ function statusFor(error: MaintenanceError): number {
     case 'RepairNotOpen':
     case 'ItemNotForVehicle':
       return 409;
+    case 'TooManyRows':
     case 'VehicleNotInCompany':
     case 'InvalidItemType':
     case 'InvalidDay':
@@ -369,6 +373,22 @@ export function registerMaintenanceRoutes(app: FastifyInstance, deps: Maintenanc
             },
           }
         : failure(result.error);
+    }),
+  );
+
+  app.post('/staff/maintenance/companies/:companyId/import', (request, reply) =>
+    asStaff(request, reply, async (caller, staffId) => {
+      const params = maintenanceCompanyParamsSchema.safeParse(request.params);
+      const body = importDatesRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return INVALID;
+      const result = await importDueDates(
+        deps.schedule,
+        caller,
+        makeId<'StaffId'>(staffId),
+        makeId<'CompanyId'>(params.data.companyId),
+        body.data.rows,
+      );
+      return result.ok ? { status: 200, body: { results: result.value } } : failure(result.error);
     }),
   );
 

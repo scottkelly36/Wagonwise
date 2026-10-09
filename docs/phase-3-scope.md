@@ -72,7 +72,7 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
 - **Advisory only for now:** an overdue item never stops a vehicle being sent out. Out of scope for now: mileage intervals, automatic
   MOT lookup by registration, certificate uploads.
 - **Slices:** 1 registration on vehicle profiles (built); 2 items, the per-vehicle schedule, the Maintenance views and the `manage_maintenance` privilege (built); 3 the
-  reminders with a notification preference (built); 4 defects into repair tasks (built); 5 a CSV import for firms with many vehicles.
+  reminders with a notification preference (built); 4 defects into repair tasks (built); 5 a CSV import of dates for firms with many vehicles (built, so M4 is done).
 
 ## Cross-cutting
 

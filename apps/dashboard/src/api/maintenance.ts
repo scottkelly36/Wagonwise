@@ -2,6 +2,8 @@ import {
   bookRepairRequestSchema,
   completeRepairRequestSchema,
   createItemTypeRequestSchema,
+  importDatesRequestSchema,
+  importDatesResponseSchema,
   itemTypeBodySchema,
   itemTypeSchema,
   listRepairsResponseSchema,
@@ -15,6 +17,7 @@ import {
   starterItemsResponseSchema,
   vehicleMaintenanceResponseSchema,
   type CompleteRepairRequest,
+  type ImportRowResultDto,
   type CreateItemTypeRequest,
   type ItemTypeBody,
   type ItemTypeDto,
@@ -219,4 +222,20 @@ export async function cancelRepair(accessToken: string, id: string): Promise<voi
     authorization: bearer(accessToken),
   });
   throwUnlessSuccess(status, json, [204]);
+}
+
+/** Sets next-due dates in bulk. Each row stands alone: the result says, row for row, what went in and what did not. */
+export async function importDates(
+  accessToken: string,
+  companyId: string,
+  rows: { registration: string; itemName: string; dueDate: string }[],
+): Promise<ImportRowResultDto[]> {
+  const body = importDatesRequestSchema.parse({ rows });
+  const { status, json } = await requestJson(
+    'POST',
+    `/staff/maintenance/companies/${companyId}/import`,
+    { body, authorization: bearer(accessToken) },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return importDatesResponseSchema.parse(json).results;
 }

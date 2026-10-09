@@ -267,6 +267,35 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
     expect(rows[0]).toEqual({ n: 1 });
   });
 
+  it('imports dates by registration, never reaching another company’s vehicles, and only for whoever keeps maintenance', async () => {
+    const url = `/staff/maintenance/companies/${ACME}/import`;
+    const rows = [
+      { registration: 'ZZ99 ZZZ', itemName: 'MOT', dueDate: '2027-01-01' },
+      { registration: 'AB12CDE', itemName: 'MOT', dueDate: 'next spring' },
+    ];
+    const booked = await app.inject({ method: 'POST', url, payload: { rows }, ...as(BOOKER) });
+    expect(booked.statusCode).toBe(200);
+    expect(booked.json()).toEqual({
+      results: [
+        { status: 'skipped', reason: 'unknown_vehicle' },
+        { status: 'skipped', reason: 'invalid_date' },
+      ],
+    });
+    expect(
+      (await app.inject({ method: 'POST', url, payload: { rows }, ...as(DISPATCHER) })).statusCode,
+    ).toBe(403);
+    expect(
+      (await app.inject({ method: 'POST', url, payload: { rows }, ...as(RIVAL) })).statusCode,
+    ).toBe(403);
+    expect(
+      (await app.inject({ method: 'POST', url, payload: { nope: 1 }, ...as(BOOKER) })).statusCode,
+    ).toBe(400);
+    const { rows: schedules } = await ownerPool.query(
+      'select count(*)::int as n from maintenance.schedules',
+    );
+    expect(schedules[0]).toEqual({ n: 1 });
+  });
+
   it('needs a sign-in', async () => {
     expect(
       (await app.inject({ method: 'GET', url: `/staff/maintenance/companies/${ACME}/overview` }))
