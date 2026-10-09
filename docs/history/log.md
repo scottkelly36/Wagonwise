@@ -3,6 +3,9 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **dashboard menu: Reports moved into Operations.** It sat on its own as a lone link between sections and looked odd. It now lives
+  under Operations (Jobs, Live trips, Drivers, Places, Reports), which has five links and so folds like the other long sections. The only
+  standalone link left is Overview.
 - 2026-10-09: **dashboard home (clean-up step 3).** **Overview** is now everyone's landing page (sign-in used to send managers to a "TODO"
   page and admins to Users). Built from calls the other pages already make, so no new backend; a part the person has no privilege for is
   not asked for, and one that fails simply leaves its part out. **A company's staff** see four tiles (unassigned jobs and how many are due
