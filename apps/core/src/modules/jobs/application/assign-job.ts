@@ -32,6 +32,8 @@ export interface AssignJobDeps {
   readonly vehicles: VehicleDirectory;
   readonly ids: IdGenerator;
   readonly clock: Clock;
+  /** Tells the driver about the job once it is saved (a push notification). Never allowed to fail the assignment. */
+  readonly announce?: ((job: Job) => Promise<void>) | undefined;
 }
 
 export interface AssignJobInput {
@@ -81,5 +83,6 @@ export async function assignJob(
     jobAssignedEvent(deps.ids.newId(), assigned.value),
     jobStatusChangedEvent(deps.ids.newId(), assigned.value, job.status),
   ]);
+  await deps.announce?.(assigned.value);
   return ok(assigned.value);
 }

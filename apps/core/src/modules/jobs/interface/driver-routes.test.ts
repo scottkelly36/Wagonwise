@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import { InMemoryNoticeRepository } from '../application/testing/in-memory-notices.js';
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
@@ -42,6 +43,7 @@ function buildApp(): {
     recordPosition: { repo, positions, clock: new FakeClock() },
     navigationProfile: { repo, profiles: new FakeNavigationProfileProvisioner() },
     identities: new FakeDriverIdentities(),
+    seen: { notices: new InMemoryNoticeRepository(), clock: new FakeClock() },
     dataScopes: scopes,
   };
   const app = Fastify();
