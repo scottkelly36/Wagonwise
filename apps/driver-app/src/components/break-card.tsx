@@ -29,7 +29,7 @@ export function BreakCard<T extends ParkingCandidate>({
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   if (plan.kind === 'none' || plan.firstStopInMs === null) return null;
-  const limit = plan.kind === 'daily_limit';
+  const limit = plan.kind === 'limit';
 
   return (
     <View style={[styles.card, style]} testID="break-card">

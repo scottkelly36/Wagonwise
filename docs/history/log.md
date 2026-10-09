@@ -3,6 +3,15 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **driving hours, weekly and fortnightly limits (Phase 3 M9, Track A third slice).** Driver app only, JavaScript only
+  (over the air). Under the EU/assimilated rules the clock now counts driving this week (a fixed week, Monday 00:00 to Sunday
+  24:00 on the phone's clock) against 56 hours, and this and last week against 90 hours (GOV.UK: "56 hours in a week", "90 hours in
+  any 2 consecutive weeks"). Whichever of the day, week or fortnight comes first is the limit the countdown and the break planning
+  use, and the Driving hours screen names it and shows the week's totals. **GOV.UK does not define a week on any page we could
+  reach, so the Monday to Sunday week is from the regulation; re-read it before relying on it.** GB domestic rules have no weekly
+  limit on the GOV.UK page, so none is counted there. Not counted yet: weekly rest, reduced daily rests, GB domestic duty time.
+  The 15 days kept on the phone cover this week and last. Next: status to core and the portal, which needs the driver's consent
+  wording and the privacy notice, DPIA and DPA changes first.
 - 2026-10-09: **driving hours, break planning on the route (Phase 3 M9, Track A second slice).** Driver app only, JavaScript only
   (over the air). While the driving-hours clock is running and a trip is active, the trip screen works out whether the route runs
   past the time the driver has (`lib/break-plan.ts`): if so a card says **Break needed in 1h 20m** (or **Rest needed before you

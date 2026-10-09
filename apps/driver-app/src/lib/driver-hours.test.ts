@@ -1,4 +1,4 @@
-import { breakDueAt, durationText, hoursStatus, type Activity } from './driver-hours';
+import { breakDueAt, durationText, hoursStatus, weekStart, type Activity } from './driver-hours';
 
 const H = 3_600_000;
 const M = 60_000;
@@ -93,7 +93,7 @@ describe('assimilated EU rules', () => {
       eu,
     );
     expect(s.dailyDrivingMs).toBe(8 * H);
-    expect(s.next).toBe('daily_limit');
+    expect(s.next).toBe('limit');
     expect(s.drivingLeftMs).toBe(1 * H);
     expect(breakDueAt(s, t0 + 9.5 * H)).toBe(t0 + 10.5 * H);
   });
@@ -110,7 +110,7 @@ describe('GB domestic rules', () => {
     expect(s.untilBreakMs).toBeNull();
     expect(s.dailyLimitMs).toBe(10 * H);
     expect(s.untilDailyLimitMs).toBe(7 * H);
-    expect(s.next).toBe('daily_limit');
+    expect(s.next).toBe('limit');
   });
 });
 
@@ -119,5 +119,67 @@ describe('durationText', () => {
     expect(durationText(2 * H + 5 * M)).toBe('2h 05m');
     expect(durationText(45 * M)).toBe('45m');
     expect(durationText(-1)).toBe('0m');
+  });
+});
+
+describe('weekly and fortnightly limits', () => {
+  // Local-time days, because a week runs Monday 00:00 to Sunday 24:00 on the driver's own clock.
+  const at = (day: number, hour: number): number => new Date(2026, 9, day, hour).getTime();
+  const shift = (day: number, hours: number, from = 6): Activity => ({
+    kind: 'driving',
+    start: at(day, from),
+    end: at(day, from) + hours * H,
+  });
+
+  it('finds the Monday a week starts on', () => {
+    expect(weekStart(at(11, 23))).toBe(at(5, 0));
+    expect(weekStart(at(12, 0))).toBe(at(12, 0));
+    expect(weekStart(at(7, 12))).toBe(at(5, 0));
+  });
+
+  it('counts the week’s driving and stops at 56 hours', () => {
+    // Monday to Saturday, nine hours each: 54 hours. Sunday morning, an hour into more driving.
+    const log = [5, 6, 7, 8, 9, 10].map((d) => shift(d, 9));
+    log.push({ kind: 'driving', start: at(11, 6) });
+    const s = hoursStatus(log, at(11, 7), eu);
+    expect(s.weeklyDrivingMs).toBe(55 * H);
+    expect(s.untilWeeklyLimitMs).toBe(1 * H);
+    expect(s.limit).toBe('weekly');
+    expect(s.untilLimitMs).toBe(1 * H);
+    expect(s.next).toBe('limit');
+    expect(s.drivingLeftMs).toBe(1 * H);
+  });
+
+  it('starts a new count on Monday, and counts the week before towards the 90 hour fortnight', () => {
+    const lastWeek = [5, 6, 7, 8, 9, 10].map((d) => shift(d, 9));
+    lastWeek.push(shift(11, 10));
+    const log = [
+      ...lastWeek,
+      shift(12, 9),
+      shift(13, 9),
+      { kind: 'driving' as const, start: at(14, 6) },
+    ];
+    const s = hoursStatus(log, at(14, 10), eu);
+    expect(s.weeklyDrivingMs).toBe(22 * H);
+    expect(s.untilWeeklyLimitMs).toBe(34 * H);
+    expect(s.fortnightDrivingMs).toBe(86 * H);
+    expect(s.untilFortnightLimitMs).toBe(4 * H);
+    expect(s.limit).toBe('fortnightly');
+    expect(s.untilLimitMs).toBe(4 * H);
+  });
+
+  it('does not count the week before this one towards the weekly figure, or two weeks back at all', () => {
+    // Three weeks back, last week, and this week.
+    const log = [shift(-9, 9), shift(-2, 9), shift(5, 9)];
+    const s = hoursStatus(log, at(6, 6), eu);
+    expect(s.weeklyDrivingMs).toBe(9 * H);
+    expect(s.fortnightDrivingMs).toBe(18 * H);
+  });
+
+  it('has no weekly limit under GB domestic rules', () => {
+    const s = hoursStatus([shift(5, 9)], at(6, 6), gb);
+    expect(s.untilWeeklyLimitMs).toBeNull();
+    expect(s.untilFortnightLimitMs).toBeNull();
+    expect(s.limit).toBe('daily');
   });
 });

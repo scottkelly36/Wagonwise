@@ -43,7 +43,7 @@ describe('planBreak', () => {
 
   it('says so when the day’s driving limit is reached before the end', () => {
     const plan = planBreak(eu([driving(0)], 1), 'assimilated_eu', 9 * 60, t0 + H);
-    expect(plan.kind).toBe('daily_limit');
+    expect(plan.kind).toBe('limit');
     expect(plan.arrivalMs).toBeNull();
     expect(plan.firstStopInMs).toBe(3.5 * H);
   });
@@ -51,7 +51,7 @@ describe('planBreak', () => {
   it('under GB domestic rules there is no break to plan, only the daily limit', () => {
     const status = hoursStatus([driving(0)], t0 + 2 * H, { rules: 'gb_domestic' });
     expect(planBreak(status, 'gb_domestic', 5 * 60, t0 + 2 * H).kind).toBe('none');
-    expect(planBreak(status, 'gb_domestic', 9 * 60, t0 + 2 * H).kind).toBe('daily_limit');
+    expect(planBreak(status, 'gb_domestic', 9 * 60, t0 + 2 * H).kind).toBe('limit');
   });
 });
 
