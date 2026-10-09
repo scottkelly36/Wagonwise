@@ -1,4 +1,8 @@
 import {
+  addRunningCostRequestSchema,
+  changeRunningCostRequestSchema,
+  setDriverRateRequestSchema,
+  stopRunningCostRequestSchema,
   assignFuelVehicleRequestSchema,
   costingCompanyParamsSchema,
   fuelIdParamsSchema,
@@ -314,6 +318,43 @@ const FORWARDS: readonly Forward[] = [
     body: assignFuelVehicleRequestSchema,
   },
   { method: 'DELETE', path: '/staff/costing/fuel/imports/:id', params: fuelIdParamsSchema },
+  // Running costs and what drivers cost an hour (manage_billing; core decides).
+  {
+    method: 'GET',
+    path: '/staff/costing/companies/:companyId/running-costs',
+    params: costingCompanyParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/costing/companies/:companyId/running-costs',
+    params: costingCompanyParamsSchema,
+    body: addRunningCostRequestSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/costing/running-costs/:id/change',
+    params: fuelIdParamsSchema,
+    body: changeRunningCostRequestSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/costing/running-costs/:id/stop',
+    params: fuelIdParamsSchema,
+    body: stopRunningCostRequestSchema,
+  },
+  { method: 'DELETE', path: '/staff/costing/running-costs/:id', params: fuelIdParamsSchema },
+  {
+    method: 'GET',
+    path: '/staff/costing/companies/:companyId/driver-rates',
+    params: costingCompanyParamsSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/costing/companies/:companyId/driver-rates',
+    params: costingCompanyParamsSchema,
+    body: setDriverRateRequestSchema,
+  },
+  { method: 'DELETE', path: '/staff/costing/driver-rates/:id', params: fuelIdParamsSchema },
   // Driver hours sharing: the firm's switch, and the statuses of drivers who agreed to share. Core decides who may.
   {
     method: 'GET',

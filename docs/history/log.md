@@ -3,6 +3,19 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **costing inputs: running costs and what drivers cost an hour (Phase 3 M1 for a client, step 2 of costing per job).**
+  Migration 0057 (`costing.running_costs`, `costing.driver_rates`, under Row-Level Security) and a **Costs** page (Operations). **Running
+  costs** are a monthly amount for one vehicle (finance, insurance, road tax, a service plan) or, with no vehicle, for the firm (an
+  overhead: office, software, the yard). Like the standing costs on the Finances page, a cost is entered once and carries on until
+  changed or stopped; **changing it from a later month closes the old row the month before and starts a new one, so earlier months keep
+  what they had** (stopped from its first month, it is removed). **Driver pay** is what each driver costs the firm an hour, from a day
+  on; a rate applies until the next starts, so a pay rise never changes the cost of work already done. Drivers never see it. **Only
+  `manage_billing` (the firm's money person) or WagonWise can see or change either**, because wages are private: a fleet manager
+  without it cannot. This is the data entry; the cost of a job comes next. **The model decided for that report (change any of it):** a
+  job's time is from the driver accepting it to delivery; wages are that time times the rate in force the day it was delivered; fuel
+  and a vehicle's running costs are spread over that vehicle's jobs in the month by their share of job time (so a vehicle's jobs
+  together carry all of its costs for the month); overheads are not added to a job, they are shown on their own. A driver or vehicle
+  with no rate or cost simply adds nothing. Deploy core, staff-bff and dashboard together; the migration runs with core.
 - 2026-10-09: **fuel card import (Phase 3 M3), the first of costing.** Migration 0056 (`costing.fuel_imports`, `costing.fuel_transactions`,
   under Row-Level Security) and a new core module `costing`. On the new **Fuel** page (Operations) a manager imports a statement from
   any fuel card provider as CSV and tells the page which column is the date, the registration, the amount, and optionally the time,

@@ -49,6 +49,11 @@ const SECTIONS: readonly NavSection[] = [
         shows: (s) => isPlatform(s) || holds(s, 'manage_fleet') || holds(s, 'view_reports'),
       },
       {
+        to: '/fleet/costs',
+        label: 'Costs',
+        shows: (s) => isPlatform(s) || holds(s, 'manage_billing'),
+      },
+      {
         to: '/fleet/reports',
         label: 'Reports',
         shows: (s) => isPlatform(s) || holds(s, 'view_reports'),
