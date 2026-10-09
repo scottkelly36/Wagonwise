@@ -300,7 +300,8 @@ second check on top — core alone decides ownership/authorization for those.
   new privilege to every account that could manage users or vehicles.
 - **Dashboard:** Maintenance page (what is due, and what the firm tracks) and a panel per vehicle on Vehicle profiles. Advisory only.
 - **Reminders** (migration 0051; `domain/reminders.ts`, `application/reminders.ts`): an hourly task emails each person with `manage_maintenance` once a day from 7am UK, if something is overdue or due soon; they choose email or portal-only on the Maintenance page. The day is claimed in `reminder_log` before sending and released on failure. The people to tell are passed in (gathered with `companies.listFleetContacts`) because the run uses one data scope. Text messages are not offered yet.
-- To come: defects into repair tasks, a CSV import, text reminders.
+- **Repairs** (migration 0052; `domain/repair.ts`, `application/repairs.ts`): a defect booked for fixing with a due date. Booking marks the defect seen; finishing can mark it fixed (releasing a held-back vehicle). The defect is reached only through the `DefectDirectory` port, filled in `compose-core.ts` from the checks facade (`findDefect`, `setDefectStatus`). One open repair per defect.
+- To come: a CSV import, text reminders.
 
 ## Staff BFF
 

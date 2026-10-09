@@ -115,3 +115,48 @@ export type ReminderChannel = z.infer<typeof reminderChannelSchema>;
 /** `GET` and `PUT /staff/maintenance/my-reminders`: the signed-in person's own choice (email until they choose). */
 export const myRemindersSchema = z.object({ channel: reminderChannelSchema });
 export type MyRemindersDto = z.infer<typeof myRemindersSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// Repairs: a defect a driver found, booked for fixing.
+
+export const repairIdSchema = brandedId<'RepairId'>();
+export type RepairId = z.infer<typeof repairIdSchema>;
+
+export const repairStatusSchema = z.enum(['open', 'done', 'cancelled']);
+
+export const repairSchema = z.object({
+  id: repairIdSchema,
+  defectId: z.string(),
+  vehicleId: z.string(),
+  vehicleName: z.string(),
+  /** What is to be repaired, in words. */
+  title: z.string(),
+  severity: z.enum(['advisory', 'do_not_drive']),
+  dueDate: day,
+  status: repairStatusSchema,
+  /** Days until due; negative once late. */
+  daysLeft: z.number().int(),
+  overdue: z.boolean(),
+  note: z.string().optional(),
+  doneOn: day.optional(),
+});
+export type RepairDto = z.infer<typeof repairSchema>;
+
+/** `POST /staff/maintenance/repairs`: book a repair for a defect, due on `dueDate` (today or later). */
+export const bookRepairRequestSchema = z.object({ defectId: z.string().min(1), dueDate: day });
+export type BookRepairRequest = z.infer<typeof bookRepairRequestSchema>;
+
+/** `GET /staff/maintenance/companies/:companyId/repairs?status=` (still to do when left out). */
+export const repairsQuerySchema = z.object({ status: z.enum(['open', 'done', 'all']).optional() });
+export const listRepairsResponseSchema = z.object({ repairs: z.array(repairSchema) });
+
+export const repairParamsSchema = z.object({ id: z.string().min(1) });
+
+/** `POST /staff/maintenance/repairs/:id/done`. With `markDefectFixed`, the defect is marked fixed too. */
+export const completeRepairRequestSchema = z.object({
+  /** Today when left out; never a day to come. */
+  doneOn: day.optional(),
+  note: z.string().max(NOTE_MAX).optional(),
+  markDefectFixed: z.boolean(),
+});
+export type CompleteRepairRequest = z.infer<typeof completeRepairRequestSchema>;

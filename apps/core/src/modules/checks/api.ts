@@ -64,6 +64,30 @@ export interface ChecksModule {
    * platform-wide housekeeping job, so it runs in the platform data scope; supplied the company ids by composition.
    */
   pruneOldChecks(companyIds: readonly string[]): Promise<number>;
+  /**
+   * A defect as another module needs it to book a repair, or null. Reads in the caller's own data scope, so call it inside
+   * a request; supplied to maintenance by composition.
+   */
+  findDefect(defectId: string): Promise<{
+    readonly id: string;
+    readonly companyId: string;
+    readonly vehicleId: string;
+    readonly vehicleName: string;
+    readonly label: string;
+    readonly detail: string;
+    readonly severity: 'advisory' | 'do_not_drive';
+    readonly status: 'open' | 'acknowledged' | 'fixed';
+  } | null>;
+  /**
+   * Marks a defect seen or fixed. For maintenance, when a repair is booked or finished: the person who books repairs
+   * need not hold the privileges the Defects page asks for, so permission is the caller's to have checked. Same scope
+   * rule as findDefect.
+   */
+  setDefectStatus(
+    defectId: string,
+    status: 'acknowledged' | 'fixed',
+    staffId: string,
+  ): Promise<void>;
   registerRoutes(app: FastifyInstance): void;
 }
 
@@ -79,6 +103,23 @@ export function createChecksModule(deps: ChecksModuleDeps): ChecksModule {
   const settings = new PostgresSettingsRepository(deps.db);
   const rules = { settings, templates, checks, office, clock: deps.clock };
   return {
+    async findDefect(defectId) {
+      const d = await office.findDefect(defectId);
+      return d === null
+        ? null
+        : {
+            id: d.id,
+            companyId: d.companyId,
+            vehicleId: d.vehicleId,
+            vehicleName: d.vehicleName,
+            label: d.label,
+            detail: d.detail,
+            severity: d.severity,
+            status: d.status,
+          };
+    },
+    setDefectStatus: (defectId, status, staffId) =>
+      office.setDefectStatus(defectId, status, makeId<'StaffId'>(staffId), deps.clock.now()),
     pruneOldChecks: (companyIds) =>
       deps.dataScopes.run({ kind: 'platform' }, () =>
         pruneOldChecks(

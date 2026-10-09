@@ -41,7 +41,7 @@ item closes, delete it from this file; the history file keeps the record. Dated 
    change is JavaScript only, so an over-the-air update sent after core and the driver BFF are deployed); and the Finances page
    (WagonWise's own costs against invoiced revenue; migration 0048). After the deploy: check the Plans page (each company starts
    with its current vehicle count), enter WagonWise's running costs on the Finances page, and fill the `[placeholders]` on the
-   Billing details page before the first real invoice. M4 maintenance: registration numbers and the per-vehicle schedule are built (migrations 0049, 0050; enter your vehicles' dates on the Maintenance page), and the morning email reminder (migration 0051; set `DASHBOARD_URL` so it can link to the portal); defects into repair tasks are next. Also add the walk-round check records (daily checks, defect photos) and the
+   Billing details page before the first real invoice. M4 maintenance: registration numbers and the per-vehicle schedule are built (migrations 0049, 0050; enter your vehicles' dates on the Maintenance page), and the morning email reminder (migration 0051; set `DASHBOARD_URL` so it can link to the portal); defects into repair tasks (migration 0052; book from Defects, finish on the Maintenance Repairs tab) are built, a CSV import is next. Also add the walk-round check records (daily checks, defect photos) and the
    firm-chosen retention to the privacy notice, DPA and DPIA. Still to get: what the pilot firm's lorries and tachographs have,
    and for the later modules a fuel card sample (M3) and the what3words key (M7).
 

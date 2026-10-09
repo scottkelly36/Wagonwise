@@ -41,6 +41,12 @@ const MESSAGES: Record<string, string> = {
   InvalidRange: 'Pick a sensible range of days.',
   InvalidRetention: 'Choose between 1 month and 10 years.',
   CostNotFound: 'That cost could not be found.',
+  DefectNotFound: 'That defect could not be found.',
+  DefectAlreadyFixed: 'That defect is already fixed, so there is nothing to repair.',
+  RepairNotFound: 'That repair could not be found.',
+  RepairNotOpen: 'That repair has already been finished or cancelled.',
+  InvalidRepair:
+    'Pick a due date from today on, or a done date no later than today; notes are 500 characters at most.',
   InvalidItemType: 'Check the name, how often it repeats, and the warning period.',
   ItemNotFound: 'That item could not be found.',
   VehicleNotFound: 'That vehicle could not be found.',

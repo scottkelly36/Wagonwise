@@ -1,20 +1,26 @@
 import {
+  bookRepairRequestSchema,
+  completeRepairRequestSchema,
   createItemTypeRequestSchema,
   itemTypeBodySchema,
   itemTypeSchema,
+  listRepairsResponseSchema,
   listItemTypesResponseSchema,
   markDoneRequestSchema,
   myRemindersSchema,
   overviewResponseSchema,
+  repairSchema,
   scheduleSchema,
   setDueRequestSchema,
   starterItemsResponseSchema,
   vehicleMaintenanceResponseSchema,
+  type CompleteRepairRequest,
   type CreateItemTypeRequest,
   type ItemTypeBody,
   type ItemTypeDto,
   type MarkDoneRequest,
   type OverviewRowDto,
+  type RepairDto,
   type ReminderChannel,
   type ScheduleDto,
   type VehicleMaintenanceResponse,
@@ -162,4 +168,55 @@ export async function setMyReminders(
   });
   throwUnlessSuccess(status, json, [200]);
   return myRemindersSchema.parse(json).channel;
+}
+
+/** Books a repair for a defect a driver found, due on `dueDate`. Booking again returns the one already booked. */
+export async function bookRepair(
+  accessToken: string,
+  defectId: string,
+  dueDate: string,
+): Promise<RepairDto> {
+  const body = bookRepairRequestSchema.parse({ defectId, dueDate });
+  const { status, json } = await requestJson('POST', '/staff/maintenance/repairs', {
+    body,
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200, 201]);
+  return repairSchema.parse(json);
+}
+
+/** The company's repairs: those still to do unless asked otherwise. */
+export async function listRepairs(
+  accessToken: string,
+  companyId: string,
+  filter: 'open' | 'done' | 'all' = 'open',
+): Promise<RepairDto[]> {
+  const { status, json } = await requestJson(
+    'GET',
+    `/staff/maintenance/companies/${companyId}/repairs?status=${filter}`,
+    { authorization: bearer(accessToken) },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return listRepairsResponseSchema.parse(json).repairs;
+}
+
+export async function completeRepair(
+  accessToken: string,
+  id: string,
+  input: CompleteRepairRequest,
+): Promise<RepairDto> {
+  const body = completeRepairRequestSchema.parse(input);
+  const { status, json } = await requestJson('POST', `/staff/maintenance/repairs/${id}/done`, {
+    body,
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return repairSchema.parse(json);
+}
+
+export async function cancelRepair(accessToken: string, id: string): Promise<void> {
+  const { status, json } = await requestJson('DELETE', `/staff/maintenance/repairs/${id}`, {
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [204]);
 }
