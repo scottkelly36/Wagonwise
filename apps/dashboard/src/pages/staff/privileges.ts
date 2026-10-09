@@ -8,6 +8,7 @@ export const PRIVILEGE_LABELS: Record<Privilege, string> = {
   view_live_map: 'See the live map',
   view_reports: 'See reports',
   manage_billing: 'Manage billing',
+  manage_maintenance: 'Keep maintenance dates',
 };
 
 export const PRESET_LABELS: Record<keyof typeof PRIVILEGE_PRESETS, string> = {

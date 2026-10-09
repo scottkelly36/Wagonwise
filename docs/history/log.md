@@ -3,6 +3,20 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **maintenance, slice 2: what a firm tracks, and when it is due on each vehicle (Phase 3 M4).** Migration 0050 (new
+  `maintenance` schema: `item_types`, `schedules`, `history`; company Row-Level Security). Each firm keeps **its own list** of things
+  that fall due (name, repeats every N days, weeks or months, warn N days before, all vehicles or chosen ones), from "Add one" or "Add
+  the usual examples" (MOT yearly, safety inspection 6-weekly, service 6-monthly, tachograph calibration 2-yearly, tail-lift
+  6-monthly, road tax yearly: examples to edit, not a standard). Per vehicle and item: when it is next due; **Mark done** records the
+  day, a note and who, keeps it in the vehicle's history, and moves the next date on by the interval (or to a date given, so an MOT
+  renewed early keeps its date); a month interval that lands on a day that does not exist uses the last day of the month. Status is
+  overdue, due soon (within the warning period), fine, or no date yet; the Maintenance page lists everything most urgent first
+  ("Only what needs attention" by default) and any vehicle opens its panel, also reached from a **Maintenance** button on Vehicle
+  profiles. A new assignable privilege **`manage_maintenance`** keeps the dates and the list; seeing needs it or manage_fleet,
+  dispatch or view_reports. The migration gives it to every fleet account (and pending invite) that holds manage_users or
+  manage_fleet, so no manager loses the ability (tested on real data: dispatchers and viewers do not get it). Advisory only: an overdue
+  item never stops a vehicle. Not built yet: the notification preference and the reminders (slice 3), defects into repair tasks
+  (slice 4), a CSV import (slice 5).
 - 2026-10-09: **registration number on vehicle profiles (Phase 3 M4, slice 1).** Migration 0049 (`fleet.vehicles.registration`,
   optional, kept tidy: capitals, no spaces, dashes or dots, 2 to 8 letters and digits; unique within a company by a partial index,
   so two companies may each have the same plate). The Vehicle profiles page gains a Registration field when adding a vehicle, a

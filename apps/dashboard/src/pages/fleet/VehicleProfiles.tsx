@@ -7,6 +7,7 @@ import * as fleetApi from '../../api/fleet';
 import { DataTable, IconButton, type Column } from '../../components/DataTable';
 import { FieldError } from '../../components/FieldError';
 import { VehicleEditor } from '../../components/VehicleEditor';
+import { VehicleMaintenance } from '../../components/VehicleMaintenance';
 import { focusFirstInvalid, hasErrors, type FieldErrors } from '../../lib/forms';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -59,6 +60,7 @@ export function VehicleProfiles() {
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
+  const [maintenanceId, setMaintenanceId] = useState<string | undefined>(undefined);
   const createVehicle = useMutation({
     mutationFn: () =>
       withAccessToken((token) =>
@@ -145,9 +147,14 @@ export function VehicleProfiles() {
       header: '',
       align: 'right',
       cell: (v) => (
-        <button type="button" onClick={() => setEditingId(v.id)}>
-          Edit
-        </button>
+        <span style={{ display: 'inline-flex', gap: 6 }}>
+          <button type="button" onClick={() => setMaintenanceId(v.id)}>
+            Maintenance
+          </button>
+          <button type="button" onClick={() => setEditingId(v.id)}>
+            Edit
+          </button>
+        </span>
       ),
     },
     {
@@ -275,6 +282,14 @@ export function VehicleProfiles() {
               rowKey={(vehicle) => vehicle.id}
               searchText={(vehicle) => `${vehicle.name} ${vehicle.registration ?? ''}`}
               emptyText="No vehicles yet."
+            />
+          )}
+          {maintenanceId !== undefined && (
+            <VehicleMaintenance
+              key={maintenanceId}
+              vehicleId={maintenanceId}
+              canManage={holds(me, 'manage_maintenance')}
+              onClose={() => setMaintenanceId(undefined)}
             />
           )}
           {editing !== undefined && (

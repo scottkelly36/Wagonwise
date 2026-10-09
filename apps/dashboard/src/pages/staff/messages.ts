@@ -41,6 +41,12 @@ const MESSAGES: Record<string, string> = {
   InvalidRange: 'Pick a sensible range of days.',
   InvalidRetention: 'Choose between 1 month and 10 years.',
   CostNotFound: 'That cost could not be found.',
+  InvalidItemType: 'Check the name, how often it repeats, and the warning period.',
+  ItemNotFound: 'That item could not be found.',
+  VehicleNotFound: 'That vehicle could not be found.',
+  ItemNotForVehicle: "That item isn't tracked for this vehicle.",
+  InvalidWork:
+    "Check the dates: work can't be recorded for a day to come, and the next date must be after the day it was done.",
   InvalidRegistration:
     'A registration is 2 to 8 letters and numbers. Leave it blank if the vehicle has none yet.',
   RegistrationTaken: 'Another vehicle in this company already has that registration.',

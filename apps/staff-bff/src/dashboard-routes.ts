@@ -1,4 +1,14 @@
 import {
+  createItemTypeRequestSchema,
+  itemTypeBodySchema,
+  maintenanceCompanyParamsSchema,
+  maintenanceItemParamsSchema,
+  maintenanceVehicleItemParamsSchema,
+  maintenanceVehicleParamsSchema,
+  markDoneRequestSchema,
+  setDueRequestSchema,
+} from '@wagonwise/contracts/maintenance';
+import {
   checkResultParamsSchema,
   checkResultPhotoParamsSchema,
   checkResultsQuerySchema,
@@ -198,6 +208,48 @@ const FORWARDS: readonly Forward[] = [
     body: stopCostRequestSchema,
   },
   { method: 'DELETE', path: '/staff/billing/costs/:id', params: costIdParamsSchema },
+  // Fleet maintenance: what a company tracks, and when each item is next due on each vehicle. Core decides who may.
+  { method: 'GET', path: '/staff/maintenance/starter', params: noParams },
+  {
+    method: 'GET',
+    path: '/staff/maintenance/companies/:companyId/items',
+    params: maintenanceCompanyParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/maintenance/companies/:companyId/items',
+    params: maintenanceCompanyParamsSchema,
+    body: createItemTypeRequestSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/maintenance/items/:id',
+    params: maintenanceItemParamsSchema,
+    body: itemTypeBodySchema,
+  },
+  { method: 'DELETE', path: '/staff/maintenance/items/:id', params: maintenanceItemParamsSchema },
+  {
+    method: 'GET',
+    path: '/staff/maintenance/companies/:companyId/overview',
+    params: maintenanceCompanyParamsSchema,
+  },
+  {
+    method: 'GET',
+    path: '/staff/maintenance/vehicles/:vehicleId',
+    params: maintenanceVehicleParamsSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/maintenance/vehicles/:vehicleId/items/:itemId/due',
+    params: maintenanceVehicleItemParamsSchema,
+    body: setDueRequestSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/maintenance/vehicles/:vehicleId/items/:itemId/done',
+    params: maintenanceVehicleItemParamsSchema,
+    body: markDoneRequestSchema,
+  },
   // Invoices: draft the month's, adjust a draft, issue, mark paid or void. WagonWise admins only; core decides.
   { method: 'GET', path: '/staff/billing/invoices', params: noParams },
   {

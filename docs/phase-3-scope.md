@@ -71,8 +71,8 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
 - **Reminders:** each person chooses how they are told (email, text, or only in the portal); the portal always shows what is due.
 - **Advisory only for now:** an overdue item never stops a vehicle being sent out. Out of scope for now: mileage intervals, automatic
   MOT lookup by registration, certificate uploads.
-- **Slices:** 1 registration on vehicle profiles (built); 2 items, the per-vehicle schedule and the Maintenance views; 3 the privilege
-  and reminders with a notification preference; 4 defects into repair tasks; 5 a CSV import for firms with many vehicles.
+- **Slices:** 1 registration on vehicle profiles (built); 2 items, the per-vehicle schedule, the Maintenance views and the `manage_maintenance` privilege (built); 3 the
+  reminders with a notification preference; 4 defects into repair tasks; 5 a CSV import for firms with many vehicles.
 
 ## Cross-cutting
 

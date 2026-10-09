@@ -54,6 +54,21 @@ export interface FleetModule {
   /** The company a vehicle belongs to, or null. For `jobs' vehicle directory, supplied by
    *  composition (AGENTS.md rule 7). */
   getVehicleCompanyId(vehicleId: string): Promise<string | null>;
+  /** A company's vehicles with their registration numbers, for maintenance's overview. Supplied by composition. */
+  listCompanyVehicles(companyId: string): Promise<
+    readonly {
+      readonly id: string;
+      readonly name: string;
+      readonly registration: string | undefined;
+    }[]
+  >;
+  /** One vehicle's company, name and registration, or null. For maintenance. Supplied by composition. */
+  getVehicleSummary(vehicleId: string): Promise<{
+    readonly id: string;
+    readonly companyId: string;
+    readonly name: string;
+    readonly registration: string | undefined;
+  } | null>;
   /** How many vehicles the company has. For billing's "4 of 5 vehicles used", supplied by composition. */
   countVehicles(companyId: string): Promise<number>;
   /** A vehicle's measurements, or null. For `jobs` ETA (P2-M6.4): a job is routed for the company
@@ -120,6 +135,21 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
         companyNames: deps.companyNames,
         dataScopes: deps.dataScopes,
       });
+    },
+    async listCompanyVehicles(companyId: string) {
+      const all = await repo.listForCompany(makeId<'CompanyId'>(companyId));
+      return all.map((v) => ({ id: v.id, name: v.name, registration: v.registration }));
+    },
+    async getVehicleSummary(vehicleId: string) {
+      const v = await repo.findById(makeId<'FleetVehicleId'>(vehicleId));
+      return v
+        ? {
+            id: v.id,
+            companyId: v.companyId,
+            name: v.name,
+            registration: v.registration,
+          }
+        : null;
     },
     async countVehicles(companyId: string): Promise<number> {
       return (await repo.listForCompany(makeId<'CompanyId'>(companyId))).length;

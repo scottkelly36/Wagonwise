@@ -15,6 +15,7 @@ export const PRIVILEGES = [
   'view_live_map',
   'view_reports',
   'manage_billing',
+  'manage_maintenance',
 ] as const;
 export type Privilege = (typeof PRIVILEGES)[number];
 

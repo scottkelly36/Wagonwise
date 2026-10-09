@@ -31,6 +31,15 @@ const SECTIONS: readonly { readonly title: string; readonly items: readonly NavI
         shows: (s) => holds(s, 'manage_fleet'),
       },
       {
+        to: '/fleet/maintenance',
+        label: 'Maintenance',
+        shows: (s) =>
+          holds(s, 'manage_maintenance') ||
+          holds(s, 'manage_fleet') ||
+          holds(s, 'dispatch') ||
+          holds(s, 'view_reports'),
+      },
+      {
         to: '/fleet/check-results',
         label: 'Check results',
         shows: (s) => holds(s, 'manage_fleet') || holds(s, 'dispatch') || holds(s, 'view_reports'),

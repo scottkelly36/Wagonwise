@@ -178,7 +178,7 @@ describe('setPrivileges', () => {
     // doesn't hold (along with the other privileges being removed that they do hold).
     expect(setPrivileges(actorFor(managerNoBilling), owner, ['manage_users'], 2)).toEqual({
       ok: false,
-      error: { tag: 'PrivilegeNotHeld', privileges: ['manage_billing'] },
+      error: { tag: 'PrivilegeNotHeld', privileges: ['manage_billing', 'manage_maintenance'] },
     });
   });
 
@@ -228,7 +228,7 @@ describe('checkRemoveStaff', () => {
   it('refuses removing someone with a privilege the manager lacks', () => {
     expect(checkRemoveStaff(actorFor(managerNoBilling), owner, 2)).toEqual({
       ok: false,
-      error: { tag: 'PrivilegeNotHeld', privileges: ['manage_billing'] },
+      error: { tag: 'PrivilegeNotHeld', privileges: ['manage_billing', 'manage_maintenance'] },
     });
   });
 

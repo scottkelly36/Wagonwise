@@ -287,6 +287,20 @@ second check on top — core alone decides ownership/authorization for those.
   (`docs/phase-3-scope.md`).
 - **Finances** (`billing.costs`, migration 0048; `domain/finance.ts`, `application/finance.ts`): WagonWise's own costs, standing until changed or stopped (`planChange` splits a later change so earlier months keep their amount; `planStop` ends it the month before). The report (`GET /staff/billing/finance?month=`) sets twelve months of invoiced and received revenue (issued and paid invoices only) against the costs in force, with revenue by company and a look ahead. Admin only.
 
+## Maintenance
+
+`apps/core/src/modules/maintenance`: the things that fall due on a company's vehicles, which each firm names itself.
+
+- **What it tracks** (`maintenance.item_types`, migration 0050): a name, an interval (days, weeks or months), a warning period, and
+  all vehicles or chosen ones; archived rather than deleted. `domain/maintenance.ts` has `STARTER_ITEMS` (examples, not a standard).
+- **Dates** (`maintenance.schedules`, `history`): when each item is next due on each vehicle. `markDone` records the work and moves
+  the date on (`addInterval`; a month that lacks the day uses its last day); `setDueDate` enters or corrects one. `buildOverview`
+  orders everything: overdue, due soon, no date, fine.
+- **Permissions:** `manage_maintenance` changes anything; `manage_fleet`, `dispatch` and `view_reports` read. The migration gave the
+  new privilege to every account that could manage users or vehicles.
+- **Dashboard:** Maintenance page (what is due, and what the firm tracks) and a panel per vehicle on Vehicle profiles. Advisory only.
+- To come: reminders with a per-person notification preference, defects into repair tasks, a CSV import.
+
 ## Staff BFF
 
 `apps/staff-bff` (P2-M1.9) is the dashboard's back end for staff accounts. It does the same
