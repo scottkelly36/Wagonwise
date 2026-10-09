@@ -31,6 +31,11 @@ import { useTurnAnnouncements } from '../hooks/use-turn-announcements';
 import { useTurnGuidance } from '../hooks/use-turn-guidance';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
+import { BreakCard } from '../components/break-card';
+import { parkingBeforeStop, planBreak } from '../lib/break-plan';
+import { hoursStatus } from '../lib/driver-hours';
+import { currentActivity } from '../lib/shift-log';
+import { useShiftStore } from '../state/shift-store';
 import { computeEta } from '../lib/eta';
 import { arrivalStep, navigationTarget } from '../lib/job-navigation';
 import { jobsErrorMessage, routingErrorMessage } from '../lib/error-messages';
@@ -107,6 +112,8 @@ const ON_ROUTE_HAZARD_RADIUS_M = 750;
 const CORRIDOR_MAX_POINTS = 1500;
 // Parking a little further out than hazards: a layby just off the route is worth seeing.
 const ON_ROUTE_PARKING_RADIUS_M = 1500;
+// A function of its own so the clock is read where it is used, not while the screen is drawn.
+const clockNow = (): number => Date.now();
 
 /**
  * The active-trip screen (design doc §8, M5.6): a map following the driver's live position, an
@@ -209,6 +216,34 @@ export default function ActiveTripScreen() {
   const remainingDurationMin = plan ? plan.durationMin * (progress?.remainingFraction ?? 1) : 0;
   const eta = plan ? computeEta(new Date(), remainingDurationMin) : undefined;
   const remainingKm = progress ? progress.remainingMetres / 1000 : plan?.distanceKm;
+
+  // Break planning: only for a driver who is using the driving-hours clock (a shift is on). When the route runs past the
+  // time they have, say when a break is needed, offer parking before then, and put the break into the arrival time.
+  const shiftLog = useShiftStore((s) => s.log);
+  const shiftRules = useShiftStore((s) => s.rules);
+  const shiftExtensions = useShiftStore((s) => s.extensionsLeft);
+  const breakPlan = useMemo(() => {
+    if (!plan || currentActivity(shiftLog) === undefined) return undefined;
+    const at = clockNow();
+    const status = hoursStatus(shiftLog, at, {
+      rules: shiftRules,
+      extensionsLeft: shiftExtensions,
+    });
+    return planBreak(status, shiftRules, remainingDurationMin, at);
+  }, [plan, shiftLog, shiftRules, shiftExtensions, remainingDurationMin]);
+  const breakParking = useMemo(
+    () =>
+      breakPlan && routeLine && location.point
+        ? parkingBeforeStop(
+            nearbyParking.data ?? [],
+            routeLine,
+            location.point,
+            breakPlan,
+            remainingDurationMin,
+          )
+        : [],
+    [breakPlan, routeLine, location.point, nearbyParking.data, remainingDurationMin],
+  );
 
   const micBusy =
     voiceFlow.state.phase === 'parsing' ||
@@ -363,10 +398,30 @@ export default function ActiveTripScreen() {
           >
             <Icon name="clock-outline" size={26} color={colors.accent} />
             <View>
-              <Text style={styles.etaTime}>ETA {formatTime(eta)}</Text>
+              <Text style={styles.etaTime}>
+                ETA{' '}
+                {formatTime(
+                  breakPlan?.kind === 'break' && breakPlan.arrivalMs !== null
+                    ? new Date(breakPlan.arrivalMs)
+                    : eta,
+                )}
+                {breakPlan?.kind === 'break' ? ' with break' : ''}
+              </Text>
               <Text style={styles.etaDistance}>{remainingKm?.toFixed(1)} km left</Text>
             </View>
           </View>
+        )}
+
+        {breakPlan && (
+          <BreakCard
+            plan={breakPlan}
+            parking={breakParking}
+            onPickParking={(spot) => setSelectedParkingId(spot.id)}
+            style={[
+              styles.breakCard,
+              { top: insets.top + (guidance.next || guidance.offRoute ? 96 : 8) + 72 },
+            ]}
+          />
         )}
 
         <MarkPlaceSheet
@@ -601,6 +656,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 10,
       paddingHorizontal: 16,
     },
+    breakCard: { position: 'absolute', left: 16, right: 80 },
     etaTime: { fontSize: 20, fontWeight: '800', color: colors.text },
     etaDistance: { fontSize: 14, color: colors.textMuted },
     hazardRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
