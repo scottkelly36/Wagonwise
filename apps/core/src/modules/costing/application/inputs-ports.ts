@@ -1,4 +1,5 @@
 import type { CompanyId } from '../domain/fuel.js';
+import type { DeliveredJob } from '../domain/job-costs.js';
 import type {
   DriverId,
   DriverRate,
@@ -35,4 +36,9 @@ export interface DriverDirectory {
     companyId: CompanyId,
   ): Promise<readonly { readonly id: DriverId; readonly name: string }[]>;
   belongsToCompany(driverId: DriverId, companyId: CompanyId): Promise<boolean>;
+}
+
+/** The jobs delivered in a period. Supplied by composition over `jobs`; reads in the caller's own data scope. */
+export interface JobDirectory {
+  deliveredBetween(companyId: CompanyId, from: Date, to: Date): Promise<readonly DeliveredJob[]>;
 }

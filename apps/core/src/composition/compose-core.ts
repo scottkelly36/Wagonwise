@@ -317,6 +317,16 @@ export function composeCore(
     clock,
     dataScopes,
     callers: { getCaller: staffCaller },
+    // The jobs delivered in a month, for the cost of a job; composition is where jobs meets costing (AGENTS.md rule 7).
+    // `jobs` is built after this, so it is read only when called.
+    jobs: {
+      deliveredBetween: async (companyId, from, to) =>
+        (await jobs.deliveredBetween(companyId, from, to)).map((j) => ({
+          ...j,
+          vehicleId: j.vehicleId === undefined ? undefined : makeId<'FleetVehicleId'>(j.vehicleId),
+          driverId: j.driverId === undefined ? undefined : makeId<'DriverId'>(j.driverId),
+        })),
+    },
     // The firm's drivers, named as staff know them (their sign-in). fleet knows who is active; identity knows the name.
     drivers: {
       listForCompany: async (companyId) => {

@@ -3,6 +3,18 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **job profit: what each job cost and made (Phase 3 M1 and M2 for a client, costing per job).** New **Job profit** page under a new menu section
+  **Costs and profit** (Fuel, Running costs and pay, Job profit), and `GET /staff/costing/companies/:companyId/job-costs?month=YYYY-MM`
+  (needs `manage_billing`, as it shows wages). For a month it shows revenue, wages, fuel, vehicle running costs, overheads and the
+  profit after all of them, then by job, by vehicle and by customer. **How it is worked out** (all in `domain/job-costs.ts`, with tests):
+  a job belongs to the UK month it was delivered in, and its time runs from the driver accepting it to delivery; **wages** are that
+  time at the driver's rate on the delivery day; **fuel** bought for a vehicle that month and its **running costs** for the month are
+  shared across the vehicle's jobs by their time, **to the penny** (largest-remainder allocation, so a vehicle's jobs together carry
+  exactly what it cost); a vehicle that did no job carries nothing on any job and its costs show on its own line and as "not covered by
+  a job"; **overheads** are not put on any job. **Nothing is guessed:** a job with no price has no profit, a driver with no rate adds
+  no wages and the job says so, a job with no vehicle gets no fuel, and the page lists what is missing and where to fix it. The
+  month is London time (summer time handled). Jobs reach costing through a `JobDirectory` port (composition over a new
+  `deliveredBetween` on the jobs facade). No migration. Deploy core, staff-bff and dashboard together.
 - 2026-10-09: **costing inputs: running costs and what drivers cost an hour (Phase 3 M1 for a client, step 2 of costing per job).**
   Migration 0057 (`costing.running_costs`, `costing.driver_rates`, under Row-Level Security) and a **Costs** page (Operations). **Running
   costs** are a monthly amount for one vehicle (finance, insurance, road tax, a service plan) or, with no vehicle, for the firm (an

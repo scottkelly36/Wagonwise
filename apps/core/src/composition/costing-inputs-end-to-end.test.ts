@@ -65,6 +65,7 @@ describe('costing inputs end to end (real RLS, real scopes)', () => {
       clock: new FakeClock('2026-10-09T09:00:00.000Z'),
       dataScopes: scopes,
       callers: { getCaller: (id) => Promise.resolve(staff[id] ?? null) },
+      jobs: { deliveredBetween: () => Promise.resolve([]) },
       drivers: {
         listForCompany: (c) =>
           Promise.resolve(

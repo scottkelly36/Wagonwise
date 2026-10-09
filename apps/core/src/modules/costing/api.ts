@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
-import type { DriverDirectory } from './application/inputs-ports.js';
+import type { DriverDirectory, JobDirectory } from './application/inputs-ports.js';
 import type { CallerDirectory, VehicleDirectory } from './application/ports.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresFuelRepository } from './infrastructure/postgres-fuel-repository.js';
@@ -11,11 +11,13 @@ import {
   PostgresRunningCostRepository,
 } from './infrastructure/postgres-inputs-repositories.js';
 import { registerCostingInputsRoutes } from './interface/inputs-routes.js';
+import { registerCostingReportRoutes } from './interface/report-routes.js';
 import { registerCostingRoutes } from './interface/routes.js';
 
 // Re-exported so composition/ can type its wiring without reaching past this facade.
 export type { UntypedDb } from './infrastructure/db.js';
-export type { DriverDirectory } from './application/inputs-ports.js';
+export type { DriverDirectory, JobDirectory } from './application/inputs-ports.js';
+export type { DeliveredJob } from './domain/job-costs.js';
 export type {
   CallerDirectory,
   StaffCaller,
@@ -34,6 +36,8 @@ export interface CostingModuleDeps {
   readonly vehicles: VehicleDirectory;
   /** The company's drivers, with the name staff know them by. Supplied by composition over `fleet` and `identity`. */
   readonly drivers: DriverDirectory;
+  /** The jobs delivered in a period. Supplied by composition over `jobs`. */
+  readonly jobs: JobDirectory;
 }
 
 export interface CostingModule {
@@ -52,6 +56,18 @@ export function createCostingModule(deps: CostingModuleDeps): CostingModule {
     registerRoutes(app: FastifyInstance): void {
       registerCostingRoutes(app, {
         fuel: { fuel, vehicles: deps.vehicles, ids: deps.ids, clock: deps.clock },
+        callerDirectory: deps.callers,
+        dataScopes: deps.dataScopes,
+      });
+      registerCostingReportRoutes(app, {
+        report: {
+          fuel,
+          runningCosts,
+          rates,
+          jobs: deps.jobs,
+          vehicles: deps.vehicles,
+          drivers: deps.drivers,
+        },
         callerDirectory: deps.callers,
         dataScopes: deps.dataScopes,
       });

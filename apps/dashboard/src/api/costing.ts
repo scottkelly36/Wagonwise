@@ -1,5 +1,6 @@
 import {
   addRunningCostRequestSchema,
+  costReportSchema,
   changeRunningCostRequestSchema,
   driverRateSchema,
   listDriverRatesResponseSchema,
@@ -15,6 +16,7 @@ import {
   listUnmatchedResponseSchema,
   rematchFuelResponseSchema,
   type AddRunningCostRequest,
+  type CostReportDto,
   type ChangeRunningCostRequest,
   type DriverRatesDto,
   type RunningCostDto,
@@ -221,4 +223,19 @@ export async function deleteDriverRate(accessToken: string, id: string): Promise
     authorization: bearer(accessToken),
   });
   throwUnlessSuccess(status, json, [204]);
+}
+
+/** What each job delivered in a month cost, and what each vehicle and customer made. Needs `manage_billing`. */
+export async function getJobCosts(
+  accessToken: string,
+  companyId: string,
+  month: string,
+): Promise<CostReportDto> {
+  const { status, json } = await requestJson(
+    'GET',
+    `/staff/costing/companies/${companyId}/job-costs?month=${encodeURIComponent(month)}`,
+    { authorization: bearer(accessToken) },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return costReportSchema.parse(json);
 }

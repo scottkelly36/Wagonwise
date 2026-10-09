@@ -159,3 +159,84 @@ export const setDriverRateRequestSchema = z.object({
   fromDay: day,
 });
 export type SetDriverRateRequest = z.infer<typeof setDriverRateRequestSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// What each job delivered in a month cost, and what each vehicle and customer made.
+
+/** `GET /staff/costing/companies/:companyId/job-costs?month=YYYY-MM`. */
+export const jobCostsQuerySchema = z.object({ month });
+
+export const jobCostNoteSchema = z.enum([
+  'no_price',
+  'no_time',
+  'no_rate',
+  'no_driver',
+  'no_vehicle',
+]);
+export type JobCostNote = z.infer<typeof jobCostNoteSchema>;
+
+export const jobCostSchema = z.object({
+  jobId: z.string(),
+  reference: z.string(),
+  customer: z.string().optional(),
+  vehicleName: z.string().optional(),
+  driverName: z.string().optional(),
+  deliveredAt: z.iso.datetime(),
+  /** Hours from the driver accepting the job to delivery. */
+  hours: z.number(),
+  pricePence: z.number().int().optional(),
+  /** Absent when the driver has no rate. */
+  wagesPence: z.number().int().optional(),
+  fuelPence: z.number().int(),
+  runningPence: z.number().int(),
+  costPence: z.number().int(),
+  /** Absent when the job has no price. */
+  profitPence: z.number().int().optional(),
+  notes: z.array(jobCostNoteSchema),
+});
+export type JobCostDto = z.infer<typeof jobCostSchema>;
+
+export const vehicleCostSchema = z.object({
+  vehicleId: z.string().optional(),
+  name: z.string(),
+  jobs: z.number().int(),
+  hours: z.number(),
+  revenuePence: z.number().int(),
+  wagesPence: z.number().int(),
+  fuelPence: z.number().int(),
+  runningPence: z.number().int(),
+  costPence: z.number().int(),
+  profitPence: z.number().int(),
+});
+export type VehicleCostDto = z.infer<typeof vehicleCostSchema>;
+
+export const customerCostSchema = z.object({
+  name: z.string(),
+  jobs: z.number().int(),
+  revenuePence: z.number().int(),
+  costPence: z.number().int(),
+  profitPence: z.number().int(),
+});
+export type CustomerCostDto = z.infer<typeof customerCostSchema>;
+
+export const costReportSchema = z.object({
+  month,
+  jobs: z.array(jobCostSchema),
+  vehicles: z.array(vehicleCostSchema),
+  customers: z.array(customerCostSchema),
+  totals: z.object({
+    jobs: z.number().int(),
+    revenuePence: z.number().int(),
+    wagesPence: z.number().int(),
+    fuelPence: z.number().int(),
+    unmatchedFuelPence: z.number().int(),
+    runningPence: z.number().int(),
+    overheadsPence: z.number().int(),
+    jobsCostPence: z.number().int(),
+    notCoveredPence: z.number().int(),
+    profitPence: z.number().int(),
+    jobsWithoutPrice: z.number().int(),
+    jobsWithoutRate: z.number().int(),
+  }),
+});
+export type CostReportDto = z.infer<typeof costReportSchema>;
