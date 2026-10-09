@@ -3,6 +3,20 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **fuel card import (Phase 3 M3), the first of costing.** Migration 0056 (`costing.fuel_imports`, `costing.fuel_transactions`,
+  under Row-Level Security) and a new core module `costing`. On the new **Fuel** page (Operations) a manager imports a statement from
+  any fuel card provider as CSV and tells the page which column is the date, the registration, the amount, and optionally the time,
+  litres and product or site; it guesses from the headings and remembers the choice for next time (on that browser). The dashboard
+  reads the file (UK dates like 31/10/2026, ISO dates, amounts like £1,234.56, credits as negatives or brackets), skips and reports
+  rows it cannot read, and sends the rest (up to 2,000 a go; longer files go in pieces). Core matches each purchase to a vehicle by
+  **registration** (spaces and case ignored; two vehicles with one registration are not guessed at) and **keeps a purchase that matches
+  none**, so the money is not lost: **Needs matching** lists them, **Match again** matches those whose registration has since been
+  added, and each can be matched by hand. **Sending the same statement twice adds nothing twice** (a dedupe key of the moment,
+  registration, amount, litres and description plus which of identical rows it is, so two genuine identical purchases in one file both
+  stay). A whole import can be undone. The page shows spend, litres, average price a litre and fuel by vehicle for this month, last
+  month or the last 30 days. Managers (`manage_fleet`) import and match; `view_reports` can look; a dispatcher alone cannot (fuel is
+  the firm's cost). No new privilege. No per-job fuel yet: matching fuel to the jobs a vehicle did is part of costing per job, next.
+  Deploy core, staff-bff and dashboard together; the migration runs with core.
 - 2026-10-09: **revenue, first slice: a customer and a price on each job (Phase 3 M2, a client's own revenue).** Migration 0055 (`customer`
   text, `price_pence` on `jobs.jobs`). A dispatcher can write who a job is for (free text, with the firm's earlier customers offered as
   suggestions so a name is spelt the same each time) and an agreed price in pounds and pence, when creating it or any time after

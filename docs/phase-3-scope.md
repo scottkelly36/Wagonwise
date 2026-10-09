@@ -11,7 +11,7 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
 - **Waiting on something from the owner:** M3 fuel card (a sample statement and the provider); M7 what3words (the key);
   M8 UK coverage (a customer outside Northumberland); M9 (what the pilot's lorries have; see below); text reminders (a text
   sender, mobile numbers, cost sign-off).
-- **Client money (started 2026-10-09):** a customer and a price on each job, with revenue by customer and vehicle in the jobs report (built). Next: costing per job and vehicle (fuel import, driver wages, vehicle running costs, overheads), then projections.
+- **Client money (started 2026-10-09):** a customer and a price on each job, with revenue by customer and vehicle in the jobs report (built); fuel card import matched to vehicles by registration (built). Next: costing per job and vehicle (fuel against the jobs a vehicle did, driver wages, vehicle running costs, overheads), then projections.
 
 ## Principles (the owner's)
 

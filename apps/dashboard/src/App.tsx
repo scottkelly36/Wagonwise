@@ -7,6 +7,7 @@ import { CongestionReports } from './pages/admin/CongestionReports';
 import { HazardReports } from './pages/admin/HazardReports';
 import { Moderation } from './pages/admin/Moderation';
 import { Drivers } from './pages/fleet/Drivers';
+import { Fuel } from './pages/fleet/Fuel';
 import { Jobs } from './pages/fleet/Jobs';
 import { Places } from './pages/fleet/Places';
 import { Maintenance } from './pages/fleet/Maintenance';
@@ -56,6 +57,7 @@ export function App() {
                 </Suspense>
               }
             />
+            <Route path="/fleet/fuel" element={<Fuel />} />
             <Route path="/fleet/places" element={<Places />} />
             <Route path="/fleet/checks" element={<Checks />} />
             <Route path="/fleet/maintenance" element={<Maintenance />} />

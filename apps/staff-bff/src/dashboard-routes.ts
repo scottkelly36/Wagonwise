@@ -1,3 +1,10 @@
+import {
+  assignFuelVehicleRequestSchema,
+  costingCompanyParamsSchema,
+  fuelIdParamsSchema,
+  fuelQuerySchema,
+  importFuelRequestSchema,
+} from '@wagonwise/contracts/costing';
 import { hoursCompanyParamsSchema, hoursSettingsSchema } from '@wagonwise/contracts/hours';
 import {
   createItemTypeRequestSchema,
@@ -272,6 +279,41 @@ const FORWARDS: readonly Forward[] = [
     params: maintenanceCompanyParamsSchema,
     body: importDatesRequestSchema,
   },
+  // Costing: a fuel card statement imported and matched to vehicles. Core decides who may.
+  {
+    method: 'POST',
+    path: '/staff/costing/companies/:companyId/fuel/import',
+    params: costingCompanyParamsSchema,
+    body: importFuelRequestSchema,
+  },
+  {
+    method: 'GET',
+    path: '/staff/costing/companies/:companyId/fuel',
+    params: costingCompanyParamsSchema,
+    query: fuelQuerySchema,
+  },
+  {
+    method: 'GET',
+    path: '/staff/costing/companies/:companyId/fuel/unmatched',
+    params: costingCompanyParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/costing/companies/:companyId/fuel/rematch',
+    params: costingCompanyParamsSchema,
+  },
+  {
+    method: 'GET',
+    path: '/staff/costing/companies/:companyId/fuel/imports',
+    params: costingCompanyParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/costing/fuel/:id/vehicle',
+    params: fuelIdParamsSchema,
+    body: assignFuelVehicleRequestSchema,
+  },
+  { method: 'DELETE', path: '/staff/costing/fuel/imports/:id', params: fuelIdParamsSchema },
   // Driver hours sharing: the firm's switch, and the statuses of drivers who agreed to share. Core decides who may.
   {
     method: 'GET',
