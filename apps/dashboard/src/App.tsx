@@ -11,6 +11,7 @@ import { Moderation } from './pages/admin/Moderation';
 import { Drivers } from './pages/fleet/Drivers';
 import { Jobs } from './pages/fleet/Jobs';
 import { Places } from './pages/fleet/Places';
+import { Maintenance } from './pages/fleet/Maintenance';
 import { Checks } from './pages/fleet/Checks';
 import { CheckResults } from './pages/fleet/CheckResults';
 import { Defects } from './pages/fleet/Defects';
@@ -59,6 +60,7 @@ export function App() {
             />
             <Route path="/fleet/places" element={<Places />} />
             <Route path="/fleet/checks" element={<Checks />} />
+            <Route path="/fleet/maintenance" element={<Maintenance />} />
             <Route path="/fleet/check-results" element={<CheckResults />} />
             <Route path="/fleet/defects" element={<Defects />} />
             <Route path="/fleet/reports" element={<Reports />} />

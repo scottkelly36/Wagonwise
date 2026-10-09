@@ -44,6 +44,11 @@
       "import": "./dist/checks.js",
       "default": "./dist/checks.js"
     },
+    "./maintenance": {
+      "types": "./dist/maintenance.d.ts",
+      "import": "./dist/maintenance.js",
+      "default": "./dist/maintenance.js"
+    },
     "./places": {
       "types": "./dist/places.d.ts",
       "import": "./dist/places.js",

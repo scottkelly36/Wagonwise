@@ -31,6 +31,7 @@ export type StaffKind = z.infer<typeof staffKindSchema>;
  * - `view_live_map`: see where the company's trucks are during active jobs.
  * - `view_reports`: see reports and export CSVs.
  * - `manage_billing`: see and change the company's subscription.
+ * - `manage_maintenance`: keep the vehicles' service, MOT and inspection dates, and get the reminders.
  */
 export const PRIVILEGES = [
   'manage_users',
@@ -39,6 +40,7 @@ export const PRIVILEGES = [
   'view_live_map',
   'view_reports',
   'manage_billing',
+  'manage_maintenance',
 ] as const;
 export const privilegeSchema = z.enum(PRIVILEGES);
 export type Privilege = z.infer<typeof privilegeSchema>;

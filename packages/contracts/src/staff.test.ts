@@ -33,7 +33,7 @@ const platformUser = {
 };
 
 describe('privileges and presets', () => {
-  it('has exactly the six agreed privileges', () => {
+  it('has exactly the seven agreed privileges', () => {
     expect(PRIVILEGES).toEqual([
       'manage_users',
       'manage_fleet',
@@ -41,6 +41,7 @@ describe('privileges and presets', () => {
       'view_live_map',
       'view_reports',
       'manage_billing',
+      'manage_maintenance',
     ]);
   });
 

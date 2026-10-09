@@ -5,6 +5,10 @@ import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
 import { createChecksModule, type UntypedDb as ChecksUntypedDb } from '../modules/checks/api.js';
 import {
+  createMaintenanceModule,
+  type UntypedDb as MaintenanceUntypedDb,
+} from '../modules/maintenance/api.js';
+import {
   createLocalStaffAccessTokenVerifier,
   type AccessTokenVerifier,
   type StaffAccessTokenVerifier,
@@ -191,6 +195,7 @@ export function composeCore(
   const placesDb: PlacesUntypedDb = identityDb;
   const billingDb: BillingUntypedDb = identityDb;
   const checksDb: ChecksUntypedDb = identityDb;
+  const maintenanceDb: MaintenanceUntypedDb = identityDb;
   const fleetDb: FleetUntypedDb = identityDb;
   const jobsDb: JobsUntypedDb = identityDb;
 
@@ -266,6 +271,32 @@ export function composeCore(
     },
     callers: { getCaller: staffCaller },
     driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+  });
+  const maintenance = createMaintenanceModule({
+    db: maintenanceDb,
+    ids,
+    clock,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+    vehicles: {
+      listForCompany: async (companyId) =>
+        (await fleet.listCompanyVehicles(companyId)).map((v) => ({
+          id: makeId<'FleetVehicleId'>(v.id),
+          name: v.name,
+          registration: v.registration,
+        })),
+      find: async (vehicleId) => {
+        const v = await fleet.getVehicleSummary(vehicleId);
+        return v === null
+          ? null
+          : {
+              id: makeId<'FleetVehicleId'>(v.id),
+              companyId: makeId<'CompanyId'>(v.companyId),
+              name: v.name,
+              registration: v.registration,
+            };
+      },
+    },
   });
   const weather = createWeatherModule({ clock, metOfficeApiKey: config.metOfficeApiKey });
   const jobs = createJobsModule({
@@ -456,6 +487,7 @@ export function composeCore(
   places.registerRoutes(app);
   billing.registerRoutes(app);
   checks.registerRoutes(app);
+  maintenance.registerRoutes(app);
   weather.registerRoutes(app);
 
   return {
