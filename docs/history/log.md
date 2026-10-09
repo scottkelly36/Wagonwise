@@ -3,6 +3,14 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-09: **tester sign-up landing page.** A one-page site (`sites/landing/index.html`, no build) at wagon-wise.co.uk where
+  drivers and firms leave an email to test the app: email, optional name, "driver / fleet / both / other", optional company and
+  fleet size, and a ticked consent box. It posts same-origin to `/signups`, which the DO ingress sends to driver-bff (so no
+  CORS is opened on the API); driver-bff forwards to core's new `signups` module (migration 0058, schema `signups`, platform
+  scope only under RLS). Abuse controls: a hidden trap field, an address already held answers the same and changes nothing, and
+  a cap of 500 sign-ups a day. A "Remove my email" form (`POST /signups/remove`, always 204) lets people take themselves off
+  (unverified, so anyone who knows an address could remove it: accepted). Dashboard: **Testers** page (Customers, WagonWise
+  staff only) with count, search, remove, and a spreadsheet download. No contact address is published on the page.
 - 2026-10-09: **projections: a look ahead (Phase 3 M6 for a client).** New **Looking ahead** page (Costs and profit) and
   `GET /staff/costing/companies/:companyId/outlook?month=` (needs `manage_billing`). It shows the last six months of what came in and
   what it cost (the current month last, marked "so far") and a **three-month guess** (`domain/outlook.ts`, with tests). **How the guess

@@ -335,6 +335,14 @@ second check on top — core alone decides ownership/authorization for those.
 - **Routes:** staff `GET/PUT /staff/hours/companies/:companyId/settings` (read: company staff; change: `manage_fleet`), `GET /staff/hours/companies/:companyId/status`; driver `GET /hours/sharing`, `PUT /hours/sharing/:companyId`, `PUT /hours/status`, `DELETE /hours/status`.
 - **Driver app:** `state/hours-sharing-store.ts`, `hooks/use-share-hours.ts` (sends on change and every minute), `lib/hours-share.ts` (the payload and the consent wording), the Share section of the Driving hours screen, and a chip on the trip screen.
 
+## Tester sign-up (landing page)
+
+`sites/landing/index.html` is a plain static page served at wagon-wise.co.uk (and www) by the DO `landing` static site. Its form
+posts to `/signups` on the same host; the app-spec ingress sends `/signups` on those hosts to driver-bff (`signups-routes.ts`,
+public, validates and forwards) and on to core's `signups` module (`POST /signups`, `POST /signups/remove`, and staff-only
+`GET /staff/signups`, `DELETE /staff/signups/:id`). Table `signups.testers` is readable only in the platform scope. Honeypot
+field `website`, daily cap 500. The dashboard's Testers page (`/admin/testers`) lists and exports it.
+
 ## Staff BFF
 
 `apps/staff-bff` (P2-M1.9) is the dashboard's back end for staff accounts. It does the same

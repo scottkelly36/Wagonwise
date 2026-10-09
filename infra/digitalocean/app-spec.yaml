@@ -27,6 +27,12 @@ domains:
   # basename and every asset path rewritten for no real benefit (P2-M1.12d).
   - domain: dashboard.wagon-wise.co.uk
     type: ALIAS
+  # The tester sign-up landing page (sites/landing). Its form posts to /signups on its own address, which the ingress below
+  # sends to driver-bff, so no cross-site access has to be opened on the API.
+  - domain: wagon-wise.co.uk
+    type: ALIAS
+  - domain: www.wagon-wise.co.uk
+    type: ALIAS
 # App Platform's per-component `routes:` field is path-only and shared across every domain
 # pointed at the app — on its own it can't say "driver-bff/staff-bff answer
 # api.wagon-wise.co.uk, dashboard answers dashboard.wagon-wise.co.uk". `ingress.rules` is DO's
@@ -55,6 +61,36 @@ ingress:
           prefix: /
       component:
         name: driver-bff
+    - match:
+        authority:
+          exact: wagon-wise.co.uk
+        path:
+          prefix: /signups
+      component:
+        name: driver-bff
+        preserve_path_prefix: true
+    - match:
+        authority:
+          exact: www.wagon-wise.co.uk
+        path:
+          prefix: /signups
+      component:
+        name: driver-bff
+        preserve_path_prefix: true
+    - match:
+        authority:
+          exact: wagon-wise.co.uk
+        path:
+          prefix: /
+      component:
+        name: landing
+    - match:
+        authority:
+          exact: www.wagon-wise.co.uk
+        path:
+          prefix: /
+      component:
+        name: landing
     - match:
         authority:
           exact: dashboard.wagon-wise.co.uk
@@ -172,6 +208,13 @@ services:
       # CORE_INTERNAL_KEY: encrypted secret, set after creation — must match one of core's
       # INTERNAL_KEYS, same as driver-bff's own copy.
 static_sites:
+  # A single hand-written page, no build: the tester sign-up landing page.
+  - name: landing
+    github:
+      repo: scottkelly36/Wagonwise
+      branch: main
+      deploy_on_push: true
+    source_dir: sites/landing
   - name: dashboard
     github:
       repo: scottkelly36/Wagonwise

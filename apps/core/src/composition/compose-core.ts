@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
 import { createChecksModule, type UntypedDb as ChecksUntypedDb } from '../modules/checks/api.js';
+import { createSignupsModule, type UntypedDb as SignupsUntypedDb } from '../modules/signups/api.js';
 import { createCostingModule, type UntypedDb as CostingUntypedDb } from '../modules/costing/api.js';
 import { createHoursModule, type UntypedDb as HoursUntypedDb } from '../modules/hours/api.js';
 import {
@@ -209,6 +210,7 @@ export function composeCore(
   const maintenanceDb: MaintenanceUntypedDb = identityDb;
   const hoursDb: HoursUntypedDb = identityDb;
   const costingDb: CostingUntypedDb = identityDb;
+  const signupsDb: SignupsUntypedDb = identityDb;
   const fleetDb: FleetUntypedDb = identityDb;
   const jobsDb: JobsUntypedDb = identityDb;
 
@@ -311,6 +313,14 @@ export function composeCore(
     },
   });
   // Fuel: a card statement imported and matched to the company's vehicles by registration.
+  // The landing page's "register to test" list: public sign-up, and a list for WagonWise staff.
+  const signups = createSignupsModule({
+    db: signupsDb,
+    ids,
+    clock,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+  });
   const costing = createCostingModule({
     db: costingDb,
     ids,
@@ -643,6 +653,7 @@ export function composeCore(
   maintenance.registerRoutes(app);
   hours.registerRoutes(app);
   costing.registerRoutes(app);
+  signups.registerRoutes(app);
   weather.registerRoutes(app);
 
   return {
