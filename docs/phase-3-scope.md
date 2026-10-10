@@ -125,17 +125,78 @@ daily and weekly rest. A firm picks which rule set applies to each vehicle.
 **Built so far (Track A):** the rules and the clock (`lib/driver-hours.ts`), the shift record on the phone, break planning on the trip screen (`lib/break-plan.ts`), weekly and fortnightly driving limits, and the Driving hours
 screen in the More tab. Status sharing with the company is built. Still to build: weekly rest.
 
-### Track B: tachograph source (a connection)
+### Track B: Bluetooth to the tachograph (phone, Android only), scoped 2026-10-10
 
-- Smart tachographs have a Bluetooth interface meant for outside apps, but only newer units, only certain data, the driver must
-  enable pairing, and it differs by manufacturer. **First find out, with the pilot firm, which lorries have what** (analogue,
-  digital, smart v1, smart v2), then read the interface specification for what it exposes, and whether it gives time remaining
-  or only activity from which the app works it out.
-- Bluetooth is a native change (new package and permissions): a version bump and a Play build, not an over-the-air update, and iOS
-  has its own limits. It plugs in behind the same screen as Track A, replacing the driver-entered clock where a vehicle has it,
-  so nothing the driver sees changes.
-- Reading the driver card or downloading tachograph files for the office is a different thing (the office's legal duty to
-  download and keep data). Not in this scope; revisit if a firm asks.
+**Source:** Appendix 13 of Regulation 2016/799 (the ITS interface), as retained in GB law
+(<https://www.legislation.gov.uk/eur/2016/799/annex/1/appendix/13>). Read through a summary on 2026-10-10: **the appendix and its
+Annex 1 must be read in full before building**; every fact below is to be re-checked there.
+
+What the specification says:
+
+- **The interface is optional.** A tachograph may be fitted with it; the manufacturer is not required to. A unit that has it follows
+  one standard, so one piece of code can read any maker's unit; a unit without it cannot be read this way at all.
+- **Bluetooth Classic with the Serial Port Profile, Bluetooth 4.2 or later.** Not Bluetooth Low Energy. Android apps can use this;
+  **iPhone apps cannot** (iOS does not let ordinary apps use Classic serial links). So the connection is **Android only**; iPhone
+  drivers keep the manual clock.
+- **Data:** more than 80 items. The useful ones are classed as personal and are given only with the driver's consent: working
+  state, continuous driving time, cumulative break time, daily and weekly driving counters, time remaining until a rest, speed,
+  position. Non-personal items are vehicle identity and calibration dates.
+- **Pairing:** the driver pairs the phone with a PIN of at least 4 digits on the unit; paired devices go on a list of up to 64; three
+  wrong attempts lock the pairing out for a growing time, and only an 8-digit code from the tachograph's maker clears a permanent
+  lock. **Consent** is recorded in the tachograph when the driver first inserts their card; without it the personal data is withheld.
+- The appendix says nothing about how an app presents the data, and sets no certification for apps.
+- A separate specification, the **Remote HMI** (a transport protocol document on the Joint Research Centre's site), exists for smart
+  tachograph V2; its PDF was unreadable to our tool. Read it before deciding whether it matters here.
+
+What we would build (all behind the same Driving hours screen, so nothing the driver sees changes):
+
+1. A parser and a **simulator** written from the specification, with tests, needing no hardware.
+2. A connection screen in Driving hours (Android only): pair, give consent, status, disconnect. "Connected to tachograph" replaces
+   the driver's own taps with the unit's working state and counters; the manual clock stays as the fallback and the only option on
+   iPhone or an older unit.
+3. A native change: a Bluetooth Classic package and permissions. **A version bump (1.3.0) and a Play build, not an over-the-air update.**
+4. Real-unit testing before anyone relies on it. Pairing and data differ in practice between makers.
+
+What to find out first:
+
+- Which lorries the testing firm or driver actually has (analogue, digital, smart v1, smart v2) and whether the ITS interface is
+  enabled on them. **How many GB lorries carry smart V2 units is unknown** (the EU mandate dates may not apply to GB-registered
+  vehicles); ask real fleets.
+- What their drivers carry (Android or iPhone).
+
+Reading the driver card or downloading tachograph files for the office is a different thing (the office's legal duty to download
+and keep data). Not in this scope.
+
+### Track C: telematics integration (server to server), proposed 2026-10-10
+
+Many of the firms this product is for **already have telematics** (Webfleet, Samsara, Microlise, Geotab and others), and those
+systems already hold their drivers' tachograph and hours data, from the lorry's own unit (a box wired into the vehicle, often
+reading the tachograph remotely) and from the driver card. Taking it from there instead of from the phone has real advantages:
+
+- **Works on iPhone and Android, and on lorries with no Bluetooth tachograph**, because the telematics box does the reading.
+- **No pairing or per-driver set-up** beyond the firm connecting its account once.
+- It sits beside what the firm already trusts and pays for, and the firm is already the one holding this data.
+
+Facts found on 2026-10-10 (from the providers' own pages, so marketing, not terms):
+
+- Webfleet offers **TachoShare.connect**, an API for partners to read tachograph data stored in a customer's Webfleet account.
+- Samsara advertises an open API and tachograph management with **live remaining driving hours**.
+- Microlise advertises remote download of tachograph data.
+
+What is **not** known and decides whether this is worthwhile:
+
+- Whether each provider lets a small third party in (partner agreements, approval, cost), and whether the data is live (minutes) or
+  only as fresh as the last remote download (could be a day).
+- What each API returns: remaining time directly, or activities from which we would work it out.
+- Which telematics the first firms actually use. Each provider is its own integration; start with one, the one the first firms use.
+
+How it would fit: the firm connects its telematics account in the portal (a credential held by core, encrypted); core reads each
+driver's hours and shows them in the portal and in the driver's app, replacing the driver-entered clock for that driver. The
+driver's consent and the notice still apply, as the driver's working time is shown in a new place.
+
+**Recommendation:** ask the testing driver and the first firms two questions (what tachograph units, and which telematics, if any).
+If most use one telematics, Track C for that provider is likely to reach more drivers sooner than Bluetooth; Track B stays a
+smaller, optional extra for Android drivers on smart V2 units. Both need the Track A screen and rules that already exist.
 
 ### Privacy and safeguards (both tracks)
 
@@ -154,7 +215,7 @@ in [`driver-hours-consent.md`](driver-hours-consent.md) (approved by the owner a
 2. Check the rules against GOV.UK and write them down as a table with the source for each.
 3. Track A, in slices: the clock and rules with tests; the screen and shift controls; break planning with parking and the ETA;
    status to core and the portal.
-4. Track B only once the answer to step 1 says it is worth it.
+4. Track B (Bluetooth) and Track C (telematics) only once the answer to step 1 says which is worth it; the order depends on what the first firms have.
 
 ## Goals for the end of Phase 3
 

@@ -3,6 +3,11 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-10: **tachograph connection scoped (docs only).** Track B (Bluetooth) rewritten from Appendix 13 of Regulation 2016/799: the ITS interface
+  is optional, Bluetooth Classic with the Serial Port Profile (so Android only, not iPhone), personal data only with the driver's
+  consent and a PIN pairing; needs a native change (version 1.3.0, Play build). New Track C: read hours from the firm's own telematics
+  (Webfleet TachoShare.connect, Samsara, Microlise and others), which would work on any phone and on older lorries. Nothing built;
+  both wait on what the first firms' lorries and telematics are.
 - 2026-10-10: **parking card: green and grey.** The driver app's parking card now always shows the seven facilities (toilets, showers, shop, food, fuel, lit, secure): green when the spot is known to have it, grey when it does not or nobody has said, with a line saying so; Paid or Free is shown in words when known. Grey deliberately does not separate a known "no" from "not known".
 - 2026-10-10: **parking spots: a portal page, and what a driver wants to know.** New **Parking spots** page (Content, WagonWise staff only) and
   `GET/POST /staff/parking/spots`, `PUT/DELETE /staff/parking/spots/:id`: search by name or note, filter by source, add a spot
