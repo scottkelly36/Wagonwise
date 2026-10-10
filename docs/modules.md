@@ -352,6 +352,13 @@ the platform scope and reads counts across identity, companies, fleet, jobs, che
 `PostgresUsageReader` (the read-model adapter, AGENTS.md rule 7). Dashboard page `/admin/usage`. Real-RLS test:
 `composition/usage-end-to-end.test.ts`.
 
+## Parking spots (portal)
+
+`apps/core/src/modules/parking`: besides drivers' reports, WagonWise staff manage spots at `/admin/parking` (core routes under
+`/staff/parking/spots`, platform staff only, `application/admin-parking.ts`). `parking.safe_parking_spots` has `source`, `osm_id` (unique, so an
+import never doubles), `name`, `capacity` and eight nullable booleans (null = not known). Imported places are © OpenStreetMap
+contributors (ODbL): the credit shows on the portal page and on the driver card, and rows keep `source = 'osm'`.
+
 ## Staff BFF
 
 `apps/staff-bff` (P2-M1.9) is the dashboard's back end for staff accounts. It does the same

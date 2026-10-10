@@ -250,7 +250,12 @@ export function composeCore(
     dashboardUrl: config.dashboardUrl,
   });
   composed.companies = companies;
-  const parking = createParkingModule({ db: parkingDb, clock });
+  const parking = createParkingModule({
+    db: parkingDb,
+    clock,
+    ids,
+    callers: { getCaller: staffCaller },
+  });
   const billing = createBillingModule({
     db: billingDb,
     clock,

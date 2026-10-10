@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatDateTime } from '../lib/format-date';
+import { capacityText, facilityChips, OSM_CREDIT, sourceText } from '../lib/parking-details';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
 import { ACTION_COLOURS } from './ui/action-card';
@@ -49,14 +50,31 @@ export function ParkingSpotDrawer({ spot, onClose, onNavigate, navigateDisabled 
               <Icon name="parking" size={30} color={ACTION_COLOURS.parking} />
             </View>
             <View style={styles.titleText}>
-              <Text style={styles.title}>Safe parking</Text>
-              <Text style={styles.status}>Reported by a driver</Text>
+              <Text style={styles.title}>{spot?.name ?? 'Safe parking'}</Text>
+              <Text style={styles.status}>{spot === undefined ? '' : sourceText(spot)}</Text>
             </View>
           </View>
 
           {spot?.note !== undefined && <Text style={styles.detail}>{spot.note}</Text>}
+          {spot !== undefined && capacityText(spot) !== undefined && (
+            <Text style={styles.detail}>{capacityText(spot)}</Text>
+          )}
+          {spot !== undefined && facilityChips(spot).length > 0 && (
+            <View style={styles.chips} testID="parking-facilities">
+              {facilityChips(spot).map((chip) => (
+                <View key={chip.label} style={styles.chip}>
+                  <Icon name={chip.icon} size={18} color={colors.accent} />
+                  <Text style={styles.chipText}>{chip.label}</Text>
+                </View>
+              ))}
+            </View>
+          )}
           {spot !== undefined && (
-            <Text style={styles.meta}>Reported {formatDateTime(spot.reportedAt)}</Text>
+            <Text style={styles.meta}>
+              {spot.source === 'osm'
+                ? OSM_CREDIT
+                : `${spot.source === 'admin' ? 'Added' : 'Reported'} ${formatDateTime(spot.reportedAt)}`}
+            </Text>
           )}
 
           {spot !== undefined && onNavigate && (
@@ -126,6 +144,17 @@ function createStyles(colors: ThemeColors) {
     status: { fontSize: 14, color: colors.textMuted, textTransform: 'uppercase' },
     detail: { fontSize: 17, color: colors.textSecondary, marginTop: 8 },
     meta: { fontSize: 14, color: colors.textDim, marginTop: 8 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      minHeight: 36,
+      borderRadius: 18,
+      backgroundColor: colors.accentSoft,
+    },
+    chipText: { fontSize: 15, fontWeight: '600', color: colors.text },
     navigateButton: {
       marginTop: 20,
       minHeight: 52,

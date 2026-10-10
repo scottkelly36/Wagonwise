@@ -4,9 +4,11 @@ import type { SafeParkingSpot } from '../domain/safe-parking-spot.js';
 import { deleteSafeParkingSpot } from './delete-safe-parking-spot.js';
 import { InMemoryParkingRepository } from './testing/in-memory-parking-repository.js';
 
+const reporter = makeId<'DriverId'>('driver-1');
 const spot: SafeParkingSpot = {
   id: makeId<'SafeParkingSpotId'>('spot-1'),
-  reporterId: makeId<'DriverId'>('driver-1'),
+  reporterId: reporter,
+  source: 'driver',
   location: { lat: 54.97, lon: -2.1 },
   note: undefined,
   reportedAt: new Date('2026-10-07T12:00:00.000Z'),
@@ -16,10 +18,7 @@ describe('deleteSafeParkingSpot', () => {
   it('lets the reporter take their spot back', async () => {
     const repo = new InMemoryParkingRepository();
     await repo.save(spot);
-    const result = await deleteSafeParkingSpot(
-      { repo },
-      { id: spot.id, reporterId: spot.reporterId },
-    );
+    const result = await deleteSafeParkingSpot({ repo }, { id: spot.id, reporterId: reporter });
     expect(result).toEqual({ ok: true, value: undefined });
     expect(await repo.findNearbyLine([spot.location], 100)).toEqual([]);
   });
@@ -37,10 +36,7 @@ describe('deleteSafeParkingSpot', () => {
 
   it('reports a spot that does not exist as not found', async () => {
     const repo = new InMemoryParkingRepository();
-    const result = await deleteSafeParkingSpot(
-      { repo },
-      { id: spot.id, reporterId: spot.reporterId },
-    );
+    const result = await deleteSafeParkingSpot({ repo }, { id: spot.id, reporterId: reporter });
     expect(result).toEqual({ ok: false, error: { tag: 'SafeParkingSpotNotFound' } });
   });
 });

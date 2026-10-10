@@ -14,6 +14,11 @@ import {
 import { testerIdParamsSchema } from '@wagonwise/contracts/signups';
 import { hoursCompanyParamsSchema, hoursSettingsSchema } from '@wagonwise/contracts/hours';
 import {
+  listParkingSpotsQuerySchema,
+  safeParkingSpotIdParamsSchema,
+  saveParkingSpotRequestSchema,
+} from '@wagonwise/contracts/parking';
+import {
   createItemTypeRequestSchema,
   itemTypeBodySchema,
   bookRepairRequestSchema,
@@ -372,6 +377,26 @@ const FORWARDS: readonly Forward[] = [
     body: setDriverRateRequestSchema,
   },
   { method: 'DELETE', path: '/staff/costing/driver-rates/:id', params: fuelIdParamsSchema },
+  // Parking spots: list, add, change and delete, for WagonWise staff (core decides).
+  {
+    method: 'GET',
+    path: '/staff/parking/spots',
+    params: noParams,
+    query: listParkingSpotsQuerySchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/parking/spots',
+    params: noParams,
+    body: saveParkingSpotRequestSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/parking/spots/:id',
+    params: safeParkingSpotIdParamsSchema,
+    body: saveParkingSpotRequestSchema,
+  },
+  { method: 'DELETE', path: '/staff/parking/spots/:id', params: safeParkingSpotIdParamsSchema },
   // How the app is being used (WagonWise staff only; core decides).
   { method: 'GET', path: '/staff/usage', params: noParams },
   // The landing page's tester list (WagonWise staff only; core decides).

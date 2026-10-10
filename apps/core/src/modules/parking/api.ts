@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
+import type { IdGenerator } from '../../shared/ports/id-generator.js';
+import type { CallerDirectory } from './application/admin-parking.js';
 import { findNearbySafeParkingSpots } from './application/find-nearby-parking.js';
 import type { GeoPoint } from './domain/safe-parking-spot.js';
 import type { UntypedDb } from './infrastructure/db.js';
@@ -10,9 +12,14 @@ import { registerParkingRoutes, type ParkingRouteDeps } from './interface/routes
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
 export type { UntypedDb } from './infrastructure/db.js';
 
+export type { CallerDirectory, StaffCaller } from './application/admin-parking.js';
+
 export interface ParkingModuleDeps {
   readonly db: UntypedDb;
   readonly clock: Clock;
+  readonly ids: IdGenerator;
+  /** Who a signed-in staff account is. Supplied by composition over companies. */
+  readonly callers: CallerDirectory;
 }
 
 export interface NearbySafeParkingSpot {
@@ -33,6 +40,8 @@ export function createParkingModule(deps: ParkingModuleDeps): ParkingModule {
     reportSafeParkingSpot: { repo, clock: deps.clock },
     deleteSafeParkingSpot: { repo },
     findNearbyParking: { repo },
+    admin: { repo, ids: deps.ids, clock: deps.clock },
+    callerDirectory: deps.callers,
   };
 
   return {
