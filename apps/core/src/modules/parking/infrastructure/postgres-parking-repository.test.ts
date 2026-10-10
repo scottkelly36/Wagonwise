@@ -2,7 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
-import type { DriverId, SafeParkingSpot } from '../domain/safe-parking-spot.js';
+import type { SafeParkingSpot } from '../domain/safe-parking-spot.js';
 import type { UntypedDb } from './db.js';
 import { PostgresParkingRepository } from './postgres-parking-repository.js';
 import { applySchema } from './testing/apply-schema.js';
@@ -73,7 +73,7 @@ describe('PostgresParkingRepository', () => {
       await repo().save(s);
 
       const found = await repo().findNearbyLine([s.location], 50);
-      expect(found).toEqual([s]);
+      expect(found).toMatchObject([s]);
     });
 
     it('round-trips a spot with no note', async () => {
@@ -85,7 +85,7 @@ describe('PostgresParkingRepository', () => {
       await repo().save(s);
 
       const found = await repo().findNearbyLine([s.location], 50);
-      expect(found).toEqual([s]);
+      expect(found).toMatchObject([s]);
     });
   });
 
@@ -177,21 +177,153 @@ describe('PostgresParkingRepository', () => {
     });
   });
 
-  describe('deleteOwned', () => {
-    it('deletes the reporter’s own spot, and no one else’s', async () => {
+  describe('reports, merging and undo', () => {
+    const sid = (n: number) =>
+      makeId<'SafeParkingSpotId'>(`bbbbbbbb-bbbb-4bbb-8bbb-${String(n).padStart(12, '0')}`);
+    const driver = (n: number) =>
+      makeId<'DriverId'>(`cccccccc-cccc-4ccc-8ccc-${String(n).padStart(12, '0')}`);
+    const place = { lat: 52.1, lon: -1.1 };
+    const t = (hours: number) => new Date(Date.UTC(2026, 9, 10, hours));
+
+    it('finds the nearest spot within the radius, whatever its source, and none beyond it', async () => {
+      const near = spot({
+        id: sid(1),
+        location: place,
+        reporterId: driver(1),
+        reportedAt: t(8),
+        lastReportedAt: t(8),
+      });
+      await repo().save(near);
+      const osm = spot({
+        id: sid(2),
+        location: { lat: 52.1002, lon: -1.1 },
+        reporterId: undefined,
+        source: 'osm',
+        osmId: 'node/9',
+      });
+      await repo().save(osm);
+      expect((await repo().findNearest({ lat: 52.10019, lon: -1.1 }, 30))?.id).toBe(osm.id);
+      expect((await repo().findNearest({ lat: 52.1, lon: -1.1 }, 30))?.id).toBe(near.id);
+      expect(await repo().findNearest({ lat: 52.2, lon: -1.1 }, 30)).toBeNull();
+    });
+
+    it('adds a second driver’s report to the spot, keeps both notes, and the latest wins', async () => {
+      const first = spot({
+        id: sid(10),
+        location: { lat: 52.3, lon: -1.3 },
+        reporterId: driver(1),
+        note: 'flat layby',
+        reportedAt: t(8),
+        lastReportedAt: t(8),
+      });
+      await repo().save(first);
+      const added = await repo().addReport({
+        id: 'dddddddd-dddd-4ddd-8ddd-000000000010',
+        spotId: first.id,
+        reporterId: driver(2),
+        note: 'now full of cones',
+        reportedAt: t(10),
+      });
+      expect(added).toBe(true);
+      // The same report again changes nothing.
+      expect(
+        await repo().addReport({
+          id: 'dddddddd-dddd-4ddd-8ddd-000000000010',
+          spotId: first.id,
+          reporterId: driver(2),
+          note: 'now full of cones',
+          reportedAt: t(10),
+        }),
+      ).toBe(false);
+      const merged = await repo().find(first.id);
+      expect(merged).toMatchObject({ note: 'now full of cones', reporterCount: 2 });
+      expect(merged?.lastReportedAt).toEqual(t(10));
+      expect(merged?.recentNotes).toEqual(['now full of cones', 'flat layby']);
+    });
+
+    it('counts a driver once however often they report, and keeps a staff spot’s own note', async () => {
+      const staff = spot({
+        id: sid(20),
+        location: { lat: 52.4, lon: -1.4 },
+        reporterId: undefined,
+        source: 'admin',
+        note: 'Behind the services',
+        reportedAt: t(7),
+        lastReportedAt: t(7),
+      });
+      await repo().save(staff);
+      for (const n of [1, 2]) {
+        await repo().addReport({
+          id: `dddddddd-dddd-4ddd-8ddd-0000000000${20 + n}`,
+          spotId: staff.id,
+          reporterId: driver(5),
+          note: `visit ${n}`,
+          reportedAt: t(8 + n),
+        });
+      }
+      const found = await repo().find(staff.id);
+      expect(found).toMatchObject({ note: 'Behind the services', reporterCount: 1 });
+      expect(found?.recentNotes).toEqual(['visit 2', 'visit 1']);
+    });
+
+    it('undo removes only that report: the spot stays while another driver has vouched, and goes with the last', async () => {
       const mine = spot({
-        id: makeId<'SafeParkingSpotId'>('99999999-9999-4999-8999-999999999991'),
-        location: { lat: 52.1, lon: -1.1 },
+        id: sid(30),
+        location: { lat: 52.5, lon: -1.5 },
+        reporterId: driver(1),
+        note: 'first',
+        reportedAt: t(8),
+        lastReportedAt: t(8),
       });
       await repo().save(mine);
-      const stranger = makeId<'DriverId'>('33333333-3333-4333-8333-333333333333');
+      await repo().addReport({
+        id: 'dddddddd-dddd-4ddd-8ddd-000000000030',
+        spotId: mine.id,
+        reporterId: driver(2),
+        note: 'second',
+        reportedAt: t(9),
+      });
+      // Someone else's report cannot be undone by a stranger.
+      expect(await repo().removeReport('dddddddd-dddd-4ddd-8ddd-000000000030', driver(1))).toBe(
+        false,
+      );
+      expect(await repo().removeReport('dddddddd-dddd-4ddd-8ddd-000000000030', driver(2))).toBe(
+        true,
+      );
+      const after = await repo().find(mine.id);
+      expect(after).toMatchObject({ note: 'first', reporterCount: 1 });
+      expect(after?.lastReportedAt).toEqual(t(8));
+      // The first driver takes back theirs (the report has the spot's id): nobody is left, so the spot goes.
+      expect(await repo().removeReport(mine.id, driver(1))).toBe(true);
+      expect(await repo().find(mine.id)).toBeNull();
+      expect(await repo().removeReport(mine.id, driver(1))).toBe(false);
+    });
 
-      expect(await repo().deleteOwned(mine.id, stranger)).toBe(false);
-      expect(await repo().findNearbyLine([mine.location], 50)).toHaveLength(1);
-
-      expect(await repo().deleteOwned(mine.id, mine.reporterId as DriverId)).toBe(true);
-      expect(await repo().findNearbyLine([mine.location], 50)).toEqual([]);
-      expect(await repo().deleteOwned(mine.id, mine.reporterId as DriverId)).toBe(false);
+    it('never removes a staff or imported spot when its last driver report is undone', async () => {
+      const osm = spot({
+        id: sid(40),
+        location: { lat: 52.6, lon: -1.6 },
+        reporterId: undefined,
+        source: 'osm',
+        osmId: 'node/40',
+        note: 'Service area',
+        reportedAt: t(1),
+        lastReportedAt: t(1),
+      });
+      await repo().save(osm);
+      await repo().addReport({
+        id: 'dddddddd-dddd-4ddd-8ddd-000000000040',
+        spotId: osm.id,
+        reporterId: driver(3),
+        note: 'busy',
+        reportedAt: t(9),
+      });
+      expect(await repo().removeReport('dddddddd-dddd-4ddd-8ddd-000000000040', driver(3))).toBe(
+        true,
+      );
+      const after = await repo().find(osm.id);
+      expect(after).toMatchObject({ source: 'osm', note: 'Service area', reporterCount: 0 });
+      expect(after?.lastReportedAt).toEqual(t(1));
     });
   });
 });
