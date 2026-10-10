@@ -30,7 +30,29 @@ export interface SafeParkingSpot extends Facilities {
   readonly osmId?: string | undefined;
   readonly name?: string | undefined;
   readonly capacity?: number | undefined;
+  /** When anyone last vouched for it: a driver's report, or its creation. The latest report wins. */
+  readonly lastReportedAt?: Date | undefined;
+  /** How many different drivers have reported this place. */
+  readonly reporterCount?: number | undefined;
+  /** The latest notes drivers left, newest first. Every note is kept; this is only the newest few. */
+  readonly recentNotes?: readonly string[] | undefined;
 }
+
+/** One driver's report of a place: the place may be a spot someone else marked first. */
+export interface SpotReport {
+  /** The id the driver's phone made, so a retry is harmless and "undo" removes just this report. */
+  readonly id: string;
+  readonly spotId: SafeParkingSpotId;
+  readonly reporterId: DriverId;
+  readonly note: string | undefined;
+  readonly reportedAt: Date;
+}
+
+/**
+ * A report within this many metres of a spot is added to that spot instead of making a second pin. A lay-by is longer than a
+ * lorry and GPS wanders, so this is generous enough to catch the same place and small enough not to join neighbours.
+ */
+export const MERGE_RADIUS_M = 30;
 
 export type ParkingSource = 'driver' | 'admin' | 'osm';
 

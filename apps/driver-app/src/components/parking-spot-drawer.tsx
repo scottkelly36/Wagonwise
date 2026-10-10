@@ -15,7 +15,9 @@ import {
   capacityText,
   costText,
   facilityStates,
+  notesToShow,
   OSM_CREDIT,
+  reportersText,
   sourceText,
 } from '../lib/parking-details';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
@@ -61,7 +63,12 @@ export function ParkingSpotDrawer({ spot, onClose, onNavigate, navigateDisabled 
             </View>
           </View>
 
-          {spot?.note !== undefined && <Text style={styles.detail}>{spot.note}</Text>}
+          {spot !== undefined &&
+            notesToShow(spot).map((note) => (
+              <Text key={note} style={styles.detail}>
+                {note}
+              </Text>
+            ))}
           {spot !== undefined && capacityText(spot) !== undefined && (
             <Text style={styles.detail}>{capacityText(spot)}</Text>
           )}
@@ -94,9 +101,15 @@ export function ParkingSpotDrawer({ spot, onClose, onNavigate, navigateDisabled 
           )}
           {spot !== undefined && (
             <Text style={styles.meta}>
-              {spot.source === 'osm'
-                ? OSM_CREDIT
-                : `${spot.source === 'admin' ? 'Added' : 'Reported'} ${formatDateTime(spot.reportedAt)}`}
+              {[
+                spot.source === 'osm' ? OSM_CREDIT : sourceText(spot),
+                reportersText(spot),
+                (spot.reporterCount ?? 0) > 0
+                  ? `last ${formatDateTime(spot.lastReportedAt ?? spot.reportedAt)}`
+                  : undefined,
+              ]
+                .filter((part) => part !== undefined)
+                .join(' · ')}
             </Text>
           )}
 

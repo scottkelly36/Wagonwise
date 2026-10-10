@@ -116,10 +116,17 @@ export function Parking() {
     },
     { key: 'facilities', header: 'What is there', cell: (s) => facilitiesSummary(s) },
     {
+      key: 'drivers',
+      header: 'Drivers',
+      align: 'right',
+      sortValue: (s) => s.reporterCount ?? 0,
+      cell: (s) => s.reporterCount ?? 0,
+    },
+    {
       key: 'added',
-      header: 'Added',
-      sortValue: (s) => s.reportedAt,
-      cell: (s) => new Date(s.reportedAt).toLocaleDateString('en-GB'),
+      header: 'Last reported',
+      sortValue: (s) => s.lastReportedAt ?? s.reportedAt,
+      cell: (s) => new Date(s.lastReportedAt ?? s.reportedAt).toLocaleDateString('en-GB'),
     },
     {
       key: 'actions',

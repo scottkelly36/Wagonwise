@@ -1,6 +1,13 @@
 import type { SafeParkingSpotDto } from '@wagonwise/contracts/parking';
 
-import { capacityText, costText, facilityStates, sourceText } from './parking-details';
+import {
+  capacityText,
+  costText,
+  facilityStates,
+  notesToShow,
+  reportersText,
+  sourceText,
+} from './parking-details';
 
 const spot = (extra: Partial<SafeParkingSpotDto> = {}): SafeParkingSpotDto =>
   ({
@@ -54,5 +61,30 @@ describe('capacityText', () => {
     expect(capacityText(spot({ capacity: 1 }))).toBe('Space for 1 lorry');
     expect(capacityText(spot())).toBeUndefined();
     expect(capacityText(spot({ capacity: 0 }))).toBeUndefined();
+  });
+});
+
+describe('reportersText', () => {
+  it('says how many drivers reported it, and nothing when none did', () => {
+    expect(reportersText(spot({ reporterCount: 3 }))).toBe('Reported by 3 drivers');
+    expect(reportersText(spot({ reporterCount: 1 }))).toBe('Reported by 1 driver');
+    expect(reportersText(spot({ reporterCount: 0 }))).toBeUndefined();
+    expect(reportersText(spot())).toBeUndefined();
+  });
+});
+
+describe('notesToShow', () => {
+  it('shows the drivers’ newest notes, once each, at most three', () => {
+    expect(notesToShow(spot({ recentNotes: ['a', ' a ', 'b', 'c', 'd'] }))).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
+  });
+
+  it('falls back to the spot’s own note, and shows nothing when there is none', () => {
+    expect(notesToShow(spot({ note: 'flat layby' }))).toEqual(['flat layby']);
+    expect(notesToShow(spot({ note: 'x', recentNotes: [] }))).toEqual(['x']);
+    expect(notesToShow(spot())).toEqual([]);
   });
 });

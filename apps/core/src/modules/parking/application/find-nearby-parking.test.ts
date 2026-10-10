@@ -26,7 +26,7 @@ describe('findNearbySafeParkingSpots', () => {
       { corridor: [{ lat: 54.9698, lon: -2.1013 }], radiusM: 50 },
     );
 
-    expect(found).toEqual([spot()]);
+    expect(found).toMatchObject([spot()]);
   });
 
   it('excludes a spot outside the radius', async () => {

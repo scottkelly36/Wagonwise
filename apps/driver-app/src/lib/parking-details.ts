@@ -64,3 +64,24 @@ export function capacityText(spot: Pick<SafeParkingSpotDto, 'capacity'>): string
   if (n === undefined || n <= 0) return undefined;
   return n === 1 ? 'Space for 1 lorry' : `Space for about ${n} lorries`;
 }
+
+/** "Reported by 3 drivers", or nothing when no driver has (an imported place, or one staff added). */
+export function reportersText(spot: Pick<SafeParkingSpotDto, 'reporterCount'>): string | undefined {
+  const n = spot.reporterCount;
+  if (n === undefined || n <= 0) return undefined;
+  return n === 1 ? 'Reported by 1 driver' : `Reported by ${n} drivers`;
+}
+
+/**
+ * The notes to show, newest first: the drivers' latest notes, or the one note a spot has. At most three, with none repeated
+ * (two drivers often say the same thing).
+ */
+export function notesToShow(spot: Pick<SafeParkingSpotDto, 'note' | 'recentNotes'>): string[] {
+  const all =
+    spot.recentNotes !== undefined && spot.recentNotes.length > 0
+      ? spot.recentNotes
+      : spot.note === undefined
+        ? []
+        : [spot.note];
+  return [...new Set(all.map((n) => n.trim()).filter((n) => n !== ''))].slice(0, 3);
+}

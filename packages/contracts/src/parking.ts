@@ -51,6 +51,12 @@ export const safeParkingSpotSchema = z.object({
   name: z.string().max(NAME_MAX_LENGTH).optional(),
   capacity: z.number().int().min(0).optional(),
   ...facilityFields,
+  /** When anyone last vouched for it. The latest report wins. */
+  lastReportedAt: z.iso.datetime().optional(),
+  /** How many different drivers have reported this place. */
+  reporterCount: z.number().int().min(0).optional(),
+  /** The newest notes drivers left, newest first. Every note is kept on the server; this is the latest few. */
+  recentNotes: z.array(z.string().max(NOTE_MAX_LENGTH)).max(5).optional(),
 });
 export type SafeParkingSpotDto = z.infer<typeof safeParkingSpotSchema>;
 
