@@ -211,3 +211,29 @@ export const findActiveTripResponseSchema = z.object({
   trip: activeTripSchema.nullable(),
 });
 export type FindActiveTripResponse = z.infer<typeof findActiveTripResponseSchema>;
+
+/** `POST /routing/trips/:id/faster-route`: the app asks, while navigating, whether a clearly quicker route
+ *  exists. Core does not track the lorry, so the app sends where it is. `keptKeys` are offers the driver has
+ *  already declined on this trip (the `key` of each earlier offer), which are never offered again. */
+export const fasterRouteCheckRequestSchema = z.object({
+  position: geoPointSchema,
+  headingDeg: z.number().min(0).max(360).optional(),
+  keptKeys: z.array(z.string().max(32)).max(20).default([]),
+});
+export type FasterRouteCheckRequest = z.infer<typeof fasterRouteCheckRequestSchema>;
+
+/** `offer: null` is the ordinary "nothing worth saying" answer, so this is always a 200. The offered route is a
+ *  saved plan from the driver's position, shown and switched to the way a reroute alert's plan is. */
+export const fasterRouteCheckResponseSchema = z.object({
+  offer: z
+    .object({
+      routePlanId: routePlanIdSchema,
+      key: z.string(),
+      savingMinutes: z.number().int(),
+      /** Minutes left on each route, counting traffic and drivers' congestion reports. */
+      currentMinutes: z.number().int(),
+      alternativeMinutes: z.number().int(),
+    })
+    .nullable(),
+});
+export type FasterRouteCheckResponse = z.infer<typeof fasterRouteCheckResponseSchema>;

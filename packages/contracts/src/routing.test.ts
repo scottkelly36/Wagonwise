@@ -4,6 +4,8 @@ import {
   activeTripSchema,
   createVehicleProfileRequestSchema,
   dimensionsSchema,
+  fasterRouteCheckRequestSchema,
+  fasterRouteCheckResponseSchema,
   geoPointSchema,
   planRouteRequestSchema,
   previewRouteOptionsRequestSchema,
@@ -374,5 +376,28 @@ describe('activeTripSchema', () => {
       endedAt: '2026-06-15T09:00:00.000Z',
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe('faster-route check', () => {
+  it('takes a position, and defaults the kept offers to none', () => {
+    const result = fasterRouteCheckRequestSchema.safeParse({ position: { lat: 55, lon: -2 } });
+    expect(result.success && result.data.keptKeys).toEqual([]);
+    expect(fasterRouteCheckRequestSchema.safeParse({ position: 'here' }).success).toBe(false);
+  });
+
+  it('answers with an offer or null', () => {
+    expect(fasterRouteCheckResponseSchema.safeParse({ offer: null }).success).toBe(true);
+    expect(
+      fasterRouteCheckResponseSchema.safeParse({
+        offer: {
+          routePlanId: '22222222-2222-4222-8222-222222222222',
+          key: 'abc12345',
+          savingMinutes: 8,
+          currentMinutes: 60,
+          alternativeMinutes: 52,
+        },
+      }).success,
+    ).toBe(true);
   });
 });
