@@ -41,3 +41,14 @@ describe('signInErrorMessage', () => {
     expect(say(new ApiError('Teapot', 418))).toBe('Something went wrong. Try again.');
   });
 });
+
+describe('the message when no account is found', () => {
+  it('tells a returning driver to try the email or number they used before, and a new one to enter their invite code', () => {
+    const message = signInErrorMessage(
+      new ApiError('InviteCodeRequired', 400),
+      REQUEST_OTP_MESSAGES,
+    );
+    expect(message).toContain('signed in before');
+    expect(message).toContain('invite code');
+  });
+});

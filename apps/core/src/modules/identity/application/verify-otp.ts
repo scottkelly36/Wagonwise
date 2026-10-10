@@ -4,7 +4,7 @@ import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import type { UnitOfWork } from '../../../shared/ports/unit-of-work.js';
 import { err, ok, type Result, type TaggedError } from '../../../shared/result.js';
 import type { Driver, DriverId } from '../domain/driver.js';
-import { normalizeIdentifier, type InvalidIdentifier } from '../domain/identifier.js';
+import { identifierForms, type InvalidIdentifier } from '../domain/identifier.js';
 import { isRedeemed, redeem } from '../domain/invite-code.js';
 import {
   verify as verifyOtpCode,
@@ -70,11 +70,13 @@ export async function verifyOtp(
   deps: VerifyOtpDeps,
   input: VerifyOtpInput,
 ): Promise<Result<VerifyOtpResult, VerifyOtpError>> {
-  const normalized = normalizeIdentifier(input.identifier);
-  if (!normalized.ok) {
-    return normalized;
+  const forms = identifierForms(input.identifier);
+  if (!forms.ok) {
+    return forms;
   }
-  const identifier = normalized.value;
+  // Found under whichever form it is stored in (see requestOtp), so the code asked for and the code checked share a key.
+  let driver = await deps.driverRepo.findByAnyIdentifier(forms.value);
+  const identifier = driver?.identifier ?? forms.value[0];
   const now = deps.clock.now();
 
   const otp = await deps.otpRepo.findLatestFor(identifier);
@@ -87,7 +89,6 @@ export async function verifyOtp(
     return outcome;
   }
 
-  let driver = await deps.driverRepo.findByIdentifier(identifier);
   if (!driver) {
     const created = await createDriverFromInvite(deps, identifier, input.inviteCode, now);
     if (!created.ok) {
