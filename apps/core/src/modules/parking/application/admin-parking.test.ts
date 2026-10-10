@@ -142,6 +142,19 @@ describe('updateSpot and deleteSpot', () => {
   });
 });
 
+describe('listing by type', () => {
+  it('lists parking before lay-bys, narrows to a type, and counts each', async () => {
+    const { deps } = setup();
+    await addSpot(deps, platform, { location: where, kind: 'layby' });
+    await addSpot(deps, platform, { location: { lat: 50.8, lon: -3.5 }, kind: 'parking' });
+    const all = await listSpots(deps, platform, { limit: 10 });
+    expect(all.ok && all.value.spots.map((s) => s.kind)).toEqual(['parking', 'layby']);
+    const lay = await listSpots(deps, platform, { kind: 'layby', limit: 10 });
+    expect(lay.ok && lay.value.total).toBe(1);
+    expect(lay.ok && lay.value.byKind).toEqual({ parking: 1, layby: 1 });
+  });
+});
+
 describe('listSpots', () => {
   it('lists with counts by source, for staff only', async () => {
     const { deps } = setup();

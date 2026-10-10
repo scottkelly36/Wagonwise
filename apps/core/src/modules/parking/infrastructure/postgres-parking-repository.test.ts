@@ -200,6 +200,53 @@ describe('PostgresParkingRepository', () => {
     });
   });
 
+  describe('listing by type', () => {
+    const kid = (n: number) =>
+      makeId<'SafeParkingSpotId'>(`ffffffff-ffff-4fff-8fff-${String(n).padStart(12, '0')}`);
+
+    it('puts parking before lay-bys even when the lay-bys are newer, and can show one type', async () => {
+      await pool.query('delete from parking.safe_parking_spots');
+      const old = new Date('2026-01-01T00:00:00.000Z');
+      const recent = new Date('2026-10-10T00:00:00.000Z');
+      await repo().save(
+        spot({
+          id: kid(1),
+          location: { lat: 51, lon: -1 },
+          reporterId: undefined,
+          source: 'osm',
+          osmId: 'node/1',
+          kind: 'parking',
+          name: 'Services',
+          reportedAt: old,
+          lastReportedAt: old,
+        }),
+      );
+      for (const n of [2, 3]) {
+        await repo().save(
+          spot({
+            id: kid(n),
+            location: { lat: 51 + n / 10, lon: -1 },
+            reporterId: undefined,
+            source: 'osm',
+            osmId: `node/${n}`,
+            kind: 'layby',
+            reportedAt: recent,
+            lastReportedAt: recent,
+          }),
+        );
+      }
+      const all = await repo().search({ limit: 10 });
+      expect(all.spots.map((x) => x.kind)).toEqual(['parking', 'layby', 'layby']);
+      expect((await repo().search({ kind: 'layby', limit: 10 })).total).toBe(2);
+      expect((await repo().search({ kind: 'parking', limit: 10 })).spots.map((x) => x.id)).toEqual([
+        kid(1),
+      ]);
+      // A limit smaller than the lay-bys no longer hides the parking.
+      expect((await repo().search({ limit: 1 })).spots[0]?.kind).toBe('parking');
+      expect(await repo().countByKind()).toEqual({ parking: 1, layby: 2 });
+    });
+  });
+
   describe('reports, merging and undo', () => {
     const sid = (n: number) =>
       makeId<'SafeParkingSpotId'>(`bbbbbbbb-bbbb-4bbb-8bbb-${String(n).padStart(12, '0')}`);

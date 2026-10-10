@@ -148,6 +148,7 @@ function registerStaffParkingRoutes(app: FastifyInstance, deps: ParkingRouteDeps
     const result = await listSpots(deps.admin, caller, {
       text: query.data.q,
       source: query.data.source,
+      kind: query.data.kind,
       limit: query.data.limit,
     });
     if (!result.ok) {
@@ -157,6 +158,7 @@ function registerStaffParkingRoutes(app: FastifyInstance, deps: ParkingRouteDeps
       spots: result.value.spots.map(toDto),
       total: result.value.total,
       bySource: result.value.bySource,
+      byKind: result.value.byKind,
     });
   });
 

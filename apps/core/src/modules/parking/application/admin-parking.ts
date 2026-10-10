@@ -46,27 +46,39 @@ const blankToUndefined = (text: string | undefined): string | undefined => {
   return trimmed === undefined || trimmed === '' ? undefined : trimmed;
 };
 
-/** The parking spots, for WagonWise staff only: newest first, narrowed by a search and by source. */
+/** The parking spots, for WagonWise staff only: parking before lay-bys, newest first, narrowed by a search, a source and a type. */
 export async function listSpots(
   deps: AdminParkingDeps,
   caller: StaffCaller,
   input: {
     readonly text?: string | undefined;
     readonly source?: ParkingSource | undefined;
+    readonly kind?: ParkingKind | undefined;
     readonly limit: number;
   },
 ): Promise<
   Result<
-    { spots: SafeParkingSpot[]; total: number; bySource: Record<ParkingSource, number> },
+    {
+      spots: SafeParkingSpot[];
+      total: number;
+      bySource: Record<ParkingSource, number>;
+      byKind: Record<ParkingKind, number>;
+    },
     Forbidden
   >
 > {
   if (caller.kind !== 'platform') return forbidden();
-  const [found, bySource] = await Promise.all([
-    deps.repo.search({ text: input.text, source: input.source, limit: input.limit }),
+  const [found, bySource, byKind] = await Promise.all([
+    deps.repo.search({
+      text: input.text,
+      source: input.source,
+      kind: input.kind,
+      limit: input.limit,
+    }),
     deps.repo.countBySource(),
+    deps.repo.countByKind(),
   ]);
-  return ok({ ...found, bySource });
+  return ok({ ...found, bySource, byKind });
 }
 
 /** Staff add a spot. It has no reporter and is marked as added by staff. */
