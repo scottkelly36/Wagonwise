@@ -36,3 +36,6 @@ google-play-service-account.json
 
 # Scratch tiles from the one-off OpenStreetMap parking fetch
 apps/core/scripts/.osm-cache/
+
+# Local dump of the live DigitalOcean app spec: holds plaintext secrets, never committed.
+live-spec.yaml
