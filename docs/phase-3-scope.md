@@ -125,44 +125,65 @@ daily and weekly rest. A firm picks which rule set applies to each vehicle.
 **Built so far (Track A):** the rules and the clock (`lib/driver-hours.ts`), the shift record on the phone, break planning on the trip screen (`lib/break-plan.ts`), weekly and fortnightly driving limits, and the Driving hours
 screen in the More tab. Status sharing with the company is built. Still to build: weekly rest.
 
-### Track B: Bluetooth to the tachograph (phone, Android only), scoped 2026-10-10
+### Track B: Bluetooth to the tachograph (smart tachograph V2), corrected 2026-10-10
 
-**Source:** Appendix 13 of Regulation 2016/799 (the ITS interface), as retained in GB law
-(<https://www.legislation.gov.uk/eur/2016/799/annex/1/appendix/13>). Read through a summary on 2026-10-10: **the appendix and its
-Annex 1 must be read in full before building**; every fact below is to be re-checked there.
+**Sources, read in full on 2026-10-10 (not a summary):**
 
-What the specification says:
+- Commission Implementing Regulation (EU) 2021/1228, Official Journal L 273, 30.7.2021, which adds **Appendix 13 (the ITS interface)**
+  to the smart tachograph V2 rules (<https://dtc.jrc.ec.europa.eu/iot_doc/EU_2021-1228.pdf>).
+- The industry working group's "Smart tachograph version 2: VU Remote HMI specification & Transport protocol for ITS", version 1.0,
+  28.10.2021 (<https://dtc.jrc.ec.europa.eu/iot_doc/smart_tacho_V2_remote_HMI_transport_protocol_specifications_1.0.pdf>).
 
-- **The interface is optional.** A tachograph may be fitted with it; the manufacturer is not required to. A unit that has it follows
-  one standard, so one piece of code can read any maker's unit; a unit without it cannot be read this way at all.
-- **Bluetooth Classic with the Serial Port Profile, Bluetooth 4.2 or later.** Not Bluetooth Low Energy. Android apps can use this;
-  **iPhone apps cannot** (iOS does not let ordinary apps use Classic serial links). So the connection is **Android only**; iPhone
-  drivers keep the manual clock.
-- **Data:** more than 80 items. The useful ones are classed as personal and are given only with the driver's consent: working
-  state, continuous driving time, cumulative break time, daily and weekly driving counters, time remaining until a rest, speed,
-  position. Non-personal items are vehicle identity and calibration dates.
-- **Pairing:** the driver pairs the phone with a PIN of at least 4 digits on the unit; paired devices go on a list of up to 64; three
-  wrong attempts lock the pairing out for a growing time, and only an 8-digit code from the tachograph's maker clears a permanent
-  lock. **Consent** is recorded in the tachograph when the driver first inserts their card; without it the personal data is withheld.
-- The appendix says nothing about how an app presents the data, and sets no certification for apps.
-- A separate specification, the **Remote HMI** (a transport protocol document on the Joint Research Centre's site), exists for smart
-  tachograph V2; its PDF was unreadable to our tool. Read it before deciding whether it matters here.
+**Correction.** An earlier version of this section said the interface is optional, Bluetooth Classic, Android only, with PIN pairing.
+That came from the GB-retained copy of Regulation 2016/799 on legislation.gov.uk, which is the older **smart V1** text. For **smart V2**
+the sources above say something different, and they are the ones that apply to a V2 unit:
 
-What we would build (all behind the same Driving hours screen, so nothing the driver sees changes):
+- **A V2 tachograph must have the ITS interface.** The regulation says the vehicle unit "shall include an ITS interface" (Appendix 13).
+  (A smart V1 unit's interface, per the older text, is optional and Bluetooth Classic.)
+- **It is Bluetooth Low Energy, Bluetooth 5.0 or newer** (requirements ITS_05 and ITS_06). **iPhone and Android both work**: neither needs
+  anything unusual for BLE. The unit is the server and the phone the client.
+- **Pairing and security:** the phone must pair first, and the link is encrypted. The transport document specifies **LE Secure
+  Connections with Numeric Comparison**: a six-digit number shows on the tachograph and the phone and the driver confirms they match.
+  Bonding is mandatory.
+- **Transport (from the working group's document):** two custom serial-port services over GATT, **Download** (UUID
+  `eef90782-55dd-4388-b80b-695aba7a69b5`) and **Diagnostics** (`fa213def-aef4-475c-bcea-0a8d69073efc`), each with a FIFO characteristic
+  (phone writes, unit indicates) and a Credits characteristic for flow control (a credit-based scheme like the Bluetooth Classic serial
+  profile). Messages longer than the packet size are split: the first packet starts `AA 01` (AA = number of packets), later ones `00 NN`.
+  The phone starts an MTU exchange; Bluetooth can be set to be available for a number of hours after ignition off, or not at all
+  (manufacturer's choice per unit).
+- **What is available (Appendix 13 section 4), all "mandatory" for the unit to offer:** vehicle speed, **driver working state**, **driver time-related states**,
+  **continuous driving time**, **cumulative break time**, **current duration of the selected activity**, **cumulated driving time for the
+  previous and current week**, which card is in each slot, driver name and identification, vehicle identification, calibration and
+  service dates, and more. Live data are in **ISO 16844-7** formats.
+- **Consent:** everything classed as personal (all the driver-hours items above) is available **only if the driver gave consent on the
+  tachograph**, asked when an unknown driver card is first inserted and stored in the unit. Consent is per driver; a co-driver's data
+  needs the co-driver's consent. Which card combinations allow the interface differs (Appendix 13, Table 1).
+- **The interface is also a way back in:** the Remote HMI specification lets a paired phone **set the driver's activity** (driving, other
+  work, break and so on) and do **manual entries** when a card is inserted, with the unit recording that it was done remotely. That is
+  a later question (it writes to a legal record); reading comes first.
 
-1. A parser and a **simulator** written from the specification, with tests, needing no hardware.
-2. A connection screen in Driving hours (Android only): pair, give consent, status, disconnect. "Connected to tachograph" replaces
-   the driver's own taps with the unit's working state and counters; the manual clock stays as the fallback and the only option on
-   iPhone or an older unit.
-3. A native change: a Bluetooth Classic package and permissions. **A version bump (1.3.0) and a Play build, not an over-the-air update.**
-4. Real-unit testing before anyone relies on it. Pairing and data differ in practice between makers.
+What this changes: the continuous driving time and break time counters we calculate ourselves from the driver's taps are, on a V2
+unit, there to be **read from the tachograph itself**, which is the legal record. The manual clock stays as the fallback and for older units.
 
-What to find out first:
+**Not yet known, and to settle before building:**
 
-- Which lorries the testing firm or driver actually has (analogue, digital, smart v1, smart v2) and whether the ITS interface is
-  enabled on them. **How many GB lorries carry smart V2 units is unknown** (the EU mandate dates may not apply to GB-registered
-  vehicles); ask real fleets.
-- What their drivers carry (Android or iPhone).
+1. The **application protocol above the serial port** (the "Appendix 7 and Appendix 8 services", a diagnostic-style request and reply
+   protocol, and the exact request for each data item in ISO 16844-7 format). The transport is public; **the data encodings may sit in
+   ISO 16844-7, which is a paid standard**, or in Appendix 8 of Regulation 2016/799. Find out what is freely published (the JRC and CORTE
+   pages) before committing.
+2. **Whether the test driver's unit is V2.** Smart V1 units (about 2019 to 2023) are the older design and may have no BLE interface.
+   A V2 unit is the one registered from about August 2023 (or retrofitted for international work). A photo of the unit's front and the
+   menu setting for Bluetooth will say.
+3. Each maker's quirks (Continental VDO, Stoneridge, Intellic): the standard is shared, the behaviour in practice may not be.
+
+What we would build, all behind the same Driving hours screen so nothing the driver sees changes:
+
+1. A **parser and a simulator** for the transport framing and the data items, with tests, needing no hardware.
+2. A connection screen in Driving hours: pair (numeric comparison), tick the consent state, status, disconnect. "Connected to tachograph"
+   replaces the driver's own taps with the unit's counters.
+3. A **native change**: a Bluetooth Low Energy package and permissions on both platforms. **A version bump (1.3.0), a Play build and an App
+   Store build, not an over-the-air update.**
+4. Real-unit testing before anyone relies on it.
 
 Reading the driver card or downloading tachograph files for the office is a different thing (the office's legal duty to download
 and keep data). Not in this scope.
@@ -196,7 +217,7 @@ driver's consent and the notice still apply, as the driver's working time is sho
 
 **Recommendation:** ask the testing driver and the first firms two questions (what tachograph units, and which telematics, if any).
 If most use one telematics, Track C for that provider is likely to reach more drivers sooner than Bluetooth; Track B stays a
-smaller, optional extra for Android drivers on smart V2 units. Both need the Track A screen and rules that already exist.
+smaller, direct route for drivers on smart V2 units (iPhone or Android). Both need the Track A screen and rules that already exist.
 
 ### Privacy and safeguards (both tracks)
 
