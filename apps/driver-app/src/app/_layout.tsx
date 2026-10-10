@@ -4,6 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { queryClient } from '../api/query-client';
+import { UpdateBanner } from '../components/update-banner';
+import { useUpdateNoticeStore } from '../state/update-notice-store';
 import { useHazardQueueFlush } from '../hooks/use-hazard-queue-flush';
 import { useCheckQueueFlush } from '../hooks/use-check-queue-flush';
 import { useProofOfDeliveryQueueFlush } from '../hooks/use-proof-of-delivery-queue-flush';
@@ -24,6 +26,7 @@ export default function RootLayout() {
   const restoreGuidance = useGuidanceStore((s) => s.restore);
   const restoreShift = useShiftStore((s) => s.restore);
   const restoreHoursStart = useHoursStartStore((s) => s.restore);
+  const restoreUpdateNotice = useUpdateNoticeStore((s) => s.restore);
 
   useEffect(() => {
     void restoreAuth();
@@ -31,7 +34,15 @@ export default function RootLayout() {
     void restoreGuidance();
     void restoreShift();
     void restoreHoursStart();
-  }, [restoreAuth, restoreTheme, restoreGuidance, restoreShift, restoreHoursStart]);
+    void restoreUpdateNotice();
+  }, [
+    restoreAuth,
+    restoreTheme,
+    restoreGuidance,
+    restoreShift,
+    restoreHoursStart,
+    restoreUpdateNotice,
+  ]);
 
   useOpportunisticRefresh();
   useHazardQueueFlush();
@@ -48,6 +59,7 @@ export default function RootLayout() {
           (docs/progress.md's field-testing backlog, 2026-09-25). */}
       <ThemeProvider value={mode === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack screenOptions={{ headerShown: false }} />
+        <UpdateBanner />
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       </ThemeProvider>
     </QueryClientProvider>

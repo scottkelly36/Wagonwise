@@ -484,6 +484,16 @@ cancelled half way. A bad over-the-air update can be rolled back from the Expo d
 can only be superseded by a higher version. There is no staging copy of the app: a change is verified by CI
 and then goes to drivers when labelled. iOS is not included (no Apple developer account yet).
 
+## 9a. Telling drivers a new build is out
+
+The driver app asks the driver BFF `GET /app/version` (no sign-in) when it opens and when it comes back to the front, and shows a banner if its own version is older. Over-the-air updates are different: they download in the background and the banner says "An update is ready. Restart". Only a **new build** (a store release with a new version number) needs the setting below, because a driver on 1.2.1 never receives an over-the-air update made for 1.3.0; the store is the only way they get it.
+
+Set these on the **driver-bff** component in DigitalOcean (plain, non-secret variables; none is needed for the app to work, and nothing is said while they are unset):
+
+- `APP_LATEST_VERSION`: the newest version in the store, for example `1.3.0`. Drivers on an older one see "A new version is available" with Update and Not now. Set it when the new build is available to testers, not before.
+- `APP_UPDATE_URL`: where Update goes: the Play listing or the internal testing link.
+- `APP_MINIMUM_VERSION`: leave unset. Setting it covers the screen of anyone older with "Please update WagonWise", so use it only to force an update (for example when an old build can no longer talk to the server). A value that is not a plain version number such as `1.3.0` is ignored, so a typo cannot lock anyone out.
+
 ## 10. Valhalla: covering the whole of Great Britain (planned for the start of November 2026)
 
 Today Valhalla covers Northumberland, Tyne and Wear and Cumbria on a 2 GB droplet. National coverage
