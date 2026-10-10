@@ -1,6 +1,8 @@
 import {
   activeTripSchema,
   createVehicleProfileRequestSchema,
+  fasterRouteCheckRequestSchema,
+  fasterRouteCheckResponseSchema,
   findActiveTripResponseSchema,
   planRouteRequestSchema,
   previewRouteOptionsRequestSchema,
@@ -9,6 +11,8 @@ import {
   vehicleProfileSchema,
   type ActiveTripDto,
   type CreateVehicleProfileRequest,
+  type FasterRouteCheckRequest,
+  type FasterRouteCheckResponse,
   type PlanRouteRequest,
   type PreviewRouteOptionsRequest,
   type RouteOptionDto,
@@ -143,4 +147,19 @@ export async function getActiveTrip(accessToken: string): Promise<ActiveTripDto 
   });
   throwUnlessSuccess(status, json, [200]);
   return findActiveTripResponseSchema.parse(json).trip;
+}
+
+/** While navigating: is there a clearly quicker route from here? `offer: null` is the ordinary answer, not an error. */
+export async function checkFasterRoute(
+  accessToken: string,
+  tripId: string,
+  input: FasterRouteCheckRequest,
+): Promise<FasterRouteCheckResponse['offer']> {
+  const body = fasterRouteCheckRequestSchema.parse(input);
+  const { status, json } = await requestJson('POST', `/routing/trips/${tripId}/faster-route`, {
+    body,
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return fasterRouteCheckResponseSchema.parse(json).offer;
 }

@@ -16,6 +16,7 @@ import { useShareHours } from '../hooks/use-share-hours';
 import { useRerouteNotifications } from '../hooks/use-reroute-notifications';
 import { useAuthStore } from '../state/auth-store';
 import { useGuidanceStore } from '../state/guidance-store';
+import { useFasterRouteStore } from '../state/faster-route-store';
 import { useHoursStartStore } from '../state/hours-start-store';
 import { useShiftStore } from '../state/shift-store';
 import { useThemeStore } from '../state/theme-store';
@@ -27,6 +28,7 @@ export default function RootLayout() {
   const restoreGuidance = useGuidanceStore((s) => s.restore);
   const restoreShift = useShiftStore((s) => s.restore);
   const restoreHoursStart = useHoursStartStore((s) => s.restore);
+  const restoreFasterRoute = useFasterRouteStore((s) => s.restore);
   const restoreUpdateNotice = useUpdateNoticeStore((s) => s.restore);
 
   useEffect(() => {
@@ -35,6 +37,7 @@ export default function RootLayout() {
     void restoreGuidance();
     void restoreShift();
     void restoreHoursStart();
+    void restoreFasterRoute();
     void restoreUpdateNotice();
     // Keep more of the map on the phone, so places a driver has already seen draw straight away instead of waiting on the network
     // again. 250 MB is a few hundred miles of road map at the zoom levels used.
@@ -45,6 +48,7 @@ export default function RootLayout() {
     restoreGuidance,
     restoreShift,
     restoreHoursStart,
+    restoreFasterRoute,
     restoreUpdateNotice,
   ]);
 

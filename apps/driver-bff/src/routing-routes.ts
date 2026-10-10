@@ -1,6 +1,7 @@
 import {
   activeTripIdParamsSchema,
   createVehicleProfileRequestSchema,
+  fasterRouteCheckRequestSchema,
   planRouteRequestSchema,
   previewRouteOptionsRequestSchema,
   routePlanIdParamsSchema,
@@ -182,6 +183,24 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       `/routing/trips/${params.data.id}/end`,
       request.id,
       { authorization: `Bearer ${token}` },
+    );
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.post('/routing/trips/:id/faster-route', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const params = activeTripIdParamsSchema.safeParse(request.params);
+    const parsed = fasterRouteCheckRequestSchema.safeParse(request.body);
+    if (!params.success || !parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request(
+      'POST',
+      `/routing/trips/${params.data.id}/faster-route`,
+      request.id,
+      { body: parsed.data, authorization: `Bearer ${token}` },
     );
     return reply.status(core.status).send(core.body);
   });

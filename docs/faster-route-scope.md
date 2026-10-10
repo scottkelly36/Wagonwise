@@ -1,8 +1,8 @@
 # Faster-route suggestions while driving: scope
 
 Scoped 2026-10-10, from the owner's request: while a driver is navigating, if congestion makes the current route slow and a clearly
-quicker one exists, offer it, the way Google Maps does, and **let the driver choose**: keep the current route or switch. Nothing here
-is built yet.
+quicker one exists, offer it, the way Google Maps does, and **let the driver choose**: keep the current route or switch. **Built 2026-10-10**
+(crowd reports and TomTom together): `docs/history/log.md` has the steps (traffic module, core check, driver app). The sections below are the original scope.
 
 ## What exists today
 

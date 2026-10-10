@@ -444,3 +444,52 @@ describe('GET /routing/trips/active', () => {
     });
   });
 });
+
+describe('POST /routing/trips/:id/faster-route', () => {
+  const ID = '11111111-1111-4111-8111-111111111111';
+  const body = { position: { lat: 55, lon: -2 } };
+
+  it('forwards the position and the token to core, with the defaults filled in', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 200, body: { offer: null } };
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${ID}/faster-route`,
+      payload: body,
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ offer: null });
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: `/routing/trips/${ID}/faster-route`,
+      body: { ...body, keptKeys: [] },
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('400s a bad id or body, and 401s without a token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const badId = await app.inject({
+      method: 'POST',
+      url: '/routing/trips/not-a-uuid/faster-route',
+      payload: body,
+      headers: AUTH_HEADER,
+    });
+    expect(badId.statusCode).toBe(400);
+    const badBody = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${ID}/faster-route`,
+      payload: { position: 'here' },
+      headers: AUTH_HEADER,
+    });
+    expect(badBody.statusCode).toBe(400);
+    const noToken = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${ID}/faster-route`,
+      payload: body,
+    });
+    expect(noToken.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+});
