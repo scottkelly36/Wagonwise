@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { refreshAccessToken } from '../api/identity';
+import { ApiError } from '../api/errors';
 import { useAuthStore, type DriverInfo } from './auth-store';
 
 // Hoisted above these imports by babel-plugin-jest-hoist regardless of textual position —
@@ -60,17 +61,40 @@ describe('restore', () => {
     });
   });
 
-  it('clears storage and signs out when the stored refresh token is dead', async () => {
+  it('clears storage and signs out when the server says the stored sign-in is over', async () => {
     getItemAsync.mockImplementation((key) =>
       Promise.resolve(key === 'wagonwise.refreshToken' ? 'stale-refresh' : JSON.stringify(driver)),
     );
-    refreshAccessTokenMock.mockRejectedValue(new Error('RefreshTokenReused'));
+    refreshAccessTokenMock.mockRejectedValue(new ApiError('RefreshTokenReused', 401));
 
     await useAuthStore.getState().restore();
 
     expect(deleteItemAsync).toHaveBeenCalledWith('wagonwise.refreshToken');
     expect(deleteItemAsync).toHaveBeenCalledWith('wagonwise.driver');
     expect(useAuthStore.getState().state).toEqual({ status: 'signedOut' });
+  });
+});
+
+describe('restore with no signal', () => {
+  it('keeps the saved sign-in and stays signed in when the refresh fails for a reason that is not the sign-in being over', async () => {
+    getItemAsync.mockImplementation((key) =>
+      Promise.resolve(key === 'wagonwise.refreshToken' ? 'saved-refresh' : JSON.stringify(driver)),
+    );
+    for (const failure of [
+      new TypeError('Network request failed'),
+      new ApiError('UnknownError', 502),
+      new ApiError('UnknownError', 503),
+    ]) {
+      refreshAccessTokenMock.mockRejectedValueOnce(failure);
+      await useAuthStore.getState().restore();
+      expect(deleteItemAsync).not.toHaveBeenCalled();
+      expect(useAuthStore.getState().state).toEqual({
+        status: 'signedIn',
+        accessToken: '',
+        refreshToken: 'saved-refresh',
+        driver,
+      });
+    }
   });
 });
 

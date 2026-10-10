@@ -32,6 +32,14 @@ export type RefreshTokenInvalid = TaggedError<'RefreshTokenInvalid'>;
 /** 60 days — the low end of "60-90 days" (design doc §9), sliding on each rotation. */
 export const REFRESH_LIFETIME_MS = 60 * 24 * 60 * 60 * 1000;
 
+/**
+ * After a refresh token is swapped for a new one, the old one still works once more for this long. A phone in a poor-signal spot
+ * can send a refresh, have the server swap the token, and never receive the reply; it then holds only the old token and would
+ * be treated as a thief and signed out for good. Within this window the old token is read as that phone trying again, not as a
+ * replay. After it, using an old token ends the session, as before.
+ */
+export const REUSE_GRACE_MS = 30 * 60 * 1000;
+
 export function isRevoked(session: Session): boolean {
   return session.revokedAt !== null;
 }
@@ -73,6 +81,16 @@ export function rotate(
     session.previousRefreshTokenHash !== null &&
     presentedHash === session.previousRefreshTokenHash
   ) {
+    // The grace window runs from the swap that retired this token (lastUsedAt then), so a thief cannot keep it alive by trying
+    // again. Inside it the phone is most likely retrying a swap whose reply it never got: give it a fresh current token and
+    // leave the old one as the previous, so a further retry of the same token works too.
+    if (now.getTime() - session.lastUsedAt.getTime() <= REUSE_GRACE_MS) {
+      return ok({
+        ...session,
+        refreshTokenHash: newHash,
+        refreshExpiresAt: new Date(now.getTime() + REFRESH_LIFETIME_MS),
+      });
+    }
     return err({ tag: 'RefreshTokenReused' });
   }
   return err({ tag: 'RefreshTokenInvalid' });
