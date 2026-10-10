@@ -1,6 +1,6 @@
 import type { SafeParkingSpotDto } from '@wagonwise/contracts/parking';
 
-import { capacityText, facilityChips, sourceText } from './parking-details';
+import { capacityText, costText, facilityStates, sourceText } from './parking-details';
 
 const spot = (extra: Partial<SafeParkingSpotDto> = {}): SafeParkingSpotDto =>
   ({
@@ -10,19 +10,32 @@ const spot = (extra: Partial<SafeParkingSpotDto> = {}): SafeParkingSpotDto =>
     ...extra,
   }) as SafeParkingSpotDto;
 
-describe('facilityChips', () => {
-  it('shows only what is known to be there, cost first', () => {
-    const chips = facilityChips(spot({ paid: true, toilets: true, showers: true, food: true }));
-    expect(chips.map((c) => c.label)).toEqual(['Paid', 'Toilets', 'Showers', 'Food']);
+describe('facilityStates', () => {
+  it('lists every facility, green only for those known to be there', () => {
+    const states = facilityStates(spot({ toilets: true, showers: true, food: true }));
+    expect(states.map((s) => s.label)).toEqual([
+      'Toilets',
+      'Showers',
+      'Shop',
+      'Food',
+      'Fuel',
+      'Lit',
+      'Secure',
+    ]);
+    expect(states.filter((s) => s.there).map((s) => s.key)).toEqual(['toilets', 'showers', 'food']);
   });
 
-  it('says free when it is known to cost nothing', () => {
-    expect(facilityChips(spot({ paid: false })).map((c) => c.label)).toEqual(['Free']);
+  it('treats a facility known to be missing and one nobody has mentioned the same: not there', () => {
+    const states = facilityStates(spot({ toilets: false }));
+    expect(states.every((s) => !s.there)).toBe(true);
   });
+});
 
-  it('leaves off what is unknown and what is known to be missing', () => {
-    expect(facilityChips(spot())).toEqual([]);
-    expect(facilityChips(spot({ toilets: false, showers: false }))).toEqual([]);
+describe('costText', () => {
+  it('says paid or free when known, and nothing when not', () => {
+    expect(costText(spot({ paid: true }))).toBe('Paid');
+    expect(costText(spot({ paid: false }))).toBe('Free');
+    expect(costText(spot())).toBeUndefined();
   });
 });
 

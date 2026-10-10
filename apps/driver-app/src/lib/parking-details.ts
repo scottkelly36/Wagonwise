@@ -15,36 +15,47 @@ export function sourceText(spot: Pick<SafeParkingSpotDto, 'source'>): string {
   }
 }
 
-export interface Chip {
-  readonly icon:
-    | 'cash'
-    | 'toilet'
-    | 'shower'
-    | 'cart'
-    | 'silverware-fork-knife'
-    | 'gas-station'
-    | 'lightbulb-on'
-    | 'shield-check';
+export type FacilityIcon =
+  | 'toilet'
+  | 'shower'
+  | 'cart'
+  | 'silverware-fork-knife'
+  | 'gas-station'
+  | 'lightbulb-on'
+  | 'shield-check';
+
+export interface Facility {
+  readonly key: 'toilets' | 'showers' | 'shop' | 'food' | 'fuel' | 'lit' | 'secure';
+  readonly icon: FacilityIcon;
   readonly label: string;
+  /** True only when it is known to be there. Grey on the card means not there, or not known yet. */
+  readonly there: boolean;
 }
 
+const FACILITIES: readonly Omit<Facility, 'there'>[] = [
+  { key: 'toilets', icon: 'toilet', label: 'Toilets' },
+  { key: 'showers', icon: 'shower', label: 'Showers' },
+  { key: 'shop', icon: 'cart', label: 'Shop' },
+  { key: 'food', icon: 'silverware-fork-knife', label: 'Food' },
+  { key: 'fuel', icon: 'gas-station', label: 'Fuel' },
+  { key: 'lit', icon: 'lightbulb-on', label: 'Lit' },
+  { key: 'secure', icon: 'shield-check', label: 'Secure' },
+];
+
 /**
- * What is known to be at a spot, as chips. Only what is known to be there: a facility nobody has mentioned is left off,
- * and so is one known to be missing, so the card never promises or boasts. Cost comes first, and "Free" is said when it is
- * known to cost nothing.
+ * Every facility the card can show, each marked as there or not. Only a spot that says so is "there" (green); one known to be
+ * missing and one nobody has said anything about are both "not there" (grey), so the card never promises what nobody has
+ * confirmed.
  */
-export function facilityChips(spot: SafeParkingSpotDto): Chip[] {
-  const chips: Chip[] = [];
-  if (spot.paid === true) chips.push({ icon: 'cash', label: 'Paid' });
-  if (spot.paid === false) chips.push({ icon: 'cash', label: 'Free' });
-  if (spot.toilets === true) chips.push({ icon: 'toilet', label: 'Toilets' });
-  if (spot.showers === true) chips.push({ icon: 'shower', label: 'Showers' });
-  if (spot.shop === true) chips.push({ icon: 'cart', label: 'Shop' });
-  if (spot.food === true) chips.push({ icon: 'silverware-fork-knife', label: 'Food' });
-  if (spot.fuel === true) chips.push({ icon: 'gas-station', label: 'Fuel' });
-  if (spot.lit === true) chips.push({ icon: 'lightbulb-on', label: 'Lit' });
-  if (spot.secure === true) chips.push({ icon: 'shield-check', label: 'Secure' });
-  return chips;
+export function facilityStates(spot: SafeParkingSpotDto): Facility[] {
+  return FACILITIES.map((f) => ({ ...f, there: spot[f.key] === true }));
+}
+
+/** What it costs, when that is known: "Paid" or "Free". Nothing when it is not. */
+export function costText(spot: Pick<SafeParkingSpotDto, 'paid'>): string | undefined {
+  if (spot.paid === true) return 'Paid';
+  if (spot.paid === false) return 'Free';
+  return undefined;
 }
 
 /** "Space for about 40 lorries", or nothing when the number is not known. */

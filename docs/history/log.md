@@ -3,6 +3,7 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-10: **parking card: green and grey.** The driver app's parking card now always shows the seven facilities (toilets, showers, shop, food, fuel, lit, secure): green when the spot is known to have it, grey when it does not or nobody has said, with a line saying so; Paid or Free is shown in words when known. Grey deliberately does not separate a known "no" from "not known".
 - 2026-10-10: **parking spots: a portal page, and what a driver wants to know.** New **Parking spots** page (Content, WagonWise staff only) and
   `GET/POST /staff/parking/spots`, `PUT/DELETE /staff/parking/spots/:id`: search by name or note, filter by source, add a spot
   (latitude, longitude pasted from a map), edit, and delete any spot. Spots now carry `source` (driver, admin, osm), an optional

@@ -11,7 +11,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatDateTime } from '../lib/format-date';
-import { capacityText, facilityChips, OSM_CREDIT, sourceText } from '../lib/parking-details';
+import {
+  capacityText,
+  costText,
+  facilityStates,
+  OSM_CREDIT,
+  sourceText,
+} from '../lib/parking-details';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
 import { ACTION_COLOURS } from './ui/action-card';
@@ -59,15 +65,32 @@ export function ParkingSpotDrawer({ spot, onClose, onNavigate, navigateDisabled 
           {spot !== undefined && capacityText(spot) !== undefined && (
             <Text style={styles.detail}>{capacityText(spot)}</Text>
           )}
-          {spot !== undefined && facilityChips(spot).length > 0 && (
-            <View style={styles.chips} testID="parking-facilities">
-              {facilityChips(spot).map((chip) => (
-                <View key={chip.label} style={styles.chip}>
-                  <Icon name={chip.icon} size={18} color={colors.accent} />
-                  <Text style={styles.chipText}>{chip.label}</Text>
-                </View>
-              ))}
-            </View>
+          {spot !== undefined && costText(spot) !== undefined && (
+            <Text style={styles.detail}>{costText(spot)}</Text>
+          )}
+          {spot !== undefined && (
+            <>
+              <View style={styles.chips} testID="parking-facilities">
+                {facilityStates(spot).map((f) => (
+                  <View
+                    key={f.key}
+                    style={styles.facility}
+                    accessible
+                    accessibilityLabel={`${f.label}: ${f.there ? 'yes' : 'not there, or not known'}`}
+                  >
+                    <Icon
+                      name={f.icon}
+                      size={28}
+                      color={f.there ? colors.accentGreen : colors.surfaceStrong}
+                    />
+                    <Text style={[styles.facilityText, !f.there && styles.facilityOff]}>
+                      {f.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={styles.meta}>Green is there. Grey is not there, or not known yet.</Text>
+            </>
           )}
           {spot !== undefined && (
             <Text style={styles.meta}>
@@ -144,17 +167,10 @@ function createStyles(colors: ThemeColors) {
     status: { fontSize: 14, color: colors.textMuted, textTransform: 'uppercase' },
     detail: { fontSize: 17, color: colors.textSecondary, marginTop: 8 },
     meta: { fontSize: 14, color: colors.textDim, marginTop: 8 },
-    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-    chip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
-      minHeight: 36,
-      borderRadius: 18,
-      backgroundColor: colors.accentSoft,
-    },
-    chipText: { fontSize: 15, fontWeight: '600', color: colors.text },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 12 },
+    facility: { width: '25%', minWidth: 72, alignItems: 'center', gap: 2, paddingVertical: 6 },
+    facilityText: { fontSize: 13, fontWeight: '700', color: colors.text },
+    facilityOff: { color: colors.textDim, fontWeight: '600' },
     navigateButton: {
       marginTop: 20,
       minHeight: 52,
