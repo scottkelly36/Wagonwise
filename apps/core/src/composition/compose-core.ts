@@ -50,6 +50,7 @@ import {
   type UntypedDb as JobsUntypedDb,
 } from '../modules/jobs/api.js';
 import { createParkingModule, type UntypedDb as ParkingUntypedDb } from '../modules/parking/api.js';
+import { createTrafficModule } from '../modules/traffic/api.js';
 import { createWeatherModule } from '../modules/weather/api.js';
 import { createBillingModule, type UntypedDb as BillingUntypedDb } from '../modules/billing/api.js';
 import { createPlacesModule, type UntypedDb as PlacesUntypedDb } from '../modules/places/api.js';
@@ -433,6 +434,13 @@ export function composeCore(
       },
     },
   });
+  // Live traffic (TomTom). Nothing consumes it yet: the faster-route check (docs/faster-route-scope.md) will.
+  const traffic = createTrafficModule({
+    clock,
+    tomtomApiKey: config.tomtomApiKey,
+    dailyRequestLimit: config.trafficDailyRequestLimit,
+    cacheTtlMs: config.trafficCacheTtlMs,
+  });
   const weather = createWeatherModule({ clock, metOfficeApiKey: config.metOfficeApiKey });
   const jobs = createJobsModule({
     db: jobsDb,
@@ -573,6 +581,7 @@ export function composeCore(
       if (expired > 0) app.log.info({ expired }, 'expired hazards');
     },
   });
+  app.log.info({ enabled: traffic.enabled }, 'live traffic (TomTom)');
   if (weather.enabled) {
     // First fetch now, so warnings are there soon after a restart rather than after one interval.
     void periodicTasks.runOnce(weatherTask);
