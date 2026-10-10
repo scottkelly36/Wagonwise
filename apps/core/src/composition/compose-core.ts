@@ -228,6 +228,15 @@ export function composeCore(
     hazardParser: overrides.hazardParser,
     admins: { isAdmin: isPlatformStaff },
   });
+  // congestion and traffic are built before routing too: its faster-route check reads both.
+  const congestion = createCongestionModule({ db: congestionDb, clock });
+  // Live traffic (TomTom). Read by routing's faster-route check (docs/faster-route-scope.md).
+  const traffic = createTrafficModule({
+    clock,
+    tomtomApiKey: config.tomtomApiKey,
+    dailyRequestLimit: config.trafficDailyRequestLimit,
+    cacheTtlMs: config.trafficCacheTtlMs,
+  });
   const routing = createRoutingModule({
     db: routingDb,
     ids,
@@ -237,10 +246,11 @@ export function composeCore(
     expoAccessToken: config.expoAccessToken,
     hazards,
     identity,
+    congestion,
+    traffic,
     pushNotifier: overrides.pushNotifier,
   });
   const feedback = createFeedbackModule({ db: feedbackDb, clock, ids });
-  const congestion = createCongestionModule({ db: congestionDb, clock });
   const companies = createCompaniesModule({
     db: companiesDb,
     clock,
@@ -433,13 +443,6 @@ export function composeCore(
             };
       },
     },
-  });
-  // Live traffic (TomTom). Nothing consumes it yet: the faster-route check (docs/faster-route-scope.md) will.
-  const traffic = createTrafficModule({
-    clock,
-    tomtomApiKey: config.tomtomApiKey,
-    dailyRequestLimit: config.trafficDailyRequestLimit,
-    cacheTtlMs: config.trafficCacheTtlMs,
   });
   const weather = createWeatherModule({ clock, metOfficeApiKey: config.metOfficeApiKey });
   const jobs = createJobsModule({

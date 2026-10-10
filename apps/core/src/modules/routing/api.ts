@@ -2,7 +2,9 @@ import type { FastifyInstance } from 'fastify';
 import { eraseDriverRoutingData, pruneOldRoutePlans } from './application/housekeeping.js';
 import { PostgresRoutingHousekeeping } from './infrastructure/postgres-routing-housekeeping.js';
 import type { HazardsModule } from '../hazards/api.js';
+import type { CongestionModule } from '../congestion/api.js';
 import type { IdentityModule } from '../identity/api.js';
+import type { TrafficModule } from '../traffic/api.js';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { PushNotifier } from './application/ports/push-notifier.js';
@@ -13,6 +15,9 @@ import {
 } from './application/reroute-event-handlers.js';
 import { ExpoPushNotifier } from './infrastructure/expo-push-notifier.js';
 import { HazardAvoidanceQueryAdapter } from './infrastructure/hazard-avoidance-query.js';
+import { CongestionQueryAdapter } from './infrastructure/congestion-query.js';
+import { InMemoryFasterRouteOfferLog } from './infrastructure/in-memory-faster-route-offer-log.js';
+import { TrafficQueryAdapter } from './infrastructure/traffic-query.js';
 import { HazardsOnRouteQueryAdapter } from './infrastructure/hazards-on-route-query.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresActiveTripRepository } from './infrastructure/postgres-active-trip-repository.js';
@@ -53,6 +58,10 @@ export interface RoutingModuleDeps {
   /** `identity`'s facade — the reroute-detection handlers' only source of a driver's push
    *  tokens (design doc §6: "device tokens come from a read-model port onto Identity"). */
   readonly identity: Pick<IdentityModule, 'getPushTokensForDriver'>;
+  /** `congestion`'s and `traffic`'s facades: the faster-route check reads drivers' congestion reports and the
+   *  traffic provider's delays through this module's own query adapters. */
+  readonly congestion: Pick<CongestionModule, 'findNearby'>;
+  readonly traffic: Pick<TrafficModule, 'delayAlong'>;
   /** Optional bearer token for Expo's enhanced push security (M6.5) — unset is fine, Expo's push
    *  API works without one; only matters if that project setting is ever turned on. */
   readonly expoAccessToken?: string | undefined;
@@ -149,6 +158,21 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
     startTrip: { routePlanRepo, activeTripRepo, clock: deps.clock, ids: deps.ids },
     endTrip: { repo: activeTripRepo, clock: deps.clock },
     getActiveTrip: { activeTripRepo },
+    checkFasterRoute: {
+      activeTripRepo,
+      routePlanRepo,
+      vehicleProfileRepo,
+      routingEngine,
+      hazardAvoidanceQuery,
+      hazardsOnRouteQuery,
+      restrictionOverrideRepo,
+      congestionQuery: new CongestionQueryAdapter(deps.congestion),
+      trafficQuery: new TrafficQueryAdapter(deps.traffic),
+      offerLog: new InMemoryFasterRouteOfferLog(),
+      clock: deps.clock,
+      ids: deps.ids,
+      fuelPricePerLitreGBP: deps.fuelPricePerLitreGBP,
+    },
   };
 
   return {

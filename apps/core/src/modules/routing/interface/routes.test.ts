@@ -10,6 +10,9 @@ import { FakeHazardAvoidanceQuery } from '../application/testing/fake-hazard-avo
 import { FakeHazardsOnRouteQuery } from '../application/testing/fake-hazards-on-route-query.js';
 import { FakeRestrictionOverrideRepository } from '../application/testing/fake-restriction-override-repository.js';
 import { FakeRoutingEngine } from '../application/testing/fake-routing-engine.js';
+import { FakeCongestionQuery } from '../application/testing/fake-congestion-query.js';
+import { FakeTrafficQuery } from '../application/testing/fake-traffic-query.js';
+import { FakeFasterRouteOfferLog } from '../application/testing/fake-faster-route-offer-log.js';
 import { registerRoutingRoutes, type RoutingRouteDeps } from './routes.js';
 
 const dimensions = { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32 };
@@ -54,6 +57,21 @@ function buildApp(): {
     startTrip: { routePlanRepo, activeTripRepo, clock, ids },
     endTrip: { repo: activeTripRepo, clock },
     getActiveTrip: { activeTripRepo },
+    checkFasterRoute: {
+      activeTripRepo,
+      routePlanRepo,
+      vehicleProfileRepo: repo,
+      routingEngine,
+      hazardAvoidanceQuery: new FakeHazardAvoidanceQuery(),
+      hazardsOnRouteQuery: new FakeHazardsOnRouteQuery(),
+      restrictionOverrideRepo: new FakeRestrictionOverrideRepository(),
+      congestionQuery: new FakeCongestionQuery(),
+      trafficQuery: new FakeTrafficQuery(),
+      offerLog: new FakeFasterRouteOfferLog(),
+      clock,
+      ids,
+      fuelPricePerLitreGBP: 1.6,
+    },
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {
@@ -728,6 +746,58 @@ describe('GET /routing/trips/active', () => {
   it('401s with no authenticated driver', async () => {
     const { app } = buildApp();
     const response = await app.inject({ method: 'GET', url: '/routing/trips/active' });
+    expect(response.statusCode).toBe(401);
+  });
+});
+
+describe('POST /routing/trips/:id/faster-route', () => {
+  const body = { position: { lat: 55, lon: -2 } };
+
+  it('200s with offer: null when there is nothing to offer', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+    const started = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${routePlanId}/trip`,
+      ...asDriver('driver-1'),
+    });
+    const { id: tripId } = started.json<{ id: string }>();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${tripId}/faster-route`,
+      payload: body,
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ offer: null });
+  });
+
+  it('404s for a trip that is not the caller’s, and 400s a malformed body', async () => {
+    const { app } = buildApp();
+    const missing = await app.inject({
+      method: 'POST',
+      url: '/routing/trips/00000000-0000-4000-8000-000000000000/faster-route',
+      payload: body,
+      ...asDriver('driver-1'),
+    });
+    expect(missing.statusCode).toBe(404);
+    const bad = await app.inject({
+      method: 'POST',
+      url: '/routing/trips/00000000-0000-4000-8000-000000000000/faster-route',
+      payload: { position: 'here' },
+      ...asDriver('driver-1'),
+    });
+    expect(bad.statusCode).toBe(400);
+  });
+
+  it('401s with no authenticated driver', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/trips/00000000-0000-4000-8000-000000000000/faster-route',
+      payload: body,
+    });
     expect(response.statusCode).toBe(401);
   });
 });

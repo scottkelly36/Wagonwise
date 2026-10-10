@@ -1,6 +1,7 @@
 import {
   activeTripIdParamsSchema,
   createVehicleProfileRequestSchema,
+  fasterRouteCheckRequestSchema,
   planRouteRequestSchema,
   previewRouteOptionsRequestSchema,
   routePlanIdParamsSchema,
@@ -17,6 +18,7 @@ import {
   deleteVehicleProfile,
   type DeleteVehicleProfileDeps,
 } from '../application/delete-vehicle-profile.js';
+import { checkFasterRoute, type CheckFasterRouteDeps } from '../application/check-faster-route.js';
 import { endTrip, type EndTripDeps } from '../application/end-trip.js';
 import { getActiveTrip, type GetActiveTripDeps } from '../application/get-active-trip.js';
 import { getRoutePlan, type GetRoutePlanDeps } from '../application/get-route-plan.js';
@@ -52,6 +54,7 @@ export interface RoutingRouteDeps {
   readonly startTrip: StartTripDeps;
   readonly endTrip: EndTripDeps;
   readonly getActiveTrip: GetActiveTripDeps;
+  readonly checkFasterRoute: CheckFasterRouteDeps;
 }
 
 /**
@@ -253,6 +256,30 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(200).send(result.value);
+  });
+
+  // While navigating, the app asks (with its position) whether a clearly quicker route exists. Always 200:
+  // `offer: null` is the ordinary answer. Docs: docs/faster-route-scope.md.
+  app.post('/routing/trips/:id/faster-route', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const params = activeTripIdParamsSchema.safeParse(request.params);
+    const body = fasterRouteCheckRequestSchema.safeParse(request.body);
+    if (!params.success || !body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await checkFasterRoute(deps.checkFasterRoute, {
+      driverId,
+      tripId: makeId<'ActiveTripId'>(params.data.id),
+      position: body.data.position,
+      headingDeg: body.data.headingDeg,
+      keptKeys: body.data.keptKeys,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send({ offer: result.value });
   });
 
   // Always 200, `trip: null` when there isn't one — lets the driver app resume a trip its
