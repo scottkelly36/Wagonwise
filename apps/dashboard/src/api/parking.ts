@@ -2,6 +2,7 @@ import {
   listParkingSpotsResponseSchema,
   safeParkingSpotSchema,
   type ListParkingSpotsResponse,
+  type ParkingKind,
   type ParkingSource,
   type SafeParkingSpotDto,
   type SaveParkingSpotRequest,
@@ -13,11 +14,12 @@ const bearer = (accessToken: string): string => `Bearer ${accessToken}`;
 
 export async function listParkingSpots(
   accessToken: string,
-  filter: { q?: string; source?: ParkingSource },
+  filter: { q?: string; source?: ParkingSource; kind?: ParkingKind },
 ): Promise<ListParkingSpotsResponse> {
   const params = new URLSearchParams();
   if (filter.q !== undefined && filter.q.trim() !== '') params.set('q', filter.q.trim());
   if (filter.source !== undefined) params.set('source', filter.source);
+  if (filter.kind !== undefined) params.set('kind', filter.kind);
   const query = params.toString();
   const { status, json } = await requestJson(
     'GET',

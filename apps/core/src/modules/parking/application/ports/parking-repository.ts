@@ -1,5 +1,6 @@
 import type {
   GeoPoint,
+  ParkingKind,
   ParkingSource,
   SafeParkingSpot,
   SafeParkingSpotId,
@@ -10,6 +11,7 @@ export interface SpotSearch {
   /** Words to find in the name or note, ignoring case. */
   readonly text?: string | undefined;
   readonly source?: ParkingSource | undefined;
+  readonly kind?: ParkingKind | undefined;
   readonly limit: number;
 }
 
@@ -32,9 +34,10 @@ export interface ParkingRepository {
   removeReport(id: string, reporterId: string): Promise<boolean>;
 
   // --- for WagonWise staff ---
-  /** Newest first, matching the search, and how many match in all. */
+  /** Parking spots before lay-bys, newest first within each, matching the search, and how many match in all. */
   search(search: SpotSearch): Promise<{ spots: SafeParkingSpot[]; total: number }>;
   countBySource(): Promise<Record<ParkingSource, number>>;
+  countByKind(): Promise<Record<ParkingKind, number>>;
   find(id: SafeParkingSpotId): Promise<SafeParkingSpot | null>;
   /** Replaces what staff may change on an existing spot; false if there is no such spot. */
   update(spot: SafeParkingSpot): Promise<boolean>;

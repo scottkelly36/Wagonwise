@@ -226,14 +226,16 @@ export class PostgresParkingRepository implements ParkingRepository {
     const pattern =
       search.text === undefined || search.text === '' ? null : `%${escapeLike(search.text)}%`;
     const source = search.source ?? null;
+    const kind = search.kind ?? null;
     const where = sql`
       where (${source}::text is null or s.source = ${source})
+        and (${kind}::text is null or s.kind = ${kind})
         and (${pattern}::text is null or s.name ilike ${pattern} or s.note ilike ${pattern})
     `;
     const { rows } = await sql<SafeParkingSpotRow>`
       select ${sql.raw(SELECT_COLUMNS)} from parking.safe_parking_spots s
       ${where}
-      order by s.last_reported_at desc, s.id
+      order by (s.kind = 'parking') desc, s.last_reported_at desc, s.id
       limit ${search.limit}
     `.execute(this.db);
     const total = await sql<{ n: number }>`
@@ -248,6 +250,15 @@ export class PostgresParkingRepository implements ParkingRepository {
     `.execute(this.db);
     const counts: Record<ParkingSource, number> = { driver: 0, admin: 0, osm: 0 };
     for (const row of rows) counts[row.source] = row.n;
+    return counts;
+  }
+
+  async countByKind(): Promise<Record<ParkingKind, number>> {
+    const { rows } = await sql<{ kind: ParkingKind; n: number }>`
+      select kind, count(*)::int as n from parking.safe_parking_spots group by kind
+    `.execute(this.db);
+    const counts: Record<ParkingKind, number> = { parking: 0, layby: 0 };
+    for (const row of rows) counts[row.kind] = row.n;
     return counts;
   }
 

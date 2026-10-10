@@ -1,5 +1,6 @@
 import type {
   GeoPoint,
+  ParkingKind,
   ParkingSource,
   SafeParkingSpot,
   SafeParkingSpotId,
@@ -109,6 +110,7 @@ export class InMemoryParkingRepository implements ParkingRepository {
     const text = search.text?.toLowerCase();
     const matches = [...this.#byId.values()]
       .filter((s) => search.source === undefined || s.source === search.source)
+      .filter((s) => search.kind === undefined || (s.kind ?? 'parking') === search.kind)
       .filter(
         (s) =>
           text === undefined ||
@@ -116,13 +118,24 @@ export class InMemoryParkingRepository implements ParkingRepository {
           (s.note ?? '').toLowerCase().includes(text),
       )
       .map((s) => this.#view(s))
-      .sort((a, b) => b.reportedAt.getTime() - a.reportedAt.getTime());
+      .sort(
+        (a, b) =>
+          Number((b.kind ?? 'parking') === 'parking') -
+            Number((a.kind ?? 'parking') === 'parking') ||
+          b.reportedAt.getTime() - a.reportedAt.getTime(),
+      );
     return Promise.resolve({ spots: matches.slice(0, search.limit), total: matches.length });
   }
 
   countBySource(): Promise<Record<ParkingSource, number>> {
     const counts: Record<ParkingSource, number> = { driver: 0, admin: 0, osm: 0 };
     for (const s of this.#byId.values()) counts[s.source] += 1;
+    return Promise.resolve(counts);
+  }
+
+  countByKind(): Promise<Record<ParkingKind, number>> {
+    const counts: Record<ParkingKind, number> = { parking: 0, layby: 0 };
+    for (const s of this.#byId.values()) counts[s.kind ?? 'parking'] += 1;
     return Promise.resolve(counts);
   }
 

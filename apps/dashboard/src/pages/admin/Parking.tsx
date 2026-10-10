@@ -1,5 +1,6 @@
 import {
   PARKING_FACILITIES,
+  type ParkingKind,
   type ParkingSource,
   type SafeParkingSpotDto,
 } from '@wagonwise/contracts/parking';
@@ -35,18 +36,20 @@ export function Parking() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [source, setSource] = useState<ParkingSource | ''>('');
+  const [kind, setKind] = useState<ParkingKind | ''>('');
   const [editing, setEditing] = useState<{ id: string | undefined; form: SpotForm } | undefined>(
     undefined,
   );
   const [problem, setProblem] = useState<string | undefined>(undefined);
 
   const spots = useQuery({
-    queryKey: [...PARKING_KEY, search, source],
+    queryKey: [...PARKING_KEY, search, source, kind],
     queryFn: () =>
       withAccessToken((token) =>
         parkingApi.listParkingSpots(token, {
           q: search,
           ...(source === '' ? {} : { source }),
+          ...(kind === '' ? {} : { kind }),
         }),
       ),
   });
@@ -184,7 +187,8 @@ export function Parking() {
         <p>
           <strong>{data.bySource.driver + data.bySource.admin + data.bySource.osm}</strong> places:{' '}
           {data.bySource.osm} from OpenStreetMap, {data.bySource.driver} from drivers,{' '}
-          {data.bySource.admin} added by WagonWise.
+          {data.bySource.admin} added by WagonWise. By type: {data.byKind.parking} parking and{' '}
+          {data.byKind.layby} lay-bys.
         </p>
       )}
 
@@ -200,6 +204,18 @@ export function Parking() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+        </div>
+        <div className="field">
+          <label htmlFor="parking-kind">Type</label>
+          <select
+            id="parking-kind"
+            value={kind}
+            onChange={(e) => setKind(e.target.value as ParkingKind | '')}
+          >
+            <option value="">Parking and lay-bys</option>
+            <option value="parking">Parking only</option>
+            <option value="layby">Lay-bys only</option>
+          </select>
         </div>
         <div className="field">
           <label htmlFor="parking-source">From</label>
