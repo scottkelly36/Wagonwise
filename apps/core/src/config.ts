@@ -80,6 +80,13 @@ const envSchema = z.object({
   // Optional: the Met Office Weather DataHub key (NSWWS warnings). Unset means no weather warnings are
   // fetched or shown. Server-side only; never sent to an app.
   METOFFICE_API_KEY: z.string().min(1).optional(),
+  // Optional: the TomTom key (Traffic Flow and Traffic Incidents). Unset means no live traffic. Server-side
+  // only; never sent to an app. The free tier allows about 2,500 non-tile calls a day, so the default cap
+  // leaves headroom; raise it with the plan.
+  TOMTOM_API_KEY: z.string().min(1).optional(),
+  TRAFFIC_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(2000),
+  // Traffic moves in minutes; a reading is reused for this long, and shared by every driver on that road.
+  TRAFFIC_CACHE_TTL_MS: z.coerce.number().int().min(10_000).default(300_000),
   // Optional: where the dashboard is served (e.g. https://dashboard.wagon-wise.co.uk), so a staff invitation
   // can be emailed as a link. Unset means invitations are not emailed and the inviter shares the link.
   DASHBOARD_URL: z.url().optional(),
@@ -144,6 +151,9 @@ export interface Config {
   readonly expoAccessToken: string | undefined;
   readonly anthropicApiKey: string | undefined;
   readonly metOfficeApiKey: string | undefined;
+  readonly tomtomApiKey: string | undefined;
+  readonly trafficDailyRequestLimit: number;
+  readonly trafficCacheTtlMs: number;
   readonly dashboardUrl: string | undefined;
   readonly clickSendUsername: string | undefined;
   readonly clickSendApiKey: string | undefined;
@@ -194,6 +204,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     expoAccessToken: values.EXPO_ACCESS_TOKEN,
     anthropicApiKey: values.ANTHROPIC_API_KEY,
     metOfficeApiKey: values.METOFFICE_API_KEY,
+    tomtomApiKey: values.TOMTOM_API_KEY,
+    trafficDailyRequestLimit: values.TRAFFIC_DAILY_REQUEST_LIMIT,
+    trafficCacheTtlMs: values.TRAFFIC_CACHE_TTL_MS,
     dashboardUrl: values.DASHBOARD_URL,
     clickSendUsername: values.CLICKSEND_USERNAME,
     clickSendApiKey: values.CLICKSEND_API_KEY,
