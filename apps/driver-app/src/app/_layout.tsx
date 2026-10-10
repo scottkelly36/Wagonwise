@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { OfflineManager } from '@maplibre/maplibre-react-native';
 import { useEffect } from 'react';
 
 import { queryClient } from '../api/query-client';
@@ -35,6 +36,9 @@ export default function RootLayout() {
     void restoreShift();
     void restoreHoursStart();
     void restoreUpdateNotice();
+    // Keep more of the map on the phone, so places a driver has already seen draw straight away instead of waiting on the network
+    // again. 250 MB is a few hundred miles of road map at the zoom levels used.
+    OfflineManager.setMaximumAmbientCacheSize(250 * 1024 * 1024).catch(() => undefined);
   }, [
     restoreAuth,
     restoreTheme,
