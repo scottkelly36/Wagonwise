@@ -3,6 +3,7 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-10: **driving-hours clock starts when a route starts (the driver's choice).** New setting on the Driving hours screen, "When I start a route": Ask me (default), Start the clock, Leave it (`state/hours-start-store.ts`, kept on the phone). On the trip screen (`hooks/use-auto-start-hours.ts`, once per trip): with Start the clock the clock switches to Driving (from no shift, other work, a break or a rest: counting driving early is the cautious direction); with Ask me and no shift on, a question: Yes every time / Just this trip / Not now; with Leave it, nothing. The clock buttons stop it at any time; the Start button remains as the fallback. Never starts a break or rest by itself. Starting from movement (speed) is not built: it needs background location.
 - 2026-10-10: **tachograph connection, step 1: parser and simulator (no hardware, no native code).** `apps/driver-app/src/lib/tachograph/`: `transport.ts` (the
   V2 BLE serial-port framing: `AA 01` / `00 NN` packets, the Download and Diagnostics service identifiers), `credits.ts` (credit-based
   flow control, 0xFF ends or refuses), `uds.ts` (ReadDataByIdentifier 0x22, replies 0x62 and 0x7F), `client.ts` (a client over an abstract
