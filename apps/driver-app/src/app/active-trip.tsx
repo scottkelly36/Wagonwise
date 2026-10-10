@@ -33,6 +33,7 @@ import { useTurnGuidance } from '../hooks/use-turn-guidance';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { BreakCard } from '../components/break-card';
+import { useAutoStartHours } from '../hooks/use-auto-start-hours';
 import { parkingOnly } from '../lib/parking-details';
 import { HoursQuickBar } from '../components/hours-quick-bar';
 import { parkingBeforeStop, planBreak } from '../lib/break-plan';
@@ -134,6 +135,8 @@ export default function ActiveTripScreen() {
   const router = useRouter();
   const trip = useCurrentActiveTripStore((s) => s.trip);
   const clearTrip = useCurrentActiveTripStore((s) => s.clear);
+  // The driver's choice for the driving-hours clock when a route starts (start it, ask, or leave it to the buttons).
+  useAutoStartHours(trip?.id);
   const plan = useCurrentRoutePlanStore((s) => s.plan);
   const clearPlan = useCurrentRoutePlanStore((s) => s.clear);
   const location = useLiveLocation({ fast: true });

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { HoursSharingChip } from '../components/hours-sharing-chip';
 import { Icon, type IconName } from '../components/ui/icon';
 import { ScreenHeader } from '../components/ui/screen-header';
+import { SegmentedControl } from '../components/ui/segmented-control';
 import {
   durationText,
   hoursStatus,
@@ -15,6 +16,7 @@ import {
 import { consentText } from '../lib/hours-share';
 import { currentActivity } from '../lib/shift-log';
 import { useHoursSharingStore } from '../state/hours-sharing-store';
+import { useHoursStartStore } from '../state/hours-start-store';
 import { useShiftStore } from '../state/shift-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle, radius } from '../theme/tokens';
@@ -57,6 +59,8 @@ export default function ShiftScreen() {
   const { log, rules, extensionsLeft, record, setRules, setExtensionsLeft, clear } =
     useShiftStore();
 
+  const startPreference = useHoursStartStore((s) => s.preference);
+  const setStartPreference = useHoursStartStore((s) => s.setPreference);
   const companies = useHoursSharingStore((s) => s.companies);
   const refreshSharing = useHoursSharingStore((s) => s.refresh);
   const setSharing = useHoursSharingStore((s) => s.setSharing);
@@ -202,6 +206,25 @@ export default function ShiftScreen() {
             {shareError !== undefined && <Text style={styles.note}>{shareError}</Text>}
           </>
         )}
+
+        <Text style={styles.label}>When I start a route</Text>
+        <SegmentedControl
+          options={[
+            { key: 'ask', label: 'Ask me' },
+            { key: 'always', label: 'Start the clock' },
+            { key: 'never', label: 'Leave it' },
+          ]}
+          value={startPreference}
+          onChange={(p) => void setStartPreference(p)}
+          testIDPrefix="hours-start"
+        />
+        <Text style={styles.note}>
+          {startPreference === 'always'
+            ? 'The clock starts on Driving when you set off, so it counts even if you forget. Stop it any time with the buttons.'
+            : startPreference === 'ask'
+              ? 'The first time you set off with no clock running, you are asked whether to count your driving hours.'
+              : 'The clock only runs when you start it yourself with the buttons.'}
+        </Text>
 
         <Text style={styles.label}>Which rules?</Text>
         {(Object.keys(RULE_TEXT) as RuleSet[]).map((r) => (

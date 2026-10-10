@@ -13,6 +13,7 @@ import { useShareHours } from '../hooks/use-share-hours';
 import { useRerouteNotifications } from '../hooks/use-reroute-notifications';
 import { useAuthStore } from '../state/auth-store';
 import { useGuidanceStore } from '../state/guidance-store';
+import { useHoursStartStore } from '../state/hours-start-store';
 import { useShiftStore } from '../state/shift-store';
 import { useThemeStore } from '../state/theme-store';
 
@@ -22,13 +23,15 @@ export default function RootLayout() {
   const restoreTheme = useThemeStore((s) => s.restore);
   const restoreGuidance = useGuidanceStore((s) => s.restore);
   const restoreShift = useShiftStore((s) => s.restore);
+  const restoreHoursStart = useHoursStartStore((s) => s.restore);
 
   useEffect(() => {
     void restoreAuth();
     void restoreTheme();
     void restoreGuidance();
     void restoreShift();
-  }, [restoreAuth, restoreTheme, restoreGuidance, restoreShift]);
+    void restoreHoursStart();
+  }, [restoreAuth, restoreTheme, restoreGuidance, restoreShift, restoreHoursStart]);
 
   useOpportunisticRefresh();
   useHazardQueueFlush();
