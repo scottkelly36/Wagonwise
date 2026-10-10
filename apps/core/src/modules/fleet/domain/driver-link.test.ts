@@ -22,6 +22,22 @@ const invited = (): DriverLink => {
   return r.value;
 };
 
+describe('normalizeIdentifier: UK numbers', () => {
+  it.each([
+    '07700 900123',
+    '+44 7700 900123',
+    '447700900123',
+    '00447700900123',
+    '+44 (0)7700 900123',
+  ])('are all the same invited person, written +44…: %s', (raw) => {
+    expect(normalizeIdentifier(raw)).toEqual({ ok: true, value: '+447700900123' });
+  });
+
+  it('leaves a number outside the UK as typed, less the formatting', () => {
+    expect(normalizeIdentifier('+353 87 123 4567')).toEqual({ ok: true, value: '+353871234567' });
+  });
+});
+
 describe('normalizeIdentifier', () => {
   it('lowercases emails and strips phone formatting, like identity does', () => {
     expect(normalizeIdentifier(' Pat@Example.COM ')).toEqual({

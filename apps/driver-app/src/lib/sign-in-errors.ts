@@ -2,7 +2,8 @@ import { ApiError } from '../api/errors';
 
 export const REQUEST_OTP_MESSAGES: Record<string, string> = {
   InvalidIdentifier: 'Enter a valid email address or phone number.',
-  InviteCodeRequired: "You'll need an invite code the first time you sign in.",
+  InviteCodeRequired:
+    "We can't find an account for that. If you've signed in before, try the email or number you used then. If it's your first time, enter your invite code.",
   InvalidInviteCode: "That invite code isn't recognised.",
   CodeNotSent:
     "We couldn't send your sign-in code. Try again in a minute. If it keeps happening, let your company or WagonWise know.",

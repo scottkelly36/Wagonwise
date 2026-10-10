@@ -159,3 +159,46 @@ describe('requestOtp', () => {
     ]);
   });
 });
+
+describe('requestOtp: the same UK number written differently', () => {
+  const legacy = {
+    id: makeId<'DriverId'>('driver-legacy'),
+    identifier: '07700900123',
+    createdAt: new Date('2026-06-01T00:00:00.000Z'),
+  };
+
+  it('finds an account stored as 07… when the driver types +44…, with no invite code, and keys the code to the stored form', async () => {
+    const driverRepo = new InMemoryDriverRepository();
+    await driverRepo.save(legacy);
+    const deps = buildDeps({ driverRepo });
+    const result = await requestOtp(deps, { identifier: '+44 7700 900123' });
+    expect(result).toEqual({ ok: true, value: undefined });
+    expect((deps.otpSender as FakeOtpSender).sent.map((s) => s.identifier)).toEqual([
+      '07700900123',
+    ]);
+    expect(await deps.otpRepo.findLatestFor('07700900123')).not.toBeNull();
+  });
+
+  it('finds an account stored as +44… when the driver types 07…', async () => {
+    const driverRepo = new InMemoryDriverRepository();
+    await driverRepo.save({ ...legacy, identifier: '+447700900123' });
+    const deps = buildDeps({ driverRepo });
+    const result = await requestOtp(deps, { identifier: '07700 900123' });
+    expect(result.ok).toBe(true);
+    expect(await deps.otpRepo.findLatestFor('+447700900123')).not.toBeNull();
+  });
+
+  it('keys a first sign-in to the +44… form however the number was typed', async () => {
+    const inviteCodeRepo = new InMemoryInviteCodeRepository();
+    await inviteCodeRepo.save({
+      code: 'HEXHAM24',
+      redeemedBy: null,
+      redeemedAt: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    const deps = buildDeps({ inviteCodeRepo });
+    const result = await requestOtp(deps, { identifier: '07700 900123', inviteCode: 'HEXHAM24' });
+    expect(result.ok).toBe(true);
+    expect(await deps.otpRepo.findLatestFor('+447700900123')).not.toBeNull();
+  });
+});

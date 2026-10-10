@@ -13,6 +13,15 @@ export class InMemoryDriverRepository implements DriverRepository {
     return Promise.resolve(null);
   }
 
+  findByAnyIdentifier(identifiers: readonly string[]): Promise<Driver | null> {
+    for (const identifier of identifiers) {
+      for (const driver of this.#byId.values()) {
+        if (driver.identifier === identifier) return Promise.resolve(driver);
+      }
+    }
+    return Promise.resolve(null);
+  }
+
   findById(id: DriverId): Promise<Driver | null> {
     return Promise.resolve(this.#byId.get(id) ?? null);
   }

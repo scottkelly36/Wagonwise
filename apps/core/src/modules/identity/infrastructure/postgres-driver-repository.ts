@@ -44,6 +44,18 @@ export class PostgresDriverRepository implements DriverRepository {
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
+  async findByAnyIdentifier(identifiers: readonly string[]): Promise<Driver | null> {
+    const [first] = identifiers;
+    if (first === undefined) return null;
+    const { rows } = await sql<DriverRow>`
+      select ${sql.raw(SELECT_COLUMNS)} from identity.drivers
+      where identifier in (${sql.join(identifiers)})
+      order by (identifier = ${first}) desc, created_at
+      limit 1
+    `.execute(this.db);
+    return rows[0] ? toDomain(rows[0]) : null;
+  }
+
   async findById(id: DriverId): Promise<Driver | null> {
     const { rows } = await sql<DriverRow>`
       select ${sql.raw(SELECT_COLUMNS)} from identity.drivers where id = ${id}

@@ -3,6 +3,8 @@ import type { Driver, DriverId } from '../../domain/driver.js';
 
 export interface DriverRepository {
   findByIdentifier(identifier: string): Promise<Driver | null>;
+  /** The driver stored under any one of these forms of the same email or number, the first form preferred. */
+  findByAnyIdentifier(identifiers: readonly string[]): Promise<Driver | null>;
   findById(id: DriverId): Promise<Driver | null>;
   /**
    * Upsert — a Driver is created once (`verify-otp.ts`) but now also mutates in place (M8:

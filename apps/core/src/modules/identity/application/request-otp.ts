@@ -1,7 +1,7 @@
 import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import { err, ok, type Result } from '../../../shared/result.js';
-import { normalizeIdentifier, type InvalidIdentifier } from '../domain/identifier.js';
+import { identifierForms, type InvalidIdentifier } from '../domain/identifier.js';
 import { isRedeemed } from '../domain/invite-code.js';
 import type { Otp } from '../domain/otp.js';
 import type { CodeNotSent, InvalidInviteCode, InviteCodeRequired } from './errors.js';
@@ -44,13 +44,14 @@ export async function requestOtp(
   deps: RequestOtpDeps,
   input: RequestOtpInput,
 ): Promise<Result<void, RequestOtpError>> {
-  const normalized = normalizeIdentifier(input.identifier);
-  if (!normalized.ok) {
-    return normalized;
+  const forms = identifierForms(input.identifier);
+  if (!forms.ok) {
+    return forms;
   }
-  const identifier = normalized.value;
-
-  const existingDriver = await deps.driverRepo.findByIdentifier(identifier);
+  // An account made before UK numbers were made consistent may be stored as 07… when the driver types +44…, or the other way
+  // round: find it either way, and use the form it is stored under for the code, so sign-in finds the same code.
+  const existingDriver = await deps.driverRepo.findByAnyIdentifier(forms.value);
+  const identifier = existingDriver?.identifier ?? forms.value[0];
   if (!existingDriver) {
     if (!input.inviteCode) {
       return err({ tag: 'InviteCodeRequired' });

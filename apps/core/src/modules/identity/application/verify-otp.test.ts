@@ -203,3 +203,22 @@ describe('verifyOtp: new driver', () => {
     expect(session?.driverId).toBe(result.value.driver.id);
   });
 });
+
+describe('verifyOtp: the same UK number written differently', () => {
+  it('signs in an account stored as 07… when the driver types +44…, using the code asked for under the stored form', async () => {
+    const driverRepo = new InMemoryDriverRepository();
+    await driverRepo.save({ ...existingDriver(), identifier: '07700900123' });
+    const otpRepo = new InMemoryOtpRepository();
+    await otpRepo.save('07700900123', {
+      id: 'otp-1',
+      codeHash: sha256Hex(CODE),
+      expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+      consumedAt: null,
+      attempts: 0,
+    });
+    const deps = buildDeps({ driverRepo, otpRepo });
+    const result = await verifyOtp(deps, { identifier: '+44 7700 900123', code: CODE });
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.value.driver.id).toBe('driver-1');
+  });
+});

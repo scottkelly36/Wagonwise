@@ -45,10 +45,14 @@ export interface InvalidLinkTransition extends TaggedError<'InvalidLinkTransitio
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^\+?\d{8,15}$/;
+// A UK number as people write it: 07700900123, +447700900123, 447700900123, 00447700900123, +44 (0)7700 900123.
+const UK_NATIONAL_RE = /^0([1-9]\d{8,9})$/;
+const UK_INTERNATIONAL_RE = /^(?:\+?44|0044)0?([1-9]\d{8,9})$/;
 
 /**
  * The same rules as identity's `normalizeIdentifier` (emails lowercased; phone numbers stripped of
- * spaces, hyphens and brackets), declared again here because a module can't import another's
+ * spaces, hyphens and brackets; a UK number always written +44…, however it was typed, so a firm that invites a
+ * driver by 07… and a driver who signs in with +44… meet), declared again here because a module can't import another's
  * domain (AGENTS.md rule 6). They must agree: an invitation is matched to a driver by comparing
  * this value with the one identity stored when they signed up.
  */
@@ -56,7 +60,10 @@ export function normalizeIdentifier(raw: string): Result<string, InvalidIdentifi
   const trimmed = raw.trim();
   if (EMAIL_RE.test(trimmed)) return ok(trimmed.toLowerCase());
   const digitsOnly = trimmed.replace(/[\s\-()]/g, '');
-  if (PHONE_RE.test(digitsOnly)) return ok(digitsOnly);
+  if (PHONE_RE.test(digitsOnly)) {
+    const uk = (UK_NATIONAL_RE.exec(digitsOnly) ?? UK_INTERNATIONAL_RE.exec(digitsOnly))?.[1];
+    return ok(uk === undefined ? digitsOnly : `+44${uk}`);
+  }
   return err({ tag: 'InvalidIdentifier', reason: 'not_email_or_phone' });
 }
 
