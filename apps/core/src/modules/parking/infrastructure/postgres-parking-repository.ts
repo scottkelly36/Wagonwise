@@ -4,6 +4,7 @@ import { makeId } from '../../../shared/brand.js';
 import type { ParkingRepository, SpotSearch } from '../application/ports/parking-repository.js';
 import type {
   GeoPoint,
+  ParkingKind,
   ParkingSource,
   SafeParkingSpot,
   SafeParkingSpotId,
@@ -19,6 +20,7 @@ interface SafeParkingSpotRow {
   readonly note: string | null;
   readonly reported_at: Date;
   readonly source: ParkingSource;
+  readonly kind: ParkingKind;
   readonly osm_id: string | null;
   readonly name: string | null;
   readonly capacity: number | null;
@@ -39,7 +41,7 @@ interface SafeParkingSpotRow {
 // parking.spot_reports; only the latest are sent to the map).
 const SELECT_COLUMNS = `
   s.id, s.reporter_id, ST_Y(s.location::geometry) as lat, ST_X(s.location::geometry) as lon,
-  s.note, s.reported_at, s.source, s.osm_id, s.name, s.capacity,
+  s.note, s.reported_at, s.source, s.kind, s.osm_id, s.name, s.capacity,
   s.paid, s.toilets, s.showers, s.shop, s.food, s.fuel, s.lit, s.secure, s.last_reported_at,
   (select count(distinct r.reporter_id)::int from parking.spot_reports r where r.spot_id = s.id) as reporter_count,
   coalesce(
@@ -59,6 +61,7 @@ function toDomain(row: SafeParkingSpotRow): SafeParkingSpot {
     note: row.note ?? undefined,
     reportedAt: row.reported_at,
     source: row.source,
+    kind: row.kind,
     osmId: orUndefined(row.osm_id),
     name: orUndefined(row.name),
     capacity: orUndefined(row.capacity),
@@ -138,6 +141,8 @@ export class PostgresParkingRepository implements ParkingRepository {
     // A spot staff wrote or that was imported keeps its own note; drivers' notes sit beside it.
     await sql`
       update parking.safe_parking_spots set
+        -- A driver marking parking at a lay-by vouches that it is somewhere to park, so it is a parking spot from then on.
+        kind = 'parking',
         last_reported_at = greatest(last_reported_at, ${report.reportedAt}),
         note = case when source = 'driver' and ${report.note ?? null}::text is not null
                      and ${report.reportedAt} >= last_reported_at then ${report.note ?? null} else note end
@@ -197,12 +202,12 @@ export class PostgresParkingRepository implements ParkingRepository {
   async save(spot: SafeParkingSpot): Promise<void> {
     await sql`
       insert into parking.safe_parking_spots
-        (id, reporter_id, location, note, reported_at, source, osm_id, name, capacity,
+        (id, reporter_id, location, note, reported_at, source, kind, osm_id, name, capacity,
          paid, toilets, showers, shop, food, fuel, lit, secure, last_reported_at)
       values (
         ${spot.id}, ${spot.reporterId ?? null},
         ST_SetSRID(ST_MakePoint(${spot.location.lon}, ${spot.location.lat}), 4326)::geography,
-        ${spot.note ?? null}, ${spot.reportedAt}, ${spot.source}, ${spot.osmId ?? null},
+        ${spot.note ?? null}, ${spot.reportedAt}, ${spot.source}, ${spot.kind ?? 'parking'}, ${spot.osmId ?? null},
         ${spot.name ?? null}, ${spot.capacity ?? null},
         ${spot.paid ?? null}, ${spot.toilets ?? null}, ${spot.showers ?? null}, ${spot.shop ?? null},
         ${spot.food ?? null}, ${spot.fuel ?? null}, ${spot.lit ?? null}, ${spot.secure ?? null},
@@ -258,6 +263,7 @@ export class PostgresParkingRepository implements ParkingRepository {
     const { rows } = await sql`
       update parking.safe_parking_spots set
         location = ST_SetSRID(ST_MakePoint(${spot.location.lon}, ${spot.location.lat}), 4326)::geography,
+        kind = ${spot.kind ?? 'parking'},
         note = ${spot.note ?? null}, name = ${spot.name ?? null}, capacity = ${spot.capacity ?? null},
         paid = ${spot.paid ?? null}, toilets = ${spot.toilets ?? null}, showers = ${spot.showers ?? null},
         shop = ${spot.shop ?? null}, food = ${spot.food ?? null}, fuel = ${spot.fuel ?? null},

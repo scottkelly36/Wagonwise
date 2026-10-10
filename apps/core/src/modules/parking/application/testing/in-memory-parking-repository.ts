@@ -67,6 +67,7 @@ export class InMemoryParkingRepository implements ParkingRepository {
       const newer = report.reportedAt.getTime() >= last.getTime();
       this.#byId.set(report.spotId, {
         ...spot,
+        kind: 'parking',
         lastReportedAt: newer ? report.reportedAt : last,
         note:
           spot.source === 'driver' && report.note !== undefined && newer ? report.note : spot.note,

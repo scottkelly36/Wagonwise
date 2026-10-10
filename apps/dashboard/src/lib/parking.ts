@@ -1,6 +1,7 @@
 import {
   PARKING_FACILITIES,
   type ParkingFacility,
+  type ParkingKind,
   type ParkingSource,
   type SafeParkingSpotDto,
   type SaveParkingSpotRequest,
@@ -56,7 +57,13 @@ export function parseLatLon(text: string): { lat: number; lon: number } | undefi
 
 export type Known = 'unknown' | 'yes' | 'no';
 
+export const KIND_LABELS: Record<ParkingKind, string> = {
+  parking: 'Parking (lorry park, truck stop, service area)',
+  layby: 'Lay-by (not checked for lorries)',
+};
+
 export interface SpotForm {
+  kind: ParkingKind;
   location: string;
   name: string;
   note: string;
@@ -65,6 +72,7 @@ export interface SpotForm {
 }
 
 export const emptyForm = (): SpotForm => ({
+  kind: 'parking',
   location: '',
   name: '',
   note: '',
@@ -83,6 +91,7 @@ export function spotToForm(spot: SafeParkingSpotDto): SpotForm {
   for (const key of PARKING_FACILITIES) form.facilities[key] = toKnown(spot[key]);
   return {
     ...form,
+    kind: spot.kind ?? 'parking',
     location: `${spot.location.lat}, ${spot.location.lon}`,
     name: spot.name ?? '',
     note: spot.note ?? '',
@@ -103,7 +112,7 @@ export function formToRequest(
   if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 0 || capacity > 5000)) {
     return { ok: false, problem: 'Spaces should be a whole number, or left empty.' };
   }
-  const request: SaveParkingSpotRequest = { location };
+  const request: SaveParkingSpotRequest = { location, kind: form.kind };
   if (form.name.trim() !== '') request.name = form.name.trim();
   if (form.note.trim() !== '') request.note = form.note.trim();
   if (capacity !== undefined) request.capacity = capacity;

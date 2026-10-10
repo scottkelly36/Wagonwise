@@ -13,6 +13,14 @@ export const PARKING_SOURCES = ['driver', 'admin', 'osm'] as const;
 export const parkingSourceSchema = z.enum(PARKING_SOURCES);
 export type ParkingSource = z.infer<typeof parkingSourceSchema>;
 
+/**
+ * What sort of place it is: a lorry park, truck stop, service area or a spot a driver or staff vouched for (`parking`), or a
+ * roadside lay-by nobody has checked suits a lorry (`layby`). The map shows them as separate layers.
+ */
+export const PARKING_KINDS = ['parking', 'layby'] as const;
+export const parkingKindSchema = z.enum(PARKING_KINDS);
+export type ParkingKind = z.infer<typeof parkingKindSchema>;
+
 /** What a driver wants to know before pulling in. Absent means nobody has said, which is not the same as "no". */
 export const PARKING_FACILITIES = [
   'paid',
@@ -48,6 +56,8 @@ export const safeParkingSpotSchema = z.object({
   reportedAt: z.iso.datetime(),
   /** Absent on an answer from an older server: read it as a driver's report. */
   source: parkingSourceSchema.optional(),
+  /** Absent on an answer from an older server: read it as a parking spot. */
+  kind: parkingKindSchema.optional(),
   name: z.string().max(NAME_MAX_LENGTH).optional(),
   capacity: z.number().int().min(0).optional(),
   ...facilityFields,
@@ -129,6 +139,7 @@ export type ListParkingSpotsResponse = z.infer<typeof listParkingSpotsResponseSc
  * facility left out is saved as "not known". A spot a driver reported keeps its reporter and source.
  */
 export const saveParkingSpotRequestSchema = z.object({
+  kind: parkingKindSchema.optional(),
   location: z.object({
     lat: z.number().min(-90).max(90),
     lon: z.number().min(-180).max(180),

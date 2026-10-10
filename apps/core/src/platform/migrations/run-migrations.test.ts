@@ -93,6 +93,8 @@ describe('runMigrations', () => {
       '0060_parking_details.sql',
       '0061_seed_osm_parking.sql',
       '0062_parking_reports.sql',
+      '0063_parking_kind.sql',
+      '0064_seed_osm_laybys.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -262,6 +264,8 @@ describe('runMigrations', () => {
       '0060_parking_details.sql',
       '0061_seed_osm_parking.sql',
       '0062_parking_reports.sql',
+      '0063_parking_kind.sql',
+      '0064_seed_osm_laybys.sql',
     ]);
   });
 });

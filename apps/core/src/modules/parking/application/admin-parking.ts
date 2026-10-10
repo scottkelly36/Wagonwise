@@ -7,6 +7,7 @@ import {
   type Facilities,
   type GeoPoint,
   type InvalidNote,
+  type ParkingKind,
   type ParkingSource,
   type SafeParkingSpot,
   type SafeParkingSpotId,
@@ -34,6 +35,7 @@ const forbidden = (): Result<never, Forbidden> => err({ tag: 'Forbidden' });
 
 export interface SpotDetails extends Facilities {
   readonly location: GeoPoint;
+  readonly kind?: ParkingKind | undefined;
   readonly name?: string | undefined;
   readonly note?: string | undefined;
   readonly capacity?: number | undefined;
@@ -121,6 +123,7 @@ function withDetails(
 ): Omit<SafeParkingSpot, 'id' | 'reporterId' | 'source' | 'reportedAt' | 'osmId'> {
   return {
     location: details.location,
+    kind: details.kind ?? 'parking',
     name: blankToUndefined(details.name),
     note,
     capacity: details.capacity,
