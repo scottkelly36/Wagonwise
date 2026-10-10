@@ -33,3 +33,6 @@ infra/docker/custom_files/
 # The Google Play service account key, written by the release workflow only
 google-play-service-account.json
 *service-account*.json
+
+# Scratch tiles from the one-off OpenStreetMap parking fetch
+apps/core/scripts/.osm-cache/

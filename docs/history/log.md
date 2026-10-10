@@ -3,6 +3,7 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-10: **OpenStreetMap starting set for parking: 201 places.** Migration 0061 (generated once by `apps/core/scripts/fetch-osm-parking.mjs`, not refreshed) adds 166 service areas and truck stops and 35 lorry parks in Great Britain, `source = osm`, each with its OpenStreetMap id. Chosen for precision: service areas only when run by a known operator, marked for lorries, or named "... Services" with toilets (OpenStreetMap also uses that tag for depots and petrol stations); lay-bys tagged `highway=rest_area` (about 440, nearly all unnamed picnic stops) left out; nothing outside Great Britain; nothing private or `hgv=no`. © OpenStreetMap contributors (ODbL).
 - 2026-10-10: **tachograph connection scoped (docs only).** Track B (Bluetooth) rewritten from Appendix 13 of Regulation 2016/799: the ITS interface
   is optional, Bluetooth Classic with the Serial Port Profile (so Android only, not iPhone), personal data only with the driver's
   consent and a PIN pairing; needs a native change (version 1.3.0, Play build). New Track C: read hours from the firm's own telematics
