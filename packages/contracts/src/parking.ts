@@ -117,6 +117,7 @@ export type ParkingErrorResponse = z.infer<typeof parkingErrorResponseSchema>;
 export const listParkingSpotsQuerySchema = z.object({
   q: z.string().trim().max(80).optional(),
   source: parkingSourceSchema.optional(),
+  kind: parkingKindSchema.optional(),
   limit: z.coerce.number().int().min(1).max(500).default(200),
 });
 export type ListParkingSpotsQuery = z.infer<typeof listParkingSpotsQuerySchema>;
@@ -130,6 +131,11 @@ export const listParkingSpotsResponseSchema = z.object({
     driver: z.number().int().min(0),
     admin: z.number().int().min(0),
     osm: z.number().int().min(0),
+  }),
+  /** How many parking spots and how many lay-bys there are, whatever the search. */
+  byKind: z.object({
+    parking: z.number().int().min(0),
+    layby: z.number().int().min(0),
   }),
 });
 export type ListParkingSpotsResponse = z.infer<typeof listParkingSpotsResponseSchema>;

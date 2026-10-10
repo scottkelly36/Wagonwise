@@ -15,6 +15,10 @@ const envSchema = z.object({
   // INTERNAL_KEYS. Same well-known local-dev default on both sides, so this needs no `.env` for
   // local dev; override with a real shared secret for anything else.
   CORE_INTERNAL_KEY: z.string().min(1).default(DEFAULT_CORE_INTERNAL_KEY),
+  // What the driver app is told about new builds (GET /app/version). All optional: unset, the app says nothing.
+  APP_LATEST_VERSION: z.string().trim().max(32).optional(),
+  APP_MINIMUM_VERSION: z.string().trim().max(32).optional(),
+  APP_UPDATE_URL: z.url().max(500).optional(),
 });
 
 export interface Config {
@@ -24,6 +28,12 @@ export interface Config {
   readonly logLevel: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
   readonly coreInternalUrl: string;
   readonly coreInternalKey: string;
+  /** The newest build, the oldest still allowed, and where to get it; each may be absent. */
+  readonly appVersion: {
+    readonly latestVersion?: string;
+    readonly minimumVersion?: string;
+    readonly updateUrl?: string;
+  };
 }
 
 /** Thrown at boot when the environment is invalid; the process should exit, not limp on. */
@@ -54,5 +64,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     logLevel: values.LOG_LEVEL,
     coreInternalUrl: values.CORE_INTERNAL_URL,
     coreInternalKey: values.CORE_INTERNAL_KEY,
+    appVersion: {
+      ...(values.APP_LATEST_VERSION ? { latestVersion: values.APP_LATEST_VERSION } : {}),
+      ...(values.APP_MINIMUM_VERSION ? { minimumVersion: values.APP_MINIMUM_VERSION } : {}),
+      ...(values.APP_UPDATE_URL ? { updateUrl: values.APP_UPDATE_URL } : {}),
+    },
   };
 }
