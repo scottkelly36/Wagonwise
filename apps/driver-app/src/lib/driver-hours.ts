@@ -18,7 +18,7 @@ export type RuleSet = 'gb_domestic' | 'assimilated_eu';
 const HOUR = 3_600_000;
 const MINUTE = 60_000;
 
-interface Rules {
+export interface Rules {
   /** The most driving in a day, in ms (before any twice-a-week extension). */
   readonly dailyDrivingMs: number;
   /** The extended daily limit that can be used a limited number of times a week; `null` if there is none. */
@@ -194,6 +194,30 @@ export function hoursStatus(
             : 'idle';
   }
 
+  return statusFrom(rules, limit, {
+    state: current,
+    drivingSinceBreak,
+    drivingToday,
+    drivingThisWeek,
+    drivingPreviousWeek: drivingLastWeek,
+  });
+}
+
+/** What the counters come to, however they were arrived at: counted from the driver's own taps, or read from the tachograph. */
+export interface HoursCounters {
+  readonly state: HoursState;
+  /** Driving since the last break that counts, in ms. */
+  readonly drivingSinceBreak: number;
+  readonly drivingToday: number;
+  readonly drivingThisWeek: number;
+  readonly drivingPreviousWeek: number;
+}
+
+/** The limits, the time left to each and which comes first, from the driving counted so far. */
+export function statusFrom(rules: Rules, limit: number, counters: HoursCounters): HoursStatus {
+  const { drivingSinceBreak, drivingToday, drivingThisWeek } = counters;
+  const current = counters.state;
+  const drivingLastWeek = counters.drivingPreviousWeek;
   const untilBreak =
     rules.drivingBeforeBreakMs === null
       ? null
