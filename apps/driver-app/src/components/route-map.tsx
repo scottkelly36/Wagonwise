@@ -462,15 +462,11 @@ export function RouteMap({
             onPress={() => onParkingSpotPress?.(spot.id)}
           >
             <View
-              style={[
-                styles.parkingMarker,
-                spot.kind === 'layby' && styles.laybyMarker,
-                navigating && styles.parkingMarkerSmall,
-              ]}
+              style={[styles.parkingMarker, navigating && styles.parkingMarkerSmall]}
               testID={`parking-pin-${spot.id}`}
             >
               <Text style={[styles.parkingMarkerText, navigating && styles.parkingMarkerTextSmall]}>
-                {spot.kind === 'layby' ? 'L' : 'P'}
+                P
               </Text>
             </View>
           </ViewAnnotation>
@@ -632,8 +628,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   placeMarkerSmall: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5 },
-  // A lay-by: grey and round, so it reads as less certain than a blue parking spot.
-  laybyMarker: { backgroundColor: '#64748B', width: 22, height: 22, borderRadius: 11 },
   parkingMarkerText: {
     fontSize: 15,
     fontWeight: '800',
