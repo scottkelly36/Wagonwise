@@ -90,6 +90,7 @@ describe('runMigrations', () => {
       '0057_costing_inputs.sql',
       '0058_signups.sql',
       '0059_hours_status_breaks.sql',
+      '0060_parking_details.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -256,6 +257,7 @@ describe('runMigrations', () => {
       '0057_costing_inputs.sql',
       '0058_signups.sql',
       '0059_hours_status_breaks.sql',
+      '0060_parking_details.sql',
     ]);
   });
 });

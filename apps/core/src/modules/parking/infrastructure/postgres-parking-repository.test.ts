@@ -2,7 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
-import type { SafeParkingSpot } from '../domain/safe-parking-spot.js';
+import type { DriverId, SafeParkingSpot } from '../domain/safe-parking-spot.js';
 import type { UntypedDb } from './db.js';
 import { PostgresParkingRepository } from './postgres-parking-repository.js';
 import { applySchema } from './testing/apply-schema.js';
@@ -18,6 +18,8 @@ describe('PostgresParkingRepository', () => {
     pool = createPool(container.getConnectionUri());
     db = createDb(pool);
     await applySchema(pool);
+    // The starting set imported by migration 0061 would otherwise be in the way of these tests.
+    await pool.query('delete from parking.safe_parking_spots');
   }, 120_000);
 
   afterAll(async () => {
@@ -34,6 +36,7 @@ describe('PostgresParkingRepository', () => {
       location: { lat: 54.9698, lon: -2.1013 },
       note: 'flat layby, room for a 44-tonner',
       reportedAt: new Date('2026-06-01T12:00:00.000Z'),
+      source: 'driver',
       ...overrides,
     };
   }
@@ -86,6 +89,94 @@ describe('PostgresParkingRepository', () => {
     });
   });
 
+  describe('details and staff changes', () => {
+    const at = { lat: 50.1, lon: -3.1 };
+    const id = (n: number) =>
+      makeId<'SafeParkingSpotId'>(`aaaaaaaa-aaaa-4aaa-8aaa-${String(n).padStart(12, '0')}`);
+
+    it('round-trips the name, capacity and facilities, and keeps unknown apart from no', async () => {
+      const s = spot({
+        id: id(1),
+        location: at,
+        reporterId: undefined,
+        source: 'admin',
+        name: 'Exeter Truckstop',
+        capacity: 40,
+        paid: true,
+        toilets: true,
+        showers: false,
+      });
+      await repo().save(s);
+      const found = await repo().find(s.id);
+      expect(found).toMatchObject({
+        source: 'admin',
+        name: 'Exeter Truckstop',
+        capacity: 40,
+        paid: true,
+        toilets: true,
+        showers: false,
+      });
+      expect(found?.reporterId).toBeUndefined();
+      expect(found?.shop).toBeUndefined();
+    });
+
+    it('searches by words in the name or note and by source, and counts each source', async () => {
+      await repo().save(
+        spot({
+          id: id(2),
+          location: { lat: 50.2, lon: -3.2 },
+          note: 'Quiet LAYBY',
+          source: 'driver',
+        }),
+      );
+      await repo().save(
+        spot({
+          id: id(3),
+          location: { lat: 50.3, lon: -3.3 },
+          reporterId: undefined,
+          source: 'osm',
+          osmId: 'node/1',
+          name: 'Layby 4',
+          note: 'Lorry parking',
+        }),
+      );
+      const quiet = await repo().search({ text: 'QUIET', limit: 10 });
+      expect(quiet.spots.map((x) => x.id)).toEqual([id(2)]);
+      const osm = await repo().search({ source: 'osm', limit: 10 });
+      expect(osm.spots.map((x) => x.id)).toEqual([id(3)]);
+      expect(await repo().search({ text: '100%', limit: 10 })).toEqual({ spots: [], total: 0 });
+      const counts = await repo().countBySource();
+      expect(counts.osm).toBe(1);
+      expect(counts.admin).toBe(1);
+      expect(counts.driver).toBeGreaterThanOrEqual(1);
+    });
+
+    it('never inserts the same imported place twice', async () => {
+      const again = spot({
+        id: id(4),
+        location: { lat: 50.4, lon: -3.4 },
+        reporterId: undefined,
+        source: 'osm',
+        osmId: 'node/1',
+      });
+      await expect(repo().save(again)).rejects.toThrow();
+    });
+
+    it('updates what staff may change, and deletes any spot', async () => {
+      const original = (await repo().find(id(2))) as SafeParkingSpot;
+      const changed = { ...original, name: 'Layby on the A38', toilets: true, note: undefined };
+      expect(await repo().update(changed)).toBe(true);
+      expect(await repo().find(id(2))).toMatchObject({
+        name: 'Layby on the A38',
+        toilets: true,
+        source: 'driver',
+      });
+      expect(await repo().update({ ...original, id: id(99) })).toBe(false);
+      expect(await repo().deleteAny(id(2))).toBe(true);
+      expect(await repo().deleteAny(id(2))).toBe(false);
+    });
+  });
+
   describe('deleteOwned', () => {
     it('deletes the reporter’s own spot, and no one else’s', async () => {
       const mine = spot({
@@ -98,9 +189,9 @@ describe('PostgresParkingRepository', () => {
       expect(await repo().deleteOwned(mine.id, stranger)).toBe(false);
       expect(await repo().findNearbyLine([mine.location], 50)).toHaveLength(1);
 
-      expect(await repo().deleteOwned(mine.id, mine.reporterId)).toBe(true);
+      expect(await repo().deleteOwned(mine.id, mine.reporterId as DriverId)).toBe(true);
       expect(await repo().findNearbyLine([mine.location], 50)).toEqual([]);
-      expect(await repo().deleteOwned(mine.id, mine.reporterId)).toBe(false);
+      expect(await repo().deleteOwned(mine.id, mine.reporterId as DriverId)).toBe(false);
     });
   });
 });

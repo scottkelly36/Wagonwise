@@ -1,10 +1,11 @@
 import type {
   DriverId,
   GeoPoint,
+  ParkingSource,
   SafeParkingSpot,
   SafeParkingSpotId,
 } from '../../domain/safe-parking-spot.js';
-import type { ParkingRepository } from '../ports/parking-repository.js';
+import type { ParkingRepository, SpotSearch } from '../ports/parking-repository.js';
 
 /** Flat-earth distance, good enough for a fake used only in unit tests — same approximation as
  *  hazards'/congestion's own in-memory repositories. */
@@ -30,6 +31,40 @@ export class InMemoryParkingRepository implements ParkingRepository {
     if (spot === undefined || spot.reporterId !== reporterId) return Promise.resolve(false);
     this.#byId.delete(id);
     return Promise.resolve(true);
+  }
+
+  search(search: SpotSearch): Promise<{ spots: SafeParkingSpot[]; total: number }> {
+    const text = search.text?.toLowerCase();
+    const matches = [...this.#byId.values()]
+      .filter((s) => search.source === undefined || s.source === search.source)
+      .filter(
+        (s) =>
+          text === undefined ||
+          (s.name ?? '').toLowerCase().includes(text) ||
+          (s.note ?? '').toLowerCase().includes(text),
+      )
+      .sort((a, b) => b.reportedAt.getTime() - a.reportedAt.getTime());
+    return Promise.resolve({ spots: matches.slice(0, search.limit), total: matches.length });
+  }
+
+  countBySource(): Promise<Record<ParkingSource, number>> {
+    const counts: Record<ParkingSource, number> = { driver: 0, admin: 0, osm: 0 };
+    for (const s of this.#byId.values()) counts[s.source] += 1;
+    return Promise.resolve(counts);
+  }
+
+  find(id: SafeParkingSpotId): Promise<SafeParkingSpot | null> {
+    return Promise.resolve(this.#byId.get(id) ?? null);
+  }
+
+  update(spot: SafeParkingSpot): Promise<boolean> {
+    if (!this.#byId.has(spot.id)) return Promise.resolve(false);
+    this.#byId.set(spot.id, spot);
+    return Promise.resolve(true);
+  }
+
+  deleteAny(id: SafeParkingSpotId): Promise<boolean> {
+    return Promise.resolve(this.#byId.delete(id));
   }
 
   save(spot: SafeParkingSpot): Promise<void> {

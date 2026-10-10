@@ -135,6 +135,7 @@ const SECTIONS: readonly NavSection[] = [
     items: [
       { to: '/admin/moderation', label: 'Moderation', shows: isPlatform },
       { to: '/admin/hazard-reports', label: 'Hazard reports', shows: isPlatform },
+      { to: '/admin/parking', label: 'Parking spots', shows: isPlatform },
       { to: '/admin/congestion-reports', label: 'Congestion reports', shows: isPlatform },
     ],
   },

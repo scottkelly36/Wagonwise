@@ -11,6 +11,7 @@ function spot(overrides: Partial<SafeParkingSpot> = {}): SafeParkingSpot {
     location: { lat: 54.9698, lon: -2.1013 },
     note: undefined,
     reportedAt: new Date('2026-09-27T12:00:00.000Z'),
+    source: 'driver',
     ...overrides,
   };
 }

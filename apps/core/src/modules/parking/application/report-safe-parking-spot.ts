@@ -43,6 +43,7 @@ export async function reportSafeParkingSpot(
     location: input.location,
     note: validated.value,
     reportedAt: deps.clock.now(),
+    source: 'driver',
   };
   await deps.repo.save(spot);
   return ok(spot);

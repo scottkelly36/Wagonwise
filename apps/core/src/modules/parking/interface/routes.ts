@@ -1,10 +1,20 @@
 import {
   findNearbySafeParkingSpotsRequestSchema,
+  listParkingSpotsQuerySchema,
   reportSafeParkingSpotRequestSchema,
   safeParkingSpotIdParamsSchema,
+  saveParkingSpotRequestSchema,
 } from '@wagonwise/contracts/parking';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
+import {
+  addSpot,
+  deleteSpot,
+  listSpots,
+  updateSpot,
+  type AdminParkingDeps,
+  type CallerDirectory,
+} from '../application/admin-parking.js';
 import {
   deleteSafeParkingSpot,
   type DeleteSafeParkingSpotDeps,
@@ -17,12 +27,15 @@ import {
   reportSafeParkingSpot,
   type ReportSafeParkingSpotDeps,
 } from '../application/report-safe-parking-spot.js';
+import type { SafeParkingSpot } from '../domain/safe-parking-spot.js';
 import { statusFor } from './error-mapping.js';
 
 export interface ParkingRouteDeps {
   readonly reportSafeParkingSpot: ReportSafeParkingSpotDeps;
   readonly findNearbyParking: FindNearbyParkingDeps;
   readonly deleteSafeParkingSpot: DeleteSafeParkingSpotDeps;
+  readonly admin: AdminParkingDeps;
+  readonly callerDirectory: CallerDirectory;
 }
 
 /** Duplicated from every other module's own `requireDriverId` rather than shared — a module is
@@ -43,6 +56,7 @@ function requireDriverId(request: FastifyRequest, reply: FastifyReply): Id<'Driv
  * reading back what's nearby, no dismiss/delete path yet.
  */
 export function registerParkingRoutes(app: FastifyInstance, deps: ParkingRouteDeps): void {
+  registerStaffParkingRoutes(app, deps);
   app.post('/parking/spots', async (request, reply) => {
     const reporterId = requireDriverId(request, reply);
     if (reporterId === undefined) return reply;
@@ -97,5 +111,98 @@ export function registerParkingRoutes(app: FastifyInstance, deps: ParkingRouteDe
       radiusM: parsed.data.radiusM,
     });
     return reply.status(200).send({ spots });
+  });
+}
+
+/** The same spot as the drivers' map gets, with the date as text. */
+const toDto = (spot: SafeParkingSpot) => ({
+  ...spot,
+  reportedAt: spot.reportedAt.toISOString(),
+});
+
+/**
+ * WagonWise staff manage the spots from the dashboard: list and search, add, change, delete any. Platform staff only, checked
+ * here and again in each use case. These sit under /staff/, so they use the staff sign-in, not a driver's.
+ */
+function registerStaffParkingRoutes(app: FastifyInstance, deps: ParkingRouteDeps): void {
+  async function staffCaller(request: FastifyRequest, reply: FastifyReply) {
+    if (request.staffId === undefined) {
+      void reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+      return undefined;
+    }
+    const caller = await deps.callerDirectory.getCaller(request.staffId);
+    if (caller === null || caller.kind !== 'platform') {
+      void reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
+      return undefined;
+    }
+    return caller;
+  }
+  const invalid = (request: FastifyRequest, reply: FastifyReply) =>
+    reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+
+  app.get('/staff/parking/spots', async (request, reply) => {
+    const caller = await staffCaller(request, reply);
+    if (caller === undefined) return reply;
+    const query = listParkingSpotsQuerySchema.safeParse(request.query);
+    if (!query.success) return invalid(request, reply);
+    const result = await listSpots(deps.admin, caller, {
+      text: query.data.q,
+      source: query.data.source,
+      limit: query.data.limit,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send({
+      spots: result.value.spots.map(toDto),
+      total: result.value.total,
+      bySource: result.value.bySource,
+    });
+  });
+
+  app.post('/staff/parking/spots', async (request, reply) => {
+    const caller = await staffCaller(request, reply);
+    if (caller === undefined) return reply;
+    const body = saveParkingSpotRequestSchema.safeParse(request.body);
+    if (!body.success) return invalid(request, reply);
+    const result = await addSpot(deps.admin, caller, body.data);
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(201).send(toDto(result.value));
+  });
+
+  app.put('/staff/parking/spots/:id', async (request, reply) => {
+    const caller = await staffCaller(request, reply);
+    if (caller === undefined) return reply;
+    const params = safeParkingSpotIdParamsSchema.safeParse(request.params);
+    const body = saveParkingSpotRequestSchema.safeParse(request.body);
+    if (!params.success || !body.success) return invalid(request, reply);
+    const result = await updateSpot(
+      deps.admin,
+      caller,
+      makeId<'SafeParkingSpotId'>(params.data.id),
+      body.data,
+    );
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send(toDto(result.value));
+  });
+
+  app.delete('/staff/parking/spots/:id', async (request, reply) => {
+    const caller = await staffCaller(request, reply);
+    if (caller === undefined) return reply;
+    const params = safeParkingSpotIdParamsSchema.safeParse(request.params);
+    if (!params.success) return invalid(request, reply);
+    const result = await deleteSpot(
+      deps.admin,
+      caller,
+      makeId<'SafeParkingSpotId'>(params.data.id),
+    );
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(204).send();
   });
 }

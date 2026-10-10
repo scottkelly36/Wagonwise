@@ -14,17 +14,48 @@ export interface GeoPoint {
   readonly lon: number;
 }
 
-/** A driver-vouched place to park an HGV (layby, truck stop) — a persistent point of interest,
+/** A place to park an HGV: usually driver-vouched, and now also added by staff or imported to park an HGV (layby, truck stop) — a persistent point of interest,
  *  not a restriction (`applies()` never touches this) and not a decaying condition like a
  *  congestion report (no `expiresAt`, docs/progress.md's M9 scoping). Stays until someone builds
  *  a dismiss/delete path for it — not needed in v1. */
-export interface SafeParkingSpot {
+export interface SafeParkingSpot extends Facilities {
   readonly id: SafeParkingSpotId;
-  readonly reporterId: DriverId;
+  /** The driver who reported it; absent for a spot added by staff or imported. */
+  readonly reporterId: DriverId | undefined;
   readonly location: GeoPoint;
   readonly note: string | undefined;
   readonly reportedAt: Date;
+  /** Where it came from: a driver's report, WagonWise staff, or the one-off OpenStreetMap import. */
+  readonly source: ParkingSource;
+  readonly osmId?: string | undefined;
+  readonly name?: string | undefined;
+  readonly capacity?: number | undefined;
 }
+
+export type ParkingSource = 'driver' | 'admin' | 'osm';
+
+/** What a driver wants to know before pulling in. Undefined means nobody has said, which is not the same as no. */
+export interface Facilities {
+  readonly paid?: boolean | undefined;
+  readonly toilets?: boolean | undefined;
+  readonly showers?: boolean | undefined;
+  readonly shop?: boolean | undefined;
+  readonly food?: boolean | undefined;
+  readonly fuel?: boolean | undefined;
+  readonly lit?: boolean | undefined;
+  readonly secure?: boolean | undefined;
+}
+
+export const FACILITY_KEYS = [
+  'paid',
+  'toilets',
+  'showers',
+  'shop',
+  'food',
+  'fuel',
+  'lit',
+  'secure',
+] as const;
 
 // A short free-text note ("flat layby, room for a 44-tonner"), not a moderated field — long
 // enough to be useful, short enough that a marker callout can show it in full.

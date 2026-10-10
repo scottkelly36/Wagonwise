@@ -38,6 +38,7 @@ describe('reportSafeParkingSpot', () => {
       location: input().location,
       note: input().note,
       reportedAt: new Date('2026-09-27T12:00:00.000Z'),
+      source: 'driver',
     };
     expect(result).toEqual({ ok: true, value: expected });
   });

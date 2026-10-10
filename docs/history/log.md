@@ -3,6 +3,15 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-10: **parking spots: a portal page, and what a driver wants to know.** New **Parking spots** page (Content, WagonWise staff only) and
+  `GET/POST /staff/parking/spots`, `PUT/DELETE /staff/parking/spots/:id`: search by name or note, filter by source, add a spot
+  (latitude, longitude pasted from a map), edit, and delete any spot. Spots now carry `source` (driver, admin, osm), an optional
+  name, lorry capacity, and eight facts that are yes, no or not known (paid, toilets, showers, shop, food, fuel, lit, secure) (migration
+  0060; a driver's spot has a reporter, the others none). The driver app's parking card shows the name, where it came from, spaces,
+  and the facilities known to be there (never a "no", never a guess), with the OpenStreetMap credit on imported ones. A one-off
+  starting set from OpenStreetMap is produced by `apps/core/scripts/fetch-osm-parking.mjs` into migration 0061 (lorry parking
+  `hgv=designated` or with a lorry capacity, `highway=rest_area`, `highway=services`; nothing private; not refreshed). Drivers cannot
+  yet add facilities themselves.
 - 2026-10-09: **driving-hours clock on the navigation screen.** A small clock above the report buttons on the trip screen (`components/hours-quick-bar.tsx`) shows what the driver is doing and the driving left (amber under 30 minutes, or an invitation to start when no shift is on). One tap opens four large buttons (Driving, Other work, Break, Rest, plus Finish for now); one tap changes it and closes it. Same store and rules as More > Driving hours; no typing, no leaving the map.
 - 2026-10-09: **arrival times with breaks.** (1) Driver app: the route overview shows "ETA 14:35 with a break" (or "N breaks") for a
   driver whose shift is on and who is leaving now, and says when a rest is needed first (`planForShift` in `lib/break-plan.ts`). (2)
