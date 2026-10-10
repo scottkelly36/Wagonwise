@@ -3,6 +3,15 @@
 Every dated change, moved out of `docs/progress.md` on 2026-10-08 to keep that file short. Open it to find when or why
 something changed, not to start work: `progress.md` has the current state. Add new entries at the top of the list.
 
+- 2026-10-10: **tachograph connection, step 1: parser and simulator (no hardware, no native code).** `apps/driver-app/src/lib/tachograph/`: `transport.ts` (the
+  V2 BLE serial-port framing: `AA 01` / `00 NN` packets, the Download and Diagnostics service identifiers), `credits.ts` (credit-based
+  flow control, 0xFF ends or refuses), `uds.ts` (ReadDataByIdentifier 0x22, replies 0x62 and 0x7F), `client.ts` (a client over an abstract
+  `BleLink`, and `readSnapshot`), `simulator.ts` (a stand-in tachograph speaking the same bytes), `items.ts` (the items we need, with
+  PROVISIONAL decoders), `to-hours-status.ts` (the unit's counters into the same `HoursStatus` the clock and break planning use; never
+  guesses: a missing figure makes the answer "incomplete"). `driver-hours.ts` gained `statusFrom`, shared by the clock and the mapper.
+  Not wired into the app, so nothing changes for drivers. The real data identifiers and encodings are still to be found (ISO 16844-7
+  is a draft standard; the V2 Appendix 8 was not in the published sources); the code takes the identifiers as configuration.
+  The next step is the BLE library (a native change: 1.3.0) and a connection screen, then a real unit.
 - 2026-10-10: **tachograph Bluetooth: corrected from the primary sources.** The scope said the interface was optional, Bluetooth Classic, Android only
   and PIN-paired. That came from the GB-retained smart V1 text. Reading Regulation 2021/1228 (Appendix 13) and the working group's
   Transport protocol for ITS: on **smart V2 the interface is mandatory and is Bluetooth Low Energy (5.0+)**, so iPhone and Android both

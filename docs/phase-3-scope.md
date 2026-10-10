@@ -178,7 +178,12 @@ unit, there to be **read from the tachograph itself**, which is the legal record
 
 What we would build, all behind the same Driving hours screen so nothing the driver sees changes:
 
-1. A **parser and a simulator** for the transport framing and the data items, with tests, needing no hardware.
+1. A **parser and a simulator** for the transport framing and the data items, with tests, needing no hardware. **Built 2026-10-10**
+   (`apps/driver-app/src/lib/tachograph/`): the packet framing and credit flow control from the transport protocol, the
+   ReadDataByIdentifier messages (ISO 14229-1), a client that reads over any BLE link, a simulated tachograph speaking the same
+   bytes, and the mapping from the unit's counters to the clock's own status. **Still unknown:** the real two-byte data identifiers
+   and the exact encodings (see "Not yet known", item 1): the code takes the identifiers as configuration and its decoders are
+   marked provisional.
 2. A connection screen in Driving hours: pair (numeric comparison), tick the consent state, status, disconnect. "Connected to tachograph"
    replaces the driver's own taps with the unit's counters.
 3. A **native change**: a Bluetooth Low Energy package and permissions on both platforms. **A version bump (1.3.0), a Play build and an App
