@@ -33,6 +33,8 @@ import { useTurnGuidance } from '../hooks/use-turn-guidance';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { BreakCard } from '../components/break-card';
+import { FasterRouteCard } from '../components/faster-route-card';
+import { useFasterRoute } from '../hooks/use-faster-route';
 import { useAutoStartHours } from '../hooks/use-auto-start-hours';
 import { parkingOnly } from '../lib/parking-details';
 import { HoursQuickBar } from '../components/hours-quick-bar';
@@ -274,6 +276,8 @@ export default function ActiveTripScreen() {
   const voiceMuted = useGuidanceStore((s) => s.muted);
   const setVoiceMuted = useGuidanceStore((s) => s.setMuted);
   const replan = useReplanFromHere();
+  // A quicker route, offered (never forced) every few minutes while the app is in front.
+  const fasterRoute = useFasterRoute(trip?.id, location.point, location.course);
   useTurnAnnouncements(guidance.utterance, !voiceMuted && !micBusy && !micActive && !quickInFlight);
 
   const quickCard = (kind: QuickReportKind) => {
@@ -418,16 +422,31 @@ export default function ActiveTripScreen() {
           </View>
         )}
 
-        {breakPlan && (
-          <BreakCard
-            plan={breakPlan}
-            parking={breakParking}
-            onPickParking={(spot) => setSelectedParkingId(spot.id)}
+        {(breakPlan || fasterRoute.offer) && (
+          <View
             style={[
-              styles.breakCard,
+              styles.topStack,
               { top: insets.top + (guidance.next || guidance.offRoute ? 96 : 8) + 72 },
             ]}
-          />
+            pointerEvents="box-none"
+          >
+            {breakPlan && (
+              <BreakCard
+                plan={breakPlan}
+                parking={breakParking}
+                onPickParking={(spot) => setSelectedParkingId(spot.id)}
+              />
+            )}
+            {fasterRoute.offer && (
+              <FasterRouteCard
+                offer={fasterRoute.offer}
+                switching={fasterRoute.switching}
+                failed={fasterRoute.switchFailed}
+                onSwitch={fasterRoute.switchNow}
+                onKeep={fasterRoute.keep}
+              />
+            )}
+          </View>
         )}
 
         <MarkPlaceSheet
@@ -665,7 +684,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 10,
       paddingHorizontal: 16,
     },
-    breakCard: { position: 'absolute', left: 16, right: 80 },
+    topStack: { position: 'absolute', left: 16, right: 80, gap: 8 },
     etaTime: { fontSize: 20, fontWeight: '800', color: colors.text },
     etaDistance: { fontSize: 14, color: colors.textMuted },
     hazardRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

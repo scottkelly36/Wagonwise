@@ -11,6 +11,7 @@ import {
   previewRouteOptions,
   startTrip,
   updateVehicleProfile,
+  checkFasterRoute,
 } from './routing';
 import { ApiError } from './errors';
 
@@ -324,5 +325,40 @@ describe('endTrip', () => {
       tag: 'ActiveTripNotFound',
       status: 404,
     });
+  });
+});
+
+describe('checkFasterRoute', () => {
+  const tripId = '44444444-4444-4444-4444-444444444444';
+  const input = { position: { lat: 55, lon: -2 }, keptKeys: [] };
+
+  it('posts the position and returns the offer', async () => {
+    const offer = {
+      routePlanId: '33333333-3333-3333-3333-333333333333',
+      key: 'abc12345',
+      savingMinutes: 8,
+      currentMinutes: 60,
+      alternativeMinutes: 52,
+    };
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, { offer }));
+    globalThis.fetch = fetchMock;
+
+    expect(await checkFasterRoute('token-1', tripId, input)).toEqual(offer);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(new RegExp(`/routing/trips/${tripId}/faster-route$`));
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual(input);
+  });
+
+  it('returns null when there is nothing to offer', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue(jsonResponse(200, { offer: null }));
+    expect(await checkFasterRoute('token-1', tripId, input)).toBeNull();
+  });
+
+  it('throws an ApiError for a trip that is not the caller’s', async () => {
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(404, { tag: 'ActiveTripNotFound', requestId: 'r1' }));
+    await expect(checkFasterRoute('token-1', tripId, input)).rejects.toMatchObject({ status: 404 });
   });
 });

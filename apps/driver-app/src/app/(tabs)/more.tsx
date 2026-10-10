@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Switch,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +17,7 @@ import { Icon, type IconName } from '../../components/ui/icon';
 import { identityErrorMessage } from '../../lib/error-messages';
 import { PRODUCT_NAME } from '../../product';
 import { useAuthStore } from '../../state/auth-store';
+import { useFasterRouteStore } from '../../state/faster-route-store';
 import { useThemeStore, type ThemeMode } from '../../state/theme-store';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
 import { cardStyle, radius } from '../../theme/tokens';
@@ -65,6 +67,8 @@ export default function MoreScreen() {
   const deleteAccount = useDeleteAccount();
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
+  const fasterRoutes = useFasterRouteStore((s) => s.enabled);
+  const setFasterRoutes = useFasterRouteStore((s) => s.setEnabled);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -145,6 +149,27 @@ export default function MoreScreen() {
           })}
         </View>
 
+        <Text style={styles.sectionLabel}>Driving</Text>
+        <View style={styles.group}>
+          <View style={styles.row}>
+            <View style={styles.rowIcon}>
+              <Icon name="directions-fork" size={26} color={colors.accent} />
+            </View>
+            <Text style={styles.rowLabel}>Suggest faster routes</Text>
+            <Switch
+              value={fasterRoutes}
+              onValueChange={(on) => void setFasterRoutes(on)}
+              accessibilityLabel="Suggest faster routes"
+              testID="faster-routes-switch"
+            />
+          </View>
+        </View>
+        <Text style={styles.settingNote}>
+          While you drive, WagonWise checks every few minutes for a clearly quicker route, counting
+          traffic and reports from other drivers. It only asks: it never changes your route by
+          itself.
+        </Text>
+
         <View style={styles.group}>
           <TouchableOpacity
             style={styles.row}
@@ -215,6 +240,7 @@ function createStyles(colors: ThemeColors) {
       marginLeft: 4,
       marginBottom: -6,
     },
+    settingNote: { fontSize: 13, color: colors.textMuted, marginLeft: 4, marginTop: -6 },
     themeRow: { flexDirection: 'row', gap: 12 },
     themeButton: {
       ...cardStyle(colors),
