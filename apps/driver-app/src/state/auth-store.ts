@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
 import { refreshAccessToken } from '../api/identity';
+import { classifyRefreshFailure } from '../lib/refresh-failure';
 
 const REFRESH_TOKEN_KEY = 'wagonwise.refreshToken';
 const DRIVER_KEY = 'wagonwise.driver';
@@ -67,9 +68,23 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           driver,
         },
       });
-    } catch {
-      // A dead, revoked or replayed refresh token surviving from a previous install — start
-      // fresh rather than getting stuck showing a loading spinner forever.
+    } catch (error) {
+      if (classifyRefreshFailure(error) === 'transient') {
+        // No signal, a tunnel or the server restarting is not the end of the sign-in. Keep the saved sign-in and the driver
+        // signed in with no access token yet: the refresh hook tries again until it works. (This used to wipe the sign-in on
+        // any failure, so opening the app in a poor-signal spot signed the driver out for good.)
+        set({
+          state: {
+            status: 'signedIn',
+            accessToken: '',
+            refreshToken: storedRefreshToken,
+            driver: JSON.parse(storedDriverJson) as DriverInfo,
+          },
+        });
+        return;
+      }
+      // The server said this sign-in is over (revoked, expired, replayed): start fresh rather than getting stuck
+      // showing a loading spinner forever.
       await Promise.all([
         SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
         SecureStore.deleteItemAsync(DRIVER_KEY),

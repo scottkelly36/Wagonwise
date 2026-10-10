@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
-import { isRevoked, REFRESH_LIFETIME_MS, revoke, rotate, type Session } from './session.js';
+import {
+  isRevoked,
+  REFRESH_LIFETIME_MS,
+  REUSE_GRACE_MS,
+  revoke,
+  rotate,
+  type Session,
+} from './session.js';
 
 const now = new Date('2026-06-15T08:00:00.000Z');
 const CURRENT_HASH = 'hash-current';
@@ -60,10 +67,51 @@ describe('rotate', () => {
     }
   });
 
-  it('reports reuse when the presented hash matches the previous one, not the current one', () => {
-    const session = freshSession({ previousRefreshTokenHash: PREVIOUS_HASH });
+  it('reports reuse when the presented hash matches the previous one, long after it was swapped', () => {
+    const session = freshSession({
+      previousRefreshTokenHash: PREVIOUS_HASH,
+      lastUsedAt: new Date(now.getTime() - REUSE_GRACE_MS - 1000),
+    });
     const result = rotate(session, PREVIOUS_HASH, NEW_HASH, now);
     expect(result).toEqual({ ok: false, error: { tag: 'RefreshTokenReused' } });
+  });
+
+  it('treats the previous token, shortly after the swap, as a retry: a fresh current token and the old one stays the previous', () => {
+    const swappedAt = new Date(now.getTime() - 5 * 60 * 1000);
+    const session = freshSession({
+      refreshTokenHash: CURRENT_HASH,
+      previousRefreshTokenHash: PREVIOUS_HASH,
+      lastUsedAt: swappedAt,
+    });
+    const result = rotate(session, PREVIOUS_HASH, NEW_HASH, now);
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        ...session,
+        refreshTokenHash: NEW_HASH,
+        previousRefreshTokenHash: PREVIOUS_HASH,
+        // The window still runs from the original swap, so replaying a stolen token cannot extend it.
+        lastUsedAt: swappedAt,
+        refreshExpiresAt: new Date(now.getTime() + REFRESH_LIFETIME_MS),
+      },
+    });
+  });
+
+  it('allows the same old token to be tried again inside the window, and not once the window has passed', () => {
+    const swappedAt = new Date(now.getTime() - 5 * 60 * 1000);
+    let session = freshSession({ previousRefreshTokenHash: PREVIOUS_HASH, lastUsedAt: swappedAt });
+    const first = rotate(session, PREVIOUS_HASH, 'hash-3', now);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    session = first.value;
+    expect(rotate(session, PREVIOUS_HASH, 'hash-4', new Date(now.getTime() + 60_000)).ok).toBe(
+      true,
+    );
+    const late = new Date(swappedAt.getTime() + REUSE_GRACE_MS + 1000);
+    expect(rotate(session, PREVIOUS_HASH, 'hash-5', late)).toEqual({
+      ok: false,
+      error: { tag: 'RefreshTokenReused' },
+    });
   });
 
   it('reports invalid for a hash matching neither current nor previous', () => {

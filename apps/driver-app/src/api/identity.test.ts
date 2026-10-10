@@ -206,3 +206,46 @@ describe('deleteAccount', () => {
     await expect(deleteAccount('token-1')).rejects.toBeInstanceOf(ApiError);
   });
 });
+
+describe('refreshAccessToken, one at a time per token', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  const tokens = { accessToken: 'a2', refreshToken: 'r2' };
+
+  it('shares one request between calls made with the same token while it is on its way', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, tokens));
+    globalThis.fetch = fetchMock;
+
+    const [first, second] = await Promise.all([
+      refreshAccessToken('same-token'),
+      refreshAccessToken('same-token'),
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(first).toEqual(tokens);
+    expect(second).toEqual(tokens);
+  });
+
+  it('sends a separate request for a different token, and again once the first has finished', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, tokens));
+    globalThis.fetch = fetchMock;
+
+    await Promise.all([refreshAccessToken('token-a'), refreshAccessToken('token-b')]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await refreshAccessToken('token-a');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('lets the next attempt through after a failure', async () => {
+    const fetchMock = jest
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Network request failed'))
+      .mockResolvedValueOnce(jsonResponse(200, tokens));
+    globalThis.fetch = fetchMock;
+
+    await expect(refreshAccessToken('flaky')).rejects.toBeInstanceOf(TypeError);
+    await expect(refreshAccessToken('flaky')).resolves.toEqual(tokens);
+  });
+});

@@ -61,6 +61,26 @@ describe('refreshToken', () => {
     expect(saved?.revokedAt).toBeNull();
   });
 
+  it('lets a phone that never got the reply to its last refresh try again, and does not sign it out', async () => {
+    const sessionRepo = new InMemorySessionRepository();
+    // The token was swapped two minutes ago; the phone still holds the old one.
+    const session = activeSession({
+      previousRefreshTokenHash: sha256Hex(PREVIOUS_RAW),
+      lastUsedAt: new Date(now.getTime() - 2 * 60 * 1000),
+    });
+    await sessionRepo.save(session);
+    const deps = buildDeps({ sessionRepo });
+
+    const result = await refreshToken(deps, { refreshToken: PREVIOUS_RAW });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const saved = await sessionRepo.findById(session.id);
+    expect(saved?.revokedAt).toBeNull();
+    expect(saved?.refreshTokenHash).toBe(sha256Hex(result.value.refreshToken));
+    // Still the same old token as the previous, so one more retry of it works too.
+    expect(saved?.previousRefreshTokenHash).toBe(sha256Hex(PREVIOUS_RAW));
+  });
+
   it('revokes the whole session when a rotated-away token is replayed', async () => {
     const sessionRepo = new InMemorySessionRepository();
     const session = activeSession({ previousRefreshTokenHash: sha256Hex(PREVIOUS_RAW) });

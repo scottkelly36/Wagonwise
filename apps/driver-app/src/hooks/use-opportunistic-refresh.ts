@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { refreshAccessToken } from '../api/identity';
 import { accessTokenExpiryMs } from '../lib/jwt';
+import { classifyRefreshFailure, retryDelayMs } from '../lib/refresh-failure';
 import { refreshDelayMs, shouldRefreshOnResume } from '../lib/refresh-schedule';
 import { useAuthStore } from '../state/auth-store';
 
@@ -19,6 +20,9 @@ export function useOpportunisticRefresh(): void {
   const setTokens = useAuthStore((s) => s.setTokens);
   const signOut = useAuthStore((s) => s.signOut);
   const refreshingRef = useRef(false);
+  // Refreshes that failed for a reason that is not the sign-in being over, in a row: it tries again after a growing wait.
+  const failuresRef = useRef(0);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (state.status !== 'signedIn') return;
@@ -30,16 +34,27 @@ export function useOpportunisticRefresh(): void {
       refreshingRef.current = true;
       try {
         const result = await refreshAccessToken(refreshToken);
+        failuresRef.current = 0;
         await setTokens(result.accessToken, result.refreshToken);
-      } catch {
-        // A dead, reused or expired refresh token — nothing left to do but sign out cleanly.
-        await signOut();
+      } catch (error) {
+        if (classifyRefreshFailure(error) === 'dead') {
+          // The server said this sign-in is over (revoked, expired or replayed): sign out cleanly.
+          await signOut();
+        } else {
+          // No signal, a tunnel, the server restarting: the sign-in is fine. Stay signed in and try again shortly.
+          failuresRef.current += 1;
+          setRetry((n) => n + 1);
+        }
       } finally {
         refreshingRef.current = false;
       }
     }
 
-    const timer = setTimeout(() => void refreshNow(), refreshDelayMs(expiryMs, Date.now()));
+    const wait = Math.max(
+      refreshDelayMs(expiryMs, Date.now()),
+      failuresRef.current > 0 ? retryDelayMs(failuresRef.current) : 0,
+    );
+    const timer = setTimeout(() => void refreshNow(), wait);
 
     const subscription = AppState.addEventListener('change', (next) => {
       if (next === 'active' && shouldRefreshOnResume(expiryMs, Date.now())) {
@@ -51,5 +66,5 @@ export function useOpportunisticRefresh(): void {
       clearTimeout(timer);
       subscription.remove();
     };
-  }, [state, setTokens, signOut]);
+  }, [state, setTokens, signOut, retry]);
 }

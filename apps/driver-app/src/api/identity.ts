@@ -34,11 +34,23 @@ export async function verifyOtp(
   return verifyOtpResponseSchema.parse(json);
 }
 
-export async function refreshAccessToken(refreshToken: string): Promise<RefreshTokenResponse> {
-  const body = refreshTokenRequestSchema.parse({ refreshToken });
-  const { status, json } = await requestJson('POST', '/identity/token/refresh', { body });
-  throwUnlessSuccess(status, json, [200]);
-  return refreshTokenResponseSchema.parse(json);
+const refreshesInFlight = new Map<string, Promise<RefreshTokenResponse>>();
+
+/**
+ * Swaps a refresh token for a new pair. Calls made with the same token while one is already on its way share that one request:
+ * the server swaps the token on use, so a second call with the same token would look like someone replaying a stolen one.
+ */
+export function refreshAccessToken(refreshToken: string): Promise<RefreshTokenResponse> {
+  const existing = refreshesInFlight.get(refreshToken);
+  if (existing !== undefined) return existing;
+  const request = (async () => {
+    const body = refreshTokenRequestSchema.parse({ refreshToken });
+    const { status, json } = await requestJson('POST', '/identity/token/refresh', { body });
+    throwUnlessSuccess(status, json, [200]);
+    return refreshTokenResponseSchema.parse(json);
+  })().finally(() => refreshesInFlight.delete(refreshToken));
+  refreshesInFlight.set(refreshToken, request);
+  return request;
 }
 
 export async function registerDevice(accessToken: string, pushToken: string): Promise<DeviceDto> {
