@@ -57,6 +57,7 @@ describe('the form', () => {
       ok: true,
       request: {
         location: { lat: 50.7, lon: -3.5 },
+        kind: 'parking',
         name: 'Exeter Truckstop',
         capacity: 40,
         paid: true,
@@ -93,6 +94,7 @@ describe('the form', () => {
       ok: true,
       request: {
         location: { lat: 50.7, lon: -3.5 },
+        kind: 'parking',
         name: 'A38 layby',
         note: 'quiet',
         capacity: 6,

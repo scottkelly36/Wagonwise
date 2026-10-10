@@ -27,6 +27,8 @@ export interface SafeParkingSpot extends Facilities {
   readonly reportedAt: Date;
   /** Where it came from: a driver's report, WagonWise staff, or the one-off OpenStreetMap import. */
   readonly source: ParkingSource;
+  /** Absent means a parking spot. */
+  readonly kind?: ParkingKind | undefined;
   readonly osmId?: string | undefined;
   readonly name?: string | undefined;
   readonly capacity?: number | undefined;
@@ -55,6 +57,9 @@ export interface SpotReport {
 export const MERGE_RADIUS_M = 30;
 
 export type ParkingSource = 'driver' | 'admin' | 'osm';
+
+/** A lorry park or similar (`parking`), or a roadside lay-by nobody has checked suits a lorry (`layby`). */
+export type ParkingKind = 'parking' | 'layby';
 
 /** What a driver wants to know before pulling in. Undefined means nobody has said, which is not the same as no. */
 export interface Facilities {

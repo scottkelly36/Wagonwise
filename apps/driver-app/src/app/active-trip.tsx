@@ -33,6 +33,7 @@ import { useTurnGuidance } from '../hooks/use-turn-guidance';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { BreakCard } from '../components/break-card';
+import { parkingOnly } from '../lib/parking-details';
 import { HoursQuickBar } from '../components/hours-quick-bar';
 import { parkingBeforeStop, planBreak } from '../lib/break-plan';
 import { hoursStatus } from '../lib/driver-hours';
@@ -159,7 +160,7 @@ export default function ActiveTripScreen() {
   // Thinned: the request takes at most 2000 points and a long route has more.
   const nearbyParking = useNearbySafeParkingSpots(corridor, ON_ROUTE_PARKING_RADIUS_M);
   const mapParking = useMemo(
-    () => nearbyParking.data?.map((s) => ({ id: s.id, location: s.location })),
+    () => nearbyParking.data?.map((s) => ({ id: s.id, location: s.location, kind: s.kind })),
     [nearbyParking.data],
   );
   // Whether the map is following the driver. When they move it away, a Recenter button appears; it is
@@ -237,7 +238,7 @@ export default function ActiveTripScreen() {
     () =>
       breakPlan && routeLine && location.point
         ? parkingBeforeStop(
-            nearbyParking.data ?? [],
+            parkingOnly(nearbyParking.data ?? []),
             routeLine,
             location.point,
             breakPlan,

@@ -4,7 +4,10 @@ import {
   capacityText,
   costText,
   facilityStates,
+  isLayby,
+  laybysOnly,
   notesToShow,
+  parkingOnly,
   reportersText,
   sourceText,
 } from './parking-details';
@@ -86,5 +89,27 @@ describe('notesToShow', () => {
     expect(notesToShow(spot({ note: 'flat layby' }))).toEqual(['flat layby']);
     expect(notesToShow(spot({ note: 'x', recentNotes: [] }))).toEqual(['x']);
     expect(notesToShow(spot())).toEqual([]);
+  });
+});
+
+describe('lay-bys', () => {
+  const id = (value: string) => value as SafeParkingSpotDto['id'];
+  const spots = [
+    { ...spot(), id: id('p') },
+    { ...spot({ kind: 'layby' }), id: id('l') },
+    { ...spot({ kind: 'parking' }), id: id('q') },
+  ];
+
+  it('are told apart from parking, and a spot from an older server is parking', () => {
+    expect(isLayby(spot({ kind: 'layby' }))).toBe(true);
+    expect(isLayby(spot())).toBe(false);
+    expect(parkingOnly(spots).map((s) => s.id)).toEqual(['p', 'q']);
+    expect(laybysOnly(spots).map((s) => s.id)).toEqual(['l']);
+  });
+
+  it('say they are not checked for lorries', () => {
+    expect(sourceText(spot({ kind: 'layby', source: 'osm' }))).toBe(
+      'Lay-by · not checked for lorries',
+    );
   });
 });

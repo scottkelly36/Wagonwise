@@ -10,6 +10,7 @@ import { DataTable, type Column } from '../../components/DataTable';
 import {
   emptyForm,
   facilitiesSummary,
+  KIND_LABELS,
   FACILITY_LABELS,
   formToRequest,
   SOURCE_LABELS,
@@ -100,6 +101,12 @@ export function Parking() {
           </div>
         </div>
       ),
+    },
+    {
+      key: 'kind',
+      header: 'Type',
+      sortValue: (s) => s.kind ?? 'parking',
+      cell: (s) => ((s.kind ?? 'parking') === 'layby' ? 'Lay-by' : 'Parking'),
     },
     {
       key: 'source',
@@ -232,6 +239,25 @@ export function Parking() {
           <h2 style={{ margin: 0 }}>
             {editing.id === undefined ? 'Add a parking spot' : 'Edit this spot'}
           </h2>
+          <div className="field">
+            <label htmlFor="spot-kind">Type</label>
+            <select
+              id="spot-kind"
+              value={editing.form.kind}
+              onChange={(e) =>
+                setEditing({
+                  ...editing,
+                  form: { ...editing.form, kind: e.target.value as 'parking' | 'layby' },
+                })
+              }
+            >
+              {(Object.keys(KIND_LABELS) as ('parking' | 'layby')[]).map((kind) => (
+                <option key={kind} value={kind}>
+                  {KIND_LABELS[kind]}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="field-row">
             <div className="field">
               <label htmlFor="spot-location">Where (latitude, longitude)</label>

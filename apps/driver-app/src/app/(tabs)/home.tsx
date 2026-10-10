@@ -86,6 +86,15 @@ export default function HomeScreen() {
   const [showHazards, setShowHazards] = useState(true);
   const [showTraffic, setShowTraffic] = useState(true);
   const [showParking, setShowParking] = useState(true);
+  // Parking and lay-bys are separate layers: a lay-by is a roadside stop nobody has checked suits a lorry.
+  const [showLaybys, setShowLaybys] = useState(true);
+  const mapParkingSpots = useMemo(
+    () =>
+      (nearbyParkingSpots.data ?? [])
+        .filter((s) => (s.kind === 'layby' ? showLaybys : showParking))
+        .map((s) => ({ id: s.id, location: s.location, kind: s.kind })),
+    [nearbyParkingSpots.data, showParking, showLaybys],
+  );
   // "Company vs personal" (design doc §5): outside an assigned job this is just absent, and the
   // map works exactly as Phase 1 — no job-shaped chrome for a driver who isn't on one.
   const currentJob = useCurrentJob();
@@ -129,11 +138,7 @@ export default function HomeScreen() {
               }))
             : undefined
         }
-        parkingSpots={
-          showParking
-            ? nearbyParkingSpots.data?.map((s) => ({ id: s.id, location: s.location }))
-            : undefined
-        }
+        parkingSpots={mapParkingSpots}
       />
 
       <MarkPlaceSheet
@@ -232,6 +237,7 @@ export default function HomeScreen() {
               onChange={setShowParking}
               colors={colors}
             />
+            <LayerRow label="Lay-bys" value={showLaybys} onChange={setShowLaybys} colors={colors} />
           </View>
         )}
       </View>

@@ -177,6 +177,29 @@ describe('PostgresParkingRepository', () => {
     });
   });
 
+  describe('kind', () => {
+    it('is a parking spot unless it says it is a lay-by, and can be changed by staff', async () => {
+      const plain = spot({
+        id: makeId<'SafeParkingSpotId'>('eeeeeeee-eeee-4eee-8eee-000000000001'),
+        location: { lat: 53.1, lon: -2.1 },
+      });
+      const layby = spot({
+        id: makeId<'SafeParkingSpotId'>('eeeeeeee-eeee-4eee-8eee-000000000002'),
+        location: { lat: 53.2, lon: -2.2 },
+        reporterId: undefined,
+        source: 'osm',
+        osmId: 'node/77',
+        kind: 'layby',
+      });
+      await repo().save(plain);
+      await repo().save(layby);
+      expect((await repo().find(plain.id))?.kind).toBe('parking');
+      expect((await repo().find(layby.id))?.kind).toBe('layby');
+      await repo().update({ ...layby, kind: 'parking' });
+      expect((await repo().find(layby.id))?.kind).toBe('parking');
+    });
+  });
+
   describe('reports, merging and undo', () => {
     const sid = (n: number) =>
       makeId<'SafeParkingSpotId'>(`bbbbbbbb-bbbb-4bbb-8bbb-${String(n).padStart(12, '0')}`);
@@ -297,6 +320,28 @@ describe('PostgresParkingRepository', () => {
       expect(await repo().removeReport(mine.id, driver(1))).toBe(true);
       expect(await repo().find(mine.id)).toBeNull();
       expect(await repo().removeReport(mine.id, driver(1))).toBe(false);
+    });
+
+    it('makes a lay-by a parking spot once a driver vouches for it', async () => {
+      const layby = spot({
+        id: sid(50),
+        location: { lat: 52.7, lon: -1.7 },
+        reporterId: undefined,
+        source: 'osm',
+        osmId: 'node/50',
+        kind: 'layby',
+        reportedAt: t(1),
+        lastReportedAt: t(1),
+      });
+      await repo().save(layby);
+      await repo().addReport({
+        id: 'dddddddd-dddd-4ddd-8ddd-000000000050',
+        spotId: layby.id,
+        reporterId: driver(4),
+        note: 'room for two',
+        reportedAt: t(9),
+      });
+      expect((await repo().find(layby.id))?.kind).toBe('parking');
     });
 
     it('never removes a staff or imported spot when its last driver report is undone', async () => {

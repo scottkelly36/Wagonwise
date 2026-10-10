@@ -75,6 +75,16 @@ describe('addSpot', () => {
   });
 });
 
+describe('the kind of spot', () => {
+  it('is a parking spot unless staff say it is a lay-by', async () => {
+    const { deps, repo } = setup();
+    await addSpot(deps, platform, { location: where });
+    await addSpot(deps, platform, { location: { lat: 50.8, lon: -3.5 }, kind: 'layby' });
+    const kinds = (await repo.search({ limit: 10 })).spots.map((s) => s.kind).sort();
+    expect(kinds).toEqual(['layby', 'parking']);
+  });
+});
+
 describe('updateSpot and deleteSpot', () => {
   it('changes the details of any spot but keeps where it came from', async () => {
     const { deps, repo } = setup();

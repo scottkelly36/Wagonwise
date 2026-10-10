@@ -20,6 +20,7 @@ import { useNavigateToPlace } from '../hooks/use-navigate-to-spot';
 import { useDrivingProfileId, useParkingDriveTimes } from '../hooks/use-parking-drive-times';
 import { jobNavigationErrorMessage } from '../lib/error-messages';
 import { nearestParkingSpots } from '../lib/nearest-parking';
+import { parkingOnly } from '../lib/parking-details';
 import { shortDistance } from '../lib/uk-distance';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle } from '../theme/tokens';
@@ -44,7 +45,10 @@ export default function NearbyParkingScreen() {
   const navigate = useNavigateToPlace(profileId);
 
   const nearest = useMemo(
-    () => (location.point && spots.data ? nearestParkingSpots(spots.data, location.point) : []),
+    () =>
+      location.point && spots.data
+        ? nearestParkingSpots(parkingOnly(spots.data), location.point)
+        : [],
     [location.point, spots.data],
   );
   const times = useParkingDriveTimes(

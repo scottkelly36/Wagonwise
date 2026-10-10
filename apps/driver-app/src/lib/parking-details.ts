@@ -3,7 +3,8 @@ import type { SafeParkingSpotDto } from '@wagonwise/contracts/parking';
 export const OSM_CREDIT = '© OpenStreetMap contributors';
 
 /** Who the spot came from, in a few words; a spot from an older server is a driver's report. */
-export function sourceText(spot: Pick<SafeParkingSpotDto, 'source'>): string {
+export function sourceText(spot: Pick<SafeParkingSpotDto, 'source' | 'kind'>): string {
+  if (spot.kind === 'layby') return 'Lay-by · not checked for lorries';
   switch (spot.source) {
     case 'osm':
       return 'From OpenStreetMap';
@@ -84,4 +85,17 @@ export function notesToShow(spot: Pick<SafeParkingSpotDto, 'note' | 'recentNotes
         ? []
         : [spot.note];
   return [...new Set(all.map((n) => n.trim()).filter((n) => n !== ''))].slice(0, 3);
+}
+
+/** A roadside lay-by from OpenStreetMap that nobody has checked suits a lorry; a spot from an older server is not one. */
+export const isLayby = (spot: Pick<SafeParkingSpotDto, 'kind'>): boolean => spot.kind === 'layby';
+
+/** Only the lorry parks, truck stops, service areas and spots someone vouched for: what break planning and "nearest parking" offer. */
+export function parkingOnly<T extends Pick<SafeParkingSpotDto, 'kind'>>(spots: readonly T[]): T[] {
+  return spots.filter((s) => !isLayby(s));
+}
+
+/** Only the lay-bys, for their own layer on the map. */
+export function laybysOnly<T extends Pick<SafeParkingSpotDto, 'kind'>>(spots: readonly T[]): T[] {
+  return spots.filter(isLayby);
 }
