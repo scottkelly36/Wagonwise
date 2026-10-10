@@ -49,6 +49,11 @@
       "import": "./dist/usage.js",
       "default": "./dist/usage.js"
     },
+    "./app-version": {
+      "types": "./dist/app-version.d.ts",
+      "import": "./dist/app-version.js",
+      "default": "./dist/app-version.js"
+    },
     "./signups": {
       "types": "./dist/signups.d.ts",
       "import": "./dist/signups.js",

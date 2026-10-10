@@ -14,6 +14,7 @@ import { registerHoursRoutes } from './hours-routes.js';
 import { registerPlacesRoutes } from './places-routes.js';
 import { registerWeatherRoutes } from './weather-routes.js';
 import { registerSignupsRoutes } from './signups-routes.js';
+import { registerAppVersionRoutes } from './app-version-routes.js';
 import { registerRoutingRoutes } from './routing-routes.js';
 
 function bootConfig() {
@@ -46,6 +47,7 @@ registerChecksRoutes(app, routeDeps);
 registerHoursRoutes(app, routeDeps);
 registerWeatherRoutes(app, routeDeps);
 registerSignupsRoutes(app, routeDeps);
+registerAppVersionRoutes(app, { appVersion: config.appVersion });
 registerFleetRoutes(app, routeDeps);
 registerJobsRoutes(app, routeDeps);
 

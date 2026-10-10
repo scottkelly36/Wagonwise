@@ -10,6 +10,7 @@ describe('loadConfig', () => {
       logLevel: 'info',
       coreInternalUrl: 'http://127.0.0.1:3001',
       coreInternalKey: 'local-dev-internal-key',
+      appVersion: {},
     });
   });
 
@@ -33,7 +34,22 @@ describe('loadConfig', () => {
       logLevel: 'warn',
       coreInternalUrl: 'https://core.internal',
       coreInternalKey: 'a-real-shared-secret',
+      appVersion: {},
     });
+  });
+
+  it('reads what the app is told about new builds, leaving out what is not set or is blank', () => {
+    expect(
+      loadConfig({
+        APP_LATEST_VERSION: '1.3.0',
+        APP_MINIMUM_VERSION: '',
+        APP_UPDATE_URL: 'https://play.google.com/store/apps/details?id=x',
+      }).appVersion,
+    ).toEqual({
+      latestVersion: '1.3.0',
+      updateUrl: 'https://play.google.com/store/apps/details?id=x',
+    });
+    expect(() => loadConfig({ APP_UPDATE_URL: 'not-a-url' })).toThrow(ConfigError);
   });
 
   it.each([
