@@ -91,6 +91,7 @@ describe('runMigrations', () => {
       '0058_signups.sql',
       '0059_hours_status_breaks.sql',
       '0060_parking_details.sql',
+      '0061_seed_osm_parking.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -258,6 +259,7 @@ describe('runMigrations', () => {
       '0058_signups.sql',
       '0059_hours_status_breaks.sql',
       '0060_parking_details.sql',
+      '0061_seed_osm_parking.sql',
     ]);
   });
 });
