@@ -11,13 +11,22 @@ import {
   type ViewStateChangeEvent,
 } from '@maplibre/maplibre-react-native';
 import type { HazardTypeDto } from '@wagonwise/contracts/hazards';
-import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
+import {
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type Ref,
+} from 'react';
 import type { LayoutChangeEvent, NativeSyntheticEvent } from 'react-native';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { config } from '../config';
 import type { PlaceCategory } from '@wagonwise/contracts/places';
 import { hazardSeverityFor } from '../lib/hazard-labels';
+import { INITIAL_MAP_LOAD, mapLoadMessage, mapLoadReducer, SLOW_AFTER_MS } from '../lib/map-load';
 import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
 import { Icon } from './ui/icon';
 
@@ -316,6 +325,16 @@ export function RouteMap({
   // `userInteraction` is only true for an actual touch-driven gesture, never for this
   // component's own programmatic camera moves — exactly the signal needed to tell "the driver
   // just grabbed the map" apart from "the camera just followed a new fix".
+  // Tell the driver the map is loading, and when it is slow or has failed, instead of showing a blank map.
+  const [mapLoad, dispatchMapLoad] = useReducer(mapLoadReducer, INITIAL_MAP_LOAD);
+  // Bumped to start the map over after a failure.
+  const [mapAttempt, setMapAttempt] = useState(0);
+  useEffect(() => {
+    const timer = setTimeout(() => dispatchMapLoad('slow'), SLOW_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [mapAttempt]);
+  const loadMessage = mapLoadMessage(mapLoad);
+
   function handleRegionWillChange(event: NativeSyntheticEvent<ViewStateChangeEvent>): void {
     if (event.nativeEvent.userInteraction) setFollowing(false);
   }
@@ -323,8 +342,11 @@ export function RouteMap({
   return (
     <View style={styles.container} onLayout={handleLayout}>
       <MapLibreMap
+        key={`map-${mapAttempt}`}
         style={styles.map}
         mapStyle={config.mapStyleUrl}
+        onDidFinishLoadingMap={() => dispatchMapLoad('loaded')}
+        onDidFailLoadingMap={() => dispatchMapLoad('failed')}
         onPress={handlePress}
         onRegionWillChange={handleRegionWillChange}
       >
@@ -472,6 +494,21 @@ export function RouteMap({
           </ViewAnnotation>
         ))}
       </MapLibreMap>
+      {loadMessage !== undefined && (
+        <TouchableOpacity
+          style={styles.loadNotice}
+          disabled={mapLoad.status !== 'failed'}
+          onPress={() => {
+            dispatchMapLoad('retry');
+            setMapAttempt((n) => n + 1);
+          }}
+          accessibilityRole={mapLoad.status === 'failed' ? 'button' : 'text'}
+          testID="map-load-notice"
+        >
+          {mapLoad.status === 'loading' && <ActivityIndicator size="small" color="#FFFFFF" />}
+          <Text style={styles.loadNoticeText}>{loadMessage}</Text>
+        </TouchableOpacity>
+      )}
       {navTracking && mapHeight > 0 && (
         // Fixed on the screen where the camera keeps the position, so it does not jump with each fix
         // the way a map marker would.
@@ -502,6 +539,21 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  // Over the unthemed map, so a fixed dark pill like the other map overlays. Sits low so it never covers the top controls.
+  loadNotice: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '45%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    maxWidth: '86%',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: 'rgba(11, 18, 32, 0.88)',
+  },
+  loadNoticeText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600', flexShrink: 1 },
   // Floats over the (unthemed) map, same reasoning as the other map-overlay buttons elsewhere
   // in the app (e.g. home.tsx's menu button) — a fixed dark pill regardless of the app's own
   // light/dark theme, legible against the map's own imagery either way.
