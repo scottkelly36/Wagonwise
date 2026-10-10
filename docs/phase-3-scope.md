@@ -243,6 +243,10 @@ in [`driver-hours-consent.md`](driver-hours-consent.md) (approved by the owner a
    status to core and the portal.
 4. Track B (Bluetooth) and Track C (telematics) only once the answer to step 1 says which is worth it; the order depends on what the first firms have.
 
+## Faster-route suggestions (scoped 2026-10-10)
+
+Offer a quicker route while navigating when congestion makes the current one slow, and let the driver choose to switch or keep it. Needs the time with traffic, which the routing engine does not have. Scope, options (crowd reports, a traffic provider, live traffic in the engine), behaviour rules, phases and the decisions needed: [`faster-route-scope.md`](faster-route-scope.md).
+
 ## Goals for the end of Phase 3
 
 - 5 companies using the app, 1 paying (aim for 2), at £10 per vehicle. Realistic income is small (about £80 to £200 a month);
