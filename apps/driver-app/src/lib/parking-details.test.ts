@@ -59,9 +59,9 @@ describe('sourceText', () => {
 });
 
 describe('capacityText', () => {
-  it('says how many lorries, or nothing when it is not known', () => {
-    expect(capacityText(spot({ capacity: 40 }))).toBe('Space for about 40 lorries');
-    expect(capacityText(spot({ capacity: 1 }))).toBe('Space for 1 lorry');
+  it('says how many HGVs, or nothing when it is not known', () => {
+    expect(capacityText(spot({ capacity: 40 }))).toBe('Space for about 40 HGVs');
+    expect(capacityText(spot({ capacity: 1 }))).toBe('Space for 1 HGV');
     expect(capacityText(spot())).toBeUndefined();
     expect(capacityText(spot({ capacity: 0 }))).toBeUndefined();
   });
@@ -107,9 +107,9 @@ describe('lay-bys', () => {
     expect(laybysOnly(spots).map((s) => s.id)).toEqual(['l']);
   });
 
-  it('say they are not checked for lorries', () => {
+  it('say they are not checked for HGVs', () => {
     expect(sourceText(spot({ kind: 'layby', source: 'osm' }))).toBe(
-      'Lay-by · not checked for lorries',
+      'Lay-by · not checked for HGVs',
     );
   });
 });

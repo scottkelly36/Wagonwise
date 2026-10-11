@@ -119,7 +119,7 @@ export function Parking() {
     },
     {
       key: 'capacity',
-      header: 'Lorry spaces',
+      header: 'HGV spaces',
       align: 'right',
       sortValue: (s) => s.capacity ?? -1,
       cell: (s) => s.capacity ?? '',
@@ -177,7 +177,7 @@ export function Parking() {
       <h1>Parking spots</h1>
       <p className="muted">
         The places drivers see on the map to park. They come from drivers, from you, and from a
-        one-off import of lorry parks and service areas from OpenStreetMap that gave the map a
+        one-off import of HGV parks and service areas from OpenStreetMap that gave the map a
         starting point. Anything here can be edited or deleted.
       </p>
 
@@ -301,7 +301,7 @@ export function Parking() {
               />
             </div>
             <div className="field">
-              <label htmlFor="spot-capacity">Lorry spaces</label>
+              <label htmlFor="spot-capacity">HGV spaces</label>
               <input
                 id="spot-capacity"
                 inputMode="numeric"

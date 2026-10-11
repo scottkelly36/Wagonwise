@@ -413,7 +413,7 @@ export default function PlanRouteScreen() {
                 <View style={styles.firstUse} testID="first-vehicle-card">
                   <View style={styles.firstUseHeader}>
                     <Icon name="truck-outline" size={28} color={colors.accent} />
-                    <Text style={styles.firstUseTitle}>First, tell us about your lorry</Text>
+                    <Text style={styles.firstUseTitle}>First, tell us about your HGV</Text>
                   </View>
                   <Text style={styles.firstUseBody}>
                     Its height, width, length and weight decide which roads and bridges are safe.

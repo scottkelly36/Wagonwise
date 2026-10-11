@@ -127,10 +127,10 @@ export function dimensionWarnings(
 
   if (width !== undefined && width > 2.6) {
     warnings.widthM =
-      'A normal lorry is up to 2.55 m wide (2.6 m for a fridge body). Routes will avoid roads with width limits. Only keep this if the vehicle really is that wide.';
+      'A normal HGV is up to 2.55 m wide (2.6 m for a fridge body). Routes will avoid roads with width limits. Only keep this if the vehicle really is that wide.';
   }
   if (height !== undefined && height > 4.95) {
-    warnings.heightM = 'That is taller than almost any UK lorry. Check the figure.';
+    warnings.heightM = 'That is taller than almost any UK HGV. Check the figure.';
   }
   if (length !== undefined && length > 18.75) {
     warnings.lengthM = 'Longer than a road train (18.75 m). Check the figure.';

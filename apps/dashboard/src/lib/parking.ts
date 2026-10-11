@@ -58,8 +58,8 @@ export function parseLatLon(text: string): { lat: number; lon: number } | undefi
 export type Known = 'unknown' | 'yes' | 'no';
 
 export const KIND_LABELS: Record<ParkingKind, string> = {
-  parking: 'Parking (lorry park, truck stop, service area)',
-  layby: 'Lay-by (not checked for lorries)',
+  parking: 'Parking (HGV park, truck stop, service area)',
+  layby: 'Lay-by (not checked for HGVs)',
 };
 
 export interface SpotForm {
