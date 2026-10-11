@@ -74,12 +74,12 @@ HGV navigation that avoids low bridges, with hazard and parking reports from dri
 
 **Full description:**
 
-> WagonWise is navigation made for lorry drivers.
+> WagonWise is navigation made for HGV drivers.
 >
 > Plan routes that fit your vehicle's height, width, length and weight, and get warned about hazards ahead: low bridges,
 > width and weight restrictions, and traffic reported by other drivers.
 >
-> - Routes for your actual vehicle. Save your lorry's dimensions once.
+> - Routes for your actual vehicle. Save your HGV's dimensions once.
 > - Hazards ahead, spoken so you can keep your eyes on the road. Report a hazard or traffic by voice.
 > - Safe parking: lay-bys, services and spots other drivers have marked, with toilets, showers and food shown at a glance.
 > - A faster route offered when traffic builds, so you can switch or keep going. It never changes your route by itself.
@@ -119,7 +119,7 @@ needs at least two. Each gets a short headline when framed (suggested wording be
 
 | #   | Screen                               | How to set it up                                                                                                                   | Headline (suggested)                      |
 | --- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| 1   | **Trip map**, mid-route              | Start a route; map following the blue line, the next-turn banner and the ETA card showing. This is the hero shot.                  | Navigation made for lorry drivers         |
+| 1   | **Trip map**, mid-route              | Start a route; map following the blue line, the next-turn banner and the ETA card showing. This is the hero shot.                  | Navigation made for HGV drivers           |
 | 2   | **Route options** before setting off | Plan a route and show Fastest and Shortest side by side with distance and time (and fuel cost if the profile has consumption set). | Routes that fit your vehicle              |
 | 3   | **Hazard warning ahead**             | A route passing a reported low bridge or width restriction; the hazard marker and its warning visible on the route.                | Hazards before you reach them             |
 | 4   | **Safe parking**                     | The parking card with the seven facilities (green for known, grey for unknown); layby/service area markers on the map.             | Find safe parking                         |
