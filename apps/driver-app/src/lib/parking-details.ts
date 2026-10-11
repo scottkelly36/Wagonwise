@@ -4,7 +4,7 @@ export const OSM_CREDIT = '© OpenStreetMap contributors';
 
 /** Who the spot came from, in a few words; a spot from an older server is a driver's report. */
 export function sourceText(spot: Pick<SafeParkingSpotDto, 'source' | 'kind'>): string {
-  if (spot.kind === 'layby') return 'Lay-by · not checked for lorries';
+  if (spot.kind === 'layby') return 'Lay-by · not checked for HGVs';
   switch (spot.source) {
     case 'osm':
       return 'From OpenStreetMap';
@@ -59,11 +59,11 @@ export function costText(spot: Pick<SafeParkingSpotDto, 'paid'>): string | undef
   return undefined;
 }
 
-/** "Space for about 40 lorries", or nothing when the number is not known. */
+/** "Space for about 40 HGVs", or nothing when the number is not known. */
 export function capacityText(spot: Pick<SafeParkingSpotDto, 'capacity'>): string | undefined {
   const n = spot.capacity;
   if (n === undefined || n <= 0) return undefined;
-  return n === 1 ? 'Space for 1 lorry' : `Space for about ${n} lorries`;
+  return n === 1 ? 'Space for 1 HGV' : `Space for about ${n} HGVs`;
 }
 
 /** "Reported by 3 drivers", or nothing when no driver has (an imported place, or one staff added). */

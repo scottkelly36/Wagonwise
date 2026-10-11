@@ -141,7 +141,7 @@ function toSpot(element) {
     return undefined;
   }
 
-  const kind = tags.highway === 'services' ? 'Service area' : 'Lorry parking';
+  const kind = tags.highway === 'services' ? 'Service area' : 'HGV parking';
   const name = (tags.name ?? tags.operator ?? '').trim().slice(0, 120) || undefined;
   const fee = tags.fee === 'yes' ? true : tags.fee === 'no' ? false : undefined;
   const capacity = Number.isInteger(hgvCapacity) && hgvCapacity > 0 ? hgvCapacity : undefined;

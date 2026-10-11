@@ -13,7 +13,7 @@ export const HAZARD_TYPE_LABELS: Record<HazardTypeDto, string> = {
   tight_bend: 'Tight bend',
   roadworks: 'Roadworks',
   flooding: 'Flooding',
-  no_hgv: 'No lorries allowed',
+  no_hgv: 'No HGVs allowed',
   other: 'Something else',
 };
 
