@@ -96,10 +96,42 @@ cab-noise accuracy of voice is still unproven, so do not promise it.)
 
 | Item                   | Size and rules                                                                                                                                                    |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| App icon               | 512 × 512 PNG, up to 1 MB. Already have the launcher icon artwork in `assets/images/`.                                                                            |
-| Feature graphic        | 1024 × 500 PNG or JPG, no transparency.                                                                                                                           |
+| App icon               | 512 × 512 PNG, up to 1 MB. **Made:** `apps/driver-app/store-assets/play-icon-512.png` (the launcher artwork, white corners filled so it is a full square).        |
+| Feature graphic        | 1024 × 500 PNG or JPG, no transparency. **Made (first version):** `apps/driver-app/store-assets/play-feature-graphic-1024x500.png`.                               |
 | Phone screenshots      | 2 to 8, at least 320 px on the short side; a 9:16 shape works. Use real screens: route map, hazard warning, parking card, the faster-route card, the trip screen. |
 | (Optional) promo video | A YouTube link.                                                                                                                                                   |
+
+## Screenshots to take (in this order)
+
+Play shows the first two or three in search results, so lead with the strongest. Take eight; Play allows up to eight and
+needs at least two. Each gets a short headline when framed (suggested wording below).
+
+**How to take them clean**
+
+- Use the **dark theme** for all of them so the set looks like one product (More tab, Appearance), and a real Android phone
+  or the emulator at 1080 × 1920 or taller, portrait. The emulator is fine and avoids showing your own location.
+- Pick a **plain, recognisable route** in the north-east (for example Hexham to Newcastle). Do not show a home address, a real
+  customer, a real company name, a real number plate or another driver's details. Use a test company and a made-up
+  registration.
+- Phone status bar: full battery, full signal, no other app notifications, time around 09:41.
+- Take them from the **latest build**. Re-take any screen that has changed by the day you submit.
+- Save as PNG, full size, with names like `01-route.png`. Put the raw files in `apps/driver-app/store-assets/raw/`.
+
+| #   | Screen                               | How to set it up                                                                                                                   | Headline (suggested)                      |
+| --- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| 1   | **Trip map**, mid-route              | Start a route; map following the blue line, the next-turn banner and the ETA card showing. This is the hero shot.                  | Navigation made for lorry drivers         |
+| 2   | **Route options** before setting off | Plan a route and show Fastest and Shortest side by side with distance and time (and fuel cost if the profile has consumption set). | Routes that fit your vehicle              |
+| 3   | **Hazard warning ahead**             | A route passing a reported low bridge or width restriction; the hazard marker and its warning visible on the route.                | Hazards before you reach them             |
+| 4   | **Safe parking**                     | The parking card with the seven facilities (green for known, grey for unknown); layby/service area markers on the map.             | Find safe parking                         |
+| 5   | **Faster route offered**             | Needs a congestion report on your route and a clear saving: the "Faster route: saves X minutes" card with Switch and Keep.         | A quicker way, when traffic builds        |
+| 6   | **Voice hazard report**              | The report button in use ("Listening…" or the spoken confirmation shown).                                                          | Report hazards by voice                   |
+| 7   | **Break planning**                   | The break card ("Break needed in 1 h 20 min", parking options) with the driving-hours quick bar on the trip screen.                | Plan breaks into the route                |
+| 8   | **A company job**                    | The job screen: stops, next action, and the proof-of-delivery step, for drivers who work for a company.                            | Jobs from your company, with proof photos |
+
+Optional extras if there are slots left or Play asks for more: vehicle profiles (the dimensions form), saved places, and the
+weather warning badge.
+
+Do **not** use: the sign-in screen, the privacy notice, errors, empty states, or anything that shows a real person.
 
 ## Recruiting closed-test testers
 
