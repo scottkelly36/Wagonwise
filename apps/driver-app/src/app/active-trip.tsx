@@ -172,6 +172,8 @@ export default function ActiveTripScreen() {
   // gone again as soon as the map is following. (The map's own small button sat under the turn card.)
   const mapRef = useRef<RouteMapHandle>(null);
   const [following, setFollowing] = useState(true);
+  // The turn card is one, two or three lines, so the cards under it start a fixed gap below its measured height.
+  const [turnBannerHeight, setTurnBannerHeight] = useState(80);
   const myPlaces = useMyPlaces();
   const mapPlaces = useMemo(
     () => myPlaces.places.map((p) => ({ id: p.id, category: p.category, location: p.location })),
@@ -273,6 +275,8 @@ export default function ActiveTripScreen() {
   // Spoken turns and the turn card (P2-M10). Muted by the driver's toggle, and while a voice report
   // is listening or speaking, for the same reason as the hazard warnings above.
   const guidance = useTurnGuidance(routeLine, plan?.maneuvers, location.point);
+  const belowTurn =
+    insets.top + 8 + (guidance.next || guidance.offRoute ? turnBannerHeight + 8 : 0);
   const voiceMuted = useGuidanceStore((s) => s.muted);
   const setVoiceMuted = useGuidanceStore((s) => s.setMuted);
   const replan = useReplanFromHere();
@@ -357,7 +361,11 @@ export default function ActiveTripScreen() {
           onHazardPress={setSelectedHazardId}
         />
 
-        <View style={[styles.turnBanner, { top: insets.top + 8 }]} pointerEvents="box-none">
+        <View
+          style={[styles.turnBanner, { top: insets.top + 8 }]}
+          pointerEvents="box-none"
+          onLayout={(event) => setTurnBannerHeight(event.nativeEvent.layout.height)}
+        >
           <TurnBanner
             next={guidance.next}
             offRoute={guidance.offRoute}
@@ -374,13 +382,7 @@ export default function ActiveTripScreen() {
 
         {/* Always there, on the map and not behind a menu: mark the spot you are on (a farm gate, a yard
             entrance). Recenter joins it below once the map has been moved away. */}
-        <View
-          style={[
-            styles.recenter,
-            { top: insets.top + (guidance.next || guidance.offRoute ? 96 : 8) },
-          ]}
-          pointerEvents="box-none"
-        >
+        <View style={[styles.recenter, { top: belowTurn }]} pointerEvents="box-none">
           <WeatherButton point={location.point} />
           <RoundButton
             icon="map-marker-plus-outline"
@@ -399,13 +401,7 @@ export default function ActiveTripScreen() {
         </View>
 
         {eta && (
-          <View
-            style={[
-              styles.etaCard,
-              { top: insets.top + (guidance.next || guidance.offRoute ? 96 : 8) },
-            ]}
-            testID="active-trip-eta"
-          >
+          <View style={[styles.etaCard, { top: belowTurn }]} testID="active-trip-eta">
             <Icon name="clock-outline" size={26} color={colors.accent} />
             <View>
               <Text style={styles.etaTime}>
@@ -423,13 +419,7 @@ export default function ActiveTripScreen() {
         )}
 
         {(breakPlan || fasterRoute.offer) && (
-          <View
-            style={[
-              styles.topStack,
-              { top: insets.top + (guidance.next || guidance.offRoute ? 96 : 8) + 72 },
-            ]}
-            pointerEvents="box-none"
-          >
+          <View style={[styles.topStack, { top: belowTurn + 72 }]} pointerEvents="box-none">
             {breakPlan && (
               <BreakCard
                 plan={breakPlan}
