@@ -6,6 +6,7 @@ import { Companies } from './pages/admin/Companies';
 import { CongestionReports } from './pages/admin/CongestionReports';
 import { HazardReports } from './pages/admin/HazardReports';
 import { Moderation } from './pages/admin/Moderation';
+import { Guide } from './pages/guide/Guide';
 import { Drivers } from './pages/fleet/Drivers';
 import { Costs } from './pages/fleet/Costs';
 import { JobCosts } from './pages/fleet/JobCosts';
@@ -75,6 +76,8 @@ export function App() {
             <Route path="/fleet/reports" element={<Reports />} />
             <Route path="/fleet/drivers" element={<Drivers />} />
             <Route path="/fleet/vehicle-profiles" element={<VehicleProfiles />} />
+            <Route path="/guide" element={<Guide />} />
+            <Route path="/guide/:id" element={<Guide />} />
             <Route path="/staff" element={<Navigate to="/staff/users" replace />} />
             <Route path="/staff/users" element={<Users />} />
             <Route path="/staff/activity" element={<Activity />} />

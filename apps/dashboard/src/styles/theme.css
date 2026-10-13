@@ -1311,3 +1311,122 @@ textarea {
   background: var(--area-admin);
   opacity: 0.6;
 }
+
+/* Staff guide */
+.guide-here {
+  margin: 0 0 12px;
+  text-align: right;
+  font-size: 14px;
+}
+.guide {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.guide-contents {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 6px;
+}
+.guide-contents nav {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+}
+.guide-link {
+  padding: 7px 10px;
+  border-left: 3px solid transparent;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+.guide-link:hover {
+  background: var(--surface);
+}
+.guide-link.active {
+  background: var(--surface);
+  font-weight: 600;
+  border-left-color: var(--area-ops);
+}
+.guide-link[data-area='compliance'].active {
+  border-left-color: var(--area-compliance);
+}
+.guide-link[data-area='money'].active {
+  border-left-color: var(--area-money);
+}
+.guide-link[data-area='team'].active {
+  border-left-color: var(--area-team);
+}
+.guide-body {
+  max-width: 760px;
+}
+.guide-body p {
+  line-height: 1.6;
+}
+.guide-access {
+  padding: 10px 14px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.guide-steps {
+  margin: 16px 0;
+}
+.guide-steps ol,
+.guide-tips ul {
+  margin: 0;
+  padding-left: 22px;
+  line-height: 1.6;
+}
+.guide-steps li,
+.guide-tips li {
+  margin: 6px 0;
+}
+.guide-tips {
+  margin-top: 20px;
+}
+.guide-pager {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 28px;
+}
+.guide-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.guide-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border-top: 3px solid var(--area-ops);
+  color: inherit;
+  text-decoration: none;
+}
+.guide-card[data-area='compliance'] {
+  border-top-color: var(--area-compliance);
+}
+.guide-card[data-area='money'] {
+  border-top-color: var(--area-money);
+}
+.guide-card[data-area='team'] {
+  border-top-color: var(--area-team);
+}
+.guide-card span {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+@media (max-width: 860px) {
+  .guide {
+    grid-template-columns: 1fr;
+  }
+  .guide-contents {
+    position: static;
+  }
+}

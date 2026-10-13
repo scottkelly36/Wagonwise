@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { foldingSections, sectionForPath, toggled } from '../lib/nav';
 import { holds, isPlatform } from '../state/access';
 import { useStaffAuthStore } from '../state/staff-auth-store';
+import { GuideLink } from './GuideLink';
 import { WeatherBanner } from './WeatherBanner';
 
 interface NavItem {
@@ -251,6 +252,14 @@ export function StaffLayout() {
             </div>
           );
         })}
+
+        <NavLink
+          to="/guide"
+          onClick={() => setNavOpen(false)}
+          className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+        >
+          Guide
+        </NavLink>
       </nav>
 
       {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
@@ -287,6 +296,7 @@ export function StaffLayout() {
         </header>
         <main className="content">
           <WeatherBanner />
+          <GuideLink />
           <Outlet />
         </main>
       </div>
