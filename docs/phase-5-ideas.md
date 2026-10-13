@@ -23,6 +23,23 @@ against the provider's own terms before building.
   fleet manager sees bookings and costs in the portal (and in job cost). Drivers without a firm account are a separate,
   harder question (they would pay themselves).
 - **Next step (no code):** contact SNAP, ask for partner API access and terms, and ask whether a small app can join.
+- **Alternatives (checked 2026-10-13, public pages only; none confirmed for pricing or approval):**
+  - **TRAVIS (yourtravis.com):** the clearest alternative. A public developer portal lists 11 APIs, including Locations,
+    Booking, Vehicle, Transaction, Fuel Card and Travis Pay, split between carriers and service providers. It says it covers
+    "across Europe" (750+ locations in 16 countries, also bookable through LKW.APP and Happy Trucker); UK sites are not
+    confirmed on the portal. Access, sandbox and pricing are not stated. Radius fuel card holders already book through it,
+    which suggests UK sites exist.
+  - **Bosch Secure Truck Parking:** high-security UK truck stops, bookable inside Webfleet. A fleet-software integration, not an
+    open API. Useful mainly if the first big fleet already uses Webfleet.
+  - **PTV Truck Parking Europe:** a reservation platform that can connect to any operator's booking system. Ask PTV about
+    terms; no public API found.
+  - **Park Safe (new, July 2026):** a UK platform from a Lancashire haulier (McMurrays) where hauliers rent out their spare
+    secure spaces. UK only and very new; no API details found. Worth a call to see if it wants to be listed.
+  - **Not useful for booking:** Parkopedia (no HGV or UK truck-bay API found), Trucker Path (US and Canada only), Park4Night
+    (community map, no API found). MWayBuddy and Truck Parking Europe are information only.
+  - **Fit:** SNAP is the biggest UK network (Moto and truck stops); TRAVIS is the best-documented API. They are not exclusive,
+    so the design should put booking behind a port with one adapter each, like the TomTom client. Ask both for terms before
+    choosing which to build first.
 
 ### 2. Fuel prices near the driver (GOV.UK Fuel Finder)
 
