@@ -5,6 +5,69 @@
 as a business, fit it into how big firms already work, and go deeper on the driver's day. Nothing here is built. Items that
 are already recorded elsewhere point at where.
 
+## The owner's asks (2026-10-13)
+
+Five things the owner wants in Phase 5. Research below is from public pages on 2026-10-13 and has not been tried; check each
+against the provider's own terms before building.
+
+### 1. Buy parking from inside WagonWise (SNAP)
+
+- **What SNAP is:** a UK and European truck parking and payment network (about 53 Moto services in the UK, plus truck stops
+  such as Ashford International). Fleets pay on a SNAP account.
+- **What its API offers** (its integrations page): vehicles (keep fleet vehicle data in step), transactions (reserve parking
+  in real time, link a booking to a vehicle, pull booking and transaction data in) and network (real-time location data for
+  parking, washes and depots). It says it is built for fleets, service partners and technology providers.
+- **Not stated publicly:** who can apply, cost, whether a partner programme or revenue share exists, and how payment works for
+  a driver who has no SNAP account. All of that needs a conversation: the page has a "Talk to an expert" form.
+- **Shape if built:** SNAP sites show on the parking map with a "Book" button; a booking is tied to the job and vehicle; the
+  fleet manager sees bookings and costs in the portal (and in job cost). Drivers without a firm account are a separate,
+  harder question (they would pay themselves).
+- **Next step (no code):** contact SNAP, ask for partner API access and terms, and ask whether a small app can join.
+
+### 2. Fuel prices near the driver (GOV.UK Fuel Finder)
+
+- **What it is:** the government's Fuel Finder service, live since early 2026. Retailers must report price changes (published
+  within 30 minutes), and the data covers each petrol station: prices by fuel type, address, operator and brand, amenities,
+  opening hours and update times.
+- **Access:** an API with OAuth 2.0 (client credentials), through the developer portal, which needs a GOV.UK One Login. There is
+  also a CSV, refreshed twice a day. The GOV.UK page says app developers are intended users.
+- **Not confirmed:** cost, rate limits, the licence for the data itself, whether diesel is a named fuel type, and whether each
+  site has coordinates (the page speaks of addresses). Check on the portal before designing.
+- **Shape if built:** a server-side job in core copies the prices (nearby queries need our own copy, and the key stays on the
+  server); the app shows the cheapest diesel near the route or the destination; the portal's Fuel page can compare what drivers
+  paid with the local price. HGV-suitable sites (room for a truck, a pump a lorry can use) are not in this data, so filter or
+  flag them from our own parking data and driver reports.
+
+### 3. Telematics
+
+- **Reality:** there is no single feed. Providers (Webfleet, Geotab, Samsara and others) each have their own API, and access
+  usually comes through the customer's account, or a reseller in Geotab's case. Truck makers' data (the FMS standard) normally
+  arrives through a telematics provider, not directly.
+- **Shape if built:** one adapter per provider behind a port in core (like the TomTom client): position, ignition, odometer
+  and, where offered, tachograph hours and fuel level. Start with the one provider the first big fleet already has; the
+  answer to "what telematics do you run?" decides which.
+- **Why it matters here:** driver hours and live position without the driver having the app open, and odometer for
+  maintenance dates.
+
+### 4. Expand the staff portal
+
+Candidates, to be cut by what firms ask for: a calendar or board view for jobs; bulk job import; customers and contacts as
+their own records; documents per vehicle and driver (insurance, licence checks, expiry dates); driver licence and CPC
+reminders; trailer records; a message to a driver from a job; exports and scheduled reports; per-depot views; a read-only
+customer link to track a delivery. The staff guide (`/guide`) grows with each page.
+
+### 5. A haulage marketplace (advertise jobs)
+
+- **The idea:** firms post loads or spare capacity; hauliers see and take them.
+- **Why it is different from the rest of WagonWise:** it needs two sides at once (enough loads and enough trucks in the same
+  places), so it starts empty, and it has legal and money questions the app does not: who is liable for the load and the
+  delivery, goods-in-transit insurance, operator licences, payment and late payment, and disputes. Established load boards
+  already exist, so it needs a reason to win (for example, loads that arrive already priced and routed for the truck, with
+  the hours and parking considered).
+- **A smaller first step:** let a firm share a job with a set list of trusted hauliers (subcontractors it already uses), with
+  the job flowing into the other firm's WagonWise. That tests demand and the legal side without an open marketplace.
+- **Not researched yet.** Needs a look at existing load boards, and a solicitor, before any design.
+
 ## Themes
 
 ### A. Run it as a business
@@ -36,7 +99,7 @@ The two open tracks from the driver hours work (`phase-3-scope.md`, "Driver hour
 
 - **Tachograph and telematics:** read hours and position from the vehicle (Bluetooth or a telematics provider), so the hours
   clock is the real one. Which provider comes from what the first big fleets use.
-- **Fuel card feeds** instead of statement uploads (fuel is a CSV import today).
+- **Fuel card feeds** instead of statement uploads (fuel is a CSV import today). Nearby pump prices are in "The owner's asks".
 - **Maintenance text reminders** (the one part of M4 left over).
 
 ### D. Routing that goes further
