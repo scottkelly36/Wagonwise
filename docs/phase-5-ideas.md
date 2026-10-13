@@ -37,6 +37,17 @@ against the provider's own terms before building.
     secure spaces. UK only and very new; no API details found. Worth a call to see if it wants to be listed.
   - **Not useful for booking:** Parkopedia (no HGV or UK truck-bay API found), Trucker Path (US and Canada only), Park4Night
     (community map, no API found). MWayBuddy and Truck Parking Europe are information only.
+  - **Money (unknown):** no provider's public pages mention commission, a referral fee or what API access costs. Platforms like
+    these usually earn from a cut of each booking paid by the parking site, sometimes shared with the app that sent it, plus
+    fees on the fleet side. Do not assume WagonWise earns anything.
+  - **Rule (owner, 2026-10-13): ask about cost and return before any code, and link before integrating.**
+    1. First, email SNAP and TRAVIS (and Park Safe) with five questions: is API access free and are there partner fees; do you
+       pay partners a commission or referral fee per booking; is there a minimum volume or contract; can a small app apply;
+       which UK sites does the API cover.
+    2. Then start with a link, not an integration: show their sites on our parking map with a "Book with …" button that opens
+       their app or site. Very little to build, no ongoing API cost.
+    3. Build in-app booking only if it is free to connect and pays a commission, or is free and clearly something drivers use.
+       Without a return, it stays a link.
   - **Fit:** SNAP is the biggest UK network (Moto and truck stops); TRAVIS is the best-documented API. They are not exclusive,
     so the design should put booking behind a port with one adapter each, like the TomTom client. Ask both for terms before
     choosing which to build first.
