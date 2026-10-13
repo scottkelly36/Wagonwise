@@ -1,0 +1,86 @@
+# Phase 5: ideas (draft, not scoped)
+
+**Status:** a starting list for the owner to cut down, not a plan. Phase 4 ends with the product ready for big fleets
+(`phase-3-scope.md`, "Phase 4 on the board"). Phase 5 is what comes after the first big fleets say yes: make it dependable
+as a business, fit it into how big firms already work, and go deeper on the driver's day. Nothing here is built. Items that
+are already recorded elsewhere point at where.
+
+## Themes
+
+### A. Run it as a business
+
+The things a paying fleet assumes are there.
+
+- **Staging and production split.** Deferred until there are paying customers or auto-deploy is wired up. Phase 5 is when it
+  stops being optional: a big firm should never be the test for a migration.
+- **Backups with a tested restore, alerts and a status page.** Failure alerts on email and text, database restore drilled
+  once, uptime watched from outside.
+- **Taking payment.** Invoices are issued and paid by hand today (`modules.md`, Billing). Card or Direct Debit, VAT, and
+  reminders for late payment.
+- **Support.** A shared inbox, a response promise, an in-app "contact support", and the staff guide kept current (`/guide`).
+- **Paperwork.** Terms of service, a DPA template customers can sign without a solicitor each time, an ICO registration, and
+  rotated secrets (`project-rotate-secrets-before-launch`).
+
+### B. Fit into a big fleet
+
+- **Single sign-on** (Microsoft and Google work accounts) and a limit on who can see which depot or team.
+- **Depots and teams:** privileges that apply to a group of vehicles and drivers, not the whole company.
+- **Bulk import and export:** jobs, drivers and vehicles from a spreadsheet; every page's data out as CSV (some pages have it).
+- **An API and webhooks** so a transport management system can create jobs and hear when they are delivered.
+- **Several companies under one owner** (a group with subsidiaries).
+- **Audit export** and a data retention page beyond photos.
+
+### C. Vehicle data instead of typing it in
+
+The two open tracks from the driver hours work (`phase-3-scope.md`, "Driver hours and tachograph"):
+
+- **Tachograph and telematics:** read hours and position from the vehicle (Bluetooth or a telematics provider), so the hours
+  clock is the real one. Which provider comes from what the first big fleets use.
+- **Fuel card feeds** instead of statement uploads (fuel is a CSV import today).
+- **Maintenance text reminders** (the one part of M4 left over).
+
+### D. Routing that goes further
+
+- **UK-wide** routing is the Phase 3/launch job. After it: Ireland and the near continent only if a customer drives there.
+- **Live traffic in the engine,** so the first route is already right and the faster-route offer is the exception
+  (`faster-route-scope.md`, later phases).
+- **Charges on the route:** clean air and low emission zones, tolls, and the cost of them in the job cost.
+- **Vehicle detail beyond height, width, length and weight:** axle weights, trailers, ADR (dangerous goods) rules.
+- **Delivery time windows:** arrive-by times, and a warning when the plan will miss one.
+- **Parking availability:** parking shows capacity today, not free spaces (feedback from testers, 2026-10-13). Live spaces
+  need a data source (a truck stop's sensors, or driver reports like "full"), so this starts as driver reports.
+- **Order several stops for the driver** (work out the best order, not only follow the given one).
+
+### E. The driver app, further
+
+- **iOS** (blocked on the Apple account and company registration, `progress.md`, M5.10).
+- **Android Auto and Apple CarPlay,** so the app is on the cab screen rather than a phone on a mount.
+- **Offline maps** for the gaps in signal.
+- **Other languages** (many drivers read Polish or Romanian better than English). Spoken directions in more languages.
+- **Automatic light and dark by sunrise and sunset** (open, `ideas.md`).
+- **Accessibility pass** (large text, contrast, screen readers).
+
+### F. The data other drivers rely on
+
+- **Hazard quality:** a trust score per report, so one wrong report counts for less than five agreeing ones; clearer expiry.
+- **Public sources joined in:** National Highways' sensor data (WebTRIS, `ideas.md`), roadworks feeds, and bridge strike data.
+- **Moderation at volume:** tools, so one person can keep reports clean when there are thousands.
+- **Partner parking:** truck stops and depots confirming their own details (opening times, price, spaces).
+
+## How to choose
+
+Rough order, to argue with:
+
+1. **A (run it as a business)** first. Nothing else matters if a big customer hits an outage with no one to tell.
+2. **B (big fleet fit)** next, driven by what the first big fleet asks for. Single sign-on and the API are the usual asks.
+3. **C and D** after that, in the order the first fleets' vehicles and routes demand. Tachograph work waits on the answer to
+   "what do their tachographs have?"
+4. **E and F** run alongside, in small pieces, because drivers feel them most and they need no sales conversation.
+
+## Questions for the owner
+
+1. Which of the big firms on the list says yes first, and what do they ask for before signing?
+2. Is Android Auto and CarPlay a must for big fleets, or a nice extra?
+3. Do any customers drive outside Great Britain?
+4. How should a large fleet be billed (invoice, Direct Debit, annual contract)?
+5. Is the aim of Phase 5 to grow the number of firms or to go deeper with the first few? The order above changes if it is the first.
