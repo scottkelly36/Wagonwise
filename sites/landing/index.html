@@ -3,96 +3,603 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WagonWise – help test the HGV driver app</title>
+    <title>WagonWise: navigation made for HGV drivers</title>
     <meta
       name="description"
-      content="WagonWise is a driver app and fleet dashboard for UK HGV firms: routes that suit your vehicle, vehicle checks, jobs and driver hours. Register your email to help test it."
+      content="A free HGV navigation app with routes that fit your vehicle, hazards from other drivers, safe parking and jobs from your firm, and a dashboard for the fleet that runs them. Register to help test it."
     />
+    <meta name="theme-color" content="#0b1220" />
+    <link rel="icon" type="image/png" href="/img/icon-64.png" />
+    <link rel="apple-touch-icon" href="/img/icon-192.png" />
     <style>
       :root {
-        --bg: #f1f5fb;
+        --navy: #0b1220;
+        --navy-2: #121c30;
+        --navy-3: #1a2740;
+        --blue: #1a73e8;
+        --blue-dark: #1558b8;
+        --blue-soft: #e5eefc;
+        --sky: #7fb2ff;
+        --green: #34d399;
+        --green-dark: #0f8a5f;
+        --bg: #f3f6fb;
         --card: #ffffff;
         --text: #0f1a2e;
         --muted: #55617a;
-        --blue: #1d4ed8;
-        --blue-dark: #1e40af;
-        --line: #d5deee;
-        --ok: #166534;
+        --line: #d9e1ee;
         --bad: #b91c1c;
-      }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #0b1220;
-          --card: #121c30;
-          --text: #e8eefb;
-          --muted: #a3b0c9;
-          --blue: #3b82f6;
-          --blue-dark: #2563eb;
-          --line: #263553;
-          --ok: #4ade80;
-          --bad: #f87171;
-        }
+        --on-navy: #e8eefb;
+        --on-navy-muted: #a9b8d3;
       }
       * {
         box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 84px;
       }
       body {
         margin: 0;
         background: var(--bg);
         color: var(--text);
         font:
-          16px/1.55 system-ui,
+          17px/1.6 system-ui,
           -apple-system,
           'Segoe UI',
           Roboto,
           sans-serif;
+        -webkit-font-smoothing: antialiased;
       }
-      main {
-        max-width: 720px;
-        margin: 0 auto;
-        padding: 0 16px 64px;
+      img {
+        max-width: 100%;
+        display: block;
       }
-      header {
-        padding: 56px 0 24px;
-      }
-      .brand {
-        font-weight: 700;
-        letter-spacing: 0.02em;
+      a {
         color: var(--blue);
       }
-      h1 {
-        font-size: clamp(2rem, 6vw, 2.8rem);
-        line-height: 1.15;
-        margin: 12px 0;
+      h1,
+      h2,
+      h3 {
+        line-height: 1.12;
+        margin: 0;
+        text-wrap: balance;
+        letter-spacing: -0.02em;
       }
-      h2 {
-        font-size: 1.25rem;
-        margin: 0 0 8px;
-      }
-      .lead {
-        font-size: 1.15rem;
-        color: var(--muted);
+      p {
         margin: 0;
       }
-      section,
-      form {
+      .wrap {
+        width: min(1120px, 100% - 32px);
+        margin-inline: auto;
+      }
+
+      /* Top bar */
+      .bar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: color-mix(in srgb, var(--bg) 88%, transparent);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+      }
+      .bar .wrap {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        height: 68px;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        font-size: 1.15rem;
+        letter-spacing: -0.01em;
+        color: var(--text);
+        text-decoration: none;
+      }
+      .logo img {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+      }
+      nav {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+      }
+      nav a.plain {
+        color: var(--muted);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+      nav a.plain:hover {
+        color: var(--text);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 22px;
+        border-radius: 999px;
+        border: 0;
+        font: inherit;
+        font-weight: 700;
+        font-size: 0.98rem;
+        color: #fff;
+        background: var(--blue);
+        text-decoration: none;
+        cursor: pointer;
+        min-height: 46px;
+      }
+      .btn:hover {
+        background: var(--blue-dark);
+      }
+      .btn.dark {
+        background: var(--navy);
+      }
+      .btn.dark:hover {
+        background: #000;
+      }
+      .btn.ghost {
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+      }
+      .btn.ghost:hover {
+        background: rgba(255, 255, 255, 0.18);
+      }
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      :focus-visible {
+        outline: 3px solid var(--sky);
+        outline-offset: 3px;
+      }
+
+      /* Hero */
+      .hero {
+        margin-top: 16px;
+        border-radius: 32px;
+        color: var(--on-navy);
+        background:
+          radial-gradient(900px 480px at 78% 12%, rgba(26, 115, 232, 0.55), transparent 62%),
+          radial-gradient(700px 420px at 8% 100%, rgba(52, 211, 153, 0.18), transparent 60%),
+          linear-gradient(160deg, #0b1220 0%, #12203a 100%);
+        overflow: hidden;
+      }
+      .hero .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+        gap: 24px;
+        align-items: center;
+        padding: clamp(32px, 6vw, 72px) clamp(24px, 5vw, 64px) 0;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: rgba(52, 211, 153, 0.14);
+        color: var(--green);
+        font-weight: 700;
+        font-size: 0.85rem;
+        letter-spacing: 0.02em;
+      }
+      .eyebrow::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+      }
+      .hero h1 {
+        font-size: clamp(2.3rem, 5.4vw, 3.8rem);
+        color: #fff;
+        margin-top: 18px;
+      }
+      .hero h1 em {
+        font-style: normal;
+        color: var(--sky);
+      }
+      .hero .lead {
+        margin-top: 18px;
+        font-size: 1.12rem;
+        color: var(--on-navy-muted);
+        max-width: 34em;
+      }
+      .cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+      }
+      .stores {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 24px;
+      }
+      .store {
+        display: inline-flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 8px 18px;
+        min-height: 52px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+        color: #fff;
+        line-height: 1.15;
+      }
+      .store small {
+        font-size: 0.7rem;
+        color: var(--on-navy-muted);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .store b {
+        font-size: 1.02rem;
+      }
+      .hero-phones {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        min-height: 480px;
+      }
+      .hero-phones .phone {
+        position: relative;
+      }
+      .hero-phones .p-left {
+        width: 190px;
+        transform: translateX(34px) rotate(-6deg);
+        margin-bottom: 6px;
+        z-index: 1;
+      }
+      .hero-phones .p-mid {
+        width: 232px;
+        z-index: 2;
+        margin-bottom: -40px;
+      }
+      .hero-phones .p-right {
+        width: 190px;
+        transform: translateX(-34px) rotate(6deg);
+        margin-bottom: 6px;
+        z-index: 1;
+      }
+
+      /* Phone frame */
+      .phone {
+        aspect-ratio: 540 / 1152;
+        padding: 7px;
+        border-radius: 34px;
+        background: linear-gradient(160deg, #26334d, #0a101c);
+        box-shadow:
+          0 30px 60px -20px rgba(4, 10, 24, 0.55),
+          inset 0 0 0 1.5px rgba(255, 255, 255, 0.12);
+      }
+      .phone::before {
+        content: '';
+        position: absolute;
+        top: 14px;
+        left: 50%;
+        width: 10px;
+        height: 10px;
+        margin-left: -5px;
+        border-radius: 50%;
+        background: #04070d;
+        z-index: 2;
+      }
+      .phone img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 28px;
+        background: var(--navy-2);
+      }
+
+      /* Quick row */
+      .quick {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 28px;
+      }
+      .quick div {
         background: var(--card);
         border: 1px solid var(--line);
-        border-radius: 12px;
+        border-radius: 20px;
         padding: 20px;
-        margin-top: 20px;
       }
-      ul {
-        margin: 8px 0 0;
+      .quick svg {
+        width: 30px;
+        height: 30px;
+        color: var(--blue);
+      }
+      .quick b {
+        display: block;
+        margin-top: 12px;
+        font-size: 1.02rem;
+      }
+      .quick span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.93rem;
+        line-height: 1.45;
+      }
+
+      /* Feature sections */
+      .section-head {
+        text-align: center;
+        max-width: 640px;
+        margin: clamp(56px, 9vw, 104px) auto 0;
+      }
+      .section-head .tag {
+        display: inline-block;
+        color: var(--blue);
+        font-weight: 800;
+        font-size: 0.82rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .section-head h2 {
+        font-size: clamp(1.9rem, 4vw, 2.7rem);
+        margin-top: 10px;
+      }
+      .section-head p {
+        margin-top: 14px;
+        color: var(--muted);
+      }
+      .feature {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: clamp(24px, 5vw, 72px);
+        align-items: center;
+        margin-top: 36px;
+        padding: clamp(24px, 4vw, 48px);
+        border-radius: 32px;
+        background: var(--card);
+        border: 1px solid var(--line);
+      }
+      .feature.tint {
+        background: linear-gradient(160deg, #eaf1fd, #f6f9ff);
+      }
+      .feature .shot {
+        display: flex;
+        justify-content: center;
+      }
+      .feature .shot .phone {
+        width: min(270px, 72vw);
+      }
+      .feature.flip .shot {
+        order: 2;
+      }
+      .feature .tag {
+        color: var(--blue);
+        font-weight: 800;
+        font-size: 0.82rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .feature h3 {
+        font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+        margin-top: 10px;
+      }
+      .feature p {
+        margin-top: 14px;
+        color: var(--muted);
+      }
+      .feature ul {
+        list-style: none;
+        margin: 18px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 10px;
+      }
+      .feature li {
+        position: relative;
+        padding-left: 30px;
+        font-weight: 500;
+      }
+      .feature li::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0.38em;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--green)
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b1220' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E")
+          center / 12px no-repeat;
+      }
+      .fine {
+        font-size: 0.86rem;
+        margin-top: 14px;
+        color: var(--muted);
+      }
+
+      /* Portal */
+      .portal {
+        margin-top: clamp(56px, 9vw, 104px);
+        border-radius: 32px;
+        color: var(--on-navy);
+        background:
+          radial-gradient(800px 420px at 90% 0%, rgba(26, 115, 232, 0.45), transparent 60%),
+          linear-gradient(170deg, #0b1220, #12203a);
+        padding: clamp(28px, 5vw, 64px) clamp(20px, 5vw, 64px);
+      }
+      .portal .section-head {
+        margin-top: 0;
+      }
+      .portal .section-head .tag {
+        color: var(--green);
+      }
+      .portal .section-head h2 {
+        color: #fff;
+      }
+      .portal .section-head p {
+        color: var(--on-navy-muted);
+      }
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 30px;
+      }
+      .tabs button {
+        padding: 9px 16px;
+        border-radius: 999px;
+        border: 0;
+        font: inherit;
+        font-weight: 700;
+        font-size: 0.92rem;
+        color: var(--on-navy);
+        background: rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+      }
+      .tabs button:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+      .tabs button[aria-selected='true'] {
+        background: #fff;
+        color: var(--navy);
+      }
+      .browser {
+        margin: 24px auto 0;
+        max-width: 960px;
+        border-radius: 16px;
+        background: #e9eef7;
+        overflow: hidden;
+        box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.6);
+      }
+      .browser .top {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 11px 14px;
+        background: #dfe6f2;
+      }
+      .browser .top i {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #b6c2d6;
+      }
+      .browser .top span {
+        margin-left: 10px;
+        padding: 3px 14px;
+        border-radius: 999px;
+        background: #f5f8fd;
+        color: #6b7890;
+        font-size: 0.78rem;
+      }
+      .browser img {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1280 / 800;
+      }
+      .caption {
+        margin: 18px auto 0;
+        max-width: 640px;
+        text-align: center;
+        color: var(--on-navy-muted);
+        min-height: 3.2em;
+      }
+      .caption b {
+        color: #fff;
+      }
+      .portal-points {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 34px;
+      }
+      .portal-points div {
+        padding: 20px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+      }
+      .portal-points b {
+        display: block;
+        color: #fff;
+        font-size: 1.05rem;
+      }
+      .portal-points span {
+        display: block;
+        margin-top: 6px;
+        color: var(--on-navy-muted);
+        font-size: 0.94rem;
+        line-height: 1.5;
+      }
+
+      /* Trust */
+      .trust {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 36px;
+      }
+      .trust div {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 22px;
+      }
+      .trust b {
+        display: block;
+        font-size: 1.05rem;
+      }
+      .trust span {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      /* Register */
+      .register {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+        gap: clamp(24px, 5vw, 64px);
+        align-items: start;
+        margin-top: clamp(56px, 9vw, 104px);
+      }
+      .register h2 {
+        font-size: clamp(1.9rem, 4vw, 2.7rem);
+      }
+      .register .copy p {
+        margin-top: 14px;
+        color: var(--muted);
+      }
+      .register .copy ul {
+        margin: 18px 0 0;
         padding-left: 20px;
+        color: var(--muted);
       }
-      li {
-        margin: 6px 0;
+      form#signup {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        padding: clamp(20px, 4vw, 32px);
+        box-shadow: 0 24px 50px -30px rgba(15, 26, 46, 0.4);
+      }
+      form#signup h3 {
+        font-size: 1.35rem;
       }
       label {
         display: block;
         font-weight: 600;
         margin-top: 14px;
+        font-size: 0.97rem;
       }
       .hint {
         font-weight: 400;
@@ -102,13 +609,13 @@
       input[type='text'],
       select {
         width: 100%;
-        margin-top: 4px;
-        padding: 10px 12px;
+        margin-top: 5px;
+        padding: 12px 14px;
         font: inherit;
         color: var(--text);
         background: var(--bg);
         border: 1px solid var(--line);
-        border-radius: 8px;
+        border-radius: 12px;
       }
       .check {
         display: flex;
@@ -123,38 +630,25 @@
         height: 18px;
         flex: none;
       }
-      button {
-        margin-top: 18px;
-        padding: 12px 20px;
-        font: inherit;
-        font-weight: 600;
-        color: #fff;
-        background: var(--blue);
-        border: 0;
-        border-radius: 8px;
-        cursor: pointer;
-      }
-      button:hover {
-        background: var(--blue-dark);
-      }
-      button:disabled {
-        opacity: 0.6;
-        cursor: default;
+      form#signup .btn {
+        margin-top: 20px;
+        width: 100%;
       }
       button.link {
         background: none;
+        border: 0;
+        font: inherit;
         color: var(--blue);
         padding: 0;
-        margin: 0;
         text-decoration: underline;
-        font-weight: 400;
+        cursor: pointer;
       }
       .msg {
         margin: 14px 0 0;
         font-weight: 600;
       }
       .msg.ok {
-        color: var(--ok);
+        color: var(--green-dark);
       }
       .msg.bad {
         color: var(--bad);
@@ -166,120 +660,589 @@
         height: 1px;
         overflow: hidden;
       }
+      #remove {
+        margin-top: 12px;
+        max-width: 420px;
+      }
+      #remove .btn {
+        margin-top: 12px;
+      }
+
       footer {
-        margin-top: 28px;
+        margin-top: clamp(48px, 8vw, 88px);
+        padding: 28px 0 56px;
+        border-top: 1px solid var(--line);
         color: var(--muted);
-        font-size: 0.9rem;
+        font-size: 0.92rem;
+      }
+      footer .cols {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 18px;
+      }
+      footer p + p {
+        margin-top: 8px;
       }
       [hidden] {
         display: none !important;
       }
+
+      @media (max-width: 860px) {
+        nav a.plain {
+          display: none;
+        }
+        .hero .grid,
+        .feature,
+        .register {
+          grid-template-columns: 1fr;
+        }
+        .feature.flip .shot {
+          order: 0;
+        }
+        .hero-phones {
+          min-height: 420px;
+        }
+        .hero-phones .p-left,
+        .hero-phones .p-right {
+          display: none;
+        }
+        .quick,
+        .portal-points,
+        .trust {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 560px) {
+        .quick,
+        .portal-points,
+        .trust {
+          grid-template-columns: 1fr;
+        }
+        .hero {
+          border-radius: 24px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
     </style>
   </head>
   <body>
+    <header class="bar">
+      <div class="wrap">
+        <a class="logo" href="/">
+          <img src="/img/icon-64.png" alt="" width="36" height="36" />
+          WagonWise
+        </a>
+        <nav aria-label="Main">
+          <a class="plain" href="#driver-app">Driver app</a>
+          <a class="plain" href="#fleet-portal">Fleet dashboard</a>
+          <a class="btn" href="#register">Register to test</a>
+        </nav>
+      </div>
+    </header>
+
     <main>
-      <header>
-        <div class="brand">WagonWise</div>
-        <h1>A driver app built for HGVs, and a dashboard for the firm that runs them.</h1>
-        <p class="lead">
-          We are getting ready to test it with real drivers and small fleets. Put your email down
-          and we will tell you when there is a place for you.
-        </p>
-      </header>
+      <div class="wrap">
+        <section class="hero" aria-labelledby="top">
+          <div class="grid">
+            <div>
+              <span class="eyebrow">Free for HGV drivers · In testing now</span>
+              <h1 id="top">Navigation made for <em>HGV drivers</em>.</h1>
+              <p class="lead">
+                Routes that fit your vehicle, warnings from other drivers about low bridges and
+                tight bends, safe parking, and jobs from your firm. All in one app.
+              </p>
+              <div class="cta-row">
+                <a class="btn" href="#register">Register to test</a>
+                <a class="btn ghost" href="#driver-app">See how it works</a>
+              </div>
+              <div class="stores" aria-label="Where to get the app">
+                <span class="store"><small>Coming soon to</small><b>Google Play</b></span>
+                <span class="store"><small>Coming soon to the</small><b>App Store</b></span>
+              </div>
+            </div>
+            <div class="hero-phones">
+              <div class="phone p-left">
+                <img
+                  src="/img/phone-faster.jpg"
+                  width="540"
+                  height="1152"
+                  alt="A card in the app offering a faster route: saves 29 minutes, with Switch and Keep current route buttons."
+                />
+              </div>
+              <div class="phone p-mid">
+                <img
+                  src="/img/phone-trip.jpg"
+                  width="540"
+                  height="1152"
+                  alt="The trip screen on the A69: next turn, ETA, distance left and the driving-hours clock."
+                />
+              </div>
+              <div class="phone p-right">
+                <img
+                  src="/img/phone-parking.jpg"
+                  width="540"
+                  height="1152"
+                  alt="A parking card for an HGV truck stop showing toilets, showers, shop, food, fuel and lighting."
+                />
+              </div>
+            </div>
+          </div>
+        </section>
 
-      <section>
-        <h2>What it does</h2>
-        <ul>
-          <li>
-            Routes that suit your vehicle’s height, weight and length, with hazards other drivers
-            have reported.
-          </li>
-          <li>
-            Daily vehicle checks on the phone, with defects and photos going straight to the office.
-          </li>
-          <li>Jobs sent to the driver, with the delivery record kept.</li>
-          <li>A driver-hours clock that helps plan breaks.</li>
-          <li>
-            For the firm: live map, maintenance reminders, reports, and what each job cost and made.
-          </li>
-        </ul>
-        <p class="hint">
-          It is still in testing, so things will change. Testers get it free and tell us what is
-          wrong with it.
-        </p>
-      </section>
-
-      <form id="signup" novalidate>
-        <h2>Register to test</h2>
-
-        <label for="email">Email</label>
-        <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" />
-
-        <label for="name">Name <span class="hint">(optional)</span></label>
-        <input id="name" name="name" type="text" autocomplete="name" maxlength="80" />
-
-        <label for="role">I am</label>
-        <select id="role" name="role" required>
-          <option value="driver">A driver</option>
-          <option value="company">Running a fleet or haulage firm</option>
-          <option value="both">Both: I drive and run the firm</option>
-          <option value="other">Something else</option>
-        </select>
-
-        <div id="firm" hidden>
-          <label for="company">Company <span class="hint">(optional)</span></label>
-          <input
-            id="company"
-            name="company"
-            type="text"
-            autocomplete="organization"
-            maxlength="120"
-          />
-
-          <label for="fleet">How many vehicles? <span class="hint">(optional)</span></label>
-          <select id="fleet" name="fleetSize">
-            <option value="">Prefer not to say</option>
-            <option value="1-5">1 to 5</option>
-            <option value="6-15">6 to 15</option>
-            <option value="16-40">16 to 40</option>
-            <option value="40+">More than 40</option>
-          </select>
+        <div class="quick" aria-label="At a glance">
+          <div>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M3 15V9a2 2 0 0 1 2-2h8v8M13 10h4l3 3v2h-7M3 15h2m8 0h-2" />
+              <circle cx="7" cy="17" r="2" />
+              <circle cx="17" cy="17" r="2" />
+            </svg>
+            <b>Fits your vehicle</b>
+            <span>Height, width, length and weight saved once.</span>
+          </div>
+          <div>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3l9 16H3L12 3z" />
+              <path d="M12 10v4m0 3h.01" />
+            </svg>
+            <b>Hazards ahead</b>
+            <span>Reports from other drivers, spoken as you approach.</span>
+          </div>
+          <div>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="4" y="3" width="16" height="18" rx="3" />
+              <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
+            </svg>
+            <b>Safe parking</b>
+            <span>Lorry parks and services, with what each one has.</span>
+          </div>
+          <div>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="5" y="3" width="14" height="18" rx="2" />
+              <path d="M9 8h6M9 12h6M9 16h3" />
+            </svg>
+            <b>Jobs from your firm</b>
+            <span>Stops, notes and proof of delivery on your phone.</span>
+          </div>
         </div>
 
-        <div class="trap" aria-hidden="true">
-          <label for="website">Leave this empty</label>
-          <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+        <div class="section-head" id="driver-app">
+          <span class="tag">The driver app</span>
+          <h2>Everything a driver needs on one screen</h2>
+          <p>
+            Built with and for HGV drivers. It is free to use, and it is a planning aid: road signs
+            and your own judgement always come first.
+          </p>
         </div>
 
-        <label class="check" for="consent">
-          <input id="consent" name="consent" type="checkbox" />
-          <span>
-            I agree to WagonWise emailing me about testing the app. I can ask to be removed at any
-            time.
-          </span>
-        </label>
+        <article class="feature">
+          <div class="shot">
+            <div class="phone">
+              <img
+                src="/img/phone-route.jpg"
+                width="540"
+                height="1152"
+                loading="lazy"
+                alt="Route options showing 28.9 km, 22 minutes and an estimated fuel cost."
+              />
+            </div>
+          </div>
+          <div>
+            <span class="tag">Routes</span>
+            <h3>Routes that fit your vehicle</h3>
+            <p>
+              Tell WagonWise your height, width, length and weight once. It plans routes that keep
+              your vehicle clear of bridges and roads it cannot take, and shows the distance, time
+              and fuel cost before you set off.
+            </p>
+            <ul>
+              <li>Your vehicle’s measurements used on every route</li>
+              <li>Time, distance and a rough fuel cost up front</li>
+              <li>Spoken turn-by-turn directions, with a turn card on screen</li>
+            </ul>
+          </div>
+        </article>
 
-        <button id="submit" type="submit">Register my interest</button>
-        <p id="result" class="msg" role="status" hidden></p>
-      </form>
+        <article class="feature tint flip">
+          <div class="shot">
+            <div class="phone">
+              <img
+                src="/img/phone-hazards.jpg"
+                width="540"
+                height="1152"
+                loading="lazy"
+                alt="A route overview listing roadworks as a hazard on the route, with a warning marker on the map."
+              />
+            </div>
+          </div>
+          <div>
+            <span class="tag">Hazards</span>
+            <h3>Hazards before you reach them</h3>
+            <p>
+              Low bridges, tight bends, roadworks and flooding reported by other drivers show up on
+              your route, with a spoken warning as you approach. Reports are anonymous, and they
+              only ever make a route more cautious.
+            </p>
+            <ul>
+              <li>See what is on your route before you set off</li>
+              <li>Spoken warnings, so your eyes stay on the road</li>
+              <li>A report never overrides a sign you can see</li>
+            </ul>
+          </div>
+        </article>
 
-      <footer>
-        <p>
-          We keep only what you type above, use it only to write to you about testing WagonWise, and
-          never share or sell it.
-        </p>
-        <p>
-          Changed your mind?
-          <button id="show-remove" class="link" type="button">Remove my email</button>
-        </p>
-        <form id="remove" hidden novalidate>
-          <label for="remove-email">Email to remove</label>
-          <input id="remove-email" type="email" autocomplete="email" maxlength="254" />
-          <button type="submit">Remove it</button>
-          <p id="remove-result" class="msg" role="status" hidden></p>
-        </form>
-      </footer>
+        <article class="feature">
+          <div class="shot">
+            <div class="phone">
+              <img
+                src="/img/phone-parking.jpg"
+                width="540"
+                height="1152"
+                loading="lazy"
+                alt="A parking card showing space for about 60 HGVs, free parking, and facilities in green."
+              />
+            </div>
+          </div>
+          <div>
+            <span class="tag">Parking</span>
+            <h3>Safe parking, at a glance</h3>
+            <p>
+              Find lorry parks, services and spots other drivers have vouched for. Green shows what
+              is there: toilets, showers, shop, food, fuel, lighting, security. Grey means it is not
+              there, or nobody has said yet.
+            </p>
+            <ul>
+              <li>Space for HGVs, and whether it is free or paid</li>
+              <li>One tap to navigate there</li>
+              <li>Mark a spot yourself so the next driver finds it</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="feature tint flip">
+          <div class="shot">
+            <div class="phone">
+              <img
+                src="/img/phone-faster.jpg"
+                width="540"
+                height="1152"
+                loading="lazy"
+                alt="The faster-route card offering to save time, with Switch and Keep current route."
+              />
+            </div>
+          </div>
+          <div>
+            <span class="tag">Traffic</span>
+            <h3>A quicker way, when traffic builds</h3>
+            <p>
+              While you drive, WagonWise looks for a clearly faster route using live traffic and
+              reports from other drivers. It only offers: you choose Switch, or carry on. It never
+              changes your route by itself.
+            </p>
+            <ul>
+              <li>Only offered when it really saves time</li>
+              <li>Always a route that suits your vehicle</li>
+              <li>Switch with one tap, or keep going</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div class="shot">
+            <div class="phone">
+              <img
+                src="/img/phone-report.jpg"
+                width="540"
+                height="1152"
+                loading="lazy"
+                alt="The report-a-hazard screen listing low bridge, too heavy, too narrow, tight bend, roadworks, flooding and no HGVs."
+              />
+            </div>
+          </div>
+          <div>
+            <span class="tag">Reporting</span>
+            <h3>Warn the next driver in seconds</h3>
+            <p>
+              Tap a hazard type on the map, or report by voice while you drive. Your report reaches
+              other drivers without your name on it.
+            </p>
+            <ul>
+              <li>Low bridge, weight limit, width limit, tight bend and more</li>
+              <li>Hands-free voice reports</li>
+              <li>Traffic and parking reports too</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="feature tint flip">
+          <div class="shot">
+            <div class="phone">
+              <img
+                src="/img/phone-job.jpg"
+                width="540"
+                height="1152"
+                loading="lazy"
+                alt="A job screen with pickup and delivery stops, gate notes, and an Accept job button."
+              />
+            </div>
+          </div>
+          <div>
+            <span class="tag">Jobs</span>
+            <h3>Jobs from your firm, on your phone</h3>
+            <p>
+              Your firm sends you jobs with the stops, notes and gate details. Update the status as
+              you go and take a proof-of-delivery photo when one is needed. Your firm sees your
+              position only while a job is on the road and the app is open.
+            </p>
+            <ul>
+              <li>Stops, times and notes in one place</li>
+              <li>Mark gates and entrances for the next driver</li>
+              <li>Daily vehicle checks and a driving-hours clock</li>
+            </ul>
+          </div>
+        </article>
+
+        <section class="portal" id="fleet-portal" aria-labelledby="portal-title">
+          <div class="section-head">
+            <span class="tag">The fleet dashboard</span>
+            <h2 id="portal-title">The dashboard for the firm that runs them</h2>
+            <p>
+              Send jobs, see where they are, and know what each one cost and made. It links straight
+              to the driver app.
+            </p>
+          </div>
+          <div class="tabs" role="tablist" aria-label="Dashboard pages">
+            <button type="button" role="tab" aria-selected="true" data-i="0">Overview</button>
+            <button type="button" role="tab" aria-selected="false" data-i="1">Live trips</button>
+            <button type="button" role="tab" aria-selected="false" data-i="2">Job profit</button>
+            <button type="button" role="tab" aria-selected="false" data-i="3">Looking ahead</button>
+            <button type="button" role="tab" aria-selected="false" data-i="4">Maintenance</button>
+            <button type="button" role="tab" aria-selected="false" data-i="5">
+              Vehicle checks
+            </button>
+          </div>
+          <div class="browser">
+            <div class="top"><i></i><i></i><i></i><span>Fleet dashboard</span></div>
+            <img
+              id="portal-img"
+              src="/img/portal-overview.jpg"
+              width="1280"
+              height="800"
+              alt="The dashboard overview: jobs on the road now, maintenance overdue and today's compliance."
+            />
+          </div>
+          <p class="caption" id="portal-caption" aria-live="polite">
+            <b>Overview.</b> What needs attention today: jobs on the road, overdue maintenance and
+            walk-round checks.
+          </p>
+          <div class="portal-points">
+            <div>
+              <b>See every job live</b>
+              <span
+                >A live map of vehicles on a job, with arrival times and when each was last
+                seen.</span
+              >
+            </div>
+            <div>
+              <b>Know what each job made</b>
+              <span
+                >Price, wages, fuel and running costs on every job, with a look at the months
+                ahead.</span
+              >
+            </div>
+            <div>
+              <b>Stay on top of compliance</b>
+              <span
+                >MOT and inspection reminders, daily walk-round checks, and defects sent straight to
+                the office.</span
+              >
+            </div>
+          </div>
+          <p class="fine" style="margin-top: 22px; text-align: center; color: var(--on-navy-muted)">
+            Screens show example data for a fictional firm.
+          </p>
+        </section>
+
+        <div class="section-head">
+          <span class="tag">Your data</span>
+          <h2>Built to respect drivers</h2>
+        </div>
+        <div class="trust">
+          <div>
+            <b>Location only while the app is open</b>
+            <span
+              >It never tracks you in the background, and is only sent while you are on a trip or a
+              company job.</span
+            >
+          </div>
+          <div>
+            <b>Reports stay anonymous</b>
+            <span>Other drivers see a hazard, parking or traffic report, never your name.</span>
+          </div>
+          <div>
+            <b>Delete your account any time</b>
+            <span
+              >From the app in a few taps.
+              <a href="/delete-account/">How to delete your account</a>.</span
+            >
+          </div>
+        </div>
+
+        <section class="register" id="register">
+          <div class="copy">
+            <span
+              class="tag"
+              style="
+                color: var(--blue);
+                font-weight: 800;
+                font-size: 0.82rem;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+              "
+              >Help us test it</span
+            >
+            <h2 style="margin-top: 10px">Register to test</h2>
+            <p>
+              We are getting ready to test with real drivers and small fleets. Put your email down
+              and we will tell you when there is a place for you.
+            </p>
+            <ul>
+              <li>Testers get it free.</li>
+              <li>It is still in testing, so things will change.</li>
+              <li>Tell us what is wrong with it. That is the point.</li>
+            </ul>
+          </div>
+
+          <form id="signup" novalidate>
+            <h3>Register your interest</h3>
+
+            <label for="email">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              maxlength="254"
+            />
+
+            <label for="name">Name <span class="hint">(optional)</span></label>
+            <input id="name" name="name" type="text" autocomplete="name" maxlength="80" />
+
+            <label for="role">I am</label>
+            <select id="role" name="role" required>
+              <option value="driver">A driver</option>
+              <option value="company">Running a fleet or haulage firm</option>
+              <option value="both">Both: I drive and run the firm</option>
+              <option value="other">Something else</option>
+            </select>
+
+            <div id="firm" hidden>
+              <label for="company">Company <span class="hint">(optional)</span></label>
+              <input
+                id="company"
+                name="company"
+                type="text"
+                autocomplete="organization"
+                maxlength="120"
+              />
+
+              <label for="fleet">How many vehicles? <span class="hint">(optional)</span></label>
+              <select id="fleet" name="fleetSize">
+                <option value="">Prefer not to say</option>
+                <option value="1-5">1 to 5</option>
+                <option value="6-15">6 to 15</option>
+                <option value="16-40">16 to 40</option>
+                <option value="40+">More than 40</option>
+              </select>
+            </div>
+
+            <div class="trap" aria-hidden="true">
+              <label for="website">Leave this empty</label>
+              <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+            </div>
+
+            <label class="check" for="consent">
+              <input id="consent" name="consent" type="checkbox" />
+              <span>
+                I agree to WagonWise emailing me about testing the app. I can ask to be removed at
+                any time.
+              </span>
+            </label>
+
+            <button id="submit" class="btn" type="submit">Register my interest</button>
+            <p id="result" class="msg" role="status" hidden></p>
+          </form>
+        </section>
+      </div>
     </main>
+
+    <footer>
+      <div class="wrap">
+        <div class="cols">
+          <div>
+            <p>
+              We keep only what you type above, use it only to write to you about testing WagonWise,
+              and never share or sell it.
+            </p>
+            <p>
+              Changed your mind?
+              <button id="show-remove" class="link" type="button">Remove my email</button>
+            </p>
+            <form id="remove" hidden novalidate>
+              <label for="remove-email">Email to remove</label>
+              <input id="remove-email" type="email" autocomplete="email" maxlength="254" />
+              <button type="submit" class="btn dark">Remove it</button>
+              <p id="remove-result" class="msg" role="status" hidden></p>
+            </form>
+          </div>
+          <div>
+            <p>
+              <a href="/privacy/">Privacy notice</a> ·
+              <a href="/delete-account/">Delete your account</a>
+            </p>
+            <p>Map images © MapTiler © OpenStreetMap contributors.</p>
+            <p>WagonWise is a planning aid. Always follow road signs and the law.</p>
+          </div>
+        </div>
+      </div>
+    </footer>
 
     <script>
       const $ = (id) => document.getElementById(id);
@@ -289,6 +1252,62 @@
         el.textContent = text;
         el.className = 'msg ' + (ok ? 'ok' : 'bad');
       }
+
+      // Dashboard pages: one tab per picture.
+      const portal = [
+        [
+          'overview',
+          'Overview',
+          'What needs attention today: jobs on the road, overdue maintenance and walk-round checks.',
+          'The dashboard overview: jobs on the road now, maintenance overdue and today’s compliance.',
+        ],
+        [
+          'live-map',
+          'Live trips',
+          'Every vehicle on a job, on a map, with arrival times and when each was last seen.',
+          'The live trips page: a map with vehicles on a job and a list with arrival times.',
+        ],
+        [
+          'job-profit',
+          'Job profit',
+          'What each job cost and made, by job, vehicle and customer: price, wages, fuel and running costs.',
+          'The job profit page: revenue, wages, fuel, running costs and profit for the month, with a row for each job.',
+        ],
+        [
+          'looking-ahead',
+          'Looking ahead',
+          'How the last few months went, and a guess at the next three if the work carries on as it has.',
+          'The looking ahead page: revenue and cost by month with a three-month forecast.',
+        ],
+        [
+          'maintenance',
+          'Maintenance',
+          'MOTs, inspections and services, with what is overdue and what is due soon, so nothing is missed.',
+          'The maintenance page listing overdue and due-soon items for each vehicle.',
+        ],
+        [
+          'check-results',
+          'Vehicle checks',
+          'The daily walk-round checks drivers do on their phones, with any defects sent straight to the office.',
+          'The walk-round check results page, one line per vehicle check.',
+        ],
+      ];
+      document.querySelectorAll('.tabs button').forEach((button) => {
+        button.addEventListener('click', () => {
+          const [file, name, text, alt] = portal[Number(button.dataset.i)];
+          document
+            .querySelectorAll('.tabs button')
+            .forEach((b) => b.setAttribute('aria-selected', String(b === button)));
+          const img = $('portal-img');
+          img.src = '/img/portal-' + file + '.jpg';
+          img.alt = alt;
+          const caption = $('portal-caption');
+          caption.textContent = '';
+          const strong = document.createElement('b');
+          strong.textContent = name + '. ';
+          caption.append(strong, text);
+        });
+      });
 
       $('role').addEventListener('change', () => {
         $('firm').hidden = !['company', 'both'].includes($('role').value);
