@@ -36,6 +36,7 @@ interface MenuRow {
 }
 
 const ROWS: readonly MenuRow[] = [
+  { label: 'Your name', icon: 'account-outline', href: '/your-name', testID: 'your-name-button' },
   {
     label: 'Vehicle profiles',
     icon: 'truck-outline',
@@ -102,7 +103,7 @@ export default function MoreScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>More</Text>
         <Text style={styles.subtitle}>
-          {PRODUCT_NAME} · signed in as {state.driver.identifier}
+          {PRODUCT_NAME} · signed in as {state.driver.name ?? state.driver.identifier}
         </Text>
 
         <View style={styles.group}>

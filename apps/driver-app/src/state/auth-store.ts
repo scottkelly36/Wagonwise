@@ -11,6 +11,8 @@ export interface DriverInfo {
   readonly id: string;
   readonly identifier: string;
   readonly createdAt: string;
+  /** What the driver likes to be called; absent until they give one. */
+  readonly name?: string;
   /** Design doc §9's privacy notice/consent screen (M8) — absent until the driver accepts it;
    *  `index.tsx`'s gate uses this to decide whether to show it. */
   readonly consentedAt?: string;

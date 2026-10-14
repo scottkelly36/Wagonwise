@@ -1,6 +1,7 @@
 import {
   deleteAccount,
   giveConsent,
+  setDriverName,
   registerDevice,
   requestOtp,
   verifyOtp,
@@ -152,6 +153,34 @@ describe('registerDevice', () => {
     expect(url).toMatch(/\/identity\/devices$/);
     expect((init.headers as Record<string, string>).authorization).toBe('Bearer token-1');
     expect(JSON.parse(init.body as string)).toEqual({ pushToken: 'ExponentPushToken[xxx]' });
+  });
+});
+
+describe('setDriverName', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('puts the name with a bearer token, parsing the updated driver', async () => {
+    const body = {
+      id: 'driver-1',
+      identifier: 'driver@example.com',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      name: 'Dave Kelly',
+      isAdmin: false,
+      scopes: [],
+    };
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, body));
+    globalThis.fetch = fetchMock;
+
+    const result = await setDriverName('token-1', 'Dave Kelly');
+
+    expect(result).toEqual(body);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/identity\/name$/);
+    expect(init.method).toBe('PUT');
+    expect(JSON.parse(init.body as string)).toEqual({ name: 'Dave Kelly' });
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer token-1');
   });
 });
 
