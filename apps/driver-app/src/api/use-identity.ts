@@ -12,6 +12,14 @@ export function useGiveConsent() {
   });
 }
 
+/** The driver gives (or clears) the name their companies see them by. */
+export function useSetDriverName() {
+  const accessToken = useAccessToken();
+  return useMutation({
+    mutationFn: (name: string) => identityApi.setDriverName(accessToken, name),
+  });
+}
+
 /** Design doc §9's "a way for a tester to delete their account and data" (M8). */
 export function useDeleteAccount() {
   const accessToken = useAccessToken();

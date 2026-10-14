@@ -5,6 +5,7 @@ import {
   refreshTokenResponseSchema,
   registerDeviceRequestSchema,
   requestOtpRequestSchema,
+  setDriverNameRequestSchema,
   verifyOtpRequestSchema,
   verifyOtpResponseSchema,
   type DeviceDto,
@@ -67,6 +68,18 @@ export async function registerDevice(accessToken: string, pushToken: string): Pr
  *  can update `auth-store`'s cached copy without a separate refetch. */
 export async function giveConsent(accessToken: string): Promise<DriverDto> {
   const { status, json } = await requestJson('POST', '/identity/consent', {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return driverSchema.parse(json);
+}
+
+/** The name companies see this driver by. Empty clears it. Returns the updated driver so the caller can update
+ *  `auth-store`'s cached copy. */
+export async function setDriverName(accessToken: string, name: string): Promise<DriverDto> {
+  const body = setDriverNameRequestSchema.parse({ name });
+  const { status, json } = await requestJson('PUT', '/identity/name', {
+    body,
     authorization: `Bearer ${accessToken}`,
   });
   throwUnlessSuccess(status, json, [200]);
