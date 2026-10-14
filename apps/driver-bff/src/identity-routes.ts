@@ -1,6 +1,7 @@
 import {
   refreshTokenRequestSchema,
   registerDeviceRequestSchema,
+  setDriverNameRequestSchema,
   requestOtpRequestSchema,
   revokeSessionParamsSchema,
   verifyOtpRequestSchema,
@@ -113,6 +114,21 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     if (token === undefined) return reply;
 
     const core = await deps.coreClient.request('POST', '/identity/consent', request.id, {
+      authorization: `Bearer ${token}`,
+    });
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.put('/identity/name', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const parsed = setDriverNameRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request('PUT', '/identity/name', request.id, {
+      body: parsed.data,
       authorization: `Bearer ${token}`,
     });
     return reply.status(core.status).send(core.body);

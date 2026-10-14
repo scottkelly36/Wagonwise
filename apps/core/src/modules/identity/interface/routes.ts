@@ -3,6 +3,7 @@ import {
   registerDeviceRequestSchema,
   requestOtpRequestSchema,
   revokeSessionParamsSchema,
+  setDriverNameRequestSchema,
   verifyOtpRequestSchema,
 } from '@wagonwise/contracts/identity';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -15,6 +16,7 @@ import { refreshToken, type RefreshTokenDeps } from '../application/refresh-toke
 import { registerDevice, type RegisterDeviceDeps } from '../application/register-device.js';
 import { requestOtp, type RequestOtpDeps } from '../application/request-otp.js';
 import { revokeSession, type RevokeSessionDeps } from '../application/revoke-session.js';
+import { setDriverName, type SetDriverNameDeps } from '../application/set-driver-name.js';
 import { verifyOtp, type VerifyOtpDeps } from '../application/verify-otp.js';
 import type { TokenSigner } from '../application/ports/token-signer.js';
 import { statusFor } from './error-mapping.js';
@@ -26,6 +28,7 @@ export interface IdentityRouteDeps {
   readonly revokeSession: RevokeSessionDeps;
   readonly registerDevice: RegisterDeviceDeps;
   readonly giveConsent: GiveConsentDeps;
+  readonly setDriverName: SetDriverNameDeps;
   readonly deleteAccount: DeleteAccountDeps;
   readonly createInviteCode: CreateInviteCodeDeps;
   readonly listInviteCodes: ListInviteCodesDeps;
@@ -36,12 +39,14 @@ function driverDto(driver: {
   readonly id: string;
   readonly identifier: string;
   readonly createdAt: Date;
+  readonly name?: string | undefined;
   readonly consentedAt?: Date | undefined;
 }) {
   return {
     id: driver.id,
     identifier: driver.identifier,
     createdAt: driver.createdAt,
+    ...(driver.name === undefined ? {} : { name: driver.name }),
     ...(driver.consentedAt === undefined ? {} : { consentedAt: driver.consentedAt }),
     // Drivers have had no admin flag or privileges since P2-M1.12c, and no single `companyId`
     // since P2-M2.8 (replaced by fleet.driver_links). Still sent, always false/empty, so
@@ -185,6 +190,21 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     if (driverId === undefined) return reply;
 
     const result = await giveConsent(deps.giveConsent, { driverId });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send(driverDto(result.value));
+  });
+
+  // The driver's own name, shown to the companies they drive for. Optional: an empty name clears it.
+  app.put('/identity/name', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+    const parsed = setDriverNameRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await setDriverName(deps.setDriverName, { driverId, name: parsed.data.name });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }

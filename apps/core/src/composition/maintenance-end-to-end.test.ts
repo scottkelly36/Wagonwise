@@ -89,7 +89,10 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
       clock,
       dataScopes: scopes,
       callers: { getCaller: () => Promise.resolve(null) },
-      driverIdentities: { getIdentifier: () => Promise.resolve(null) },
+      driverIdentities: {
+        getIdentifier: () => Promise.resolve(null),
+        getName: () => Promise.resolve(null),
+      },
       companyNames: { namesFor: () => Promise.resolve(new Map()) },
       vehicleCapacity: { capacityFor: () => Promise.resolve(99) },
     });

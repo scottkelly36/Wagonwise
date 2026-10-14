@@ -25,6 +25,9 @@ export interface DriverLink {
   /** Set on an invitation; the person who signs in with it sees the invitation. */
   readonly invitedIdentifier?: string | undefined;
   readonly status: DriverLinkStatus;
+  /** What the company calls this driver, so its staff can tell drivers apart. Optional; the portal shows it ahead of
+   *  the driver's own name. */
+  readonly label?: string | undefined;
   readonly createdAt: Date;
   /** When it last moved to a settled status (active, declined or left). */
   readonly decidedAt?: Date | undefined;
@@ -36,6 +39,23 @@ export const LIVE_STATUSES: readonly DriverLinkStatus[] = ['invited', 'requested
 
 export interface InvalidIdentifier extends TaggedError<'InvalidIdentifier'> {
   readonly reason: 'not_email_or_phone';
+}
+
+export interface InvalidLabel extends TaggedError<'InvalidLabel'> {
+  readonly reason: 'too_long';
+}
+
+export const MAX_LABEL_LENGTH = 60;
+
+/** Tidies a typed label: trimmed, runs of spaces made one. Empty clears it. Too long is refused, not cut off. */
+export function normalizeLabel(raw: string): Result<string | undefined, InvalidLabel> {
+  const label = raw.trim().replace(/\s+/g, ' ');
+  if (label.length > MAX_LABEL_LENGTH) return err({ tag: 'InvalidLabel', reason: 'too_long' });
+  return ok(label === '' ? undefined : label);
+}
+
+export function withLabel(link: DriverLink, label: string | undefined): DriverLink {
+  return { ...link, label };
 }
 
 export interface InvalidLinkTransition extends TaggedError<'InvalidLinkTransition'> {

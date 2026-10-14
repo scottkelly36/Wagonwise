@@ -2,6 +2,7 @@ import type { CheckDetailDto, CheckSummaryDto } from '@wagonwise/contracts/check
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as checksApi from '../../api/checks';
+import * as fleetApi from '../../api/fleet';
 import { CompanySelect } from '../../components/CompanySelect';
 import { DataTable, type Column } from '../../components/DataTable';
 import {
@@ -13,6 +14,7 @@ import {
   whenText,
   type RangeChoice,
 } from '../../lib/check-results';
+import { driverNamesById } from '../../lib/driver-name';
 import { ukToday } from '../../lib/money';
 import { isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -39,6 +41,16 @@ export function CheckResults() {
   const [openId, setOpenId] = useState<string | undefined>(undefined);
   const range = rangeFor(choice, ukToday());
 
+  // The company's own names for its drivers (labels), which win over what the driver is called in the check.
+  const driverLinks = useQuery({
+    queryKey: ['driver-links', companyId],
+    queryFn: () => withAccessToken((token) => fleetApi.listDriverLinks(token, companyId as string)),
+    enabled: companyId !== undefined,
+  });
+  const driverNames = driverNamesById(driverLinks.data ?? []);
+  const shownDriver = (c: CheckSummaryDto) =>
+    (c.driverId === undefined ? undefined : driverNames.get(c.driverId)) ?? c.driverLabel;
+
   const checks = useQuery({
     queryKey: ['check-results', companyId, range.from, range.to],
     queryFn: () =>
@@ -63,8 +75,8 @@ export function CheckResults() {
     {
       key: 'driver',
       header: 'Driver',
-      sortValue: (c) => c.driverLabel ?? '',
-      cell: (c) => c.driverLabel ?? 'Unknown',
+      sortValue: (c) => shownDriver(c) ?? '',
+      cell: (c) => shownDriver(c) ?? 'Unknown',
     },
     {
       key: 'result',
@@ -138,12 +150,17 @@ export function CheckResults() {
               columns={columns}
               rows={checks.data ?? []}
               rowKey={(c) => c.id}
-              searchText={(c) => `${c.vehicleName} ${c.templateName} ${c.driverLabel ?? ''}`}
+              searchText={(c) => `${c.vehicleName} ${c.templateName} ${shownDriver(c) ?? ''}`}
               emptyText="No checks in this time."
             />
           )}
           {openId !== undefined && (
-            <CheckDetail key={openId} id={openId} onClose={() => setOpenId(undefined)} />
+            <CheckDetail
+              key={openId}
+              id={openId}
+              driverNames={driverNames}
+              onClose={() => setOpenId(undefined)}
+            />
           )}
         </>
       )}
@@ -151,7 +168,15 @@ export function CheckResults() {
   );
 }
 
-function CheckDetail({ id, onClose }: { id: string; onClose: () => void }) {
+function CheckDetail({
+  id,
+  driverNames,
+  onClose,
+}: {
+  id: string;
+  driverNames: ReadonlyMap<string, string>;
+  onClose: () => void;
+}) {
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
   const detail = useQuery({
     queryKey: ['check-result', id],
@@ -176,7 +201,16 @@ function CheckDetail({ id, onClose }: { id: string; onClose: () => void }) {
         <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(detail.error)}</p>
       )}
       {detail.data !== undefined && (
-        <Body detail={detail.data} photos={photos} onPhoto={(item) => loadPhoto.mutate(item)} />
+        <Body
+          detail={detail.data}
+          driverName={
+            (detail.data.driverId === undefined
+              ? undefined
+              : driverNames.get(detail.data.driverId)) ?? detail.data.driverLabel
+          }
+          photos={photos}
+          onPhoto={(item) => loadPhoto.mutate(item)}
+        />
       )}
       {loadPhoto.isError && (
         <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(loadPhoto.error)}</p>
@@ -190,10 +224,12 @@ function CheckDetail({ id, onClose }: { id: string; onClose: () => void }) {
 
 function Body({
   detail,
+  driverName,
   photos,
   onPhoto,
 }: {
   detail: CheckDetailDto;
+  driverName: string | undefined;
   photos: Record<string, string>;
   onPhoto: (itemId: string) => void;
 }) {
@@ -203,8 +239,8 @@ function Body({
         {detail.templateName} on {detail.vehicleName}
       </h2>
       <p style={{ color: 'var(--text-muted)' }}>
-        Done {whenText(detail.submittedAt)} by {detail.driverLabel ?? 'an unknown driver'}. List
-        version {detail.templateVersion}. Result:{' '}
+        Done {whenText(detail.submittedAt)} by {driverName ?? 'an unknown driver'}. List version{' '}
+        {detail.templateVersion}. Result:{' '}
         <strong style={{ color: RESULT_COLOURS[detail.result] }}>
           {RESULT_LABELS[detail.result]}
         </strong>

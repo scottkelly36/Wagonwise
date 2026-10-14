@@ -16,6 +16,7 @@ import {
 import { DataTable, type Column } from '../../components/DataTable';
 import { FieldError } from '../../components/FieldError';
 import { resolvePostcode } from '../../hooks/use-postcode';
+import { driverDisplayName, driverNamesById } from '../../lib/driver-name';
 import { focusFirstInvalid, hasErrors, type FieldErrors } from '../../lib/forms';
 import { formatDuration, formatMiles } from '../../lib/live-map';
 import { holds, isPlatform } from '../../state/access';
@@ -324,7 +325,7 @@ export function Jobs() {
         variant,
         photos,
         generatedAt: new Date(),
-        driverLabel: drivers.data?.find((l) => l.driverId === job.driverId)?.driverIdentifier,
+        driverLabel: driverNamesById(drivers.data ?? []).get(job.driverId ?? ''),
         vehicleName: vehicles.data?.find((v) => v.id === job.vehicleId)?.name,
       });
       tab.document.open();
@@ -479,7 +480,7 @@ export function Jobs() {
                           <option value="">Driver…</option>
                           {activeDrivers.map((link) => (
                             <option key={link.id} value={link.driverId}>
-                              {link.driverIdentifier ?? link.driverId}
+                              {driverDisplayName(link)}
                               {myEmail !== undefined &&
                               link.driverIdentifier?.toLowerCase() === myEmail
                                 ? ' (you)'

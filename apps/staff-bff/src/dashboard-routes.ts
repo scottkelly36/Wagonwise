@@ -73,6 +73,7 @@ import {
   fleetCompanyIdParamsSchema,
   fleetVehicleIdParamsSchema,
   inviteDriverRequestSchema,
+  setDriverLinkLabelRequestSchema,
   updateFleetVehicleRequestSchema,
 } from '@wagonwise/contracts/fleet';
 import {
@@ -525,6 +526,12 @@ const FORWARDS: readonly Forward[] = [
     method: 'POST',
     path: '/staff/fleet/driver-links/:id/remove',
     params: driverLinkIdParamsSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/fleet/driver-links/:id/label',
+    params: driverLinkIdParamsSchema,
+    body: setDriverLinkLabelRequestSchema,
   },
   {
     method: 'GET',

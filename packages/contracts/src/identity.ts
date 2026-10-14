@@ -25,6 +25,8 @@ export const driverSchema = z.object({
   id: driverIdSchema,
   identifier: z.string(),
   createdAt: z.iso.datetime(),
+  /** What the driver likes to be called. Absent until they give one. */
+  name: z.string().optional(),
   /** Design doc §9's privacy notice/consent screen (M8) — absent until the driver accepts it. */
   consentedAt: z.iso.datetime().optional(),
   /** Retired (P2-M1.12c): admin screens are for staff accounts now, and no driver is an admin.
@@ -58,6 +60,12 @@ export const verifyOtpResponseSchema = z.object({
   driver: driverSchema,
 });
 export type VerifyOtpResponse = z.infer<typeof verifyOtpResponseSchema>;
+
+/** The driver sets the name their companies see them by. Empty clears it; over 60 characters is refused. */
+export const setDriverNameRequestSchema = z.object({
+  name: z.string().max(200),
+});
+export type SetDriverNameRequest = z.infer<typeof setDriverNameRequestSchema>;
 
 export const refreshTokenRequestSchema = z.object({
   refreshToken: z.string(),

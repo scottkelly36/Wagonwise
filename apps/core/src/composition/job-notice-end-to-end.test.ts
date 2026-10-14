@@ -81,7 +81,10 @@ describe('job notices end to end (real RLS, real scopes)', () => {
       clock,
       dataScopes: scopes,
       callers: { getCaller: () => Promise.resolve(null) },
-      driverIdentities: { getIdentifier: () => Promise.resolve(null) },
+      driverIdentities: {
+        getIdentifier: () => Promise.resolve(null),
+        getName: () => Promise.resolve(null),
+      },
       companyNames: { namesFor: () => Promise.resolve(new Map()) },
       vehicleCapacity: { capacityFor: () => Promise.resolve(99) },
     });
@@ -99,6 +102,7 @@ describe('job notices end to end (real RLS, real scopes)', () => {
       routes: { estimate: () => Promise.resolve(err({ tag: 'NoRoute' } as never)) },
       navigationProfiles: { provision: () => Promise.resolve(err({ tag: 'VehicleUnavailable' })) },
       driverIdentities: {
+        getName: () => Promise.resolve(null),
         getIdentifier: (id) =>
           Promise.resolve(
             id === DRIVER ? 'driver@example.com' : id === OTHER_DRIVER ? 'o@example.com' : null,

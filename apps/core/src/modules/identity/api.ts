@@ -91,6 +91,9 @@ export interface IdentityModule {
   /** A driver's normalised sign-in identifier (phone or email), or null. For fleet, which uses it
    *  to match invitations to the driver (supplied by composition). */
   getDriverIdentifier(driverId: string): Promise<string | null>;
+  /** The name a driver has given themselves, or null if they have not (or the account is deleted). For fleet and
+   *  checks, so the portal can show a name rather than a phone number (supplied by composition). */
+  getDriverName(driverId: string): Promise<string | null>;
   /** Delivers a one-time code by text (a phone number) or email, through the same senders drivers'
    *  sign-in codes use (ClickSend / Resend, or the console in local dev). Staff second factors
    *  (P2-M1.4) reach it through `companies`' own `CodeSender` port, so ClickSend/Resend accounts
@@ -164,6 +167,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     revokeSession: { sessionRepo, clock: deps.clock },
     registerDevice: { repo: deviceRepo, clock: deps.clock, ids: deps.ids },
     giveConsent: { driverRepo, clock: deps.clock },
+    setDriverName: { driverRepo },
     deleteAccount: {
       driverRepo,
       sessionRepo,
@@ -188,6 +192,10 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     async getDriverIdentifier(driverId: string): Promise<string | null> {
       const driver = await driverRepo.findById(makeId<'DriverId'>(driverId));
       return driver?.identifier ?? null;
+    },
+    async getDriverName(driverId: string): Promise<string | null> {
+      const driver = await driverRepo.findById(makeId<'DriverId'>(driverId));
+      return driver?.name ?? null;
     },
     async getPushTokensForDriver(driverId: DriverId): Promise<string[]> {
       const devices = await deviceRepo.findByDriverId(driverId);

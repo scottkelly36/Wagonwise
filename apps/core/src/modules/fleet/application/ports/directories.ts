@@ -3,6 +3,8 @@
  *  rule 7); composition supplies it over identity. `null` for an unknown or deleted driver. */
 export interface DriverIdentityDirectory {
   getIdentifier(driverId: string): Promise<string | null>;
+  /** The name the driver has given themselves, or `null` if they have not (or the account is deleted). */
+  getName(driverId: string): Promise<string | null>;
 }
 
 /** Company names by id, for showing a driver who an invitation or request is with. Composition

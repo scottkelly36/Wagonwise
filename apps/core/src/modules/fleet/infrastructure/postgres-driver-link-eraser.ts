@@ -8,7 +8,8 @@ import type { UntypedDb } from './db.js';
  * - Invitations a company made to the driver's email or phone that were never accepted are deleted:
  *   they hold nothing but that identifier.
  * - The driver's own links stay as history (the company's record of who worked for it) but lose the
- *   identifier, and any live link ends, so the driver can no longer be assigned work.
+ *   identifier and the company's label for them, and any live link ends, so the driver can no longer be assigned
+ *   work.
  */
 export class PostgresDriverLinkEraser {
   constructor(private readonly db: UntypedDb) {}
@@ -20,6 +21,7 @@ export class PostgresDriverLinkEraser {
     await sql`
       update fleet.driver_links
       set invited_identifier = null,
+          label = null,
           status = case when status in ('invited', 'requested', 'active') then 'left' else status end,
           decided_at = case
             when status in ('invited', 'requested', 'active') then ${at}

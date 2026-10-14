@@ -1,5 +1,6 @@
 import type { Forbidden } from '../application/authorization.js';
 import type { GiveConsentError } from '../application/give-consent.js';
+import type { SetDriverNameError } from '../application/set-driver-name.js';
 import type { RegisterDeviceError } from '../application/register-device.js';
 import type { RequestOtpError } from '../application/request-otp.js';
 import type { RefreshTokenError } from '../application/refresh-token.js';
@@ -13,6 +14,7 @@ export type IdentityError =
   | SessionNotFound
   | RegisterDeviceError
   | GiveConsentError
+  | SetDriverNameError
   | Forbidden;
 
 /**
@@ -25,6 +27,7 @@ export function statusFor(error: IdentityError): number {
     case 'InviteCodeRequired':
     case 'InvalidInviteCode':
     case 'InvalidPushToken':
+    case 'NameTooLong':
       return 400;
     case 'OtpNotFound':
     case 'SessionNotFound':

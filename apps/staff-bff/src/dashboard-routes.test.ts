@@ -38,6 +38,7 @@ const VALID = [
   ['POST', `/staff/fleet/driver-links/${ID}/approve`, undefined],
   ['POST', `/staff/fleet/driver-links/${ID}/decline`, undefined],
   ['POST', `/staff/fleet/driver-links/${ID}/remove`, undefined],
+  ['PUT', `/staff/fleet/driver-links/${ID}/label`, { label: 'Dave (artic 3)' }],
   ['GET', `/staff/fleet/companies/${ACME}/code`, undefined],
   ['POST', `/staff/fleet/companies/${ACME}/code/regenerate`, undefined],
   ['GET', `/staff/jobs/companies/${ACME}/jobs`, undefined],

@@ -22,6 +22,8 @@ export interface VehicleNameDirectory {
  *  `getDriverIdentifier`. */
 export interface DriverIdentityDirectory {
   getIdentifier(driverId: DriverId): Promise<string | null>;
+  /** The name the driver has given themselves, or null. Reports show it ahead of the identifier. */
+  getName(driverId: DriverId): Promise<string | null>;
 }
 
 /** What the walk-round checks say about sending a vehicle out: fine, its check is still to do, or it has a "do not

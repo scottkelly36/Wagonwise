@@ -37,7 +37,10 @@ async function build() {
     joinWithCode: { links, codes, ids, clock, limiter: new SlidingWindowAttemptLimiter(clock) },
     respond: { links, ids, clock },
     settle: { links, ids, clock },
-    identities: { getIdentifier: (id) => Promise.resolve(IDENTITIES[id] ?? null) },
+    identities: {
+      getIdentifier: (id) => Promise.resolve(IDENTITIES[id] ?? null),
+      getName: () => Promise.resolve(null),
+    },
     companyNames: { namesFor: () => Promise.resolve(new Map([[ACME, 'Acme Haulage']])) },
     dataScopes: scopes,
   });

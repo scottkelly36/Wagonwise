@@ -251,6 +251,61 @@ describe('POST /identity/consent', () => {
   });
 });
 
+describe('PUT /identity/name', () => {
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'PUT',
+      url: '/identity/name',
+      payload: { name: 'Dave' },
+    });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('400s a body with no name, without calling core', async () => {
+    const { app, coreClient, verifier } = buildApp();
+    verifier.claimsByToken.set('a-real-token', { driverId: 'driver-1', sessionId: 'session-1' });
+    const response = await app.inject({
+      method: 'PUT',
+      url: '/identity/name',
+      headers: { authorization: 'Bearer a-real-token' },
+      payload: {},
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards the token and the name', async () => {
+    const { app, coreClient, verifier } = buildApp();
+    verifier.claimsByToken.set('a-real-token', { driverId: 'driver-1', sessionId: 'session-1' });
+    coreClient.nextResponse = {
+      status: 200,
+      body: {
+        id: 'driver-1',
+        identifier: 'driver@example.com',
+        createdAt: '2026-06-15T08:00:00.000Z',
+        name: 'Dave Kelly',
+      },
+    };
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: '/identity/name',
+      headers: { authorization: 'Bearer a-real-token' },
+      payload: { name: 'Dave Kelly' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'PUT',
+      path: '/identity/name',
+      authorization: 'Bearer a-real-token',
+      body: { name: 'Dave Kelly' },
+    });
+  });
+});
+
 describe('DELETE /identity/account', () => {
   it('requires a Bearer token, without calling core', async () => {
     const { app, coreClient } = buildApp();

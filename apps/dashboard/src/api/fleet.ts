@@ -12,6 +12,7 @@ import {
   type FleetVehicleDto,
   type InviteDriverRequest,
   type UpdateFleetVehicleRequest,
+  setDriverLinkLabelRequestSchema,
 } from '@wagonwise/contracts/fleet';
 
 import { requestJson, throwUnlessSuccess } from './http';
@@ -108,6 +109,20 @@ async function settleDriverLink(
   action: 'approve' | 'decline' | 'remove',
 ): Promise<DriverLinkDto> {
   const { status, json } = await requestJson('POST', `/staff/fleet/driver-links/${id}/${action}`, {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return driverLinkSchema.parse(json);
+}
+
+export async function setDriverLinkLabel(
+  accessToken: string,
+  id: string,
+  label: string,
+): Promise<DriverLinkDto> {
+  const body = setDriverLinkLabelRequestSchema.parse({ label });
+  const { status, json } = await requestJson('PUT', `/staff/fleet/driver-links/${id}/label`, {
+    body,
     authorization: `Bearer ${accessToken}`,
   });
   throwUnlessSuccess(status, json, [200]);

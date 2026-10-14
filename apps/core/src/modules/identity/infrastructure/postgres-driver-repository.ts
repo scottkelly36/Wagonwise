@@ -9,6 +9,7 @@ interface DriverRow {
   readonly id: string;
   readonly identifier: string;
   readonly created_at: Date;
+  readonly name: string | null;
   readonly consented_at: Date | null;
   readonly deleted_at: Date | null;
 }
@@ -18,13 +19,14 @@ function toDomain(row: DriverRow): Driver {
     id: makeId<'DriverId'>(row.id),
     identifier: row.identifier,
     createdAt: row.created_at,
+    name: row.name ?? undefined,
     consentedAt: row.consented_at ?? undefined,
     deletedAt: row.deleted_at ?? undefined,
   };
 }
 
 const SELECT_COLUMNS = `
-  id, identifier, created_at, consented_at, deleted_at
+  id, identifier, created_at, name, consented_at, deleted_at
 `;
 
 /**
@@ -68,13 +70,14 @@ export class PostgresDriverRepository implements DriverRepository {
     const executor = tx ? (tx as unknown as UntypedDb) : this.db;
     await sql`
       insert into identity.drivers
-        (id, identifier, created_at, consented_at, deleted_at)
+        (id, identifier, created_at, name, consented_at, deleted_at)
       values (
-        ${driver.id}, ${driver.identifier}, ${driver.createdAt},
+        ${driver.id}, ${driver.identifier}, ${driver.createdAt}, ${driver.name ?? null},
         ${driver.consentedAt ?? null}, ${driver.deletedAt ?? null}
       )
       on conflict (id) do update set
         identifier = excluded.identifier,
+        name = excluded.name,
         consented_at = excluded.consented_at,
         deleted_at = excluded.deleted_at
     `.execute(executor);

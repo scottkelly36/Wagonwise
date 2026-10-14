@@ -37,10 +37,14 @@ async function setup(jobs: Job[]) {
     Promise.resolve(id === driver ? 'pat@example.com' : null),
   );
   const getName = vi.fn((id: string) => Promise.resolve(id === vehicle ? 'Big Wagon' : null));
+  // The name the driver has given themselves; none unless a test sets one.
+  const driverNames = new Map<string, string>();
+  const getDriverName = vi.fn((id: string) => Promise.resolve(driverNames.get(id) ?? null));
   return {
-    deps: { repo, drivers: { getIdentifier }, vehicles: { getName } },
+    deps: { repo, drivers: { getIdentifier, getName: getDriverName }, vehicles: { getName } },
     getIdentifier,
     getName,
+    driverNames,
   };
 }
 
@@ -107,5 +111,15 @@ describe('reportJobs', () => {
     expect(byRef.get('c')?.driver).toBeUndefined();
     expect(getIdentifier).toHaveBeenCalledTimes(1);
     expect(getName).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the name a driver gave themselves ahead of their sign-in', async () => {
+    const { deps, driverNames } = await setup([
+      job('a', '2026-10-05T08:00:00Z', { driverId: driver, vehicleId: vehicle }),
+    ]);
+    driverNames.set(driver, 'Pat Jones');
+    const result = await reportJobs(deps, { caller: reporter, companyId: company, ...window });
+    if (!result.ok) throw new Error('expected a report');
+    expect(result.value.rows[0]?.driver).toBe('Pat Jones');
   });
 });

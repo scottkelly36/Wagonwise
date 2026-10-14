@@ -111,7 +111,7 @@ export function registerChecksOfficeRoutes(
   const driverLabels = async (summaries: readonly { driverId: DriverId }[]) => {
     const labels = new Map<string, string>();
     for (const id of new Set(summaries.map((s) => s.driverId))) {
-      const label = await deps.drivers.getIdentifier(id);
+      const label = (await deps.drivers.getName(id)) ?? (await deps.drivers.getIdentifier(id));
       if (label !== null) labels.set(id, label);
     }
     return labels;
@@ -122,6 +122,7 @@ export function registerChecksOfficeRoutes(
     vehicleId: c.vehicleId,
     vehicleName: c.vehicleName,
     ...(labels.has(c.driverId) ? { driverLabel: labels.get(c.driverId) } : {}),
+    driverId: c.driverId,
     checkDay: c.checkDay,
     submittedAt: c.submittedAt.toISOString(),
     result: c.result,

@@ -117,6 +117,7 @@ export function createFleetModule(deps: FleetModuleDeps): FleetModule {
     inviteDriver: { links, ids: deps.ids, clock: deps.clock },
     listDriverLinks: { links },
     settleDriverLink: { links, ids: deps.ids, clock: deps.clock },
+    setDriverLinkLabel: { links },
     companyCode: { codes, generator: codeGenerator, clock: deps.clock },
     driverIdentities: deps.driverIdentities,
     callerDirectory: deps.callers,

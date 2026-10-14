@@ -5,6 +5,7 @@ import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import { DataTable, type Column } from '../../components/DataTable';
 import { FieldError } from '../../components/FieldError';
+import { driverDisplayName, driverSubtext } from '../../lib/driver-name';
 import { identifierError } from '../../lib/forms';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -76,6 +77,12 @@ export function Drivers() {
     onSuccess: refreshLinks,
   });
 
+  const rename = useMutation({
+    mutationFn: (input: { id: string; label: string }) =>
+      withAccessToken((token) => fleetApi.setDriverLinkLabel(token, input.id, input.label)),
+    onSuccess: refreshLinks,
+  });
+
   const regenerateCode = useMutation({
     mutationFn: () =>
       withAccessToken((token) => fleetApi.regenerateCompanyCode(token, companyId as string)),
@@ -102,6 +109,7 @@ export function Drivers() {
     approve.error ??
     decline.error ??
     remove.error ??
+    rename.error ??
     regenerateCode.error;
 
   const requested = links.data?.filter((l) => l.status === 'requested') ?? [];
@@ -293,6 +301,7 @@ export function Drivers() {
             title="Active drivers"
             empty="No drivers yet."
             links={active}
+            onRename={(id, label) => rename.mutateAsync({ id, label }).then(() => undefined)}
             renderActions={(link) => (
               <button
                 className="btn-danger"
@@ -314,7 +323,66 @@ export function Drivers() {
 }
 
 function whoText(link: DriverLinkDto): string {
-  return link.invitedIdentifier ?? link.driverIdentifier ?? link.driverId ?? '';
+  const sub = driverSubtext(link);
+  return sub === undefined ? driverDisplayName(link) : `${driverDisplayName(link)} (${sub})`;
+}
+
+/** The name the company's staff see for a driver, with a box to change it. Blank goes back to the driver's own name
+ *  (or their sign-in if they have not given one). */
+function NameCell(props: {
+  link: DriverLinkDto;
+  onRename: (id: string, label: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const sub = driverSubtext(props.link);
+
+  if (!editing) {
+    return (
+      <span>
+        <strong>{driverDisplayName(props.link)}</strong>
+        {sub !== undefined && <span className="muted"> ({sub})</span>}{' '}
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            setText(props.link.label ?? '');
+            setEditing(true);
+          }}
+        >
+          Rename
+        </button>
+      </span>
+    );
+  }
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        setBusy(true);
+        void props
+          .onRename(props.link.id, text)
+          .then(() => setEditing(false))
+          .finally(() => setBusy(false));
+      }}
+    >
+      <input
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        placeholder={props.link.driverName ?? props.link.driverIdentifier ?? 'Name'}
+        aria-label={`Name your team sees for ${whoText(props.link)}`}
+        maxLength={60}
+        style={{ width: 200 }}
+      />{' '}
+      <button type="submit" disabled={busy}>
+        {busy ? 'Saving…' : 'Save'}
+      </button>{' '}
+      <button type="button" className="secondary" onClick={() => setEditing(false)}>
+        Cancel
+      </button>
+    </form>
+  );
 }
 
 function DriverLinksSection(props: {
@@ -322,13 +390,17 @@ function DriverLinksSection(props: {
   empty: string;
   links: readonly DriverLinkDto[];
   renderActions: (link: DriverLinkDto) => ReactNode;
+  /** Offered for drivers who have joined, so a company can name them. */
+  onRename?: (id: string, label: string) => Promise<void>;
 }) {
+  const { onRename } = props;
   const columns: Column<DriverLinkDto>[] = [
     {
       key: 'who',
       header: 'Who',
       sortValue: (link) => whoText(link),
-      cell: (link) => whoText(link),
+      cell: (link) =>
+        onRename === undefined ? whoText(link) : <NameCell link={link} onRename={onRename} />,
     },
     {
       key: 'since',

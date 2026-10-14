@@ -42,4 +42,6 @@ export interface DriverMembership {
 /** A driver's own identifier, for the `driver` data scope. Supplied over `identity`. */
 export interface DriverIdentityDirectory {
   getIdentifier(driverId: DriverId): Promise<string | null>;
+  /** The name the driver has given themselves, or null. The office sees it ahead of the identifier. */
+  getName(driverId: DriverId): Promise<string | null>;
 }

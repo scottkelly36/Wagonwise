@@ -21,6 +21,7 @@ const companyA = '11111111-1111-4111-8111-111111111111';
 const companyB = '22222222-2222-4222-8222-222222222222';
 const STAFF_HEADER = 'x-test-staff-id';
 const SAM = 'sam-driver';
+const SAM_NAME = 'Sam Carter';
 const SAM_IDENTIFIER = 'sam@example.com';
 
 const ADMIN_ID = makeId<'StaffId'>('admin');
@@ -61,8 +62,10 @@ function buildApp(): {
     inviteDriver: { links, ids, clock },
     listDriverLinks: { links },
     settleDriverLink: { links, ids, clock },
+    setDriverLinkLabel: { links },
     companyCode: { codes, generator: new FixedCodeGenerator(['ABCD2345', 'WXYZ6789']), clock },
     driverIdentities: {
+      getName: (id) => Promise.resolve(id === SAM ? SAM_NAME : null),
       getIdentifier: (id) => Promise.resolve(id === SAM ? SAM_IDENTIFIER : null),
     },
     callerDirectory: new StubCallerDirectory(callers),
@@ -364,6 +367,55 @@ describe('driver links (P2-M2.6)', () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ status: 'active', driverIdentifier: SAM_IDENTIFIER });
+  });
+
+  it('shows the name a driver gave themselves', async () => {
+    const { app, links } = buildApp();
+    await requestToJoin(links);
+    const response = await app.inject({
+      method: 'GET',
+      url: `/staff/fleet/companies/${companyA}/driver-links`,
+      ...asStaff(FLEET_USER_ID),
+    });
+    expect(response.json()).toMatchObject({
+      links: [{ driverIdentifier: SAM_IDENTIFIER, driverName: SAM_NAME }],
+    });
+  });
+
+  it('sets, tidies and clears the company label for a driver', async () => {
+    const { app, links } = buildApp();
+    const id = await requestToJoin(links);
+    const put = (label: string, staff = FLEET_USER_ID) =>
+      app.inject({
+        method: 'PUT',
+        url: `/staff/fleet/driver-links/${id}/label`,
+        payload: { label },
+        ...asStaff(staff),
+      });
+
+    const set = await put('  Dave   (artic 3) ');
+    expect(set.statusCode).toBe(200);
+    expect(set.json()).toMatchObject({ label: 'Dave (artic 3)', driverName: SAM_NAME });
+
+    const cleared = await put('   ');
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.json()).not.toHaveProperty('label');
+  });
+
+  it('refuses a label that is too long, and one from staff without manage_fleet or from another company', async () => {
+    const { app, links } = buildApp();
+    const id = await requestToJoin(links);
+    const put = (label: string, staff: string) =>
+      app.inject({
+        method: 'PUT',
+        url: `/staff/fleet/driver-links/${id}/label`,
+        payload: { label },
+        ...asStaff(staff),
+      });
+
+    expect((await put('x'.repeat(61), FLEET_USER_ID)).statusCode).toBe(400);
+    expect((await put('Dave', VIEWER_ID)).statusCode).toBe(403);
+    expect((await put('Dave', OUTSIDER_ID)).statusCode).toBe(404);
   });
 
   it('declines a request, which is turned down rather than removed', async () => {

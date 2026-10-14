@@ -387,7 +387,7 @@ factor), `/join?token=…` (the invite link: set a password, pick a second facto
 recovery codes), `/staff/users` (invite, change privileges, remove) and `/staff/activity` (the
 audit log), the fleet pages, and for WagonWise staff the admin pages (companies, invite codes,
 hazard reports, driver accounts). The menu shows each person what their privileges allow; core
-decides every request. The staff guide (`/guide`, content in `apps/dashboard/src/lib/guide.ts`) sits behind the same sign-in, and each fleet and team page links to its section from the layout: when a page changes, change its section. Point the dashboard at it with `VITE_STAFF_BFF_URL` (default
+decides every request. Drivers are shown by the company's label, else the name the driver gave in the app, else their phone or email (`apps/dashboard/src/lib/driver-name.ts`; core: `identity.drivers.name`, `fleet.driver_links.label`, migration 0067). The staff guide (`/guide`, content in `apps/dashboard/src/lib/guide.ts`) sits behind the same sign-in, and each fleet and team page links to its section from the layout: when a page changes, change its section. Point the dashboard at it with `VITE_STAFF_BFF_URL` (default
 `http://localhost:3003`). To try it locally, create the first WagonWise admin's invite with
 `pnpm --filter @wagonwise/core staff:bootstrap --email you@example.com --name "You"
 --dashboard-url http://localhost:5173` and open the link it prints (it refuses once a WagonWise
