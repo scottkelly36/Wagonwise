@@ -108,6 +108,7 @@ describe('walk-round checks end to end (real RLS, real scopes)', () => {
     };
     const driverIdentities = {
       getIdentifier: (id: string) => Promise.resolve(identifiers[id] ?? null),
+      getName: () => Promise.resolve(null),
     };
 
     const fleet = createFleetModule({

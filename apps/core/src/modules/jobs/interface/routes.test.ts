@@ -96,6 +96,7 @@ function buildApp(): {
     report: {
       repo,
       drivers: {
+        getName: () => Promise.resolve(null),
         getIdentifier: (id) => Promise.resolve(id === DRIVER_A ? 'driver-a@example.com' : null),
       },
       vehicles: { getName: (id) => Promise.resolve(id === VEHICLE_A ? 'Big Wagon' : null) },

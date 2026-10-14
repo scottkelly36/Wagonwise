@@ -84,7 +84,10 @@ describe('repairs end to end (real RLS, real scopes)', () => {
       clock,
       dataScopes: scopes,
       callers: { getCaller: () => Promise.resolve(null) },
-      driverIdentities: { getIdentifier: () => Promise.resolve(null) },
+      driverIdentities: {
+        getIdentifier: () => Promise.resolve(null),
+        getName: () => Promise.resolve(null),
+      },
       companyNames: { namesFor: () => Promise.resolve(new Map()) },
       vehicleCapacity: { capacityFor: () => Promise.resolve(99) },
     });
@@ -100,7 +103,10 @@ describe('repairs end to end (real RLS, real scopes)', () => {
       },
       driverVehicle: { currentVehicle: () => Promise.resolve(null) },
       membership: { isActiveDriverOfCompany: () => Promise.resolve(false) },
-      driverIdentities: { getIdentifier: () => Promise.resolve(null) },
+      driverIdentities: {
+        getIdentifier: () => Promise.resolve(null),
+        getName: () => Promise.resolve(null),
+      },
     });
     // Wired exactly as compose-core.ts does it.
     const maintenance = createMaintenanceModule({

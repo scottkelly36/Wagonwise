@@ -53,6 +53,20 @@ describe('identity Postgres repositories', () => {
       expect(await repo().findByIdentifier('driver-a@example.com')).toEqual(driver);
     });
 
+    it('keeps the name a driver gives themselves, and clears it again', async () => {
+      const driver: Driver = {
+        id: makeId<'DriverId'>('11111111-1111-4111-8111-1111111111aa'),
+        identifier: 'named-driver@example.com',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        name: 'Dave Kelly',
+      };
+      await repo().save(driver);
+      expect((await repo().findById(driver.id))?.name).toBe('Dave Kelly');
+
+      await repo().save({ ...driver, name: undefined });
+      expect((await repo().findById(driver.id))?.name).toBeUndefined();
+    });
+
     it('returns null for an unknown driver', async () => {
       expect(
         await repo().findById(makeId<'DriverId'>('00000000-0000-4000-8000-000000000000')),

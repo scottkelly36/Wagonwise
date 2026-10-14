@@ -206,8 +206,10 @@ export const checkSummarySchema = z.object({
   templateName: z.string(),
   vehicleId: z.string(),
   vehicleName: z.string(),
-  /** The driver's sign-in (their phone or email); the portal has no driver names. */
+  /** The name the driver gave themselves, else their sign-in (phone or email). The portal shows its own company label
+   *  for the driver ahead of this, matched by `driverId`. */
   driverLabel: z.string().optional(),
+  driverId: z.string().optional(),
   checkDay: dayString,
   submittedAt: z.iso.datetime(),
   result: checkResultSchema,

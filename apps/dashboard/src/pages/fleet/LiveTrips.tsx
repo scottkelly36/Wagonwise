@@ -6,6 +6,7 @@ import * as fleetApi from '../../api/fleet';
 import * as hoursApi from '../../api/hours';
 import * as jobsApi from '../../api/jobs';
 import * as weatherApi from '../../api/weather';
+import { driverDisplayName } from '../../lib/driver-name';
 import { breakEffectFor } from '../../lib/breaks-in-journey';
 import { hoursStatusText, hoursStatusUrgent } from '../../lib/hours-status';
 import { jobHasPickup, jobStatusText } from '../../lib/job-text';
@@ -147,7 +148,7 @@ export function LiveTrips() {
                   ),
                 )
               : undefined,
-          driverName: driver?.driverIdentifier ?? undefined,
+          driverName: driver === undefined ? undefined : driverDisplayName(driver),
           vehicleName: vehicle?.name,
           next,
           distanceM:

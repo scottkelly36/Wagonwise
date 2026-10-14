@@ -9,7 +9,11 @@ import type {
   LinkNotFound,
   TooManyAttempts,
 } from '../application/errors.js';
-import type { InvalidIdentifier, InvalidLinkTransition } from '../domain/driver-link.js';
+import type {
+  InvalidIdentifier,
+  InvalidLabel,
+  InvalidLinkTransition,
+} from '../domain/driver-link.js';
 import type { InvalidDimensions, InvalidName, InvalidRegistration } from '../domain/vehicle.js';
 
 export type FleetError =
@@ -21,6 +25,7 @@ export type FleetError =
   | RegistrationTaken
   | Forbidden
   | InvalidIdentifier
+  | InvalidLabel
   | InvalidCode
   | LinkNotFound
   | AlreadyLinked
@@ -37,6 +42,7 @@ export function statusFor(error: FleetError): number {
     case 'InvalidDimensions':
     case 'InvalidRegistration':
     case 'InvalidIdentifier':
+    case 'InvalidLabel':
     case 'InvalidCode':
       return 400;
     case 'FleetVehicleNotFound':

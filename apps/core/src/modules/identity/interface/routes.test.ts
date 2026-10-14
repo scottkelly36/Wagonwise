@@ -78,6 +78,7 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
     revokeSession: { sessionRepo, clock },
     registerDevice: { repo: deviceRepo, clock, ids },
     giveConsent: { driverRepo, clock },
+    setDriverName: { driverRepo },
     deleteAccount: {
       driverRepo,
       sessionRepo,

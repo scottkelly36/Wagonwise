@@ -174,11 +174,20 @@ export const GUIDE: readonly GuideSection[] = [
         ],
       },
       {
+        heading: 'Give a driver a name',
+        steps: [
+          'Under Active drivers, choose Rename beside the driver.',
+          'Type the name your team should see, such as “Dave K (artic 3)”, and save.',
+          'Leave it blank to go back to the name the driver gave themselves, or their phone or email if they have not given one.',
+        ],
+      },
+      {
         heading: 'If you drive too',
         steps: ['Choose Add me as a driver. You then show as “(you)” when assigning jobs.'],
       },
     ],
     tips: [
+      'Everywhere in the portal shows your name for a driver first, then the name the driver gave in the app, then their phone or email.',
       'Regenerate code if a code has got out. The old one stops working for anyone who has not used it yet.',
       'A new driver who has not used the app before needs an invite code from WagonWise for their first sign-in.',
     ],

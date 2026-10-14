@@ -20,6 +20,10 @@ const JOB_ID = makeId<'JobId'>('11111111-1111-4111-8111-111111111111');
 const DRIVER_HEADER = 'x-test-driver-id';
 
 class FakeDriverIdentities implements DriverIdentityDirectory {
+  getName(): Promise<string | null> {
+    return Promise.resolve(null);
+  }
+
   getIdentifier(driverId: string): Promise<string | null> {
     if (driverId === DRIVER) return Promise.resolve('driver@example.com');
     if (driverId === OTHER_DRIVER) return Promise.resolve('other@example.com');

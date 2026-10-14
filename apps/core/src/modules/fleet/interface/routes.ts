@@ -4,6 +4,7 @@ import {
   fleetCompanyIdParamsSchema,
   fleetVehicleIdParamsSchema,
   inviteDriverRequestSchema,
+  setDriverLinkLabelRequestSchema,
   updateFleetVehicleRequestSchema,
 } from '@wagonwise/contracts/fleet';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -24,6 +25,10 @@ import {
 } from '../application/delete-fleet-vehicle.js';
 import { inviteDriver, type InviteDriverDeps } from '../application/invite-driver.js';
 import { listCompanyDriverLinks } from '../application/list-driver-links.js';
+import {
+  setDriverLinkLabel,
+  type SetDriverLinkLabelDeps,
+} from '../application/set-driver-link-label.js';
 import {
   listFleetVehicles,
   type ListFleetVehiclesDeps,
@@ -53,6 +58,7 @@ export interface FleetRouteDeps {
   readonly inviteDriver: InviteDriverDeps;
   readonly listDriverLinks: { readonly links: Pick<DriverLinkRepository, 'listForCompany'> };
   readonly settleDriverLink: SettleDriverLinkDeps;
+  readonly setDriverLinkLabel: SetDriverLinkLabelDeps;
   readonly companyCode: CompanyCodeDeps;
   /** Driver identifiers for showing staff who a requested or active link belongs to
    *  (P2-M2.6; invitations already carry their own `invitedIdentifier`). */
@@ -74,27 +80,43 @@ function vehicleDto(vehicle: FleetVehicle) {
   };
 }
 
-/** Driver identifiers for every `driverId` among `links`, for `driverLinkDto`. One lookup per
- *  distinct driver rather than per link. */
+interface DriverWho {
+  readonly identifier?: string;
+  readonly name?: string;
+}
+
+/** Identifier and own name for every `driverId` among `links`, for `driverLinkDto`. One lookup per distinct driver
+ *  rather than per link. */
 async function identifiersFor(
   identities: DriverIdentityDirectory,
   links: readonly DriverLink[],
-): Promise<ReadonlyMap<DriverId, string>> {
+): Promise<ReadonlyMap<DriverId, DriverWho>> {
   const driverIds = [...new Set(links.flatMap((link) => (link.driverId ? [link.driverId] : [])))];
-  const pairs = await Promise.all(
-    driverIds.map(async (id) => [id, await identities.getIdentifier(id)] as const),
+  const entries = await Promise.all(
+    driverIds.map(async (id) => {
+      const [identifier, name] = await Promise.all([
+        identities.getIdentifier(id),
+        identities.getName(id),
+      ]);
+      const who: DriverWho = {
+        ...(identifier === null ? {} : { identifier }),
+        ...(name === null ? {} : { name }),
+      };
+      return [id, who] as const;
+    }),
   );
-  return new Map(pairs.filter((pair): pair is [DriverId, string] => pair[1] !== null));
+  return new Map(entries);
 }
 
-function driverLinkDto(link: DriverLink, identifiers: ReadonlyMap<DriverId, string>) {
+function driverLinkDto(link: DriverLink, identifiers: ReadonlyMap<DriverId, DriverWho>) {
+  const who = link.driverId === undefined ? undefined : identifiers.get(link.driverId);
   return {
     id: link.id,
     companyId: link.companyId,
     ...(link.driverId === undefined ? {} : { driverId: link.driverId }),
-    ...(link.driverId !== undefined && identifiers.has(link.driverId)
-      ? { driverIdentifier: identifiers.get(link.driverId) }
-      : {}),
+    ...(who?.identifier === undefined ? {} : { driverIdentifier: who.identifier }),
+    ...(who?.name === undefined ? {} : { driverName: who.name }),
+    ...(link.label === undefined ? {} : { label: link.label }),
     ...(link.invitedIdentifier === undefined ? {} : { invitedIdentifier: link.invitedIdentifier }),
     status: link.status,
     createdAt: link.createdAt.toISOString(),
@@ -326,6 +348,30 @@ export function registerFleetRoutes(app: FastifyInstance, deps: FleetRouteDeps):
       return send(request, reply, outcome);
     });
   }
+
+  // The company's own label for a driver, so its staff can tell drivers apart.
+  app.put('/staff/fleet/driver-links/:id/label', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
+
+    const params = driverLinkIdParamsSchema.safeParse(request.params);
+    const body = setDriverLinkLabelRequestSchema.safeParse(request.body);
+    if (!params.success || !body.success) return send(request, reply, INVALID);
+    const who = await callerAndScope(staffId);
+    if (!who) return send(request, reply, FORBIDDEN);
+
+    const outcome = await deps.dataScopes.run(who.scope, async (): Promise<Outcome> => {
+      const result = await setDriverLinkLabel(deps.setDriverLinkLabel, {
+        caller: who.caller,
+        linkId: makeId<'DriverLinkId'>(params.data.id),
+        label: body.data.label,
+      });
+      if (!result.ok) return { status: statusFor(result.error), body: result.error };
+      const identifiers = await identifiersFor(deps.driverIdentities, [result.value]);
+      return { status: 200, body: driverLinkDto(result.value, identifiers) };
+    });
+    return send(request, reply, outcome);
+  });
 
   registerSettleRoute('/staff/fleet/driver-links/:id/approve', approveDriverRequest);
   registerSettleRoute('/staff/fleet/driver-links/:id/decline', declineDriverLink);

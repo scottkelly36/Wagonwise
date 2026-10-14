@@ -61,6 +61,22 @@ describe('Postgres driver links and company codes', () => {
     ).toBeNull();
   });
 
+  it('keeps the company label on a link, and clears it again', async () => {
+    const labelled = link(6, {
+      // Its own company and driver, so it cannot disturb the lists the other tests count.
+      companyId: makeId<'CompanyId'>('dddddddd-0000-4000-8000-000000000001'),
+      status: 'active',
+      invitedIdentifier: undefined,
+      driverId: makeId<'DriverId'>('dddddddd-0000-4000-8000-0000000000aa'),
+      label: 'Pat (artic 2)',
+    });
+    await links().save(labelled);
+    expect((await links().findById(labelled.id))?.label).toBe('Pat (artic 2)');
+
+    await links().save({ ...labelled, label: undefined });
+    expect((await links().findById(labelled.id))?.label).toBeUndefined();
+  });
+
   it('finds a live link and a pending invitation, and lists for a company and for a driver', async () => {
     expect((await links().findLive(beta, pat))?.status).toBe('requested');
     expect(await links().findLive(acme, pat)).toBeNull();

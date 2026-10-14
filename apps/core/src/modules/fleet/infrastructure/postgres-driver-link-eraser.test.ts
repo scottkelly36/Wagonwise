@@ -24,13 +24,13 @@ describe('PostgresDriverLinkEraser', () => {
     await applySchema(pool);
     await pool.query(`
       insert into fleet.driver_links
-        (id, company_id, driver_id, invited_identifier, status, created_at, decided_at)
+        (id, company_id, driver_id, invited_identifier, status, label, created_at, decided_at)
       values
-        ('a1000000-0000-4000-8000-000000000001', '${ACME}', '${PAT}', 'pat@example.com', 'active', now(), now()),
-        ('a1000000-0000-4000-8000-000000000002', '${BETA}', '${PAT}', null, 'declined', now(), '2026-09-01T00:00:00Z'),
-        ('a1000000-0000-4000-8000-000000000003', '${BETA}', null, 'pat@example.com', 'invited', now(), null),
-        ('a1000000-0000-4000-8000-000000000004', '${ACME}', null, 'sam@example.com', 'invited', now(), null),
-        ('a1000000-0000-4000-8000-000000000005', '${ACME}', '${SAM}', null, 'active', now(), now())
+        ('a1000000-0000-4000-8000-000000000001', '${ACME}', '${PAT}', 'pat@example.com', 'active', 'Pat (artic 2)', now(), now()),
+        ('a1000000-0000-4000-8000-000000000002', '${BETA}', '${PAT}', null, 'declined', null, now(), '2026-09-01T00:00:00Z'),
+        ('a1000000-0000-4000-8000-000000000003', '${BETA}', null, 'pat@example.com', 'invited', null, now(), null),
+        ('a1000000-0000-4000-8000-000000000004', '${ACME}', null, 'sam@example.com', 'invited', null, now(), null),
+        ('a1000000-0000-4000-8000-000000000005', '${ACME}', '${SAM}', null, 'active', 'Sam', now(), now())
     `);
   }, 120_000);
 
@@ -45,6 +45,7 @@ describe('PostgresDriverLinkEraser', () => {
         id: string;
         driver_id: string | null;
         invited_identifier: string | null;
+        label: string | null;
         status: string;
         decided_at: Date | null;
       }>(`select * from fleet.driver_links order by id`)
@@ -57,7 +58,12 @@ describe('PostgresDriverLinkEraser', () => {
     // The invitation made to Pat's address (no driver yet) is gone.
     expect(rows.map((r) => r.id)).not.toContain('a1000000-0000-4000-8000-000000000003');
     const live = rows.find((r) => r.id === 'a1000000-0000-4000-8000-000000000001');
-    expect(live).toMatchObject({ driver_id: PAT, invited_identifier: null, status: 'left' });
+    expect(live).toMatchObject({
+      driver_id: PAT,
+      invited_identifier: null,
+      label: null,
+      status: 'left',
+    });
     expect(live?.decided_at).toEqual(at);
     // A declined link stays as it was, history of what was decided.
     expect(rows.find((r) => r.id === 'a1000000-0000-4000-8000-000000000002')).toMatchObject({
@@ -73,6 +79,7 @@ describe('PostgresDriverLinkEraser', () => {
     });
     expect(rows.find((r) => r.id === 'a1000000-0000-4000-8000-000000000005')).toMatchObject({
       driver_id: SAM,
+      label: 'Sam',
       status: 'active',
     });
   });

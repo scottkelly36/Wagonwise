@@ -17,12 +17,13 @@ interface LinkRow {
   readonly driver_id: string | null;
   readonly invited_identifier: string | null;
   readonly status: DriverLinkStatus;
+  readonly label: string | null;
   readonly created_at: Date;
   readonly decided_at: Date | null;
 }
 
 const SELECT_COLUMNS = `
-  id, company_id, driver_id, invited_identifier, status, created_at, decided_at
+  id, company_id, driver_id, invited_identifier, status, label, created_at, decided_at
 `;
 
 function toDomain(row: LinkRow): DriverLink {
@@ -30,6 +31,7 @@ function toDomain(row: LinkRow): DriverLink {
     id: makeId<'DriverLinkId'>(row.id),
     companyId: makeId<'CompanyId'>(row.company_id),
     status: row.status,
+    ...(row.label === null ? {} : { label: row.label }),
     createdAt: row.created_at,
     ...(row.driver_id === null ? {} : { driverId: makeId<'DriverId'>(row.driver_id) }),
     ...(row.invited_identifier === null ? {} : { invitedIdentifier: row.invited_identifier }),
@@ -99,15 +101,16 @@ export class PostgresDriverLinkRepository implements DriverLinkRepository {
   async save(link: DriverLink, events: readonly DomainEvent[] = []): Promise<void> {
     await sql`
       insert into fleet.driver_links
-        (id, company_id, driver_id, invited_identifier, status, created_at, decided_at)
+        (id, company_id, driver_id, invited_identifier, status, label, created_at, decided_at)
       values (
         ${link.id}, ${link.companyId}, ${link.driverId ?? null}, ${link.invitedIdentifier ?? null},
-        ${link.status}, ${link.createdAt}, ${link.decidedAt ?? null}
+        ${link.status}, ${link.label ?? null}, ${link.createdAt}, ${link.decidedAt ?? null}
       )
       on conflict (id) do update set
         driver_id = excluded.driver_id,
         invited_identifier = excluded.invited_identifier,
         status = excluded.status,
+        label = excluded.label,
         decided_at = excluded.decided_at
     `.execute(this.db);
     for (const event of events) {

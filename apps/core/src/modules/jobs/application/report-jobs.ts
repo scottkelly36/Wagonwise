@@ -59,7 +59,11 @@ export async function reportJobs(
   // Each driver and vehicle is looked up once, however many jobs they appear on.
   const driverNames = new Map<string, string | null>();
   for (const id of new Set(rows.flatMap((r) => (r.driverId === undefined ? [] : [r.driverId])))) {
-    driverNames.set(id, await deps.drivers.getIdentifier(id as DriverId));
+    driverNames.set(
+      id,
+      (await deps.drivers.getName(id as DriverId)) ??
+        (await deps.drivers.getIdentifier(id as DriverId)),
+    );
   }
   const vehicleNames = new Map<string, string | null>();
   for (const id of new Set(rows.flatMap((r) => (r.vehicleId === undefined ? [] : [r.vehicleId])))) {

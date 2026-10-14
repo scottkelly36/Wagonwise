@@ -289,7 +289,10 @@ export function composeCore(
     dataScopes,
     callers: { getCaller: staffCaller },
     clock,
-    driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+    driverIdentities: {
+      getIdentifier: (driverId) => identity.getDriverIdentifier(driverId),
+      getName: (driverId) => identity.getDriverName(driverId),
+    },
     companyNames: { namesFor: (ids) => companies.getCompanyNames(ids) },
     vehicleCapacity: { capacityFor: (companyId) => billing.vehicleCapacityFor(companyId) },
   });
@@ -470,7 +473,10 @@ export function composeCore(
       belongsToCompany: async (vehicleId, companyId) =>
         (await fleet.getVehicleCompanyId(vehicleId)) === companyId,
     },
-    driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+    driverIdentities: {
+      getIdentifier: (driverId) => identity.getDriverIdentifier(driverId),
+      getName: (driverId) => identity.getDriverName(driverId),
+    },
     vehicleNames: {
       getName: async (vehicleId) => (await fleet.getVehicle(vehicleId))?.name ?? null,
     },
@@ -550,7 +556,10 @@ export function composeCore(
       isActiveDriverOfCompany: (driverId, companyId) =>
         fleet.isActiveDriverOfCompany(driverId, companyId),
     },
-    driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+    driverIdentities: {
+      getIdentifier: (driverId) => identity.getDriverIdentifier(driverId),
+      getName: (driverId) => identity.getDriverName(driverId),
+    },
   });
 
   const outboxDispatcher = new OutboxDispatcher(

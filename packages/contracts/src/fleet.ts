@@ -83,6 +83,11 @@ export const driverLinkSchema = z.object({
   /** The driver's own sign-in identifier, shown to staff once `driverId` is known. Absent if the
    *  driver has since deleted their account. */
   driverIdentifier: z.string().optional(),
+  /** The name the driver has given themselves, if they have. */
+  driverName: z.string().optional(),
+  /** What this company calls the driver, if it has set one. The portal shows it first, then the driver's own
+   *  name, then the identifier. */
+  label: z.string().optional(),
   /** Present on an invitation: the phone or email it was made for. */
   invitedIdentifier: z.string().optional(),
   /** The company's name, so a driver can see who an invitation or request is for. */
@@ -97,6 +102,12 @@ export const listDriverLinksResponseSchema = z.object({
   links: z.array(driverLinkSchema),
 });
 export type ListDriverLinksResponse = z.infer<typeof listDriverLinksResponseSchema>;
+
+/** The company gives a driver a label. Empty clears it; over 60 characters is refused. */
+export const setDriverLinkLabelRequestSchema = z.object({
+  label: z.string().max(200),
+});
+export type SetDriverLinkLabelRequest = z.infer<typeof setDriverLinkLabelRequestSchema>;
 
 /** Staff invite someone by phone number or email; they need not have an account yet. */
 export const inviteDriverRequestSchema = z.object({

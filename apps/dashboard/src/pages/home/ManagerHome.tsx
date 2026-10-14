@@ -7,6 +7,7 @@ import * as hoursApi from '../../api/hours';
 import * as jobsApi from '../../api/jobs';
 import * as maintenanceApi from '../../api/maintenance';
 import { HomeNote, HomePanel, HomeRows, HomeTiles } from '../../components/HomeParts';
+import { driverNamesById } from '../../lib/driver-name';
 import { complianceRows, localDay, lowOnHours, managerTiles, onTheRoad } from '../../lib/home';
 import { holds } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -108,7 +109,7 @@ export function ManagerHome({ companyId }: { companyId: string }) {
   );
 
   const driverName = (id: string | undefined): string | undefined =>
-    drivers.data?.find((l) => l.driverId === id)?.driverIdentifier;
+    driverNamesById(drivers.data ?? []).get(id ?? '');
   const road = onTheRoad({
     jobs: jobs.data ?? [],
     etas: etas.data ?? [],
