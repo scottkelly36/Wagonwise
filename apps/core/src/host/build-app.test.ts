@@ -123,6 +123,7 @@ describe('driver auth (M4.2, M4.3, M6.2)', () => {
     ['/feedback/protected'],
     ['/identity/devices/protected'],
     ['/identity/consent/protected'],
+    ['/identity/name/protected'],
     ['/identity/account/protected'],
   ])('rejects a %s request with no access token, even with a valid internal key', async (path) => {
     const { app } = makeApp();
@@ -142,6 +143,7 @@ describe('driver auth (M4.2, M4.3, M6.2)', () => {
     ['/feedback/protected'],
     ['/identity/devices/protected'],
     ['/identity/consent/protected'],
+    ['/identity/name/protected'],
     ['/identity/account/protected'],
   ])('accepts a %s request with a valid internal key and a valid access token', async (path) => {
     const { app } = makeApp();
@@ -189,6 +191,26 @@ describe('driver auth (M4.2, M4.3, M6.2)', () => {
     const withToken = await app.inject({
       method: 'POST',
       url: '/identity/consent',
+      headers: { ...INTERNAL_KEY_HEADER, authorization: `Bearer ${VALID_DRIVER_TOKEN}` },
+    });
+    expect(withToken.statusCode).toBe(200);
+  });
+
+  it('gates the bare /identity/name path itself, not just a sub-path under it (regression: it shipped without the gate)', async () => {
+    const { app } = makeApp();
+    app.put('/identity/name', () => ({ ok: true }));
+
+    const withoutToken = await app.inject({
+      method: 'PUT',
+      url: '/identity/name',
+      headers: INTERNAL_KEY_HEADER,
+    });
+    expect(withoutToken.statusCode).toBe(401);
+    expect(withoutToken.json()).toMatchObject({ error: 'missing_bearer_token' });
+
+    const withToken = await app.inject({
+      method: 'PUT',
+      url: '/identity/name',
       headers: { ...INTERNAL_KEY_HEADER, authorization: `Bearer ${VALID_DRIVER_TOKEN}` },
     });
     expect(withToken.statusCode).toBe(200);

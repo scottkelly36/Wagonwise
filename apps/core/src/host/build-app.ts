@@ -38,6 +38,7 @@ const DRIVER_AUTH_PREFIXES = [
   '/hours/',
   '/identity/devices/',
   '/identity/consent/',
+  '/identity/name/',
   '/identity/account/',
 ];
 
