@@ -1,9 +1,13 @@
-import { err, ok, type Result, type TaggedError } from '../../../shared/result.js';
-import { normalizeDriverName, setName, type Driver, type DriverId } from '../domain/driver.js';
+import { err, ok, type Result } from '../../../shared/result.js';
+import {
+  normalizeDriverName,
+  setName,
+  type Driver,
+  type DriverId,
+  type NameTooLong,
+} from '../domain/driver.js';
 import type { DriverNotFound } from './errors.js';
 import type { DriverRepository } from './ports/driver-repository.js';
-
-export type NameTooLong = TaggedError<'NameTooLong'>;
 
 export type SetDriverNameError = DriverNotFound | NameTooLong;
 
@@ -23,10 +27,10 @@ export async function setDriverName(
   input: SetDriverNameInput,
 ): Promise<Result<Driver, SetDriverNameError>> {
   const name = normalizeDriverName(input.name);
-  if (name === 'too_long') return err({ tag: 'NameTooLong' });
+  if (!name.ok) return name;
   const driver = await deps.driverRepo.findById(input.driverId);
   if (!driver) return err({ tag: 'DriverNotFound' });
-  const named = setName(driver, name);
+  const named = setName(driver, name.value);
   await deps.driverRepo.save(named);
   return ok(named);
 }

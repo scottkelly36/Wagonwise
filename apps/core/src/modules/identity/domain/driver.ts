@@ -1,4 +1,5 @@
 import type { Id } from '../../../shared/brand.js';
+import { err, ok, type Result, type TaggedError } from '../../../shared/result.js';
 
 export type DriverId = Id<'DriverId'>;
 
@@ -31,12 +32,14 @@ export function consent(driver: Driver, now: Date): Driver {
 
 export const MAX_DRIVER_NAME_LENGTH = 60;
 
+export type NameTooLong = TaggedError<'NameTooLong'>;
+
 /** Tidies a typed name: trimmed, runs of spaces made one. Empty gives `undefined`, which clears the name. A name
- *  over the limit is `'too_long'`, never cut off silently. */
-export function normalizeDriverName(raw: string): string | undefined | 'too_long' {
+ *  over the limit is refused, never cut off silently. */
+export function normalizeDriverName(raw: string): Result<string | undefined, NameTooLong> {
   const name = raw.trim().replace(/\s+/g, ' ');
-  if (name === '') return undefined;
-  return name.length > MAX_DRIVER_NAME_LENGTH ? 'too_long' : name;
+  if (name.length > MAX_DRIVER_NAME_LENGTH) return err({ tag: 'NameTooLong' });
+  return ok(name === '' ? undefined : name);
 }
 
 export function setName(driver: Driver, name: string | undefined): Driver {
