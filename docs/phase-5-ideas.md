@@ -5,6 +5,22 @@
 as a business, fit it into how big firms already work, and go deeper on the driver's day. Nothing here is built. Items that
 are already recorded elsewhere point at where.
 
+## The whiteboard (2026-10-14): Phase 5 to 6
+
+What the owner wrote up for "Plan phase 5-6", with where each item is covered below.
+
+| On the board                                 | Covered in                                                    |
+| -------------------------------------------- | ------------------------------------------------------------- |
+| SNAP, TRAVIS, Park Your Truck (parking)      | Ask 1                                                         |
+| SNAP API integration: book services          | Ask 1 (SNAP's network also covers washes and depots)          |
+| Telematics integration, possible?            | Ask 3                                                         |
+| Price telematics                             | Ask 3, "Price it first"                                       |
+| Haulage requests?, payment links             | Ask 5                                                         |
+| Better routing                               | Theme D                                                       |
+| Staff portal improvements                    | Ask 4, with a way to find the features                        |
+| Drivers scores (portal)                      | Ask 6                                                         |
+| Responsive deviations (red, from Phase 4 M8) | Phase 4 on the board in `phase-3-scope.md`; not repeated here |
+
 ## The owner's asks (2026-10-13)
 
 Five things the owner wants in Phase 5. Research below is from public pages on 2026-10-13 and has not been tried; check each
@@ -35,6 +51,10 @@ against the provider's own terms before building.
     terms; no public API found.
   - **Park Safe (new, July 2026):** a UK platform from a Lancashire haulier (McMurrays) where hauliers rent out their spare
     secure spaces. UK only and very new; no API details found. Worth a call to see if it wants to be listed.
+  - **Park Your Truck (park-your-truck.com):** on the whiteboard. A Dealroom profile says it turns unused land near
+    highways into bookable, fenced and monitored truck parking, with a booking platform and app, subsidiaries in the UK, Spain,
+    Italy and France, and over 20,000 spaces in Europe. I found nothing from the company itself, so UK sites, any API and
+    terms are all unconfirmed. Add it to the same five questions.
   - **Not useful for booking:** Parkopedia (no HGV or UK truck-bay API found), Trucker Path (US and Canada only), Park4Night
     (community map, no API found). MWayBuddy and Truck Parking Europe are information only.
   - **Money (unknown):** no provider's public pages mention commission, a referral fee or what API access costs. Platforms like
@@ -76,6 +96,9 @@ against the provider's own terms before building.
   answer to "what telematics do you run?" decides which.
 - **Why it matters here:** driver hours and live position without the driver having the app open, and odometer for
   maintenance dates.
+- **Price it first (on the board):** before any adapter, find out what each provider charges for API access and who pays: the
+  fleet through its own account, or WagonWise as a partner. Ask Webfleet, Geotab (through a reseller) and Samsara for partner
+  terms, the same way as for parking. A feature that costs more per vehicle than the £10 WagonWise charges is a drain.
 
 ### 4. Expand the staff portal
 
@@ -83,6 +106,18 @@ Candidates, to be cut by what firms ask for: a calendar or board view for jobs; 
 their own records; documents per vehicle and driver (insurance, licence checks, expiry dates); driver licence and CPC
 reminders; trailer records; a message to a driver from a job; exports and scheduled reports; per-depot views; a read-only
 customer link to track a delivery. The staff guide (`/guide`) grows with each page.
+
+**When no features come to mind (the owner, 2026-10-14):** the portal is thin, and the right list comes from watching, not
+guessing. Ways to find it:
+
+- Sit with the pilot firm's dispatcher for an hour and write down every time they leave the portal for a spreadsheet, a phone
+  call or a message.
+- Read the App usage page (`/admin/usage`) to see which pages are used and which never are.
+- Ask each tester one question: "What did you do outside WagonWise today that you wish it did?"
+- Use the tester feedback inbox, and the staff guide's gaps (a task with no page to do it on).
+- Look at what big fleets already pay for, from the prospects workbook (names of the systems they use).
+
+Start with the three most asked-for, build them small, and put each in the guide.
 
 ### 5. A haulage marketplace (advertise jobs)
 
@@ -95,6 +130,21 @@ customer link to track a delivery. The staff guide (`/guide`) grows with each pa
 - **A smaller first step:** let a firm share a job with a set list of trusted hauliers (subcontractors it already uses), with
   the job flowing into the other firm's WagonWise. That tests demand and the legal side without an open marketplace.
 - **Not researched yet.** Needs a look at existing load boards, and a solicitor, before any design.
+- **Haulage requests and payment links (on the board):** a firm posts a request, a haulier accepts, and a payment link settles
+  it. A payment link means a payments provider (a card or bank payment service) holding money between two firms. That adds
+  regulation and fees, and who is the merchant matters (WagonWise, or each firm). Skip payments in the first version: let the
+  firms settle between themselves, as they do now, and add payment links only if firms ask for them.
+
+### 6. Driver scores in the portal (the owner, red on the board)
+
+- **The idea:** a score for each driver in the portal, so a firm can see how they are doing.
+- **What it could be built from today:** on-time delivery, checks done, defects reported, jobs completed. Safer-driving signals
+  (harsh braking, speeding) need telematics, so they wait for ask 3.
+- **Care needed:** scoring drivers is monitoring of workers. It needs its own DPIA entry, plain wording to drivers about what
+  is scored, and a rule that a score is never the only reason for discipline. A mistaken or unfair score is a real harm, and a
+  big fleet's union or drivers' representative may well ask to see how it works. Keep the first version to simple facts the
+  driver can see for themselves (jobs done, checks done), not a single number.
+- **Open question:** does the firm want a score, or a list of events it can look at? The second is simpler and safer.
 
 ## Themes
 
