@@ -2,7 +2,9 @@
 
 **Status:** a first draft to try and rewrite. It has three tools: a case study template for the pilot firm, a cold message and phone script, and a 20-minute demo script. Fill the `[brackets]` yourself. Nothing here has been tested on a real prospect, so change the wording as soon as a real conversation shows what lands.
 
-**The offer in one line:** your jobs, vehicle checks, maintenance dates and what each job made, in one place, with a free driver app that connects to it. £10 per vehicle per month; the driver app is free. [Decide the trial terms: for example, the first month free, and we set your company up for you.]
+**The offer in one line:** your jobs, vehicle checks, maintenance dates and what each job made, in one place, with a free driver app that connects to it. Standard price £15 per vehicle per month; the driver app is free.
+
+**Pilot terms (the owner, 2026-10-15, kept loose on purpose):** free while WagonWise is tailored to the firm, for about three months; then a founders rate of £10 per vehicle per month. Say "about three months", not a date, but agree one thing in writing (an email is enough) before they start: what "tailored" covers and when the free period ends. Decide separately, and tell them, whether £10 is kept for as long as they stay or is a rate for a set time. Do not promise it until you have decided.
 
 Use this order: drivers like the app, the firm sees the portal, the firm pays. Write about one problem at a time, and sell the problem the firm already feels.
 
@@ -71,16 +73,16 @@ Replace the bracketed problem with the one that fits that firm. One problem per 
 
 **Before the call:** ask for their vehicle count and the one problem they mentioned. Use the dummy-data company, so nothing real is on screen. Open the portal and the driver app side by side.
 
-| Minutes  | What to show                 | What to say                                                                                                          |
-| -------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 0 to 2   | Ask first                    | "Before I show you anything, tell me how you run jobs and checks today." Write down what they say.                   |
-| 2 to 5   | Jobs                         | Create a job with two stops, assign a driver and a vehicle. "The driver is told at once and sees it in the app."     |
-| 5 to 8   | The driver app               | Show the job on the phone: accept, stops, proof of delivery photo. "You see the status change as they go."           |
-| 8 to 11  | Live trips                   | The map with vehicles on a job. "It only updates while the driver has the app open, so check last seen."             |
-| 11 to 14 | Their problem                | Go to the page that fixes the problem they named: checks and defects, maintenance dates, or job profit.              |
-| 14 to 16 | Job profit and looking ahead | "This is what each job cost and made." Only if they are interested in money; skip it otherwise.                      |
-| 16 to 18 | Setting up                   | "I set your company up for you, import your vehicles and drivers, and stay on call for the first week."              |
-| 18 to 20 | The close                    | State the price: "£10 per vehicle per month, [trial terms]. Shall we start with [a handful of vehicles / one week]?" |
+| Minutes  | What to show                 | What to say                                                                                                                                                                                                                |
+| -------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 to 2   | Ask first                    | "Before I show you anything, tell me how you run jobs and checks today." Write down what they say.                                                                                                                         |
+| 2 to 5   | Jobs                         | Create a job with two stops, assign a driver and a vehicle. "The driver is told at once and sees it in the app."                                                                                                           |
+| 5 to 8   | The driver app               | Show the job on the phone: accept, stops, proof of delivery photo. "You see the status change as they go."                                                                                                                 |
+| 8 to 11  | Live trips                   | The map with vehicles on a job. "It only updates while the driver has the app open, so check last seen."                                                                                                                   |
+| 11 to 14 | Their problem                | Go to the page that fixes the problem they named: checks and defects, maintenance dates, or job profit.                                                                                                                    |
+| 14 to 16 | Job profit and looking ahead | "This is what each job cost and made." Only if they are interested in money; skip it otherwise.                                                                                                                            |
+| 16 to 18 | Setting up                   | "I set your company up for you, import your vehicles and drivers, and stay on call for the first week."                                                                                                                    |
+| 18 to 20 | The close                    | State the terms: "Free while we set it up around how you work, about three months, then £10 per vehicle per month as a founders rate (the standard price is £15). Shall we start with [a handful of vehicles / one week]?" |
 
 **After the demo**
 
