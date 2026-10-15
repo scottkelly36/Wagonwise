@@ -496,6 +496,21 @@ Set these on the **driver-bff** component in DigitalOcean (plain, non-secret var
 - `APP_UPDATE_URL`: where Update goes: the Play listing or the internal testing link.
 - `APP_MINIMUM_VERSION`: leave unset. Setting it covers the screen of anyone older with "Please update WagonWise", so use it only to force an update (for example when an old build can no longer talk to the server). A value that is not a plain version number such as `1.3.0` is ignored, so a typo cannot lock anyone out.
 
+## 9b. Telling the owner when a sign-in email fails
+
+Resend can call a web address whenever an email fails, bounces, is marked as spam or is suppressed. The driver BFF receives it at `POST /webhooks/resend`, checks Resend's signature (nothing is read without a valid one), and passes it to core, which logs it (with the address masked, like `d***@gmail.com`) and emails the owner. At most 5 alert emails go in an hour, and an email to the alert address itself is never alerted about, so a failing alert cannot start a loop. The full address is in the Resend dashboard under the email's id, which the alert includes.
+
+Nothing is needed in the routing: `api.wagon-wise.co.uk` already sends everything except `/staff/*` to the driver BFF, which is where this route is.
+
+Set up, in this order:
+
+1. **Core:** add `ALERT_EMAIL` (a plain variable) with the address alerts should go to. Unset, problems are only logged.
+2. **Resend dashboard → Webhooks → Add endpoint:** the URL is `https://api.wagon-wise.co.uk/webhooks/resend`. Choose the events for a failed, bounced, complained and suppressed email (`email.failed`, `email.bounced`, `email.complained`, `email.suppressed`; the dashboard shows the exact names). Save, then copy the **signing secret** (it starts `whsec_`).
+3. **driver-bff:** add `RESEND_WEBHOOK_SECRET` as an **encrypted** variable with that secret, and redeploy. Until it is set, the route answers 503 ("not set up") and Resend will keep retrying and may mark the webhook as failing, so do steps 2 and 3 together.
+4. **Test it:** send a test event from the Resend webhook page, or an email to one of Resend's test addresses for a bounce (their docs list them). The owner should get an alert and core's log should show "an email did not get through".
+
+The secret and the alert address are read only in each app's `config.ts`. Nothing is stored: the events are logged and emailed, not kept.
+
 ## 10. Valhalla: covering the whole of Great Britain (planned for the start of November 2026)
 
 Today Valhalla covers Northumberland, Tyne and Wear and Cumbria on a 2 GB droplet. National coverage
