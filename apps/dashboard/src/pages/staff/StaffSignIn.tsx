@@ -25,6 +25,7 @@ export function StaffSignIn() {
     { readonly id: string; readonly method: SecondFactorMethod } | undefined
   >(undefined);
   const [code, setCode] = useState('');
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | undefined>(undefined);
   const [pending, setPending] = useState(false);
 
@@ -48,7 +49,7 @@ export function StaffSignIn() {
     setPending(true);
     try {
       const tokens = await staffApi.verifySecondFactor(challenge.id, code.trim());
-      signIn(tokens);
+      signIn(tokens, remember);
       navigate('/');
     } catch (err) {
       setError(staffErrorMessage(err));
@@ -107,8 +108,17 @@ export function StaffSignIn() {
             onChange={(e) => setCode(e.target.value)}
             style={fieldStyle}
           />
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />
+            Keep me signed in on this computer
+          </label>
           <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            Lost your device? Enter one of your recovery codes instead.
+            Untick this on a shared computer. Signing out always ends it. Lost your device? Enter
+            one of your recovery codes instead.
           </p>
           <button type="submit" disabled={pending || code.trim() === ''}>
             {pending ? 'Signing in…' : 'Sign in'}

@@ -2,6 +2,7 @@ import type { StaffAccountDto } from '@wagonwise/contracts/staff';
 import { create } from 'zustand';
 import { ApiError } from '../api/errors';
 import * as staffApi from '../api/staff';
+import { clearSession, loadSession, saveSession, type SessionStores } from '../lib/saved-session';
 
 const SESSION_KEY = 'wagonwise-dashboard.staffSession';
 
@@ -13,7 +14,8 @@ export interface StaffSession {
 
 export interface StaffAuthStore {
   readonly session: StaffSession | undefined;
-  signIn(session: StaffSession): void;
+  /** `remember` keeps the session on this computer past the tab (until sign-out or 7 days unused); otherwise it ends with the tab. */
+  signIn(session: StaffSession, remember?: boolean): void;
   signOut(): Promise<void>;
   setStaff(staff: StaffAccountDto): void;
   /**
@@ -24,15 +26,25 @@ export interface StaffAuthStore {
 }
 
 /**
- * The staff session (P2-M1.10), the dashboard's only sign-in since P2-M1.12c. Kept in
- * `sessionStorage`, not `localStorage`: it survives a reload but ends with the tab,
- * since a staff refresh token is good for 7 days and shouldn't sit on a shared machine.
+ * The staff session (P2-M1.10), the dashboard's only sign-in since P2-M1.12c. By default kept in
+ * `sessionStorage`: it survives a reload but ends with the tab, since a staff refresh token is good for 7 days and
+ * shouldn't sit on a shared machine. "Keep me signed in on this computer" (the sign-in box) puts it in `localStorage`
+ * instead, so closing the browser does not sign anyone out. The server side is the same either way: a refresh token
+ * lasts 7 days from its last use, and Sign out ends it.
  */
+function browserStores(): SessionStores {
+  return { local: localStorage, session: sessionStorage };
+}
+
 export const useStaffAuthStore = create<StaffAuthStore>((set, get) => {
+  const restored = restore();
+  // Whether the session lives on the computer (so later saves, such as a token refresh, go back to the same place).
+  let remembered = restored?.remembered ?? false;
+
   function save(session: StaffSession | undefined): void {
     try {
-      if (session === undefined) sessionStorage.removeItem(SESSION_KEY);
-      else sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      if (session === undefined) clearSession(browserStores(), SESSION_KEY);
+      else saveSession(browserStores(), SESSION_KEY, session, remembered);
     } catch {
       // Storage unavailable (private mode): the session still works for this page load.
     }
@@ -40,9 +52,10 @@ export const useStaffAuthStore = create<StaffAuthStore>((set, get) => {
   }
 
   return {
-    session: restore(),
+    session: restored?.session,
 
-    signIn(session) {
+    signIn(session, remember = false) {
+      remembered = remember;
       save(session);
     },
 
@@ -82,10 +95,9 @@ export const useStaffAuthStore = create<StaffAuthStore>((set, get) => {
   };
 });
 
-function restore(): StaffSession | undefined {
+function restore(): { session: StaffSession; remembered: boolean } | undefined {
   try {
-    const json = sessionStorage.getItem(SESSION_KEY);
-    return json === null ? undefined : (JSON.parse(json) as StaffSession);
+    return loadSession<StaffSession>(browserStores(), SESSION_KEY);
   } catch {
     return undefined;
   }
