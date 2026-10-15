@@ -19,6 +19,8 @@ const envSchema = z.object({
   APP_LATEST_VERSION: z.string().trim().max(32).optional(),
   APP_MINIMUM_VERSION: z.string().trim().max(32).optional(),
   APP_UPDATE_URL: z.url().max(500).optional(),
+  // Resend's signing secret for the failure webhook (POST /webhooks/resend). Unset: the route answers that it is not set up.
+  RESEND_WEBHOOK_SECRET: z.string().trim().min(1).optional(),
 });
 
 export interface Config {
@@ -28,6 +30,8 @@ export interface Config {
   readonly logLevel: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
   readonly coreInternalUrl: string;
   readonly coreInternalKey: string;
+  /** Resend's signing secret for the failure webhook; undefined means the webhook is not set up. */
+  readonly resendWebhookSecret: string | undefined;
   /** The newest build, the oldest still allowed, and where to get it; each may be absent. */
   readonly appVersion: {
     readonly latestVersion?: string;
@@ -64,6 +68,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     logLevel: values.LOG_LEVEL,
     coreInternalUrl: values.CORE_INTERNAL_URL,
     coreInternalKey: values.CORE_INTERNAL_KEY,
+    resendWebhookSecret: values.RESEND_WEBHOOK_SECRET,
     appVersion: {
       ...(values.APP_LATEST_VERSION ? { latestVersion: values.APP_LATEST_VERSION } : {}),
       ...(values.APP_MINIMUM_VERSION ? { minimumVersion: values.APP_MINIMUM_VERSION } : {}),

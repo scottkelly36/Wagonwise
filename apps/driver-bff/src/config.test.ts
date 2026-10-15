@@ -52,6 +52,13 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ APP_UPDATE_URL: 'not-a-url' })).toThrow(ConfigError);
   });
 
+  it('reads Resend’s webhook secret when set, and leaves it undefined when not or blank', () => {
+    expect(loadConfig({ RESEND_WEBHOOK_SECRET: 'whsec_abc' }).resendWebhookSecret).toBe(
+      'whsec_abc',
+    );
+    expect(loadConfig({}).resendWebhookSecret).toBeUndefined();
+  });
+
   it.each([
     ['not a number', 'abc'],
     ['out of range', '70000'],

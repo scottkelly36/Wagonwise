@@ -14,6 +14,7 @@ import { registerHoursRoutes } from './hours-routes.js';
 import { registerPlacesRoutes } from './places-routes.js';
 import { registerWeatherRoutes } from './weather-routes.js';
 import { registerSignupsRoutes } from './signups-routes.js';
+import { registerWebhooksRoutes } from './webhooks-routes.js';
 import { registerAppVersionRoutes } from './app-version-routes.js';
 import { registerRoutingRoutes } from './routing-routes.js';
 
@@ -47,6 +48,11 @@ registerChecksRoutes(app, routeDeps);
 registerHoursRoutes(app, routeDeps);
 registerWeatherRoutes(app, routeDeps);
 registerSignupsRoutes(app, routeDeps);
+registerWebhooksRoutes(app, {
+  coreClient: routeDeps.coreClient,
+  resendWebhookSecret: config.resendWebhookSecret,
+  nowSeconds: () => Math.floor(Date.now() / 1000),
+});
 registerAppVersionRoutes(app, { appVersion: config.appVersion });
 registerFleetRoutes(app, routeDeps);
 registerJobsRoutes(app, routeDeps);

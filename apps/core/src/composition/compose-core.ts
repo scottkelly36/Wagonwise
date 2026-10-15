@@ -5,6 +5,7 @@ import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
 import { createChecksModule, type UntypedDb as ChecksUntypedDb } from '../modules/checks/api.js';
 import { createUsageModule, type UntypedDb as UsageUntypedDb } from '../modules/usage/api.js';
+import { createEmailAlertsModule } from '../modules/emailalerts/api.js';
 import { createSignupsModule, type UntypedDb as SignupsUntypedDb } from '../modules/signups/api.js';
 import { createCostingModule, type UntypedDb as CostingUntypedDb } from '../modules/costing/api.js';
 import { createHoursModule, type UntypedDb as HoursUntypedDb } from '../modules/hours/api.js';
@@ -341,6 +342,18 @@ export function composeCore(
     clock,
     dataScopes,
     callers: { getCaller: staffCaller },
+  });
+  // Told by the driver BFF when Resend reports an email that did not get through: logged, and the owner is emailed (if an
+  // alert address is set) through the same sender that carries sign-in codes.
+  const emailAlerts = createEmailAlertsModule({
+    clock,
+    alertAddress: config.alertEmail,
+    mailer:
+      config.alertEmail === undefined
+        ? undefined
+        : {
+            send: (subject, text) => identity.sendEmail(config.alertEmail as string, subject, text),
+          },
   });
   // How the app is being used: counts across the app, for WagonWise staff.
   const usage = createUsageModule({
@@ -689,6 +702,7 @@ export function composeCore(
   hours.registerRoutes(app);
   costing.registerRoutes(app);
   signups.registerRoutes(app);
+  emailAlerts.registerRoutes(app);
   usage.registerRoutes(app);
   weather.registerRoutes(app);
 

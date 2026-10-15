@@ -54,6 +54,11 @@
       "import": "./dist/app-version.js",
       "default": "./dist/app-version.js"
     },
+    "./email-events": {
+      "types": "./dist/email-events.d.ts",
+      "import": "./dist/email-events.js",
+      "default": "./dist/email-events.js"
+    },
     "./signups": {
       "types": "./dist/signups.d.ts",
       "import": "./dist/signups.js",
