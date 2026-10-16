@@ -431,6 +431,8 @@ container uses, set for example:
 
 Then restart the container. Nothing breaks if this is skipped.
 
+**Done on the live server 2026-10-16:** `trace.max_distance` is 2,000,000 m and `trace.max_shape` 250,000 (a copy of the file before the change is `/opt/valhalla/custom_files/valhalla.json.before-trace-limits`). Before it, a path over about 16,000 points (Penzance to Wick is one) was timed by the fallback, which came out slightly faster than the speed cap allows; it is now timed properly (14 h 14 min, an average of 86 km/h). Keep these limits in any `valhalla.json` copied to a new serving droplet: a freshly built `valhalla.json` has the defaults.
+
 ## 9. Automated app releases (the driver app to Google Play)
 
 **Merging to `main` never releases the driver app by itself. The `release` label does.**
@@ -518,6 +520,8 @@ The secret and the alert address are read only in each app's `config.ts`. Nothin
 **The live `valhalla.json` was kept, not the freshly generated one:** it carries the raised limits from section 8. The swap was: `docker compose stop`, `mv custom_files custom_files-ne-backup`, `mv custom_files-gb custom_files`, `cp custom_files-ne-backup/valhalla.json custom_files/valhalla.json`, `docker compose up -d`. **To roll back:** stop, swap the folder names back, start. Delete `custom_files-ne-backup` only once you are sure.
 
 **Checked on the server after the swap (truck costing, a 4 m, 2.55 m, 16.5 m, 40 t vehicle):** Penzance to Wick 1,307 km (12 h 35), London to Edinburgh 602 km, Cardiff to Inverness 886 km, Hexham to Hebburn 53 km. The nightly golden-route workflow builds its own Northumberland copy and is not affected. Still to do: add golden routes beyond the north-east and re-record them, and a rebuild about monthly (the same steps).
+
+**Golden routes for Great Britain:** `pnpm --filter @wagonwise/core test:golden:gb` runs 12 long and awkward truck routes (Penzance to Wick, London to Edinburgh, Cardiff to Inverness, Dover to Felixstowe, the Highlands, mid-Wales, the South West, the Pennines, a dense London route) and checks Northern Ireland is not routed, against the live server, with loose tolerances. It is run by hand after a rebuild or a routing change, not nightly (the national graph is too big for a CI machine). The routing server has no public address, so open a tunnel first: `ssh -N -L 8003:<serving droplet private IP>:8002 root@<serving droplet public IP>` (both addresses are on the droplet's page in DigitalOcean). After a deliberate change, the run prints `golden actual:` lines to check and re-record in `valhalla-routing-engine.golden-gb-test.ts`.
 
 The original plan follows, for the next rebuild.
 
