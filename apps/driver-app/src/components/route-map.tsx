@@ -26,6 +26,7 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { config } from '../config';
 import type { PlaceCategory } from '@wagonwise/contracts/places';
 import { hazardSeverityFor } from '../lib/hazard-labels';
+import { viewFromBounds, type MapView } from '../lib/map-view';
 import { INITIAL_MAP_LOAD, mapLoadMessage, mapLoadReducer, SLOW_AFTER_MS } from '../lib/map-load';
 import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
 import { Icon } from './ui/icon';
@@ -145,6 +146,8 @@ interface Props {
   /** Tells the parent whether the camera is following the position or has been panned away, so it
    *  can draw its own recentre control. Called from the gesture itself, never from an effect. */
   readonly onFollowingChange?: (following: boolean) => void;
+  /** Called each time the map comes to rest, with what part of the ground it now shows, so the parent can load the markers for it. */
+  readonly onViewChange?: (view: MapView) => void;
   /** Hide the built-in "Recenter" button when the screen draws its own (via `ref`). */
   readonly hideRecenterButton?: boolean;
   /** Lets the parent put the camera back on the position: `ref.current?.recenter()`. */
@@ -208,6 +211,7 @@ export function RouteMap({
   onPlacePress,
   followZoom = 16,
   onFollowingChange,
+  onViewChange,
   hideRecenterButton = false,
   ref,
 }: Props) {
@@ -339,6 +343,11 @@ export function RouteMap({
     if (event.nativeEvent.userInteraction) setFollowing(false);
   }
 
+  function handleRegionDidChange(event: NativeSyntheticEvent<ViewStateChangeEvent>): void {
+    const { bounds } = event.nativeEvent;
+    if (onViewChange !== undefined && bounds !== undefined) onViewChange(viewFromBounds(bounds));
+  }
+
   return (
     <View style={styles.container} onLayout={handleLayout}>
       <MapLibreMap
@@ -349,6 +358,7 @@ export function RouteMap({
         onDidFailLoadingMap={() => dispatchMapLoad('failed')}
         onPress={handlePress}
         onRegionWillChange={handleRegionWillChange}
+        onRegionDidChange={handleRegionDidChange}
       >
         {navTracking ? (
           // Moved by the effect above, from our own position fixes, not by the phone's location engine

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReportHazardRequest } from '@wagonwise/contracts/hazards';
 import type { GeoPointDto } from '@wagonwise/contracts/routing';
 
@@ -73,12 +73,18 @@ export function useDismissHazard() {
  *  route" (plan-route/active-trip) — disabled entirely until there's at least one point, since an
  *  empty corridor is a 400 (contracts' `findNearbyHazardsRequestSchema`), not a valid "no results"
  *  query. */
-export function useNearbyHazards(corridor: readonly GeoPointDto[], radiusM: number) {
+export function useNearbyHazards(
+  corridor: readonly GeoPointDto[],
+  radiusM: number,
+  /** Keep showing the last answer while a new one loads (a map being panned), instead of going blank. */
+  keepPrevious = false,
+) {
   const accessToken = useAccessToken();
   return useQuery({
     queryKey: [...NEARBY_HAZARDS_KEY, corridor, radiusM],
     queryFn: () => hazardsApi.findNearbyHazards(accessToken, { corridor: [...corridor], radiusM }),
     enabled: corridor.length > 0,
     refetchInterval: NEARBY_HAZARDS_POLL_MS,
+    ...(keepPrevious ? { placeholderData: keepPreviousData } : {}),
   });
 }

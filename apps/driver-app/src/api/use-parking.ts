@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReportSafeParkingSpotRequest } from '@wagonwise/contracts/parking';
 import type { GeoPointDto } from '@wagonwise/contracts/routing';
 
@@ -35,7 +35,12 @@ export function useDeleteSafeParkingSpot() {
 
 /** `corridor` is one point for "near me" (home screen, Phase 1's only consumer) — disabled
  *  entirely until there's at least one point, same reasoning as `useNearbyCongestion`. */
-export function useNearbySafeParkingSpots(corridor: readonly GeoPointDto[], radiusM: number) {
+export function useNearbySafeParkingSpots(
+  corridor: readonly GeoPointDto[],
+  radiusM: number,
+  /** Keep showing the last answer while a new one loads (a map being panned), instead of going blank. */
+  keepPrevious = false,
+) {
   const accessToken = useAccessToken();
   return useQuery({
     queryKey: [...NEARBY_PARKING_KEY, corridor, radiusM],
@@ -43,5 +48,6 @@ export function useNearbySafeParkingSpots(corridor: readonly GeoPointDto[], radi
       parkingApi.findNearbySafeParkingSpots(accessToken, { corridor: [...corridor], radiusM }),
     enabled: corridor.length > 0,
     refetchInterval: NEARBY_PARKING_POLL_MS,
+    ...(keepPrevious ? { placeholderData: keepPreviousData } : {}),
   });
 }
