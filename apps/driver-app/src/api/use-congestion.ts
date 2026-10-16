@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReportCongestionRequest } from '@wagonwise/contracts/congestion';
 import type { GeoPointDto } from '@wagonwise/contracts/routing';
 
@@ -25,7 +25,12 @@ export function useReportCongestion() {
 
 /** `corridor` is one point for "near me" (home screen, Phase 1's only consumer) — disabled
  *  entirely until there's at least one point, same reasoning as `useNearbyHazards`. */
-export function useNearbyCongestion(corridor: readonly GeoPointDto[], radiusM: number) {
+export function useNearbyCongestion(
+  corridor: readonly GeoPointDto[],
+  radiusM: number,
+  /** Keep showing the last answer while a new one loads (a map being panned), instead of going blank. */
+  keepPrevious = false,
+) {
   const accessToken = useAccessToken();
   return useQuery({
     queryKey: [...NEARBY_CONGESTION_KEY, corridor, radiusM],
@@ -33,5 +38,6 @@ export function useNearbyCongestion(corridor: readonly GeoPointDto[], radiusM: n
       congestionApi.findNearbyCongestion(accessToken, { corridor: [...corridor], radiusM }),
     enabled: corridor.length > 0,
     refetchInterval: NEARBY_CONGESTION_POLL_MS,
+    ...(keepPrevious ? { placeholderData: keepPreviousData } : {}),
   });
 }

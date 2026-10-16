@@ -21,9 +21,11 @@ import { ACTION_COLOURS, ActionCard } from '../../components/ui/action-card';
 import { Icon } from '../../components/ui/icon';
 import { RoundButton } from '../../components/ui/round-button';
 import { WeatherButton } from '../../components/weather-button';
+import { useDebouncedValue } from '../../hooks/use-debounced-value';
 import { useJobArrivalGeofence } from '../../hooks/use-job-arrival-geofence';
 import { PositionSharingChip } from '../../components/position-sharing-chip';
 import { isSharingPosition } from '../../lib/job-position-reporting';
+import type { MapView } from '../../lib/map-view';
 import { useCurrentActiveTripStore } from '../../state/current-active-trip-store';
 import { useJobPositionReporting } from '../../hooks/use-job-position-reporting';
 import { useLiveLocation } from '../../hooks/use-live-location';
@@ -37,6 +39,9 @@ const NEARBY_RADIUS_M = 5_000;
 // Parking is looked for further out than hazards and traffic: a driver wants to see where the nearest
 // safe place to stop is, and it is rarely within a few streets.
 const NEARBY_PARKING_RADIUS_M = 20_000;
+
+// How long the map must stay still before the markers for that view are asked for.
+const MAP_VIEW_SETTLE_MS = 500;
 
 // Town-level, so a driver sees the streets and the next junction, not a street-by-street close-up.
 const HOME_MAP_ZOOM = 14;
@@ -59,14 +64,23 @@ export default function HomeScreen() {
   // track where the driver actually is right now (design decision, "map is the app"), not a
   // snapshot cached from whenever this screen first happened to mount.
   const location = useLiveLocation();
-  const nearbyHazards = useNearbyHazards(location.point ? [location.point] : [], NEARBY_RADIUS_M);
-  const nearbyCongestion = useNearbyCongestion(
-    location.point ? [location.point] : [],
-    NEARBY_RADIUS_M,
-  );
+  const [following, setFollowing] = useState(true);
+  // What the map is showing once it has been moved away from the driver (settled for half a second, so panning does not ask the
+  // server at every frame). While following, markers load around the driver as before; once panned or zoomed, around the screen.
+  const [mapView, setMapView] = useState<MapView | undefined>(undefined);
+  const settledView = useDebouncedValue(mapView, MAP_VIEW_SETTLE_MS);
+  const elsewhere = following ? undefined : settledView;
+  const viewTooWide = elsewhere?.tooWide === true;
+  const aroundDriver = location.point ? [location.point] : [];
+  const queryPoints =
+    elsewhere === undefined ? aroundDriver : viewTooWide ? [] : [elsewhere.centre];
+  const viewRadiusM = elsewhere?.radiusM;
+  const nearbyHazards = useNearbyHazards(queryPoints, viewRadiusM ?? NEARBY_RADIUS_M, true);
+  const nearbyCongestion = useNearbyCongestion(queryPoints, viewRadiusM ?? NEARBY_RADIUS_M, true);
   const nearbyParkingSpots = useNearbySafeParkingSpots(
-    location.point ? [location.point] : [],
-    NEARBY_PARKING_RADIUS_M,
+    queryPoints,
+    viewRadiusM ?? NEARBY_PARKING_RADIUS_M,
+    true,
   );
   const drivingProfileId = useDrivingProfileId();
   const navigateToSpot = useNavigateToPlace(drivingProfileId);
@@ -80,7 +94,6 @@ export default function HomeScreen() {
   const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
   const selectedParking = nearbyParkingSpots.data?.find((s) => s.id === selectedParkingId);
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
-  const [following, setFollowing] = useState(true);
   // Which kinds of marker the map shows. All on until a driver turns something off to declutter.
   const [layersOpen, setLayersOpen] = useState(false);
   const [showHazards, setShowHazards] = useState(true);
@@ -119,6 +132,7 @@ export default function HomeScreen() {
         currentPosition={location.point}
         followZoom={HOME_MAP_ZOOM}
         onFollowingChange={setFollowing}
+        onViewChange={setMapView}
         hideRecenterButton
         hazards={
           showHazards
@@ -140,6 +154,16 @@ export default function HomeScreen() {
         }
         parkingSpots={mapParkingSpots}
       />
+
+      {viewTooWide && (
+        <View style={[styles.zoomHint, { bottom: insets.bottom + 220 }]} pointerEvents="none">
+          <View style={styles.zoomHintCard}>
+            <Text style={styles.zoomHintText} testID="zoom-hint">
+              Zoom in to see hazards, traffic and parking
+            </Text>
+          </View>
+        </View>
+      )}
 
       <MarkPlaceSheet
         visible={markingPlace}
@@ -343,6 +367,14 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
       alignItems: 'flex-end',
     },
+    zoomHint: {
+      position: 'absolute',
+      left: 16,
+      right: 16,
+      alignItems: 'center',
+    },
+    zoomHintCard: { ...cardStyle(colors), paddingVertical: 8, paddingHorizontal: 14 },
+    zoomHintText: { fontSize: 14, fontWeight: '600', color: colors.text },
     layersPanel: {
       ...cardStyle(colors),
       padding: 14,
