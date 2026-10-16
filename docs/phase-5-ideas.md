@@ -208,6 +208,38 @@ The two open tracks from the driver hours work (`phase-3-scope.md`, "Driver hour
 - **Moderation at volume:** tools, so one person can keep reports clean when there are thousands.
 - **Partner parking:** truck stops and depots confirming their own details (opening times, price, spaces).
 
+## What other systems do: feature notes (the owner, 2026-10-17)
+
+Someone pointed to Convey (compliance software: tachograph analysis, licence checks, fleet management; from what public pages say)
+and to TMS Analysis (tachograph analysis, a separate company; no link between the two found). A demo and free trial were offered.
+The aim is to learn **which features hauliers pay for**, then build our own version of the ones that fit small fleets and drivers.
+**Features, not designs:** write down what a system does and the problem it solves, never copy screens, wording or layouts, and
+do not try to extract anything from the trial. Say you are building a small product and want to understand the market; do not
+pretend to be a customer. Check the trial terms (your solicitor friend can) and any confidentiality terms you are asked to sign.
+
+**Questions for the demo**
+
+1. What do your operators ask for most, and what do they complain about?
+2. What do they still do outside the system (spreadsheets, paper, phone calls)?
+3. Which feature do they use every day, and which did they pay for and never use?
+4. How do drivers get their information: an app, a card reader, a download, the office?
+5. How are driver licence and CPC checks and expiry reminders handled, and who does the checking?
+6. How are tachograph infringements found and followed up, and what does the manager have to do with the result?
+7. How are vehicle checks, defects, MOT and service dates tracked, and how do they reach the workshop?
+8. What do they charge, per vehicle or per driver, and what is in the base price?
+9. How long does a firm take to get set up, and what do they bring in (vehicles, drivers, history)?
+10. What do customers ask for that it does not do yet?
+
+**Notes to fill in** (one line per feature; a problem and a verdict, not a screenshot)
+
+| Feature (what it does) | The problem it solves | Who pays for it | Fits WagonWise? | Verdict |
+| ---------------------- | --------------------- | --------------- | --------------- | ------- |
+|                        |                       |                 |                 |         |
+
+Verdicts: **build** (small, and a firm would use it), **later** (real, but not before the first firms), **skip** (too big, or not
+who WagonWise is for). Ideas already on the list that this should confirm or change: licence and CPC reminders, trailer records,
+documents with expiry dates, tachograph and telematics (asks 3 above), scheduled reports, customer tracking links.
+
 ## How to choose
 
 Rough order, to argue with:
