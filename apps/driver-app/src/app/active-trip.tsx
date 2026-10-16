@@ -1,7 +1,15 @@
 import { useKeepAwake } from 'expo-keep-awake';
 import { Redirect, useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import * as Speech from 'expo-speech';
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  Vibration,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useEndTrip } from '../api/use-active-trip';
@@ -28,11 +36,15 @@ import { useHazardVoiceWarnings } from '../hooks/use-hazard-voice-warnings';
 import { useLiveLocation } from '../hooks/use-live-location';
 import { useQuickVoiceReport } from '../hooks/use-quick-voice-report';
 import { useReplanFromHere } from '../hooks/use-replan-from-here';
+import { useCollapsingNotice } from '../hooks/use-collapsing-notice';
 import { useTurnAnnouncements } from '../hooks/use-turn-announcements';
 import { useTurnGuidance } from '../hooks/use-turn-guidance';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
+import { breakNoticeKey, breakNoticeSpeech } from '../lib/break-notice';
+import { savingText } from '../lib/faster-route';
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { BreakCard } from '../components/break-card';
+import { CollapsingNotice } from '../components/collapsing-notice';
 import { FasterRouteCard } from '../components/faster-route-card';
 import { useFasterRoute } from '../hooks/use-faster-route';
 import { useAutoStartHours } from '../hooks/use-auto-start-hours';
@@ -119,6 +131,9 @@ const CORRIDOR_MAX_POINTS = 1500;
 // Parking a little further out than hazards: a layby just off the route is worth seeing.
 const ON_ROUTE_PARKING_RADIUS_M = 1500;
 // A function of its own so the clock is read where it is used, not while the screen is drawn.
+/** How long a break or faster-route notice stays open before it shrinks to a small flag. */
+const NOTICE_OPEN_MS = 12_000;
+
 const clockNow = (): number => Date.now();
 
 /**
@@ -284,6 +299,27 @@ export default function ActiveTripScreen() {
   const fasterRoute = useFasterRoute(trip?.id, location.point, location.course);
   useTurnAnnouncements(guidance.utterance, !voiceMuted && !micBusy && !micActive && !quickInFlight);
 
+  // The break and faster-route notices open in full with a buzz and a short spoken line, shrink to a small flag after a few
+  // seconds, and can be opened again or dismissed. The line is not spoken over the mic, or when the driver has muted the voice.
+  const canSpeak = !voiceMuted && !micBusy && !micActive && !quickInFlight;
+  const canSpeakRef = useRef(canSpeak);
+  useEffect(() => {
+    canSpeakRef.current = canSpeak;
+  });
+  const alertDriver = useCallback((line: string) => {
+    Vibration.vibrate([0, 250, 120, 250]);
+    if (line !== '' && canSpeakRef.current) Speech.speak(line, { language: 'en-GB' });
+  }, []);
+  const breakKey = breakPlan ? breakNoticeKey(breakPlan) : undefined;
+  const breakNotice = useCollapsingNotice(breakKey, {
+    autoCollapseMs: NOTICE_OPEN_MS,
+    onAppear: () => breakPlan && alertDriver(breakNoticeSpeech(breakPlan)),
+  });
+  const fasterNotice = useCollapsingNotice(fasterRoute.offer?.key, {
+    autoCollapseMs: NOTICE_OPEN_MS,
+    onAppear: () => fasterRoute.offer && alertDriver(savingText(fasterRoute.offer.savingMinutes)),
+  });
+
   const quickCard = (kind: QuickReportKind) => {
     const ownListening = quickListening && activeQuickReportKind(quickReport.state) === kind;
     const disabled = micBusy || micActive || quickBusy || (quickListening && !ownListening);
@@ -421,20 +457,45 @@ export default function ActiveTripScreen() {
         {(breakPlan || fasterRoute.offer) && (
           <View style={[styles.topStack, { top: belowTurn + 72 }]} pointerEvents="box-none">
             {breakPlan && (
-              <BreakCard
-                plan={breakPlan}
-                parking={breakParking}
-                onPickParking={(spot) => setSelectedParkingId(spot.id)}
-              />
+              <CollapsingNotice
+                mode={breakNotice.mode}
+                onExpand={breakNotice.expand}
+                onDismiss={breakNotice.dismiss}
+                flagIcon="coffee-outline"
+                flagLabel="Break needed"
+                flagColor={breakPlan.kind === 'limit' ? colors.danger : colors.warning}
+                testID="break-notice"
+              >
+                <BreakCard
+                  plan={breakPlan}
+                  parking={breakParking}
+                  onPickParking={(spot) => setSelectedParkingId(spot.id)}
+                  style={styles.noticeCard}
+                />
+              </CollapsingNotice>
             )}
             {fasterRoute.offer && (
-              <FasterRouteCard
-                offer={fasterRoute.offer}
-                switching={fasterRoute.switching}
-                failed={fasterRoute.switchFailed}
-                onSwitch={fasterRoute.switchNow}
-                onKeep={fasterRoute.keep}
-              />
+              <CollapsingNotice
+                mode={fasterNotice.mode}
+                onExpand={fasterNotice.expand}
+                onDismiss={() => {
+                  fasterNotice.dismiss();
+                  fasterRoute.keep();
+                }}
+                flagIcon="directions-fork"
+                flagLabel="Faster route"
+                flagColor={colors.accentGreen}
+                testID="faster-notice"
+              >
+                <FasterRouteCard
+                  offer={fasterRoute.offer}
+                  switching={fasterRoute.switching}
+                  failed={fasterRoute.switchFailed}
+                  onSwitch={fasterRoute.switchNow}
+                  onKeep={fasterRoute.keep}
+                  style={styles.noticeCard}
+                />
+              </CollapsingNotice>
             )}
           </View>
         )}
@@ -675,6 +736,8 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 16,
     },
     topStack: { position: 'absolute', left: 16, right: 80, gap: 8 },
+    // Room on the right of a notice for its dismiss button.
+    noticeCard: { paddingRight: 44 },
     etaTime: { fontSize: 20, fontWeight: '800', color: colors.text },
     etaDistance: { fontSize: 14, color: colors.textMuted },
     hazardRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
