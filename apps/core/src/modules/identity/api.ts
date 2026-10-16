@@ -103,6 +103,9 @@ export interface IdentityModule {
    *  where no key is set). Throws when the email cannot be sent, with the provider's reason. Used for
    *  staff invitations (`companies`' own `InviteMailer` port). */
   sendEmail(to: string, subject: string, text: string): Promise<void>;
+  /** Makes and stores a fresh, unused invite code and returns it. No caller check: the caller (`signups`' send-invites,
+   *  supplied by composition) has already confirmed WagonWise staff. */
+  newInviteCode(): Promise<string>;
   /** Signs a staff access token (`kind: 'staff'`) with core's one Ed25519 key, so the staff BFF
    *  verifies it from the same JWKS as drivers' tokens. `companies` owns staff sessions and wraps
    *  this in its own `StaffTokenIssuer` port (P2-M1.6). */
@@ -210,6 +213,16 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
         return Promise.resolve();
       }
       return mailer.send({ to, subject, text });
+    },
+    async newInviteCode(): Promise<string> {
+      const code = inviteCodeGenerator.next();
+      await inviteCodeRepo.save({
+        code,
+        redeemedBy: null,
+        redeemedAt: null,
+        createdAt: deps.clock.now(),
+      });
+      return code;
     },
     signStaffAccessToken(staffId: string, sessionId: string): Promise<string> {
       return deps.tokenSigner.signStaffAccessToken({ staffId, sessionId });

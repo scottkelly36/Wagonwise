@@ -343,7 +343,11 @@ The shared status also carries optional `breakMin`, `stretchMin` and `untilLimit
 posts to `/signups` on the same host; the app-spec ingress sends `/signups` on those hosts to driver-bff (`signups-routes.ts`,
 public, validates and forwards) and on to core's `signups` module (`POST /signups`, `POST /signups/remove`, and staff-only
 `GET /staff/signups`, `DELETE /staff/signups/:id`). Table `signups.testers` is readable only in the platform scope. Honeypot
-field `website`, daily cap 500. The dashboard's Testers page (`/admin/testers`) lists and exports it.
+field `website`, daily cap 500. The dashboard's Testers page (`/admin/testers`) lists and exports it, and sends the standard test
+invite: `POST /staff/signups/invite` (platform staff only; up to 50 ids and the Play opt-in link) makes a fresh `identity` invite code
+per person (composition passes `identity.newInviteCode`/`sendEmail` in as the module's `invites` port), emails the text in
+`signups/domain/invite-email.ts`, then records `invited_at`/`invite_code` (migration 0068). Someone already invited is skipped; a
+failed email leaves them uninvited so it can be retried. The opt-in link is typed on the page and kept in that browser only.
 
 ## App usage (admin)
 

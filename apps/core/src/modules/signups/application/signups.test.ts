@@ -12,6 +12,9 @@ import {
 import {
   deleteTester,
   listTesters,
+  MAX_INVITES_PER_SEND,
+  sendInvites,
+  type InvitePorts,
   removeMe,
   signUp,
   type SignupDeps,
@@ -38,6 +41,16 @@ class InMemoryTesters implements TesterRepository {
 
   count(): Promise<number> {
     return Promise.resolve(this.rows.size);
+  }
+
+  findByIds(ids: readonly TesterId[]): Promise<Tester[]> {
+    return Promise.resolve(ids.flatMap((id) => this.rows.get(id) ?? []));
+  }
+
+  markInvited(id: TesterId, inviteCode: string, at: Date): Promise<void> {
+    const t = this.rows.get(id);
+    if (t !== undefined) this.rows.set(id, { ...t, invitedAt: at, inviteCode });
+    return Promise.resolve();
   }
 
   delete(id: TesterId): Promise<boolean> {
@@ -186,5 +199,100 @@ describe('removing and listing', () => {
       ok: false,
       error: { tag: 'NotFound' },
     });
+  });
+});
+
+describe('sendInvites', () => {
+  const link = 'https://play.google.com/apps/testing/example';
+
+  function inviteSetup() {
+    const base = setup();
+    const sent: { to: string; text: string }[] = [];
+    let n = 0;
+    const state = { failFor: undefined as string | undefined };
+    const invites: InvitePorts = {
+      newInviteCode: () => Promise.resolve(`CODE${(n += 1)}`),
+      sendEmail: (to, _subject, text) => {
+        if (to === state.failFor) return Promise.reject(new Error('mail down'));
+        sent.push({ to, text });
+        return Promise.resolve();
+      },
+    };
+    return { ...base, deps: { ...base.deps, invites }, sent, state };
+  }
+
+  const idOf = (testers: InMemoryTesters, email: string) =>
+    [...testers.rows.values()].find((t) => t.email === email)?.id as TesterId;
+
+  it('emails each tester their own code, records who was sent it and when, and names them in the email', async () => {
+    const { deps, testers, sent, clock } = inviteSetup();
+    await signUp(deps, { ...good, name: 'Sam' });
+    await signUp(deps, { ...good, email: 'kim@example.com' });
+    const sam = idOf(testers, 'sam@example.com');
+    const kim = idOf(testers, 'kim@example.com');
+    const result = await sendInvites(deps, platform, { ids: [sam, kim], optInLink: link });
+    expect(result).toEqual({
+      ok: true,
+      value: [
+        { id: sam, status: 'sent' },
+        { id: kim, status: 'sent' },
+      ],
+    });
+    expect(sent.map((m) => m.to)).toEqual(['sam@example.com', 'kim@example.com']);
+    expect(sent[0]?.text).toContain('Hello Sam,');
+    expect(sent[0]?.text).toContain('CODE1');
+    expect(sent[0]?.text).toContain(link);
+    expect(sent[1]?.text).toContain('Hello,');
+    expect(sent[1]?.text).toContain('CODE2');
+    expect(testers.rows.get(sam)).toMatchObject({ inviteCode: 'CODE1', invitedAt: clock.now() });
+  });
+
+  it('never sends a second email or code to someone already invited', async () => {
+    const { deps, testers, sent } = inviteSetup();
+    await signUp(deps, good);
+    const sam = idOf(testers, 'sam@example.com');
+    await sendInvites(deps, platform, { ids: [sam], optInLink: link });
+    const again = await sendInvites(deps, platform, { ids: [sam, sam], optInLink: link });
+    expect(again).toEqual({ ok: true, value: [{ id: sam, status: 'already_invited' }] });
+    expect(sent).toHaveLength(1);
+  });
+
+  it('carries on past a failed email, leaves that person uninvited so it can be tried again, and reports unknown ids', async () => {
+    const { deps, testers, sent, state } = inviteSetup();
+    await signUp(deps, good);
+    await signUp(deps, { ...good, email: 'kim@example.com' });
+    const sam = idOf(testers, 'sam@example.com');
+    const kim = idOf(testers, 'kim@example.com');
+    const ghost = makeId<'TesterId'>('nobody');
+    state.failFor = 'sam@example.com';
+    const result = await sendInvites(deps, platform, { ids: [sam, kim, ghost], optInLink: link });
+    expect(result).toEqual({
+      ok: true,
+      value: [
+        { id: sam, status: 'failed' },
+        { id: kim, status: 'sent' },
+        { id: ghost, status: 'not_found' },
+      ],
+    });
+    expect(testers.rows.get(sam)?.invitedAt).toBeUndefined();
+    state.failFor = undefined;
+    await sendInvites(deps, platform, { ids: [sam], optInLink: link });
+    expect(sent.map((m) => m.to)).toEqual(['kim@example.com', 'sam@example.com']);
+  });
+
+  it('is for WagonWise staff only, and takes a limited number at once', async () => {
+    const { deps, testers, sent } = inviteSetup();
+    await signUp(deps, good);
+    const sam = idOf(testers, 'sam@example.com');
+    expect(await sendInvites(deps, fleet, { ids: [sam], optInLink: link })).toEqual({
+      ok: false,
+      error: { tag: 'Forbidden' },
+    });
+    expect(sent).toHaveLength(0);
+    const many = Array.from({ length: MAX_INVITES_PER_SEND + 10 }, (_, i) =>
+      makeId<'TesterId'>(`x${i}`),
+    );
+    const result = await sendInvites(deps, platform, { ids: many, optInLink: link });
+    expect(result.ok && result.value).toHaveLength(MAX_INVITES_PER_SEND);
   });
 });

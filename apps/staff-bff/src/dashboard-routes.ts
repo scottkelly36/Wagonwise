@@ -11,7 +11,7 @@ import {
   fuelQuerySchema,
   importFuelRequestSchema,
 } from '@wagonwise/contracts/costing';
-import { testerIdParamsSchema } from '@wagonwise/contracts/signups';
+import { sendInvitesRequestSchema, testerIdParamsSchema } from '@wagonwise/contracts/signups';
 import { hoursCompanyParamsSchema, hoursSettingsSchema } from '@wagonwise/contracts/hours';
 import {
   listParkingSpotsQuerySchema,
@@ -402,6 +402,12 @@ const FORWARDS: readonly Forward[] = [
   { method: 'GET', path: '/staff/usage', params: noParams },
   // The landing page's tester list (WagonWise staff only; core decides).
   { method: 'GET', path: '/staff/signups', params: noParams },
+  {
+    method: 'POST',
+    path: '/staff/signups/invite',
+    params: noParams,
+    body: sendInvitesRequestSchema,
+  },
   { method: 'DELETE', path: '/staff/signups/:id', params: testerIdParamsSchema },
   // Driver hours sharing: the firm's switch, and the statuses of drivers who agreed to share. Core decides who may.
   {

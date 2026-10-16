@@ -14,9 +14,12 @@ interface Row {
   readonly fleet_size: FleetSize | null;
   readonly consented_at: Date;
   readonly created_at: Date;
+  readonly invited_at: Date | null;
+  readonly invite_code: string | null;
 }
 
-const COLUMNS = 'id, email, name, role, company, fleet_size, consented_at, created_at';
+const COLUMNS =
+  'id, email, name, role, company, fleet_size, consented_at, created_at, invited_at, invite_code';
 
 const toTester = (r: Row): Tester => ({
   id: makeId<'TesterId'>(r.id),
@@ -27,6 +30,8 @@ const toTester = (r: Row): Tester => ({
   fleetSize: r.fleet_size ?? undefined,
   consentedAt: r.consented_at,
   createdAt: r.created_at,
+  invitedAt: r.invited_at ?? undefined,
+  inviteCode: r.invite_code ?? undefined,
 });
 
 /** Raw `sql` like every repository here (decision 26). Row-Level Security (migration 0058) lets only WagonWise staff in. */
@@ -41,6 +46,20 @@ export class PostgresTesterRepository implements TesterRepository {
       on conflict (email) do nothing
     `.execute(this.db);
     return Number(result.numAffectedRows ?? 0) > 0;
+  }
+
+  async findByIds(ids: readonly TesterId[]): Promise<Tester[]> {
+    if (ids.length === 0) return [];
+    const { rows } = await sql<Row>`
+      select ${sql.raw(COLUMNS)} from signups.testers where id in (${sql.join(ids)})
+    `.execute(this.db);
+    return rows.map(toTester);
+  }
+
+  async markInvited(id: TesterId, inviteCode: string, at: Date): Promise<void> {
+    await sql`
+      update signups.testers set invited_at = ${at}, invite_code = ${inviteCode} where id = ${id}
+    `.execute(this.db);
   }
 
   async countSince(since: Date): Promise<number> {

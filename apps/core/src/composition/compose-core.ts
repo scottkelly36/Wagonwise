@@ -342,6 +342,10 @@ export function composeCore(
     clock,
     dataScopes,
     callers: { getCaller: staffCaller },
+    invites: {
+      newInviteCode: () => identity.newInviteCode(),
+      sendEmail: (to, subject, text) => identity.sendEmail(to, subject, text),
+    },
   });
   // Told by the driver BFF when Resend reports an email that did not get through: logged, and the owner is emailed (if an
   // alert address is set) through the same sender that carries sign-in codes.
