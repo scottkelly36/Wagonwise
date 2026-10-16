@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoutePlan } from '../../api/use-route-plan';
 import { RouteMap } from '../../components/route-map';
 import { routingErrorMessage } from '../../lib/error-messages';
+import { formatDuration } from '../../lib/format-duration';
 import { decodePolyline6 } from '../../lib/polyline';
 import { useCurrentActiveTripStore } from '../../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../../state/current-route-plan-store';
@@ -89,9 +90,10 @@ export default function RerouteScreen() {
 
         {newPlan && (
           <Text style={styles.comparison}>
-            Current: {currentPlan.distanceKm.toFixed(1)} km · {Math.round(currentPlan.durationMin)}{' '}
-            min{'\n'}
-            New: {newPlan.distanceKm.toFixed(1)} km · {Math.round(newPlan.durationMin)} min
+            Current: {currentPlan.distanceKm.toFixed(1)} km ·{' '}
+            {formatDuration(currentPlan.durationMin)}
+            {'\n'}
+            New: {newPlan.distanceKm.toFixed(1)} km · {formatDuration(newPlan.durationMin)}
           </Text>
         )}
 

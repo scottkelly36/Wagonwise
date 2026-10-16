@@ -19,6 +19,7 @@ import { useCurrentLocation } from '../hooks/use-current-location';
 import { useNavigateToPlace } from '../hooks/use-navigate-to-spot';
 import { useDrivingProfileId, useParkingDriveTimes } from '../hooks/use-parking-drive-times';
 import { jobNavigationErrorMessage } from '../lib/error-messages';
+import { formatDuration } from '../lib/format-duration';
 import { nearestParkingSpots } from '../lib/nearest-parking';
 import { parkingOnly } from '../lib/parking-details';
 import { shortDistance } from '../lib/uk-distance';
@@ -136,7 +137,7 @@ export default function NearbyParkingScreen() {
               </View>
               <View style={styles.rowText}>
                 <Text style={styles.time}>
-                  {time ? `${Math.max(1, Math.round(time.minutes))} min` : '…'}
+                  {time ? formatDuration(Math.max(1, time.minutes)) : '…'}
                   <Text style={styles.distance}>
                     {'  ·  '}
                     {shortDistance(time ? time.km * KM_TO_M : distanceM)}

@@ -19,6 +19,7 @@ import { planForShift } from '../lib/break-plan';
 import { computeEta } from '../lib/eta';
 import { routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
+import { formatDuration } from '../lib/format-duration';
 import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
@@ -165,7 +166,7 @@ export default function RouteOverviewScreen() {
 
       <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
         <Text style={styles.distance}>
-          {plan.distanceKm.toFixed(1)} km · {Math.round(plan.durationMin)} min
+          {plan.distanceKm.toFixed(1)} km · {formatDuration(plan.durationMin)}
           {plan.estimatedFuelCostGBP !== undefined
             ? ` · est. £${plan.estimatedFuelCostGBP.toFixed(2)} fuel`
             : ''}

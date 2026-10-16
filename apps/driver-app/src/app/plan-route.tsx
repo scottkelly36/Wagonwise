@@ -21,6 +21,7 @@ import { useCreateRoutePlan, usePreviewRouteOptions } from '../api/use-route-pla
 import { AddressSearchField } from '../components/address-search-field';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap, type MapPoint, type RouteOptionLine } from '../components/route-map';
+import { formatDuration } from '../lib/format-duration';
 import { decodePolyline6 } from '../lib/polyline';
 import { config } from '../config';
 import { useCurrentLocation } from '../hooks/use-current-location';
@@ -616,7 +617,7 @@ export default function PlanRouteScreen() {
                         .join(' & ')}
                     </Text>
                     <Text style={styles.optionDetail}>
-                      {option.distanceKm.toFixed(1)} km · {Math.round(option.durationMin)} min
+                      {option.distanceKm.toFixed(1)} km · {formatDuration(option.durationMin)}
                       {option.estimatedFuelCostGBP !== undefined
                         ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
                         : ''}
