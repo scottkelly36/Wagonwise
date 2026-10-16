@@ -511,7 +511,15 @@ Set up, in this order:
 
 The secret and the alert address are read only in each app's `config.ts`. Nothing is stored: the events are logged and emailed, not kept.
 
-## 10. Valhalla: covering the whole of Great Britain (planned for the start of November 2026)
+## 10. Valhalla: covering the whole of Great Britain (done 2026-10-16)
+
+**What was done, and where things are now.** The tiles were built on a temporary 16 GB / 8 vCPU droplet (`s-8vcpu-16gb`, London, in the wagonWise project, deleted afterwards): the Geofabrik Great Britain extract (2.2 GB) downloaded in a few minutes and the whole build took 1 hour 17 minutes with no out-of-memory problem (the memory sampler wrote blanks, so the exact peak is unknown; 16 GB was enough). The tile archive is 2.65 GB (`valhalla_tiles.tar`; the config reads it through `tile_extract`). The serving droplet `wagonwise-valhalla-lon1` was resized to `s-4vcpu-8gb` (8 GB, 4 vCPU, 160 GB disk). Valhalla there loaded the archive in under 15 seconds. The new tiles were copied into `/opt/valhalla/custom_files-gb`, checked by SHA-256, and swapped in by renaming; the **north-east tiles are kept at `/opt/valhalla/custom_files-ne-backup`**.
+
+**The live `valhalla.json` was kept, not the freshly generated one:** it carries the raised limits from section 8. The swap was: `docker compose stop`, `mv custom_files custom_files-ne-backup`, `mv custom_files-gb custom_files`, `cp custom_files-ne-backup/valhalla.json custom_files/valhalla.json`, `docker compose up -d`. **To roll back:** stop, swap the folder names back, start. Delete `custom_files-ne-backup` only once you are sure.
+
+**Checked on the server after the swap (truck costing, a 4 m, 2.55 m, 16.5 m, 40 t vehicle):** Penzance to Wick 1,307 km (12 h 35), London to Edinburgh 602 km, Cardiff to Inverness 886 km, Hexham to Hebburn 53 km. The nightly golden-route workflow builds its own Northumberland copy and is not affected. Still to do: add golden routes beyond the north-east and re-record them, and a rebuild about monthly (the same steps).
+
+The original plan follows, for the next rebuild.
 
 Today Valhalla covers Northumberland, Tyne and Wear and Cumbria on a 2 GB droplet. National coverage
 (Great Britain; **Northern Ireland is deliberately left out for now**) is mostly an infrastructure job:
