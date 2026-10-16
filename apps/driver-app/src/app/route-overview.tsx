@@ -16,6 +16,7 @@ import { useNearbyHazards } from '../api/use-hazards';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap } from '../components/route-map';
 import { planForShift } from '../lib/break-plan';
+import { breakExplanation } from '../lib/break-explanation';
 import { computeEta } from '../lib/eta';
 import { routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
@@ -102,6 +103,10 @@ export default function RouteOverviewScreen() {
     breakPlan?.kind === 'break' && breakPlan.arrivalMs !== null
       ? new Date(breakPlan.arrivalMs)
       : eta;
+
+  const breakNote = breakPlan
+    ? breakExplanation(breakPlan, shiftRules, plan?.durationMin ?? 0)
+    : undefined;
 
   function handleTimeChange(event: DateTimePickerEvent, selected?: Date): void {
     // Android's picker is a self-dismissing dialog; iOS's spinner stays open until the
@@ -190,6 +195,12 @@ export default function RouteOverviewScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {breakNote !== undefined && (
+          <Text style={styles.etaNote} testID="eta-break-note">
+            {breakNote}
+          </Text>
+        )}
 
         {breakPlan?.kind === 'limit' && (
           <Text style={styles.etaChangeLink} testID="route-needs-rest">
@@ -335,6 +346,7 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '600',
       color: colors.accentBlue,
     },
+    etaNote: { fontSize: 14, color: colors.textMuted },
     etaChangeLink: {
       fontSize: 14,
       color: colors.textMuted,
