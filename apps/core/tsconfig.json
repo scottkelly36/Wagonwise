@@ -9,6 +9,7 @@
     "scripts/**/*.ts",
     "vitest.config.ts",
     "vitest.golden.config.ts",
+    "vitest.golden-gb.config.ts",
     "eslint.config.js"
   ]
 }
