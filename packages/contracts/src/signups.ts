@@ -31,6 +31,9 @@ export const testerSchema = z.object({
   company: z.string().optional(),
   fleetSize: fleetSizeSchema.optional(),
   createdAt: z.iso.datetime(),
+  /** When the standard invite email was sent, and the invite code that went with it. */
+  invitedAt: z.iso.datetime().optional(),
+  inviteCode: z.string().optional(),
 });
 export type TesterDto = z.infer<typeof testerSchema>;
 
@@ -43,3 +46,17 @@ export const listTestersResponseSchema = z.object({
 export type ListTestersResponse = z.infer<typeof listTestersResponseSchema>;
 
 export const testerIdParamsSchema = z.object({ id: z.string().min(1) });
+
+/** `POST /staff/signups/invite` (WagonWise staff only): send the standard invite email, each with an invite code of their own. */
+export const sendInvitesRequestSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(50),
+  /** The closed-test opt-in link from Play Console, put in the email. */
+  optInLink: z.url().max(300),
+});
+export type SendInvitesRequest = z.infer<typeof sendInvitesRequestSchema>;
+
+export const INVITE_STATUSES = ['sent', 'already_invited', 'not_found', 'failed'] as const;
+export const sendInvitesResponseSchema = z.object({
+  results: z.array(z.object({ id: z.string(), status: z.enum(INVITE_STATUSES) })),
+});
+export type SendInvitesResponse = z.infer<typeof sendInvitesResponseSchema>;

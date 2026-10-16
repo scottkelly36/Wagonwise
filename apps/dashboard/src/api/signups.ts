@@ -1,4 +1,10 @@
-import { listTestersResponseSchema, type ListTestersResponse } from '@wagonwise/contracts/signups';
+import {
+  listTestersResponseSchema,
+  sendInvitesResponseSchema,
+  type ListTestersResponse,
+  type SendInvitesRequest,
+  type SendInvitesResponse,
+} from '@wagonwise/contracts/signups';
 
 import { requestJson, throwUnlessSuccess } from './http';
 
@@ -15,4 +21,16 @@ export async function deleteTester(accessToken: string, id: string): Promise<voi
     authorization: `Bearer ${accessToken}`,
   });
   throwUnlessSuccess(status, json, [204]);
+}
+
+export async function sendInvites(
+  accessToken: string,
+  request: SendInvitesRequest,
+): Promise<SendInvitesResponse> {
+  const { status, json } = await requestJson('POST', '/staff/signups/invite', {
+    authorization: `Bearer ${accessToken}`,
+    body: request,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return sendInvitesResponseSchema.parse(json);
 }

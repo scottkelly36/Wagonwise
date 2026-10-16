@@ -1,4 +1,5 @@
 import { makeId } from '../../../shared/brand.js';
+import { INVITE_SUBJECT, inviteEmail } from '../domain/invite-email.js';
 import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import { err, ok, type Result, type TaggedError } from '../../../shared/result.js';
@@ -30,6 +31,8 @@ export interface TesterRepository {
   /** Newest first. */
   list(limit: number): Promise<Tester[]>;
   count(): Promise<number>;
+  findByIds(ids: readonly TesterId[]): Promise<Tester[]>;
+  markInvited(id: TesterId, inviteCode: string, at: Date): Promise<void>;
   delete(id: TesterId): Promise<boolean>;
   deleteByEmail(email: string): Promise<void>;
 }
@@ -98,4 +101,60 @@ export async function deleteTester(
 ): Promise<Result<void, Forbidden | NotFound>> {
   if (caller.kind !== 'platform') return err({ tag: 'Forbidden' });
   return (await deps.testers.delete(id)) ? ok(undefined) : err({ tag: 'NotFound' });
+}
+
+/** The most people one send-invites call takes: a guard against a slip, and keeps the request quick. */
+export const MAX_INVITES_PER_SEND = 50;
+
+/** Supplied by composition over `identity`: a fresh invite code nobody has used, and the sender that carries sign-in codes. */
+export interface InvitePorts {
+  newInviteCode(): Promise<string>;
+  sendEmail(to: string, subject: string, text: string): Promise<void>;
+}
+
+export type InviteStatus = 'sent' | 'already_invited' | 'not_found' | 'failed';
+
+/**
+ * Sends the standard invite email to each chosen tester, with an invite code made for them alone, and records who was
+ * sent it and when. Someone already invited is skipped (never a second code), and one failed email does not stop the
+ * rest. The tester is marked only after the email has gone, so a failure can simply be tried again. WagonWise staff only.
+ */
+export async function sendInvites(
+  deps: Pick<SignupDeps, 'testers' | 'clock'> & { readonly invites: InvitePorts },
+  caller: StaffCaller,
+  input: { readonly ids: readonly TesterId[]; readonly optInLink: string },
+): Promise<Result<{ id: TesterId; status: InviteStatus }[], Forbidden>> {
+  if (caller.kind !== 'platform') return err({ tag: 'Forbidden' });
+  const ids = [...new Set(input.ids)].slice(0, MAX_INVITES_PER_SEND);
+  const found = new Map((await deps.testers.findByIds(ids)).map((t) => [t.id, t]));
+  const results: { id: TesterId; status: InviteStatus }[] = [];
+  for (const id of ids) {
+    const tester = found.get(id);
+    if (tester === undefined) {
+      results.push({ id, status: 'not_found' });
+      continue;
+    }
+    if (tester.invitedAt !== undefined) {
+      results.push({ id, status: 'already_invited' });
+      continue;
+    }
+    try {
+      const inviteCode = await deps.invites.newInviteCode();
+      await deps.invites.sendEmail(
+        tester.email,
+        INVITE_SUBJECT,
+        inviteEmail({
+          name: tester.name,
+          email: tester.email,
+          inviteCode,
+          optInLink: input.optInLink,
+        }),
+      );
+      await deps.testers.markInvited(id, inviteCode, deps.clock.now());
+      results.push({ id, status: 'sent' });
+    } catch {
+      results.push({ id, status: 'failed' });
+    }
+  }
+  return ok(results);
 }

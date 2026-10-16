@@ -29,6 +29,8 @@ const staff: Record<string, StaffCaller> = {
  * but WagonWise staff can read the list (the table refuses the app role everywhere else), an address already held changes
  * nothing, and a trap field stores nothing.
  */
+const sentEmails: { to: string; subject: string; text: string }[] = [];
+
 describe('signups end to end (real RLS, real scopes)', () => {
   let container: StartedPostgreSqlContainer;
   let ownerPool: Pool;
@@ -58,6 +60,13 @@ describe('signups end to end (real RLS, real scopes)', () => {
       clock: new FakeClock('2026-10-09T09:00:00.000Z'),
       dataScopes: scopes,
       callers: { getCaller: (id) => Promise.resolve(staff[id] ?? null) },
+      invites: {
+        newInviteCode: () => Promise.resolve(`CODE000${sentEmails.length + 1}`),
+        sendEmail: (to, subject, text) => {
+          sentEmails.push({ to, subject, text });
+          return Promise.resolve();
+        },
+      },
     });
     app = Fastify();
     app.addHook('onRequest', (request, _reply, done) => {
@@ -143,6 +152,45 @@ describe('signups end to end (real RLS, real scopes)', () => {
       (await app.inject({ method: 'GET', url: '/staff/signups', ...as(FLEET) })).statusCode,
     ).toBe(403);
     expect((await app.inject({ method: 'GET', url: '/staff/signups' })).statusCode).toBe(401);
+  });
+
+  it('sends the invite to chosen testers once each, recording who and the code, for WagonWise staff only', async () => {
+    const id =
+      (
+        await ownerPool.query<{ id: string }>(
+          `select id from signups.testers where email = 'kim@example.com'`,
+        )
+      ).rows[0]?.id ?? '';
+    const send = (who: string | undefined) =>
+      app.inject({
+        method: 'POST',
+        url: '/staff/signups/invite',
+        payload: { ids: [id], optInLink: 'https://play.google.com/apps/testing/uk.co.wagonwise' },
+        ...(who === undefined ? {} : as(who)),
+      });
+    expect((await send(undefined)).statusCode).toBe(401);
+    expect((await send(FLEET)).statusCode).toBe(403);
+    expect(sentEmails).toHaveLength(0);
+
+    const first = await send(ADMIN);
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toEqual({ results: [{ id, status: 'sent' }] });
+    expect(sentEmails).toHaveLength(1);
+    expect(sentEmails[0]).toMatchObject({ to: 'kim@example.com' });
+    expect(sentEmails[0]?.text).toContain('CODE0001');
+    expect(sentEmails[0]?.text).toContain('Hello Kim,');
+
+    expect((await send(ADMIN)).json()).toEqual({ results: [{ id, status: 'already_invited' }] });
+    expect(sentEmails).toHaveLength(1);
+
+    const list = await app.inject({ method: 'GET', url: '/staff/signups', ...as(ADMIN) });
+    const kim = list
+      .json<{ testers: { email: string; inviteCode?: string; invitedAt?: string }[] }>()
+      .testers.find((t) => t.email === 'kim@example.com');
+    expect(kim).toMatchObject({
+      inviteCode: 'CODE0001',
+      invitedAt: '2026-10-09T09:00:00.000Z',
+    });
   });
 
   it('keeps the table closed to everything but the platform scope', async () => {

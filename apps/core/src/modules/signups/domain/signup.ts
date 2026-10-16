@@ -20,6 +20,9 @@ export interface Tester {
   readonly fleetSize: FleetSize | undefined;
   readonly consentedAt: Date;
   readonly createdAt: Date;
+  /** When the standard invite email was sent to them, and the invite code that went with it. Both or neither. */
+  readonly invitedAt?: Date | undefined;
+  readonly inviteCode?: string | undefined;
 }
 
 export interface InvalidSignup extends TaggedError<'InvalidSignup'> {

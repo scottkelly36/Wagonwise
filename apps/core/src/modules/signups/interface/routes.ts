@@ -1,5 +1,6 @@
 import {
   removeSignupRequestSchema,
+  sendInvitesRequestSchema,
   signupRequestSchema,
   testerIdParamsSchema,
 } from '@wagonwise/contracts/signups';
@@ -10,13 +11,16 @@ import {
   deleteTester,
   listTesters,
   removeMe,
+  sendInvites,
   signUp,
   type CallerDirectory,
+  type InvitePorts,
   type SignupDeps,
 } from '../application/signups.js';
 
 export interface SignupRouteDeps {
   readonly signups: SignupDeps;
+  readonly invites: InvitePorts;
   readonly callerDirectory: CallerDirectory;
   readonly dataScopes: DataScopes;
 }
@@ -75,8 +79,31 @@ export function registerSignupRoutes(app: FastifyInstance, deps: SignupRouteDeps
         ...(t.company === undefined ? {} : { company: t.company }),
         ...(t.fleetSize === undefined ? {} : { fleetSize: t.fleetSize }),
         createdAt: t.createdAt.toISOString(),
+        ...(t.invitedAt === undefined ? {} : { invitedAt: t.invitedAt.toISOString() }),
+        ...(t.inviteCode === undefined ? {} : { inviteCode: t.inviteCode }),
       })),
     });
+  });
+
+  app.post('/staff/signups/invite', async (request, reply) => {
+    if (request.staffId === undefined) {
+      return reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+    }
+    const body = sendInvitesRequestSchema.safeParse(request.body);
+    if (!body.success)
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    const caller = await deps.callerDirectory.getCaller(request.staffId);
+    if (caller === null || caller.kind !== 'platform') {
+      return reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
+    }
+    const result = await deps.dataScopes.run({ kind: 'platform' }, () =>
+      sendInvites({ ...deps.signups, invites: deps.invites }, caller, {
+        ids: body.data.ids.map((id) => makeId<'TesterId'>(id)),
+        optInLink: body.data.optInLink,
+      }),
+    );
+    if (!result.ok) return reply.status(403).send({ ...result.error, requestId: request.id });
+    return reply.status(200).send({ results: result.value });
   });
 
   app.delete('/staff/signups/:id', async (request, reply) => {
