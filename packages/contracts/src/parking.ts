@@ -156,3 +156,47 @@ export const saveParkingSpotRequestSchema = z.object({
   ...facilityFields,
 });
 export type SaveParkingSpotRequest = z.infer<typeof saveParkingSpotRequestSchema>;
+
+/**
+ * `POST /parking/spots/:id/suggestions` (a signed-in driver): a suggested change to a spot, or "this place is closed or gone".
+ * Only the fields the driver wants changed are sent. Nothing on the map changes until WagonWise staff approve it.
+ */
+export const suggestParkingSpotEditRequestSchema = z
+  .object({
+    gone: z.boolean().optional(),
+    name: z.string().max(NAME_MAX_LENGTH).optional(),
+    note: z.string().max(NOTE_MAX_LENGTH).optional(),
+    capacity: z.number().int().min(0).max(5000).optional(),
+    ...facilityFields,
+  })
+  .strict();
+export type SuggestParkingSpotEditRequest = z.infer<typeof suggestParkingSpotEditRequestSchema>;
+
+/** The fields a suggestion may change: what staff can edit on a spot, except where it is. */
+export const spotChangesSchema = z.object({
+  name: z.string().max(NAME_MAX_LENGTH).optional(),
+  note: z.string().max(NOTE_MAX_LENGTH).optional(),
+  capacity: z.number().int().min(0).max(5000).optional(),
+  ...facilityFields,
+});
+export type SpotChangesDto = z.infer<typeof spotChangesSchema>;
+
+export const spotSuggestionSchema = z.object({
+  id: z.string(),
+  /** True means "closed or gone": approving it deletes the spot. */
+  gone: z.boolean(),
+  changes: spotChangesSchema,
+  suggestedAt: z.iso.datetime(),
+  /** The spot as it is now, to compare with. */
+  spot: safeParkingSpotSchema,
+});
+export type SpotSuggestionDto = z.infer<typeof spotSuggestionSchema>;
+
+/** `GET /staff/parking/suggestions` (WagonWise staff only): the suggestions waiting, oldest first. */
+export const listSpotSuggestionsResponseSchema = z.object({
+  suggestions: z.array(spotSuggestionSchema),
+});
+export type ListSpotSuggestionsResponse = z.infer<typeof listSpotSuggestionsResponseSchema>;
+
+/** `POST /staff/parking/suggestions/:id/approve` and `.../reject`. */
+export const spotSuggestionIdParamsSchema = z.object({ id: z.uuid() });

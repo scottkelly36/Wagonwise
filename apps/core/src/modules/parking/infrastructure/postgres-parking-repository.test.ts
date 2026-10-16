@@ -3,6 +3,7 @@ import type { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import type { SafeParkingSpot } from '../domain/safe-parking-spot.js';
+import type { SpotChanges } from '../domain/spot-suggestion.js';
 import type { UntypedDb } from './db.js';
 import { PostgresParkingRepository } from './postgres-parking-repository.js';
 import { applySchema } from './testing/apply-schema.js';
@@ -416,6 +417,68 @@ describe('PostgresParkingRepository', () => {
       const after = await repo().find(osm.id);
       expect(after).toMatchObject({ source: 'osm', note: 'Service area', reporterCount: 0 });
       expect(after?.lastReportedAt).toEqual(t(1));
+    });
+  });
+
+  describe('suggested changes', () => {
+    const driverA = '99999999-9999-4999-8999-00000000000a';
+    const driverB = '99999999-9999-4999-8999-00000000000b';
+    const suggestion = (
+      n: number,
+      spotId: string,
+      suggesterId: string,
+      changes: SpotChanges = { name: 'New' },
+    ) => ({
+      id: makeId<'SpotSuggestionId'>(`aaaaaaaa-aaaa-4aaa-8aaa-${String(n).padStart(12, '0')}`),
+      spotId: makeId<'SafeParkingSpotId'>(spotId),
+      suggesterId,
+      gone: false,
+      changes,
+      suggestedAt: new Date(`2026-10-1${n}T09:00:00.000Z`),
+    });
+
+    it('saves, lists with the spot, replaces the same driver’s for the same spot, and counts the rest', async () => {
+      const one = spot({
+        id: makeId<'SafeParkingSpotId'>('b0000000-0000-4000-8000-000000000001'),
+        location: { lat: 52, lon: -1 },
+      });
+      const two = spot({
+        id: makeId<'SafeParkingSpotId'>('b0000000-0000-4000-8000-000000000002'),
+        location: { lat: 53, lon: -1 },
+      });
+      await repo().save(one);
+      await repo().save(two);
+
+      await repo().saveSuggestion(suggestion(1, one.id, driverA, { name: 'First' }));
+      await repo().saveSuggestion(suggestion(2, one.id, driverA, { name: 'Second' }));
+      await repo().saveSuggestion(suggestion(3, two.id, driverA, { capacity: 12 }));
+      await repo().saveSuggestion(suggestion(4, one.id, driverB, { name: 'Other' }));
+
+      const listed = await repo().listSuggestions(10);
+      expect(listed.map((l) => l.suggestion.changes)).toEqual([
+        { name: 'Second' },
+        { capacity: 12 },
+        { name: 'Other' },
+      ]);
+      expect(listed[0]?.spot.id).toBe(one.id);
+      expect(await repo().countSuggestionsBy(driverA, one.id)).toBe(1);
+      expect(await repo().countSuggestionsBy(driverA, two.id)).toBe(1);
+    });
+
+    it('finds and deletes one, erases a driver’s, and goes when the spot goes', async () => {
+      const [first] = await repo().listSuggestions(10);
+      const id = first?.suggestion.id as ReturnType<typeof makeId<'SpotSuggestionId'>>;
+      expect((await repo().findSuggestion(id))?.changes).toEqual({ name: 'Second' });
+      expect(await repo().deleteSuggestion(id)).toBe(true);
+      expect(await repo().deleteSuggestion(id)).toBe(false);
+
+      await repo().deleteSuggestionsBy(driverA);
+      expect((await repo().listSuggestions(10)).map((l) => l.suggestion.suggesterId)).toEqual([
+        driverB,
+      ]);
+
+      await repo().deleteAny(makeId<'SafeParkingSpotId'>('b0000000-0000-4000-8000-000000000001'));
+      expect(await repo().listSuggestions(10)).toEqual([]);
     });
   });
 });

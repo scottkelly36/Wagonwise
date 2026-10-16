@@ -22,6 +22,7 @@ import {
 } from '../../lib/parking';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
+import { ParkingSuggestions } from './ParkingSuggestions';
 
 const PARKING_KEY = ['parking-spots'] as const;
 
@@ -182,6 +183,8 @@ export function Parking() {
       </p>
 
       {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+
+      <ParkingSuggestions onDecided={refresh} />
 
       {data !== undefined && (
         <p>

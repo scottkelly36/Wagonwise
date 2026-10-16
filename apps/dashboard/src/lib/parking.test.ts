@@ -7,6 +7,7 @@ import {
   parseLatLon,
   sourceOf,
   spotToForm,
+  suggestedChanges,
 } from './parking';
 
 const spot = (extra: Partial<SafeParkingSpotDto> = {}): SafeParkingSpotDto =>
@@ -109,5 +110,21 @@ describe('sourceOf', () => {
   it('reads a spot from an older server as a driver’s report', () => {
     expect(sourceOf(spot())).toBe('driver');
     expect(sourceOf(spot({ source: 'osm' }))).toBe('osm');
+  });
+});
+
+describe('suggestedChanges', () => {
+  const existing = spot({ name: 'Old', capacity: 10, toilets: true });
+
+  it('lists only what would change, with what it says now beside it', () => {
+    expect(
+      suggestedChanges(existing, { name: 'New', capacity: 25, toilets: false, showers: true }),
+    ).toEqual([
+      { label: 'Name', from: 'Old', to: 'New' },
+      { label: 'HGV spaces', from: '10', to: '25' },
+      { label: 'Toilets', from: 'Yes', to: 'No' },
+      { label: 'Showers', from: 'Not known', to: 'Yes' },
+    ]);
+    expect(suggestedChanges(existing, {})).toEqual([]);
   });
 });

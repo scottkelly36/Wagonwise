@@ -4,6 +4,8 @@ import {
   reportSafeParkingSpotRequestSchema,
   safeParkingSpotIdParamsSchema,
   saveParkingSpotRequestSchema,
+  spotSuggestionIdParamsSchema,
+  suggestParkingSpotEditRequestSchema,
 } from '@wagonwise/contracts/parking';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
@@ -27,6 +29,13 @@ import {
   reportSafeParkingSpot,
   type ReportSafeParkingSpotDeps,
 } from '../application/report-safe-parking-spot.js';
+import {
+  approveSuggestion,
+  listSuggestions,
+  rejectSuggestion,
+  suggestSpotEdit,
+  type SpotSuggestionDeps,
+} from '../application/spot-suggestions.js';
 import type { SafeParkingSpot } from '../domain/safe-parking-spot.js';
 import { statusFor } from './error-mapping.js';
 
@@ -35,6 +44,7 @@ export interface ParkingRouteDeps {
   readonly findNearbyParking: FindNearbyParkingDeps;
   readonly deleteSafeParkingSpot: DeleteSafeParkingSpotDeps;
   readonly admin: AdminParkingDeps;
+  readonly suggestions: SpotSuggestionDeps;
   readonly callerDirectory: CallerDirectory;
 }
 
@@ -90,6 +100,28 @@ export function registerParkingRoutes(app: FastifyInstance, deps: ParkingRouteDe
     const result = await deleteSafeParkingSpot(deps.deleteSafeParkingSpot, {
       id: makeId<'SafeParkingSpotId'>(params.data.id),
       reporterId,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(204).send();
+  });
+
+  // A driver suggests a change to a spot, or says it is closed or gone. It only waits for WagonWise staff to approve it.
+  app.post('/parking/spots/:id/suggestions', async (request, reply) => {
+    const suggesterId = requireDriverId(request, reply);
+    if (suggesterId === undefined) return reply;
+    const params = safeParkingSpotIdParamsSchema.safeParse(request.params);
+    const body = suggestParkingSpotEditRequestSchema.safeParse(request.body);
+    if (!params.success || !body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const { gone, ...changes } = body.data;
+    const result = await suggestSpotEdit(deps.suggestions, {
+      spotId: makeId<'SafeParkingSpotId'>(params.data.id),
+      suggesterId,
+      gone: gone === true,
+      changes,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
@@ -191,6 +223,48 @@ function registerStaffParkingRoutes(app: FastifyInstance, deps: ParkingRouteDeps
     }
     return reply.status(200).send(toDto(result.value));
   });
+
+  app.get('/staff/parking/suggestions', async (request, reply) => {
+    const caller = await staffCaller(request, reply);
+    if (caller === undefined) return reply;
+    const result = await listSuggestions(deps.suggestions, caller);
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    // Who suggested it is never sent: staff judge the change, not the person.
+    return reply.status(200).send({
+      suggestions: result.value.map(({ suggestion, spot }) => ({
+        id: suggestion.id,
+        gone: suggestion.gone,
+        changes: suggestion.changes,
+        suggestedAt: suggestion.suggestedAt.toISOString(),
+        spot: toDto(spot),
+      })),
+    });
+  });
+
+  for (const [action, run] of [
+    ['approve', approveSuggestion],
+    ['reject', rejectSuggestion],
+  ] as const) {
+    app.post(`/staff/parking/suggestions/:id/${action}`, async (request, reply) => {
+      const caller = await staffCaller(request, reply);
+      if (caller === undefined) return reply;
+      const params = spotSuggestionIdParamsSchema.safeParse(request.params);
+      if (!params.success) return invalid(request, reply);
+      const result = await run(
+        deps.suggestions,
+        caller,
+        makeId<'SpotSuggestionId'>(params.data.id),
+      );
+      if (!result.ok) {
+        return reply
+          .status(statusFor(result.error))
+          .send({ ...result.error, requestId: request.id });
+      }
+      return reply.status(204).send();
+    });
+  }
 
   app.delete('/staff/parking/spots/:id', async (request, reply) => {
     const caller = await staffCaller(request, reply);

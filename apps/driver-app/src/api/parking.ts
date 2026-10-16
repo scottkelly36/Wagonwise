@@ -2,9 +2,11 @@ import {
   findNearbySafeParkingSpotsResponseSchema,
   reportSafeParkingSpotRequestSchema,
   safeParkingSpotSchema,
+  suggestParkingSpotEditRequestSchema,
   type FindNearbySafeParkingSpotsRequest,
   type ReportSafeParkingSpotRequest,
   type SafeParkingSpotDto,
+  type SuggestParkingSpotEditRequest,
 } from '@wagonwise/contracts/parking';
 
 import { requestJson, throwUnlessSuccess } from './http';
@@ -46,4 +48,18 @@ export async function findNearbySafeParkingSpots(
   });
   throwUnlessSuccess(status, json, [200]);
   return findNearbySafeParkingSpotsResponseSchema.parse(json).spots;
+}
+
+/** Suggests a change to a spot, or says it is closed or gone. It waits for WagonWise staff to approve it. */
+export async function suggestParkingSpotEdit(
+  accessToken: string,
+  spotId: string,
+  input: SuggestParkingSpotEditRequest,
+): Promise<void> {
+  const body = suggestParkingSpotEditRequestSchema.parse(input);
+  const { status, json } = await requestJson('POST', `/parking/spots/${spotId}/suggestions`, {
+    body,
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [204]);
 }

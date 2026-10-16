@@ -153,3 +153,47 @@ describe('DELETE /parking/spots/:id', () => {
     expect(coreClient.calls).toEqual([]);
   });
 });
+
+describe('POST /parking/spots/:id/suggestions', () => {
+  it('requires a Bearer token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: `/parking/spots/${SPOT_ID}/suggestions`,
+      payload: { name: 'New name' },
+    });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it('forwards the suggested changes and the token', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 204, body: undefined };
+    const response = await app.inject({
+      method: 'POST',
+      url: `/parking/spots/${SPOT_ID}/suggestions`,
+      payload: { name: 'New name', capacity: 12, showers: true },
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(204);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: `/parking/spots/${SPOT_ID}/suggestions`,
+      body: { name: 'New name', capacity: 12, showers: true },
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('400s a bad id, an unknown field, or an out-of-range number, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    for (const [url, payload] of [
+      ['/parking/spots/not-a-uuid/suggestions', { name: 'x' }],
+      [`/parking/spots/${SPOT_ID}/suggestions`, { reporterId: 'me' }],
+      [`/parking/spots/${SPOT_ID}/suggestions`, { capacity: -1 }],
+    ] as const) {
+      const response = await app.inject({ method: 'POST', url, payload, headers: AUTH_HEADER });
+      expect(response.statusCode).toBe(400);
+    }
+    expect(coreClient.calls).toEqual([]);
+  });
+});

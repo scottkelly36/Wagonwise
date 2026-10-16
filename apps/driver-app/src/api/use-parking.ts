@@ -1,5 +1,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ReportSafeParkingSpotRequest } from '@wagonwise/contracts/parking';
+import type {
+  ReportSafeParkingSpotRequest,
+  SuggestParkingSpotEditRequest,
+} from '@wagonwise/contracts/parking';
 import type { GeoPointDto } from '@wagonwise/contracts/routing';
 
 import { useAccessToken } from '../hooks/use-access-token';
@@ -30,6 +33,15 @@ export function useDeleteSafeParkingSpot() {
   return useMutation({
     mutationFn: (id: string) => parkingApi.deleteSafeParkingSpot(accessToken, id),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: NEARBY_PARKING_KEY }),
+  });
+}
+
+/** A suggested change to a spot, or "closed or gone". Nothing changes on the map until staff approve it, so there is nothing to refresh. */
+export function useSuggestParkingSpotEdit() {
+  const accessToken = useAccessToken();
+  return useMutation({
+    mutationFn: (input: { spotId: string; request: SuggestParkingSpotEditRequest }) =>
+      parkingApi.suggestParkingSpotEdit(accessToken, input.spotId, input.request),
   });
 }
 
