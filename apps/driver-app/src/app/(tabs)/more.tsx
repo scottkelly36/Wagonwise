@@ -18,6 +18,7 @@ import { identityErrorMessage } from '../../lib/error-messages';
 import { PRODUCT_NAME } from '../../product';
 import { useAuthStore } from '../../state/auth-store';
 import { useFasterRouteStore } from '../../state/faster-route-store';
+import { useStillThereStore } from '../../state/still-there-store';
 import { useThemeStore, type ThemeMode } from '../../state/theme-store';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
 import { cardStyle, radius } from '../../theme/tokens';
@@ -70,6 +71,8 @@ export default function MoreScreen() {
   const setMode = useThemeStore((s) => s.setMode);
   const fasterRoutes = useFasterRouteStore((s) => s.enabled);
   const setFasterRoutes = useFasterRouteStore((s) => s.setEnabled);
+  const stillThere = useStillThereStore((s) => s.enabled);
+  const setStillThere = useStillThereStore((s) => s.setEnabled);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -169,6 +172,26 @@ export default function MoreScreen() {
           While you drive, WagonWise checks every few minutes for a clearly quicker route, counting
           traffic and reports from other drivers. It only asks: it never changes your route by
           itself.
+        </Text>
+
+        <View style={styles.group}>
+          <View style={styles.row}>
+            <View style={styles.rowIcon}>
+              <Icon name="microphone-question" size={26} color={colors.accent} />
+            </View>
+            <Text style={styles.rowLabel}>Ask “still there?” by voice</Text>
+            <Switch
+              value={stillThere}
+              onValueChange={(on) => void setStillThere(on)}
+              accessibilityLabel="Ask still there by voice"
+              testID="still-there-switch"
+            />
+          </View>
+        </View>
+        <Text style={styles.settingNote}>
+          After you pass a hazard you were warned about, WagonWise asks out loud if it was still
+          there and listens for yes or no. Up to three questions a trip, never over a turn
+          instruction. Your answers keep the hazard list accurate for other drivers.
         </Text>
 
         <View style={styles.group}>
