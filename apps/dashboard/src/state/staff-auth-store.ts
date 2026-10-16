@@ -40,6 +40,18 @@ export const useStaffAuthStore = create<StaffAuthStore>((set, get) => {
   const restored = restore();
   // Whether the session lives on the computer (so later saves, such as a token refresh, go back to the same place).
   let remembered = restored?.remembered ?? false;
+  // The refresh in progress, shared by every call that runs out of token at the same time. Coming back to a tab makes every open
+  // page ask again at once, so each would otherwise refresh with the same refresh token: the server treats the second use of a
+  // refresh token as theft and ends the session, which signed people out for no reason.
+  let refreshing: Promise<Awaited<ReturnType<typeof staffApi.refresh>>> | undefined;
+  function refreshOnce(
+    refreshToken: string,
+  ): Promise<Awaited<ReturnType<typeof staffApi.refresh>>> {
+    refreshing ??= staffApi.refresh(refreshToken).finally(() => {
+      refreshing = undefined;
+    });
+    return refreshing;
+  }
 
   function save(session: StaffSession | undefined): void {
     try {
@@ -81,9 +93,14 @@ export const useStaffAuthStore = create<StaffAuthStore>((set, get) => {
       } catch (error) {
         if (!(error instanceof ApiError) || error.status !== 401) throw error;
       }
+      // Another call may have refreshed while this one was failing: its refresh token has been used, so use the new access token
+      // it saved rather than refreshing again with the old one.
+      const now = get().session;
+      if (now === undefined) throw new ApiError('NotSignedIn', 401);
+      if (now.accessToken !== current.accessToken) return call(now.accessToken);
       let tokens;
       try {
-        tokens = await staffApi.refresh(current.refreshToken);
+        tokens = await refreshOnce(current.refreshToken);
       } catch (error) {
         save(undefined);
         throw error;
