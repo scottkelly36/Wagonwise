@@ -1,4 +1,17 @@
-import { distanceMetres } from './geo-distance';
+// Metres per degree of latitude is near-constant; longitude shrinks with cos(latitude). Accurate enough for the size of a
+// screen. (Not shared with `geo-distance.ts`, which takes its point type from the map component this file serves.)
+const METRES_PER_DEGREE_LAT = 111_320;
+
+interface Point {
+  readonly lat: number;
+  readonly lon: number;
+}
+
+function distanceMetres(a: Point, b: Point): number {
+  const dx = (b.lon - a.lon) * METRES_PER_DEGREE_LAT * Math.cos((a.lat * Math.PI) / 180);
+  const dy = (b.lat - a.lat) * METRES_PER_DEGREE_LAT;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
 /** What part of the map the driver is looking at, in terms the nearby queries understand. */
 export interface MapView {
