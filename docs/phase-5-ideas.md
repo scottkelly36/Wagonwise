@@ -208,37 +208,41 @@ The two open tracks from the driver hours work (`phase-3-scope.md`, "Driver hour
 - **Moderation at volume:** tools, so one person can keep reports clean when there are thousands.
 - **Partner parking:** truck stops and depots confirming their own details (opening times, price, spaces).
 
-## What other systems do: feature notes (the owner, 2026-10-17)
+## Where WagonWise sits among other systems: "Lite", with no hardware (the owner, 2026-10-17)
 
-Someone pointed to Convey (compliance software: tachograph analysis, licence checks, fleet management; from what public pages say)
-and to TMS Analysis (tachograph analysis, a separate company; no link between the two found). A demo and free trial were offered.
-The aim is to learn **which features hauliers pay for**, then build our own version of the ones that fit small fleets and drivers.
-**Features, not designs:** write down what a system does and the problem it solves, never copy screens, wording or layouts, and
-do not try to extract anything from the trial. Say you are building a small product and want to understand the market; do not
-pretend to be a customer. Check the trial terms (your solicitor friend can) and any confidentiality terms you are asked to sign.
+**Decision:** WagonWise is the **lite, hardware-free** product: it runs on the driver's own phone, so a small fleet can start in an
+afternoon with nothing to fit. A hardware option (vehicle units, tachograph download, tracking) could come later **if the lite product
+succeeds**; it is not the plan now.
 
-**Questions for the demo**
+**What was looked at (public information only, no demo or trial taken; the owner did not think a vendor demo was fair).** Convey, a UK
+compliance system, was pointed out in a forum reply. Its modules, as listed on its site menu (seen by the owner on 2026-10-16) and
+described in the trade press, are: Earned Recognition, Fleet Management, Handbook, Licence Check, Performance, Remote Download,
+Tachograph, Tracking, Training, Walkaround, Workshop. The tachograph, remote download and tracking modules need equipment in the
+vehicle; it is modular and priced by the modules used. This was read from the module names and press articles, not from using it, so
+treat what each module does as a guess. TMS Analysis is a separate tachograph analysis company (no link to Convey found).
 
-1. What do your operators ask for most, and what do they complain about?
-2. What do they still do outside the system (spreadsheets, paper, phone calls)?
-3. Which feature do they use every day, and which did they pay for and never use?
-4. How do drivers get their information: an app, a card reader, a download, the office?
-5. How are driver licence and CPC checks and expiry reminders handled, and who does the checking?
-6. How are tachograph infringements found and followed up, and what does the manager have to do with the result?
-7. How are vehicle checks, defects, MOT and service dates tracked, and how do they reach the workshop?
-8. What do they charge, per vehicle or per driver, and what is in the base price?
-9. How long does a firm take to get set up, and what do they bring in (vehicles, drivers, history)?
-10. What do customers ask for that it does not do yet?
+**What WagonWise already has that overlaps:** walk-round checks and defects, maintenance and MOT dates with reminders, repairs booked
+from defects, a driving-hours clock for the driver. **What it has that compliance systems do not list:** navigation that knows the vehicle,
+hazards and parking from other drivers, jobs with proof of delivery, live position while on a job, and what each job made.
 
-**Notes to fill in** (one line per feature; a problem and a verdict, not a screenshot)
+**Compliance features worth adding to the lite product, features only (own design, own wording):**
 
-| Feature (what it does) | The problem it solves | Who pays for it | Fits WagonWise? | Verdict |
-| ---------------------- | --------------------- | --------------- | --------------- | ------- |
-|                        |                       |                 |                 |         |
+| Idea                                                                                                     | Why                                                                                | Size                                    |
+| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------- |
+| An audit pack: one report of check history, defects and fixes, maintenance                               | "Audit-ready" is how compliance systems sell; it uses data already held            | Small to medium                         |
+| Driver and vehicle documents with expiry dates (licence, CPC, ADR, calibration)                          | The same shape as maintenance dates; reminders in the portal and the morning email | Small                                   |
+| Tachograph calibration as a maintenance item type                                                        | A dated item like an MOT; may be possible with no code                             | Tiny                                    |
+| A driver handbook: policies and rules the driver reads in the app, with a record of who has acknowledged | Cheap, and gives a firm its own audit trail                                        | Small                                   |
+| Licence checks against the DVLA, with the driver's consent                                               | Valued by operators, but needs a DVLA integration and consent handling             | Medium to large; documents first        |
+| A gentle summary of their own hours for the driver (not a score for the boss)                            | Helps drivers, in line with the care noted for driver scores (ask 6)               | Small                                   |
+| Tachograph analysis, remote download, tracking units                                                     | Their ground, and it needs hardware                                                | **Not now**: the hardware option, later |
 
-Verdicts: **build** (small, and a firm would use it), **later** (real, but not before the first firms), **skip** (too big, or not
-who WagonWise is for). Ideas already on the list that this should confirm or change: licence and CPC reminders, trailer records,
-documents with expiry dates, tachograph and telematics (asks 3 above), scheduled reports, customer tracking links.
+**Things to leave alone for now:** DVSA Earned Recognition accreditation (a long process), pay-per-module pricing (WagonWise keeps one
+price per vehicle unless firms ask otherwise).
+
+**Say it plainly in the pitch:** "Nothing to fit. It runs on the phones your drivers already have." Hauliers asked in the pilot and by
+testers (what they use now, what they pay for, what they still do outside the system) are the best source for what to build next;
+the questions in the sales playbook already ask them.
 
 ## How to choose
 
