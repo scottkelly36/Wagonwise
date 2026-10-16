@@ -37,6 +37,7 @@ import { useLiveLocation } from '../hooks/use-live-location';
 import { useQuickVoiceReport } from '../hooks/use-quick-voice-report';
 import { useReplanFromHere } from '../hooks/use-replan-from-here';
 import { useCollapsingNotice } from '../hooks/use-collapsing-notice';
+import { useHazardStillThere } from '../hooks/use-hazard-still-there';
 import { useTurnAnnouncements } from '../hooks/use-turn-announcements';
 import { useTurnGuidance } from '../hooks/use-turn-guidance';
 import { useVoiceHazardReportFlow } from '../hooks/use-voice-hazard-report-flow';
@@ -71,6 +72,7 @@ import { decodePolyline6 } from '../lib/polyline';
 import { routeProgress } from '../lib/route-progress';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { useStillThereStore } from '../state/still-there-store';
 import { useGuidanceStore } from '../state/guidance-store';
 import { Icon, type IconName } from '../components/ui/icon';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
@@ -302,6 +304,18 @@ export default function ActiveTripScreen() {
   // The break and faster-route notices open in full with a buzz and a short spoken line, shrink to a small flag after a few
   // seconds, and can be opened again or dismissed. The line is not spoken over the mic, or when the driver has muted the voice.
   const canSpeak = !voiceMuted && !micBusy && !micActive && !quickInFlight;
+  // After passing a hazard they were warned about, a spoken "was it still there?" (3 a trip, 150 m past, off in More).
+  const stillThereOn = useStillThereStore((s) => s.enabled);
+  const stillThereHazards = useMemo(
+    () => hazardsOnRoute.map((h) => ({ id: h.id, location: h.location, type: h.type })),
+    [hazardsOnRoute],
+  );
+  const stillThere = useHazardStillThere(
+    routeLine,
+    location.point,
+    stillThereHazards,
+    stillThereOn && canSpeak,
+  );
   const canSpeakRef = useRef(canSpeak);
   useEffect(() => {
     canSpeakRef.current = canSpeak;
@@ -322,7 +336,8 @@ export default function ActiveTripScreen() {
 
   const quickCard = (kind: QuickReportKind) => {
     const ownListening = quickListening && activeQuickReportKind(quickReport.state) === kind;
-    const disabled = micBusy || micActive || quickBusy || (quickListening && !ownListening);
+    const disabled =
+      micBusy || micActive || quickBusy || stillThere.busy || (quickListening && !ownListening);
     return (
       <ActionCard
         key={kind}
