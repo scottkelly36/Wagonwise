@@ -12,8 +12,10 @@ import {
 } from 'react-native';
 
 import { useReportSafeParkingSpot } from '../api/use-parking';
+import { ParkingFacilityGrid } from '../components/parking-facility-grid';
 import { RouteMap, type MapPoint } from '../components/route-map';
 import { useCurrentLocation } from '../hooks/use-current-location';
+import { buildNewSpotDetails, emptyForm } from '../lib/parking-suggestion';
 import { Icon } from '../components/ui/icon';
 import { MapSheet } from '../components/ui/map-sheet';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
@@ -22,7 +24,8 @@ import { radius } from '../theme/tokens';
 const NOTE_MAX_LENGTH = 280;
 
 /** Report a safe place to park an HGV (layby, truck stop) — M9, docs/progress.md. Tap the map to
- *  drop a pin, add an optional note, done. Deliberately simple, same spirit as
+ *  drop a pin, add an optional note, done; "Add details" opens the name, number of HGV spaces and what is there (all optional,
+ *  closed by default so the quick path stays quick). Deliberately simple, same spirit as
  *  report-congestion.tsx: no offline queue — a persistent point of interest with no expiry (M9's
  *  own scoping) doesn't need the delivery guarantee a hazard report does, but a dropped
  *  connection is still just "try again", not silently lost. */
@@ -33,6 +36,9 @@ export default function ReportSafeParkingSpotScreen() {
 
   const [pin, setPin] = useState<MapPoint | undefined>(undefined);
   const [note, setNote] = useState('');
+  const [form, setForm] = useState(emptyForm);
+  const [showDetails, setShowDetails] = useState(false);
+  const [mergedWithDetails, setMergedWithDetails] = useState(false);
   const [validationError, setValidationError] = useState<string | undefined>(undefined);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -47,14 +53,28 @@ export default function ReportSafeParkingSpotScreen() {
       return;
     }
 
+    const built = buildNewSpotDetails(form);
+    if (!built.ok) {
+      setValidationError(built.problem);
+      return;
+    }
+    const id = safeParkingSpotIdSchema.parse(Crypto.randomUUID());
     reportSpot.mutate(
       {
-        id: safeParkingSpotIdSchema.parse(Crypto.randomUUID()),
+        id,
         location: effectivePin,
         note: note.trim() === '' ? undefined : note.trim(),
+        ...built.details,
       },
       {
-        onSuccess: () => router.back(),
+        onSuccess: (spot) => {
+          // A place already on the map keeps what it says; the details wait for us to check them.
+          if (spot.id !== id && Object.keys(built.details).length > 0) {
+            setMergedWithDetails(true);
+            return;
+          }
+          router.back();
+        },
         onError: () => setValidationError("Couldn't send this report. Try again."),
       },
     );
@@ -89,20 +109,79 @@ export default function ReportSafeParkingSpotScreen() {
         testID="parking-note-input"
       />
 
+      <TouchableOpacity
+        style={styles.moreLink}
+        onPress={() => setShowDetails((open) => !open)}
+        accessibilityRole="button"
+        testID="parking-details-toggle"
+      >
+        <Text style={styles.moreText}>
+          {showDetails ? 'Hide details' : 'Add details: name, spaces, what is there (optional)'}
+        </Text>
+      </TouchableOpacity>
+
+      {showDetails && (
+        <View testID="parking-details">
+          <Text style={styles.label}>Name</Text>
+          <TextInput
+            style={styles.input}
+            value={form.name}
+            onChangeText={(name) => setForm({ ...form, name })}
+            maxLength={120}
+            placeholder="Name of the place"
+            placeholderTextColor={colors.textDim}
+            testID="parking-name-input"
+          />
+
+          <Text style={styles.label}>How many HGVs can park</Text>
+          <TextInput
+            style={styles.input}
+            value={form.spaces}
+            onChangeText={(spaces) => setForm({ ...form, spaces })}
+            keyboardType="number-pad"
+            maxLength={4}
+            placeholder="Number of HGV spaces"
+            placeholderTextColor={colors.textDim}
+            testID="parking-spaces-input"
+          />
+
+          <Text style={styles.label}>What is there (tap to change)</Text>
+          <ParkingFacilityGrid
+            value={form.facilities}
+            onChange={(facilities) => setForm({ ...form, facilities })}
+            testIdPrefix="report"
+          />
+        </View>
+      )}
+
       {validationError !== undefined && <Text style={styles.error}>{validationError}</Text>}
 
-      <TouchableOpacity
-        style={[styles.button, reportSpot.isPending && styles.buttonDisabled]}
-        disabled={reportSpot.isPending}
-        onPress={() => void handleSubmit()}
-        testID="report-parking-spot-submit-button"
-      >
-        {reportSpot.isPending ? (
-          <ActivityIndicator color={colors.textOnAccent} />
-        ) : (
-          <Text style={styles.buttonText}>Mark parking spot</Text>
-        )}
-      </TouchableOpacity>
+      {mergedWithDetails && (
+        <View testID="parking-merged">
+          <Text style={styles.hint}>
+            Thanks. That place is already on the map, so we will check your details before they
+            show.
+          </Text>
+          <TouchableOpacity style={styles.button} onPress={() => router.back()}>
+            <Text style={styles.buttonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!mergedWithDetails && (
+        <TouchableOpacity
+          style={[styles.button, reportSpot.isPending && styles.buttonDisabled]}
+          disabled={reportSpot.isPending}
+          onPress={() => void handleSubmit()}
+          testID="report-parking-spot-submit-button"
+        >
+          {reportSpot.isPending ? (
+            <ActivityIndicator color={colors.textOnAccent} />
+          ) : (
+            <Text style={styles.buttonText}>Mark parking spot</Text>
+          )}
+        </TouchableOpacity>
+      )}
     </MapSheet>
   );
 }
@@ -143,6 +222,8 @@ function createStyles(colors: ThemeColors) {
       fontSize: 16,
       textAlignVertical: 'top',
     },
+    moreLink: { marginTop: 16, minHeight: 44, justifyContent: 'center' },
+    moreText: { fontSize: 15, fontWeight: '600', color: colors.accent },
     error: {
       fontSize: 16,
       color: colors.danger,

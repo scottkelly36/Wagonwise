@@ -1,6 +1,7 @@
 import {
   PARKING_FACILITIES,
   type ParkingFacility,
+  type ReportSafeParkingSpotRequest,
   type SafeParkingSpotDto,
   type SuggestParkingSpotEditRequest,
 } from '@wagonwise/contracts/parking';
@@ -76,4 +77,44 @@ export function buildSuggestion(spot: SafeParkingSpotDto, form: SuggestionForm):
     return { ok: false, problem: 'Change something first, then send.' };
   }
   return { ok: true, request };
+}
+
+/** A blank form, for marking a new place. */
+export const emptyForm = (): SuggestionForm => ({
+  name: '',
+  spaces: '',
+  note: '',
+  facilities: Object.fromEntries(PARKING_FACILITIES.map((key) => [key, undefined])) as Record<
+    ParkingFacility,
+    boolean | undefined
+  >,
+});
+
+export type BuiltDetails =
+  | {
+      readonly ok: true;
+      readonly details: Pick<ReportSafeParkingSpotRequest, 'name' | 'capacity' | ParkingFacility>;
+    }
+  | { readonly ok: false; readonly problem: string };
+
+/** What the driver filled in when marking a new place. Anything left blank or "not sure" is left out. Nothing at all is fine. */
+export function buildNewSpotDetails(form: SuggestionForm): BuiltDetails {
+  const details: {
+    name?: string;
+    capacity?: number;
+  } & Partial<Record<ParkingFacility, boolean>> = {};
+  const name = form.name.trim();
+  if (name !== '') details.name = name;
+  const spaces = form.spaces.trim();
+  if (spaces !== '') {
+    if (!/^\d{1,4}$/.test(spaces)) {
+      return { ok: false, problem: 'Spaces should be a whole number, like 12.' };
+    }
+    details.capacity = Number(spaces);
+  }
+  for (const key of PARKING_FACILITIES) {
+    const value = form.facilities[key];
+    if (value !== undefined) details[key] = value;
+  }
+  return { ok: true, details };
 }

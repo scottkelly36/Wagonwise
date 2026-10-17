@@ -2,6 +2,7 @@ import {
   findNearbySafeParkingSpotsRequestSchema,
   listParkingSpotsQuerySchema,
   reportSafeParkingSpotRequestSchema,
+  type ReportSafeParkingSpotRequest,
   safeParkingSpotIdParamsSchema,
   saveParkingSpotRequestSchema,
   spotSuggestionIdParamsSchema,
@@ -37,6 +38,7 @@ import {
   type SpotSuggestionDeps,
 } from '../application/spot-suggestions.js';
 import type { SafeParkingSpot } from '../domain/safe-parking-spot.js';
+import type { SpotChanges } from '../domain/spot-suggestion.js';
 import { statusFor } from './error-mapping.js';
 
 export interface ParkingRouteDeps {
@@ -80,6 +82,7 @@ export function registerParkingRoutes(app: FastifyInstance, deps: ParkingRouteDe
       reporterId,
       location: parsed.data.location,
       note: parsed.data.note,
+      details: detailsOf(parsed.data),
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
@@ -144,6 +147,12 @@ export function registerParkingRoutes(app: FastifyInstance, deps: ParkingRouteDe
     });
     return reply.status(200).send({ spots });
   });
+}
+
+/** The place details from a report (everything but where it is and the tip). */
+function detailsOf(body: ReportSafeParkingSpotRequest): SpotChanges {
+  const { id: _id, location: _location, note: _note, ...details } = body;
+  return details;
 }
 
 /** The same spot as the drivers' map gets, with the date as text. */

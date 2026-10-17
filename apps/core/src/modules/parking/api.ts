@@ -40,7 +40,7 @@ export function createParkingModule(deps: ParkingModuleDeps): ParkingModule {
   const repo = new PostgresParkingRepository(deps.db);
 
   const routeDeps: ParkingRouteDeps = {
-    reportSafeParkingSpot: { repo, clock: deps.clock },
+    reportSafeParkingSpot: { repo, clock: deps.clock, ids: deps.ids },
     deleteSafeParkingSpot: { repo },
     findNearbyParking: { repo },
     admin: { repo, ids: deps.ids, clock: deps.clock },

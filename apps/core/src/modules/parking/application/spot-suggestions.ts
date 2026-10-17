@@ -25,13 +25,20 @@ export interface SpotSuggestionDeps {
   readonly clock: Clock;
 }
 
+/** What suggesting needs, so a report landing on an existing place can use it with just these parts of the repository. */
+export interface SuggestSpotEditDeps {
+  readonly repo: Pick<ParkingRepository, 'find' | 'countSuggestionsBy' | 'saveSuggestion'>;
+  readonly ids: IdGenerator;
+  readonly clock: Clock;
+}
+
 /**
  * A driver suggests a change to a spot, or says it is closed or gone. It waits for WagonWise staff; nothing on the map changes
  * yet. A second suggestion from the same driver for the same place replaces the first, and a driver can have only so many
  * waiting at once.
  */
 export async function suggestSpotEdit(
-  deps: SpotSuggestionDeps,
+  deps: SuggestSpotEditDeps,
   input: {
     readonly spotId: SafeParkingSpotId;
     readonly suggesterId: string;

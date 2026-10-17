@@ -1,5 +1,4 @@
-import type { ParkingFacility, SafeParkingSpotDto } from '@wagonwise/contracts/parking';
-import { PARKING_FACILITIES } from '@wagonwise/contracts/parking';
+import type { SafeParkingSpotDto } from '@wagonwise/contracts/parking';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,13 +11,8 @@ import {
 } from 'react-native';
 
 import { useSuggestParkingSpotEdit } from '../api/use-parking';
-import {
-  buildSuggestion,
-  FACILITY_WORDS,
-  formFromSpot,
-  nextFacility,
-  type SuggestionForm,
-} from '../lib/parking-suggestion';
+import { buildSuggestion, formFromSpot, type SuggestionForm } from '../lib/parking-suggestion';
+import { ParkingFacilityGrid } from './parking-facility-grid';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
 
@@ -27,9 +21,6 @@ interface Props {
   /** Back to the spot's details (after sending, or on "Back"). */
   readonly onDone: () => void;
 }
-
-const stateWord = (value: boolean | undefined): string =>
-  value === undefined ? 'Not sure' : value ? 'Yes' : 'No';
 
 /**
  * The form inside the parking drawer to suggest a change to a spot, or to say it is closed or gone. Only what the driver
@@ -109,30 +100,11 @@ export function ParkingSuggestForm({ spot, onDone }: Props) {
       />
 
       <Text style={styles.label}>What is there (tap to change)</Text>
-      <View style={styles.facilities}>
-        {PARKING_FACILITIES.map((key: ParkingFacility) => {
-          const value = form.facilities[key];
-          return (
-            <TouchableOpacity
-              key={key}
-              style={[
-                styles.facility,
-                value === true && styles.facilityYes,
-                value === false && styles.facilityNo,
-              ]}
-              onPress={() =>
-                setForm({ ...form, facilities: { ...form.facilities, [key]: nextFacility(value) } })
-              }
-              accessibilityRole="button"
-              accessibilityLabel={`${FACILITY_WORDS[key]}: ${stateWord(value)}`}
-              testID={`suggest-${key}`}
-            >
-              <Text style={styles.facilityName}>{FACILITY_WORDS[key]}</Text>
-              <Text style={styles.facilityState}>{stateWord(value)}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <ParkingFacilityGrid
+        value={form.facilities}
+        onChange={(facilities) => setForm({ ...form, facilities })}
+        testIdPrefix="suggest"
+      />
 
       <Text style={styles.label}>Tip for other drivers</Text>
       <TextInput
@@ -194,20 +166,6 @@ function createStyles(colors: ThemeColors) {
       fontSize: 17,
     },
     noteInput: { minHeight: 76, textAlignVertical: 'top' },
-    facilities: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-    facility: {
-      width: '48%',
-      minHeight: 52,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: radius.badge,
-      backgroundColor: colors.surface,
-      justifyContent: 'center',
-    },
-    facilityYes: { backgroundColor: colors.accentSoft },
-    facilityNo: { opacity: 0.7 },
-    facilityName: { fontSize: 15, fontWeight: '700', color: colors.text },
-    facilityState: { fontSize: 13, color: colors.textMuted },
     error: { fontSize: 15, color: colors.danger, marginTop: 12 },
     primary: {
       marginTop: 18,
