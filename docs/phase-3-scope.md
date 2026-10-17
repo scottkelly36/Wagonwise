@@ -258,7 +258,7 @@ Offer a quicker route while navigating when congestion makes the current one slo
 
 M0 legal; M2 abnormal load checks; M3 survey checklist; M4 notifications, reading and tracking responses, sign-off; M5 movement
 mode, deviation alerts, escort view; M6 movement records, shadow pilot; M7 TomTom congestion integration; M8 responsive
-deviations. Phase 4 ends with the product ready for big fleets.
+deviations; **M9 compliance for Lite (added 2026-10-17, from looking at Convey, Tachogram and Tachomaster):** documents with expiry dates for drivers and vehicles (licence, CPC, ADR, calibration) with reminders in the portal and the morning email; tachograph calibration as a maintenance item type; an audit pack (check history, defects and fixes, maintenance in one report); a driver handbook with a record of who has acknowledged it; and a driver's own hours summary (recent weeks and a day view, for the driver, not a score for the boss). All use data and patterns already held, need no hardware, and are small. WagonWise stays hardware-free ("Lite"). DVLA licence checks stay in Phase 5. Phase 4 ends with the product ready for big fleets.
 
 ## Open questions for the owner
 
