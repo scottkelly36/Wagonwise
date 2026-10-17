@@ -194,6 +194,7 @@ export function composeCore(
         await feedback.eraseDriverData(driverId);
         await fleet.eraseDriverData(driverId, identifier);
         await places.eraseDriverData(driverId);
+        await parking.eraseDriverData(driverId);
         await hours.eraseDriverData(driverId);
       },
     },

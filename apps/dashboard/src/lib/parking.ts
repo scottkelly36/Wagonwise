@@ -5,6 +5,7 @@ import {
   type ParkingSource,
   type SafeParkingSpotDto,
   type SaveParkingSpotRequest,
+  type SpotChangesDto,
 } from '@wagonwise/contracts/parking';
 
 export const FACILITY_LABELS: Record<ParkingFacility, string> = {
@@ -121,4 +122,42 @@ export function formToRequest(
     if (known !== 'unknown') request[key] = known === 'yes';
   }
   return { ok: true, request };
+}
+
+export interface SuggestedChange {
+  readonly label: string;
+  /** What it says now ("Not known" when nobody has said). */
+  readonly from: string;
+  readonly to: string;
+}
+
+const yesNo = (value: boolean | undefined): string =>
+  value === undefined ? 'Not known' : value ? 'Yes' : 'No';
+
+/** What a suggestion would change, one line each, for staff to approve or turn down. */
+export function suggestedChanges(
+  spot: SafeParkingSpotDto,
+  changes: SpotChangesDto,
+): SuggestedChange[] {
+  const lines: SuggestedChange[] = [];
+  if (changes.name !== undefined) {
+    lines.push({ label: 'Name', from: spot.name ?? 'None', to: changes.name });
+  }
+  if (changes.capacity !== undefined) {
+    lines.push({
+      label: 'HGV spaces',
+      from: spot.capacity === undefined ? 'Not known' : String(spot.capacity),
+      to: String(changes.capacity),
+    });
+  }
+  if (changes.note !== undefined) {
+    lines.push({ label: 'Note', from: spot.note ?? 'None', to: changes.note });
+  }
+  for (const key of PARKING_FACILITIES) {
+    const proposed = changes[key];
+    if (proposed !== undefined) {
+      lines.push({ label: FACILITY_LABELS[key], from: yesNo(spot[key]), to: yesNo(proposed) });
+    }
+  }
+  return lines;
 }

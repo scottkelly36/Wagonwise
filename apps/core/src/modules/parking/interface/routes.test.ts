@@ -22,6 +22,7 @@ function buildApp(): { app: FastifyInstance; deps: ParkingRouteDeps } {
     findNearbyParking: { repo },
     deleteSafeParkingSpot: { repo },
     admin: { repo, ids: new SequentialIdGenerator(), clock },
+    suggestions: { repo, ids: new SequentialIdGenerator(), clock },
     callerDirectory: {
       getCaller: (id) => Promise.resolve(id === ADMIN ? { kind: 'platform' } : null),
     },
@@ -324,5 +325,161 @@ describe('staff parking routes', () => {
         })
       ).statusCode,
     ).toBe(400);
+  });
+});
+
+describe('suggested changes to a spot', () => {
+  const staff = { headers: { 'x-test-staff-id': ADMIN } };
+  const SPOT = '22222222-2222-4222-8222-222222222222';
+
+  async function withSpot() {
+    const built = buildApp();
+    await built.app.inject({
+      method: 'POST',
+      url: '/staff/parking/spots',
+      payload: { location, name: 'Old name', capacity: 10, toilets: true },
+      ...staff,
+    });
+    const listed = await built.app.inject({ method: 'GET', url: '/staff/parking/spots', ...staff });
+    const spotId = listed.json<{ spots: { id: string }[] }>().spots[0]?.id ?? SPOT;
+    return { ...built, spotId };
+  }
+
+  const suggest = (
+    app: FastifyInstance,
+    spotId: string,
+    payload: object,
+    driver: string | null = 'driver-1',
+  ) =>
+    app.inject({
+      method: 'POST',
+      url: `/parking/spots/${spotId}/suggestions`,
+      payload,
+      ...(driver === null ? {} : asDriver(driver)),
+    });
+  const waiting = async (app: FastifyInstance) =>
+    (await app.inject({ method: 'GET', url: '/staff/parking/suggestions', ...staff })).json<{
+      suggestions: { id: string; gone: boolean; changes: Record<string, unknown> }[];
+    }>().suggestions;
+
+  it('waits for approval: the spot does not change until staff approve, then it does and the suggestion is gone', async () => {
+    const { app, spotId } = await withSpot();
+    expect(
+      (await suggest(app, spotId, { name: ' New name ', capacity: 25, showers: true })).statusCode,
+    ).toBe(204);
+
+    const before = await app.inject({ method: 'GET', url: '/staff/parking/spots', ...staff });
+    expect(before.json<{ spots: { name: string }[] }>().spots[0]?.name).toBe('Old name');
+
+    const [pending] = await waiting(app);
+    expect(pending?.changes).toEqual({ name: 'New name', capacity: 25, showers: true });
+    expect(JSON.stringify(pending)).not.toContain('driver-1');
+
+    const approved = await app.inject({
+      method: 'POST',
+      url: `/staff/parking/suggestions/${pending?.id}/approve`,
+      ...staff,
+    });
+    expect(approved.statusCode).toBe(204);
+    const after = await app.inject({ method: 'GET', url: '/staff/parking/spots', ...staff });
+    expect(after.json<{ spots: object[] }>().spots[0]).toMatchObject({
+      name: 'New name',
+      capacity: 25,
+      showers: true,
+      toilets: true,
+    });
+    expect(await waiting(app)).toEqual([]);
+  });
+
+  it('rejecting leaves the spot as it was and removes the suggestion', async () => {
+    const { app, spotId } = await withSpot();
+    await suggest(app, spotId, { name: 'Wrong' });
+    const [pending] = await waiting(app);
+    const rejected = await app.inject({
+      method: 'POST',
+      url: `/staff/parking/suggestions/${pending?.id}/reject`,
+      ...staff,
+    });
+    expect(rejected.statusCode).toBe(204);
+    expect(await waiting(app)).toEqual([]);
+    const after = await app.inject({ method: 'GET', url: '/staff/parking/spots', ...staff });
+    expect(after.json<{ spots: { name: string }[] }>().spots[0]?.name).toBe('Old name');
+  });
+
+  it('approving a "closed or gone" report deletes the spot', async () => {
+    const { app, spotId } = await withSpot();
+    await suggest(app, spotId, { gone: true });
+    const [pending] = await waiting(app);
+    expect(pending?.gone).toBe(true);
+    await app.inject({
+      method: 'POST',
+      url: `/staff/parking/suggestions/${pending?.id}/approve`,
+      ...staff,
+    });
+    const after = await app.inject({ method: 'GET', url: '/staff/parking/spots', ...staff });
+    expect(after.json<{ spots: object[] }>().spots).toEqual([]);
+  });
+
+  it('replaces a driver’s earlier suggestion for the same spot, and ignores changes that match what is there', async () => {
+    const { app, spotId } = await withSpot();
+    await suggest(app, spotId, { name: 'First' });
+    await suggest(app, spotId, { name: 'Second', capacity: 10 });
+    const pending = await waiting(app);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.changes).toEqual({ name: 'Second' });
+    expect((await suggest(app, spotId, { name: 'Old name' }, 'driver-2')).statusCode).toBe(400);
+  });
+
+  it('401s with no driver, 404s an unknown spot, 400s junk, and 403s staff-only routes for others', async () => {
+    const { app, spotId } = await withSpot();
+    expect((await suggest(app, spotId, { name: 'x' }, null)).statusCode).toBe(401);
+    expect((await suggest(app, SPOT, { name: 'x' })).statusCode).toBe(404);
+    expect((await suggest(app, spotId, {})).statusCode).toBe(400);
+    expect((await suggest(app, spotId, { capacity: -3 })).statusCode).toBe(400);
+    expect((await suggest(app, spotId, { reporterId: 'me', name: 'x' })).statusCode).toBe(400);
+    const asOther = { headers: { 'x-test-staff-id': 'someone' } };
+    expect(
+      (await app.inject({ method: 'GET', url: '/staff/parking/suggestions', ...asOther }))
+        .statusCode,
+    ).toBe(403);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/staff/parking/suggestions/${SPOT}/approve`,
+          ...asOther,
+        })
+      ).statusCode,
+    ).toBe(403);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/staff/parking/suggestions/${SPOT}/approve`,
+          ...staff,
+        })
+      ).statusCode,
+    ).toBe(404);
+  });
+
+  it('stops a driver burying the list: at most 20 waiting at once', async () => {
+    const { app, deps } = await withSpot();
+    for (let i = 0; i < 22; i += 1) {
+      await deps.admin.repo.save({
+        id: `33333333-3333-4333-8333-${String(i).padStart(12, '0')}` as never,
+        reporterId: undefined,
+        location: { lat: 51 + i / 1000, lon: -1 },
+        note: undefined,
+        reportedAt: now,
+        source: 'admin',
+      });
+    }
+    const all = await deps.admin.repo.search({ limit: 100 });
+    const results: number[] = [];
+    for (const spot of all.spots) {
+      results.push((await suggest(app, spot.id, { name: `n${spot.id}` })).statusCode);
+    }
+    expect(results.filter((c) => c === 204)).toHaveLength(20);
+    expect(results.filter((c) => c === 429).length).toBeGreaterThan(0);
   });
 });

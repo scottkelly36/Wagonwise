@@ -2,6 +2,7 @@ import {
   findNearbySafeParkingSpotsRequestSchema,
   reportSafeParkingSpotRequestSchema,
   safeParkingSpotIdParamsSchema,
+  suggestParkingSpotEditRequestSchema,
 } from '@wagonwise/contracts/parking';
 import type { FastifyInstance } from 'fastify';
 import type { AccessTokenVerifier } from './auth/access-token-verifier.js';
@@ -45,6 +46,25 @@ export function registerParkingRoutes(app: FastifyInstance, deps: ParkingRouteDe
       `/parking/spots/${params.data.id}`,
       request.id,
       { authorization: `Bearer ${token}` },
+    );
+    return reply.status(core.status).send(core.body);
+  });
+
+  // A suggested change to a spot, or "closed or gone": waits for WagonWise staff to approve it.
+  app.post('/parking/spots/:id/suggestions', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const params = safeParkingSpotIdParamsSchema.safeParse(request.params);
+    const parsed = suggestParkingSpotEditRequestSchema.safeParse(request.body);
+    if (!params.success || !parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request(
+      'POST',
+      `/parking/spots/${params.data.id}/suggestions`,
+      request.id,
+      { body: parsed.data, authorization: `Bearer ${token}` },
     );
     return reply.status(core.status).send(core.body);
   });

@@ -17,6 +17,7 @@ import {
   listParkingSpotsQuerySchema,
   safeParkingSpotIdParamsSchema,
   saveParkingSpotRequestSchema,
+  spotSuggestionIdParamsSchema,
 } from '@wagonwise/contracts/parking';
 import {
   createItemTypeRequestSchema,
@@ -398,6 +399,18 @@ const FORWARDS: readonly Forward[] = [
     body: saveParkingSpotRequestSchema,
   },
   { method: 'DELETE', path: '/staff/parking/spots/:id', params: safeParkingSpotIdParamsSchema },
+  // Drivers' suggested changes to spots, waiting for approval.
+  { method: 'GET', path: '/staff/parking/suggestions', params: noParams },
+  {
+    method: 'POST',
+    path: '/staff/parking/suggestions/:id/approve',
+    params: spotSuggestionIdParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/parking/suggestions/:id/reject',
+    params: spotSuggestionIdParamsSchema,
+  },
   // How the app is being used (WagonWise staff only; core decides).
   { method: 'GET', path: '/staff/usage', params: noParams },
   // The landing page's tester list (WagonWise staff only; core decides).

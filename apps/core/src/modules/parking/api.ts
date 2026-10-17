@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { CallerDirectory } from './application/admin-parking.js';
+import { eraseSuggestionsBy } from './application/spot-suggestions.js';
 import { findNearbySafeParkingSpots } from './application/find-nearby-parking.js';
 import type { GeoPoint } from './domain/safe-parking-spot.js';
 import type { UntypedDb } from './infrastructure/db.js';
@@ -31,6 +32,8 @@ export interface NearbySafeParkingSpot {
 export interface ParkingModule {
   registerRoutes(app: FastifyInstance): void;
   findNearby(corridor: readonly GeoPoint[], radiusM: number): Promise<NearbySafeParkingSpot[]>;
+  /** When a driver deletes their account: the suggested changes they have waiting go. Safe to run twice. */
+  eraseDriverData(driverId: string): Promise<void>;
 }
 
 export function createParkingModule(deps: ParkingModuleDeps): ParkingModule {
@@ -41,6 +44,7 @@ export function createParkingModule(deps: ParkingModuleDeps): ParkingModule {
     deleteSafeParkingSpot: { repo },
     findNearbyParking: { repo },
     admin: { repo, ids: deps.ids, clock: deps.clock },
+    suggestions: { repo, ids: deps.ids, clock: deps.clock },
     callerDirectory: deps.callers,
   };
 
@@ -48,6 +52,7 @@ export function createParkingModule(deps: ParkingModuleDeps): ParkingModule {
     registerRoutes(app: FastifyInstance): void {
       registerParkingRoutes(app, routeDeps);
     },
+    eraseDriverData: (driverId) => eraseSuggestionsBy({ repo }, driverId),
     async findNearby(corridor, radiusM) {
       const nearby = await findNearbySafeParkingSpots(routeDeps.findNearbyParking, {
         corridor,

@@ -6,6 +6,7 @@ import type {
   SafeParkingSpotId,
   SpotReport,
 } from '../../domain/safe-parking-spot.js';
+import type { SpotSuggestion, SuggestionId } from '../../domain/spot-suggestion.js';
 
 export interface SpotSearch {
   /** Words to find in the name or note, ignoring case. */
@@ -43,4 +44,15 @@ export interface ParkingRepository {
   update(spot: SafeParkingSpot): Promise<boolean>;
   /** Deletes any spot; false if there was no such spot. */
   deleteAny(id: SafeParkingSpotId): Promise<boolean>;
+
+  // --- drivers' suggested changes, waiting for staff ---
+  /** Saves it, replacing any the same driver already has waiting for the same spot. */
+  saveSuggestion(suggestion: SpotSuggestion): Promise<void>;
+  /** How many this driver has waiting, not counting any for `exceptSpotId` (a new one for that spot replaces it). */
+  countSuggestionsBy(suggesterId: string, exceptSpotId: SafeParkingSpotId): Promise<number>;
+  /** Oldest first, each with its spot as it is now. */
+  listSuggestions(limit: number): Promise<{ suggestion: SpotSuggestion; spot: SafeParkingSpot }[]>;
+  findSuggestion(id: SuggestionId): Promise<SpotSuggestion | null>;
+  deleteSuggestion(id: SuggestionId): Promise<boolean>;
+  deleteSuggestionsBy(suggesterId: string): Promise<void>;
 }

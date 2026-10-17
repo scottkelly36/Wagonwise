@@ -10,6 +10,7 @@ import type {
   SafeParkingSpotId,
   SpotReport,
 } from '../domain/safe-parking-spot.js';
+import type { SpotChanges, SpotSuggestion, SuggestionId } from '../domain/spot-suggestion.js';
 import type { UntypedDb } from './db.js';
 
 interface SafeParkingSpotRow {
@@ -285,6 +286,60 @@ export class PostgresParkingRepository implements ParkingRepository {
     return rows.length > 0;
   }
 
+  async saveSuggestion(s: SpotSuggestion): Promise<void> {
+    await sql`
+      insert into parking.spot_edit_suggestions (id, spot_id, suggester_id, gone, changes, suggested_at)
+      values (${s.id}, ${s.spotId}, ${s.suggesterId}, ${s.gone}, ${JSON.stringify(s.changes)}::jsonb, ${s.suggestedAt})
+      on conflict (spot_id, suggester_id) do update set
+        id = excluded.id, gone = excluded.gone, changes = excluded.changes, suggested_at = excluded.suggested_at
+    `.execute(this.db);
+  }
+
+  async countSuggestionsBy(suggesterId: string, exceptSpotId: SafeParkingSpotId): Promise<number> {
+    const { rows } = await sql<{ n: number }>`
+      select count(*)::int as n from parking.spot_edit_suggestions
+      where suggester_id = ${suggesterId} and spot_id <> ${exceptSpotId}
+    `.execute(this.db);
+    return rows[0]?.n ?? 0;
+  }
+
+  async listSuggestions(
+    limit: number,
+  ): Promise<{ suggestion: SpotSuggestion; spot: SafeParkingSpot }[]> {
+    const { rows } = await sql<SuggestionRow>`
+      select id, spot_id, suggester_id, gone, changes, suggested_at
+      from parking.spot_edit_suggestions order by suggested_at, id limit ${limit}
+    `.execute(this.db);
+    const out: { suggestion: SpotSuggestion; spot: SafeParkingSpot }[] = [];
+    for (const row of rows) {
+      const spot = await this.find(makeId<'SafeParkingSpotId'>(row.spot_id));
+      if (spot !== null) out.push({ suggestion: toSuggestion(row), spot });
+    }
+    return out;
+  }
+
+  async findSuggestion(id: SuggestionId): Promise<SpotSuggestion | null> {
+    const { rows } = await sql<SuggestionRow>`
+      select id, spot_id, suggester_id, gone, changes, suggested_at
+      from parking.spot_edit_suggestions where id = ${id}
+    `.execute(this.db);
+    const row = rows[0];
+    return row === undefined ? null : toSuggestion(row);
+  }
+
+  async deleteSuggestion(id: SuggestionId): Promise<boolean> {
+    const { rows } = await sql`
+      delete from parking.spot_edit_suggestions where id = ${id} returning 1
+    `.execute(this.db);
+    return rows.length > 0;
+  }
+
+  async deleteSuggestionsBy(suggesterId: string): Promise<void> {
+    await sql`delete from parking.spot_edit_suggestions where suggester_id = ${suggesterId}`.execute(
+      this.db,
+    );
+  }
+
   async deleteAny(id: SafeParkingSpotId): Promise<boolean> {
     const { rows } = await sql`
       delete from parking.safe_parking_spots where id = ${id} returning 1
@@ -292,6 +347,24 @@ export class PostgresParkingRepository implements ParkingRepository {
     return rows.length > 0;
   }
 }
+
+interface SuggestionRow {
+  readonly id: string;
+  readonly spot_id: string;
+  readonly suggester_id: string;
+  readonly gone: boolean;
+  readonly changes: SpotChanges;
+  readonly suggested_at: Date;
+}
+
+const toSuggestion = (row: SuggestionRow): SpotSuggestion => ({
+  id: makeId<'SpotSuggestionId'>(row.id),
+  spotId: makeId<'SafeParkingSpotId'>(row.spot_id),
+  suggesterId: row.suggester_id,
+  gone: row.gone,
+  changes: row.changes,
+  suggestedAt: row.suggested_at,
+});
 
 /** Makes `%`, `_` and `\` in what a person typed match themselves in a LIKE pattern. */
 const escapeLike = (text: string): string => text.replace(/[\\%_]/g, (c) => `\\${c}`);

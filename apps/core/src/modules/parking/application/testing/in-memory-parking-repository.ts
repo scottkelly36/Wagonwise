@@ -6,6 +6,7 @@ import type {
   SafeParkingSpotId,
   SpotReport,
 } from '../../domain/safe-parking-spot.js';
+import type { SpotSuggestion, SuggestionId } from '../../domain/spot-suggestion.js';
 import type { ParkingRepository, SpotSearch } from '../ports/parking-repository.js';
 
 /** Flat-earth distance, good enough for a fake used only in unit tests — same approximation as
@@ -20,6 +21,7 @@ function metresBetween(a: GeoPoint, b: GeoPoint): number {
 export class InMemoryParkingRepository implements ParkingRepository {
   #byId = new Map<SafeParkingSpotId, SafeParkingSpot>();
   #reports = new Map<string, SpotReport>();
+  #suggestions = new Map<string, SpotSuggestion>();
 
   /** The spot as the map would see it: with how many drivers reported it and their newest notes. */
   #view(spot: SafeParkingSpot): SafeParkingSpot {
@@ -152,7 +154,51 @@ export class InMemoryParkingRepository implements ParkingRepository {
 
   deleteAny(id: SafeParkingSpotId): Promise<boolean> {
     for (const [reportId, r] of this.#reports) if (r.spotId === id) this.#reports.delete(reportId);
+    for (const [key, x] of this.#suggestions) if (x.spotId === id) this.#suggestions.delete(key);
     return Promise.resolve(this.#byId.delete(id));
+  }
+
+  saveSuggestion(suggestion: SpotSuggestion): Promise<void> {
+    for (const [key, x] of this.#suggestions) {
+      if (x.spotId === suggestion.spotId && x.suggesterId === suggestion.suggesterId) {
+        this.#suggestions.delete(key);
+      }
+    }
+    this.#suggestions.set(suggestion.id, suggestion);
+    return Promise.resolve();
+  }
+
+  countSuggestionsBy(suggesterId: string, exceptSpotId: SafeParkingSpotId): Promise<number> {
+    return Promise.resolve(
+      [...this.#suggestions.values()].filter(
+        (x) => x.suggesterId === suggesterId && x.spotId !== exceptSpotId,
+      ).length,
+    );
+  }
+
+  listSuggestions(limit: number): Promise<{ suggestion: SpotSuggestion; spot: SafeParkingSpot }[]> {
+    const out: { suggestion: SpotSuggestion; spot: SafeParkingSpot }[] = [];
+    for (const suggestion of this.#suggestions.values()) {
+      const spot = this.#byId.get(suggestion.spotId);
+      if (spot !== undefined) out.push({ suggestion, spot: this.#view(spot) });
+    }
+    out.sort((a, b) => a.suggestion.suggestedAt.getTime() - b.suggestion.suggestedAt.getTime());
+    return Promise.resolve(out.slice(0, limit));
+  }
+
+  findSuggestion(id: SuggestionId): Promise<SpotSuggestion | null> {
+    return Promise.resolve(this.#suggestions.get(id) ?? null);
+  }
+
+  deleteSuggestion(id: SuggestionId): Promise<boolean> {
+    return Promise.resolve(this.#suggestions.delete(id));
+  }
+
+  deleteSuggestionsBy(suggesterId: string): Promise<void> {
+    for (const [key, x] of this.#suggestions) {
+      if (x.suggesterId === suggesterId) this.#suggestions.delete(key);
+    }
+    return Promise.resolve();
   }
 
   save(spot: SafeParkingSpot): Promise<void> {

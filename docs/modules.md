@@ -363,6 +363,14 @@ the platform scope and reads counts across identity, companies, fleet, jobs, che
 import never doubles), `name`, `capacity` and eight nullable booleans (null = not known). Imported places are © OpenStreetMap
 contributors (ODbL): the credit shows on the portal page and on the driver card, and rows keep `source = 'osm'`.
 
+Drivers can **suggest changes** to a spot (name, HGV spaces, note, the eight facility answers) or say it is closed or gone, from "Suggest a
+change" in the spot drawer (`components/parking-suggest-form.tsx`, `lib/parking-suggestion.ts`). `POST /parking/spots/:id/suggestions`
+(driver sign-in; driver-bff validates and forwards) saves a row in `parking.spot_edit_suggestions` (migration 0069; one waiting per driver
+per spot, a second replaces the first; at most 20 waiting per driver; values equal to what the spot already says are dropped). Nothing on
+the map changes until platform staff approve it at the top of `/admin/parking` (`GET /staff/parking/suggestions`, `POST
+.../:id/approve|reject`; the list never shows who suggested). Approve lays the changes over the spot; "gone" approved deletes the spot.
+Deciding a suggestion deletes it, and `parking.eraseDriverData` (run on account deletion) removes a driver's waiting ones.
+
 ## Staff BFF
 
 `apps/staff-bff` (P2-M1.9) is the dashboard's back end for staff accounts. It does the same

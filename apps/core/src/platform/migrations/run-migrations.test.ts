@@ -99,6 +99,7 @@ describe('runMigrations', () => {
       '0066_osm_note_hgv_parking.sql',
       '0067_driver_names.sql',
       '0068_tester_invites.sql',
+      '0069_parking_edit_suggestions.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -274,6 +275,7 @@ describe('runMigrations', () => {
       '0066_osm_note_hgv_parking.sql',
       '0067_driver_names.sql',
       '0068_tester_invites.sql',
+      '0069_parking_edit_suggestions.sql',
     ]);
   });
 });

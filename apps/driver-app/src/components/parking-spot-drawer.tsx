@@ -1,5 +1,5 @@
 import type { SafeParkingSpotDto } from '@wagonwise/contracts/parking';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Modal,
   StyleSheet,
@@ -22,6 +22,7 @@ import {
 } from '../lib/parking-details';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
+import { ParkingSuggestForm } from './parking-suggest-form';
 import { ACTION_COLOURS } from './ui/action-card';
 import { Icon } from './ui/icon';
 
@@ -43,95 +44,123 @@ export function ParkingSpotDrawer({ spot, onClose, onNavigate, navigateDisabled 
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  // Which spot the suggestion form is open for; closing the drawer always goes back to the details.
+  const [suggestingFor, setSuggestingFor] = useState<string | undefined>(undefined);
+  const suggesting = spot !== undefined && suggestingFor === spot.id;
+  const close = (): void => {
+    setSuggestingFor(undefined);
+    onClose();
+  };
 
   return (
-    <Modal visible={spot !== undefined} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={spot !== undefined} transparent animationType="slide" onRequestClose={close}>
       <View style={styles.container}>
-        <TouchableWithoutFeedback onPress={onClose}>
+        <TouchableWithoutFeedback onPress={close}>
           <View style={styles.backdrop} />
         </TouchableWithoutFeedback>
 
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 24 }]}>
           <View style={styles.handle} />
-          <View style={styles.titleRow}>
-            <View style={styles.badge}>
-              <Icon name="parking" size={30} color={ACTION_COLOURS.parking} />
-            </View>
-            <View style={styles.titleText}>
-              <Text style={styles.title}>{spot?.name ?? 'Safe parking'}</Text>
-              <Text style={styles.status}>{spot === undefined ? '' : sourceText(spot)}</Text>
-            </View>
-          </View>
-
-          {spot !== undefined &&
-            notesToShow(spot).map((note) => (
-              <Text key={note} style={styles.detail}>
-                {note}
-              </Text>
-            ))}
-          {spot !== undefined && capacityText(spot) !== undefined && (
-            <Text style={styles.detail}>{capacityText(spot)}</Text>
-          )}
-          {spot !== undefined && costText(spot) !== undefined && (
-            <Text style={styles.detail}>{costText(spot)}</Text>
-          )}
-          {spot !== undefined && (
+          {spot !== undefined && suggesting ? (
+            <ParkingSuggestForm spot={spot} onDone={() => setSuggestingFor(undefined)} />
+          ) : (
             <>
-              <View style={styles.chips} testID="parking-facilities">
-                {facilityStates(spot).map((f) => (
-                  <View
-                    key={f.key}
-                    style={styles.facility}
-                    accessible
-                    accessibilityLabel={`${f.label}: ${f.there ? 'yes' : 'not there, or not known'}`}
-                  >
-                    <Icon
-                      name={f.icon}
-                      size={28}
-                      color={f.there ? colors.accentGreen : colors.surfaceStrong}
-                    />
-                    <Text style={[styles.facilityText, !f.there && styles.facilityOff]}>
-                      {f.label}
-                    </Text>
-                  </View>
-                ))}
+              <View style={styles.titleRow}>
+                <View style={styles.badge}>
+                  <Icon name="parking" size={30} color={ACTION_COLOURS.parking} />
+                </View>
+                <View style={styles.titleText}>
+                  <Text style={styles.title}>{spot?.name ?? 'Safe parking'}</Text>
+                  <Text style={styles.status}>{spot === undefined ? '' : sourceText(spot)}</Text>
+                </View>
               </View>
-              <Text style={styles.meta}>Green is there. Grey is not there, or not known yet.</Text>
+
+              {spot !== undefined &&
+                notesToShow(spot).map((note) => (
+                  <Text key={note} style={styles.detail}>
+                    {note}
+                  </Text>
+                ))}
+              {spot !== undefined && capacityText(spot) !== undefined && (
+                <Text style={styles.detail}>{capacityText(spot)}</Text>
+              )}
+              {spot !== undefined && costText(spot) !== undefined && (
+                <Text style={styles.detail}>{costText(spot)}</Text>
+              )}
+              {spot !== undefined && (
+                <>
+                  <View style={styles.chips} testID="parking-facilities">
+                    {facilityStates(spot).map((f) => (
+                      <View
+                        key={f.key}
+                        style={styles.facility}
+                        accessible
+                        accessibilityLabel={`${f.label}: ${f.there ? 'yes' : 'not there, or not known'}`}
+                      >
+                        <Icon
+                          name={f.icon}
+                          size={28}
+                          color={f.there ? colors.accentGreen : colors.surfaceStrong}
+                        />
+                        <Text style={[styles.facilityText, !f.there && styles.facilityOff]}>
+                          {f.label}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={styles.meta}>
+                    Green is there. Grey is not there, or not known yet.
+                  </Text>
+                </>
+              )}
+              {spot !== undefined && (
+                <Text style={styles.meta}>
+                  {[
+                    spot.source === 'osm' ? OSM_CREDIT : sourceText(spot),
+                    reportersText(spot),
+                    (spot.reporterCount ?? 0) > 0
+                      ? `last ${formatDateTime(spot.lastReportedAt ?? spot.reportedAt)}`
+                      : undefined,
+                  ]
+                    .filter((part) => part !== undefined)
+                    .join(' · ')}
+                </Text>
+              )}
+
+              {spot !== undefined && onNavigate && (
+                <TouchableOpacity
+                  style={[styles.navigateButton, navigateDisabled && styles.disabled]}
+                  disabled={navigateDisabled}
+                  onPress={() => onNavigate(spot)}
+                  testID="parking-navigate-button"
+                >
+                  <Icon name="navigation-variant" size={22} color={colors.textOnAccent} />
+                  <Text style={styles.navigateText}>Take me there</Text>
+                </TouchableOpacity>
+              )}
+
+              {spot !== undefined && (
+                <TouchableOpacity
+                  style={styles.suggestLink}
+                  onPress={() => setSuggestingFor(spot.id)}
+                  testID="parking-suggest-link"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.suggestText}>
+                    Wrong or missing something? Suggest a change
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={close}
+                testID="parking-drawer-close"
+              >
+                <Text style={styles.closeText}>Close</Text>
+              </TouchableOpacity>
             </>
           )}
-          {spot !== undefined && (
-            <Text style={styles.meta}>
-              {[
-                spot.source === 'osm' ? OSM_CREDIT : sourceText(spot),
-                reportersText(spot),
-                (spot.reporterCount ?? 0) > 0
-                  ? `last ${formatDateTime(spot.lastReportedAt ?? spot.reportedAt)}`
-                  : undefined,
-              ]
-                .filter((part) => part !== undefined)
-                .join(' · ')}
-            </Text>
-          )}
-
-          {spot !== undefined && onNavigate && (
-            <TouchableOpacity
-              style={[styles.navigateButton, navigateDisabled && styles.disabled]}
-              disabled={navigateDisabled}
-              onPress={() => onNavigate(spot)}
-              testID="parking-navigate-button"
-            >
-              <Icon name="navigation-variant" size={22} color={colors.textOnAccent} />
-              <Text style={styles.navigateText}>Take me there</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={onClose}
-            testID="parking-drawer-close"
-          >
-            <Text style={styles.closeText}>Close</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -196,6 +225,8 @@ function createStyles(colors: ThemeColors) {
     },
     navigateText: { fontSize: 18, fontWeight: '700', color: colors.textOnAccent },
     disabled: { opacity: 0.5 },
+    suggestLink: { marginTop: 14, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+    suggestText: { fontSize: 15, fontWeight: '600', color: colors.accent },
     closeButton: {
       marginTop: 12,
       minHeight: 52,

@@ -1,7 +1,9 @@
 import {
   listParkingSpotsResponseSchema,
+  listSpotSuggestionsResponseSchema,
   safeParkingSpotSchema,
   type ListParkingSpotsResponse,
+  type ListSpotSuggestionsResponse,
   type ParkingKind,
   type ParkingSource,
   type SafeParkingSpotDto,
@@ -59,5 +61,28 @@ export async function deleteParkingSpot(accessToken: string, id: string): Promis
   const { status, json } = await requestJson('DELETE', `/staff/parking/spots/${id}`, {
     authorization: bearer(accessToken),
   });
+  throwUnlessSuccess(status, json, [204]);
+}
+
+export async function listSpotSuggestions(
+  accessToken: string,
+): Promise<ListSpotSuggestionsResponse> {
+  const { status, json } = await requestJson('GET', '/staff/parking/suggestions', {
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return listSpotSuggestionsResponseSchema.parse(json);
+}
+
+export async function decideSpotSuggestion(
+  accessToken: string,
+  id: string,
+  decision: 'approve' | 'reject',
+): Promise<void> {
+  const { status, json } = await requestJson(
+    'POST',
+    `/staff/parking/suggestions/${id}/${decision}`,
+    { authorization: bearer(accessToken) },
+  );
   throwUnlessSuccess(status, json, [204]);
 }
