@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canInvite, inviteSummary, roleLabel, testersCsv } from './testers';
+import { canInvite, inviteSummary, playTesterEmailsCsv, roleLabel, testersCsv } from './testers';
 
 describe('testersCsv', () => {
   it('writes a header and a row each, with blanks for what was not given', () => {
@@ -54,5 +54,22 @@ describe('inviting', () => {
     };
     expect(canInvite(base)).toBe(true);
     expect(canInvite({ ...base, invitedAt: '2026-10-10T08:00:00.000Z' })).toBe(false);
+  });
+});
+
+describe('playTesterEmailsCsv', () => {
+  it('is one address per line: no header, no commas, no byte-order mark, each address once', () => {
+    const csv = playTesterEmailsCsv([
+      { email: 'Sam@Example.com ' },
+      { email: 'kim@acme.co.uk' },
+      { email: 'sam@example.com' },
+    ]);
+    expect(csv).toBe('sam@example.com\r\nkim@acme.co.uk\r\n');
+    expect(csv.charCodeAt(0)).not.toBe(0xfeff);
+    expect(csv).not.toContain(',');
+  });
+
+  it('is empty for nobody', () => {
+    expect(playTesterEmailsCsv([])).toBe('');
   });
 });

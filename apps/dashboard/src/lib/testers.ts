@@ -49,3 +49,14 @@ export function inviteSummary(results: SendInvitesResponse['results']): string {
 
 /** Only people not yet sent an invite can be picked to be sent one. */
 export const canInvite = (t: TesterDto): boolean => t.invitedAt === undefined;
+
+/**
+ * The addresses in the plain form Google Play's tester list upload takes: one address per line, no header, no commas and no
+ * byte-order mark (Play refuses a file that starts with one, and a header line is read as an address). Each address once.
+ */
+export function playTesterEmailsCsv(testers: readonly Pick<TesterDto, 'email'>[]): string {
+  const emails = [...new Set(testers.map((t) => t.email.trim().toLowerCase()))].filter(
+    (email) => email !== '',
+  );
+  return emails.join('\r\n') + (emails.length === 0 ? '' : '\r\n');
+}
