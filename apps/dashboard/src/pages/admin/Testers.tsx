@@ -3,7 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as signupsApi from '../../api/signups';
 import { DataTable, type Column } from '../../components/DataTable';
-import { canInvite, inviteSummary, roleLabel, testersCsv } from '../../lib/testers';
+import {
+  canInvite,
+  inviteSummary,
+  playTesterEmailsCsv,
+  roleLabel,
+  testersCsv,
+} from '../../lib/testers';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
 
@@ -154,6 +160,22 @@ export function Testers() {
               onClick={() => download('wagonwise-testers.csv', testersCsv(data.testers))}
             >
               Download as a spreadsheet
+            </button>{' '}
+            <button
+              className="btn-secondary"
+              disabled={data.testers.length === 0}
+              title="Only the email addresses, one per line, in the form Google Play's tester list upload accepts"
+              onClick={() => {
+                const chosen = data.testers.filter((t) => picked.has(t.id));
+                download(
+                  'google-play-testers.csv',
+                  playTesterEmailsCsv(chosen.length > 0 ? chosen : data.testers),
+                );
+              }}
+            >
+              {picked.size > 0
+                ? `Download ${picked.size} ${picked.size === 1 ? 'email' : 'emails'} for Google Play`
+                : 'Download emails for Google Play'}
             </button>
           </p>
           <section className="card" style={{ marginBottom: 16 }}>
