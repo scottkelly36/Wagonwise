@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
-import ReportSafeParkingSpotScreen from './report-safe-parking-spot';
+import ReportSafeParkingSpotScreen from '../app/report-safe-parking-spot';
 
 const mockBack = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }) }));
