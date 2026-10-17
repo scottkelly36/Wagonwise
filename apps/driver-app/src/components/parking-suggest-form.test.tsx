@@ -18,6 +18,9 @@ const spot: SafeParkingSpotDto = {
   toilets: true,
 };
 
+// The first render in a file loads the React Native modules, which can pass Jest's 5 s default on a busy runner.
+jest.setTimeout(30_000);
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockPending = false;
