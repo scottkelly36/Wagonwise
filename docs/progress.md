@@ -20,6 +20,7 @@ item closes, delete it from this file; the history file keeps the record. Dated 
 | Phase 2 follow-ups, 2026-10-08: saved places, weather warnings, optional pickup, stored locations, several stops per job, emailed staff invitations, Where to? redesign | Built; deploy and device checks pending                                                                                                                           | `history/log.md`, `history/saved-places.md`          |
 | Phase 3                                                                                                                                                                 | Scoped, not started: see `phase-3-scope.md` (money chain M1 to M6 first, then walk-round checks and maintenance; what3words, UK coverage and tachograph as asked) | `phase-3-scope.md`, `ideas.md`                       |
 | Phase 4                                                                                                                                                                 | Idea list only (the owner's board)                                                                                                                                | `ideas.md`                                           |
+| Phase 5                                                                                                                                                                 | Scoped as a draft list (11 modules, one small part built: parking corrections)                                                                                    | `phase-5-scope.md`, `phase-5-ideas.md`               |
 
 ## Next up
 
@@ -111,3 +112,5 @@ Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those no
 | `history/saved-places.md`             | Saved places: a farm's real gate, company-wide, with notes              | —         |
 | `history/log.md`                      | The dated change log, newest first (moved out of this file)             | —         |
 | `ideas.md`                            | Field-testing ideas backlog (shipped and unscheduled)                   | —         |
+| `phase-5-scope.md`                    | Phase 5 scope: modules, order, open questions (draft)                   | —         |
+| `phase-5-ideas.md`                    | Phase 5 research and reasoning behind the scope                         | —         |
