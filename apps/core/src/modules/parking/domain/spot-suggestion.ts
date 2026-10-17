@@ -38,18 +38,17 @@ export interface InvalidSuggestion extends TaggedError<'InvalidSuggestion'> {
 
 const SPOT_FIELDS = ['name', 'note', 'capacity', ...FACILITY_KEYS] as const;
 
+type Value = string | number | boolean | undefined;
+
 /**
- * Tidies what a driver sent and drops anything that already matches the spot (so a form that sends every field costs nothing).
- * Left with no change and not "gone", there is nothing to review.
+ * Tidies the details a driver sent: words trimmed, blanks dropped, the name, tip and number of spaces checked. Anything equal to
+ * `current` (what the spot already says) is dropped too, so a form that sends every field costs nothing.
  */
-export function checkSuggestion(
-  spot: SafeParkingSpot,
-  input: { readonly gone: boolean; readonly changes: SpotChanges },
-): Result<{ gone: boolean; changes: SpotChanges }, InvalidSuggestion> {
-  if (input.gone) return ok({ gone: true, changes: {} });
+export function tidyChanges(
+  current: Readonly<Record<string, Value>>,
+  raw: Readonly<Record<string, Value>>,
+): Result<SpotChanges, InvalidSuggestion> {
   const changes: Record<string, string | number | boolean> = {};
-  const raw = input.changes as Record<string, string | number | boolean | undefined>;
-  const current = spot as unknown as Record<string, string | number | boolean | undefined>;
   for (const field of SPOT_FIELDS) {
     let value = raw[field];
     if (value === undefined) continue;
@@ -71,8 +70,26 @@ export function checkSuggestion(
     if (value === current[field]) continue;
     changes[field] = value;
   }
-  if (Object.keys(changes).length === 0) return err({ tag: 'InvalidSuggestion', reason: 'empty' });
-  return ok({ gone: false, changes: changes });
+  return ok(changes);
+}
+
+/**
+ * Tidies a suggestion for a spot. Left with no change and not "gone", there is nothing to review.
+ */
+export function checkSuggestion(
+  spot: SafeParkingSpot,
+  input: { readonly gone: boolean; readonly changes: SpotChanges },
+): Result<{ gone: boolean; changes: SpotChanges }, InvalidSuggestion> {
+  if (input.gone) return ok({ gone: true, changes: {} });
+  const tidied = tidyChanges(
+    spot as unknown as Record<string, Value>,
+    input.changes as Record<string, Value>,
+  );
+  if (!tidied.ok) return tidied;
+  if (Object.keys(tidied.value).length === 0) {
+    return err({ tag: 'InvalidSuggestion', reason: 'empty' });
+  }
+  return ok({ gone: false, changes: tidied.value });
 }
 
 /** The spot with the suggested changes laid over it. Everything not suggested stays as it was. */

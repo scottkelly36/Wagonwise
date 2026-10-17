@@ -1,6 +1,12 @@
 import type { SafeParkingSpotDto } from '@wagonwise/contracts/parking';
 
-import { buildSuggestion, formFromSpot, nextFacility } from './parking-suggestion';
+import {
+  buildNewSpotDetails,
+  buildSuggestion,
+  emptyForm,
+  formFromSpot,
+  nextFacility,
+} from './parking-suggestion';
 
 const spot: SafeParkingSpotDto = {
   id: '11111111-1111-4111-8111-111111111111' as SafeParkingSpotDto['id'],
@@ -51,5 +57,30 @@ describe('nextFacility', () => {
     expect(nextFacility(undefined)).toBe(true);
     expect(nextFacility(true)).toBe(false);
     expect(nextFacility(false)).toBe(true);
+  });
+});
+
+describe('buildNewSpotDetails', () => {
+  it('is fine with nothing filled in', () => {
+    expect(buildNewSpotDetails(emptyForm())).toEqual({ ok: true, details: {} });
+  });
+
+  it('keeps what was filled in and leaves out blanks and "not sure"', () => {
+    const form = {
+      ...emptyForm(),
+      name: '  Corbridge Layby ',
+      spaces: '6',
+      facilities: { ...emptyForm().facilities, toilets: false, lit: true },
+    };
+    expect(buildNewSpotDetails(form)).toEqual({
+      ok: true,
+      details: { name: 'Corbridge Layby', capacity: 6, toilets: false, lit: true },
+    });
+  });
+
+  it('turns down spaces that are not a whole number', () => {
+    for (const spaces of ['lots', '-3', '12.5', '123456']) {
+      expect(buildNewSpotDetails({ ...emptyForm(), spaces }).ok).toBe(false);
+    }
   });
 });

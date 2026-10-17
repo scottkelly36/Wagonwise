@@ -80,6 +80,11 @@ export const reportSafeParkingSpotRequestSchema = z.object({
   id: safeParkingSpotIdSchema,
   location: geoPointSchema,
   note: z.string().max(NOTE_MAX_LENGTH).optional(),
+  /** Optional details of the place, from the Mark safe parking screen (the one-tap voice report sends none). A new place
+   *  takes them as given; a report that lands on a place already on the map sends them for staff to approve instead. */
+  name: z.string().max(NAME_MAX_LENGTH).optional(),
+  capacity: z.number().int().min(0).max(5000).optional(),
+  ...facilityFields,
 });
 export type ReportSafeParkingSpotRequest = z.infer<typeof reportSafeParkingSpotRequestSchema>;
 

@@ -197,3 +197,30 @@ describe('POST /parking/spots/:id/suggestions', () => {
     expect(coreClient.calls).toEqual([]);
   });
 });
+
+describe('POST /parking/spots with place details', () => {
+  it('forwards the name, spaces and facilities, and 400s a bad number of spaces', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = {
+      status: 200,
+      body: { id: SPOT_ID, reporterId: 'driver-1', location },
+    };
+    const ok = await app.inject({
+      method: 'POST',
+      url: '/parking/spots',
+      payload: { id: SPOT_ID, location, name: 'Corbridge Layby', capacity: 6, toilets: false },
+      headers: AUTH_HEADER,
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(coreClient.calls[0]).toMatchObject({
+      body: { id: SPOT_ID, location, name: 'Corbridge Layby', capacity: 6, toilets: false },
+    });
+    const bad = await app.inject({
+      method: 'POST',
+      url: '/parking/spots',
+      payload: { id: SPOT_ID, location, capacity: -1 },
+      headers: AUTH_HEADER,
+    });
+    expect(bad.statusCode).toBe(400);
+  });
+});

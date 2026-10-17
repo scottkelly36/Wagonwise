@@ -18,7 +18,7 @@ function buildApp(): { app: FastifyInstance; deps: ParkingRouteDeps } {
   const repo = new InMemoryParkingRepository();
   const clock = new FakeClock(now);
   const deps: ParkingRouteDeps = {
-    reportSafeParkingSpot: { repo, clock },
+    reportSafeParkingSpot: { repo, clock, ids: new SequentialIdGenerator() },
     findNearbyParking: { repo },
     deleteSafeParkingSpot: { repo },
     admin: { repo, ids: new SequentialIdGenerator(), clock },
@@ -65,6 +65,31 @@ describe('POST /parking/spots', () => {
       reporterId: 'driver-1',
       note: 'flat layby, room for a 44-tonner',
     });
+  });
+
+  it('takes the place details with a new spot, and 400s a bad number of spaces', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/parking/spots',
+      payload: {
+        id: '11111111-1111-4111-8111-111111111111',
+        location,
+        name: 'Corbridge Layby',
+        capacity: 6,
+        toilets: false,
+      },
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ name: 'Corbridge Layby', capacity: 6, toilets: false });
+    const bad = await app.inject({
+      method: 'POST',
+      url: '/parking/spots',
+      payload: { id: '22222222-2222-4222-8222-222222222222', location, capacity: -1 },
+      ...asDriver('driver-1'),
+    });
+    expect(bad.statusCode).toBe(400);
   });
 
   it('200s with no note', async () => {

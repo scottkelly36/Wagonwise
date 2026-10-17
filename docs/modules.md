@@ -369,6 +369,7 @@ change" in the spot drawer (`components/parking-suggest-form.tsx`, `lib/parking-
 per spot, a second replaces the first; at most 20 waiting per driver; values equal to what the spot already says are dropped). Nothing on
 the map changes until platform staff approve it at the top of `/admin/parking` (`GET /staff/parking/suggestions`, `POST
 .../:id/approve|reject`; the list never shows who suggested). Approve lays the changes over the spot; "gone" approved deletes the spot.
+The home-screen "Mark safe parking" report also takes optional details (name, spaces, facilities): given as-is to a new spot, but filed as a suggestion when the report lands on a spot already on the map.
 Deciding a suggestion deletes it, and `parking.eraseDriverData` (run on account deletion) removes a driver's waiting ones.
 
 ## Staff BFF
