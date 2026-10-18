@@ -19,7 +19,7 @@ import {
   type MeasurementKind,
   type Measurement,
   type MeasurementUnit,
-  type ReportSource,
+  type HazardSource,
 } from '../domain/hazard-report.js';
 import type { UntypedDb } from './db.js';
 
@@ -33,7 +33,7 @@ interface HazardReportRow {
   readonly measurement_kind: MeasurementKind | null;
   readonly measurement_value: number | null;
   readonly measurement_unit: MeasurementUnit | null;
-  readonly source: ReportSource;
+  readonly source: HazardSource;
   readonly confirmations: number;
   readonly dismissals: number;
   readonly status: HazardStatus;
@@ -171,6 +171,7 @@ export class PostgresHazardRepository implements HazardRepository {
     const { rows } = await sql<HazardReportRow>`
       select ${sql.raw(SELECT_COLUMNS)} from hazards.reports r
       where r.status = 'active'
+        and r.source <> 'osm'
         and not exists (
           select 1 from hazards.moderation_decisions d
           where d.hazard_id = r.id and d.action = 'approve'

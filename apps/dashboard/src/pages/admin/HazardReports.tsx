@@ -35,6 +35,12 @@ export function HazardReports() {
     },
     { key: 'status', header: 'Status', sortValue: (h) => h.status, cell: (h) => h.status },
     {
+      key: 'from',
+      header: 'From',
+      sortValue: (h) => h.source,
+      cell: (h) => (h.source === 'osm' ? 'OpenStreetMap' : 'Driver'),
+    },
+    {
       key: 'confirmations',
       header: 'Confirmations',
       sortValue: (h) => h.confirmations,
@@ -85,10 +91,20 @@ export function HazardReports() {
           columns={columns}
           rows={hazards.data ?? []}
           rowKey={(hazard) => hazard.id}
-          searchText={(hazard) => `${hazard.type.replaceAll('_', ' ')} ${hazard.status}`}
+          searchText={(hazard) =>
+            `${hazard.type.replaceAll('_', ' ')} ${hazard.status} ${hazard.note ?? ''} ${hazard.source === 'osm' ? 'openstreetmap' : 'driver'}`
+          }
           emptyText="No hazard reports."
         />
       )}
+      <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
+        Hazards marked OpenStreetMap are low bridges and weight-limited bridges from OpenStreetMap,
+        © OpenStreetMap contributors, available under the{' '}
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+          Open Database Licence
+        </a>
+        . Drivers can confirm or dismiss them like any hazard, and you can delete one here.
+      </p>
     </div>
   );
 }

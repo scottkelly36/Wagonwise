@@ -39,3 +39,5 @@ apps/core/scripts/.osm-cache/
 
 # Local dump of the live DigitalOcean app spec: holds plaintext secrets, never committed.
 live-spec.yaml
+apps/core/scripts/.osm-hazards-cache/
+apps/core/scripts/.osm-hazards-review.json
