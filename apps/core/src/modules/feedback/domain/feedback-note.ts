@@ -23,6 +23,8 @@ export interface FeedbackNote {
   readonly appVersion: string;
   readonly deviceInfo: string;
   readonly createdAt: Date;
+  /** When staff marked it resolved; absent while it is open. */
+  readonly resolvedAt?: Date | undefined;
 }
 
 export type InvalidMessage = TaggedError<'InvalidMessage'>;

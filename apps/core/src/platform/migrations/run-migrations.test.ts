@@ -100,6 +100,7 @@ describe('runMigrations', () => {
       '0067_driver_names.sql',
       '0068_tester_invites.sql',
       '0069_parking_edit_suggestions.sql',
+      '0070_feedback_resolved.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -276,6 +277,7 @@ describe('runMigrations', () => {
       '0067_driver_names.sql',
       '0068_tester_invites.sql',
       '0069_parking_edit_suggestions.sql',
+      '0070_feedback_resolved.sql',
     ]);
   });
 });
