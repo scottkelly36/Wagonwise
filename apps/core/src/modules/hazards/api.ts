@@ -145,7 +145,12 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
       const now = deps.clock.now();
       const nearby = await repo.findNearbyLine(corridor, radiusM);
       const live = nearby.filter(
-        (r) => r.status === 'active' && !isExpired(r, now) && AVOIDANCE_KIND[r.type] !== undefined,
+        (r) =>
+          r.status === 'active' &&
+          // The router already reads these same OpenStreetMap limits itself; steering around them twice adds nothing.
+          r.source !== 'osm' &&
+          !isExpired(r, now) &&
+          AVOIDANCE_KIND[r.type] !== undefined,
       );
       // P2-M7.2: the one place routing is made less cautious. See `isHeldBackFromRouting`.
       const assessments = await assessReports(repo, live, { forDisplay: false });

@@ -337,6 +337,10 @@ The shared status also carries optional `breakMin`, `stretchMin` and `untilLimit
 - **Routes:** staff `GET/PUT /staff/hours/companies/:companyId/settings` (read: company staff; change: `manage_fleet`), `GET /staff/hours/companies/:companyId/status`; driver `GET /hours/sharing`, `PUT /hours/sharing/:companyId`, `PUT /hours/status`, `DELETE /hours/status`.
 - **Driver app:** `state/hours-sharing-store.ts`, `hooks/use-share-hours.ts` (sends on change and every minute), `lib/hours-share.ts` (the payload and the consent wording), the Share section of the Driving hours screen, and a chip on the trip screen.
 
+## Hazards from OpenStreetMap
+
+`hazards.reports.source = 'osm'` marks the one-off starting set (migration 0072, from `apps/core/scripts/fetch-osm-hazards.mjs`; the rules for what is taken are at the top of that script). Each row has an `osm_id` (unique where set), the import reporter id, a measurement and no expiry. `hazards/api.ts` `findAvoidanceCandidates` and `findAwaitingReview` skip `osm` rows: routing already reads these limits from the same OpenStreetMap data, and a first-time import must not flood the moderation queue. Everything else treats them as ordinary hazards (map, spoken warnings, the route's hazard list, confirm and dismiss). © OpenStreetMap contributors (ODbL): the driver hazard card and the portal's Hazard reports page credit it.
+
 ## Tester sign-up (landing page)
 
 `sites/landing/index.html` is a plain static page served at wagon-wise.co.uk (and www) by the DO `landing` static site. Its form

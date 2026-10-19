@@ -147,4 +147,30 @@ describe('findAvoidanceCandidates and the doubtful-report hold', () => {
 
     expect(await hazards.findHazardIdsNear(corridor, 50)).toContain(doubtful.id);
   });
+
+  it('leaves an OpenStreetMap hazard out of routing (the router reads those limits itself) and the moderation queue, but keeps it on the route’s hazard list', async () => {
+    const imported = report({
+      reporterId: makeId<'DriverId'>('00000000-0000-4000-8000-0000000005a1'),
+      source: 'osm',
+      location: { lat: 54.9709, lon: -2.1 },
+      measurement: { kind: 'height', value: 3.2, unit: 'm' },
+    });
+    await repo.save(imported);
+
+    expect((await hazards.findAvoidanceCandidates(corridor, 50)).map((c) => c.id)).not.toContain(
+      imported.id,
+    );
+    expect(await hazards.findHazardIdsNear(corridor, 50)).toContain(imported.id);
+    expect((await repo.findAwaitingReview()).map((r) => r.id)).not.toContain(imported.id);
+    // The same hazard from a driver would be both.
+    const fromDriver = report({
+      location: { lat: 54.9711, lon: -2.1 },
+      measurement: { kind: 'height', value: 3.2, unit: 'm' },
+    });
+    await repo.save(fromDriver);
+    expect((await hazards.findAvoidanceCandidates(corridor, 50)).map((c) => c.id)).toContain(
+      fromDriver.id,
+    );
+    expect((await repo.findAwaitingReview()).map((r) => r.id)).toContain(fromDriver.id);
+  });
 });

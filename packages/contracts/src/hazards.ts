@@ -31,6 +31,11 @@ export type MeasurementDto = z.infer<typeof measurementSchema>;
 export const reportSourceSchema = z.enum(['tap', 'voice']);
 export type ReportSourceDto = z.infer<typeof reportSourceSchema>;
 
+/** Where a hazard in an answer came from: a driver's report, or the OpenStreetMap starting set. A report request only ever
+ *  carries `tap` or `voice` (`reportSourceSchema`). */
+export const hazardSourceSchema = z.enum(['tap', 'voice', 'osm']);
+export type HazardSourceDto = z.infer<typeof hazardSourceSchema>;
+
 export const hazardReportSchema = z.object({
   id: hazardReportIdSchema,
   reporterId: driverIdSchema,
@@ -38,7 +43,7 @@ export const hazardReportSchema = z.object({
   location: geoPointSchema,
   note: z.string().optional(),
   measurement: measurementSchema.optional(),
-  source: reportSourceSchema,
+  source: hazardSourceSchema,
   confirmations: z.number(),
   dismissals: z.number(),
   status: hazardStatusSchema,

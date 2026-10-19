@@ -81,6 +81,7 @@ export class InMemoryHazardRepository implements HazardRepository {
       [...this.#byId.values()].filter(
         (r) =>
           r.status === 'active' &&
+          r.source !== 'osm' &&
           !approved.has(r.id) &&
           (isBlocking(r.type) ||
             (r.confirmations >= DISPUTED_MIN_EACH && r.dismissals >= DISPUTED_MIN_EACH)),
