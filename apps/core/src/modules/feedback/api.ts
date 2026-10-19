@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
+import type { CallerDirectory, DriverLabels } from './application/review-feedback.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresFeedbackNoteRepository } from './infrastructure/postgres-feedback-note-repository.js';
 import { registerFeedbackRoutes, type FeedbackRouteDeps } from './interface/routes.js';
@@ -8,11 +9,16 @@ import { registerFeedbackRoutes, type FeedbackRouteDeps } from './interface/rout
 // Re-exported so composition/ can type its overrides without reaching past this facade into
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
 export type { UntypedDb } from './infrastructure/db.js';
+export type { CallerDirectory, DriverLabels, StaffCaller } from './application/review-feedback.js';
 
 export interface FeedbackModuleDeps {
   readonly db: UntypedDb;
   readonly clock: Clock;
   readonly ids: IdGenerator;
+  /** Who a signed-in staff account is. Supplied by composition over `companies`. */
+  readonly callers: CallerDirectory;
+  /** How a driver is named for staff reading their note. Supplied by composition over `identity`. */
+  readonly driverLabels: DriverLabels;
 }
 
 export interface FeedbackModule {
@@ -31,6 +37,8 @@ export function createFeedbackModule(deps: FeedbackModuleDeps): FeedbackModule {
 
   const routeDeps: FeedbackRouteDeps = {
     submitFeedback: { repo, clock: deps.clock, ids: deps.ids },
+    review: { repo, labels: deps.driverLabels, clock: deps.clock },
+    callerDirectory: deps.callers,
   };
 
   return {

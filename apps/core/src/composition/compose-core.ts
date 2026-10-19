@@ -252,7 +252,26 @@ export function composeCore(
     traffic,
     pushNotifier: overrides.pushNotifier,
   });
-  const feedback = createFeedbackModule({ db: feedbackDb, clock, ids });
+  const feedback = createFeedbackModule({
+    db: feedbackDb,
+    clock,
+    ids,
+    callers: { getCaller: staffCaller },
+    driverLabels: {
+      labelsFor: async (driverIds) => {
+        const entries = await Promise.all(
+          driverIds.map(async (id) => {
+            const label =
+              (await identity.getDriverName(id)) ?? (await identity.getDriverIdentifier(id));
+            return [id, label] as const;
+          }),
+        );
+        return new Map(
+          entries.flatMap(([id, label]) => (label === null ? [] : [[id, label] as const])),
+        );
+      },
+    },
+  });
   const companies = createCompaniesModule({
     db: companiesDb,
     clock,

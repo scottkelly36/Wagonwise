@@ -605,6 +605,8 @@ module in the repo (one aggregate, one use case, no cross-context reads or event
 `identity`'s own reference-module shape. Insert-only, no read endpoint — a one-way channel to the
 developer, read via `psql` rather than back through the app.
 
+**Reading feedback (2026-10-18):** WagonWise staff read it at `/admin/feedback` (`GET /staff/feedback?status=open|resolved|all`, `PUT /staff/feedback/:id/resolved`, platform staff only, `application/review-feedback.ts`). `feedback.notes.resolved_at` is set when resolved and cleared on reopen. The sender is shown as a name or sign-in address from `identity` through a `DriverLabels` port; the account id is never sent.
+
 **Push registration + reroute prompt (M6.6)**: the app side of M6.2's device-token registration
 and M6.5's real Expo push delivery. `src/hooks/use-register-push-token.ts` requests notification
 permission and an Expo push token (`expo-notifications` + `expo-device`, both new dependencies)

@@ -27,6 +27,7 @@ import { Finances } from './pages/admin/Finances';
 import { Invoices } from './pages/admin/Invoices';
 import { Plans } from './pages/admin/Plans';
 import { InviteCodes } from './pages/admin/InviteCodes';
+import { Feedback } from './pages/admin/Feedback';
 import { Testers } from './pages/admin/Testers';
 import { Parking } from './pages/admin/Parking';
 import { AppUsage } from './pages/admin/AppUsage';
@@ -86,6 +87,7 @@ export function App() {
             <Route path="/admin/companies" element={<Companies />} />
             <Route path="/admin/invite-codes" element={<InviteCodes />} />
             <Route path="/admin/testers" element={<Testers />} />
+            <Route path="/admin/feedback" element={<Feedback />} />
             <Route path="/admin/parking" element={<Parking />} />
             <Route path="/admin/usage" element={<AppUsage />} />
             <Route path="/admin/plans" element={<Plans />} />

@@ -11,6 +11,11 @@ import {
   fuelQuerySchema,
   importFuelRequestSchema,
 } from '@wagonwise/contracts/costing';
+import {
+  feedbackIdParamsSchema,
+  listFeedbackQuerySchema,
+  setFeedbackResolvedRequestSchema,
+} from '@wagonwise/contracts/feedback';
 import { sendInvitesRequestSchema, testerIdParamsSchema } from '@wagonwise/contracts/signups';
 import { hoursCompanyParamsSchema, hoursSettingsSchema } from '@wagonwise/contracts/hours';
 import {
@@ -410,6 +415,19 @@ const FORWARDS: readonly Forward[] = [
     method: 'POST',
     path: '/staff/parking/suggestions/:id/reject',
     params: spotSuggestionIdParamsSchema,
+  },
+  // What drivers sent through the app's feedback box, and marking it resolved (WagonWise staff only; core decides).
+  {
+    method: 'GET',
+    path: '/staff/feedback',
+    params: noParams,
+    query: listFeedbackQuerySchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/feedback/:id/resolved',
+    params: feedbackIdParamsSchema,
+    body: setFeedbackResolvedRequestSchema,
   },
   // How the app is being used (WagonWise staff only; core decides).
   { method: 'GET', path: '/staff/usage', params: noParams },

@@ -95,4 +95,30 @@ describe('PostgresFeedbackNoteRepository', () => {
     expect(rows.map((r) => r.driver_id)).toEqual([theirs]);
     await expect(repo.deleteAllForDriver(mine)).resolves.toBeUndefined();
   });
+
+  it('lists newest first, narrowed to open or resolved, counts both, and resolves and reopens', async () => {
+    await pool.query('delete from feedback.notes');
+    const repo = new PostgresFeedbackNoteRepository(db);
+    const a = makeId<'FeedbackNoteId'>('dddddddd-0000-4000-8000-000000000001');
+    const b = makeId<'FeedbackNoteId'>('dddddddd-0000-4000-8000-000000000002');
+    await repo.save(note({ id: a, createdAt: new Date('2026-06-15T08:00:00.000Z') }));
+    await repo.save(note({ id: b, createdAt: new Date('2026-06-16T08:00:00.000Z') }));
+
+    expect((await repo.list('all', 10)).map((n) => n.id)).toEqual([b, a]);
+    expect(await repo.counts()).toEqual({ open: 2, resolved: 0 });
+
+    const at = new Date('2026-06-17T09:00:00.000Z');
+    expect(await repo.setResolved(a, at)).toBe(true);
+    expect((await repo.list('open', 10)).map((n) => n.id)).toEqual([b]);
+    const resolved = await repo.list('resolved', 10);
+    expect(resolved.map((n) => n.id)).toEqual([a]);
+    expect(resolved[0]?.resolvedAt).toEqual(at);
+    expect(await repo.counts()).toEqual({ open: 1, resolved: 1 });
+
+    expect(await repo.setResolved(a, null)).toBe(true);
+    expect(await repo.counts()).toEqual({ open: 2, resolved: 0 });
+    expect(
+      await repo.setResolved(makeId<'FeedbackNoteId'>('dddddddd-0000-4000-8000-0000000000ff'), at),
+    ).toBe(false);
+  });
 });
