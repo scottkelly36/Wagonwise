@@ -3,12 +3,145 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WagonWise: navigation made for HGV drivers</title>
+    <title>WagonWise: free HGV navigation app and fleet dashboard</title>
     <meta
       name="description"
-      content="A free HGV navigation app with routes that fit your vehicle, hazards from other drivers, safe parking and jobs from your firm, and a dashboard for the fleet that runs them. Register to help test it."
+      content="Free HGV navigation for UK lorry drivers: routes that fit your vehicle, low bridge and hazard warnings from other drivers, safe parking. Plus a fleet dashboard."
     />
     <meta name="theme-color" content="#0b1220" />
+    <link rel="canonical" href="https://wagon-wise.co.uk/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="WagonWise" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:title" content="WagonWise: free HGV navigation app and fleet dashboard" />
+    <meta
+      property="og:description"
+      content="Free HGV navigation for UK lorry drivers: routes that fit your vehicle, low bridge and hazard warnings from other drivers, safe parking. Plus a fleet dashboard."
+    />
+    <meta property="og:url" content="https://wagon-wise.co.uk/" />
+    <meta property="og:image" content="https://wagon-wise.co.uk/img/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="WagonWise: navigation made for HGV drivers, with the app icon."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="WagonWise: free HGV navigation app and fleet dashboard" />
+    <meta
+      name="twitter:description"
+      content="Free HGV navigation for UK lorry drivers: routes that fit your vehicle, low bridge and hazard warnings from other drivers, safe parking. Plus a fleet dashboard."
+    />
+    <meta name="twitter:image" content="https://wagon-wise.co.uk/img/og-image.jpg" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://wagon-wise.co.uk/#organization",
+            "name": "WagonWise",
+            "url": "https://wagon-wise.co.uk/",
+            "logo": "https://wagon-wise.co.uk/img/icon-192.png"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://wagon-wise.co.uk/#website",
+            "url": "https://wagon-wise.co.uk/",
+            "name": "WagonWise",
+            "inLanguage": "en-GB",
+            "publisher": {
+              "@id": "https://wagon-wise.co.uk/#organization"
+            }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "WagonWise",
+            "description": "Free HGV navigation for UK lorry drivers: routes that fit your vehicle, low bridge and hazard warnings from other drivers, safe parking. Plus a fleet dashboard.",
+            "applicationCategory": "TravelApplication",
+            "operatingSystem": "Android",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "GBP"
+            },
+            "publisher": {
+              "@id": "https://wagon-wise.co.uk/#organization"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is WagonWise?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "WagonWise is a navigation app for HGV drivers in Great Britain. You tell it your vehicle's height, width, length and weight once, and it plans routes that keep to roads your vehicle can use. It also shows warnings from other drivers about low bridges, tight bends and other hazards, safe lorry parking, and jobs from your firm."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is WagonWise free?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The driver app is free for drivers, and testers get everything free. Firms that use the fleet dashboard pay per vehicle: get in touch for details."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Which phones does it run on?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Android is in testing now. An iPhone version is planned. Register to test and we will tell you when there is a place for you."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Where does it work?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Routing covers Great Britain: England, Scotland and Wales. Northern Ireland is not covered."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does it replace road signs and my own judgement?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. WagonWise is a planning aid. Always follow road signs, the law and your own judgement."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does it track me?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Your location is used only while the app is open. It is shared with your firm only while you are on one of its jobs. Hazard, parking and traffic reports never show your name, and you can delete your account in the app at any time."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does a haulage firm need any equipment to use the fleet dashboard?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. There is nothing to fit. It runs on the phones your drivers already have."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How do I help test it?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Register your email on this page. Testers get a free invite with a code and short instructions."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
     <link rel="icon" type="image/png" href="/img/icon-64.png" />
     <link rel="apple-touch-icon" href="/img/icon-192.png" />
     <style>
@@ -565,6 +698,30 @@
         font-size: 0.95rem;
       }
 
+      /* Questions */
+      .faq {
+        max-width: 760px;
+        margin: 36px auto 0;
+      }
+      .faq details {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px 20px;
+        margin-top: 12px;
+      }
+      .faq summary {
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .faq details[open] summary {
+        margin-bottom: 8px;
+      }
+      .faq p {
+        margin: 0;
+        color: var(--muted);
+      }
+
       /* Register */
       .register {
         display: grid;
@@ -779,6 +936,7 @@
                   src="/img/phone-trip.jpg"
                   width="540"
                   height="1152"
+                  fetchpriority="high"
                   alt="The trip screen on the A69: next turn, ETA, distance left and the driving-hours clock."
                 />
               </div>
@@ -1126,6 +1284,69 @@
               <a href="/delete-account/">How to delete your account</a>.</span
             >
           </div>
+        </div>
+
+        <div class="section-head" id="faq">
+          <span class="tag">Questions</span>
+          <h2>Common questions</h2>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>What is WagonWise?</summary>
+            <p>
+              WagonWise is a navigation app for HGV drivers in Great Britain. You tell it your
+              vehicle's height, width, length and weight once, and it plans routes that keep to
+              roads your vehicle can use. It also shows warnings from other drivers about low
+              bridges, tight bends and other hazards, safe lorry parking, and jobs from your firm.
+            </p>
+          </details>
+          <details>
+            <summary>Is WagonWise free?</summary>
+            <p>
+              The driver app is free for drivers, and testers get everything free. Firms that use
+              the fleet dashboard pay per vehicle: get in touch for details.
+            </p>
+          </details>
+          <details>
+            <summary>Which phones does it run on?</summary>
+            <p>
+              Android is in testing now. An iPhone version is planned. Register to test and we will
+              tell you when there is a place for you.
+            </p>
+          </details>
+          <details>
+            <summary>Where does it work?</summary>
+            <p>
+              Routing covers Great Britain: England, Scotland and Wales. Northern Ireland is not
+              covered.
+            </p>
+          </details>
+          <details>
+            <summary>Does it replace road signs and my own judgement?</summary>
+            <p>
+              No. WagonWise is a planning aid. Always follow road signs, the law and your own
+              judgement.
+            </p>
+          </details>
+          <details>
+            <summary>Does it track me?</summary>
+            <p>
+              Your location is used only while the app is open. It is shared with your firm only
+              while you are on one of its jobs. Hazard, parking and traffic reports never show your
+              name, and you can delete your account in the app at any time.
+            </p>
+          </details>
+          <details>
+            <summary>Does a haulage firm need any equipment to use the fleet dashboard?</summary>
+            <p>No. There is nothing to fit. It runs on the phones your drivers already have.</p>
+          </details>
+          <details>
+            <summary>How do I help test it?</summary>
+            <p>
+              Register your email on this page. Testers get a free invite with a code and short
+              instructions.
+            </p>
+          </details>
         </div>
 
         <section class="register" id="register">

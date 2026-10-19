@@ -353,6 +353,8 @@ per person (composition passes `identity.newInviteCode`/`sendEmail` in as the mo
 `signups/domain/invite-email.ts`, then records `invited_at`/`invite_code` (migration 0068). Someone already invited is skipped; a
 failed email leaves them uninvited so it can be retried. The opt-in link is typed on the page and kept in that browser only.
 
+Search and sharing (2026-10-19): the page has a canonical address, Open Graph and Twitter tags, JSON-LD (organisation, website, software application, FAQ) and a visible FAQ whose text is the same as the FAQ in the JSON-LD (Google expects the two to match, so when one is edited change the other by hand). `robots.txt` and `sitemap.xml` sit next to `index.html`. Add a page to `sitemap.xml` when one is added. The share picture is `img/og-image.jpg`, remade with `sites/make-og-image.ps1`.
+
 ## App usage (admin)
 
 `apps/core/src/modules/usage`: read-only. `GET /staff/usage` (platform staff only, checked in the route and the use case) runs in
