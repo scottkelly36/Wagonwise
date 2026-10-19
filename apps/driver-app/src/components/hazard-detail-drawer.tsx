@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useConfirmHazard, useDismissHazard, useHazard } from '../api/use-hazards';
 import { hazardsErrorMessage } from '../lib/error-messages';
+import { OSM_CREDIT } from '../lib/parking-details';
 import { formatDateTime } from '../lib/format-date';
 import { formatMeasurement, HAZARD_STATUS_LABELS, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import { HAZARD_TYPE_ICONS } from '../lib/hazard-icons';
@@ -92,7 +93,11 @@ export function HazardDetailDrawer({ hazardId, onClose }: Props) {
               )}
               {hazard.note !== undefined && <Text style={styles.detail}>{hazard.note}</Text>}
 
-              <Text style={styles.meta}>Reported {formatDateTime(hazard.createdAt)}</Text>
+              <Text style={styles.meta}>
+                {hazard.source === 'osm'
+                  ? `From OpenStreetMap · ${OSM_CREDIT}`
+                  : `Reported ${formatDateTime(hazard.createdAt)}`}
+              </Text>
               <Text style={styles.meta}>
                 {hazard.confirmations} confirmation{hazard.confirmations === 1 ? '' : 's'} ·{' '}
                 {hazard.dismissals} said not there

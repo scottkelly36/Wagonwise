@@ -31,6 +31,9 @@ export interface Measurement {
 
 export type ReportSource = 'tap' | 'voice';
 
+/** Where a hazard came from: a driver's tap or voice report, or the one-off OpenStreetMap import (migration 0072). */
+export type HazardSource = ReportSource | 'osm';
+
 // hazards owns its own GeoPoint too, for the same reason — no cross-module import, even though
 // routing/domain/geo.ts declares a structurally identical shape.
 export interface GeoPoint {
@@ -45,7 +48,7 @@ export interface HazardReport {
   readonly location: GeoPoint;
   readonly note?: string | undefined;
   readonly measurement?: Measurement | undefined;
-  readonly source: ReportSource;
+  readonly source: HazardSource;
   readonly confirmations: number;
   readonly dismissals: number;
   readonly status: HazardStatus;
