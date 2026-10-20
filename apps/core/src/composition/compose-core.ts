@@ -231,7 +231,11 @@ export function composeCore(
     admins: { isAdmin: isPlatformStaff },
   });
   // congestion and traffic are built before routing too: its faster-route check reads both.
-  const congestion = createCongestionModule({ db: congestionDb, clock });
+  const congestion = createCongestionModule({
+    db: congestionDb,
+    clock,
+    callers: { getCaller: staffCaller },
+  });
   // Live traffic (TomTom). Read by routing's faster-route check (docs/faster-route-scope.md).
   const traffic = createTrafficModule({
     clock,

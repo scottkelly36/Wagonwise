@@ -1,6 +1,7 @@
+import type { CongestionNotFound, Forbidden } from '../application/admin-congestion.js';
 import type { InvalidEstimatedWait } from '../domain/congestion-report.js';
 
-export type CongestionError = InvalidEstimatedWait;
+export type CongestionError = InvalidEstimatedWait | Forbidden | CongestionNotFound;
 
 /** Tag -> HTTP status, in exactly one table (AGENTS.md rule 13), mirroring hazards', identity's and
  *  routing's error-mapping.ts. `switch-exhaustiveness-check` means a new domain error tag breaks
@@ -9,5 +10,9 @@ export function statusFor(error: CongestionError): number {
   switch (error.tag) {
     case 'InvalidEstimatedWait':
       return 400;
+    case 'Forbidden':
+      return 403;
+    case 'CongestionNotFound':
+      return 404;
   }
 }

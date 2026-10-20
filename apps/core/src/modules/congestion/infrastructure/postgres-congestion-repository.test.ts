@@ -97,4 +97,32 @@ describe('PostgresCongestionRepository', () => {
       expect(found).toEqual([r]);
     });
   });
+
+  it('lists newest first, counts total and active, and removes one report or every expired one', async () => {
+    await pool.query('delete from congestion.reports');
+    const repo = new PostgresCongestionRepository(db);
+    const now = new Date('2026-10-20T12:00:00.000Z');
+    const make = (n: number, minutesAgo: number, wait: number): CongestionReport => {
+      const createdAt = new Date(now.getTime() - minutesAgo * 60_000);
+      return {
+        id: makeId<'CongestionReportId'>(`ccccccc0-0000-4000-8000-00000000000${n}`),
+        reporterId: makeId<'DriverId'>('22222222-2222-4222-8222-222222222222'),
+        location: { lat: 54.97, lon: -2.1 },
+        estimatedWaitMinutes: wait,
+        createdAt,
+        expiresAt: new Date(createdAt.getTime() + wait * 60_000),
+      };
+    };
+    const running = make(1, 5, 20);
+    const gone = make(2, 120, 20);
+    await repo.save(gone);
+    await repo.save(running);
+
+    expect((await repo.findAll(10)).map((r) => r.id)).toEqual([running.id, gone.id]);
+    expect(await repo.counts(now)).toEqual({ total: 2, active: 1 });
+    expect(await repo.deleteExpired(now)).toBe(1);
+    expect((await repo.findAll(10)).map((r) => r.id)).toEqual([running.id]);
+    expect(await repo.deleteById(running.id)).toBe(true);
+    expect(await repo.deleteById(running.id)).toBe(false);
+  });
 });

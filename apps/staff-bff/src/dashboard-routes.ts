@@ -11,6 +11,7 @@ import {
   fuelQuerySchema,
   importFuelRequestSchema,
 } from '@wagonwise/contracts/costing';
+import { congestionIdParamsSchema } from '@wagonwise/contracts/congestion';
 import {
   feedbackIdParamsSchema,
   listFeedbackQuerySchema,
@@ -429,6 +430,10 @@ const FORWARDS: readonly Forward[] = [
     params: feedbackIdParamsSchema,
     body: setFeedbackResolvedRequestSchema,
   },
+  // Congestion reports: see them all, remove one, clear the ones whose time has run out (WagonWise staff only; core decides).
+  { method: 'GET', path: '/staff/congestion/reports', params: noParams },
+  { method: 'DELETE', path: '/staff/congestion/reports/:id', params: congestionIdParamsSchema },
+  { method: 'POST', path: '/staff/congestion/reports/clear-expired', params: noParams },
   // How the app is being used (WagonWise staff only; core decides).
   { method: 'GET', path: '/staff/usage', params: noParams },
   // The landing page's tester list (WagonWise staff only; core decides).

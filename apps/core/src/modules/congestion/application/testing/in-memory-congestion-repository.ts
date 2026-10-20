@@ -31,4 +31,34 @@ export class InMemoryCongestionRepository implements CongestionRepository {
     this.#byId.set(report.id, report);
     return Promise.resolve();
   }
+
+  findAll(limit: number): Promise<CongestionReport[]> {
+    const all = [...this.#byId.values()].sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    );
+    return Promise.resolve(all.slice(0, limit));
+  }
+
+  counts(now: Date): Promise<{ total: number; active: number }> {
+    const all = [...this.#byId.values()];
+    return Promise.resolve({
+      total: all.length,
+      active: all.filter((r) => r.expiresAt.getTime() > now.getTime()).length,
+    });
+  }
+
+  deleteById(id: CongestionReportId): Promise<boolean> {
+    return Promise.resolve(this.#byId.delete(id));
+  }
+
+  deleteExpired(now: Date): Promise<number> {
+    let removed = 0;
+    for (const [id, r] of this.#byId) {
+      if (r.expiresAt.getTime() <= now.getTime()) {
+        this.#byId.delete(id);
+        removed += 1;
+      }
+    }
+    return Promise.resolve(removed);
+  }
 }

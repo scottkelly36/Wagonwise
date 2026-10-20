@@ -1,9 +1,17 @@
 import {
+  congestionIdParamsSchema,
   findNearbyCongestionRequestSchema,
   reportCongestionRequestSchema,
 } from '@wagonwise/contracts/congestion';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
+import {
+  clearExpiredCongestion,
+  deleteCongestion,
+  listCongestion,
+  type AdminCongestionDeps,
+  type CallerDirectory,
+} from '../application/admin-congestion.js';
 import {
   findNearbyCongestion,
   type FindNearbyCongestionDeps,
@@ -14,6 +22,8 @@ import { statusFor } from './error-mapping.js';
 export interface CongestionRouteDeps {
   readonly reportCongestion: ReportCongestionDeps;
   readonly findNearbyCongestion: FindNearbyCongestionDeps;
+  readonly admin: AdminCongestionDeps;
+  readonly callerDirectory: CallerDirectory;
 }
 
 /** Duplicated from hazards'/routing's own `requireDriverId` rather than shared — a module is
@@ -68,5 +78,70 @@ export function registerCongestionRoutes(app: FastifyInstance, deps: CongestionR
       radiusM: parsed.data.radiusM,
     });
     return reply.status(200).send({ reports });
+  });
+
+  // WagonWise staff see every report and tidy them: remove one, or clear the ones whose time has run out. Platform staff only,
+  // checked here and again in each use case. These sit under /staff/, so they use the staff sign-in, not a driver's.
+  async function staffCaller(request: FastifyRequest, reply: FastifyReply) {
+    if (request.staffId === undefined) {
+      void reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+      return undefined;
+    }
+    const caller = await deps.callerDirectory.getCaller(request.staffId);
+    if (caller === null || caller.kind !== 'platform') {
+      void reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
+      return undefined;
+    }
+    return caller;
+  }
+
+  app.get('/staff/congestion/reports', async (request, reply) => {
+    const caller = await staffCaller(request, reply);
+    if (caller === undefined) return reply;
+    const result = await listCongestion(deps.admin, caller);
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send({
+      total: result.value.total,
+      active: result.value.active,
+      // The reporter is never sent: staff manage the reports, not the people.
+      reports: result.value.reports.map(({ report, active }) => ({
+        id: report.id,
+        location: report.location,
+        estimatedWaitMinutes: report.estimatedWaitMinutes,
+        createdAt: report.createdAt.toISOString(),
+        expiresAt: report.expiresAt.toISOString(),
+        active,
+      })),
+    });
+  });
+
+  app.delete('/staff/congestion/reports/:id', async (request, reply) => {
+    const caller = await staffCaller(request, reply);
+    if (caller === undefined) return reply;
+    const params = congestionIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await deleteCongestion(
+      deps.admin,
+      caller,
+      makeId<'CongestionReportId'>(params.data.id),
+    );
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(204).send();
+  });
+
+  app.post('/staff/congestion/reports/clear-expired', async (request, reply) => {
+    const caller = await staffCaller(request, reply);
+    if (caller === undefined) return reply;
+    const result = await clearExpiredCongestion(deps.admin, caller);
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send({ removed: result.value });
   });
 }

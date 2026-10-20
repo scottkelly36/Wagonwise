@@ -50,3 +50,29 @@ export const congestionErrorResponseSchema = z.object({
   requestId: z.string(),
 });
 export type CongestionErrorResponse = z.infer<typeof congestionErrorResponseSchema>;
+
+/** One report as WagonWise staff see it: no reporter, and whether it still counts (its time has not run out). */
+export const staffCongestionReportSchema = z.object({
+  id: congestionReportIdSchema,
+  location: geoPointSchema,
+  estimatedWaitMinutes: z.number(),
+  createdAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime(),
+  active: z.boolean(),
+});
+export type StaffCongestionReportDto = z.infer<typeof staffCongestionReportSchema>;
+
+/** `GET /staff/congestion/reports` (WagonWise staff only): newest first. */
+export const listStaffCongestionResponseSchema = z.object({
+  reports: z.array(staffCongestionReportSchema),
+  /** How many reports there are in all, and how many are still active, which can be more than are returned. */
+  total: z.number().int().min(0),
+  active: z.number().int().min(0),
+});
+export type ListStaffCongestionResponse = z.infer<typeof listStaffCongestionResponseSchema>;
+
+export const congestionIdParamsSchema = z.object({ id: z.uuid() });
+
+/** `POST /staff/congestion/reports/clear-expired`: removes the reports whose time has run out. */
+export const clearExpiredCongestionResponseSchema = z.object({ removed: z.number().int().min(0) });
+export type ClearExpiredCongestionResponse = z.infer<typeof clearExpiredCongestionResponseSchema>;
