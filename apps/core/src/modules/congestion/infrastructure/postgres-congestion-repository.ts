@@ -2,7 +2,11 @@ import { sql } from 'kysely';
 import { lineWkt } from '../../../shared/line-wkt.js';
 import { makeId } from '../../../shared/brand.js';
 import type { CongestionRepository } from '../application/ports/congestion-repository.js';
-import type { CongestionReport, GeoPoint } from '../domain/congestion-report.js';
+import type {
+  CongestionReport,
+  CongestionReportId,
+  GeoPoint,
+} from '../domain/congestion-report.js';
 import type { UntypedDb } from './db.js';
 
 interface CongestionReportRow {
@@ -76,5 +80,35 @@ export class PostgresCongestionRepository implements CongestionRepository {
         ${report.estimatedWaitMinutes}, ${report.createdAt}, ${report.expiresAt}
       )
     `.execute(this.db);
+  }
+
+  async findAll(limit: number): Promise<CongestionReport[]> {
+    const { rows } = await sql<CongestionReportRow>`
+      select ${sql.raw(SELECT_COLUMNS)} from congestion.reports
+      order by created_at desc, id limit ${limit}
+    `.execute(this.db);
+    return rows.map(toDomain);
+  }
+
+  async counts(now: Date): Promise<{ total: number; active: number }> {
+    const { rows } = await sql<{ total: number; active: number }>`
+      select count(*)::int as total, count(*) filter (where expires_at > ${now})::int as active
+      from congestion.reports
+    `.execute(this.db);
+    return rows[0] ?? { total: 0, active: 0 };
+  }
+
+  async deleteById(id: CongestionReportId): Promise<boolean> {
+    const { rows } = await sql`
+      delete from congestion.reports where id = ${id} returning 1
+    `.execute(this.db);
+    return rows.length > 0;
+  }
+
+  async deleteExpired(now: Date): Promise<number> {
+    const { rows } = await sql`
+      delete from congestion.reports where expires_at <= ${now} returning 1
+    `.execute(this.db);
+    return rows.length;
   }
 }

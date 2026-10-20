@@ -11,6 +11,7 @@ const now = new Date('2026-06-15T08:00:00.000Z');
 // (host/driver-auth.ts's hook), never a body field — a plain test header stands in for that hook
 // here, since driver-auth.test.ts already exercises the hook itself against real verification.
 const DRIVER_HEADER = 'x-test-driver-id';
+const ADMIN = 'staff-admin';
 
 function buildApp(): { app: FastifyInstance; deps: CongestionRouteDeps } {
   const repo = new InMemoryCongestionRepository();
@@ -18,12 +19,20 @@ function buildApp(): { app: FastifyInstance; deps: CongestionRouteDeps } {
   const deps: CongestionRouteDeps = {
     reportCongestion: { repo, clock },
     findNearbyCongestion: { repo, clock },
+    admin: { repo, clock },
+    callerDirectory: {
+      getCaller: (id) => Promise.resolve(id === ADMIN ? { kind: 'platform' } : null),
+    },
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {
     const driverId = request.headers[DRIVER_HEADER];
     if (typeof driverId === 'string') {
       request.driverId = driverId;
+    }
+    const staffId = request.headers['x-test-staff-id'];
+    if (typeof staffId === 'string') {
+      request.staffId = staffId;
     }
     done();
   });
@@ -157,5 +166,70 @@ describe('POST /congestion/reports/nearby', () => {
       payload: { corridor: [location], radiusM: 0 },
     });
     expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('staff congestion routes', () => {
+  const staff = { headers: { 'x-test-staff-id': ADMIN } };
+  const report = (app: FastifyInstance, id: string, wait: number) =>
+    app.inject({
+      method: 'POST',
+      url: '/congestion/reports',
+      payload: { id, location, estimatedWaitMinutes: wait },
+      ...asDriver('driver-1'),
+    });
+  const A = '11111111-1111-4111-8111-111111111111';
+  const B = '22222222-2222-4222-8222-222222222222';
+
+  it('lists reports without the reporter, removes one, and clears none that are still running', async () => {
+    const { app } = buildApp();
+    await report(app, A, 20);
+    await report(app, B, 45);
+
+    const listed = await app.inject({ method: 'GET', url: '/staff/congestion/reports', ...staff });
+    expect(listed.statusCode).toBe(200);
+    const body = listed.json<{
+      total: number;
+      active: number;
+      reports: { id: string; active: boolean; estimatedWaitMinutes: number }[];
+    }>();
+    expect([body.total, body.active]).toEqual([2, 2]);
+    expect(body.reports.map((r) => r.estimatedWaitMinutes).sort()).toEqual([20, 45]);
+    expect(JSON.stringify(body)).not.toContain('driver-1');
+
+    const cleared = await app.inject({
+      method: 'POST',
+      url: '/staff/congestion/reports/clear-expired',
+      ...staff,
+    });
+    expect(cleared.json()).toEqual({ removed: 0 });
+
+    expect(
+      (await app.inject({ method: 'DELETE', url: `/staff/congestion/reports/${A}`, ...staff }))
+        .statusCode,
+    ).toBe(204);
+    expect(
+      (await app.inject({ method: 'DELETE', url: `/staff/congestion/reports/${A}`, ...staff }))
+        .statusCode,
+    ).toBe(404);
+    const after = await app.inject({ method: 'GET', url: '/staff/congestion/reports', ...staff });
+    expect(after.json<{ total: number }>().total).toBe(1);
+  });
+
+  it('401s with no staff sign-in, 403s anyone but WagonWise staff, and 400s a bad id', async () => {
+    const { app } = buildApp();
+    const other = { headers: { 'x-test-staff-id': 'someone' } };
+    for (const [method, url] of [
+      ['GET', '/staff/congestion/reports'],
+      ['DELETE', `/staff/congestion/reports/${A}`],
+      ['POST', '/staff/congestion/reports/clear-expired'],
+    ] as const) {
+      expect((await app.inject({ method, url })).statusCode).toBe(401);
+      expect((await app.inject({ method, url, ...other })).statusCode).toBe(403);
+    }
+    expect(
+      (await app.inject({ method: 'DELETE', url: '/staff/congestion/reports/nope', ...staff }))
+        .statusCode,
+    ).toBe(400);
   });
 });

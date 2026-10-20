@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
+import type { CallerDirectory } from './application/admin-congestion.js';
 import { findNearbyCongestion } from './application/find-nearby-congestion.js';
 import type { GeoPoint } from './domain/congestion-report.js';
 import type { UntypedDb } from './infrastructure/db.js';
@@ -9,10 +10,13 @@ import { registerCongestionRoutes, type CongestionRouteDeps } from './interface/
 // Re-exported so composition/ can type its overrides without reaching past this facade into
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
 export type { UntypedDb } from './infrastructure/db.js';
+export type { CallerDirectory, StaffCaller } from './application/admin-congestion.js';
 
 export interface CongestionModuleDeps {
   readonly db: UntypedDb;
   readonly clock: Clock;
+  /** Who a signed-in staff account is. Supplied by composition over `companies`. */
+  readonly callers: CallerDirectory;
 }
 
 /** What a report looks like to another module reading congestion — bare data, no domain type
@@ -46,6 +50,8 @@ export function createCongestionModule(deps: CongestionModuleDeps): CongestionMo
   const routeDeps: CongestionRouteDeps = {
     reportCongestion: { repo, clock: deps.clock },
     findNearbyCongestion: { repo, clock: deps.clock },
+    admin: { repo, clock: deps.clock },
+    callerDirectory: deps.callers,
   };
 
   return {

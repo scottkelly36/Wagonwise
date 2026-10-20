@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import { filterRows, nextSort, paginate, sortRows, type SortState } from '../lib/table';
+import {
+  filterRows,
+  nextSort,
+  pageButtons,
+  paginate,
+  sortRows,
+  type SortState,
+} from '../lib/table';
 
 export interface Column<T> {
   readonly key: string;
@@ -187,17 +194,24 @@ export function DataTable<T>({
           >
             Previous
           </button>
-          {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setRequestedPage(n)}
-              className={n === page ? 'page-button page-current' : 'page-button'}
-              aria-current={n === page ? 'page' : undefined}
-            >
-              {n}
-            </button>
-          ))}
+          {pageButtons(page, pageCount).map((n, i) =>
+            n === 'gap' ? (
+              <span key={`gap-${i}`} className="muted" aria-hidden="true">
+                …
+              </span>
+            ) : (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setRequestedPage(n)}
+                className={n === page ? 'page-button page-current' : 'page-button'}
+                aria-current={n === page ? 'page' : undefined}
+                aria-label={`Page ${n}`}
+              >
+                {n}
+              </button>
+            ),
+          )}
           <button
             type="button"
             disabled={page === pageCount}

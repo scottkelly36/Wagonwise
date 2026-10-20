@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { filterRows, nextSort, paginate, sortRows } from './table';
+import { filterRows, nextSort, pageButtons, paginate, sortRows } from './table';
 
 interface Row {
   readonly name: string;
@@ -107,5 +107,42 @@ describe('nextSort', () => {
       columnKey: 'email',
       direction: 'asc',
     });
+  });
+});
+
+describe('pageButtons', () => {
+  it('shows every page when there are few', () => {
+    expect(pageButtons(1, 1)).toEqual([1]);
+    expect(pageButtons(3, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  it('shows the first five and the last at the start', () => {
+    for (const page of [1, 2, 3, 4]) {
+      expect(pageButtons(page, 187)).toEqual([1, 2, 3, 4, 5, 'gap', 187]);
+    }
+  });
+
+  it('shows the neighbours of the current page in the middle', () => {
+    expect(pageButtons(5, 187)).toEqual([1, 'gap', 4, 5, 6, 'gap', 187]);
+    expect(pageButtons(92, 187)).toEqual([1, 'gap', 91, 92, 93, 'gap', 187]);
+    expect(pageButtons(183, 187)).toEqual([1, 'gap', 182, 183, 184, 'gap', 187]);
+  });
+
+  it('shows the first and the last five at the end', () => {
+    for (const page of [184, 185, 186, 187]) {
+      expect(pageButtons(page, 187)).toEqual([1, 'gap', 183, 184, 185, 186, 187]);
+    }
+  });
+
+  it('never shows a page twice or leaves one out of order, for any size', () => {
+    for (let count = 1; count <= 40; count += 1) {
+      for (let page = 1; page <= count; page += 1) {
+        const numbers = pageButtons(page, count).filter((b): b is number => b !== 'gap');
+        expect(numbers).toEqual([...new Set(numbers)].sort((a, b) => a - b));
+        expect(numbers).toContain(page);
+        expect(numbers).toContain(1);
+        expect(numbers).toContain(count);
+      }
+    }
   });
 });

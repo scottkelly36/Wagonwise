@@ -65,6 +65,22 @@ export function paginate<T>(rows: readonly T[], page: number, pageSize: number):
   return { rows: rows.slice(from, from + pageSize), page: safePage, pageCount };
 }
 
+/**
+ * The page buttons to show: a few near the current page, with the first and last always there and a gap marker between, so 187
+ * pages is "1 2 3 4 5 … 187" at the start, "1 … 92 93 94 … 187" in the middle and "1 … 183 184 185 186 187" at the end. Up to
+ * seven pages are all shown.
+ */
+export type PageButton = number | 'gap';
+
+export function pageButtons(page: number, pageCount: number): PageButton[] {
+  if (pageCount <= 7) return Array.from({ length: pageCount }, (_, i) => i + 1);
+  const range = (from: number, to: number): number[] =>
+    Array.from({ length: to - from + 1 }, (_, i) => from + i);
+  if (page <= 4) return [...range(1, 5), 'gap', pageCount];
+  if (page >= pageCount - 3) return [1, 'gap', ...range(pageCount - 4, pageCount)];
+  return [1, 'gap', page - 1, page, page + 1, 'gap', pageCount];
+}
+
 /** What a header click does to the current sort: first click ascending, second descending, third
  *  back to the natural order. */
 export function nextSort(current: SortState | undefined, columnKey: string): SortState | undefined {

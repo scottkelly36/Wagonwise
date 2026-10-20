@@ -1,4 +1,8 @@
-import type { CongestionReport, GeoPoint } from '../../domain/congestion-report.js';
+import type {
+  CongestionReport,
+  CongestionReportId,
+  GeoPoint,
+} from '../../domain/congestion-report.js';
 
 export interface CongestionRepository {
   /** Candidates within `radiusM` of a corridor — a sequence of points, most often "near me" (one
@@ -11,4 +15,14 @@ export interface CongestionRepository {
    *  congestion report has no lifecycle to persist through repeated writes; it's reported once
    *  and left to expire on its own. */
   save(report: CongestionReport): Promise<void>;
+
+  // --- for WagonWise staff ---
+  /** Newest first, any age. */
+  findAll(limit: number): Promise<CongestionReport[]>;
+  /** How many reports there are, and how many have not yet expired at `now`. */
+  counts(now: Date): Promise<{ total: number; active: number }>;
+  /** Removes one report; false if there is no such report. */
+  deleteById(id: CongestionReportId): Promise<boolean>;
+  /** Removes every report whose time has run out, and says how many. */
+  deleteExpired(now: Date): Promise<number>;
 }
