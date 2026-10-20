@@ -5,6 +5,6 @@
 - `../../dashboard/store-assets/raw/`: the same for the staff portal (1440x900).
 - `framed/`: the eight raw screenshots framed with a headline, 1080 x 1920, ready for Google Play. Apple needs its own sizes (not made yet). `scripts/make-framed-screenshots.ps1` rebuilds them.
 - `scripts/make-graphics.ps1`: rebuilds the icon and feature graphic.
-- `scripts/make-web-images.ps1`: crops and compresses the raw screenshots into `sites/landing/img/`.
+- `scripts/make-web-images.ps1`: crops and compresses the raw screenshots into `sites/landing/img/` as JPEGs. Then run `sites/make-webp.ps1`, which turns them into the WebP files the landing page serves and removes the JPEGs.
 
 All screenshots use made-up data (fictional firm, example emails). Scripts are Windows PowerShell and expect the repo at `E:\projects\wagonwise`.

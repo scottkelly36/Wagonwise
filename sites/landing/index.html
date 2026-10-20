@@ -477,7 +477,7 @@
       }
       .section-head .tag {
         display: inline-block;
-        color: var(--blue);
+        color: var(--blue-dark);
         font-weight: 800;
         font-size: 0.82rem;
         letter-spacing: 0.1em;
@@ -516,7 +516,7 @@
         order: 2;
       }
       .feature .tag {
-        color: var(--blue);
+        color: var(--blue-dark);
         font-weight: 800;
         font-size: 0.82rem;
         letter-spacing: 0.1em;
@@ -797,7 +797,7 @@
         background: none;
         border: 0;
         font: inherit;
-        color: var(--blue);
+        color: var(--blue-dark);
         padding: 0;
         text-decoration: underline;
         cursor: pointer;
@@ -827,6 +827,9 @@
         margin-top: 12px;
       }
 
+      footer a {
+        color: var(--blue-dark);
+      }
       footer {
         margin-top: clamp(48px, 8vw, 88px);
         padding: 28px 0 56px;
@@ -927,7 +930,7 @@
             <div class="hero-phones">
               <div class="phone p-left">
                 <img
-                  src="/img/phone-faster.jpg"
+                  src="/img/phone-faster.webp"
                   width="540"
                   height="1152"
                   alt="A card in the app offering a faster route: saves 29 minutes, with Switch and Keep current route buttons."
@@ -935,7 +938,7 @@
               </div>
               <div class="phone p-mid">
                 <img
-                  src="/img/phone-trip.jpg"
+                  src="/img/phone-trip.webp"
                   width="540"
                   height="1152"
                   fetchpriority="high"
@@ -944,7 +947,7 @@
               </div>
               <div class="phone p-right">
                 <img
-                  src="/img/phone-parking.jpg"
+                  src="/img/phone-parking.webp"
                   width="540"
                   height="1152"
                   alt="A parking card for an HGV truck stop showing toilets, showers, shop, food, fuel and lighting."
@@ -1035,7 +1038,7 @@
           <div class="shot">
             <div class="phone">
               <img
-                src="/img/phone-route.jpg"
+                src="/img/phone-route.webp"
                 width="540"
                 height="1152"
                 loading="lazy"
@@ -1063,7 +1066,7 @@
           <div class="shot">
             <div class="phone">
               <img
-                src="/img/phone-hazards.jpg"
+                src="/img/phone-hazards.webp"
                 width="540"
                 height="1152"
                 loading="lazy"
@@ -1091,7 +1094,7 @@
           <div class="shot">
             <div class="phone">
               <img
-                src="/img/phone-parking.jpg"
+                src="/img/phone-parking.webp"
                 width="540"
                 height="1152"
                 loading="lazy"
@@ -1123,7 +1126,7 @@
           <div class="shot">
             <div class="phone">
               <img
-                src="/img/phone-faster.jpg"
+                src="/img/phone-faster.webp"
                 width="540"
                 height="1152"
                 loading="lazy"
@@ -1151,7 +1154,7 @@
           <div class="shot">
             <div class="phone">
               <img
-                src="/img/phone-report.jpg"
+                src="/img/phone-report.webp"
                 width="540"
                 height="1152"
                 loading="lazy"
@@ -1178,7 +1181,7 @@
           <div class="shot">
             <div class="phone">
               <img
-                src="/img/phone-job.jpg"
+                src="/img/phone-job.webp"
                 width="540"
                 height="1152"
                 loading="lazy"
@@ -1225,7 +1228,7 @@
             <div class="top"><i></i><i></i><i></i><span>Fleet dashboard</span></div>
             <img
               id="portal-img"
-              src="/img/portal-overview.jpg"
+              src="/img/portal-overview.webp"
               width="1280"
               height="800"
               alt="The dashboard overview: jobs on the road now, maintenance overdue and today's compliance."
@@ -1356,7 +1359,7 @@
             <span
               class="tag"
               style="
-                color: var(--blue);
+                color: var(--blue-dark);
                 font-weight: 800;
                 font-size: 0.82rem;
                 letter-spacing: 0.1em;
@@ -1532,7 +1535,7 @@
             .querySelectorAll('.tabs button')
             .forEach((b) => b.setAttribute('aria-selected', String(b === button)));
           const img = $('portal-img');
-          img.src = '/img/portal-' + file + '.jpg';
+          img.src = '/img/portal-' + file + '.webp';
           img.alt = alt;
           const caption = $('portal-caption');
           caption.textContent = '';
