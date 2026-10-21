@@ -326,6 +326,45 @@ describe('GET /routing/route-plans/:id', () => {
   });
 });
 
+describe('GET /routing/route-plans/:id/speed-limits', () => {
+  const ID = '11111111-1111-4111-8111-111111111111';
+
+  it('forwards the id and token and relays the zones', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 200, body: { zones: [{ from: 0, to: 1, limitMph: 30 }] } };
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${ID}/speed-limits`,
+      headers: AUTH_HEADER,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ zones: [{ from: 0, to: 1, limitMph: 30 }] });
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'GET',
+      path: `/routing/route-plans/${ID}/speed-limits`,
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('400s a non-UUID id and requires a token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const bad = await app.inject({
+      method: 'GET',
+      url: '/routing/route-plans/not-a-uuid/speed-limits',
+      headers: AUTH_HEADER,
+    });
+    const anonymous = await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${ID}/speed-limits`,
+    });
+    expect(bad.statusCode).toBe(400);
+    expect(anonymous.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+});
+
 describe('POST /routing/route-plans/:id/trip', () => {
   const ID = '11111111-1111-4111-8111-111111111111';
 

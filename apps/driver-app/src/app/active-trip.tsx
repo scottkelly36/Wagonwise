@@ -71,6 +71,9 @@ import {
 } from '../lib/quick-voice-report-reducer';
 import { decodePolyline6 } from '../lib/polyline';
 import { routeProgress } from '../lib/route-progress';
+import { speedLimitHere } from '../lib/speed-limit';
+import { useRouteSpeedLimits } from '../api/use-route-speed-limits';
+import { SpeedLimitSignView } from '../components/speed-limit-sign';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useStillThereStore } from '../state/still-there-store';
@@ -247,6 +250,16 @@ export default function ActiveTripScreen() {
   const remainingDurationMin = plan ? plan.durationMin * (progress?.remainingFraction ?? 1) : 0;
   const eta = plan ? computeEta(new Date(), remainingDurationMin) : undefined;
   const remainingKm = progress ? progress.remainingMetres / 1000 : plan?.distanceKm;
+  // The speed limit where the driver is, from the map data along the route. Nothing is shown where it is not known.
+  const routeSpeedLimits = useRouteSpeedLimits(plan?.id);
+  const speedSign = progress
+    ? speedLimitHere(
+        routeSpeedLimits.data,
+        progress.traveledMetres,
+        progress.totalMetres,
+        progress.offRouteMetres,
+      )
+    : undefined;
 
   // Break planning: only for a driver who is using the driving-hours clock (a shift is on). When the route runs past the
   // time they have, say when a break is needed, offer parking before then, and put the break into the arrival time.
@@ -454,6 +467,12 @@ export default function ActiveTripScreen() {
             />
           )}
         </View>
+
+        {speedSign && (
+          <View style={styles.speedSign} pointerEvents="none">
+            <SpeedLimitSignView sign={speedSign} />
+          </View>
+        )}
 
         {eta && (
           <View style={[styles.etaCard, { top: belowTurn }]} testID="active-trip-eta">
@@ -767,6 +786,7 @@ function createStyles(colors: ThemeColors) {
     // Under the turn card, on the right, clear of the ETA card on the left.
     recenter: { position: 'absolute', right: 16, gap: 12 },
     turnBanner: { position: 'absolute', left: 16, right: 16 },
+    speedSign: { position: 'absolute', left: 16, bottom: 24 },
     etaCard: {
       ...cardStyle(colors),
       position: 'absolute',

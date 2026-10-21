@@ -54,6 +54,10 @@ function buildApp(): {
     },
     previewRouteOptions: { vehicleProfileRepo: repo, routingEngine, fuelPricePerLitreGBP: 1.6 },
     getRoutePlan: { routePlanRepo },
+    getRouteSpeedLimits: {
+      routePlanRepo,
+      speedLimits: { zonesAlong: () => Promise.resolve([{ from: 0, to: 1, limitMph: 30 }]) },
+    },
     startTrip: { routePlanRepo, activeTripRepo, clock, ids },
     endTrip: { repo: activeTripRepo, clock },
     getActiveTrip: { activeTripRepo },
@@ -549,6 +553,49 @@ describe('GET /routing/route-plans/:id', () => {
       ...asDriver('driver-2'),
     });
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe('GET /routing/route-plans/:id/speed-limits', () => {
+  it('200s with the zones for the owner of the plan', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${routePlanId}/speed-limits`,
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ zones: [{ from: 0, to: 1, limitMph: 30 }] });
+  });
+
+  it('404s an unknown plan and a plan owned by a different driver', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app, 'driver-1');
+
+    const other = await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${routePlanId}/speed-limits`,
+      ...asDriver('driver-2'),
+    });
+    const unknown = await app.inject({
+      method: 'GET',
+      url: '/routing/route-plans/11111111-1111-4111-8111-111111111111/speed-limits',
+      ...asDriver('driver-1'),
+    });
+    expect(other.statusCode).toBe(404);
+    expect(unknown.statusCode).toBe(404);
+  });
+
+  it('400s a non-UUID id', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'GET',
+      url: '/routing/route-plans/not-a-uuid/speed-limits',
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(400);
   });
 });
 

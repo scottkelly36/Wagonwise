@@ -95,6 +95,15 @@ pnpm test:golden
 Runs nightly in CI (`.github/workflows/nightly-golden-routes.yml`), which downloads a fresh
 extract each time so it also tests against Geofabrik's current data.
 
+### Speed limits on the trip screen (2026-10-21)
+
+`GET /routing/route-plans/:id/speed-limits` (core, and the driver BFF forwards it) returns `{ zones: [{ from, to, limitMph? }] }`, with `from` and `to` as fractions of the route's length. The app asks once per route (`use-route-speed-limits.ts`) and `speedLimitHere` (`lib/speed-limit.ts`) picks the zone for the driver's progress along the route; `SpeedLimitSignView` draws the sign bottom-left on the map.
+
+- **Source:** Valhalla `trace_attributes` on the route's own line (`edge_walk`, `infrastructure/valhalla-speed-limits.ts`), read in pieces of at most 5,000 points or 50 km because Valhalla refuses a long trace. A piece that fails gives no zones (no sign there) and is not remembered; a full read is kept for a few recent routes.
+- **Rules** (`domain/speed-zone.ts`), deliberately cautious: a limit held in the map is shown as a number rounded to a UK limit (20, 30, 40, 50...); a held 60 or 70 is shown as the **national speed limit** sign, because a lorry's own limit there differs and drivers know it; a motorway with no limit held is the national speed limit; **anything else shows nothing** (a lit town street with no sign looks the same as open road in the map data, so it is never guessed). Slip roads with no limit held show nothing.
+- **Not checked against live data yet:** Valhalla's exact field names and what its UK data holds were written from its documentation, not tried against the production tiles. Check on a real route after deploy; if no signs show, look at what `/trace_attributes` returns first. The sign is a guide, never a legal statement, and says to check the signs.
+- Speed cameras are separate (not built yet).
+
 ## Hazards
 
 `hazards` (M3) — driver-reported obstructions (low bridges, weight/width limits, roadworks,
