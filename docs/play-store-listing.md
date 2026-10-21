@@ -14,8 +14,8 @@ D-U-N-S number and a fresh closed test. Not worth it unless the personal account
 ## Before the app content section can be finished
 
 - A **public privacy policy page** (the web address goes in the form). The landing page can host it. Needs the company name,
-  number and address: WagonWise Ltd, company number 17530209 (the page names it); the registered office is 5 Portland Terrace, Hexham
-  (on the privacy page; postcode still to add).
+  number and address: WagonWise Ltd, company number 17530209 (the page names it); the registered office is 5 Portland Terrace, Hexham NE46 3DT
+  (on the privacy page).
 - A **public page for deleting an account** (Play wants a web address as well as the in-app option). The app already has
   Delete account on the More tab; the page says how to ask for the same by email, and what is kept (see the consent screen).
 - A **reviewer login**: the app needs sign-in (a phone or email code, and an invite code), so Google's reviewers need a working
