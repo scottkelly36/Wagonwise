@@ -1,4 +1,4 @@
-import type { OverviewRowDto } from '@wagonwise/contracts/maintenance';
+import type { DateSuggestionDto, OverviewRowDto } from '@wagonwise/contracts/maintenance';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as maintenanceApi from '../api/maintenance';
@@ -49,6 +49,9 @@ export function VehicleMaintenance({
       <h2 style={{ marginTop: 0 }}>Maintenance{name === undefined ? '' : `: ${name}`}</h2>
       {data.isPending && <p>Loading…</p>}
       {data.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(data.error)}</p>}
+      {canManage && data.data?.lookupAvailable === true && rows.length > 0 && (
+        <RegistrationLookup vehicleId={vehicleId} onDone={refresh} />
+      )}
       {data.data !== undefined && rows.length === 0 && (
         <p>
           Nothing is tracked for this vehicle yet. Add what you keep track of (MOT, inspections...)
@@ -86,6 +89,86 @@ export function VehicleMaintenance({
         Close
       </button>
     </section>
+  );
+}
+
+/**
+ * Asks the government's vehicle record for the MOT and road tax dates, shows them, and fills them into the firm's own MOT
+ * and tax items when the person says so. Nothing is saved by looking.
+ */
+function RegistrationLookup({ vehicleId, onDone }: { vehicleId: string; onDone: () => void }) {
+  const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
+  const look = useMutation({
+    mutationFn: () => withAccessToken((token) => maintenanceApi.lookupVehicle(token, vehicleId)),
+  });
+  const fill = useMutation({
+    mutationFn: (suggestions: readonly DateSuggestionDto[]) =>
+      withAccessToken(async (token) => {
+        for (const x of suggestions) {
+          await maintenanceApi.setDueDate(token, vehicleId, x.itemId, x.dueDate);
+        }
+      }),
+    onSuccess: () => {
+      look.reset();
+      onDone();
+    },
+  });
+  const result = look.data;
+  return (
+    <div style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+      <button type="button" onClick={() => look.mutate()} disabled={look.isPending}>
+        {look.isPending ? 'Checking…' : 'Check MOT and tax by registration'}
+      </button>
+      {look.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(look.error)}</p>}
+      {result !== undefined && (
+        <div style={{ marginTop: 8 }}>
+          <div>
+            <strong>{result.registration}</strong>
+          </div>
+          <div>
+            MOT:{' '}
+            {result.motExpiry === undefined
+              ? 'no date held'
+              : `runs out ${dayText(result.motExpiry)}`}
+            {result.motStatus !== undefined && ` (${result.motStatus})`}
+          </div>
+          <div>
+            Road tax:{' '}
+            {result.taxDue === undefined ? 'no date held' : `due ${dayText(result.taxDue)}`}
+            {result.taxStatus !== undefined && ` (${result.taxStatus})`}
+          </div>
+          {result.suggestions.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)' }}>
+              Nothing to change: the dates you hold match, or no item here is named MOT or tax.
+            </p>
+          ) : (
+            <>
+              <ul style={{ paddingLeft: 18 }}>
+                {result.suggestions.map((x) => (
+                  <li key={x.itemId}>
+                    {x.itemName}: set next due to {dayText(x.dueDate)}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                className="btn-confirm"
+                disabled={fill.isPending}
+                onClick={() => fill.mutate(result.suggestions)}
+              >
+                {fill.isPending ? 'Saving…' : 'Fill in these dates'}
+              </button>
+              {fill.isError && (
+                <span style={{ color: 'var(--danger)' }}> {staffErrorMessage(fill.error)}</span>
+              )}
+            </>
+          )}
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            From the DVLA's vehicle record. Check it against the paperwork before you rely on it.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 

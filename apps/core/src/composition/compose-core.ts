@@ -11,6 +11,8 @@ import { createCostingModule, type UntypedDb as CostingUntypedDb } from '../modu
 import { createHoursModule, type UntypedDb as HoursUntypedDb } from '../modules/hours/api.js';
 import {
   createMaintenanceModule,
+  DvlaVehicleEnquiry,
+  NotConfiguredVehicleLookup,
   type UntypedDb as MaintenanceUntypedDb,
 } from '../modules/maintenance/api.js';
 import {
@@ -466,6 +468,11 @@ export function composeCore(
       },
       setStatus: (defectId, status, staffId) => checks.setDefectStatus(defectId, status, staffId),
     },
+    // MOT and road tax dates by registration: on once the DVLA key is set, otherwise the portal hides the button.
+    vehicleLookup:
+      config.dvlaVesApiKey === undefined
+        ? new NotConfiguredVehicleLookup()
+        : new DvlaVehicleEnquiry(config.dvlaVesApiKey),
     dashboardUrl: config.dashboardUrl,
     callers: { getCaller: staffCaller },
     vehicles: {

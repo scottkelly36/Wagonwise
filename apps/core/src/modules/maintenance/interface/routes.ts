@@ -44,6 +44,16 @@ import {
 import { ukDay } from '../domain/maintenance.js';
 import { daysLeft, isOverdue, type Repair } from '../domain/repair.js';
 import { importDueDates, type TooManyRows } from '../application/import.js';
+import {
+  lookupVehicleDates,
+  type LookupNotConfigured,
+  type NoRegistration,
+} from '../application/lookup.js';
+import type {
+  LookupNotFound,
+  LookupUnavailable,
+  VehicleLookup,
+} from '../application/ports/vehicle-lookup.js';
 import { getMyReminders, setMyReminders, type ReminderDeps } from '../application/reminders.js';
 import {
   maintenanceOverview,
@@ -68,6 +78,7 @@ export interface MaintenanceRouteDeps {
   readonly schedule: ScheduleDeps;
   readonly repairs: RepairDeps;
   readonly reminders: Pick<ReminderDeps, 'preferences' | 'clock'>;
+  readonly lookup: VehicleLookup;
   readonly callerDirectory: CallerDirectory;
   /** Row-Level Security scope per request (migration 0050). */
   readonly dataScopes: DataScopes;
@@ -87,7 +98,11 @@ type MaintenanceError =
   | RepairNotFound
   | RepairNotOpen
   | InvalidRepair
-  | TooManyRows;
+  | TooManyRows
+  | LookupNotConfigured
+  | NoRegistration
+  | LookupNotFound
+  | LookupUnavailable;
 
 function statusFor(error: MaintenanceError): number {
   switch (error.tag) {
@@ -97,11 +112,17 @@ function statusFor(error: MaintenanceError): number {
     case 'DefectNotFound':
     case 'RepairNotFound':
     case 'VehicleNotFound':
+    case 'LookupNotFound':
       return 404;
     case 'DefectAlreadyFixed':
     case 'RepairNotOpen':
     case 'ItemNotForVehicle':
+    case 'NoRegistration':
       return 409;
+    case 'LookupUnavailable':
+      return 502;
+    case 'LookupNotConfigured':
+      return 503;
     case 'TooManyRows':
     case 'VehicleNotInCompany':
     case 'InvalidItemType':
@@ -370,6 +391,38 @@ export function registerMaintenanceRoutes(app: FastifyInstance, deps: Maintenanc
             body: {
               rows: result.value.rows.map(rowDto),
               history: result.value.history.map(historyDto),
+              lookupAvailable: deps.lookup.configured,
+            },
+          }
+        : failure(result.error);
+    }),
+  );
+
+  app.post('/staff/maintenance/vehicles/:vehicleId/lookup', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = maintenanceVehicleParamsSchema.safeParse(request.params);
+      if (!params.success) return INVALID;
+      const result = await lookupVehicleDates(
+        { ...deps.schedule, lookup: deps.lookup },
+        caller,
+        makeId<'FleetVehicleId'>(params.data.vehicleId),
+      );
+      return result.ok
+        ? {
+            status: 200,
+            body: {
+              registration: result.value.registration,
+              ...(result.value.motExpiry === undefined
+                ? {}
+                : { motExpiry: result.value.motExpiry }),
+              ...(result.value.taxDue === undefined ? {} : { taxDue: result.value.taxDue }),
+              ...(result.value.motStatus === undefined
+                ? {}
+                : { motStatus: result.value.motStatus }),
+              ...(result.value.taxStatus === undefined
+                ? {}
+                : { taxStatus: result.value.taxStatus }),
+              suggestions: result.value.suggestions,
             },
           }
         : failure(result.error);

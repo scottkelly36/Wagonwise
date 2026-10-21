@@ -6,7 +6,11 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createChecksModule, type ChecksModule } from '../modules/checks/api.js';
 import { createFleetModule } from '../modules/fleet/api.js';
-import { createMaintenanceModule, type StaffCaller } from '../modules/maintenance/api.js';
+import {
+  createMaintenanceModule,
+  NotConfiguredVehicleLookup,
+  type StaffCaller,
+} from '../modules/maintenance/api.js';
 import { runMigrations } from '../platform/migrations/run-migrations.js';
 import { attachPoolErrorHandler } from '../platform/db.js';
 import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
@@ -116,6 +120,7 @@ describe('repairs end to end (real RLS, real scopes)', () => {
       dataScopes: scopes,
       callers: { getCaller: (id) => Promise.resolve(staff[id] ?? null) },
       mailer: { send: () => Promise.resolve() },
+      vehicleLookup: new NotConfiguredVehicleLookup(),
       dashboardUrl: undefined,
       vehicles: {
         listForCompany: async (companyId) =>

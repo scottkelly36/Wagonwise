@@ -15,6 +15,7 @@ import {
   scheduleSchema,
   setDueRequestSchema,
   starterItemsResponseSchema,
+  vehicleLookupResponseSchema,
   vehicleMaintenanceResponseSchema,
   type CompleteRepairRequest,
   type ImportRowResultDto,
@@ -26,6 +27,7 @@ import {
   type RepairDto,
   type ReminderChannel,
   type ScheduleDto,
+  type VehicleLookupResponse,
   type VehicleMaintenanceResponse,
 } from '@wagonwise/contracts/maintenance';
 
@@ -117,6 +119,20 @@ export async function getVehicleMaintenance(
   });
   throwUnlessSuccess(status, json, [200]);
   return vehicleMaintenanceResponseSchema.parse(json);
+}
+
+/** Asks the vehicle record for the MOT and road tax dates. Nothing is saved; the person chooses what to fill in. */
+export async function lookupVehicle(
+  accessToken: string,
+  vehicleId: string,
+): Promise<VehicleLookupResponse> {
+  const { status, json } = await requestJson(
+    'POST',
+    `/staff/maintenance/vehicles/${vehicleId}/lookup`,
+    { authorization: bearer(accessToken) },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return vehicleLookupResponseSchema.parse(json);
 }
 
 export async function setDueDate(

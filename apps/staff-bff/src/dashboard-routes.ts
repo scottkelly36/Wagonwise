@@ -282,6 +282,11 @@ const FORWARDS: readonly Forward[] = [
     params: maintenanceVehicleParamsSchema,
   },
   {
+    method: 'POST',
+    path: '/staff/maintenance/vehicles/:vehicleId/lookup',
+    params: maintenanceVehicleParamsSchema,
+  },
+  {
     method: 'PUT',
     path: '/staff/maintenance/vehicles/:vehicleId/items/:itemId/due',
     params: maintenanceVehicleItemParamsSchema,

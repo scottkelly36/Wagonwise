@@ -86,6 +86,9 @@ const envSchema = z.object({
   TOMTOM_API_KEY: z.string().min(1).optional(),
   // Where to email the owner when Resend reports a sign-in email that did not get through. Unset: the problem is only logged.
   ALERT_EMAIL: z.string().trim().email().optional(),
+  // Optional: the DVLA Vehicle Enquiry Service key (MOT and road tax dates by registration). Unset means the portal does not
+  // offer the lookup. Server-side only; never sent to an app or the portal.
+  DVLA_VES_API_KEY: z.string().min(1).optional(),
   TRAFFIC_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(2000),
   // Traffic moves in minutes; a reading is reused for this long, and shared by every driver on that road.
   TRAFFIC_CACHE_TTL_MS: z.coerce.number().int().min(10_000).default(300_000),
@@ -156,6 +159,7 @@ export interface Config {
   readonly tomtomApiKey: string | undefined;
   /** Where email-delivery alerts go; undefined means they are only logged. */
   readonly alertEmail: string | undefined;
+  readonly dvlaVesApiKey: string | undefined;
   readonly trafficDailyRequestLimit: number;
   readonly trafficCacheTtlMs: number;
   readonly dashboardUrl: string | undefined;
@@ -210,6 +214,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     metOfficeApiKey: values.METOFFICE_API_KEY,
     tomtomApiKey: values.TOMTOM_API_KEY,
     alertEmail: values.ALERT_EMAIL,
+    dvlaVesApiKey: values.DVLA_VES_API_KEY,
     trafficDailyRequestLimit: values.TRAFFIC_DAILY_REQUEST_LIMIT,
     trafficCacheTtlMs: values.TRAFFIC_CACHE_TTL_MS,
     dashboardUrl: values.DASHBOARD_URL,

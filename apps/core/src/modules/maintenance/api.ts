@@ -5,6 +5,7 @@ import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { CallerDirectory, VehicleDirectory } from './application/ports/directories.js';
 import type { Mailer } from './application/ports/reminders.js';
 import type { DefectDirectory } from './application/ports/repairs.js';
+import type { VehicleLookup } from './application/ports/vehicle-lookup.js';
 import {
   sendDueReminders,
   type ReminderCompany,
@@ -29,6 +30,11 @@ export type {
 } from './application/ports/directories.js';
 export type { Mailer } from './application/ports/reminders.js';
 export type { DefectDirectory, DefectInfo } from './application/ports/repairs.js';
+export type { VehicleLookup } from './application/ports/vehicle-lookup.js';
+export {
+  DvlaVehicleEnquiry,
+  NotConfiguredVehicleLookup,
+} from './infrastructure/dvla-vehicle-enquiry.js';
 export type { Recipient, ReminderCompany, ReminderOutcome } from './application/reminders.js';
 
 export interface MaintenanceModuleDeps {
@@ -44,6 +50,8 @@ export interface MaintenanceModuleDeps {
   readonly mailer: Mailer;
   /** Defects found by the walk-round checks, to book repairs for. Supplied by composition over `checks`. */
   readonly defects: DefectDirectory;
+  /** Looks MOT and road tax dates up by registration. Supplied by composition: the DVLA once a key is set. */
+  readonly vehicleLookup: VehicleLookup;
   /** The portal's address, for the link in reminder emails; none if it is not known. */
   readonly dashboardUrl: string | undefined;
 }
@@ -82,6 +90,7 @@ export function createMaintenanceModule(deps: MaintenanceModuleDeps): Maintenanc
         },
         reminders: { preferences, clock: deps.clock },
         repairs: { repairs, defects: deps.defects, ids: deps.ids, clock: deps.clock },
+        lookup: deps.vehicleLookup,
         callerDirectory: deps.callers,
         dataScopes: deps.dataScopes,
       });

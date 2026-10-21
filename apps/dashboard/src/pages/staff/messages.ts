@@ -86,6 +86,10 @@ const MESSAGES: Record<string, string> = {
   CompanyNotFound: 'That company could not be found.',
   ProofOfDeliveryNotFound: 'No photo has been received for that job yet.',
   HazardReportNotFound: 'That hazard report is not there any more.',
+  NoRegistration: 'This vehicle has no registration on file. Add it on the Vehicles page first.',
+  LookupNotFound: 'That registration is not on the DVLA record. Check it is typed correctly.',
+  LookupUnavailable: 'The DVLA record could not be reached just now. Try again in a few minutes.',
+  LookupNotConfigured: 'The check is not switched on yet.',
   InvalidMeasurement: 'A measurement has to be a number above zero.',
   NoRouteForVehicle:
     'No route found for that vehicle between the stops. It may be too tall, wide or heavy for the roads.',
