@@ -7,12 +7,15 @@ and have the solicitor read the Data safety answers against the final privacy no
 under-declaring**: a mismatch between the form and what the app does is a common reason for rejection or removal.
 
 Package: `com.wagonwise.driverapp`. Developer account: personal, so a closed test (about 12 testers opted in for 14
-continuous days) comes before production access.
+continuous days) comes before production access. The company now exists (WagonWise Ltd, company number 17530209), but the
+Google account is still personal: as far as I know Google does not convert a personal account, so an organisation account would need its own
+D-U-N-S number and a fresh closed test. Not worth it unless the personal account is a problem.
 
 ## Before the app content section can be finished
 
 - A **public privacy policy page** (the web address goes in the form). The landing page can host it. Needs the company name,
-  number and address, so the registration comes first.
+  number and address: WagonWise Ltd, company number 17530209 (the page names it); the registered office address is still to
+  add.
 - A **public page for deleting an account** (Play wants a web address as well as the in-app option). The app already has
   Delete account on the More tab; the page says how to ask for the same by email, and what is kept (see the consent screen).
 - A **reviewer login**: the app needs sign-in (a phone or email code, and an invite code), so Google's reviewers need a working
