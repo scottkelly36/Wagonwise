@@ -10,6 +10,7 @@ import { runMigrations } from '../platform/migrations/run-migrations.js';
 import { attachPoolErrorHandler } from '../platform/db.js';
 import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
 import { makeId } from '../shared/brand.js';
+import { err, ok } from '../shared/result.js';
 import { FakeClock } from '../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../shared/testing/sequential-id-generator.js';
 
@@ -103,6 +104,16 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
       clock,
       dataScopes: scopes,
       mailer,
+      // The government's record, faked: it says the van's MOT runs out on 1 March 2028.
+      vehicleLookup: {
+        configured: true,
+        lookup: (registration) =>
+          Promise.resolve(
+            registration === 'AB12CDE'
+              ? ok({ motExpiry: '2028-03-01', motStatus: 'Valid' })
+              : err({ tag: 'LookupNotFound' as const }),
+          ),
+      },
       dashboardUrl: 'https://portal.example.com',
       // Repairs are exercised in repairs-end-to-end.test.ts, with the real checks module behind this.
       defects: { find: () => Promise.resolve(null), setStatus: () => Promise.resolve() },
@@ -297,6 +308,41 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
       'select count(*)::int as n from maintenance.schedules',
     );
     expect(schedules[0]).toEqual({ n: 1 });
+  });
+
+  it('looks a vehicle up by registration for whoever keeps maintenance, and saves nothing', async () => {
+    const lookup = (vehicle: string, who: string) =>
+      app.inject({
+        method: 'POST',
+        url: `/staff/maintenance/vehicles/${vehicle}/lookup`,
+        ...as(who),
+      });
+
+    const found = await lookup(VAN, BOOKER);
+    expect(found.statusCode).toBe(200);
+    expect(found.json()).toEqual({
+      registration: 'AB12CDE',
+      motExpiry: '2028-03-01',
+      motStatus: 'Valid',
+      suggestions: [{ itemId: MOT, itemName: 'MOT', kind: 'mot', dueDate: '2028-03-01' }],
+    });
+    const page = await app.inject({
+      method: 'GET',
+      url: `/staff/maintenance/vehicles/${VAN}`,
+      ...as(BOOKER),
+    });
+    expect(page.json<{ lookupAvailable: boolean }>().lookupAvailable).toBe(true);
+
+    expect((await lookup(VAN, DISPATCHER)).statusCode).toBe(403);
+    expect((await lookup(VAN, RIVAL)).statusCode).toBe(404);
+    // A vehicle with no registration on file has nothing to look up.
+    expect((await lookup(LORRY, BOOKER)).json()).toMatchObject({ tag: 'NoRegistration' });
+    expect(
+      (await app.inject({ method: 'POST', url: `/staff/maintenance/vehicles/${VAN}/lookup` }))
+        .statusCode,
+    ).toBe(401);
+    const { rows } = await ownerPool.query('select count(*)::int as n from maintenance.schedules');
+    expect(rows[0]).toEqual({ n: 1 });
   });
 
   it('needs a sign-in', async () => {

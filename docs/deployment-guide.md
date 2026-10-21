@@ -192,6 +192,9 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
      (`https://dashboard.wagon-wise.co.uk`, no trailing path; lets staff invitations be emailed),
      `METOFFICE_API_KEY` (Met Office weather warnings from Weather DataHub; optional, unset means
      no warnings; core only, never the BFFs or apps),
+     `DVLA_VES_API_KEY` (the DVLA Vehicle Enquiry Service: MOT and road tax dates by registration; optional,
+     unset means the portal does not show the "Check MOT and tax by registration" button; core only, never the
+     BFFs, the portal or the apps),
      `TOMTOM_API_KEY` (TomTom live traffic; optional, unset means no traffic data; core only, never the
      BFFs or apps; `TRAFFIC_DAILY_REQUEST_LIMIT` caps calls a day, default 2000, under the free tier's 2,500),
      `STAFF_SECRET_KEY` (`openssl rand -base64 32`; keep a copy somewhere safe: losing it

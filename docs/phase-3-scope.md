@@ -83,8 +83,8 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
   soon.
 - **Who:** a new assignable privilege (`manage_maintenance`) so a manager can give it to whoever books vehicles in; managers keep it.
 - **Reminders:** each person chooses how they are told (email or only the portal built; text to follow once there is a general text sender and a mobile number on file); the portal always shows what is due.
-- **Advisory only for now:** an overdue item never stops a vehicle being sent out. Out of scope for now: mileage intervals, automatic
-  MOT lookup by registration, certificate uploads.
+- **Advisory only for now:** an overdue item never stops a vehicle being sent out. Out of scope for now: mileage intervals, certificate uploads.
+  **Automatic MOT and tax lookup by registration** was out of scope; built afterwards as an M4 follow-up (2026-10-21), ready to switch on when a DVLA key is set (see `modules.md`).
 - **Slices:** 1 registration on vehicle profiles (built); 2 items, the per-vehicle schedule, the Maintenance views and the `manage_maintenance` privilege (built); 3 the
   reminders with a notification preference (built); 4 defects into repair tasks (built); 5 a CSV import of dates for firms with many vehicles (built, so M4 is done).
 

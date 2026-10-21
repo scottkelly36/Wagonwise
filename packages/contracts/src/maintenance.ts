@@ -88,8 +88,30 @@ export type HistoryEntryDto = z.infer<typeof historyEntrySchema>;
 export const vehicleMaintenanceResponseSchema = z.object({
   rows: z.array(overviewRowSchema),
   history: z.array(historyEntrySchema),
+  /** Whether "check MOT and tax by registration" is switched on (a DVLA key is set). */
+  lookupAvailable: z.boolean(),
 });
 export type VehicleMaintenanceResponse = z.infer<typeof vehicleMaintenanceResponseSchema>;
+
+/** A date the vehicle record offers for one of the firm's own items. Taking it uses the "due" call below. */
+export const dateSuggestionSchema = z.object({
+  itemId: maintenanceItemIdSchema,
+  itemName: z.string(),
+  kind: z.enum(['mot', 'tax']),
+  dueDate: day,
+});
+export type DateSuggestionDto = z.infer<typeof dateSuggestionSchema>;
+
+/** `POST /staff/maintenance/vehicles/:vehicleId/lookup`: what the vehicle record says. Nothing is saved. */
+export const vehicleLookupResponseSchema = z.object({
+  registration: z.string(),
+  motExpiry: day.optional(),
+  taxDue: day.optional(),
+  motStatus: z.string().optional(),
+  taxStatus: z.string().optional(),
+  suggestions: z.array(dateSuggestionSchema),
+});
+export type VehicleLookupResponse = z.infer<typeof vehicleLookupResponseSchema>;
 
 /** `PUT /staff/maintenance/vehicles/:vehicleId/items/:itemId/due`: when it is next due. */
 export const setDueRequestSchema = z.object({ dueDate: day });
