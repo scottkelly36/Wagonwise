@@ -60,6 +60,7 @@ import { arrivalStep, navigationTarget } from '../lib/job-navigation';
 import { jobsErrorMessage, routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
 import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
+import { hazardsToggleLabel } from '../lib/hazards-on-route-summary';
 import {
   activeKind as activeQuickReportKind,
   isBusy as isQuickReportBusy,
@@ -189,6 +190,9 @@ export default function ActiveTripScreen() {
   // gone again as soon as the map is following. (The map's own small button sat under the turn card.)
   const mapRef = useRef<RouteMapHandle>(null);
   const [following, setFollowing] = useState(true);
+  // The list of hazards on the route is folded away once a trip is under way, so the panel is little more than End trip and
+  // the map keeps the screen. One tap on the hazards button opens it.
+  const [hazardsOpen, setHazardsOpen] = useState(false);
   // The turn card is one, two or three lines, so the cards under it start a fixed gap below its measured height.
   const [turnBannerHeight, setTurnBannerHeight] = useState(80);
   const myPlaces = useMyPlaces();
@@ -621,28 +625,30 @@ export default function ActiveTripScreen() {
           </Text>
         )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Hazards on this route</Text>
-          {hazardsOnRoute.length === 0 ? (
-            <Text style={styles.sectionEmpty}>None reported.</Text>
-          ) : (
-            hazardsOnRoute.map((hazard) => (
-              <TouchableOpacity
-                key={hazard.id}
-                onPress={() => setSelectedHazardId(hazard.id)}
-                testID={`hazard-list-item-${hazard.id}`}
-              >
-                <View style={styles.hazardRow}>
-                  <Icon name="alert-outline" size={22} color={colors.warning} />
-                  <Text style={styles.sectionItem}>
-                    {HAZARD_TYPE_LABELS[hazard.type]}
-                    {hazard.measurement ? ` · ${formatMeasurement(hazard.measurement)}` : ''}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
+        {hazardsOpen && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Hazards on this route</Text>
+            {hazardsOnRoute.length === 0 ? (
+              <Text style={styles.sectionEmpty}>None reported.</Text>
+            ) : (
+              hazardsOnRoute.map((hazard) => (
+                <TouchableOpacity
+                  key={hazard.id}
+                  onPress={() => setSelectedHazardId(hazard.id)}
+                  testID={`hazard-list-item-${hazard.id}`}
+                >
+                  <View style={styles.hazardRow}>
+                    <Icon name="alert-outline" size={22} color={colors.warning} />
+                    <Text style={styles.sectionItem}>
+                      {HAZARD_TYPE_LABELS[hazard.type]}
+                      {hazard.measurement ? ` · ${formatMeasurement(hazard.measurement)}` : ''}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        )}
 
         {job.data && arrival && (
           <View style={styles.jobBar} testID="trip-job-bar">
@@ -670,18 +676,39 @@ export default function ActiveTripScreen() {
 
         {endTrip.isError && <Text style={styles.error}>{routingErrorMessage(endTrip.error)}</Text>}
 
-        <TouchableOpacity
-          style={[styles.endButton, endTrip.isPending && styles.buttonDisabled]}
-          disabled={endTrip.isPending}
-          onPress={handleEndTrip}
-          testID="end-trip-button"
-        >
-          {endTrip.isPending ? (
-            <ActivityIndicator color={colors.danger} />
-          ) : (
-            <Text style={styles.endButtonText}>End trip</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.bottomRow}>
+          <TouchableOpacity
+            style={styles.hazardsToggle}
+            onPress={() => setHazardsOpen((open) => !open)}
+            accessibilityRole="button"
+            accessibilityLabel={hazardsToggleLabel(hazardsOnRoute.length, hazardsOpen)}
+            testID="hazards-toggle-button"
+          >
+            <Icon
+              name="alert-outline"
+              size={24}
+              color={hazardsOnRoute.length > 0 ? colors.warning : colors.textDim}
+            />
+            <Text style={styles.hazardsToggleCount}>{hazardsOnRoute.length}</Text>
+            <Icon
+              name={hazardsOpen ? 'chevron-down' : 'chevron-up'}
+              size={22}
+              color={colors.textMuted}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.endButton, endTrip.isPending && styles.buttonDisabled]}
+            disabled={endTrip.isPending}
+            onPress={handleEndTrip}
+            testID="end-trip-button"
+          >
+            {endTrip.isPending ? (
+              <ActivityIndicator color={colors.danger} />
+            ) : (
+              <Text style={styles.endButtonText}>End trip</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -798,7 +825,21 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'center',
       alignItems: 'center',
     },
+    bottomRow: { flexDirection: 'row', alignItems: 'stretch', gap: 12 },
+    hazardsToggle: {
+      minHeight: 52,
+      minWidth: 96,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+    },
+    hazardsToggleCount: { fontSize: 18, fontWeight: '800', color: colors.text },
     endButton: {
+      flex: 1,
       minHeight: 52,
       borderRadius: 16,
       borderWidth: 2,
