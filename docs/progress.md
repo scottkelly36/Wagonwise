@@ -55,8 +55,8 @@ publishes nothing.
 
 - **Deferred, P2-M6.4c:** a reroute-alert indicator on the live map. Needs reroute detection written for company jobs first.
   Revisit if the pilot firm wants it. Also open from M6: no Valhalla-backed check of the ETA and route preview.
-- **Company:** WagonWise Ltd, company number 17530209. Still to do: choose the registered office address (the website and the
-  privacy notice must show it), ask for a D-U-N-S number, register with the ICO under the company name, open the business bank
+- **Company:** WagonWise Ltd, company number 17530209. Registered office: 5 Portland Terrace, Hexham (on the website and privacy notice; the postcode and place of registration still
+  to add). Still to do: ask for a D-U-N-S number, register with the ICO under the company name, open the business bank
   account, and put the company details on the Billing details page.
 - **iOS:** TestFlight and store distribution are blocked on an Apple developer account (an organisation account needs the
   D-U-N-S number above). Voice on iOS is untested.
