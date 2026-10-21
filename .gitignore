@@ -41,3 +41,5 @@ apps/core/scripts/.osm-cache/
 live-spec.yaml
 apps/core/scripts/.osm-hazards-cache/
 apps/core/scripts/.osm-hazards-review.json
+apps/core/scripts/.osm-cameras-cache/
+apps/core/scripts/.osm-cameras-review.json

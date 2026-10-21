@@ -200,6 +200,23 @@ export type SpeedZoneDto = z.infer<typeof speedZoneSchema>;
 export const routeSpeedLimitsSchema = z.object({ zones: z.array(speedZoneSchema) });
 export type RouteSpeedLimitsDto = z.infer<typeof routeSpeedLimitsSchema>;
 
+/**
+ * `GET /routing/route-plans/:id/cameras`: speed and red-light cameras on a route, from OpenStreetMap (© OpenStreetMap
+ * contributors, ODbL). Mobile cameras are not in the map data and the map is not complete, so a camera warning is a courtesy
+ * and not a promise.
+ */
+export const routeCameraSchema = z.object({
+  id: z.string(),
+  location: geoPointSchema,
+  kind: z.enum(['fixed', 'average', 'red_light']),
+  /** The limit the map gives for the camera, in mph, when it says one. */
+  maxspeedMph: z.number().int().positive().optional(),
+});
+export type RouteCameraDto = z.infer<typeof routeCameraSchema>;
+
+export const routeCamerasSchema = z.object({ cameras: z.array(routeCameraSchema) });
+export type RouteCamerasDto = z.infer<typeof routeCamerasSchema>;
+
 /** The URL `:id` for `POST /routing/trips/:id/end`. */
 export const activeTripIdParamsSchema = z.object({
   id: z.uuid(),

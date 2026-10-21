@@ -52,6 +52,7 @@ import {
   type DriverNotifier,
   type UntypedDb as JobsUntypedDb,
 } from '../modules/jobs/api.js';
+import { createCamerasModule, type UntypedDb as CamerasUntypedDb } from '../modules/cameras/api.js';
 import { createParkingModule, type UntypedDb as ParkingUntypedDb } from '../modules/parking/api.js';
 import { createTrafficModule } from '../modules/traffic/api.js';
 import { createWeatherModule } from '../modules/weather/api.js';
@@ -210,6 +211,7 @@ export function composeCore(
   const congestionDb: CongestionUntypedDb = identityDb;
   const companiesDb: CompaniesUntypedDb = identityDb;
   const parkingDb: ParkingUntypedDb = identityDb;
+  const camerasDb: CamerasUntypedDb = identityDb;
   const placesDb: PlacesUntypedDb = identityDb;
   const billingDb: BillingUntypedDb = identityDb;
   const checksDb: ChecksUntypedDb = identityDb;
@@ -245,6 +247,7 @@ export function composeCore(
     dailyRequestLimit: config.trafficDailyRequestLimit,
     cacheTtlMs: config.trafficCacheTtlMs,
   });
+  const cameras = createCamerasModule({ db: camerasDb });
   const routing = createRoutingModule({
     db: routingDb,
     ids,
@@ -253,6 +256,7 @@ export function composeCore(
     fuelPricePerLitreGBP: config.fuelPricePerLitreGBP,
     expoAccessToken: config.expoAccessToken,
     hazards,
+    cameras,
     identity,
     congestion,
     traffic,
