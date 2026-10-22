@@ -64,10 +64,41 @@ describe('getTripTraffic', () => {
       return { delaySeconds: 600, coverage: 0.8 };
     };
     const result = await getTripTraffic(deps, input);
-    expect(result).toEqual({ ok: true, value: { enabled: true, extraMinutes: 10, coverage: 0.8 } });
+    expect(result).toEqual({
+      ok: true,
+      value: { enabled: true, extraMinutes: 10, coverage: 0.8, stretches: [] },
+    });
     // Only what is left of the route, from the lorry's position on.
     expect(seen[0]?.lat).toBeCloseTo(line[10]!.lat, 5);
     expect(seen).toHaveLength(30);
+  });
+
+  it('gives the congested stretches as fractions of the whole route, not of what is left', async () => {
+    const { deps, traffic } = await build();
+    // The lorry is a quarter of the way along (point 10 of 40, each point about 1.1 km). The provider measures from the lorry:
+    // a slow stretch from 10 km to 20 km ahead, and a heavy one from 25 km to 30 km ahead.
+    traffic.delayFor = () => ({
+      delaySeconds: 0,
+      coverage: 1,
+      stretches: [
+        { fromM: 10_000, toM: 20_000, level: 'slow' },
+        { fromM: 25_000, toM: 30_000, level: 'heavy' },
+      ],
+    });
+    const result = await getTripTraffic(deps, input);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const [slow, heavy] = result.value.stretches;
+    // The whole route is about 43.4 km and the lorry is about 11 km along it.
+    expect(slow?.level).toBe('slow');
+    expect(slow?.from).toBeCloseTo((11_130 + 10_000) / 43_400, 1);
+    expect(slow?.to).toBeCloseTo((11_130 + 20_000) / 43_400, 1);
+    expect(heavy?.level).toBe('heavy');
+    expect(heavy!.from).toBeGreaterThan(slow!.to);
+    for (const t of result.value.stretches) {
+      expect(t.from).toBeGreaterThanOrEqual(0);
+      expect(t.to).toBeLessThanOrEqual(1);
+    }
   });
 
   it("adds other drivers' congestion reports on the rest of the route", async () => {
@@ -82,7 +113,10 @@ describe('getTripTraffic', () => {
     const { deps, traffic } = await build();
     traffic.enabled = false;
     const result = await getTripTraffic(deps, input);
-    expect(result).toEqual({ ok: true, value: { enabled: false, extraMinutes: 0, coverage: 0 } });
+    expect(result).toEqual({
+      ok: true,
+      value: { enabled: false, extraMinutes: 0, coverage: 0, stretches: [] },
+    });
   });
 
   it('gives no delay when the lorry is off the route, or the trip has ended', async () => {

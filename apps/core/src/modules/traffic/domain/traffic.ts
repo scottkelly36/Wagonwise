@@ -39,6 +39,31 @@ export function extraSeconds(reading: FlowReading, lengthM: number): number {
   return Math.max(0, current - free);
 }
 
+/** How badly traffic is held up on a stretch: `slow` is a clear slowdown, `heavy` is near standstill or a closed road. */
+export type CongestionLevel = 'slow' | 'heavy';
+
+/** A stretch of a route, measured from its start, where traffic is held up. */
+export interface TrafficStretch {
+  readonly fromM: number;
+  readonly toM: number;
+  readonly level: CongestionLevel;
+}
+
+/** Below this share of the free-flow speed it is a slowdown, and below the second it is heavy. Chosen so a lorry at its own
+ *  limit on a clear road (well under a car's free-flow speed) is not painted as a jam. */
+const SLOW_BELOW = 0.7;
+const HEAVY_BELOW = 0.4;
+
+/** Whether a reading shows a slowdown worth showing the driver, and how bad. */
+export function congestionLevel(reading: FlowReading): CongestionLevel | undefined {
+  if (reading.closed) return 'heavy';
+  if (reading.currentSpeedKph <= 0 || reading.freeFlowSpeedKph <= 0) return undefined;
+  const share = reading.currentSpeedKph / reading.freeFlowSpeedKph;
+  if (share < HEAVY_BELOW) return 'heavy';
+  if (share < SLOW_BELOW) return 'slow';
+  return undefined;
+}
+
 const EARTH_RADIUS_M = 6_371_000;
 
 export function distanceM(a: GeoPoint, b: GeoPoint): number {

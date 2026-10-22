@@ -10,6 +10,7 @@ export const ACTION_COLOURS = {
   traffic: '#F0452B',
   hazard: '#F97316',
   parking: '#1A73E8',
+  camera: '#8E24AA',
 } as const;
 
 interface Props {

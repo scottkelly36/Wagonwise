@@ -652,7 +652,12 @@ describe('POST /routing/trips/:id/traffic', () => {
       ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ enabled: true, extraMinutes: 7, coverage: 0.75 });
+    expect(response.json()).toEqual({
+      enabled: true,
+      extraMinutes: 7,
+      coverage: 0.75,
+      stretches: [],
+    });
   });
 
   it('404s an unknown trip or one that belongs to another driver, and 400s a bad body', async () => {

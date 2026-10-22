@@ -51,6 +51,7 @@ import { CollapsingNotice } from '../components/collapsing-notice';
 import { FasterRouteCard } from '../components/faster-route-card';
 import { useFasterRoute } from '../hooks/use-faster-route';
 import { useTripTraffic } from '../hooks/use-trip-traffic';
+import { congestionLines } from '../lib/route-slice';
 import { trafficExtraMinutes, trafficNote } from '../lib/trip-traffic';
 import { useAutoStartHours } from '../hooks/use-auto-start-hours';
 import { parkingOnly } from '../lib/parking-details';
@@ -81,6 +82,7 @@ import { SpeedLimitSignView } from '../components/speed-limit-sign';
 import { useRouteCameras } from '../api/use-route-cameras';
 import { CameraWarningCard } from '../components/camera-warning-card';
 import { useCameraVoiceWarning } from '../hooks/use-camera-voice-warning';
+import { useAutoClear } from '../hooks/use-auto-clear';
 import { cameraOffsets, nextCameraAhead } from '../lib/camera-ahead';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
@@ -145,6 +147,9 @@ const CORRIDOR_MAX_POINTS = 1500;
 // Parking a little further out than hazards: a layby just off the route is worth seeing.
 const ON_ROUTE_PARKING_RADIUS_M = 1500;
 // A function of its own so the clock is read where it is used, not while the screen is drawn.
+/** How long the report buttons stay open on the map after a tap, when no voice report is running. */
+const REPORT_OPEN_MS = 8_000;
+
 /** How long a break or faster-route notice stays open before it shrinks to a small flag. */
 const NOTICE_OPEN_MS = 12_000;
 
@@ -214,6 +219,10 @@ export default function ActiveTripScreen() {
   const [selectedPlace, setSelectedPlace] = useState<SavedPlaceDto | undefined>(undefined);
   const [markingPlace, setMarkingPlace] = useState(false);
   const [reportingCamera, setReportingCamera] = useState(false);
+  // The report buttons (traffic, hazard, parking, camera) fold into one round button so the map keeps the room: they open for a
+  // few seconds, and stay while a voice report is running.
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportTaps, setReportTaps] = useState(0);
   const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
   const selectedParking = nearbyParking.data?.find((s) => s.id === selectedParkingId);
   const nearbyHazardsData = nearbyHazards.data;
@@ -262,7 +271,13 @@ export default function ActiveTripScreen() {
   const remainingDurationMin = plan ? plan.durationMin * (progress?.remainingFraction ?? 1) : 0;
   // The route's own time is the clear-road time. Live traffic and other drivers' reports on what is left are added to the
   // arrival time (asked of core every few minutes), and said on the card.
-  const trafficMin = trafficExtraMinutes(useTripTraffic(trip?.id, location.point));
+  const tripTraffic = useTripTraffic(trip?.id, location.point);
+  const trafficMin = trafficExtraMinutes(tripTraffic);
+  // Where traffic is held up ahead, drawn over the route in amber or red so it shows before the driver reaches it.
+  const congestion = useMemo(
+    () => congestionLines(routeLine, tripTraffic?.stretches ?? []),
+    [routeLine, tripTraffic],
+  );
   const eta = plan ? computeEta(new Date(), remainingDurationMin + trafficMin) : undefined;
   const remainingKm = progress ? progress.remainingMetres / 1000 : plan?.distanceKm;
   // The speed limit where the driver is, from the map data along the route. Nothing is shown where it is not known.
@@ -346,6 +361,14 @@ export default function ActiveTripScreen() {
   // seconds, and can be opened again or dismissed. The line is not spoken over the mic, or when the driver has muted the voice.
   const canSpeak = !voiceMuted && !micBusy && !micActive && !quickInFlight;
   useCameraVoiceWarning(cameraAhead, canSpeak);
+  const reportBusy = micBusy || micActive || quickBusy || quickListening;
+  const reportShown = reportOpen || reportBusy;
+  useAutoClear(
+    reportOpen && !reportBusy,
+    REPORT_OPEN_MS,
+    () => setReportOpen(false),
+    String(reportTaps),
+  );
   // After passing a hazard they were warned about, a spoken "was it still there?" (3 a trip, 150 m past, off in More).
   const stillThereOn = useStillThereStore((s) => s.enabled);
   const stillThereHazards = useMemo(
@@ -389,7 +412,11 @@ export default function ActiveTripScreen() {
         label={quickReportButtonLabel(kind, quickReport.state)}
         active={ownListening}
         disabled={disabled}
-        onPress={() => (ownListening ? quickReport.cancel() : quickReport.start(kind))}
+        onPress={() => {
+          setReportTaps((n) => n + 1);
+          if (ownListening) quickReport.cancel();
+          else quickReport.start(kind);
+        }}
         testID={'quick-report-' + kind}
       />
     );
@@ -443,6 +470,7 @@ export default function ActiveTripScreen() {
           origin={plan.origin}
           destination={plan.destination}
           routeLine={routeLine}
+          trafficLines={congestion}
           currentPosition={location.point}
           currentCourse={location.bearing}
           navigating
@@ -478,10 +506,18 @@ export default function ActiveTripScreen() {
         <View style={[styles.recenter, { top: belowTurn }]} pointerEvents="box-none">
           <WeatherButton point={location.point} />
           <RoundButton
-            icon="camera-plus-outline"
-            label="Report a camera"
-            onPress={() => setReportingCamera(true)}
-            testID="report-camera-button"
+            icon="message-alert-outline"
+            label={
+              reportShown
+                ? 'Hide the report buttons'
+                : 'Report traffic, a hazard, parking or a camera'
+            }
+            active={reportShown}
+            onPress={() => {
+              setReportOpen(!reportShown);
+              setReportTaps((n) => n + 1);
+            }}
+            testID="report-menu-button"
           />
           <RoundButton
             icon="map-marker-plus-outline"
@@ -508,7 +544,7 @@ export default function ActiveTripScreen() {
 
         {eta && (
           <View style={[styles.etaCard, { top: belowTurn }]} testID="active-trip-eta">
-            <Icon name="clock-outline" size={26} color={colors.accent} />
+            <Icon name="clock-outline" size={22} color={colors.accent} />
             <View>
               <Text style={styles.etaTime}>
                 ETA{' '}
@@ -652,20 +688,38 @@ export default function ActiveTripScreen() {
               they cover less of the map. One tap each, then entirely by voice (AGENTS.md: nothing
               on this screen needs typing or small taps while moving). Only one voice report runs at
               a time; a card being listened to turns red and cancels on a second tap. */}
-          <View style={styles.quickReportRow}>
-            {quickCard('traffic')}
-            <ActionCard
-              compact
-              icon="microphone"
-              iconColor={ACTION_COLOURS.hazard}
-              label={VOICE_FLOW_LABEL[voiceFlow.state.phase]}
-              active={micActive}
-              disabled={micBusy || quickInFlight}
-              onPress={micActive ? voiceFlow.reset : voiceFlow.start}
-              testID="voice-report-button"
-            />
-            {quickCard('parking')}
-          </View>
+          {reportShown && (
+            <View style={styles.quickReportRow}>
+              {quickCard('traffic')}
+              <ActionCard
+                compact
+                icon="microphone"
+                iconColor={ACTION_COLOURS.hazard}
+                label={VOICE_FLOW_LABEL[voiceFlow.state.phase]}
+                active={micActive}
+                disabled={micBusy || quickInFlight}
+                onPress={() => {
+                  setReportTaps((n) => n + 1);
+                  if (micActive) voiceFlow.reset();
+                  else voiceFlow.start();
+                }}
+                testID="voice-report-button"
+              />
+              {quickCard('parking')}
+              <ActionCard
+                compact
+                icon="camera-plus-outline"
+                iconColor={ACTION_COLOURS.camera}
+                label="Camera"
+                disabled={reportBusy}
+                onPress={() => {
+                  setReportOpen(false);
+                  setReportingCamera(true);
+                }}
+                testID="report-camera-button"
+              />
+            </View>
+          )}
         </View>
       </View>
 
@@ -829,15 +883,15 @@ function createStyles(colors: ThemeColors) {
       left: 16,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      paddingVertical: 10,
-      paddingHorizontal: 16,
+      gap: 10,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
     },
     topStack: { position: 'absolute', left: 16, right: 80, gap: 8 },
     // Room on the right of a notice for its dismiss button.
     noticeCard: { paddingRight: 44 },
-    etaTime: { fontSize: 20, fontWeight: '800', color: colors.text },
-    etaDistance: { fontSize: 14, color: colors.textMuted },
+    etaTime: { fontSize: 18, fontWeight: '800', color: colors.text },
+    etaDistance: { fontSize: 13, color: colors.textMuted },
     hazardRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     hint: {
       fontSize: 14,

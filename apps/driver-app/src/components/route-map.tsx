@@ -29,6 +29,7 @@ import { hazardSeverityFor } from '../lib/hazard-labels';
 import { viewFromBounds, type MapView } from '../lib/map-view';
 import { INITIAL_MAP_LOAD, mapLoadMessage, mapLoadReducer, SLOW_AFTER_MS } from '../lib/map-load';
 import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
+import type { CongestionLine } from '../lib/route-slice';
 import { Icon } from './ui/icon';
 
 export interface MapPoint {
@@ -91,6 +92,8 @@ interface Props {
    *  notification shows old vs new route") — drawn in a second colour alongside `routeLine`,
    *  which stands for the *current* route in that comparison. Absent everywhere else. */
   readonly alternateRouteLine?: [lon: number, lat: number][];
+  /** Stretches of the route where traffic is held up, drawn over it in amber (slow) or red (heavy). */
+  readonly trafficLines?: readonly CongestionLine[];
   /** Route options being compared on the plan-route screen, before one is chosen: every option is
    *  drawn in its own colour (matching its card) and the camera fits them all. */
   readonly routeOptionLines?: readonly RouteOptionLine[];
@@ -196,6 +199,7 @@ export function RouteMap({
   destination,
   routeLine,
   alternateRouteLine,
+  trafficLines,
   routeOptionLines,
   onMapPress,
   currentPosition,
@@ -242,6 +246,20 @@ export function RouteMap({
   const routeData = useMemo(
     () => (routeLine ? { type: 'LineString' as const, coordinates: routeLine } : undefined),
     [routeLine],
+  );
+  const congestionData = useMemo(
+    () =>
+      trafficLines !== undefined && trafficLines.length > 0
+        ? {
+            type: 'FeatureCollection' as const,
+            features: trafficLines.map((c) => ({
+              type: 'Feature' as const,
+              properties: { level: c.level },
+              geometry: { type: 'LineString' as const, coordinates: c.coordinates },
+            })),
+          }
+        : undefined,
+    [trafficLines],
   );
   const alternateData = useMemo(
     () =>
@@ -386,6 +404,20 @@ export function RouteMap({
               // Violet, not blue — blue read as a river against the base map's own water colour
               // (design decision, 2026-09-24).
               paint={{ 'line-color': '#A78BFA', 'line-width': 4 }}
+            />
+          </GeoJSONSource>
+        )}
+        {congestionData && (
+          <GeoJSONSource id="route-congestion-source" data={congestionData}>
+            <Layer
+              type="line"
+              id="route-congestion-layer"
+              source="route-congestion-source"
+              // Over the route line, in the colours of a traffic light: amber for a slowdown, red for heavy or a closed road.
+              paint={{
+                'line-color': ['match', ['get', 'level'], 'heavy', '#DC2626', '#F59E0B'],
+                'line-width': 5,
+              }}
             />
           </GeoJSONSource>
         )}

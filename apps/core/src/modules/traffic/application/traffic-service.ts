@@ -1,10 +1,12 @@
 import type { Clock } from '../../../shared/ports/clock.js';
 import {
+  congestionLevel,
   extraSeconds,
   sampleAlong,
   snapToGrid,
   type BoundingBox,
   type FlowReading,
+  type TrafficStretch,
   type GeoPoint,
   type RouteSample,
   type TrafficIncident,
@@ -38,6 +40,9 @@ export interface RouteTraffic {
   readonly incidents: readonly TrafficIncident[];
   /** Share (0 to 1) of the route we got a reading for; below 1 the delay is a lower bound. */
   readonly coverage: number;
+  /** Where along the route (metres from its start) traffic is held up, from the same readings. Each reading stands for the
+   *  stretch from its point to the next, so this is as fine as the sampling (about 5 km), not exact. */
+  readonly stretches: readonly TrafficStretch[];
 }
 
 interface Cached<T> {
@@ -76,23 +81,34 @@ export class TrafficService {
 
   async delayAlong(line: readonly GeoPoint[]): Promise<RouteTraffic> {
     if (this.provider === undefined || line.length < 2) {
-      return { delaySeconds: 0, incidents: [], coverage: 0 };
+      return { delaySeconds: 0, incidents: [], coverage: 0, stretches: [] };
     }
 
     let delay = 0;
     let covered = 0;
     let total = 0;
+    const stretches: TrafficStretch[] = [];
     for (const { point, lengthM } of this.#thin(sampleAlong(line, this.options.sampleSpacingM))) {
+      const fromM = total;
       total += lengthM;
       const reading = await this.#flowAt(point);
       if (reading === undefined) continue;
       covered += lengthM;
       delay += extraSeconds(reading, lengthM);
+      const level = congestionLevel(reading);
+      if (level === undefined) continue;
+      const last = stretches[stretches.length - 1];
+      if (last !== undefined && last.level === level && Math.abs(last.toM - fromM) < 1) {
+        stretches[stretches.length - 1] = { ...last, toM: total };
+      } else {
+        stretches.push({ fromM, toM: total, level });
+      }
     }
     return {
       delaySeconds: Math.round(delay),
       incidents: await this.#incidentsAlong(line),
       coverage: total === 0 ? 0 : covered / total,
+      stretches,
     };
   }
 

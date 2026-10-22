@@ -11,7 +11,7 @@ export class TrafficQueryAdapter implements TrafficQuery {
   }
 
   async delayAlong(line: readonly GeoPoint[]): Promise<RouteTrafficDelay> {
-    const { delaySeconds, coverage } = await this.traffic.delayAlong(line);
-    return { delaySeconds, coverage };
+    const { delaySeconds, coverage, stretches } = await this.traffic.delayAlong(line);
+    return { delaySeconds, coverage, stretches };
   }
 }
