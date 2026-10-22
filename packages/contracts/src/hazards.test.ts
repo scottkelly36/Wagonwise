@@ -19,6 +19,8 @@ describe('hazardTypeSchema', () => {
       'tight_bend',
       'roadworks',
       'flooding',
+      'speed_camera',
+      'mobile_camera',
       'no_hgv',
       'other',
     ]) {

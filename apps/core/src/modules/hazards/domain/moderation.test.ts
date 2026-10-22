@@ -88,6 +88,17 @@ describe('applyModeration', () => {
       );
       expect(result.ok && result.value.expiresAt).toEqual(inAWeek);
     });
+
+    it('temporary uses the window for its type: six hours for a mobile camera', () => {
+      const result = applyModeration(
+        report({ type: 'mobile_camera' }),
+        { kind: 'set_lifetime', lifetime: 'temporary' },
+        now,
+      );
+      expect(result.ok && result.value.expiresAt).toEqual(
+        new Date(now.getTime() + 6 * 60 * 60 * 1000),
+      );
+    });
   });
 
   describe('set_lifetime', () => {

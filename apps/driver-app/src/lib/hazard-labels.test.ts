@@ -1,4 +1,9 @@
-import { hazardSeverityFor, measurementKindFor, measurementUnitFor } from './hazard-labels';
+import {
+  hazardSeverityFor,
+  hazardWarningSpeech,
+  measurementKindFor,
+  measurementUnitFor,
+} from './hazard-labels';
 
 describe('measurementKindFor', () => {
   it('maps the three measured restriction types to their kind', () => {
@@ -37,5 +42,18 @@ describe('hazardSeverityFor', () => {
     expect(hazardSeverityFor('roadworks')).toBe('caution');
     expect(hazardSeverityFor('flooding')).toBe('caution');
     expect(hazardSeverityFor('other')).toBe('caution');
+  });
+});
+
+describe('hazardWarningSpeech', () => {
+  it('says a camera is ahead, and a hazard by its name', () => {
+    expect(hazardWarningSpeech('speed_camera')).toBe('Speed camera ahead');
+    expect(hazardWarningSpeech('mobile_camera')).toBe('Mobile speed camera ahead');
+    expect(hazardWarningSpeech('low_bridge')).toBe('Hazard ahead: Low bridge');
+  });
+
+  it('rates the camera types as take-care, not cannot-pass', () => {
+    expect(hazardSeverityFor('speed_camera')).toBe('caution');
+    expect(hazardSeverityFor('mobile_camera')).toBe('caution');
   });
 });

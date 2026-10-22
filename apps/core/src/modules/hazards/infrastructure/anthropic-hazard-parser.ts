@@ -13,6 +13,7 @@ const TOOL_NAME = 'file_hazard_report';
 const SYSTEM_PROMPT = `You turn a UK HGV driver's spoken, in-cab transcript into a structured hazard report.
 Always call ${TOOL_NAME} exactly once with your best interpretation — never ask a clarifying question, never reply in plain text.
 "type" must be the single closest match from the fixed list, even if imperfect; use "other" only when nothing fits.
+"speed_camera" is a fixed speed camera (a Gatso, an average-speed camera, a red-light camera); "mobile_camera" is a mobile speed camera van or a police speed check, anything that will not be there for long.
 "measurement" is only for a stated height, width or weight limit (e.g. "three and a half metres", "seven and a half tonnes") — omit it if the driver didn't give a number.
 "positionHint" is a short phrase for where the hazard is, in the driver's own words (e.g. "just past the roundabout"), if they said one — omit it otherwise.
 "note" is a short, factual description of the hazard itself, written like a log entry — never a retelling of the driver's own experience, reaction or exact wording. Drop filler, hesitation, false starts and anything about what happened to the driver personally; keep only what the hazard is and, if given, roughly where. For example, if the driver says "eee I just passed a bridge that was lower than what it should have been, I nearly took the wagon's roof off", the note should be "Bridge lower than signed" — not a shortened version of the driver's story. Never include swearing, insults or other offensive language, however the driver phrased it — rephrase around it neutrally rather than quoting or censoring it (e.g. "traffic's bad here" rather than repeating an expletive).`;
@@ -29,6 +30,8 @@ const parsedVoiceReportSchema = z.object({
     'tight_bend',
     'roadworks',
     'flooding',
+    'speed_camera',
+    'mobile_camera',
     'no_hgv',
     'other',
   ]),
@@ -55,6 +58,8 @@ const TOOL_INPUT_SCHEMA = {
         'tight_bend',
         'roadworks',
         'flooding',
+        'speed_camera',
+        'mobile_camera',
         'no_hgv',
         'other',
       ],

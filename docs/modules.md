@@ -110,6 +110,8 @@ extract each time so it also tests against Geofabrik's current data.
 flooding…) that feed into routing's avoidance. Same reachability as routing's, above: through the
 BFF with just a bearer token, or calling core directly with `X-Internal-Key` plus the token.
 
+**Cameras drivers mark (2026-10-22):** two hazard types, `speed_camera` (a fixed camera: permanent, like a low bridge, until drivers dismiss it) and `mobile_camera` (a van or police speed check: **expires after 6 hours** unless another driver confirms it is still there, which renews it for another 6; `expiryWindowMs` in `domain/hazard-report.ts`). Both are advisory: never blocking, never avoided by routing. They go through the normal report screen, voice report and "still there?" prompt, show on the map with their own icons and are spoken as "Speed camera ahead" or "Mobile speed camera ahead" (`hazardWarningSpeech`). Separate from the OpenStreetMap camera positions in `cameras` (see Routing); a camera that is in both can be spoken twice, and nothing yet joins them.
+
 | Route                               | Does                                                                                                                          |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `POST /hazards/reports`             | `{ id, type, location, note?, measurement?, source }` — reports one                                                           |
