@@ -185,6 +185,21 @@ export const routePlanIdParamsSchema = z.object({
 });
 export type RoutePlanIdParams = z.infer<typeof routePlanIdParamsSchema>;
 
+/**
+ * `GET /routing/route-plans/:id/speed-limits`: what to show a driver about the speed limit along a route. `from` and
+ * `to` are fractions of the route's length (0 to 1). A zone without `limitMph` is the national speed limit. Stretches
+ * with no zone have nothing to show: the limit is not known, and nothing is guessed.
+ */
+export const speedZoneSchema = z.object({
+  from: z.number().min(0).max(1),
+  to: z.number().min(0).max(1),
+  limitMph: z.number().int().positive().optional(),
+});
+export type SpeedZoneDto = z.infer<typeof speedZoneSchema>;
+
+export const routeSpeedLimitsSchema = z.object({ zones: z.array(speedZoneSchema) });
+export type RouteSpeedLimitsDto = z.infer<typeof routeSpeedLimitsSchema>;
+
 /** The URL `:id` for `POST /routing/trips/:id/end`. */
 export const activeTripIdParamsSchema = z.object({
   id: z.uuid(),

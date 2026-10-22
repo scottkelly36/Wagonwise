@@ -21,6 +21,10 @@ import {
 import { checkFasterRoute, type CheckFasterRouteDeps } from '../application/check-faster-route.js';
 import { endTrip, type EndTripDeps } from '../application/end-trip.js';
 import { getActiveTrip, type GetActiveTripDeps } from '../application/get-active-trip.js';
+import {
+  getRouteSpeedLimits,
+  type GetRouteSpeedLimitsDeps,
+} from '../application/get-route-speed-limits.js';
 import { getRoutePlan, type GetRoutePlanDeps } from '../application/get-route-plan.js';
 import {
   getVehicleProfile,
@@ -51,6 +55,7 @@ export interface RoutingRouteDeps {
   readonly planRoute: PlanRouteDeps;
   readonly previewRouteOptions: PreviewRouteOptionsDeps;
   readonly getRoutePlan: GetRoutePlanDeps;
+  readonly getRouteSpeedLimits: GetRouteSpeedLimitsDeps;
   readonly startTrip: StartTripDeps;
   readonly endTrip: EndTripDeps;
   readonly getActiveTrip: GetActiveTripDeps;
@@ -220,6 +225,24 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(200).send(result.value);
+  });
+
+  app.get('/routing/route-plans/:id/speed-limits', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const params = routePlanIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await getRouteSpeedLimits(deps.getRouteSpeedLimits, {
+      id: makeId<'RoutePlanId'>(params.data.id),
+      driverId,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send({ zones: result.value });
   });
 
   app.post('/routing/route-plans/:id/trip', async (request, reply) => {

@@ -31,6 +31,7 @@ import {
   type UpsertVehicleProfileInput,
 } from './application/upsert-vehicle-profile.js';
 import { ValhallaRoutingEngine } from './infrastructure/valhalla-routing-engine.js';
+import { ValhallaSpeedLimits } from './infrastructure/valhalla-speed-limits.js';
 import { registerRoutingRoutes, type RoutingRouteDeps } from './interface/routes.js';
 
 // Re-exported for the same reason as the others below — composition/ types its overrides without
@@ -155,6 +156,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
       fuelPricePerLitreGBP: deps.fuelPricePerLitreGBP,
     },
     getRoutePlan: { routePlanRepo },
+    getRouteSpeedLimits: { routePlanRepo, speedLimits: new ValhallaSpeedLimits(deps.valhallaUrl) },
     startTrip: { routePlanRepo, activeTripRepo, clock: deps.clock, ids: deps.ids },
     endTrip: { repo: activeTripRepo, clock: deps.clock },
     getActiveTrip: { activeTripRepo },

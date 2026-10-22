@@ -8,6 +8,7 @@ import {
   previewRouteOptionsRequestSchema,
   previewRouteOptionsResponseSchema,
   routePlanSchema,
+  routeSpeedLimitsSchema,
   vehicleProfileSchema,
   type ActiveTripDto,
   type CreateVehicleProfileRequest,
@@ -17,6 +18,7 @@ import {
   type PreviewRouteOptionsRequest,
   type RouteOptionDto,
   type RoutePlanDto,
+  type SpeedZoneDto,
   type VehicleProfileDto,
 } from '@wagonwise/contracts/routing';
 import { z } from 'zod';
@@ -120,6 +122,20 @@ export async function getRoutePlan(accessToken: string, id: string): Promise<Rou
   });
   throwUnlessSuccess(status, json, [200]);
   return routePlanSchema.parse(json);
+}
+
+/** The speed limits to show along a planned route (fractions of the route, in order). */
+export async function getRouteSpeedLimits(
+  accessToken: string,
+  routePlanId: string,
+): Promise<SpeedZoneDto[]> {
+  const { status, json } = await requestJson(
+    'GET',
+    `/routing/route-plans/${routePlanId}/speed-limits`,
+    { authorization: bearer(accessToken) },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return routeSpeedLimitsSchema.parse(json).zones;
 }
 
 export async function startTrip(accessToken: string, routePlanId: string): Promise<ActiveTripDto> {
