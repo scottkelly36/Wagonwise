@@ -298,6 +298,23 @@ describe('POST /hazards/voice-reports/parse', () => {
     });
   });
 
+  it('still answers, as something else with what was said, when the parser breaks', async () => {
+    const { app, deps } = buildApp();
+    (deps as { parseVoiceReport: unknown }).parseVoiceReport = {
+      parser: { parse: () => Promise.reject(new Error('Anthropic returned 401')) },
+    };
+    const response = await app.inject({
+      method: 'POST',
+      url: '/hazards/voice-reports/parse',
+      payload: { transcript: 'low bridge just past the roundabout' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      type: 'other',
+      note: 'low bridge just past the roundabout',
+    });
+  });
+
   it('400s a missing transcript', async () => {
     const { app } = buildApp();
     const response = await app.inject({
