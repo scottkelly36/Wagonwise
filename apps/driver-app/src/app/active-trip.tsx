@@ -21,7 +21,7 @@ import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { ParkingSpotDrawer } from '../components/parking-spot-drawer';
 import { MarkPlaceSheet } from '../components/mark-place-sheet';
 import { ReportCameraSheet } from '../components/report-camera-sheet';
-import { withoutCameras } from '../lib/camera-report';
+import { isCameraType, withoutCameras } from '../lib/camera-report';
 import { PlaceSheet } from '../components/place-sheet';
 import { WeatherButton } from '../components/weather-button';
 import { useMyPlaces } from '../api/use-places';
@@ -51,6 +51,8 @@ import { CollapsingNotice } from '../components/collapsing-notice';
 import { FasterRouteCard } from '../components/faster-route-card';
 import { useFasterRoute } from '../hooks/use-faster-route';
 import { useTripTraffic } from '../hooks/use-trip-traffic';
+import { cameraMarkers } from '../lib/camera-markers';
+import { placeOnRoute, stillAhead } from '../lib/on-route';
 import { congestionLines } from '../lib/route-slice';
 import { trafficExtraMinutes, trafficNote } from '../lib/trip-traffic';
 import { useAutoStartHours } from '../hooks/use-auto-start-hours';
@@ -147,6 +149,9 @@ const CORRIDOR_MAX_POINTS = 1500;
 // Parking a little further out than hazards: a layby just off the route is worth seeing.
 const ON_ROUTE_PARKING_RADIUS_M = 1500;
 // A function of its own so the clock is read where it is used, not while the screen is drawn.
+/** The hazards and cameras ahead are re-cut each time the lorry has moved this far, not every second. */
+const AHEAD_STEP_M = 250;
+
 /** How long the report buttons stay open on the map after a tap, when no voice report is running. */
 const REPORT_OPEN_MS = 8_000;
 
@@ -228,10 +233,6 @@ export default function ActiveTripScreen() {
   const nearbyHazardsData = nearbyHazards.data;
   // A stable array: a new one every render (once a second, with the position) made every hazard
   // marker update on the map each time.
-  const mapHazards = useMemo(
-    () => nearbyHazardsData?.map((h) => ({ id: h.id, type: h.type, location: h.location })),
-    [nearbyHazardsData],
-  );
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
@@ -296,6 +297,39 @@ export default function ActiveTripScreen() {
     () => (routeLine && routeCameras.data ? cameraOffsets(routeLine, routeCameras.data) : []),
     [routeLine, routeCameras.data],
   );
+  // Hazards and cameras are drawn and spoken about only when they are on the route itself and still ahead. The query for
+  // hazards near the route reaches 750 m either side, which in a town includes the next street over: not the driver's hazard.
+  // Placed on the route once; the "ahead" cut is redone every 250 m, not every second, so the markers do not churn.
+  const hazardsPlaced = useMemo(
+    () => (routeLine && nearbyHazardsData ? placeOnRoute(routeLine, nearbyHazardsData) : []),
+    [routeLine, nearbyHazardsData],
+  );
+  const aheadFromM = progress
+    ? Math.floor(progress.traveledMetres / AHEAD_STEP_M) * AHEAD_STEP_M
+    : 0;
+  const hazardsAhead = useMemo(
+    () => stillAhead(hazardsPlaced, aheadFromM),
+    [hazardsPlaced, aheadFromM],
+  );
+  const mapHazards = useMemo(
+    () =>
+      hazardsAhead
+        .filter((h) => !isCameraType(h.type))
+        .map((h) => ({ id: h.id, type: h.type, location: h.location })),
+    [hazardsAhead],
+  );
+  // Cameras on the map: the ones along the route from the map data and the ones drivers marked, in their own markers.
+  const mapCameras = useMemo(
+    () =>
+      cameraMarkers(
+        stillAhead(
+          cameraPositions.map((c) => ({ item: c.camera, offsetM: c.offsetM })),
+          aheadFromM,
+        ),
+        hazardsAhead,
+      ),
+    [cameraPositions, hazardsAhead, aheadFromM],
+  );
   const cameraAhead = progress
     ? nextCameraAhead(cameraPositions, progress.traveledMetres, progress.offRouteMetres)
     : undefined;
@@ -341,7 +375,7 @@ export default function ActiveTripScreen() {
   useHazardVoiceWarnings(
     routeLine,
     location.point,
-    nearbyHazardsData,
+    hazardsAhead,
     !micBusy && !micActive && !quickInFlight,
   );
 
@@ -475,6 +509,8 @@ export default function ActiveTripScreen() {
           currentCourse={location.bearing}
           navigating
           hazards={mapHazards}
+          cameras={mapCameras}
+          onCameraPress={setSelectedHazardId}
           parkingSpots={mapParking}
           onParkingSpotPress={setSelectedParkingId}
           places={mapPlaces}

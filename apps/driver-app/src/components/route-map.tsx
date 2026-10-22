@@ -29,6 +29,7 @@ import { hazardSeverityFor } from '../lib/hazard-labels';
 import { viewFromBounds, type MapView } from '../lib/map-view';
 import { INITIAL_MAP_LOAD, mapLoadMessage, mapLoadReducer, SLOW_AFTER_MS } from '../lib/map-load';
 import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
+import type { CameraMarker } from '../lib/camera-marker-type';
 import type { CongestionLine } from '../lib/route-slice';
 import { Icon } from './ui/icon';
 
@@ -94,6 +95,9 @@ interface Props {
   readonly alternateRouteLine?: [lon: number, lat: number][];
   /** Stretches of the route where traffic is held up, drawn over it in amber (slow) or red (heavy). */
   readonly trafficLines?: readonly CongestionLine[];
+  /** Speed and red-light cameras, drawn as their own markers apart from hazards. A tap on one a driver marked opens its report. */
+  readonly cameras?: readonly CameraMarker[];
+  readonly onCameraPress?: (hazardId: string) => void;
   /** Route options being compared on the plan-route screen, before one is chosen: every option is
    *  drawn in its own colour (matching its card) and the camera fits them all. */
   readonly routeOptionLines?: readonly RouteOptionLine[];
@@ -200,6 +204,8 @@ export function RouteMap({
   routeLine,
   alternateRouteLine,
   trafficLines,
+  cameras,
+  onCameraPress,
   routeOptionLines,
   onMapPress,
   currentPosition,
@@ -487,6 +493,24 @@ export function RouteMap({
             </View>
           </ViewAnnotation>
         ))}
+        {cameras?.map((camera) => (
+          <ViewAnnotation
+            key={camera.id}
+            id={`camera-${camera.id}`}
+            lngLat={toLngLat(camera.location)}
+            onPress={() => {
+              if (camera.hazardId !== undefined) onCameraPress?.(camera.hazardId);
+            }}
+          >
+            <View style={styles.cameraMarker} testID={`camera-pin-${camera.id}`}>
+              <Icon
+                name={camera.mobile ? 'police-badge-outline' : 'camera'}
+                size={16}
+                color="#FFFFFF"
+              />
+            </View>
+          </ViewAnnotation>
+        ))}
         {congestion?.map((report) => (
           <ViewAnnotation
             key={report.id}
@@ -692,6 +716,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#0B1220',
+  },
+  // Round and purple with a camera on it: not a warning square, not a delay, not a place to park. A camera is its own
+  // kind of thing on the map.
+  cameraMarker: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#8E24AA',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   // Square and blue, unlike either the square red/amber hazardMarker or the round teal
   // congestionMarker above — a place to park reads as neither a warning nor a delay.

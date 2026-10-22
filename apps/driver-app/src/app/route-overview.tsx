@@ -22,6 +22,7 @@ import { routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
 import { formatDuration } from '../lib/format-duration';
 import { withoutCameras } from '../lib/camera-report';
+import { placeOnRoute } from '../lib/on-route';
 import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
@@ -68,6 +69,18 @@ export default function RouteOverviewScreen() {
   // for the map markers, a broader ~750m corridor check) gets a readable label without a second
   // request — an id that's since been dismissed/expired (so it's dropped out of the live query)
   // just doesn't render, which is the right call for something no longer actually there.
+  // Only what is on the route itself: the query reaches 750 m either side, which in a town takes in the next street over.
+  const onRouteHazards = useMemo(
+    () =>
+      routeLine && nearbyHazardsData
+        ? placeOnRoute(routeLine, nearbyHazardsData).map(({ item: h }) => ({
+            id: h.id,
+            type: h.type,
+            location: h.location,
+          }))
+        : [],
+    [routeLine, nearbyHazardsData],
+  );
   const hazardsOnRoute = useMemo(() => {
     if (!plan || !nearbyHazardsData) return [];
     // Keyed by plain `string`, not the branded `HazardReportId` `hazard.id` actually is — the
@@ -150,11 +163,7 @@ export default function RouteOverviewScreen() {
         origin={plan.origin}
         destination={plan.destination}
         routeLine={routeLine}
-        hazards={nearbyHazardsData?.map((h) => ({
-          id: h.id,
-          type: h.type,
-          location: h.location,
-        }))}
+        hazards={onRouteHazards}
         onHazardPress={setSelectedHazardId}
       />
 
