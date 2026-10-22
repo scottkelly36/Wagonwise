@@ -16,6 +16,9 @@ export interface TrafficModuleDeps {
   readonly provider?: TrafficProvider | undefined;
   readonly dailyRequestLimit: number;
   readonly cacheTtlMs: number;
+  /** Told (rarely) when a provider call fails or the allowance runs out. */
+  readonly onProblem?:
+    ((what: 'flow' | 'incidents' | 'limit', error?: unknown) => void) | undefined;
 }
 
 export interface TrafficModule {
@@ -38,6 +41,7 @@ export function createTrafficModule(deps: TrafficModuleDeps): TrafficModule {
     dailyRequestLimit: deps.dailyRequestLimit,
     sampleSpacingM: 5_000,
     maxSamplesPerRoute: 30,
+    onProblem: deps.onProblem,
   });
   return {
     enabled: service.enabled,

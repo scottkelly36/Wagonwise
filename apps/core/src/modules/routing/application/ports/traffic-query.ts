@@ -10,5 +10,7 @@ export interface RouteTrafficDelay {
 /** Routing's own read-model port onto `traffic` (AGENTS.md rule 7). Never throws: no provider, a cap reached or
  *  a failed call all come back as low coverage. */
 export interface TrafficQuery {
+  /** Whether live traffic is switched on at all (a provider key is set). */
+  readonly enabled: boolean;
   delayAlong(line: readonly GeoPoint[]): Promise<RouteTrafficDelay>;
 }

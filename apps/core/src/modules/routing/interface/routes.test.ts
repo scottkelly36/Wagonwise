@@ -1,6 +1,8 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
+import { ok } from '../../../shared/result.js';
+import { encodePolyline } from '../application/testing/encode-polyline.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import { InMemoryActiveTripRepository } from '../application/testing/in-memory-active-trip-repository.js';
@@ -54,6 +56,15 @@ function buildApp(): {
     },
     previewRouteOptions: { vehicleProfileRepo: repo, routingEngine, fuelPricePerLitreGBP: 1.6 },
     getRoutePlan: { routePlanRepo },
+    getTripTraffic: {
+      activeTripRepo,
+      routePlanRepo,
+      congestionQuery: new FakeCongestionQuery(),
+      trafficQuery: {
+        enabled: true,
+        delayAlong: () => Promise.resolve({ delaySeconds: 420, coverage: 0.75 }),
+      },
+    },
     getRouteSpeedLimits: {
       routePlanRepo,
       speedLimits: { zonesAlong: () => Promise.resolve([{ from: 0, to: 1, limitMph: 30 }]) },
@@ -596,6 +607,71 @@ describe('GET /routing/route-plans/:id/speed-limits', () => {
       ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('POST /routing/trips/:id/traffic', () => {
+  it('200s with the extra minutes on the rest of the route for the driver of the trip', async () => {
+    const { app, routingEngine } = buildApp();
+    // A real line for the lorry to be on (the default fake route is not one).
+    routingEngine.result = ok({
+      geometry: encodePolyline(
+        Array.from({ length: 10 }, (_, i) => ({ lat: 54.97 + i * 0.01, lon: -2.1 })),
+      ),
+      distanceKm: 10,
+      durationMin: 15,
+      maneuvers: [],
+    });
+    const routePlanId = await planned(app);
+    const trip = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${routePlanId}/trip`,
+      ...asDriver('driver-1'),
+    });
+    const tripId = trip.json<{ id: string }>().id;
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${tripId}/traffic`,
+      payload: { position: { lat: 54.97, lon: -2.1 } },
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ enabled: true, extraMinutes: 7, coverage: 0.75 });
+  });
+
+  it('404s an unknown trip or one that belongs to another driver, and 400s a bad body', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+    const trip = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${routePlanId}/trip`,
+      ...asDriver('driver-1'),
+    });
+    const tripId = trip.json<{ id: string }>().id;
+    const payload = { position: { lat: 54.97, lon: -2.1 } };
+
+    const other = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${tripId}/traffic`,
+      payload,
+      ...asDriver('driver-2'),
+    });
+    const unknown = await app.inject({
+      method: 'POST',
+      url: '/routing/trips/11111111-1111-4111-8111-111111111111/traffic',
+      payload,
+      ...asDriver('driver-1'),
+    });
+    const bad = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${tripId}/traffic`,
+      payload: {},
+      ...asDriver('driver-1'),
+    });
+    expect(other.statusCode).toBe(404);
+    expect(unknown.statusCode).toBe(404);
+    expect(bad.statusCode).toBe(400);
   });
 });
 

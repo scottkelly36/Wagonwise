@@ -326,6 +326,60 @@ describe('GET /routing/route-plans/:id', () => {
   });
 });
 
+describe('POST /routing/trips/:id/traffic', () => {
+  const ID = '11111111-1111-4111-8111-111111111111';
+  const position = { lat: 54.97, lon: -2.1 };
+
+  it('forwards the position and token and relays the answer', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = {
+      status: 200,
+      body: { enabled: true, extraMinutes: 7, coverage: 0.75 },
+    };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${ID}/traffic`,
+      payload: { position },
+      headers: AUTH_HEADER,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ enabled: true, extraMinutes: 7, coverage: 0.75 });
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: `/routing/trips/${ID}/traffic`,
+      body: { position },
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('400s a bad body or id and requires a token, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const bad = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${ID}/traffic`,
+      payload: {},
+      headers: AUTH_HEADER,
+    });
+    const badId = await app.inject({
+      method: 'POST',
+      url: '/routing/trips/not-a-uuid/traffic',
+      payload: { position },
+      headers: AUTH_HEADER,
+    });
+    const anonymous = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${ID}/traffic`,
+      payload: { position },
+    });
+    expect(bad.statusCode).toBe(400);
+    expect(badId.statusCode).toBe(400);
+    expect(anonymous.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+});
+
 describe('GET /routing/route-plans/:id/speed-limits', () => {
   const ID = '11111111-1111-4111-8111-111111111111';
 

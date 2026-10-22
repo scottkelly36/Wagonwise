@@ -20,7 +20,16 @@ export interface TrafficServiceOptions {
   readonly sampleSpacingM: number;
   /** The most flow samples taken for one route, so a long route cannot spend the day's allowance. */
   readonly maxSamplesPerRoute: number;
+  /**
+   * Told when a provider call fails or the day's allowance runs out, at most once every few minutes for each kind, so a broken key
+   * or an outage shows up in the logs instead of quietly giving every route "no traffic".
+   */
+  readonly onProblem?:
+    ((what: 'flow' | 'incidents' | 'limit', error?: unknown) => void) | undefined;
 }
+
+/** The same problem is reported at most this often. */
+const PROBLEM_EVERY_MS = 5 * 60_000;
 
 export interface RouteTraffic {
   /** Seconds added to the route by traffic, over its free-flow time. */
@@ -47,6 +56,7 @@ export class TrafficService {
   readonly #incidents = new Map<string, Cached<TrafficIncident[]>>();
   #day = '';
   #used = 0;
+  readonly #lastProblem = new Map<string, number>();
 
   constructor(
     private readonly provider: TrafficProvider | undefined,
@@ -108,12 +118,17 @@ export class TrafficService {
     const hit = this.#flow.get(key);
     if (hit !== undefined && this.#fresh(hit)) return hit.value;
     const provider = this.provider;
-    if (provider === undefined || !this.#spend()) return hit?.value;
+    if (provider === undefined) return hit?.value;
+    if (!this.#spend()) {
+      this.#problem('limit');
+      return hit?.value;
+    }
     try {
       const value = await provider.flowAt(snapped);
       this.#flow.set(key, { value, at: this.clock.now().getTime() });
       return value;
-    } catch {
+    } catch (error) {
+      this.#problem('flow', error);
       return hit?.value; // a stale reading beats none; the next call tries again
     }
   }
@@ -125,14 +140,26 @@ export class TrafficService {
     const key = [box.minLat, box.minLon, box.maxLat, box.maxLon].join(',');
     const hit = this.#incidents.get(key);
     if (hit !== undefined && this.#fresh(hit)) return hit.value;
-    if (!this.#spend()) return hit?.value ?? [];
+    if (!this.#spend()) {
+      this.#problem('limit');
+      return hit?.value ?? [];
+    }
     try {
       const value = await provider.incidentsIn(box);
       this.#incidents.set(key, { value, at: this.clock.now().getTime() });
       return value;
-    } catch {
+    } catch (error) {
+      this.#problem('incidents', error);
       return hit?.value ?? [];
     }
+  }
+
+  #problem(what: 'flow' | 'incidents' | 'limit', error?: unknown): void {
+    const at = this.clock.now().getTime();
+    const last = this.#lastProblem.get(what);
+    if (last !== undefined && at - last < PROBLEM_EVERY_MS) return;
+    this.#lastProblem.set(what, at);
+    this.options.onProblem?.(what, error);
   }
 
   #fresh(entry: Cached<unknown>): boolean {

@@ -8,6 +8,7 @@ import {
   previewRouteOptionsRequestSchema,
   previewRouteOptionsResponseSchema,
   routePlanSchema,
+  tripTrafficSchema,
   routeSpeedLimitsSchema,
   vehicleProfileSchema,
   type ActiveTripDto,
@@ -18,6 +19,7 @@ import {
   type PreviewRouteOptionsRequest,
   type RouteOptionDto,
   type RoutePlanDto,
+  type TripTrafficDto,
   type SpeedZoneDto,
   type VehicleProfileDto,
 } from '@wagonwise/contracts/routing';
@@ -136,6 +138,20 @@ export async function getRouteSpeedLimits(
   );
   throwUnlessSuccess(status, json, [200]);
   return routeSpeedLimitsSchema.parse(json).zones;
+}
+
+/** How much live traffic and other drivers' reports add to what is left of the route, from where the lorry is. */
+export async function getTripTraffic(
+  accessToken: string,
+  tripId: string,
+  position: { lat: number; lon: number },
+): Promise<TripTrafficDto> {
+  const { status, json } = await requestJson('POST', `/routing/trips/${tripId}/traffic`, {
+    body: { position },
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return tripTrafficSchema.parse(json);
 }
 
 export async function startTrip(accessToken: string, routePlanId: string): Promise<ActiveTripDto> {

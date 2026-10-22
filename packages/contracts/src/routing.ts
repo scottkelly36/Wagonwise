@@ -200,6 +200,20 @@ export type SpeedZoneDto = z.infer<typeof speedZoneSchema>;
 export const routeSpeedLimitsSchema = z.object({ zones: z.array(speedZoneSchema) });
 export type RouteSpeedLimitsDto = z.infer<typeof routeSpeedLimitsSchema>;
 
+/** `POST /routing/trips/:id/traffic`: how much live traffic and other drivers' reports add to what is left of the route. */
+export const tripTrafficRequestSchema = z.object({ position: geoPointSchema });
+export type TripTrafficRequest = z.infer<typeof tripTrafficRequestSchema>;
+
+export const tripTrafficSchema = z.object({
+  /** Whether live traffic is switched on at all. */
+  enabled: z.boolean(),
+  /** Minutes added to the rest of the route over its clear-road time. */
+  extraMinutes: z.number().int().min(0),
+  /** Share (0 to 1) of the rest of the route the provider had a reading for; below that the delay is a lower bound. */
+  coverage: z.number().min(0).max(1),
+});
+export type TripTrafficDto = z.infer<typeof tripTrafficSchema>;
+
 /** The URL `:id` for `POST /routing/trips/:id/end`. */
 export const activeTripIdParamsSchema = z.object({
   id: z.uuid(),

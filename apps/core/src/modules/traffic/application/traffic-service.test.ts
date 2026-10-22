@@ -129,3 +129,50 @@ describe('TrafficService.delayAlong', () => {
     expect((await service.delayAlong(line)).incidents).toEqual([incident]);
   });
 });
+
+describe('TrafficService problem reports', () => {
+  it('says so, rarely, when the provider fails, so a broken key is not silent', async () => {
+    const problems: string[] = [];
+    const clock = clockAt('2026-10-10T09:00:00Z');
+    const provider = new FakeProvider();
+    provider.failing = true;
+    const service = new TrafficService(provider, clock, {
+      ...options,
+      onProblem: (what) => problems.push(what),
+    });
+
+    await service.delayAlong(line);
+    // Many failing calls in one go (a flow sample each, and the incidents) say it once for each kind.
+    expect(problems.sort()).toEqual(['flow', 'incidents']);
+
+    problems.length = 0;
+    clock.set('2026-10-10T09:02:00Z');
+    await service.delayAlong(line);
+    expect(problems).toEqual([]);
+
+    clock.set('2026-10-10T09:06:00Z');
+    await service.delayAlong(line);
+    expect(problems.sort()).toEqual(['flow', 'incidents']);
+  });
+
+  it('says so when the day allowance runs out', async () => {
+    const problems: string[] = [];
+    const service = new TrafficService(new FakeProvider(), clockAt('2026-10-10T09:00:00Z'), {
+      ...options,
+      dailyRequestLimit: 2,
+      onProblem: (what) => problems.push(what),
+    });
+    await service.delayAlong(line);
+    expect(problems).toEqual(['limit']);
+  });
+
+  it('says nothing when all is well', async () => {
+    const problems: string[] = [];
+    const service = new TrafficService(new FakeProvider(), clockAt('2026-10-10T09:00:00Z'), {
+      ...options,
+      onProblem: (what) => problems.push(what),
+    });
+    await service.delayAlong(line);
+    expect(problems).toEqual([]);
+  });
+});
