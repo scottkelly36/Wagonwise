@@ -66,7 +66,7 @@ export interface RoutingModuleDeps {
   /** `congestion`'s and `traffic`'s facades: the faster-route check reads drivers' congestion reports and the
    *  traffic provider's delays through this module's own query adapters. */
   readonly congestion: Pick<CongestionModule, 'findNearby'>;
-  readonly traffic: Pick<TrafficModule, 'delayAlong'>;
+  readonly traffic: Pick<TrafficModule, 'delayAlong' | 'enabled'>;
   /** Optional bearer token for Expo's enhanced push security (M6.5) — unset is fine, Expo's push
    *  API works without one; only matters if that project setting is ever turned on. */
   readonly expoAccessToken?: string | undefined;
@@ -160,6 +160,12 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
       fuelPricePerLitreGBP: deps.fuelPricePerLitreGBP,
     },
     getRoutePlan: { routePlanRepo },
+    getTripTraffic: {
+      activeTripRepo,
+      routePlanRepo,
+      congestionQuery: new CongestionQueryAdapter(deps.congestion),
+      trafficQuery: new TrafficQueryAdapter(deps.traffic),
+    },
     getRouteSpeedLimits: { routePlanRepo, speedLimits: new ValhallaSpeedLimits(deps.valhallaUrl) },
     getRouteCameras: {
       routePlanRepo,

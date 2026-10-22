@@ -95,6 +95,10 @@ pnpm test:golden
 Runs nightly in CI (`.github/workflows/nightly-golden-routes.yml`), which downloads a fresh
 extract each time so it also tests against Geofabrik's current data.
 
+### Arrival time with traffic (2026-10-22)
+
+`POST /routing/trips/:id/traffic` `{ position }` returns `{ enabled, extraMinutes, coverage }` for what is left of the route from that position (`application/get-trip-traffic.ts`): the traffic module's delay along it plus other drivers' congestion reports. The app (`use-trip-traffic.ts`, `lib/trip-traffic.ts`) adds it to the ETA only when traffic is on, at least half the route was read and the delay is 2 minutes or more. `TrafficService` now reports provider failures and the daily allowance running out through `onProblem` (logged as a warning by `compose-core.ts`, at most every 5 minutes for each kind): look for `live traffic: provider call failed or allowance used up` in core's logs to see whether TomTom is working.
+
 ### Speed limits on the trip screen (2026-10-21)
 
 `GET /routing/route-plans/:id/speed-limits` (core, and the driver BFF forwards it) returns `{ zones: [{ from, to, limitMph? }] }`, with `from` and `to` as fractions of the route's length. The app asks once per route (`use-route-speed-limits.ts`) and `speedLimitHere` (`lib/speed-limit.ts`) picks the zone for the driver's progress along the route; `SpeedLimitSignView` draws the sign bottom-left on the map.

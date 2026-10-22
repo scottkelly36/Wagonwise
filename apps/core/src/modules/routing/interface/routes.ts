@@ -2,6 +2,7 @@ import {
   activeTripIdParamsSchema,
   createVehicleProfileRequestSchema,
   fasterRouteCheckRequestSchema,
+  tripTrafficRequestSchema,
   planRouteRequestSchema,
   previewRouteOptionsRequestSchema,
   routePlanIdParamsSchema,
@@ -27,6 +28,7 @@ import {
 } from '../application/get-route-speed-limits.js';
 import { getRouteCameras, type GetRouteCamerasDeps } from '../application/get-route-cameras.js';
 import { getRoutePlan, type GetRoutePlanDeps } from '../application/get-route-plan.js';
+import { getTripTraffic, type GetTripTrafficDeps } from '../application/get-trip-traffic.js';
 import {
   getVehicleProfile,
   type GetVehicleProfileDeps,
@@ -57,6 +59,7 @@ export interface RoutingRouteDeps {
   readonly previewRouteOptions: PreviewRouteOptionsDeps;
   readonly getRoutePlan: GetRoutePlanDeps;
   readonly getRouteSpeedLimits: GetRouteSpeedLimitsDeps;
+  readonly getTripTraffic: GetTripTrafficDeps;
   readonly getRouteCameras: GetRouteCamerasDeps;
   readonly startTrip: StartTripDeps;
   readonly endTrip: EndTripDeps;
@@ -222,6 +225,28 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
     const result = await getRoutePlan(deps.getRoutePlan, {
       id: makeId<'RoutePlanId'>(params.data.id),
       driverId,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send(result.value);
+  });
+
+  // How much live traffic and other drivers' reports add to what is left of the route, for the arrival time. Always 200
+  // with numbers (no delay when traffic is off or unknown). Core does not track the lorry, so the app sends where it is.
+  app.post('/routing/trips/:id/traffic', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const params = activeTripIdParamsSchema.safeParse(request.params);
+    const body = tripTrafficRequestSchema.safeParse(request.body);
+    if (!params.success || !body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await getTripTraffic(deps.getTripTraffic, {
+      driverId,
+      tripId: makeId<'ActiveTripId'>(params.data.id),
+      position: body.data.position,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });

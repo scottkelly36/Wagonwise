@@ -50,6 +50,8 @@ import { BreakCard } from '../components/break-card';
 import { CollapsingNotice } from '../components/collapsing-notice';
 import { FasterRouteCard } from '../components/faster-route-card';
 import { useFasterRoute } from '../hooks/use-faster-route';
+import { useTripTraffic } from '../hooks/use-trip-traffic';
+import { trafficExtraMinutes, trafficNote } from '../lib/trip-traffic';
 import { useAutoStartHours } from '../hooks/use-auto-start-hours';
 import { parkingOnly } from '../lib/parking-details';
 import { HoursQuickBar } from '../components/hours-quick-bar';
@@ -258,7 +260,10 @@ export default function ActiveTripScreen() {
     [routeLine, location.point],
   );
   const remainingDurationMin = plan ? plan.durationMin * (progress?.remainingFraction ?? 1) : 0;
-  const eta = plan ? computeEta(new Date(), remainingDurationMin) : undefined;
+  // The route's own time is the clear-road time. Live traffic and other drivers' reports on what is left are added to the
+  // arrival time (asked of core every few minutes), and said on the card.
+  const trafficMin = trafficExtraMinutes(useTripTraffic(trip?.id, location.point));
+  const eta = plan ? computeEta(new Date(), remainingDurationMin + trafficMin) : undefined;
   const remainingKm = progress ? progress.remainingMetres / 1000 : plan?.distanceKm;
   // The speed limit where the driver is, from the map data along the route. Nothing is shown where it is not known.
   const routeSpeedLimits = useRouteSpeedLimits(plan?.id);
@@ -514,7 +519,10 @@ export default function ActiveTripScreen() {
                 )}
                 {breakPlan?.kind === 'break' ? ' with break' : ''}
               </Text>
-              <Text style={styles.etaDistance}>{remainingKm?.toFixed(1)} km left</Text>
+              <Text style={styles.etaDistance}>
+                {remainingKm?.toFixed(1)} km left
+                {trafficNote(trafficMin) === undefined ? '' : ` · ${trafficNote(trafficMin)}`}
+              </Text>
             </View>
           </View>
         )}

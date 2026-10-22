@@ -7,6 +7,7 @@ import {
   getRouteCameras,
   getRoutePlan,
   getRouteSpeedLimits,
+  getTripTraffic,
   getVehicleProfile,
   listVehicleProfiles,
   planRoute,
@@ -287,6 +288,22 @@ describe('getRouteSpeedLimits', () => {
       .fn()
       .mockResolvedValue(jsonResponse(404, { tag: 'RoutePlanNotFound', requestId: 'r1' }));
     await expect(getRouteSpeedLimits('token-1', planId)).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('getTripTraffic', () => {
+  const tripId = '11111111-1111-4111-8111-111111111111';
+
+  it('sends where the lorry is and returns the extra minutes', async () => {
+    const traffic = { enabled: true, extraMinutes: 12, coverage: 0.8 };
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, traffic));
+    globalThis.fetch = fetchMock;
+
+    expect(await getTripTraffic('token-1', tripId, { lat: 54.97, lon: -2.1 })).toEqual(traffic);
+    const [url, init] = fetchMock.mock.calls[0] as [string, { method: string; body: string }];
+    expect(url).toMatch(new RegExp(`/routing/trips/${tripId}/traffic$`));
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ position: { lat: 54.97, lon: -2.1 } });
   });
 });
 

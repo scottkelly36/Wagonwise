@@ -246,6 +246,10 @@ export function composeCore(
     tomtomApiKey: config.tomtomApiKey,
     dailyRequestLimit: config.trafficDailyRequestLimit,
     cacheTtlMs: config.trafficCacheTtlMs,
+    // A failed TomTom call (a refused key, an outage) or the day's allowance running out is logged, rarely, so it is not silent.
+    // `app` is built further down; this only runs on a request, after it exists.
+    onProblem: (what, error) =>
+      app.log.warn({ err: error, what }, 'live traffic: provider call failed or allowance used up'),
   });
   const cameras = createCamerasModule({ db: camerasDb });
   const routing = createRoutingModule({

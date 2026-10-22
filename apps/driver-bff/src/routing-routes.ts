@@ -5,6 +5,7 @@ import {
   planRouteRequestSchema,
   previewRouteOptionsRequestSchema,
   routePlanIdParamsSchema,
+  tripTrafficRequestSchema,
   updateVehicleProfileRequestSchema,
   vehicleProfileIdParamsSchema,
 } from '@wagonwise/contracts/routing';
@@ -199,6 +200,24 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
     const core = await deps.coreClient.request(
       'POST',
       `/routing/trips/${params.data.id}/faster-route`,
+      request.id,
+      { body: parsed.data, authorization: `Bearer ${token}` },
+    );
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.post('/routing/trips/:id/traffic', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const params = activeTripIdParamsSchema.safeParse(request.params);
+    const parsed = tripTrafficRequestSchema.safeParse(request.body);
+    if (!params.success || !parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request(
+      'POST',
+      `/routing/trips/${params.data.id}/traffic`,
       request.id,
       { body: parsed.data, authorization: `Bearer ${token}` },
     );
