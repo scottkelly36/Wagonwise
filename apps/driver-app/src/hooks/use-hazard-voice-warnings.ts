@@ -2,7 +2,7 @@ import type { HazardTypeDto } from '@wagonwise/contracts/hazards';
 import * as Speech from 'expo-speech';
 import { useEffect, useRef } from 'react';
 
-import { HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
+import { hazardWarningSpeech } from '../lib/hazard-labels';
 import { hazardsAheadWithinRange, type HazardAheadInput } from '../lib/hazard-voice-warnings';
 import type { RoutePoint } from '../lib/route-progress';
 
@@ -51,7 +51,7 @@ export function useHazardVoiceWarnings(
       announcedRef.current.add(id);
       const hazard = hazards.find((h) => h.id === id);
       if (!hazard) continue;
-      Speech.speak(`Hazard ahead: ${HAZARD_TYPE_LABELS[hazard.type]}`, { language: 'en-GB' });
+      Speech.speak(hazardWarningSpeech(hazard.type), { language: 'en-GB' });
     }
   }, [routeLine, position, hazards, enabled]);
 }

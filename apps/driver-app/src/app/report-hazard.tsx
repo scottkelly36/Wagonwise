@@ -16,6 +16,7 @@ import { useReportHazard } from '../api/use-hazards';
 import { RouteMap, type MapPoint } from '../components/route-map';
 import { enqueueHazardReport, removeQueuedHazardReport } from '../db/hazard-queue';
 import { useCurrentLocation } from '../hooks/use-current-location';
+import { isCameraType } from '../lib/camera-report';
 import { HAZARD_TYPE_LABELS, measurementKindFor, measurementLabelFor } from '../lib/hazard-labels';
 import { parseHazardReportForm } from '../lib/hazard-report-form';
 import { Icon } from '../components/ui/icon';
@@ -24,7 +25,10 @@ import { HAZARD_TYPE_ICONS } from '../lib/hazard-icons';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
 
-const HAZARD_TYPES = Object.keys(HAZARD_TYPE_LABELS) as (keyof typeof HAZARD_TYPE_LABELS)[];
+// Cameras are not hazards: they have their own button on the trip screen.
+const HAZARD_TYPES = (
+  Object.keys(HAZARD_TYPE_LABELS) as (keyof typeof HAZARD_TYPE_LABELS)[]
+).filter((type) => !isCameraType(type));
 
 /**
  * Report hazard (tap) — design doc §8: "Type picker, optional note/measurement, drop pin —

@@ -15,6 +15,8 @@ export type HazardType =
   | 'tight_bend'
   | 'roadworks'
   | 'flooding'
+  | 'speed_camera'
+  | 'mobile_camera'
   | 'no_hgv'
   | 'other';
 
@@ -99,7 +101,15 @@ export function isBlocking(type: HazardType): boolean {
  * temporary — safer to require reconfirmation of something unclassified than to let it sit
  * unreviewed forever. Worth revisiting with testers, like the expiry window itself.
  */
-const TEMPORARY_TYPES: ReadonlySet<HazardType> = new Set(['roadworks', 'flooding', 'other']);
+const TEMPORARY_TYPES: ReadonlySet<HazardType> = new Set([
+  'roadworks',
+  'flooding',
+  'mobile_camera',
+  'other',
+]);
+
+// A fixed camera (`speed_camera`) is a permanent feature of the road, advisory only (never avoided). A mobile camera or a police
+// speed check is a van that is gone within hours, so it expires in hours, not days, unless another driver confirms it is still there.
 
 export function isTemporary(type: HazardType): boolean {
   return TEMPORARY_TYPES.has(type);
@@ -109,9 +119,15 @@ export function isTemporary(type: HazardType): boolean {
 export const DEFAULT_EXPIRY_DAYS = 7;
 const EXPIRY_MS = DEFAULT_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
+/** How long a temporary type lasts before it needs confirming again. */
+const MOBILE_CAMERA_EXPIRY_MS = 6 * 60 * 60 * 1000;
+export function expiryWindowMs(type: HazardType): number {
+  return type === 'mobile_camera' ? MOBILE_CAMERA_EXPIRY_MS : EXPIRY_MS;
+}
+
 /** `undefined` for a permanent type — there is nothing to expire. */
 export function expiryFor(type: HazardType, from: Date): Date | undefined {
-  return isTemporary(type) ? new Date(from.getTime() + EXPIRY_MS) : undefined;
+  return isTemporary(type) ? new Date(from.getTime() + expiryWindowMs(type)) : undefined;
 }
 
 export function isExpired(report: HazardReport, now: Date): boolean {

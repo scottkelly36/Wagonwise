@@ -11,6 +11,8 @@ export const HAZARD_TYPE_ICONS: Record<HazardTypeDto, IconName> = {
   tight_bend: 'sign-direction',
   roadworks: 'traffic-cone',
   flooding: 'waves',
+  speed_camera: 'camera-outline',
+  mobile_camera: 'police-badge-outline',
   no_hgv: 'truck-remove-outline',
   other: 'alert-circle-outline',
 };

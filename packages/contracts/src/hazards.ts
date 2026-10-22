@@ -13,6 +13,8 @@ export const hazardTypeSchema = z.enum([
   'tight_bend',
   'roadworks',
   'flooding',
+  'speed_camera',
+  'mobile_camera',
   'no_hgv',
   'other',
 ]);

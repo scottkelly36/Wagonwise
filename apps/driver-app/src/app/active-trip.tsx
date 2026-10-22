@@ -20,6 +20,8 @@ import { ACTION_COLOURS, ActionCard } from '../components/ui/action-card';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { ParkingSpotDrawer } from '../components/parking-spot-drawer';
 import { MarkPlaceSheet } from '../components/mark-place-sheet';
+import { ReportCameraSheet } from '../components/report-camera-sheet';
+import { withoutCameras } from '../lib/camera-report';
 import { PlaceSheet } from '../components/place-sheet';
 import { WeatherButton } from '../components/weather-button';
 import { useMyPlaces } from '../api/use-places';
@@ -209,6 +211,7 @@ export default function ActiveTripScreen() {
   );
   const [selectedPlace, setSelectedPlace] = useState<SavedPlaceDto | undefined>(undefined);
   const [markingPlace, setMarkingPlace] = useState(false);
+  const [reportingCamera, setReportingCamera] = useState(false);
   const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
   const selectedParking = nearbyParking.data?.find((s) => s.id === selectedParkingId);
   const nearbyHazardsData = nearbyHazards.data;
@@ -241,6 +244,9 @@ export default function ActiveTripScreen() {
       .map((id) => byId.get(id))
       .filter((hazard): hazard is NonNullable<typeof hazard> => hazard !== undefined);
   }, [plan, nearbyHazardsData]);
+
+  // The panel's list and count are hazards only: a camera is not one, and has its own warning and button.
+  const listedHazards = useMemo(() => withoutCameras(hazardsOnRoute), [hazardsOnRoute]);
 
   // Live-updating ETA (part 2 of the planning-time one on route-overview.tsx): re-derived from
   // the driver's live position every time it updates (useLiveLocation, every ~3s/10m), by
@@ -467,6 +473,12 @@ export default function ActiveTripScreen() {
         <View style={[styles.recenter, { top: belowTurn }]} pointerEvents="box-none">
           <WeatherButton point={location.point} />
           <RoundButton
+            icon="camera-plus-outline"
+            label="Report a camera"
+            onPress={() => setReportingCamera(true)}
+            testID="report-camera-button"
+          />
+          <RoundButton
             icon="map-marker-plus-outline"
             label="Mark a place here"
             onPress={() => setMarkingPlace(true)}
@@ -553,6 +565,7 @@ export default function ActiveTripScreen() {
           </View>
         )}
 
+        <ReportCameraSheet visible={reportingCamera} onClose={() => setReportingCamera(false)} />
         <MarkPlaceSheet
           visible={markingPlace}
           onClose={() => setMarkingPlace(false)}
@@ -662,10 +675,10 @@ export default function ActiveTripScreen() {
         {hazardsOpen && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Hazards on this route</Text>
-            {hazardsOnRoute.length === 0 ? (
+            {listedHazards.length === 0 ? (
               <Text style={styles.sectionEmpty}>None reported.</Text>
             ) : (
-              hazardsOnRoute.map((hazard) => (
+              listedHazards.map((hazard) => (
                 <TouchableOpacity
                   key={hazard.id}
                   onPress={() => setSelectedHazardId(hazard.id)}
@@ -715,15 +728,15 @@ export default function ActiveTripScreen() {
             style={styles.hazardsToggle}
             onPress={() => setHazardsOpen((open) => !open)}
             accessibilityRole="button"
-            accessibilityLabel={hazardsToggleLabel(hazardsOnRoute.length, hazardsOpen)}
+            accessibilityLabel={hazardsToggleLabel(listedHazards.length, hazardsOpen)}
             testID="hazards-toggle-button"
           >
             <Icon
               name="alert-outline"
               size={24}
-              color={hazardsOnRoute.length > 0 ? colors.warning : colors.textDim}
+              color={listedHazards.length > 0 ? colors.warning : colors.textDim}
             />
-            <Text style={styles.hazardsToggleCount}>{hazardsOnRoute.length}</Text>
+            <Text style={styles.hazardsToggleCount}>{listedHazards.length}</Text>
             <Icon
               name={hazardsOpen ? 'chevron-down' : 'chevron-up'}
               size={22}

@@ -57,6 +57,8 @@ const AVOIDANCE_KIND: Record<
   tight_bend: undefined,
   roadworks: undefined,
   flooding: undefined,
+  speed_camera: undefined,
+  mobile_camera: undefined,
   other: undefined,
 };
 
