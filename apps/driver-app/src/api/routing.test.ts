@@ -295,7 +295,12 @@ describe('getTripTraffic', () => {
   const tripId = '11111111-1111-4111-8111-111111111111';
 
   it('sends where the lorry is and returns the extra minutes', async () => {
-    const traffic = { enabled: true, extraMinutes: 12, coverage: 0.8 };
+    const traffic = {
+      enabled: true,
+      extraMinutes: 12,
+      coverage: 0.8,
+      stretches: [{ from: 0.3, to: 0.4, level: 'heavy' }],
+    };
     const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, traffic));
     globalThis.fetch = fetchMock;
 

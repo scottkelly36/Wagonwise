@@ -211,6 +211,16 @@ export const tripTrafficSchema = z.object({
   extraMinutes: z.number().int().min(0),
   /** Share (0 to 1) of the rest of the route the provider had a reading for; below that the delay is a lower bound. */
   coverage: z.number().min(0).max(1),
+  /** Where on the whole route traffic is held up, as fractions of its length, ahead of the lorry. About 5 km fine, not exact. */
+  stretches: z
+    .array(
+      z.object({
+        from: z.number().min(0).max(1),
+        to: z.number().min(0).max(1),
+        level: z.enum(['slow', 'heavy']),
+      }),
+    )
+    .default([]),
 });
 export type TripTrafficDto = z.infer<typeof tripTrafficSchema>;
 /**

@@ -77,7 +77,7 @@ export function TurnBanner({
   const street = next.maneuver.streetNames[0];
   return (
     <View style={styles.card} testID="turn-banner">
-      <Icon name={MANEUVER_ICONS[next.maneuver.kind]} size={40} color={colors.accent} />
+      <Icon name={MANEUVER_ICONS[next.maneuver.kind]} size={34} color={colors.accent} />
       <View style={styles.body}>
         <Text style={styles.distance}>{shortDistance(next.distanceM)}</Text>
         <Text style={styles.title} numberOfLines={2}>
@@ -95,15 +95,15 @@ function createStyles(colors: ThemeColors) {
       ...cardStyle(colors),
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
+      gap: 10,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
     },
     body: { flex: 1 },
-    distance: { fontSize: 24, fontWeight: '800', color: colors.text },
-    title: { fontSize: 16, fontWeight: '600', color: colors.textSecondary },
+    distance: { fontSize: 22, fontWeight: '800', color: colors.text },
+    title: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
     error: { fontSize: 14, color: colors.danger },
-    mute: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+    mute: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
     replan: {
       minHeight: 48,
       paddingHorizontal: 14,

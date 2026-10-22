@@ -5,7 +5,7 @@ import { TomTomTrafficClient } from './infrastructure/tomtom-client.js';
 
 export type { TrafficProvider } from './application/traffic-provider.js';
 export type { RouteTraffic } from './application/traffic-service.js';
-export type { FlowReading, TrafficIncident } from './domain/traffic.js';
+export type { FlowReading, TrafficIncident, TrafficStretch } from './domain/traffic.js';
 
 export interface TrafficModuleDeps {
   readonly clock: Clock;

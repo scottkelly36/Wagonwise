@@ -65,7 +65,12 @@ describe('TrafficService.delayAlong', () => {
   it('reports no delay and no coverage without a provider', async () => {
     const service = new TrafficService(undefined, clockAt('2026-10-10T09:00:00Z'), options);
     expect(service.enabled).toBe(false);
-    expect(await service.delayAlong(line)).toEqual({ delaySeconds: 0, incidents: [], coverage: 0 });
+    expect(await service.delayAlong(line)).toEqual({
+      delaySeconds: 0,
+      incidents: [],
+      coverage: 0,
+      stretches: [],
+    });
   });
 
   it('reuses readings within the cache time, and asks again after it', async () => {
@@ -110,7 +115,12 @@ describe('TrafficService.delayAlong', () => {
     const provider = new FakeProvider();
     provider.failing = true;
     const service = new TrafficService(provider, clockAt('2026-10-10T09:00:00Z'), options);
-    expect(await service.delayAlong(line)).toEqual({ delaySeconds: 0, incidents: [], coverage: 0 });
+    expect(await service.delayAlong(line)).toEqual({
+      delaySeconds: 0,
+      incidents: [],
+      coverage: 0,
+      stretches: [],
+    });
   });
 
   it('returns the incidents beside the route', async () => {
@@ -174,5 +184,46 @@ describe('TrafficService problem reports', () => {
     });
     await service.delayAlong(line);
     expect(problems).toEqual([]);
+  });
+});
+
+describe('TrafficService stretches', () => {
+  // 11 points 2.2 km apart, sampled every 5 km: samples at points 0, 3, 6 and 9 (about 6.7 km each, the last 4.4 km).
+  const slowProvider = (reading: FlowReading) => new FakeProvider(reading);
+
+  it('marks the whole route when traffic is slow all along it, as one stretch from the start to the end', async () => {
+    const service = new TrafficService(
+      slowProvider({ currentSpeedKph: 40, freeFlowSpeedKph: 80, closed: false }),
+      clockAt('2026-10-10T09:00:00Z'),
+      options,
+    );
+    const { stretches } = await service.delayAlong(line);
+    expect(stretches).toHaveLength(1);
+    expect(stretches[0]).toMatchObject({ level: 'slow', fromM: 0 });
+    expect(stretches[0]!.toM).toBeGreaterThan(22_000);
+  });
+
+  it('says heavy for near standstill or a closed road', async () => {
+    const crawling = new TrafficService(
+      slowProvider({ currentSpeedKph: 10, freeFlowSpeedKph: 80, closed: false }),
+      clockAt('2026-10-10T09:00:00Z'),
+      options,
+    );
+    expect((await crawling.delayAlong(line)).stretches[0]?.level).toBe('heavy');
+    const closed = new TrafficService(
+      slowProvider({ currentSpeedKph: 0, freeFlowSpeedKph: 80, closed: true }),
+      clockAt('2026-10-10T09:00:00Z'),
+      options,
+    );
+    expect((await closed.delayAlong(line)).stretches[0]?.level).toBe('heavy');
+  });
+
+  it('marks nothing when traffic is moving about as it should', async () => {
+    const service = new TrafficService(
+      slowProvider({ currentSpeedKph: 70, freeFlowSpeedKph: 80, closed: false }),
+      clockAt('2026-10-10T09:00:00Z'),
+      options,
+    );
+    expect((await service.delayAlong(line)).stretches).toEqual([]);
   });
 });
