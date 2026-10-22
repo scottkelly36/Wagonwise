@@ -74,6 +74,10 @@ import { routeProgress } from '../lib/route-progress';
 import { speedLimitHere } from '../lib/speed-limit';
 import { useRouteSpeedLimits } from '../api/use-route-speed-limits';
 import { SpeedLimitSignView } from '../components/speed-limit-sign';
+import { useRouteCameras } from '../api/use-route-cameras';
+import { CameraWarningCard } from '../components/camera-warning-card';
+import { useCameraVoiceWarning } from '../hooks/use-camera-voice-warning';
+import { cameraOffsets, nextCameraAhead } from '../lib/camera-ahead';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useStillThereStore } from '../state/still-there-store';
@@ -260,6 +264,15 @@ export default function ActiveTripScreen() {
         progress.offRouteMetres,
       )
     : undefined;
+  // Cameras on the route: worked out once per route, then the next one is picked from the driver's progress along it.
+  const routeCameras = useRouteCameras(plan?.id);
+  const cameraPositions = useMemo(
+    () => (routeLine && routeCameras.data ? cameraOffsets(routeLine, routeCameras.data) : []),
+    [routeLine, routeCameras.data],
+  );
+  const cameraAhead = progress
+    ? nextCameraAhead(cameraPositions, progress.traveledMetres, progress.offRouteMetres)
+    : undefined;
 
   // Break planning: only for a driver who is using the driving-hours clock (a shift is on). When the route runs past the
   // time they have, say when a break is needed, offer parking before then, and put the break into the arrival time.
@@ -321,6 +334,7 @@ export default function ActiveTripScreen() {
   // The break and faster-route notices open in full with a buzz and a short spoken line, shrink to a small flag after a few
   // seconds, and can be opened again or dismissed. The line is not spoken over the mic, or when the driver has muted the voice.
   const canSpeak = !voiceMuted && !micBusy && !micActive && !quickInFlight;
+  useCameraVoiceWarning(cameraAhead, canSpeak);
   // After passing a hazard they were warned about, a spoken "was it still there?" (3 a trip, 150 m past, off in More).
   const stillThereOn = useStillThereStore((s) => s.enabled);
   const stillThereHazards = useMemo(
@@ -468,9 +482,10 @@ export default function ActiveTripScreen() {
           )}
         </View>
 
-        {speedSign && (
-          <View style={styles.speedSign} pointerEvents="none">
-            <SpeedLimitSignView sign={speedSign} />
+        {(speedSign || cameraAhead) && (
+          <View style={styles.bottomLeft} pointerEvents="none">
+            {cameraAhead && <CameraWarningCard ahead={cameraAhead} />}
+            {speedSign && <SpeedLimitSignView sign={speedSign} />}
           </View>
         )}
 
@@ -786,7 +801,7 @@ function createStyles(colors: ThemeColors) {
     // Under the turn card, on the right, clear of the ETA card on the left.
     recenter: { position: 'absolute', right: 16, gap: 12 },
     turnBanner: { position: 'absolute', left: 16, right: 16 },
-    speedSign: { position: 'absolute', left: 16, bottom: 24 },
+    bottomLeft: { position: 'absolute', left: 16, bottom: 24, gap: 12, alignItems: 'flex-start' },
     etaCard: {
       ...cardStyle(colors),
       position: 'absolute',
