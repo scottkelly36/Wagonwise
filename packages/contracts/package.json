@@ -84,6 +84,11 @@
       "import": "./dist/places.js",
       "default": "./dist/places.js"
     },
+    "./cameras": {
+      "types": "./dist/cameras.d.ts",
+      "import": "./dist/cameras.js",
+      "default": "./dist/cameras.js"
+    },
     "./parking": {
       "types": "./dist/parking.d.ts",
       "import": "./dist/parking.js",

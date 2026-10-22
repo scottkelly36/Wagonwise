@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useNearbyCameras } from '../../api/use-cameras';
 import { useNearbyCongestion } from '../../api/use-congestion';
 import { useNearbyHazards } from '../../api/use-hazards';
 import { useCurrentJob } from '../../api/use-jobs';
@@ -12,6 +13,9 @@ import { useNavigateToPlace } from '../../hooks/use-navigate-to-spot';
 import { useDrivingProfileId } from '../../hooks/use-parking-drive-times';
 import { ParkingSpotDrawer } from '../../components/parking-spot-drawer';
 import { MarkPlaceSheet } from '../../components/mark-place-sheet';
+import { ReportCameraSheet } from '../../components/report-camera-sheet';
+import { cameraMarkers } from '../../lib/camera-markers';
+import { isCameraType } from '../../lib/camera-report';
 import { PlaceSheet } from '../../components/place-sheet';
 import { useMyPlaces } from '../../api/use-places';
 import type { SavedPlaceDto } from '@wagonwise/contracts/places';
@@ -76,6 +80,7 @@ export default function HomeScreen() {
     elsewhere === undefined ? aroundDriver : viewTooWide ? [] : [elsewhere.centre];
   const viewRadiusM = elsewhere?.radiusM;
   const nearbyHazards = useNearbyHazards(queryPoints, viewRadiusM ?? NEARBY_RADIUS_M, true);
+  const nearbyCameras = useNearbyCameras(queryPoints, viewRadiusM ?? NEARBY_RADIUS_M, true);
   const nearbyCongestion = useNearbyCongestion(queryPoints, viewRadiusM ?? NEARBY_RADIUS_M, true);
   const nearbyParkingSpots = useNearbySafeParkingSpots(
     queryPoints,
@@ -99,6 +104,8 @@ export default function HomeScreen() {
   const [showHazards, setShowHazards] = useState(true);
   const [showTraffic, setShowTraffic] = useState(true);
   const [showParking, setShowParking] = useState(true);
+  const [showCameras, setShowCameras] = useState(true);
+  const [reportingCamera, setReportingCamera] = useState(false);
   // Parking and lay-bys are separate layers: a lay-by is a roadside stop nobody has checked suits a lorry.
   const [showLaybys, setShowLaybys] = useState(true);
   const mapParkingSpots = useMemo(
@@ -107,6 +114,18 @@ export default function HomeScreen() {
         .filter((s) => (s.kind === 'layby' ? showLaybys : showParking))
         .map((s) => ({ id: s.id, location: s.location, kind: s.kind })),
     [nearbyParkingSpots.data, showParking, showLaybys],
+  );
+  // Cameras get their own markers, apart from hazards: the map-data ones near the driver or the view, and the ones drivers marked.
+  const mapHazards = useMemo(
+    () =>
+      nearbyHazards.data
+        ?.filter((h) => !isCameraType(h.type))
+        .map((h) => ({ id: h.id, type: h.type, location: h.location })),
+    [nearbyHazards.data],
+  );
+  const mapCameras = useMemo(
+    () => cameraMarkers(nearbyCameras.data, nearbyHazards.data),
+    [nearbyCameras.data, nearbyHazards.data],
   );
   // "Company vs personal" (design doc §5): outside an assigned job this is just absent, and the
   // map works exactly as Phase 1 — no job-shaped chrome for a driver who isn't on one.
@@ -134,12 +153,10 @@ export default function HomeScreen() {
         onFollowingChange={setFollowing}
         onViewChange={setMapView}
         hideRecenterButton
-        hazards={
-          showHazards
-            ? nearbyHazards.data?.map((h) => ({ id: h.id, type: h.type, location: h.location }))
-            : undefined
-        }
+        hazards={showHazards ? mapHazards : undefined}
         onHazardPress={setSelectedHazardId}
+        cameras={showCameras ? mapCameras : undefined}
+        onCameraPress={setSelectedHazardId}
         onParkingSpotPress={setSelectedParkingId}
         places={mapPlaces}
         onPlacePress={(id) => setSelectedPlace(myPlaces.places.find((p) => p.id === id))}
@@ -159,11 +176,13 @@ export default function HomeScreen() {
         <View style={[styles.zoomHint, { bottom: insets.bottom + 220 }]} pointerEvents="none">
           <View style={styles.zoomHintCard}>
             <Text style={styles.zoomHintText} testID="zoom-hint">
-              Zoom in to see hazards, traffic and parking
+              Zoom in to see hazards, cameras, traffic and parking
             </Text>
           </View>
         </View>
       )}
+
+      <ReportCameraSheet visible={reportingCamera} onClose={() => setReportingCamera(false)} />
 
       <MarkPlaceSheet
         visible={markingPlace}
@@ -250,6 +269,12 @@ export default function HomeScreen() {
               colors={colors}
             />
             <LayerRow
+              label="Cameras"
+              value={showCameras}
+              onChange={setShowCameras}
+              colors={colors}
+            />
+            <LayerRow
               label="Traffic"
               value={showTraffic}
               onChange={setShowTraffic}
@@ -277,23 +302,30 @@ export default function HomeScreen() {
           <ActionCard
             icon="alert"
             iconColor={ACTION_COLOURS.traffic}
-            label="Report traffic"
+            label="Traffic"
             onPress={() => router.push('/report-congestion')}
             testID="report-congestion-button"
           />
           <ActionCard
             icon="traffic-cone"
             iconColor={ACTION_COLOURS.hazard}
-            label="Report hazard"
+            label="Hazard"
             onPress={() => router.push('/report-hazard')}
             testID="report-hazard-button"
           />
           <ActionCard
             icon="parking"
             iconColor={ACTION_COLOURS.parking}
-            label="Mark parking"
+            label="Parking"
             onPress={() => router.push('/report-safe-parking-spot')}
             testID="report-parking-spot-button"
+          />
+          <ActionCard
+            icon="camera-plus-outline"
+            iconColor={ACTION_COLOURS.camera}
+            label="Camera"
+            onPress={() => setReportingCamera(true)}
+            testID="report-camera-button"
           />
         </View>
 

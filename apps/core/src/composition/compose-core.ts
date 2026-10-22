@@ -736,6 +736,7 @@ export function composeCore(
   congestion.registerRoutes(app);
   companies.registerRoutes(app);
   parking.registerRoutes(app);
+  cameras.registerRoutes(app);
   fleet.registerRoutes(app);
   jobs.registerRoutes(app);
   places.registerRoutes(app);

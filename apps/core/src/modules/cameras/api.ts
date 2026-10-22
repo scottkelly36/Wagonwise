@@ -1,6 +1,8 @@
+import type { FastifyInstance } from 'fastify';
 import { findNearbyCameras } from './application/find-nearby-cameras.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { PostgresCameraRepository } from './infrastructure/postgres-camera-repository.js';
+import { registerCameraRoutes } from './interface/routes.js';
 
 // Re-exported so composition/ can type its wiring without reaching past this facade.
 export type { UntypedDb } from './infrastructure/db.js';
@@ -20,6 +22,8 @@ export interface NearbyCamera {
 }
 
 export interface CamerasModule {
+  /** `POST /cameras/nearby`: the cameras around the driver or the map view, for the home map. */
+  registerRoutes(app: FastifyInstance): void;
   /** Cameras within `radiusM` metres of the line through `points`. For `routing`, which asks along a planned route. */
   findNear(
     points: readonly { readonly lat: number; readonly lon: number }[],
@@ -29,11 +33,14 @@ export interface CamerasModule {
 
 /**
  * `cameras`' only public surface (AGENTS.md rule 6): where fixed speed and red-light cameras are, from OpenStreetMap. Read only;
- * the starting set is a migration. It has no routes of its own: `routing` asks for the cameras along a driver's route plan.
+ * the starting set is a migration. `routing` asks for the cameras along a driver's route plan; the one route here is for the home map, around a point.
  */
 export function createCamerasModule(deps: CamerasModuleDeps): CamerasModule {
   const repo = new PostgresCameraRepository(deps.db);
   return {
+    registerRoutes(app) {
+      registerCameraRoutes(app, { findNearbyCameras: { repo } });
+    },
     async findNear(points, radiusM) {
       const cameras = await findNearbyCameras({ repo }, { corridor: points, radiusM });
       return cameras.map((c) => ({
