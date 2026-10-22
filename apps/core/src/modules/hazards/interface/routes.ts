@@ -128,10 +128,17 @@ export function registerHazardsRoutes(app: FastifyInstance, deps: HazardsRouteDe
     if (!parsed.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
-    const result = await parseVoiceReport(deps.parseVoiceReport, {
-      transcript: parsed.data.transcript,
-    });
-    return reply.status(200).send(result);
+    // If the parser itself breaks (a refused key, the service down), the driver's report is not lost: it goes through as
+    // "something else" with what they said, and they still hear it back and confirm it. The fault is logged for us.
+    try {
+      const result = await parseVoiceReport(deps.parseVoiceReport, {
+        transcript: parsed.data.transcript,
+      });
+      return reply.status(200).send(result);
+    } catch (error) {
+      request.log.error({ err: error }, 'voice report parser failed; used the fallback');
+      return reply.status(200).send({ type: 'other', note: parsed.data.transcript });
+    }
   });
 
   // No requireDriverId call — same reasoning as confirm/dismiss below (decision 63): a hazard

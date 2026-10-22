@@ -18,6 +18,8 @@ import {
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { DEFAULT_WAIT_MINUTES, parseSpokenWaitMinutes } from '../lib/spoken-wait-minutes';
 import { parseYesNo } from '../lib/yes-no-parser';
+import { RESULT_ERROR_MS, RESULT_MS } from '../lib/voice-flow-result';
+import { useAutoClear } from './use-auto-clear';
 import { useVoiceReportCapture } from './use-voice-report-capture';
 
 const NO_SIGNAL_MESSAGE = "Couldn't send that. Try again when you have signal.";
@@ -154,6 +156,14 @@ export function useQuickVoiceReport(currentPosition: MapPoint | undefined): {
     if (message !== undefined) speak(message);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.phase]);
+
+  // The result ("Traffic reported.", an error) says its piece and goes, instead of sitting on the map.
+  useAutoClear(
+    outcomeMessage(state) !== undefined && state.phase !== 'idle',
+    state.phase === 'error' ? RESULT_ERROR_MS : RESULT_MS,
+    () => dispatch({ type: 'reset' }),
+    state.phase,
+  );
 
   // Leaving the screen mid-report shouldn't leave the phone talking or listening.
   useEffect(
