@@ -21,7 +21,7 @@ import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { ParkingSpotDrawer } from '../components/parking-spot-drawer';
 import { MarkPlaceSheet } from '../components/mark-place-sheet';
 import { ReportCameraSheet } from '../components/report-camera-sheet';
-import { withoutCameras } from '../lib/camera-report';
+import { isCameraType, withoutCameras } from '../lib/camera-report';
 import { PlaceSheet } from '../components/place-sheet';
 import { WeatherButton } from '../components/weather-button';
 import { useMyPlaces } from '../api/use-places';
@@ -51,6 +51,7 @@ import { CollapsingNotice } from '../components/collapsing-notice';
 import { FasterRouteCard } from '../components/faster-route-card';
 import { useFasterRoute } from '../hooks/use-faster-route';
 import { useTripTraffic } from '../hooks/use-trip-traffic';
+import { cameraMarkers } from '../lib/camera-markers';
 import { congestionLines } from '../lib/route-slice';
 import { trafficExtraMinutes, trafficNote } from '../lib/trip-traffic';
 import { useAutoStartHours } from '../hooks/use-auto-start-hours';
@@ -229,7 +230,10 @@ export default function ActiveTripScreen() {
   // A stable array: a new one every render (once a second, with the position) made every hazard
   // marker update on the map each time.
   const mapHazards = useMemo(
-    () => nearbyHazardsData?.map((h) => ({ id: h.id, type: h.type, location: h.location })),
+    () =>
+      nearbyHazardsData
+        ?.filter((h) => !isCameraType(h.type))
+        .map((h) => ({ id: h.id, type: h.type, location: h.location })),
     [nearbyHazardsData],
   );
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
@@ -295,6 +299,11 @@ export default function ActiveTripScreen() {
   const cameraPositions = useMemo(
     () => (routeLine && routeCameras.data ? cameraOffsets(routeLine, routeCameras.data) : []),
     [routeLine, routeCameras.data],
+  );
+  // Cameras on the map: the ones along the route from the map data and the ones drivers marked, in their own markers.
+  const mapCameras = useMemo(
+    () => cameraMarkers(routeCameras.data, nearbyHazardsData),
+    [routeCameras.data, nearbyHazardsData],
   );
   const cameraAhead = progress
     ? nextCameraAhead(cameraPositions, progress.traveledMetres, progress.offRouteMetres)
@@ -475,6 +484,8 @@ export default function ActiveTripScreen() {
           currentCourse={location.bearing}
           navigating
           hazards={mapHazards}
+          cameras={mapCameras}
+          onCameraPress={setSelectedHazardId}
           parkingSpots={mapParking}
           onParkingSpotPress={setSelectedParkingId}
           places={mapPlaces}
