@@ -8,6 +8,12 @@ import type { MapPoint } from '../components/route-map';
 import { enqueueHazardReport, removeQueuedHazardReport } from '../db/hazard-queue';
 import { saveVoiceHazardDraft } from '../db/voice-draft-queue';
 import {
+  flowOutcomeSpeech,
+  isFlowResult,
+  RESULT_ERROR_MS,
+  RESULT_MS,
+} from '../lib/voice-flow-result';
+import {
   voiceReportFlowReducer,
   INITIAL_VOICE_REPORT_FLOW_STATE,
   type VoiceReportFlowState,
@@ -15,6 +21,7 @@ import {
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { summaryFor } from '../lib/voice-report-summary';
 import { parseYesNo } from '../lib/yes-no-parser';
+import { useAutoClear } from './use-auto-clear';
 import { useVoiceReportCapture } from './use-voice-report-capture';
 
 /**
@@ -172,6 +179,19 @@ export function useVoiceHazardReportFlow(fallbackOrigin: MapPoint | undefined): 
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.phase]);
+
+  // Say how it ended (the driver's eyes are on the road), then clear the message so it does not sit on the map.
+  useEffect(() => {
+    const message = flowOutcomeSpeech(state);
+    if (message !== undefined) Speech.speak(message, { language: 'en-GB' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.phase]);
+  useAutoClear(
+    isFlowResult(state),
+    state.phase === 'error' ? RESULT_ERROR_MS : RESULT_MS,
+    () => dispatch({ type: 'reset' }),
+    state.phase,
+  );
 
   return {
     state,

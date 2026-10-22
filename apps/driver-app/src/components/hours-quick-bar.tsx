@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { useAutoClear } from '../hooks/use-auto-clear';
 import { hoursStatus, type ActivityKind } from '../lib/driver-hours';
 import { quickSummary } from '../lib/hours-quick';
 import { currentActivity } from '../lib/shift-log';
@@ -10,6 +11,9 @@ import { cardStyle } from '../theme/tokens';
 import { Icon, type IconName } from './ui/icon';
 
 const clockNow = (): number => Date.now();
+
+/** How long the clock stays open on the map before it shrinks to a small round button, to give the map the room. */
+export const COLLAPSE_AFTER_MS = 10_000;
 
 const CHOICES: { kind: ActivityKind; label: string; icon: IconName }[] = [
   { kind: 'driving', label: 'Driving', icon: 'steering' },
@@ -31,6 +35,9 @@ export function HoursQuickBar() {
   const extensionsLeft = useShiftStore((s) => s.extensionsLeft);
   const record = useShiftStore((s) => s.record);
   const [open, setOpen] = useState(false);
+  // Open when the trip starts so the driver sees it, then shrinks by itself; a tap opens it again.
+  const [expanded, setExpanded] = useState(true);
+  const [taps, setTaps] = useState(0);
 
   // Re-read the clock every 30 seconds so the countdown moves.
   const [now, setNow] = useState(clockNow);
@@ -42,13 +49,39 @@ export function HoursQuickBar() {
   const status = hoursStatus(log, now, { rules, extensionsLeft });
   const summary = quickSummary(status);
   const doing = currentActivity(log)?.kind;
+  // Not while the four buttons are showing, and never while driving time is running low: that stays in view.
+  const showFull = expanded || summary.urgent;
+  useAutoClear(
+    expanded && !open && !summary.urgent,
+    COLLAPSE_AFTER_MS,
+    () => setExpanded(false),
+    String(taps),
+  );
 
   const choose = (kind: ActivityKind | 'finish'): void => {
     const at = clockNow();
     setNow(at);
     void record(kind, at);
     setOpen(false);
+    setTaps((n) => n + 1);
   };
+
+  if (!showFull) {
+    return (
+      <TouchableOpacity
+        style={styles.chip}
+        onPress={() => {
+          setExpanded(true);
+          setTaps((n) => n + 1);
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={`Driving hours. ${summary.text}`}
+        testID="hours-quick-chip"
+      >
+        <Icon name="timer-outline" size={24} color={colors.accent} />
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <View style={styles.wrap} testID="hours-quick-bar">
@@ -92,7 +125,10 @@ export function HoursQuickBar() {
       )}
       <TouchableOpacity
         style={styles.pill}
-        onPress={() => setOpen((v) => !v)}
+        onPress={() => {
+          setOpen((v) => !v);
+          setTaps((n) => n + 1);
+        }}
         accessibilityRole="button"
         accessibilityLabel="Driving hours"
         testID="hours-quick-toggle"
@@ -112,6 +148,15 @@ export function HoursQuickBar() {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     wrap: { alignSelf: 'stretch', gap: 8 },
+    chip: {
+      ...cardStyle(colors),
+      alignSelf: 'flex-start',
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     pill: {
       ...cardStyle(colors),
       flexDirection: 'row',
