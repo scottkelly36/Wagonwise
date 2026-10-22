@@ -13,6 +13,8 @@ export const HAZARD_TYPE_LABELS: Record<HazardTypeDto, string> = {
   tight_bend: 'Tight bend',
   roadworks: 'Roadworks',
   flooding: 'Flooding',
+  speed_camera: 'Speed camera',
+  mobile_camera: 'Mobile speed camera',
   no_hgv: 'No HGVs allowed',
   other: 'Something else',
 };
@@ -67,6 +69,13 @@ export const HAZARD_STATUS_LABELS: Record<HazardStatusDto, string> = {
   dismissed: 'Marked not there',
 };
 
+/** What is said as a hazard comes up ahead: a camera is "Speed camera ahead", the rest "Hazard ahead: Low bridge". */
+export function hazardWarningSpeech(type: HazardTypeDto): string {
+  return type === 'speed_camera' || type === 'mobile_camera'
+    ? `${HAZARD_TYPE_LABELS[type]} ahead`
+    : `Hazard ahead: ${HAZARD_TYPE_LABELS[type]}`;
+}
+
 export type HazardSeverity = 'high' | 'caution';
 
 /** Same four types core's `isBlocking()` (hazards/domain/hazard-report.ts) treats as blocking —
@@ -84,6 +93,8 @@ const HAZARD_SEVERITY: Record<HazardTypeDto, HazardSeverity> = {
   tight_bend: 'caution',
   roadworks: 'caution',
   flooding: 'caution',
+  speed_camera: 'caution',
+  mobile_camera: 'caution',
   other: 'caution',
 };
 

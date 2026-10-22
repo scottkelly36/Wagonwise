@@ -14,6 +14,8 @@ const TYPE_LABELS: Record<HazardReportDto['type'], string> = {
   tight_bend: 'Tight bend',
   roadworks: 'Roadworks',
   flooding: 'Flooding',
+  speed_camera: 'Speed camera',
+  mobile_camera: 'Mobile speed camera',
   no_hgv: 'No HGVs',
   other: 'Other',
 };

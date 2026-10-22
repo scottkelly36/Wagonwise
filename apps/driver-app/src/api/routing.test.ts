@@ -4,6 +4,7 @@ import {
   createVehicleProfile,
   deleteVehicleProfile,
   endTrip,
+  getRouteCameras,
   getRoutePlan,
   getRouteSpeedLimits,
   getTripTraffic,
@@ -303,6 +304,23 @@ describe('getTripTraffic', () => {
     expect(url).toMatch(new RegExp(`/routing/trips/${tripId}/traffic$`));
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body)).toEqual({ position: { lat: 54.97, lon: -2.1 } });
+  });
+});
+
+describe('getRouteCameras', () => {
+  const planId = '11111111-1111-4111-8111-111111111111';
+
+  it('requests the cameras for the plan and returns them', async () => {
+    const cameras = [
+      { id: 'c1', location: { lat: 54.97, lon: -2.1 }, kind: 'fixed', maxspeedMph: 40 },
+      { id: 'c2', location: { lat: 54.98, lon: -2.09 }, kind: 'red_light' },
+    ];
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, { cameras }));
+    globalThis.fetch = fetchMock;
+
+    expect(await getRouteCameras('token-1', planId)).toEqual(cameras);
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toMatch(new RegExp(`/routing/route-plans/${planId}/cameras$`));
   });
 });
 

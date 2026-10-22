@@ -106,13 +106,22 @@ extract each time so it also tests against Geofabrik's current data.
 - **Source:** Valhalla `trace_attributes` on the route's own line (`edge_walk`, `infrastructure/valhalla-speed-limits.ts`), read in pieces of at most 5,000 points or 50 km because Valhalla refuses a long trace. A piece that fails gives no zones (no sign there) and is not remembered; a full read is kept for a few recent routes.
 - **Rules** (`domain/speed-zone.ts`), deliberately cautious: a limit held in the map is shown as a number rounded to a UK limit (20, 30, 40, 50...); a held 60 or 70 is shown as the **national speed limit** sign, because a lorry's own limit there differs and drivers know it; a motorway with no limit held is the national speed limit; **anything else shows nothing** (a lit town street with no sign looks the same as open road in the map data, so it is never guessed). Slip roads with no limit held show nothing.
 - **Not checked against live data yet:** Valhalla's exact field names and what its UK data holds were written from its documentation, not tried against the production tiles. Check on a real route after deploy; if no signs show, look at what `/trace_attributes` returns first. The sign is a guide, never a legal statement, and says to check the signs.
-- Speed cameras are separate (not built yet).
+- Speed cameras are separate: see "Speed cameras" below.
+
+### Speed cameras on the trip screen (2026-10-21)
+
+`apps/core/src/modules/cameras` holds `cameras.speed_cameras` (migration 0074; the app role can only read it): 3,458 fixed, average-speed and red-light camera points for England, Scotland and Wales, seeded once from OpenStreetMap by migration 0075 (`apps/core/scripts/fetch-osm-cameras.mjs`, one Overpass query; © OpenStreetMap contributors, ODbL, so the warning card shows the credit). Each keeps its `osm_id`; not refreshed. The map is **not complete** (roughly half of Britain's fixed cameras) and has **no mobile cameras**, so the warning is a courtesy and says nothing about being safe from enforcement.
+
+- **No routes of its own.** `routing` asks for a plan's cameras: `GET /routing/route-plans/:id/cameras` (core, forwarded by the driver BFF) decodes the plan's **full** line and asks `cameras.findNear` for those within 12 m (`CAMERA_ON_ROUTE_RADIUS_M`). The line must not be thinned and the radius must stay tight: a camera on the other carriageway of a dual road is 15 to 30 m away and is not the driver's. The map's `direction` tag is ignored because the conventions for it are not consistent.
+- **App:** `use-route-cameras.ts` asks once per route; `cameraOffsets` places each camera along the route once; `nextCameraAhead` picks the next one within 500 m of the driver's progress (nothing once off the route). `CameraWarningCard` shows it above the speed sign, bottom-left, and `use-camera-voice-warning.ts` says "Speed camera ahead" once per camera (muted with the rest of the guidance).
 
 ## Hazards
 
 `hazards` (M3) — driver-reported obstructions (low bridges, weight/width limits, roadworks,
 flooding…) that feed into routing's avoidance. Same reachability as routing's, above: through the
 BFF with just a bearer token, or calling core directly with `X-Internal-Key` plus the token.
+
+**Cameras drivers mark (2026-10-22):** two hazard types, `speed_camera` (a fixed camera: permanent, like a low bridge, until drivers dismiss it) and `mobile_camera` (a van or police speed check: **expires after 6 hours** unless another driver confirms it is still there, which renews it for another 6; `expiryWindowMs` in `domain/hazard-report.ts`). Both are advisory: never blocking, never avoided by routing. The driver app keeps them apart from hazards: a **Report a camera** button on the trip map (one tap on fixed or mobile, saved where the driver is, kept on the phone first like a hazard report; `report-camera-sheet.tsx`), not a choice on the hazard screen, and cameras are left out of the "hazards on this route" list and count (`withoutCameras`). They still go through voice report and the "still there?" prompt, show on the map with their own icons and are spoken as "Speed camera ahead" or "Mobile speed camera ahead" (`hazardWarningSpeech`). Separate from the OpenStreetMap camera positions in `cameras` (see Routing); a camera that is in both can be spoken twice, and nothing yet joins them.
 
 | Route                               | Does                                                                                                                          |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |

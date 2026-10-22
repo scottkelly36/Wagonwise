@@ -65,6 +65,21 @@ function buildApp(): {
         delayAlong: () => Promise.resolve({ delaySeconds: 420, coverage: 0.75 }),
       },
     },
+    getRouteCameras: {
+      routePlanRepo,
+      camerasOnRoute: {
+        camerasNear: () =>
+          Promise.resolve([
+            { id: 'c1', location: { lat: 54.97, lon: -2.1 }, kind: 'fixed', maxspeedMph: 40 },
+            {
+              id: 'c2',
+              location: { lat: 54.98, lon: -2.09 },
+              kind: 'red_light',
+              maxspeedMph: undefined,
+            },
+          ]),
+      },
+    },
     getRouteSpeedLimits: {
       routePlanRepo,
       speedLimits: { zonesAlong: () => Promise.resolve([{ from: 0, to: 1, limitMph: 30 }]) },
@@ -667,6 +682,49 @@ describe('POST /routing/trips/:id/traffic', () => {
       method: 'POST',
       url: `/routing/trips/${tripId}/traffic`,
       payload: {},
+      ...asDriver('driver-1'),
+    });
+    expect(other.statusCode).toBe(404);
+    expect(unknown.statusCode).toBe(404);
+    expect(bad.statusCode).toBe(400);
+  });
+});
+
+describe('GET /routing/route-plans/:id/cameras', () => {
+  it('200s with the cameras for the owner of the plan', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${routePlanId}/cameras`,
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      cameras: [
+        { id: 'c1', location: { lat: 54.97, lon: -2.1 }, kind: 'fixed', maxspeedMph: 40 },
+        { id: 'c2', location: { lat: 54.98, lon: -2.09 }, kind: 'red_light' },
+      ],
+    });
+  });
+
+  it('404s an unknown plan and a plan owned by a different driver, and 400s a bad id', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app, 'driver-1');
+    const other = await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${routePlanId}/cameras`,
+      ...asDriver('driver-2'),
+    });
+    const unknown = await app.inject({
+      method: 'GET',
+      url: '/routing/route-plans/11111111-1111-4111-8111-111111111111/cameras',
+      ...asDriver('driver-1'),
+    });
+    const bad = await app.inject({
+      method: 'GET',
+      url: '/routing/route-plans/not-a-uuid/cameras',
       ...asDriver('driver-1'),
     });
     expect(other.statusCode).toBe(404);

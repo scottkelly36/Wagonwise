@@ -4,7 +4,7 @@ import {
   expiryFor,
   isBlocking,
   validateMeasurement,
-  DEFAULT_EXPIRY_DAYS,
+  expiryWindowMs,
   type HazardReport,
   type HazardReportId,
   type HazardStatus,
@@ -107,7 +107,7 @@ export function applyModeration(
         expiresAt:
           action.lifetime === 'permanent'
             ? undefined
-            : new Date(now.getTime() + DEFAULT_EXPIRY_DAYS * 24 * 60 * 60 * 1000),
+            : new Date(now.getTime() + expiryWindowMs(report.type)),
       });
   }
 }

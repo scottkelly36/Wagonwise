@@ -21,6 +21,7 @@ import { computeEta } from '../lib/eta';
 import { routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
 import { formatDuration } from '../lib/format-duration';
+import { withoutCameras } from '../lib/camera-report';
 import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
@@ -75,9 +76,11 @@ export default function RouteOverviewScreen() {
     const byId = new Map<string, NonNullable<typeof nearbyHazardsData>[number]>(
       nearbyHazardsData.map((hazard) => [hazard.id, hazard]),
     );
-    return plan.hazardsOnRoute
-      .map((id) => byId.get(id))
-      .filter((hazard): hazard is NonNullable<typeof hazard> => hazard !== undefined);
+    return withoutCameras(
+      plan.hazardsOnRoute
+        .map((id) => byId.get(id))
+        .filter((hazard): hazard is NonNullable<typeof hazard> => hazard !== undefined),
+    );
   }, [plan, nearbyHazardsData]);
 
   const eta = plan ? computeEta(leaveAt ?? new Date(), plan.durationMin) : undefined;

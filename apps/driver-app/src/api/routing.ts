@@ -7,6 +7,7 @@ import {
   planRouteRequestSchema,
   previewRouteOptionsRequestSchema,
   previewRouteOptionsResponseSchema,
+  routeCamerasSchema,
   routePlanSchema,
   tripTrafficSchema,
   routeSpeedLimitsSchema,
@@ -18,6 +19,7 @@ import {
   type PlanRouteRequest,
   type PreviewRouteOptionsRequest,
   type RouteOptionDto,
+  type RouteCameraDto,
   type RoutePlanDto,
   type TripTrafficDto,
   type SpeedZoneDto,
@@ -152,6 +154,18 @@ export async function getTripTraffic(
   });
   throwUnlessSuccess(status, json, [200]);
   return tripTrafficSchema.parse(json);
+}
+
+/** The speed and red-light cameras on a planned route (positions from OpenStreetMap; not complete). */
+export async function getRouteCameras(
+  accessToken: string,
+  routePlanId: string,
+): Promise<RouteCameraDto[]> {
+  const { status, json } = await requestJson('GET', `/routing/route-plans/${routePlanId}/cameras`, {
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return routeCamerasSchema.parse(json).cameras;
 }
 
 export async function startTrip(accessToken: string, routePlanId: string): Promise<ActiveTripDto> {

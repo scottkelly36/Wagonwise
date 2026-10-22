@@ -58,6 +58,21 @@ describe('isTemporary / expiryFor', () => {
     },
   );
 
+  it('a mobile camera is temporary and expires in hours, not days', () => {
+    expect(isTemporary('mobile_camera')).toBe(true);
+    expect(expiryFor('mobile_camera', now)).toEqual(new Date(now.getTime() + 6 * 60 * 60 * 1000));
+  });
+
+  it('a fixed camera is permanent and never expires', () => {
+    expect(isTemporary('speed_camera')).toBe(false);
+    expect(expiryFor('speed_camera', now)).toBeUndefined();
+  });
+
+  it('neither camera type is blocking, so a route never goes round one', () => {
+    expect(isBlocking('speed_camera')).toBe(false);
+    expect(isBlocking('mobile_camera')).toBe(false);
+  });
+
   it.each<HazardType>(['low_bridge', 'weight_limit', 'width_restriction', 'no_hgv', 'tight_bend'])(
     '%s is permanent and never expires',
     (type) => {
@@ -141,6 +156,11 @@ describe('confirm', () => {
     expect(next.expiresAt).toEqual(
       new Date(now.getTime() + DEFAULT_EXPIRY_DAYS * 24 * 60 * 60 * 1000),
     );
+  });
+
+  it('a driver confirming a mobile camera is still there keeps it for another six hours', () => {
+    const r = report({ type: 'mobile_camera', expiresAt: new Date(now.getTime() + 1000) });
+    expect(confirm(r, now).expiresAt).toEqual(new Date(now.getTime() + 6 * 60 * 60 * 1000));
   });
 
   it('leaves expiresAt untouched (undefined) for a permanent type', () => {

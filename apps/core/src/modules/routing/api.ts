@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { eraseDriverRoutingData, pruneOldRoutePlans } from './application/housekeeping.js';
 import { PostgresRoutingHousekeeping } from './infrastructure/postgres-routing-housekeeping.js';
 import type { HazardsModule } from '../hazards/api.js';
+import type { CamerasModule } from '../cameras/api.js';
 import type { CongestionModule } from '../congestion/api.js';
 import type { IdentityModule } from '../identity/api.js';
 import type { TrafficModule } from '../traffic/api.js';
@@ -15,6 +16,7 @@ import {
 } from './application/reroute-event-handlers.js';
 import { ExpoPushNotifier } from './infrastructure/expo-push-notifier.js';
 import { HazardAvoidanceQueryAdapter } from './infrastructure/hazard-avoidance-query.js';
+import { CamerasOnRouteQueryAdapter } from './infrastructure/cameras-on-route-query.js';
 import { CongestionQueryAdapter } from './infrastructure/congestion-query.js';
 import { InMemoryFasterRouteOfferLog } from './infrastructure/in-memory-faster-route-offer-log.js';
 import { TrafficQueryAdapter } from './infrastructure/traffic-query.js';
@@ -56,6 +58,8 @@ export interface RoutingModuleDeps {
    *  pattern as `ValhallaRoutingEngine` below. Also read directly by the reroute-detection
    *  handlers (M6.4) to re-check a hazard is still active. */
   readonly hazards: Pick<HazardsModule, 'findAvoidanceCandidates' | 'findHazardIdsNear'>;
+  /** `cameras`' facade: the cameras along a planned route, for the trip screen's warning. */
+  readonly cameras: Pick<CamerasModule, 'findNear'>;
   /** `identity`'s facade — the reroute-detection handlers' only source of a driver's push
    *  tokens (design doc §6: "device tokens come from a read-model port onto Identity"). */
   readonly identity: Pick<IdentityModule, 'getPushTokensForDriver'>;
@@ -163,6 +167,10 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
       trafficQuery: new TrafficQueryAdapter(deps.traffic),
     },
     getRouteSpeedLimits: { routePlanRepo, speedLimits: new ValhallaSpeedLimits(deps.valhallaUrl) },
+    getRouteCameras: {
+      routePlanRepo,
+      camerasOnRoute: new CamerasOnRouteQueryAdapter(deps.cameras),
+    },
     startTrip: { routePlanRepo, activeTripRepo, clock: deps.clock, ids: deps.ids },
     endTrip: { repo: activeTripRepo, clock: deps.clock },
     getActiveTrip: { activeTripRepo },

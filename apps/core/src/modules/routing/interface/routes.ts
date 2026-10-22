@@ -26,6 +26,7 @@ import {
   getRouteSpeedLimits,
   type GetRouteSpeedLimitsDeps,
 } from '../application/get-route-speed-limits.js';
+import { getRouteCameras, type GetRouteCamerasDeps } from '../application/get-route-cameras.js';
 import { getRoutePlan, type GetRoutePlanDeps } from '../application/get-route-plan.js';
 import { getTripTraffic, type GetTripTrafficDeps } from '../application/get-trip-traffic.js';
 import {
@@ -59,6 +60,7 @@ export interface RoutingRouteDeps {
   readonly getRoutePlan: GetRoutePlanDeps;
   readonly getRouteSpeedLimits: GetRouteSpeedLimitsDeps;
   readonly getTripTraffic: GetTripTrafficDeps;
+  readonly getRouteCameras: GetRouteCamerasDeps;
   readonly startTrip: StartTripDeps;
   readonly endTrip: EndTripDeps;
   readonly getActiveTrip: GetActiveTripDeps;
@@ -268,6 +270,31 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(200).send({ zones: result.value });
+  });
+
+  app.get('/routing/route-plans/:id/cameras', async (request, reply) => {
+    const driverId = requireDriverId(request, reply);
+    if (driverId === undefined) return reply;
+
+    const params = routePlanIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await getRouteCameras(deps.getRouteCameras, {
+      id: makeId<'RoutePlanId'>(params.data.id),
+      driverId,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send({
+      cameras: result.value.map((c) => ({
+        id: c.id,
+        location: c.location,
+        kind: c.kind,
+        ...(c.maxspeedMph === undefined ? {} : { maxspeedMph: c.maxspeedMph }),
+      })),
+    });
   });
 
   app.post('/routing/route-plans/:id/trip', async (request, reply) => {
