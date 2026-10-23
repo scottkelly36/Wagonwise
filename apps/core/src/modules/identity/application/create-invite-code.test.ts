@@ -4,7 +4,7 @@ import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { InMemoryInviteCodeRepository } from './testing/in-memory-invite-code-repository.js';
 import { SequentialInviteCodeGenerator } from './testing/sequential-invite-code-generator.js';
 import { StubPlatformStaff } from './testing/stub-platform-staff.js';
-import { createInviteCode } from './create-invite-code.js';
+import { createInviteCode, createInviteCodes } from './create-invite-code.js';
 
 const ADMIN = makeId<'StaffId'>('admin');
 const FLEET_USER = makeId<'StaffId'>('fleet-user');
@@ -48,6 +48,30 @@ describe('createInviteCode', () => {
     const deps = setUp();
 
     expect(await createInviteCode(deps, { callerId: FLEET_USER })).toEqual({
+      ok: false,
+      error: { tag: 'Forbidden' },
+    });
+    expect(await deps.repo.findAll()).toEqual([]);
+  });
+});
+
+describe('createInviteCodes', () => {
+  it('makes the number asked for, all different, fresh and unredeemed', async () => {
+    const deps = setUp();
+
+    const result = await createInviteCodes(deps, { callerId: ADMIN, count: 20 });
+
+    if (!result.ok) throw new Error('expected success');
+    expect(result.value).toHaveLength(20);
+    expect(new Set(result.value.map((i) => i.code)).size).toBe(20);
+    expect(result.value.every((i) => i.redeemedBy === null && i.redeemedAt === null)).toBe(true);
+    expect(await deps.repo.findAll()).toHaveLength(20);
+  });
+
+  it('refuses anyone but a WagonWise admin, creating nothing', async () => {
+    const deps = setUp();
+
+    expect(await createInviteCodes(deps, { callerId: FLEET_USER, count: 20 })).toEqual({
       ok: false,
       error: { tag: 'Forbidden' },
     });

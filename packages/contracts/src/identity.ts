@@ -54,6 +54,13 @@ export const listInviteCodesResponseSchema = z.object({
 });
 export type ListInviteCodesResponse = z.infer<typeof listInviteCodesResponseSchema>;
 
+/** `POST /staff/invite-codes/batch`: several fresh codes at once (for a group of testers). At most 50 a time. */
+export const MAX_INVITE_CODES_AT_ONCE = 50;
+export const createInviteCodesRequestSchema = z.object({
+  count: z.number().int().min(1).max(MAX_INVITE_CODES_AT_ONCE),
+});
+export type CreateInviteCodesRequest = z.infer<typeof createInviteCodesRequestSchema>;
+
 export const verifyOtpResponseSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),

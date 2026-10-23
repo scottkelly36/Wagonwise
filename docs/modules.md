@@ -22,7 +22,7 @@ facing wrapper described below, and is how you should normally reach these:
 
 `identifier` is an email or a UK-ish phone number. `inviteCode` is required only the first time —
 signing in with an identifier that has no Driver yet needs one. Generate one from
-`apps/dashboard`'s "Invite codes" screen (WagonWise staff only, `POST /staff/invite-codes`), or
+`apps/dashboard`'s "Invite codes" screen (WagonWise staff only, `POST /staff/invite-codes`) (or `POST /staff/invite-codes/batch` with `{ count }`, 1 to 50, for a group), or
 seed one directly for local testing:
 
 ```bash

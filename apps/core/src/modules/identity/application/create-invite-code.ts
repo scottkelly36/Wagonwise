@@ -33,3 +33,22 @@ export async function createInviteCode(
   await deps.repo.save(invite);
   return ok(invite);
 }
+
+/**
+ * Several fresh codes in one go, for a group of testers: the same as pressing "Generate code" `count` times (each is
+ * single-use and unredeemed). WagonWise admins only; nothing is created for anyone else.
+ */
+export async function createInviteCodes(
+  deps: CreateInviteCodeDeps,
+  input: { readonly callerId: StaffId; readonly count: number },
+): Promise<Result<InviteCode[], Forbidden>> {
+  const allowed = await requirePlatformStaff(deps.staff, input.callerId);
+  if (!allowed.ok) return allowed;
+  const invites: InviteCode[] = [];
+  for (let i = 0; i < input.count; i++) {
+    const made = await createInviteCode(deps, { callerId: input.callerId });
+    if (!made.ok) return made;
+    invites.push(made.value);
+  }
+  return ok(invites);
+}

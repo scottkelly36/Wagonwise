@@ -552,6 +552,64 @@ describe('/staff/invite-codes', () => {
     expect(listed.json<{ inviteCodes: unknown[] }>().inviteCodes).toHaveLength(2);
   });
 
+  it('makes several codes at once for a WagonWise admin', async () => {
+    const { app } = buildApp();
+
+    const created = await app.inject({
+      method: 'POST',
+      url: '/staff/invite-codes/batch',
+      payload: { count: 20 },
+      ...asStaff(ADMIN_ID),
+    });
+    expect(created.statusCode).toBe(201);
+    const { inviteCodes } = created.json<{ inviteCodes: { code: string }[] }>();
+    expect(inviteCodes).toHaveLength(20);
+    expect(new Set(inviteCodes.map((c) => c.code)).size).toBe(20);
+
+    const listed = await app.inject({
+      method: 'GET',
+      url: '/staff/invite-codes',
+      ...asStaff(ADMIN_ID),
+    });
+    expect(listed.json<{ inviteCodes: unknown[] }>().inviteCodes).toHaveLength(20);
+  });
+
+  it('400s a count of nothing, too many, or not a number, and creates none', async () => {
+    const { app } = buildApp();
+    for (const payload of [{}, { count: 0 }, { count: 51 }, { count: 'lots' }]) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/staff/invite-codes/batch',
+        payload,
+        ...asStaff(ADMIN_ID),
+      });
+      expect(response.statusCode).toBe(400);
+    }
+    const listed = await app.inject({
+      method: 'GET',
+      url: '/staff/invite-codes',
+      ...asStaff(ADMIN_ID),
+    });
+    expect(listed.json<{ inviteCodes: unknown[] }>().inviteCodes).toHaveLength(0);
+  });
+
+  it("403s a company's staff and 401s with no staff token on the batch route", async () => {
+    const { app } = buildApp();
+    const forbidden = await app.inject({
+      method: 'POST',
+      url: '/staff/invite-codes/batch',
+      payload: { count: 5 },
+      ...asStaff(FLEET_STAFF_ID),
+    });
+    const anonymous = await app.inject({
+      method: 'POST',
+      url: '/staff/invite-codes/batch',
+      payload: { count: 5 },
+    });
+    expect(forbidden.statusCode).toBe(403);
+    expect(anonymous.statusCode).toBe(401);
+  });
+
   it.each(['POST', 'GET'] as const)("%s 403s a company's staff", async (method) => {
     const { app } = buildApp();
     const response = await app.inject({
