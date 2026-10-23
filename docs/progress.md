@@ -59,6 +59,10 @@ publishes nothing.
   account, and put the company details on the Billing details page.
 - **iOS:** TestFlight and store distribution are blocked on an Apple developer account (an organisation account needs the
   D-U-N-S number above). Voice on iOS is untested.
+- **Google Play quality warnings (release 1.2.1, seen 2026-10-23):** none blocks the closed test or the production-access application, and none can be fixed over the air: each needs a new store build, so do them together in the next one (bump `version` in `app.config.ts` to 1.3.0 for a native change).
+  - **Code optimisation (obfuscation 1%, below Google's 25% threshold; fix by February 2027):** turn on R8 shrinking in the release build (the `expo-build-properties` plugin: minify and shrink resources). It can break native libraries (the map, speech recognition) without keep rules, so test on a real phone first, voice and maps especially.
+  - **Edge-to-edge deprecated APIs (Android 15):** almost always a library, not our code. The Play Console page for the warning names the API and the library behind it: look there first; it usually goes away at the next Expo SDK upgrade.
+  - **Orientation locked to portrait:** from Android 16 tablets and foldables ignore it. Low priority for phones in a cab. Unlocking means checking every screen in landscape.
 - **Real-device gaps:** accent and cab-noise accuracy of voice is the biggest unknown; push notifications have not been
   tested on a device.
 - **Deferred on purpose:** what3words (needs the Basic plan key; it is P3 M7 on the board), national GB tiles (plan in
