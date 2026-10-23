@@ -29,6 +29,7 @@ describe('loadConfig', () => {
       tomtomApiKey: undefined,
       alertEmail: undefined,
       dvlaVesApiKey: undefined,
+      dvsaMot: undefined,
       trafficDailyRequestLimit: 2000,
       trafficCacheTtlMs: 300_000,
       dashboardUrl: undefined,
@@ -44,6 +45,42 @@ describe('loadConfig', () => {
       routeRetentionDays: 30,
       fuelPricePerLitreGBP: 1.6,
       staffSecretKey: undefined,
+    });
+  });
+
+  describe('DVSA MOT history settings', () => {
+    const all = {
+      DVSA_MOT_CLIENT_ID: 'client-id',
+      DVSA_MOT_CLIENT_SECRET: 'client-secret',
+      DVSA_MOT_API_KEY: 'api-key',
+      DVSA_MOT_TOKEN_URL: 'https://login.microsoftonline.com/tenant/oauth2/v2.0/token',
+    };
+
+    it('is off when none is set', () => {
+      expect(loadConfig({}).dvsaMot).toBeUndefined();
+    });
+
+    it('is on when all four are set, with the usual scope unless one is given', () => {
+      expect(loadConfig(all).dvsaMot).toEqual({
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        apiKey: 'api-key',
+        tokenUrl: 'https://login.microsoftonline.com/tenant/oauth2/v2.0/token',
+        scope: 'https://tapi.dvsa.gov.uk/.default',
+      });
+      expect(
+        loadConfig({ ...all, DVSA_MOT_SCOPE: 'https://example/.default' }).dvsaMot?.scope,
+      ).toBe('https://example/.default');
+    });
+
+    it('stops the boot when only some are set, naming the ones missing', () => {
+      const partial = { DVSA_MOT_CLIENT_ID: 'client-id', DVSA_MOT_API_KEY: 'api-key' };
+      expect(() => loadConfig(partial)).toThrow(ConfigError);
+      expect(() => loadConfig(partial)).toThrow(/DVSA_MOT_CLIENT_SECRET, DVSA_MOT_TOKEN_URL/);
+    });
+
+    it('rejects a token address that is not a web address', () => {
+      expect(() => loadConfig({ ...all, DVSA_MOT_TOKEN_URL: 'not a url' })).toThrow(ConfigError);
     });
   });
 

@@ -89,6 +89,14 @@ const envSchema = z.object({
   // Optional: the DVLA Vehicle Enquiry Service key (MOT and road tax dates by registration). Unset means the portal does not
   // offer the lookup. Server-side only; never sent to an app or the portal.
   DVLA_VES_API_KEY: z.string().min(1).optional(),
+  // Optional group: DVSA's MOT history API (the MOT or HGV annual test dates by registration). It signs in with a client id and
+  // secret (a Microsoft token) and sends the API key too, so the first four go together: all set turns it on, none leaves it off,
+  // some is a mistake and stops the boot. The scope is the same for everyone. Server-side only, never sent to an app or the portal.
+  DVSA_MOT_CLIENT_ID: z.string().min(1).optional(),
+  DVSA_MOT_CLIENT_SECRET: z.string().min(1).optional(),
+  DVSA_MOT_API_KEY: z.string().min(1).optional(),
+  DVSA_MOT_TOKEN_URL: z.url().optional(),
+  DVSA_MOT_SCOPE: z.string().min(1).default('https://tapi.dvsa.gov.uk/.default'),
   TRAFFIC_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(2000),
   // Traffic moves in minutes; a reading is reused for this long, and shared by every driver on that road.
   TRAFFIC_CACHE_TTL_MS: z.coerce.number().int().min(10_000).default(300_000),
@@ -160,6 +168,16 @@ export interface Config {
   /** Where email-delivery alerts go; undefined means they are only logged. */
   readonly alertEmail: string | undefined;
   readonly dvlaVesApiKey: string | undefined;
+  /** DVSA's MOT history API: undefined unless all four of its settings are set. */
+  readonly dvsaMot:
+    | {
+        readonly clientId: string;
+        readonly clientSecret: string;
+        readonly apiKey: string;
+        readonly tokenUrl: string;
+        readonly scope: string;
+      }
+    | undefined;
   readonly trafficDailyRequestLimit: number;
   readonly trafficCacheTtlMs: number;
   readonly dashboardUrl: string | undefined;
@@ -199,6 +217,20 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     );
   }
   const values = parsed.data;
+  const dvsaParts = {
+    DVSA_MOT_CLIENT_ID: values.DVSA_MOT_CLIENT_ID,
+    DVSA_MOT_CLIENT_SECRET: values.DVSA_MOT_CLIENT_SECRET,
+    DVSA_MOT_API_KEY: values.DVSA_MOT_API_KEY,
+    DVSA_MOT_TOKEN_URL: values.DVSA_MOT_TOKEN_URL,
+  };
+  const dvsaMissing = Object.entries(dvsaParts)
+    .filter(([, v]) => v === undefined)
+    .map(([k]) => k);
+  if (dvsaMissing.length > 0 && dvsaMissing.length < 4) {
+    throw new ConfigError([
+      `DVSA MOT history needs all four of its settings together; missing: ${dvsaMissing.join(', ')}`,
+    ]);
+  }
   return {
     nodeEnv: values.NODE_ENV,
     host: values.HOST,
@@ -215,6 +247,19 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     tomtomApiKey: values.TOMTOM_API_KEY,
     alertEmail: values.ALERT_EMAIL,
     dvlaVesApiKey: values.DVLA_VES_API_KEY,
+    dvsaMot:
+      values.DVSA_MOT_CLIENT_ID === undefined ||
+      values.DVSA_MOT_CLIENT_SECRET === undefined ||
+      values.DVSA_MOT_API_KEY === undefined ||
+      values.DVSA_MOT_TOKEN_URL === undefined
+        ? undefined
+        : {
+            clientId: values.DVSA_MOT_CLIENT_ID,
+            clientSecret: values.DVSA_MOT_CLIENT_SECRET,
+            apiKey: values.DVSA_MOT_API_KEY,
+            tokenUrl: values.DVSA_MOT_TOKEN_URL,
+            scope: values.DVSA_MOT_SCOPE,
+          },
     trafficDailyRequestLimit: values.TRAFFIC_DAILY_REQUEST_LIMIT,
     trafficCacheTtlMs: values.TRAFFIC_CACHE_TTL_MS,
     dashboardUrl: values.DASHBOARD_URL,

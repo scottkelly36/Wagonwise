@@ -164,7 +164,8 @@ function RegistrationLookup({ vehicleId, onDone }: { vehicleId: string; onDone: 
             </>
           )}
           <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-            From the DVLA's vehicle record. Check it against the paperwork before you rely on it.
+            From the government's vehicle records (DVSA for the MOT or annual test, DVLA for road
+            tax). Check it against the paperwork before you rely on it.
           </p>
         </div>
       )}
