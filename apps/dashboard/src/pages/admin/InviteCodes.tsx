@@ -1,5 +1,7 @@
 import type { InviteCodeDto } from '@wagonwise/contracts/identity';
+import { MAX_INVITE_CODES_AT_ONCE } from '@wagonwise/contracts/identity';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import * as inviteCodesApi from '../../api/invite-codes';
 import { DataTable, type Column } from '../../components/DataTable';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -47,7 +49,15 @@ export function InviteCodes() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: INVITE_CODES_KEY }),
   });
 
-  const error = inviteCodes.error ?? generateCode.error;
+  // Several at once for a group of testers: the new codes are listed in a box, one a line, to copy.
+  const [howMany, setHowMany] = useState(20);
+  const generateMany = useMutation({
+    mutationFn: () => withAccessToken((token) => inviteCodesApi.createInviteCodes(token, howMany)),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: INVITE_CODES_KEY }),
+  });
+  const newCodes = generateMany.data?.map((invite) => invite.code).join('\n');
+
+  const error = inviteCodes.error ?? generateCode.error ?? generateMany.error;
   const sorted = [...(inviteCodes.data ?? [])].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
@@ -67,6 +77,52 @@ export function InviteCodes() {
       >
         {generateCode.isPending ? 'Generating…' : 'Generate code'}
       </button>
+
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          marginBottom: 16,
+          flexWrap: 'wrap',
+        }}
+      >
+        <label>
+          Make{' '}
+          <input
+            type="number"
+            min={1}
+            max={MAX_INVITE_CODES_AT_ONCE}
+            value={howMany}
+            onChange={(e) =>
+              setHowMany(
+                Math.max(1, Math.min(MAX_INVITE_CODES_AT_ONCE, Number(e.target.value) || 1)),
+              )
+            }
+            style={{ width: 70 }}
+            aria-label="How many codes"
+          />{' '}
+          codes at once
+        </label>
+        <button onClick={() => generateMany.mutate()} disabled={generateMany.isPending}>
+          {generateMany.isPending ? 'Generating…' : `Generate ${howMany}`}
+        </button>
+      </div>
+      {newCodes !== undefined && (
+        <div style={{ marginBottom: 24 }}>
+          <p style={{ margin: '0 0 4px' }}>
+            The new codes, one a line. Each works once, so give each tester their own.
+          </p>
+          <textarea
+            readOnly
+            value={newCodes}
+            rows={Math.min(12, generateMany.data?.length ?? 1)}
+            style={{ width: 260, fontFamily: 'monospace' }}
+            onFocus={(e) => e.currentTarget.select()}
+            aria-label="The new invite codes"
+          />
+        </div>
+      )}
 
       {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
 

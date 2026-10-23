@@ -1,4 +1,5 @@
 import {
+  createInviteCodesRequestSchema,
   refreshTokenRequestSchema,
   registerDeviceRequestSchema,
   requestOtpRequestSchema,
@@ -8,7 +9,11 @@ import {
 } from '@wagonwise/contracts/identity';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
-import { createInviteCode, type CreateInviteCodeDeps } from '../application/create-invite-code.js';
+import {
+  createInviteCode,
+  createInviteCodes,
+  type CreateInviteCodeDeps,
+} from '../application/create-invite-code.js';
 import { deleteAccount, type DeleteAccountDeps } from '../application/delete-account.js';
 import { giveConsent, type GiveConsentDeps } from '../application/give-consent.js';
 import { listInviteCodes, type ListInviteCodesDeps } from '../application/list-invite-codes.js';
@@ -246,6 +251,25 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(201).send(inviteCodeDto(result.value));
+  });
+
+  // Several codes at once, for a group of testers (at most 50).
+  app.post('/staff/invite-codes/batch', async (request, reply) => {
+    const staffId = requireStaffId(request, reply);
+    if (staffId === undefined) return reply;
+
+    const body = createInviteCodesRequestSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await createInviteCodes(deps.createInviteCode, {
+      callerId: staffId,
+      count: body.data.count,
+    });
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(201).send({ inviteCodes: result.value.map(inviteCodeDto) });
   });
 
   // Every code, redeemed or not; the dashboard decides how to show "active" vs "used".

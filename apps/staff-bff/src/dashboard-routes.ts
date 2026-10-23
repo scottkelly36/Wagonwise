@@ -103,6 +103,7 @@ import {
   placesCompanyParamsSchema,
   updatePlaceRequestSchema,
 } from '@wagonwise/contracts/places';
+import { createInviteCodesRequestSchema } from '@wagonwise/contracts/identity';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticateOrReject } from './auth/authenticate.js';
@@ -513,6 +514,12 @@ const FORWARDS: readonly Forward[] = [
   { method: 'POST', path: '/staff/billing/invoices/:id/void', params: invoiceIdParamsSchema },
   { method: 'GET', path: '/staff/invite-codes', params: noParams },
   { method: 'POST', path: '/staff/invite-codes', params: noParams },
+  {
+    method: 'POST',
+    path: '/staff/invite-codes/batch',
+    params: noParams,
+    body: createInviteCodesRequestSchema,
+  },
   { method: 'GET', path: '/staff/hazard-reports', params: noParams },
   // Moderation (P2-M7.1): the queue, a decision, and a report's audit trail.
   { method: 'GET', path: '/staff/hazard-reports/moderation-queue', params: noParams },
