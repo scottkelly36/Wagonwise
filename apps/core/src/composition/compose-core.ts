@@ -11,8 +11,11 @@ import { createCostingModule, type UntypedDb as CostingUntypedDb } from '../modu
 import { createHoursModule, type UntypedDb as HoursUntypedDb } from '../modules/hours/api.js';
 import {
   createMaintenanceModule,
+  CombinedVehicleLookup,
   DvlaVehicleEnquiry,
+  DvsaMotHistory,
   NotConfiguredVehicleLookup,
+  type VehicleLookup,
   type UntypedDb as MaintenanceUntypedDb,
 } from '../modules/maintenance/api.js';
 import {
@@ -75,6 +78,16 @@ import type { Clock } from '../shared/ports/clock.js';
 import type { DataScopes } from '../shared/ports/data-scope.js';
 import type { IdGenerator } from '../shared/ports/id-generator.js';
 import type { UnitOfWork } from '../shared/ports/unit-of-work.js';
+
+/** The MOT and road tax lookup the settings allow: DVSA for the MOT, DVLA for the tax, both, or neither. */
+function vehicleLookupFor(config: Config): VehicleLookup {
+  const sources: VehicleLookup[] = [];
+  if (config.dvsaMot !== undefined) sources.push(new DvsaMotHistory(config.dvsaMot));
+  if (config.dvlaVesApiKey !== undefined)
+    sources.push(new DvlaVehicleEnquiry(config.dvlaVesApiKey));
+  if (sources.length === 0) return new NotConfiguredVehicleLookup();
+  return sources.length === 1 ? (sources[0] as VehicleLookup) : new CombinedVehicleLookup(sources);
+}
 
 /** Real adapters by default; tests substitute fakes here rather than mocking modules. */
 export interface CoreOverrides {
@@ -476,11 +489,10 @@ export function composeCore(
       },
       setStatus: (defectId, status, staffId) => checks.setDefectStatus(defectId, status, staffId),
     },
-    // MOT and road tax dates by registration: on once the DVLA key is set, otherwise the portal hides the button.
-    vehicleLookup:
-      config.dvlaVesApiKey === undefined
-        ? new NotConfiguredVehicleLookup()
-        : new DvlaVehicleEnquiry(config.dvlaVesApiKey),
+    // MOT and road tax dates by registration. DVSA's history gives the MOT or annual test (it covers HGVs), DVLA's vehicle record
+    // the road tax; each is used when its settings are present, and both are joined when both are. With neither the portal hides
+    // the button.
+    vehicleLookup: vehicleLookupFor(config),
     dashboardUrl: config.dashboardUrl,
     callers: { getCaller: staffCaller },
     vehicles: {

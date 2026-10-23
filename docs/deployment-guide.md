@@ -192,9 +192,14 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
      (`https://dashboard.wagon-wise.co.uk`, no trailing path; lets staff invitations be emailed),
      `METOFFICE_API_KEY` (Met Office weather warnings from Weather DataHub; optional, unset means
      no warnings; core only, never the BFFs or apps),
-     `DVLA_VES_API_KEY` (the DVLA Vehicle Enquiry Service: MOT and road tax dates by registration; optional,
-     unset means the portal does not show the "Check MOT and tax by registration" button; core only, never the
-     BFFs, the portal or the apps),
+     `DVLA_VES_API_KEY` (the DVLA Vehicle Enquiry Service: road tax, and a basic MOT date, by registration; optional),
+     `DVSA_MOT_CLIENT_ID`, `DVSA_MOT_CLIENT_SECRET`, `DVSA_MOT_API_KEY` and `DVSA_MOT_TOKEN_URL` (DVSA's MOT history API:
+     the MOT or HGV annual test by registration; **all four or none**, a partial set stops core booting; the token address is the
+     Microsoft one in DVSA's credentials email, with your tenant id; `DVSA_MOT_SCOPE` is optional and defaults to
+     `https://tapi.dvsa.gov.uk/.default`). Either source switches the portal's "Check MOT and tax by registration" button on;
+     with both, the MOT comes from DVSA and the road tax from DVLA; with neither the button is hidden. Core only, never the
+     BFFs, the portal or the apps. **DVSA's API key is revoked if unused for 90 days, and its client secret expires every 2 years**:
+     diarise both (a new secret is issued through DVSA's `/credentials` endpoint),
      `TOMTOM_API_KEY` (TomTom live traffic; optional, unset means no traffic data; core only, never the
      BFFs or apps; `TRAFFIC_DAILY_REQUEST_LIMIT` caps calls a day, default 2000, under the free tier's 2,500),
      `STAFF_SECRET_KEY` (`openssl rand -base64 32`; keep a copy somewhere safe: losing it

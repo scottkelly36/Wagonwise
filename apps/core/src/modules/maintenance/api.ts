@@ -31,10 +31,12 @@ export type {
 export type { Mailer } from './application/ports/reminders.js';
 export type { DefectDirectory, DefectInfo } from './application/ports/repairs.js';
 export type { VehicleLookup } from './application/ports/vehicle-lookup.js';
+export { CombinedVehicleLookup } from './infrastructure/combined-vehicle-lookup.js';
 export {
   DvlaVehicleEnquiry,
   NotConfiguredVehicleLookup,
 } from './infrastructure/dvla-vehicle-enquiry.js';
+export { DvsaMotHistory } from './infrastructure/dvsa-mot-history.js';
 export type { Recipient, ReminderCompany, ReminderOutcome } from './application/reminders.js';
 
 export interface MaintenanceModuleDeps {
