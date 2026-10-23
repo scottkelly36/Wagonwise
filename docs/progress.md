@@ -55,8 +55,11 @@ publishes nothing.
 
 - **Deferred, P2-M6.4c:** a reroute-alert indicator on the live map. Needs reroute detection written for company jobs first.
   Revisit if the pilot firm wants it. Also open from M6: no Valhalla-backed check of the ETA and route preview.
-- **Company:** WagonWise Ltd, company number 17530209. Registered office: 5 Portland Terrace, Hexham NE46 3DT (on the website and privacy notice, with "registered in England and Wales"). Still to do: ask for a D-U-N-S number, register with the ICO under the company name, open the business bank
+- **Company:** WagonWise Ltd, company number 17530209. Registered office: 5 Portland Terrace, Hexham NE46 3DT (on the website and privacy notice, with "registered in England and Wales"). The D-U-N-S number is in hand (2026-10-23; not recorded here). Still to do: register with the ICO under the company name, open the business bank
   account, and put the company details on the Billing details page.
+- **iOS:** TestFlight and store distribution wait on an Apple developer account. The D-U-N-S number needed for an
+  organisation account is now in hand, so the next step is enrolling WagonWise Ltd (Apple checks the number against
+  Dun & Bradstreet, which can take a few days to show a new one; it also wants a website and someone with authority to sign for the company). Voice on iOS is untested.
 - **iOS:** TestFlight and store distribution are blocked on an Apple developer account (an organisation account needs the
   D-U-N-S number above). Voice on iOS is untested.
 - **Google Play quality warnings (release 1.2.1, seen 2026-10-23):** none blocks the closed test or the production-access application, and none can be fixed over the air: each needs a new store build, so do them together in the next one (bump `version` in `app.config.ts` to 1.3.0 for a native change).
