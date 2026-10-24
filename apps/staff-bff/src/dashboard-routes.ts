@@ -282,6 +282,12 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/maintenance/vehicles/:vehicleId',
     params: maintenanceVehicleParamsSchema,
   },
+  { method: 'GET', path: '/staff/maintenance/lookup-status', params: noParams },
+  {
+    method: 'POST',
+    path: '/staff/maintenance/companies/:companyId/lookup',
+    params: maintenanceCompanyParamsSchema,
+  },
   {
     method: 'POST',
     path: '/staff/maintenance/vehicles/:vehicleId/lookup',

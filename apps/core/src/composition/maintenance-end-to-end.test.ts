@@ -345,6 +345,61 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
     expect(rows[0]).toEqual({ n: 1 });
   });
 
+  it('looks up every vehicle with a registration at once, for whoever keeps maintenance, and saves nothing', async () => {
+    const check = (who: string, company = ACME) =>
+      app.inject({
+        method: 'POST',
+        url: `/staff/maintenance/companies/${company}/lookup`,
+        ...as(who),
+      });
+
+    const found = await check(BOOKER);
+    expect(found.statusCode).toBe(200);
+    const body = found.json<{
+      rows: {
+        registration: string;
+        outcome: string;
+        suggestions: { itemId: string; dueDate: string }[];
+      }[];
+      withoutRegistration: number;
+      notChecked: number;
+    }>();
+    // The van has a registration (the fake knows it); the lorry has none.
+    expect(body.rows.map((r) => [r.registration, r.outcome])).toEqual([['AB12CDE', 'checked']]);
+    expect(body.rows[0]!.suggestions).toEqual([
+      expect.objectContaining({ itemId: MOT, dueDate: '2028-03-01' }),
+    ]);
+    expect(body.withoutRegistration).toBe(1);
+    expect(body.notChecked).toBe(0);
+
+    expect((await check(DISPATCHER)).statusCode).toBe(403);
+    expect((await check(RIVAL)).statusCode).toBe(403);
+    expect((await check(BOOKER, BETA)).statusCode).toBe(403);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/staff/maintenance/companies/${ACME}/lookup`,
+        })
+      ).statusCode,
+    ).toBe(401);
+    const { rows } = await ownerPool.query('select count(*)::int as n from maintenance.schedules');
+    expect(rows[0]).toEqual({ n: 1 });
+  });
+
+  it('says whether looking up is switched on', async () => {
+    const status = await app.inject({
+      method: 'GET',
+      url: '/staff/maintenance/lookup-status',
+      ...as(DISPATCHER),
+    });
+    expect(status.statusCode).toBe(200);
+    expect(status.json()).toEqual({ available: true });
+    expect(
+      (await app.inject({ method: 'GET', url: '/staff/maintenance/lookup-status' })).statusCode,
+    ).toBe(401);
+  });
+
   it('needs a sign-in', async () => {
     expect(
       (await app.inject({ method: 'GET', url: `/staff/maintenance/companies/${ACME}/overview` }))

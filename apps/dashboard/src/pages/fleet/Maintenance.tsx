@@ -10,6 +10,7 @@ import * as fleetApi from '../../api/fleet';
 import * as maintenanceApi from '../../api/maintenance';
 import { CompanySelect } from '../../components/CompanySelect';
 import { DataTable, type Column } from '../../components/DataTable';
+import { FleetLookup } from '../../components/FleetLookup';
 import { ImportDates } from '../../components/ImportDates';
 import { MyReminders } from '../../components/MyReminders';
 import { Repairs } from '../../components/Repairs';
@@ -136,6 +137,7 @@ function Due({ companyId, canManage }: { companyId: string; canManage: boolean }
 
   return (
     <>
+      {canManage && <FleetLookup companyId={companyId} />}
       {canManage && (
         <div style={{ marginBottom: 12 }}>
           {importing ? (

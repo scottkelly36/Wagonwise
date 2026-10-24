@@ -44,6 +44,7 @@ import {
 import { ukDay } from '../domain/maintenance.js';
 import { daysLeft, isOverdue, type Repair } from '../domain/repair.js';
 import { importDueDates, type TooManyRows } from '../application/import.js';
+import { lookupFleetDates } from '../application/fleet-lookup.js';
 import {
   lookupVehicleDates,
   type LookupNotConfigured,
@@ -426,6 +427,46 @@ export function registerMaintenanceRoutes(app: FastifyInstance, deps: Maintenanc
             },
           }
         : failure(result.error);
+    }),
+  );
+
+  // Whether looking up MOT and tax by registration is switched on, so the portal can hide the buttons when it is not.
+  app.get('/staff/maintenance/lookup-status', (request, reply) =>
+    asStaff(request, reply, () =>
+      Promise.resolve({ status: 200, body: { available: deps.lookup.configured } }),
+    ),
+  );
+
+  // Every vehicle with a registration looked up at once. Saves nothing: the manager takes what they want through the import.
+  app.post('/staff/maintenance/companies/:companyId/lookup', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = maintenanceCompanyParamsSchema.safeParse(request.params);
+      if (!params.success) return INVALID;
+      const result = await lookupFleetDates(
+        { ...deps.schedule, lookup: deps.lookup },
+        caller,
+        makeId<'CompanyId'>(params.data.companyId),
+      );
+      if (!result.ok) return failure(result.error);
+      const { rows, withoutRegistration, notChecked } = result.value;
+      return {
+        status: 200,
+        body: {
+          withoutRegistration,
+          notChecked,
+          rows: rows.map((r) => ({
+            vehicleId: r.vehicleId,
+            vehicleName: r.vehicleName,
+            registration: r.registration,
+            outcome: r.outcome,
+            ...(r.motExpiry === undefined ? {} : { motExpiry: r.motExpiry }),
+            ...(r.taxDue === undefined ? {} : { taxDue: r.taxDue }),
+            ...(r.motStatus === undefined ? {} : { motStatus: r.motStatus }),
+            ...(r.taxStatus === undefined ? {} : { taxStatus: r.taxStatus }),
+            suggestions: r.suggestions,
+          })),
+        },
+      };
     }),
   );
 

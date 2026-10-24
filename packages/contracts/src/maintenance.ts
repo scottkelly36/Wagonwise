@@ -113,6 +113,36 @@ export const vehicleLookupResponseSchema = z.object({
 });
 export type VehicleLookupResponse = z.infer<typeof vehicleLookupResponseSchema>;
 
+/** `GET /staff/maintenance/lookup-status`: whether looking up MOT and tax by registration is switched on. */
+export const lookupStatusSchema = z.object({ available: z.boolean() });
+export type LookupStatusDto = z.infer<typeof lookupStatusSchema>;
+
+/**
+ * `POST /staff/maintenance/companies/:companyId/lookup`: every vehicle with a registration looked up at once, and what would
+ * change for each. Nothing is saved; the manager takes what they want through the bulk import.
+ */
+export const fleetLookupRowSchema = z.object({
+  vehicleId: z.string(),
+  vehicleName: z.string(),
+  registration: z.string(),
+  outcome: z.enum(['checked', 'not_found', 'unavailable']),
+  motExpiry: day.optional(),
+  taxDue: day.optional(),
+  motStatus: z.string().optional(),
+  taxStatus: z.string().optional(),
+  suggestions: z.array(dateSuggestionSchema),
+});
+export type FleetLookupRowDto = z.infer<typeof fleetLookupRowSchema>;
+
+export const fleetLookupResponseSchema = z.object({
+  rows: z.array(fleetLookupRowSchema),
+  /** Vehicles with no registration saved, which cannot be looked up. */
+  withoutRegistration: z.number().int().min(0),
+  /** Vehicles beyond the most one press looks up, left for another press. */
+  notChecked: z.number().int().min(0),
+});
+export type FleetLookupResponse = z.infer<typeof fleetLookupResponseSchema>;
+
 /** `PUT /staff/maintenance/vehicles/:vehicleId/items/:itemId/due`: when it is next due. */
 export const setDueRequestSchema = z.object({ dueDate: day });
 export type SetDueRequest = z.infer<typeof setDueRequestSchema>;
