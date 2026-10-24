@@ -15,6 +15,8 @@ import {
   scheduleSchema,
   setDueRequestSchema,
   starterItemsResponseSchema,
+  fleetLookupResponseSchema,
+  lookupStatusSchema,
   vehicleLookupResponseSchema,
   vehicleMaintenanceResponseSchema,
   type CompleteRepairRequest,
@@ -27,6 +29,7 @@ import {
   type RepairDto,
   type ReminderChannel,
   type ScheduleDto,
+  type FleetLookupResponse,
   type VehicleLookupResponse,
   type VehicleMaintenanceResponse,
 } from '@wagonwise/contracts/maintenance';
@@ -238,6 +241,29 @@ export async function cancelRepair(accessToken: string, id: string): Promise<voi
     authorization: bearer(accessToken),
   });
   throwUnlessSuccess(status, json, [204]);
+}
+
+/** Whether looking up MOT and tax by registration is switched on. */
+export async function getLookupStatus(accessToken: string): Promise<boolean> {
+  const { status, json } = await requestJson('GET', '/staff/maintenance/lookup-status', {
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return lookupStatusSchema.parse(json).available;
+}
+
+/** Looks up every vehicle with a registration and says what would change. Nothing is saved. */
+export async function lookupFleet(
+  accessToken: string,
+  companyId: string,
+): Promise<FleetLookupResponse> {
+  const { status, json } = await requestJson(
+    'POST',
+    `/staff/maintenance/companies/${companyId}/lookup`,
+    { authorization: bearer(accessToken) },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return fleetLookupResponseSchema.parse(json);
 }
 
 /** Sets next-due dates in bulk. Each row stands alone: the result says, row for row, what went in and what did not. */
