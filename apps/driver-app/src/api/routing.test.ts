@@ -270,17 +270,23 @@ describe('getRoutePlan', () => {
 describe('getRouteSpeedLimits', () => {
   const planId = '11111111-1111-4111-8111-111111111111';
 
-  it('requests the limits for the plan and returns the zones', async () => {
+  it('requests the limits for the plan and returns the zones and the bridges', async () => {
     const zones = [
       { from: 0, to: 0.4, limitMph: 30 },
       { from: 0.6, to: 1 },
     ];
-    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, { zones }));
+    const bridges = [{ from: { lat: 54.97, lon: -2.1 }, to: { lat: 54.971, lon: -2.1 } }];
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, { zones, bridges }));
     globalThis.fetch = fetchMock;
 
-    expect(await getRouteSpeedLimits('token-1', planId)).toEqual(zones);
+    expect(await getRouteSpeedLimits('token-1', planId)).toEqual({ zones, bridges });
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toMatch(new RegExp(`/routing/route-plans/${planId}/speed-limits$`));
+  });
+
+  it('treats a reply with no bridges as none', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue(jsonResponse(200, { zones: [] }));
+    expect(await getRouteSpeedLimits('token-1', planId)).toEqual({ zones: [], bridges: [] });
   });
 
   it('throws an ApiError when the plan is not the caller’s', async () => {

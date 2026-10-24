@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import type { RoutePlan } from '../domain/route-plan.js';
-import type { SpeedZone } from '../domain/speed-zone.js';
+import type { RoadFeatures } from '../domain/speed-zone.js';
 import { getRouteSpeedLimits } from './get-route-speed-limits.js';
 import { InMemoryRoutePlanRepository } from './testing/in-memory-route-plan-repository.js';
 
@@ -27,15 +27,18 @@ async function setup() {
   const routePlanRepo = new InMemoryRoutePlanRepository();
   await routePlanRepo.save(plan);
   const asked: string[] = [];
-  const zones: SpeedZone[] = [{ from: 0, to: 1, limitMph: 30 }];
+  const features: RoadFeatures = {
+    zones: [{ from: 0, to: 1, limitMph: 30 }],
+    bridges: [{ from: { lat: 54.97, lon: -2.1 }, to: { lat: 54.971, lon: -2.1 } }],
+  };
   return {
     asked,
     deps: {
       routePlanRepo,
       speedLimits: {
-        zonesAlong: (route: string) => {
+        featuresAlong: (route: string) => {
           asked.push(route);
-          return Promise.resolve(zones);
+          return Promise.resolve(features);
         },
       },
     },
@@ -43,11 +46,14 @@ async function setup() {
 }
 
 describe('getRouteSpeedLimits', () => {
-  it("reads the limits along the owner's route", async () => {
+  it("reads the limits, and where it is on a bridge, along the owner's route", async () => {
     const { deps, asked } = await setup();
     expect(await getRouteSpeedLimits(deps, { id: planId, driverId })).toEqual({
       ok: true,
-      value: [{ from: 0, to: 1, limitMph: 30 }],
+      value: {
+        zones: [{ from: 0, to: 1, limitMph: 30 }],
+        bridges: [{ from: { lat: 54.97, lon: -2.1 }, to: { lat: 54.971, lon: -2.1 } }],
+      },
     });
     expect(asked).toEqual([plan.geometry]);
   });

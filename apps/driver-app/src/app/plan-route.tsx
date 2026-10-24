@@ -40,6 +40,10 @@ import {
   parseVehicleProfileForm,
   type VehicleProfileFormValues,
 } from '../lib/vehicle-profile-form';
+import { cameraMarkers } from '../lib/camera-markers';
+import { isCameraType } from '../lib/camera-report';
+import { placeOnRoute } from '../lib/on-route';
+import { thinPoints } from '../lib/thin-points';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { Icon } from '../components/ui/icon';
 import { PointPicker } from '../components/point-picker';
@@ -85,6 +89,10 @@ const DIMENSION_FIELDS: {
 // stand-in for "roughly this direction of travel" until then (design decision, 2026-09-24: fixes
 // hazards being visible on the home map but not here).
 const NEARBY_RADIUS_M = 5_000;
+/** Once there are routes to look along: the width the server looks either side of them, before the exact "on the road" cut. */
+const ON_ROUTE_HAZARD_RADIUS_M = 750;
+/** The most points the server takes for the line of a request. */
+const CORRIDOR_MAX_POINTS = 1500;
 
 // One colour per route option, drawn on the map and repeated on its card so the two can be matched.
 // Indigo, magenta, amber: in the app's blue-violet family for the first, and none of them a pale blue,
@@ -140,8 +148,35 @@ export default function PlanRouteScreen() {
   // override a start they searched for or tapped.
   const effectiveOrigin = fromMode === 'here' ? location.point : origin;
 
-  const corridor = [effectiveOrigin, destination].filter((p): p is MapPoint => p !== undefined);
-  const nearbyHazards = useNearbyHazards(corridor, NEARBY_RADIUS_M);
+  // Before the routes are compared, what is around the straight line from here to there. Once they are, only what is on one of
+  // the routes shown: a hazard a few streets over, or on the road that crosses, is not on the way.
+  const straightCorridor = [effectiveOrigin, destination].filter(
+    (p): p is MapPoint => p !== undefined,
+  );
+  const optionCorridor = useMemo(
+    () =>
+      optionLines?.flatMap((o) =>
+        thinPoints(
+          o.line.map(([lon, lat]) => ({ lat, lon })),
+          Math.floor(CORRIDOR_MAX_POINTS / optionLines.length),
+        ),
+      ),
+    [optionLines],
+  );
+  const nearbyHazards = useNearbyHazards(
+    optionCorridor ?? straightCorridor,
+    optionCorridor ? ON_ROUTE_HAZARD_RADIUS_M : NEARBY_RADIUS_M,
+  );
+  const shownHazards = useMemo(() => {
+    const found = nearbyHazards.data ?? [];
+    if (!optionLines) return found;
+    const onAnyRoute = new Set<string>();
+    for (const option of optionLines) {
+      for (const placed of placeOnRoute(option.line, found)) onAnyRoute.add(placed.item.id);
+    }
+    return found.filter((h) => onAnyRoute.has(h.id));
+  }, [nearbyHazards.data, optionLines]);
+  const mapCameras = useMemo(() => cameraMarkers(undefined, shownHazards), [shownHazards]);
 
   // With exactly one saved vehicle there is nothing to choose, so it is already selected.
   const selectedProfile =
@@ -378,11 +413,10 @@ export default function PlanRouteScreen() {
           destination={destination}
           routeOptionLines={optionLines}
           onMapPress={handleMapPress}
-          hazards={nearbyHazards.data?.map((h) => ({
-            id: h.id,
-            type: h.type,
-            location: h.location,
-          }))}
+          hazards={shownHazards
+            .filter((h) => !isCameraType(h.type))
+            .map((h) => ({ id: h.id, type: h.type, location: h.location }))}
+          cameras={mapCameras}
           onHazardPress={setSelectedHazardId}
         />
 

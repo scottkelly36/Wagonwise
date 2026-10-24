@@ -269,7 +269,7 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
-    return reply.status(200).send({ zones: result.value });
+    return reply.status(200).send({ zones: result.value.zones, bridges: result.value.bridges });
   });
 
   app.get('/routing/route-plans/:id/cameras', async (request, reply) => {

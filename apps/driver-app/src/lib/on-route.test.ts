@@ -24,6 +24,21 @@ describe('placeOnRoute', () => {
     expect(placed[1]!.offsetM).toBeCloseTo(1670, -1);
   });
 
+  it('drops a low bridge where the route runs over a bridge, but not one it goes under', () => {
+    const bridge = { from: { lat: 0, lon: 0.012 }, to: { lat: 0, lon: 0.014 } };
+    const lowBridge = (id: string, lon: number) => ({ ...at(id, lon), type: 'low_bridge' });
+    const placed = placeOnRoute(
+      route,
+      [
+        lowBridge('over', 0.013),
+        lowBridge('under', 0.02),
+        { ...at('pothole', 0.013), type: 'pothole' },
+      ],
+      [bridge],
+    );
+    expect(placed.map((p) => p.item.id)).toEqual(['under', 'pothole']);
+  });
+
   it('uses a lateral limit of the width of a road', () => {
     expect(ON_ROUTE_M).toBe(30);
   });

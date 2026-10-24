@@ -22,6 +22,7 @@ import {
   type RouteCameraDto,
   type RoutePlanDto,
   type TripTrafficDto,
+  type BridgeStretchDto,
   type SpeedZoneDto,
   type VehicleProfileDto,
 } from '@wagonwise/contracts/routing';
@@ -128,18 +129,18 @@ export async function getRoutePlan(accessToken: string, id: string): Promise<Rou
   return routePlanSchema.parse(json);
 }
 
-/** The speed limits to show along a planned route (fractions of the route, in order). */
+/** The speed limits to show along a planned route (fractions of the route, in order), and where it runs over a bridge. */
 export async function getRouteSpeedLimits(
   accessToken: string,
   routePlanId: string,
-): Promise<SpeedZoneDto[]> {
+): Promise<{ zones: SpeedZoneDto[]; bridges: BridgeStretchDto[] }> {
   const { status, json } = await requestJson(
     'GET',
     `/routing/route-plans/${routePlanId}/speed-limits`,
     { authorization: bearer(accessToken) },
   );
   throwUnlessSuccess(status, json, [200]);
-  return routeSpeedLimitsSchema.parse(json).zones;
+  return routeSpeedLimitsSchema.parse(json);
 }
 
 /** How much live traffic and other drivers' reports add to what is left of the route, from where the lorry is. */
