@@ -1,6 +1,13 @@
 import type { SpeedLimitSource } from '../application/ports/speed-limit-source.js';
 import { decodePolyline, type GeoLine, type GeoPoint } from '../domain/geo.js';
-import { joinZones, zonesFromEdges, type RoadEdge, type SpeedZone } from '../domain/speed-zone.js';
+import {
+  bridgesFromShape,
+  joinBridges,
+  joinZones,
+  zonesFromEdges,
+  type RoadEdge,
+  type RoadFeatures,
+} from '../domain/speed-zone.js';
 
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -65,6 +72,9 @@ interface TraceEdge {
   use?: unknown;
   source_percent_along?: unknown;
   target_percent_along?: unknown;
+  bridge?: unknown;
+  begin_shape_index?: unknown;
+  end_shape_index?: unknown;
 }
 
 const text = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
@@ -92,21 +102,23 @@ function toRoadEdge(e: TraceEdge): RoadEdge {
  * just sees no sign there.
  */
 export class ValhallaSpeedLimits implements SpeedLimitSource {
-  private readonly cache = new Map<GeoLine, SpeedZone[]>();
+  private readonly cache = new Map<GeoLine, RoadFeatures>();
 
   constructor(
     private readonly baseUrl: string,
     private readonly doFetch: Fetch = (url, init) => fetch(url, init),
   ) {}
 
-  async zonesAlong(route: GeoLine): Promise<SpeedZone[]> {
+  async featuresAlong(route: GeoLine): Promise<RoadFeatures> {
     const cached = this.cache.get(route);
     if (cached !== undefined) return cached;
 
     const { pieces, totalM } = splitIntoPieces(decodePolyline(route));
-    if (totalM <= 0) return [];
+    if (totalM <= 0) return { zones: [], bridges: [] };
 
-    const results: (SpeedZone[] | undefined)[] = new Array<SpeedZone[] | undefined>(pieces.length);
+    const results: (RoadFeatures | undefined)[] = new Array<RoadFeatures | undefined>(
+      pieces.length,
+    );
     for (let i = 0; i < pieces.length; i += PIECES_AT_ONCE) {
       await Promise.all(
         pieces.slice(i, i + PIECES_AT_ONCE).map(async (piece, offset) => {
@@ -115,22 +127,25 @@ export class ValhallaSpeedLimits implements SpeedLimitSource {
       );
     }
 
-    const zones = joinZones(results.flatMap((r) => r ?? []));
+    const features: RoadFeatures = {
+      zones: joinZones(results.flatMap((r) => r?.zones ?? [])),
+      bridges: joinBridges(results.flatMap((r) => r?.bridges ?? [])),
+    };
     // A failed piece is not remembered, so asking again can fill it in.
-    if (results.every((r) => r !== undefined)) this.remember(route, zones);
-    return zones;
+    if (results.every((r) => r !== undefined)) this.remember(route, features);
+    return features;
   }
 
-  private remember(route: GeoLine, zones: SpeedZone[]): void {
+  private remember(route: GeoLine, features: RoadFeatures): void {
     if (this.cache.size >= CACHE_SIZE) {
       const oldest = this.cache.keys().next().value;
       if (oldest !== undefined) this.cache.delete(oldest);
     }
-    this.cache.set(route, zones);
+    this.cache.set(route, features);
   }
 
-  /** The zones for one piece, or `undefined` if it could not be read. */
-  private async readPiece(piece: Piece, totalM: number): Promise<SpeedZone[] | undefined> {
+  /** What one piece shows, or `undefined` if it could not be read. */
+  private async readPiece(piece: Piece, totalM: number): Promise<RoadFeatures | undefined> {
     try {
       const response = await this.doFetch(`${this.baseUrl}/trace_attributes`, {
         method: 'POST',
@@ -145,6 +160,10 @@ export class ValhallaSpeedLimits implements SpeedLimitSource {
               'edge.speed_limit',
               'edge.road_class',
               'edge.use',
+              'edge.bridge',
+              'edge.begin_shape_index',
+              'edge.end_shape_index',
+              'shape',
               'edge.source_percent_along',
               'edge.target_percent_along',
             ],
@@ -154,13 +173,23 @@ export class ValhallaSpeedLimits implements SpeedLimitSource {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
       if (!response.ok) return undefined;
-      const body = (await response.json()) as { edges?: unknown };
+      const body = (await response.json()) as { edges?: unknown; shape?: unknown };
       if (!Array.isArray(body.edges)) return undefined;
-      return zonesFromEdges(
-        (body.edges as TraceEdge[]).map(toRoadEdge),
-        piece.startM / totalM,
-        (piece.startM + piece.lengthM) / totalM,
-      );
+      const traced = body.edges as TraceEdge[];
+      const edges = traced.map(toRoadEdge);
+      // Where the bridges are: the matched line (so the edges' shape indexes mean something) and which sections are bridge.
+      const shape = typeof body.shape === 'string' ? decodePolyline(body.shape) : [];
+      const bridgeEdges = traced.map((e) => ({
+        bridge: e.bridge === true,
+        beginShapeIndex: typeof e.begin_shape_index === 'number' ? e.begin_shape_index : -1,
+        endShapeIndex: typeof e.end_shape_index === 'number' ? e.end_shape_index : -1,
+      }));
+      const start = piece.startM / totalM;
+      const end = (piece.startM + piece.lengthM) / totalM;
+      return {
+        zones: zonesFromEdges(edges, start, end),
+        bridges: bridgesFromShape(bridgeEdges, shape),
+      };
     } catch {
       return undefined;
     }

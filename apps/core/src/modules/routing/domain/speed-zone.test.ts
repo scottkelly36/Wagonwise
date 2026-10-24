@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { joinZones, postedLimit, zonesFromEdges, type RoadEdge } from './speed-zone.js';
+import {
+  bridgesFromShape,
+  joinBridges,
+  joinZones,
+  postedLimit,
+  zonesFromEdges,
+  type RoadEdge,
+} from './speed-zone.js';
 
 const edge = (kph: number | string | undefined, extra: Partial<RoadEdge> = {}): RoadEdge => ({
   length: 1,
@@ -89,6 +96,62 @@ describe('joinZones', () => {
       { from: 0, to: 0.7, limitMph: 30 },
       { from: 0.7, to: 0.9 },
       { from: 0.95, to: 1 },
+    ]);
+  });
+});
+
+// A route running due east along the equator, one point every 0.001 degrees.
+const shape = Array.from({ length: 10 }, (_, i) => ({ lat: 0, lon: i * 0.001 }));
+const bridgeEdge = (bridge: boolean, beginShapeIndex: number, endShapeIndex: number) => ({
+  bridge,
+  beginShapeIndex,
+  endShapeIndex,
+});
+
+describe('bridgesFromShape', () => {
+  it('gives the points where each bridge starts and ends, joining sections that meet', () => {
+    const bridges = bridgesFromShape(
+      [
+        bridgeEdge(false, 0, 3),
+        bridgeEdge(true, 3, 4),
+        bridgeEdge(true, 4, 6),
+        bridgeEdge(false, 6, 9),
+      ],
+      shape,
+    );
+    expect(bridges).toEqual([{ from: shape[3]!, to: shape[6]! }]);
+  });
+
+  it('keeps separate bridges apart', () => {
+    const bridges = bridgesFromShape(
+      [bridgeEdge(true, 0, 2), bridgeEdge(false, 2, 5), bridgeEdge(true, 5, 7)],
+      shape,
+    );
+    expect(bridges).toEqual([
+      { from: shape[0]!, to: shape[2]! },
+      { from: shape[5]!, to: shape[7]! },
+    ]);
+  });
+
+  it('gives nothing for a route with no bridge, and skips a section whose points are not known', () => {
+    expect(bridgesFromShape([bridgeEdge(false, 0, 9)], shape)).toEqual([]);
+    expect(bridgesFromShape([bridgeEdge(true, 0, 99)], shape)).toEqual([]);
+    expect(bridgesFromShape([bridgeEdge(true, -1, -1)], shape)).toEqual([]);
+    expect(bridgesFromShape([], shape)).toEqual([]);
+  });
+});
+
+describe('joinBridges', () => {
+  it('joins stretches that meet and keeps others apart', () => {
+    expect(
+      joinBridges([
+        { from: shape[1]!, to: shape[2]! },
+        { from: shape[2]!, to: shape[3]! },
+        { from: shape[6]!, to: shape[7]! },
+      ]),
+    ).toEqual([
+      { from: shape[1]!, to: shape[3]! },
+      { from: shape[6]!, to: shape[7]! },
     ]);
   });
 });

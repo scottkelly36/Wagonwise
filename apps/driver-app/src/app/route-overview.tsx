@@ -22,7 +22,9 @@ import { routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
 import { formatDuration } from '../lib/format-duration';
 import { withoutCameras } from '../lib/camera-report';
+import { useRouteSpeedLimits } from '../api/use-route-speed-limits';
 import { placeOnRoute } from '../lib/on-route';
+import { thinPoints } from '../lib/thin-points';
 import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
@@ -60,9 +62,15 @@ export default function RouteOverviewScreen() {
   // decodePolyline6 is a pure function of plan.geometry — no need to redo it on every
   // unrelated re-render (e.g. a tap elsewhere on this screen).
   const routeLine = useMemo(() => (plan ? decodePolyline6(plan.geometry) : undefined), [plan]);
-  const corridor = useMemo(() => routeLine?.map(([lon, lat]) => ({ lat, lon })) ?? [], [routeLine]);
+  // Thinned to fit: the server takes at most 2000 points and a long route has many more.
+  const corridor = useMemo(
+    () => thinPoints(routeLine?.map(([lon, lat]) => ({ lat, lon })) ?? [], 1500),
+    [routeLine],
+  );
   const nearbyHazards = useNearbyHazards(corridor, ON_ROUTE_HAZARD_RADIUS_M);
   const nearbyHazardsData = nearbyHazards.data;
+  // Where the route is up on a bridge: a low bridge there is the road underneath, not the driver's.
+  const bridges = useRouteSpeedLimits(plan?.id).data?.bridges;
   // `plan.hazardsOnRoute` is the authoritative "on this route" list (a real, ~30m-of-the-final-
   // route server query as of the plan/hazardsOnRoute-populate change) but it's bare ids, nothing
   // a driver can read. Cross-referencing against `nearbyHazards`' fuller objects (already fetched
@@ -73,13 +81,13 @@ export default function RouteOverviewScreen() {
   const onRouteHazards = useMemo(
     () =>
       routeLine && nearbyHazardsData
-        ? placeOnRoute(routeLine, nearbyHazardsData).map(({ item: h }) => ({
+        ? placeOnRoute(routeLine, nearbyHazardsData, bridges).map(({ item: h }) => ({
             id: h.id,
             type: h.type,
             location: h.location,
           }))
         : [],
-    [routeLine, nearbyHazardsData],
+    [routeLine, nearbyHazardsData, bridges],
   );
   const hazardsOnRoute = useMemo(() => {
     if (!plan || !nearbyHazardsData) return [];
@@ -89,12 +97,17 @@ export default function RouteOverviewScreen() {
     const byId = new Map<string, NonNullable<typeof nearbyHazardsData>[number]>(
       nearbyHazardsData.map((hazard) => [hazard.id, hazard]),
     );
+    // Not a low bridge the route goes over: the server's list does not know the route is up on a bridge there.
+    const shown = new Set<string>(onRouteHazards.map((h) => h.id));
     return withoutCameras(
       plan.hazardsOnRoute
         .map((id) => byId.get(id))
-        .filter((hazard): hazard is NonNullable<typeof hazard> => hazard !== undefined),
+        .filter(
+          (hazard): hazard is NonNullable<typeof hazard> =>
+            hazard !== undefined && (routeLine === undefined || shown.has(hazard.id)),
+        ),
     );
-  }, [plan, nearbyHazardsData]);
+  }, [plan, nearbyHazardsData, onRouteHazards, routeLine]);
 
   const eta = plan ? computeEta(leaveAt ?? new Date(), plan.durationMin) : undefined;
 

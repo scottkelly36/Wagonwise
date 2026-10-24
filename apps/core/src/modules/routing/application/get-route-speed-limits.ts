@@ -1,6 +1,6 @@
 import { err, ok, type Result } from '../../../shared/result.js';
 import type { RoutePlanId } from '../domain/route-plan.js';
-import type { SpeedZone } from '../domain/speed-zone.js';
+import type { RoadFeatures } from '../domain/speed-zone.js';
 import type { DriverId } from '../domain/vehicle-profile.js';
 import type { RoutePlanNotFound } from './errors.js';
 import type { RoutePlanRepository } from './ports/route-plan-repository.js';
@@ -17,14 +17,14 @@ export interface GetRouteSpeedLimitsInput {
 }
 
 /**
- * The speed limits to show along one of the driver's route plans. Another driver's plan looks the same as an unknown
+ * The speed limits to show along one of the driver's route plans, and where it runs over a bridge. Another driver's route plans. Another driver's plan looks the same as an unknown
  * one, as `getRoutePlan` does.
  */
 export async function getRouteSpeedLimits(
   deps: GetRouteSpeedLimitsDeps,
   input: GetRouteSpeedLimitsInput,
-): Promise<Result<SpeedZone[], RoutePlanNotFound>> {
+): Promise<Result<RoadFeatures, RoutePlanNotFound>> {
   const plan = await deps.routePlanRepo.findById(input.id);
   if (!plan || plan.driverId !== input.driverId) return err({ tag: 'RoutePlanNotFound' });
-  return ok(await deps.speedLimits.zonesAlong(plan.geometry));
+  return ok(await deps.speedLimits.featuresAlong(plan.geometry));
 }
