@@ -1,4 +1,8 @@
-import type { PlaceCategory, SavedPlaceDto } from '@wagonwise/contracts/places';
+import type {
+  PlaceCategory,
+  PlaceReportReasonDto,
+  SavedPlaceDto,
+} from '@wagonwise/contracts/places';
 
 import type { MapPoint } from '../components/route-map';
 import { distanceMetres } from './geo-distance';
@@ -8,6 +12,14 @@ export const PLACE_CATEGORY_LABELS: Record<PlaceCategory, string> = {
   yard: 'Yard',
   other: 'Other',
 };
+
+/** Why a driver can report another driver's public place, in the order they are offered. */
+export const PLACE_REPORT_REASONS: readonly { reason: PlaceReportReasonDto; label: string }[] = [
+  { reason: 'wrong_place', label: 'It is in the wrong place' },
+  { reason: 'private_property', label: 'It is someone’s home or private land' },
+  { reason: 'offensive', label: 'The name or note is offensive' },
+  { reason: 'other', label: 'Something else' },
+];
 
 export const PLACE_CATEGORIES: readonly PlaceCategory[] = ['farm', 'yard', 'other'];
 

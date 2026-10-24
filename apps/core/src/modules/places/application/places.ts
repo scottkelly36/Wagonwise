@@ -8,6 +8,7 @@ import {
   type InvalidName,
   type InvalidPlaceNote,
   type PlaceCategory,
+  type PlaceReportReason,
   type SavedPlace,
   type SavedPlaceId,
 } from '../domain/place.js';
@@ -65,6 +66,7 @@ export async function markPlace(
     name: name.value,
     note: note.value,
     location: input.location,
+    isPublic: false,
     createdBy: input.actor.kind === 'driver' ? input.actor.driverId : undefined,
     createdAt: now,
     updatedAt: now,
@@ -194,5 +196,55 @@ export async function deletePlace(
   }
   if (!(await canDelete(input.actor, place, deps.membership))) return err({ tag: 'Forbidden' });
   await deps.repo.delete(place.id);
+  return ok(undefined);
+}
+
+/** The most public places one request returns: enough for a map view, and a bound on what one request can pull. */
+const PUBLIC_PLACES_LIMIT = 300;
+
+/** Public places from every driver near a point. Drivers only: a company's staff have no use for them. */
+export async function publicPlacesNear(
+  deps: PlaceDeps,
+  input: { readonly actor: PlaceActor; readonly location: GeoPoint; readonly radiusM: number },
+): Promise<Result<SavedPlace[], Forbidden>> {
+  if (input.actor.kind !== 'driver') return err({ tag: 'Forbidden' });
+  return ok(await deps.repo.findPublicNear(input.location, input.radiusM, PUBLIC_PLACES_LIMIT));
+}
+
+/**
+ * The owner of a personal place makes it public, or private again. A company's place cannot be made public (a customer's site
+ * is not one driver's to publish), and a driver cannot change someone else's place: both answer "not found".
+ */
+export async function setPlaceVisibility(
+  deps: PlaceDeps,
+  input: { readonly actor: PlaceActor; readonly id: SavedPlaceId; readonly isPublic: boolean },
+): Promise<Result<SavedPlace, PlaceNotFound>> {
+  const place = await deps.repo.findById(input.id);
+  if (
+    place === null ||
+    place.companyId !== undefined ||
+    input.actor.kind !== 'driver' ||
+    place.createdBy !== input.actor.driverId
+  ) {
+    return err({ tag: 'PlaceNotFound' });
+  }
+  await deps.repo.setPublic(place.id, input.isPublic, deps.clock.now());
+  return ok({ ...place, isPublic: input.isPublic });
+}
+
+/** A driver reports someone else's public place. Their own is theirs to make private; a private one is not theirs to see. */
+export async function reportPlace(
+  deps: PlaceDeps,
+  input: {
+    readonly actor: PlaceActor;
+    readonly id: SavedPlaceId;
+    readonly reason: PlaceReportReason;
+  },
+): Promise<Result<void, Forbidden | PlaceNotFound>> {
+  if (input.actor.kind !== 'driver') return err({ tag: 'Forbidden' });
+  const place = await deps.repo.findById(input.id);
+  if (place === null || !place.isPublic) return err({ tag: 'PlaceNotFound' });
+  if (place.createdBy === input.actor.driverId) return err({ tag: 'Forbidden' });
+  await deps.repo.addReport(place.id, input.actor.driverId, input.reason, deps.clock.now());
   return ok(undefined);
 }

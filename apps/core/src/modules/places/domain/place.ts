@@ -16,6 +16,18 @@ export interface GeoPoint {
 export const PLACE_CATEGORIES = ['farm', 'yard', 'other'] as const;
 export type PlaceCategory = (typeof PLACE_CATEGORIES)[number];
 
+/** Why a driver reports a public place. */
+export const PLACE_REPORT_REASONS = [
+  'wrong_place',
+  'offensive',
+  'private_property',
+  'other',
+] as const;
+export type PlaceReportReason = (typeof PLACE_REPORT_REASONS)[number];
+
+/** A public place that this many different drivers have reported is no longer shown to others, until a person at WagonWise decides. */
+export const REPORTS_TO_HIDE = 3;
+
 export const PLACE_NAME_MAX = 80;
 export const PLACE_NOTE_MAX = 500;
 
@@ -23,7 +35,7 @@ export const PLACE_NOTE_MAX = 500;
  * Somewhere a driver has marked: the real gate of a farm whose postcode lands elsewhere, a customer's
  * yard entrance. Kept for future jobs. A company's driver marks it for the whole company (`companyId`
  * set); a driver with no company marks a personal one (`companyId` absent, `createdBy` is the owner,
- * and only they see it). The spot never moves: to correct it, delete and mark again. Name, category and
+ * and only they see it, unless they make it public). The spot never moves: to correct it, delete and mark again. Name, category and
  * note can change.
  */
 export interface SavedPlace {
@@ -33,6 +45,8 @@ export interface SavedPlace {
   readonly name: string;
   readonly note: string | undefined;
   readonly location: GeoPoint;
+  /** Visible to every WagonWise driver, with nothing to say who marked it. Only a personal place (no company) can be public. */
+  readonly isPublic: boolean;
   readonly createdBy: DriverId | undefined;
   readonly createdAt: Date;
   readonly updatedAt: Date;

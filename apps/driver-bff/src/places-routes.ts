@@ -2,7 +2,10 @@ import {
   listPlacesRequestSchema,
   markPlaceRequestSchema,
   nearbyPlacesRequestSchema,
+  nearbyPublicPlacesRequestSchema,
   placeIdParamsSchema,
+  placeVisibilityRequestSchema,
+  reportPlaceRequestSchema,
   sharePlaceRequestSchema,
   updatePlaceRequestSchema,
 } from '@wagonwise/contracts/places';
@@ -74,6 +77,54 @@ export function registerPlacesRoutes(app: FastifyInstance, deps: PlacesRouteDeps
       body: body.data,
       authorization: `Bearer ${token}`,
     });
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.post('/places/public/nearby', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+    const parsed = nearbyPublicPlacesRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request('POST', '/places/public/nearby', request.id, {
+      body: parsed.data,
+      authorization: `Bearer ${token}`,
+    });
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.put('/places/:id/visibility', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+    const params = placeIdParamsSchema.safeParse(request.params);
+    const body = placeVisibilityRequestSchema.safeParse(request.body);
+    if (!params.success || !body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request(
+      'PUT',
+      `/places/${params.data.id}/visibility`,
+      request.id,
+      { body: body.data, authorization: `Bearer ${token}` },
+    );
+    return reply.status(core.status).send(core.body);
+  });
+
+  app.post('/places/:id/report', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+    const params = placeIdParamsSchema.safeParse(request.params);
+    const body = reportPlaceRequestSchema.safeParse(request.body);
+    if (!params.success || !body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request(
+      'POST',
+      `/places/${params.data.id}/report`,
+      request.id,
+      { body: body.data, authorization: `Bearer ${token}` },
+    );
     return reply.status(core.status).send(core.body);
   });
 

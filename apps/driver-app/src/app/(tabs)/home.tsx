@@ -17,7 +17,7 @@ import { ReportCameraSheet } from '../../components/report-camera-sheet';
 import { cameraMarkers } from '../../lib/camera-markers';
 import { isCameraType } from '../../lib/camera-report';
 import { PlaceSheet } from '../../components/place-sheet';
-import { useMyPlaces } from '../../api/use-places';
+import { useMyPlaces, usePublicPlaces } from '../../api/use-places';
 import type { SavedPlaceDto } from '@wagonwise/contracts/places';
 import { JobCard } from '../../components/job-card';
 import { RouteMap, type RouteMapHandle } from '../../components/route-map';
@@ -90,9 +90,15 @@ export default function HomeScreen() {
   const drivingProfileId = useDrivingProfileId();
   const navigateToSpot = useNavigateToPlace(drivingProfileId);
   const myPlaces = useMyPlaces();
+  // Places other drivers have made public, around the driver or the view, with the driver's own and their company's.
+  const publicPlaces = usePublicPlaces(queryPoints[0], viewRadiusM ?? NEARBY_RADIUS_M);
+  const allPlaces = useMemo(() => {
+    const mine = new Set(myPlaces.places.map((p) => p.id));
+    return [...myPlaces.places, ...(publicPlaces.data ?? []).filter((p) => !mine.has(p.id))];
+  }, [myPlaces.places, publicPlaces.data]);
   const mapPlaces = useMemo(
-    () => myPlaces.places.map((p) => ({ id: p.id, category: p.category, location: p.location })),
-    [myPlaces.places],
+    () => allPlaces.map((p) => ({ id: p.id, category: p.category, location: p.location })),
+    [allPlaces],
   );
   const [selectedPlace, setSelectedPlace] = useState<SavedPlaceDto | undefined>(undefined);
   const [markingPlace, setMarkingPlace] = useState(false);
@@ -159,7 +165,7 @@ export default function HomeScreen() {
         onCameraPress={setSelectedHazardId}
         onParkingSpotPress={setSelectedParkingId}
         places={mapPlaces}
-        onPlacePress={(id) => setSelectedPlace(myPlaces.places.find((p) => p.id === id))}
+        onPlacePress={(id) => setSelectedPlace(allPlaces.find((p) => p.id === id))}
         congestion={
           showTraffic
             ? nearbyCongestion.data?.map((c) => ({

@@ -1,6 +1,13 @@
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import type {
   MarkPlaceRequest,
+  PlaceReportReasonDto,
   SavedPlaceDto,
   UpdatePlaceRequest,
 } from '@wagonwise/contracts/places';
@@ -110,5 +117,51 @@ export function useDeletePlace() {
   return useMutation({
     mutationFn: (id: string) => placesApi.deletePlace(accessToken, id),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: PLACES_KEY }),
+  });
+}
+
+const PUBLIC_PLACES_KEY = ['places-public'] as const;
+const PUBLIC_PLACES_STALE_MS = 5 * 60_000;
+
+/**
+ * The public places around a point or a map view, from every driver. Disabled until there is a point; the last answer is kept while a
+ * new view loads so markers do not blink as the map is panned.
+ */
+export function usePublicPlaces(point: { lat: number; lon: number } | undefined, radiusM: number) {
+  const accessToken = useAccessToken();
+  return useQuery({
+    queryKey: [...PUBLIC_PLACES_KEY, point, radiusM],
+    queryFn: () =>
+      placesApi.nearbyPublicPlaces(accessToken, {
+        location: point ?? { lat: 0, lon: 0 },
+        radiusM: Math.min(radiusM, 50_000),
+      }),
+    enabled: point !== undefined,
+    staleTime: PUBLIC_PLACES_STALE_MS,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** The owner makes a personal place public or private. */
+export function useSetPlaceVisibility() {
+  const accessToken = useAccessToken();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isPublic }: { id: string; isPublic: boolean }) =>
+      placesApi.setPlaceVisibility(accessToken, id, isPublic),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: PLACES_KEY });
+      void queryClient.invalidateQueries({ queryKey: PUBLIC_PLACES_KEY });
+    },
+  });
+}
+
+export function useReportPlace() {
+  const accessToken = useAccessToken();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: PlaceReportReasonDto }) =>
+      placesApi.reportPlace(accessToken, id, reason),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: PUBLIC_PLACES_KEY }),
   });
 }

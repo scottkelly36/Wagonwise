@@ -8,6 +8,9 @@ import {
   listPlaces,
   markPlace,
   placesNear,
+  publicPlacesNear,
+  reportPlace,
+  setPlaceVisibility,
   sharePlace,
   updatePlace,
 } from './places.js';
@@ -381,5 +384,127 @@ describe('sharePlace (a solo driver who has joined a company)', () => {
         error: { tag: 'PlaceNotFound' },
       });
     }
+  });
+});
+
+describe('public places', () => {
+  const solo = makeId<'DriverId'>('driver-solo');
+  const here = { lat: 54.95, lon: -2.2 };
+
+  it('lets the owner make a personal place public and private again, and others near it find it', async () => {
+    const { deps } = setup();
+    await mark(deps, driver(solo), id(1), { companyId: undefined });
+    expect(
+      await publicPlacesNear(deps, { actor: driver(lee), location: here, radiusM: 1000 }),
+    ).toEqual({
+      ok: true,
+      value: [],
+    });
+
+    const made = await setPlaceVisibility(deps, { actor: driver(solo), id: id(1), isPublic: true });
+    expect(made).toMatchObject({ ok: true, value: { isPublic: true } });
+    const seen = await publicPlacesNear(deps, {
+      actor: driver(lee),
+      location: here,
+      radiusM: 1000,
+    });
+    expect(seen.ok && seen.value.map((p) => p.id)).toEqual([id(1)]);
+
+    await setPlaceVisibility(deps, { actor: driver(solo), id: id(1), isPublic: false });
+    const gone = await publicPlacesNear(deps, {
+      actor: driver(lee),
+      location: here,
+      radiusM: 1000,
+    });
+    expect(gone.ok && gone.value).toEqual([]);
+  });
+
+  it('is only the owner’s to change, and never a company’s place', async () => {
+    const { deps } = setup();
+    await mark(deps, driver(solo), id(1), { companyId: undefined });
+    await mark(deps, driver(pat), id(2)); // acme's
+    for (const [actor, placeId] of [
+      [driver(lee), id(1)],
+      [driver(pat), id(2)],
+      [dispatcher, id(2)],
+      [admin, id(1)],
+      [driver(solo), id(99)],
+    ] as const) {
+      expect(await setPlaceVisibility(deps, { actor, id: placeId, isPublic: true })).toEqual({
+        ok: false,
+        error: { tag: 'PlaceNotFound' },
+      });
+    }
+  });
+
+  it('is for drivers: staff get nothing', async () => {
+    const { deps } = setup();
+    expect(
+      await publicPlacesNear(deps, { actor: dispatcher, location: here, radiusM: 1000 }),
+    ).toEqual({
+      ok: false,
+      error: { tag: 'Forbidden' },
+    });
+  });
+
+  it('lets another driver report a public place, but not their own, a private one, or as staff', async () => {
+    const { deps } = setup();
+    await mark(deps, driver(solo), id(1), { companyId: undefined });
+    // Private: not theirs to see, so not theirs to report.
+    expect(await reportPlace(deps, { actor: driver(lee), id: id(1), reason: 'other' })).toEqual({
+      ok: false,
+      error: { tag: 'PlaceNotFound' },
+    });
+    await setPlaceVisibility(deps, { actor: driver(solo), id: id(1), isPublic: true });
+    expect(await reportPlace(deps, { actor: driver(solo), id: id(1), reason: 'other' })).toEqual({
+      ok: false,
+      error: { tag: 'Forbidden' },
+    });
+    expect(await reportPlace(deps, { actor: admin, id: id(1), reason: 'other' })).toEqual({
+      ok: false,
+      error: { tag: 'Forbidden' },
+    });
+    expect(
+      await reportPlace(deps, { actor: driver(lee), id: id(1), reason: 'wrong_place' }),
+    ).toEqual({
+      ok: true,
+      value: undefined,
+    });
+  });
+
+  it('stops showing a public place to others once three different drivers have reported it', async () => {
+    const { deps } = setup();
+    await mark(deps, driver(solo), id(1), { companyId: undefined });
+    await setPlaceVisibility(deps, { actor: driver(solo), id: id(1), isPublic: true });
+    const reporters = ['a', 'b', 'c'].map((n) => makeId<'DriverId'>(`driver-${n}`));
+    for (const reporter of reporters.slice(0, 2)) {
+      await reportPlace(deps, { actor: driver(reporter), id: id(1), reason: 'other' });
+    }
+    const before = await publicPlacesNear(deps, {
+      actor: driver(lee),
+      location: here,
+      radiusM: 1000,
+    });
+    expect(before.ok && before.value).toHaveLength(1);
+    await reportPlace(deps, { actor: driver(reporters[2]!), id: id(1), reason: 'other' });
+    const after = await publicPlacesNear(deps, {
+      actor: driver(lee),
+      location: here,
+      radiusM: 1000,
+    });
+    expect(after.ok && after.value).toEqual([]);
+  });
+
+  it('is no longer public once shared with a company', async () => {
+    const { deps } = setup();
+    await mark(deps, driver(pat), id(1), { companyId: undefined });
+    await setPlaceVisibility(deps, { actor: driver(pat), id: id(1), isPublic: true });
+    await sharePlace(deps, { actor: driver(pat), id: id(1), companyId: acme });
+    const seen = await publicPlacesNear(deps, {
+      actor: driver(lee),
+      location: here,
+      radiusM: 1000,
+    });
+    expect(seen.ok && seen.value).toEqual([]);
   });
 });
