@@ -197,7 +197,15 @@ export const speedZoneSchema = z.object({
 });
 export type SpeedZoneDto = z.infer<typeof speedZoneSchema>;
 
-export const routeSpeedLimitsSchema = z.object({ zones: z.array(speedZoneSchema) });
+/** Where the route runs over a bridge, as the points where each starts and ends. A low-bridge restriction is on the road underneath, so such a hazard
+ *  on one of these stretches is not the driver's. */
+export const bridgeStretchSchema = z.object({ from: geoPointSchema, to: geoPointSchema });
+export type BridgeStretchDto = z.infer<typeof bridgeStretchSchema>;
+
+export const routeSpeedLimitsSchema = z.object({
+  zones: z.array(speedZoneSchema),
+  bridges: z.array(bridgeStretchSchema).default([]),
+});
 export type RouteSpeedLimitsDto = z.infer<typeof routeSpeedLimitsSchema>;
 
 /** `POST /routing/trips/:id/traffic`: how much live traffic and other drivers' reports add to what is left of the route. */

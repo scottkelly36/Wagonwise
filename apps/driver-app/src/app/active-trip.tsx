@@ -53,7 +53,7 @@ import { useFasterRoute } from '../hooks/use-faster-route';
 import { useTripTraffic } from '../hooks/use-trip-traffic';
 import { cameraMarkers } from '../lib/camera-markers';
 import { placeOnRoute, stillAhead } from '../lib/on-route';
-import { congestionLines } from '../lib/route-slice';
+import { congestionLines, sliceRoute } from '../lib/route-slice';
 import { trafficExtraMinutes, trafficNote } from '../lib/trip-traffic';
 import { useAutoStartHours } from '../hooks/use-auto-start-hours';
 import { parkingOnly } from '../lib/parking-details';
@@ -146,6 +146,10 @@ const CANCELLABLE_PHASES = new Set(['capturing-report', 'capturing-confirmation'
 const ON_ROUTE_HAZARD_RADIUS_M = 750;
 // Under the server's limit of 2000 corridor points per request.
 const CORRIDOR_MAX_POINTS = 1500;
+/** The route behind the driver stops being drawn in steps of this many metres. */
+const DRAWN_LINE_STEP_M = 50;
+/** ...and only while they are this close to the route. */
+const DRAW_AHEAD_ONLY_WITHIN_M = 100;
 // Parking a little further out than hazards: a layby just off the route is worth seeing.
 const ON_ROUTE_PARKING_RADIUS_M = 1500;
 // A function of its own so the clock is read where it is used, not while the screen is drawn.
@@ -285,7 +289,7 @@ export default function ActiveTripScreen() {
   const routeSpeedLimits = useRouteSpeedLimits(plan?.id);
   const speedSign = progress
     ? speedLimitHere(
-        routeSpeedLimits.data,
+        routeSpeedLimits.data?.zones,
         progress.traveledMetres,
         progress.totalMetres,
         progress.offRouteMetres,
@@ -301,12 +305,29 @@ export default function ActiveTripScreen() {
   // hazards near the route reaches 750 m either side, which in a town includes the next street over: not the driver's hazard.
   // Placed on the route once; the "ahead" cut is redone every 250 m, not every second, so the markers do not churn.
   const hazardsPlaced = useMemo(
-    () => (routeLine && nearbyHazardsData ? placeOnRoute(routeLine, nearbyHazardsData) : []),
-    [routeLine, nearbyHazardsData],
+    () =>
+      routeLine && nearbyHazardsData
+        ? placeOnRoute(routeLine, nearbyHazardsData, routeSpeedLimits.data?.bridges)
+        : [],
+    [routeLine, nearbyHazardsData, routeSpeedLimits.data?.bridges],
   );
   const aheadFromM = progress
     ? Math.floor(progress.traveledMetres / AHEAD_STEP_M) * AHEAD_STEP_M
     : 0;
+  // The line drawn on the map is only the part still to drive: the road behind is not drawn over. Cut every 50 m, not every
+  // second, and only while the driver is on the route (off it, the nearest point is not where they are).
+  const drawnFromM =
+    progress && progress.offRouteMetres <= DRAW_AHEAD_ONLY_WITHIN_M
+      ? Math.floor(progress.traveledMetres / DRAWN_LINE_STEP_M) * DRAWN_LINE_STEP_M
+      : 0;
+  const totalM = progress?.totalMetres ?? 0;
+  const drawnLine = useMemo(
+    () =>
+      routeLine && drawnFromM > 0 && totalM > 0
+        ? sliceRoute(routeLine, drawnFromM / totalM, 1)
+        : routeLine,
+    [routeLine, drawnFromM, totalM],
+  );
   const hazardsAhead = useMemo(
     () => stillAhead(hazardsPlaced, aheadFromM),
     [hazardsPlaced, aheadFromM],
@@ -503,7 +524,7 @@ export default function ActiveTripScreen() {
           hideRecenterButton
           origin={plan.origin}
           destination={plan.destination}
-          routeLine={routeLine}
+          routeLine={drawnLine}
           trafficLines={congestion}
           currentPosition={location.point}
           currentCourse={location.bearing}
@@ -570,13 +591,6 @@ export default function ActiveTripScreen() {
             />
           )}
         </View>
-
-        {(speedSign || cameraAhead) && (
-          <View style={styles.bottomLeft} pointerEvents="none">
-            {cameraAhead && <CameraWarningCard ahead={cameraAhead} />}
-            {speedSign && <SpeedLimitSignView sign={speedSign} />}
-          </View>
-        )}
 
         {eta && (
           <View style={[styles.etaCard, { top: belowTurn }]} testID="active-trip-eta">
@@ -670,6 +684,14 @@ export default function ActiveTripScreen() {
             mic is available throughout a trip, but shouldn't compete with the map for attention
             until a driver actually wants it. */}
         <View style={styles.micOverlay} pointerEvents="box-none">
+          {/* The speed limit and the next camera sit in this stack, above the clock, so the clock opening or growing pushes them up
+              instead of covering them. */}
+          {(speedSign || cameraAhead) && (
+            <View style={styles.bottomLeft} pointerEvents="none">
+              {cameraAhead && <CameraWarningCard ahead={cameraAhead} />}
+              {speedSign && <SpeedLimitSignView sign={speedSign} />}
+            </View>
+          )}
           {/* The driving-hours clock, one tap from the map: what they are doing, the time left, and four big buttons to change it. */}
           <HoursQuickBar />
           {voiceFlow.state.phase === 'speaking-summary' && (
@@ -912,7 +934,7 @@ function createStyles(colors: ThemeColors) {
     // Under the turn card, on the right, clear of the ETA card on the left.
     recenter: { position: 'absolute', right: 16, gap: 12 },
     turnBanner: { position: 'absolute', left: 16, right: 16 },
-    bottomLeft: { position: 'absolute', left: 16, bottom: 24, gap: 12, alignItems: 'flex-start' },
+    bottomLeft: { alignSelf: 'flex-start', gap: 12, alignItems: 'flex-start' },
     etaCard: {
       ...cardStyle(colors),
       position: 'absolute',

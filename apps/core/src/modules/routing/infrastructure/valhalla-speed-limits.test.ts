@@ -47,13 +47,56 @@ describe('ValhallaSpeedLimits', () => {
         }),
       );
     });
-    const zones = await source.zonesAlong(route);
+    const { zones } = await source.featuresAlong(route);
     expect(zones).toEqual([
       { from: 0, to: 0.5, limitMph: 30 },
       { from: 0.5, to: 1 },
     ]);
     expect(body['shape_match']).toBe('edge_walk');
     expect((body['shape'] as unknown[]).length).toBe(10);
+  });
+
+  it('says where the route runs over a bridge, as the points where it starts and ends', async () => {
+    const matched = line(10);
+    const source = new ValhallaSpeedLimits('http://valhalla', (_url, init) => {
+      const attributes = (JSON.parse(init.body as string) as { filters: { attributes: string[] } })
+        .filters.attributes;
+      expect(attributes).toEqual(
+        expect.arrayContaining(['edge.bridge', 'edge.begin_shape_index', 'shape']),
+      );
+      return Promise.resolve(
+        reply(200, {
+          shape: route,
+          edges: [
+            {
+              length: 0.4,
+              speed_limit: 112,
+              bridge: false,
+              begin_shape_index: 0,
+              end_shape_index: 4,
+            },
+            {
+              length: 0.1,
+              speed_limit: 112,
+              bridge: true,
+              begin_shape_index: 4,
+              end_shape_index: 5,
+            },
+            {
+              length: 0.5,
+              speed_limit: 112,
+              bridge: false,
+              begin_shape_index: 5,
+              end_shape_index: 9,
+            },
+          ],
+        }),
+      );
+    });
+    const { bridges } = await source.featuresAlong(route);
+    expect(bridges).toHaveLength(1);
+    expect(bridges[0]!.from.lon).toBeCloseTo(matched[4]!.lon, 5);
+    expect(bridges[0]!.to.lon).toBeCloseTo(matched[5]!.lon, 5);
   });
 
   it('counts only the part of the first and last section the route uses', async () => {
@@ -68,7 +111,7 @@ describe('ValhallaSpeedLimits', () => {
       ),
     );
     // Half of each section is used, so each gets half the route.
-    expect(await source.zonesAlong(route)).toEqual([
+    expect((await source.featuresAlong(route)).zones).toEqual([
       { from: 0, to: 0.5, limitMph: 30 },
       { from: 0.5, to: 1, limitMph: 50 },
     ]);
@@ -76,11 +119,11 @@ describe('ValhallaSpeedLimits', () => {
 
   it('gives no signs, never an error, when Valhalla refuses or is down', async () => {
     const refused = new ValhallaSpeedLimits('http://valhalla', () => Promise.resolve(reply(400)));
-    expect(await refused.zonesAlong(route)).toEqual([]);
+    expect(await refused.featuresAlong(route)).toEqual({ zones: [], bridges: [] });
     const down = new ValhallaSpeedLimits('http://valhalla', () => Promise.reject(new Error('x')));
-    expect(await down.zonesAlong(route)).toEqual([]);
+    expect(await down.featuresAlong(route)).toEqual({ zones: [], bridges: [] });
     const odd = new ValhallaSpeedLimits('http://valhalla', () => Promise.resolve(reply(200, {})));
-    expect(await odd.zonesAlong(route)).toEqual([]);
+    expect(await odd.featuresAlong(route)).toEqual({ zones: [], bridges: [] });
   });
 
   it('remembers a route it read in full, but not one it could not', async () => {
@@ -92,12 +135,12 @@ describe('ValhallaSpeedLimits', () => {
         ok ? reply(200, { edges: [{ length: 1, speed_limit: 48 }] }) : reply(500),
       );
     });
-    await source.zonesAlong(route);
-    await source.zonesAlong(route);
+    await source.featuresAlong(route);
+    await source.featuresAlong(route);
     expect(calls).toBe(2);
     ok = true;
-    await source.zonesAlong(route);
-    await source.zonesAlong(route);
+    await source.featuresAlong(route);
+    await source.featuresAlong(route);
     expect(calls).toBe(3);
   });
 });

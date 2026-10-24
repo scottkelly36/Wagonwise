@@ -82,7 +82,13 @@ function buildApp(): {
     },
     getRouteSpeedLimits: {
       routePlanRepo,
-      speedLimits: { zonesAlong: () => Promise.resolve([{ from: 0, to: 1, limitMph: 30 }]) },
+      speedLimits: {
+        featuresAlong: () =>
+          Promise.resolve({
+            zones: [{ from: 0, to: 1, limitMph: 30 }],
+            bridges: [{ from: { lat: 54.97, lon: -2.1 }, to: { lat: 54.971, lon: -2.1 } }],
+          }),
+      },
     },
     startTrip: { routePlanRepo, activeTripRepo, clock, ids },
     endTrip: { repo: activeTripRepo, clock },
@@ -593,7 +599,10 @@ describe('GET /routing/route-plans/:id/speed-limits', () => {
       ...asDriver('driver-1'),
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ zones: [{ from: 0, to: 1, limitMph: 30 }] });
+    expect(response.json()).toEqual({
+      zones: [{ from: 0, to: 1, limitMph: 30 }],
+      bridges: [{ from: { lat: 54.97, lon: -2.1 }, to: { lat: 54.971, lon: -2.1 } }],
+    });
   });
 
   it('404s an unknown plan and a plan owned by a different driver', async () => {
