@@ -50,7 +50,28 @@ real entrance, but the next job to that farm sends the next driver to the wrong 
 - Permissions: view = the company's drivers and staff; mark and edit = the company's drivers and dispatchers; delete =
   the marker or dispatch. Personal places: the owner only, and no staff account is offered them.
 
+## Public places (added 2026-10-24, asked for by drivers)
+
+- A driver can make one of their **own personal places** public: a **Share with all drivers** button on the place sheet, with a
+  confirm step that says what it means (every WagonWise driver sees it and the note; the marker's name is never shown; no phone
+  numbers, names or home addresses in the note; not someone's private land). **Make private again** reverses it. Public places show
+  on the home map with the others, around the driver or the map view.
+- **Only a personal place can be public** (a database check, `saved_places_public_is_personal`): a company's places, such as a
+  customer's site, are never published by one driver's tap, and **sharing a public place with a company makes it private**.
+- **Nothing says who marked it:** `created_by` stays in the table but is in no answer. Another driver's public place is read-only in
+  the app: they can read the note, go there, and **report** it.
+- **Reporting** (wrong spot, someone's home or private land, offensive, other): one report a driver a place; **three different
+  drivers hide it from everyone else** (the owner still sees it), until a person at WagonWise decides. No admin screen for
+  that yet: the reports are in `places.place_reports`.
+- Built as `is_public` on `places.saved_places` plus `places.place_reports` (migration 0076); a second, read-only RLS policy lets
+  any driver read a public row (writes still need the owner's policy). Core: `POST /places/public/nearby` (at most 300, radius up
+  to 50 km), `PUT /places/:id/visibility`, `POST /places/:id/report`; the driver BFF forwards all three. Account deletion removes a
+  driver's places (public ones too) and the reports they made.
+
 ## Not done
+
+- A WagonWise admin screen for reported places (the reports are only in the database), and a way to restore a hidden place.
+- Public places on the trip screen's map (the home map only so far), and copying someone's public place to your own.
 
 - Marking from the trip screen with one tap and a voice note (the job screen and Saved tab do it for now).
 - Automatically using a marked place as a job's destination without the dispatcher choosing it, and matching places to

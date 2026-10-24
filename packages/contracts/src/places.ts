@@ -23,6 +23,8 @@ export const savedPlaceSchema = z.object({
   /** Anything the next driver should know: which gate, a tight turn, who to ask for. */
   note: z.string().optional(),
   location: geoPointSchema,
+  /** Visible to every WagonWise driver (never with who marked it). Only a driver's own personal place can be. */
+  isPublic: z.boolean().default(false),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -58,6 +60,29 @@ export type UpdatePlaceRequest = z.infer<typeof updatePlaceRequestSchema>;
 /** `POST /places/:id/share`: a driver who has joined a company shares one of their personal places with it. */
 export const sharePlaceRequestSchema = z.object({ companyId: companyIdSchema });
 export type SharePlaceRequest = z.infer<typeof sharePlaceRequestSchema>;
+
+/** `PUT /places/:id/visibility`: the owner of a personal place makes it visible to every driver, or private again. */
+export const placeVisibilityRequestSchema = z.object({ isPublic: z.boolean() });
+export type PlaceVisibilityRequest = z.infer<typeof placeVisibilityRequestSchema>;
+
+/** `POST /places/public/nearby`: the public places within `radiusM` of a point, from every driver. */
+export const nearbyPublicPlacesRequestSchema = z.object({
+  location: geoPointSchema,
+  radiusM: z.number().positive().max(50_000),
+});
+export type NearbyPublicPlacesRequest = z.infer<typeof nearbyPublicPlacesRequestSchema>;
+
+export const placeReportReasonSchema = z.enum([
+  'wrong_place',
+  'offensive',
+  'private_property',
+  'other',
+]);
+export type PlaceReportReasonDto = z.infer<typeof placeReportReasonSchema>;
+
+/** `POST /places/:id/report`: a driver reports someone else's public place. */
+export const reportPlaceRequestSchema = z.object({ reason: placeReportReasonSchema });
+export type ReportPlaceRequest = z.infer<typeof reportPlaceRequestSchema>;
 
 export const placeIdParamsSchema = z.object({ id: z.uuid() });
 export type PlaceIdParams = z.infer<typeof placeIdParamsSchema>;

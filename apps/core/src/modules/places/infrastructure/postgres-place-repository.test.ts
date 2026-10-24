@@ -19,6 +19,7 @@ function place(n: number, overrides: Partial<SavedPlace> = {}): SavedPlace {
     name: `Farm ${n}`,
     note: 'Gate on the left',
     location: { lat: 54.95, lon: -2.2 },
+    isPublic: false,
     createdBy: makeId<'DriverId'>('d0000000-0000-4000-8000-000000000001'),
     createdAt: new Date('2026-10-08T10:00:00.000Z'),
     updatedAt: new Date('2026-10-08T10:00:00.000Z'),
@@ -148,6 +149,76 @@ describe('PostgresPlaceRepository', () => {
     // A company's place is not moved by sharing again.
     await repo().shareWithCompany(p.id, beta, new Date('2026-10-10T09:00:00.000Z'));
     expect((await repo().findById(p.id))?.companyId).toBe(acme);
+  });
+
+  describe('public places', () => {
+    const owner = makeId<'DriverId'>('da000000-0000-4000-8000-00000000000a');
+    const reporter = (n: number) =>
+      makeId<'DriverId'>(`db00000${n}-0000-4000-8000-00000000000${n}`);
+    // Each test has a gate of its own, in its own part of the country, as they share one database.
+    const gateFor = (n: number) =>
+      place(1, {
+        id: makeId<'SavedPlaceId'>('aa00000' + n + '-0000-4000-8000-00000000000' + n),
+        companyId: undefined,
+        createdBy: owner,
+        name: 'Public gate',
+        location: { lat: 50 + n, lon: -3.5 },
+      });
+    const centre = (n: number) => ({ lat: 50 + n, lon: -3.5 });
+    const at = new Date('2026-10-20T10:00:00.000Z');
+
+    it('is private until the owner makes it public, and then anyone near it finds it', async () => {
+      const gate = gateFor(1);
+      await repo().save(gate);
+      expect(await repo().findPublicNear(centre(1), 5000, 50)).toEqual([]);
+      await repo().setPublic(gate.id, true, at);
+      expect(await repo().findById(gate.id)).toMatchObject({ isPublic: true, updatedAt: at });
+      const found = await repo().findPublicNear({ lat: 51.001, lon: -3.5 }, 5000, 50);
+      expect(found.map((p) => p.name)).toEqual(['Public gate']);
+      expect(await repo().findPublicNear({ lat: 40, lon: -1 }, 5000, 50)).toEqual([]);
+      expect(await repo().findPublicNear(centre(1), 5000, 0)).toEqual([]);
+    });
+
+    it('stops being shown once enough different drivers report it, and one driver reporting twice counts once', async () => {
+      const gate = gateFor(2);
+      await repo().save(gate);
+      await repo().setPublic(gate.id, true, at);
+      await repo().addReport(gate.id, reporter(1), 'wrong_place', at);
+      await repo().addReport(gate.id, reporter(1), 'offensive', at);
+      await repo().addReport(gate.id, reporter(2), 'other', at);
+      expect(await repo().findPublicNear(centre(2), 5000, 50)).toHaveLength(1);
+      await repo().addReport(gate.id, reporter(3), 'private_property', at);
+      expect(await repo().findPublicNear(centre(2), 5000, 50)).toEqual([]);
+      // The owner's own copy is untouched.
+      expect(await repo().findById(gate.id)).toMatchObject({ isPublic: true });
+    });
+
+    it('a company’s place cannot be made public, and sharing a public place with a company makes it private', async () => {
+      const company = place(2, {
+        id: makeId<'SavedPlaceId'>('aa000009-0000-4000-8000-000000000009'),
+      });
+      const gate = gateFor(3);
+      await repo().save(company);
+      await repo().setPublic(company.id, true, at);
+      expect(await repo().findById(company.id)).toMatchObject({ isPublic: false });
+
+      await repo().save(gate);
+      await repo().setPublic(gate.id, true, at);
+      await repo().shareWithCompany(gate.id, acme, at);
+      expect(await repo().findById(gate.id)).toMatchObject({ companyId: acme, isPublic: false });
+    });
+
+    it('erasing a driver also removes the reports they made', async () => {
+      const gate = gateFor(4);
+      await repo().save(gate);
+      await repo().setPublic(gate.id, true, at);
+      const leaver = reporter(4);
+      for (const n of [1, 2]) await repo().addReport(gate.id, reporter(n), 'other', at);
+      await repo().addReport(gate.id, leaver, 'other', at);
+      expect(await repo().findPublicNear(centre(4), 5000, 50)).toEqual([]);
+      await repo().eraseDriver(leaver);
+      expect(await repo().findPublicNear(centre(4), 5000, 50)).toHaveLength(1);
+    });
   });
 
   it('erasing a driver deletes their personal places and clears who marked the company ones', async () => {

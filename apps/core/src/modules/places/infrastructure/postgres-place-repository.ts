@@ -1,7 +1,15 @@
 import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
 import type { PlaceRepository } from '../application/ports/place-repository.js';
-import type { CompanyId, DriverId, GeoPoint, SavedPlace, SavedPlaceId } from '../domain/place.js';
+import {
+  REPORTS_TO_HIDE,
+  type CompanyId,
+  type DriverId,
+  type GeoPoint,
+  type PlaceReportReason,
+  type SavedPlace,
+  type SavedPlaceId,
+} from '../domain/place.js';
 import type { UntypedDb } from './db.js';
 
 interface PlaceRow {
@@ -12,6 +20,7 @@ interface PlaceRow {
   readonly note: string | null;
   readonly lat: number;
   readonly lon: number;
+  readonly is_public: boolean;
   readonly created_by: string | null;
   readonly created_at: Date;
   readonly updated_at: Date;
@@ -19,7 +28,7 @@ interface PlaceRow {
 
 const SELECT_COLUMNS = `
   id, company_id, category, name, note, ST_Y(location::geometry) as lat,
-  ST_X(location::geometry) as lon, created_by, created_at, updated_at
+  ST_X(location::geometry) as lon, is_public, created_by, created_at, updated_at
 `;
 
 function toDomain(row: PlaceRow): SavedPlace {
@@ -30,6 +39,7 @@ function toDomain(row: PlaceRow): SavedPlace {
     name: row.name,
     note: row.note ?? undefined,
     location: { lat: row.lat, lon: row.lon },
+    isPublic: row.is_public,
     createdBy: row.created_by === null ? undefined : makeId<'DriverId'>(row.created_by),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -95,11 +105,11 @@ export class PostgresPlaceRepository implements PlaceRepository {
   async save(place: SavedPlace): Promise<void> {
     await sql`
       insert into places.saved_places
-        (id, company_id, category, name, note, location, created_by, created_at, updated_at)
+        (id, company_id, category, name, note, location, is_public, created_by, created_at, updated_at)
       values (
         ${place.id}, ${place.companyId ?? null}, ${place.category}, ${place.name}, ${place.note ?? null},
         ST_SetSRID(ST_MakePoint(${place.location.lon}, ${place.location.lat}), 4326)::geography,
-        ${place.createdBy ?? null}, ${place.createdAt}, ${place.updatedAt}
+        ${place.isPublic}, ${place.createdBy ?? null}, ${place.createdAt}, ${place.updatedAt}
       )
       on conflict (id) do update
         set category = excluded.category, name = excluded.name, note = excluded.note,
@@ -109,8 +119,42 @@ export class PostgresPlaceRepository implements PlaceRepository {
 
   async shareWithCompany(id: SavedPlaceId, companyId: CompanyId, at: Date): Promise<void> {
     await sql`
-      update places.saved_places set company_id = ${companyId}, updated_at = ${at}
+      update places.saved_places set company_id = ${companyId}, is_public = false, updated_at = ${at}
       where id = ${id} and company_id is null
+    `.execute(this.db);
+  }
+
+  async findPublicNear(point: GeoPoint, radiusM: number, limit: number): Promise<SavedPlace[]> {
+    const { rows } = await sql<PlaceRow>`
+      select ${sql.raw(SELECT_COLUMNS)} from places.saved_places p
+      where is_public
+        and (select count(*) from places.place_reports r where r.place_id = p.id) < ${REPORTS_TO_HIDE}
+        and ST_DWithin(
+          location, ST_SetSRID(ST_MakePoint(${point.lon}, ${point.lat}), 4326)::geography, ${radiusM}
+        )
+      order by location <-> ST_SetSRID(ST_MakePoint(${point.lon}, ${point.lat}), 4326)::geography
+      limit ${limit}
+    `.execute(this.db);
+    return rows.map(toDomain);
+  }
+
+  async setPublic(id: SavedPlaceId, isPublic: boolean, at: Date): Promise<void> {
+    await sql`
+      update places.saved_places set is_public = ${isPublic}, updated_at = ${at}
+      where id = ${id} and company_id is null
+    `.execute(this.db);
+  }
+
+  async addReport(
+    id: SavedPlaceId,
+    reporter: DriverId,
+    reason: PlaceReportReason,
+    at: Date,
+  ): Promise<void> {
+    await sql`
+      insert into places.place_reports (place_id, reporter_id, reason, created_at)
+      values (${id}, ${reporter}, ${reason}, ${at})
+      on conflict (place_id, reporter_id) do nothing
     `.execute(this.db);
   }
 
@@ -125,6 +169,7 @@ export class PostgresPlaceRepository implements PlaceRepository {
     await sql`
       update places.saved_places set created_by = null where created_by = ${driverId}
     `.execute(this.db);
+    await sql`delete from places.place_reports where reporter_id = ${driverId}`.execute(this.db);
   }
 
   async delete(id: SavedPlaceId): Promise<void> {

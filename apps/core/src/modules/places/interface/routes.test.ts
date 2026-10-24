@@ -216,3 +216,84 @@ describe('the staff door: /staff/places', () => {
     ).toBe(403);
   });
 });
+
+describe('public places', () => {
+  const nearBody = { location: { lat: 54.95, lon: -2.2 }, radiusM: 1000 };
+  const personal = { ...body, companyId: undefined };
+
+  it('shares a personal place with every driver, without saying who marked it, and 404s a stranger changing it', async () => {
+    const { app } = buildApp();
+    await app.inject({ method: 'POST', url: '/places', payload: personal, ...asDriver(PAT) });
+    expect(
+      (
+        await app.inject({
+          method: 'PUT',
+          url: `/places/${placeId}/visibility`,
+          payload: { isPublic: true },
+          ...asDriver(LEE),
+        })
+      ).statusCode,
+    ).toBe(404);
+    const made = await app.inject({
+      method: 'PUT',
+      url: `/places/${placeId}/visibility`,
+      payload: { isPublic: true },
+      ...asDriver(PAT),
+    });
+    expect(made.statusCode).toBe(200);
+    expect(made.json()).toMatchObject({ id: placeId, isPublic: true });
+
+    const near = await app.inject({
+      method: 'POST',
+      url: '/places/public/nearby',
+      payload: nearBody,
+      ...asDriver(LEE),
+    });
+    expect(near.statusCode).toBe(200);
+    const body = near.json<{ places: object[] }>();
+    const [seen] = body.places;
+    expect(seen).toMatchObject({ id: placeId, name: 'Smith’s Farm', isPublic: true });
+    expect(JSON.stringify(seen)).not.toContain(PAT);
+    expect(seen).not.toHaveProperty('createdBy');
+  });
+
+  it('reports a public place (204), 403s the owner, 400s a bad reason, 401s no driver, 403s staff for the nearby list', async () => {
+    const { app } = buildApp();
+    await app.inject({ method: 'POST', url: '/places', payload: personal, ...asDriver(PAT) });
+    await app.inject({
+      method: 'PUT',
+      url: `/places/${placeId}/visibility`,
+      payload: { isPublic: true },
+      ...asDriver(PAT),
+    });
+    const report = (id: string, reason: string) =>
+      app.inject({
+        method: 'POST',
+        url: `/places/${placeId}/report`,
+        payload: { reason },
+        ...asDriver(id),
+      });
+    expect((await report(LEE, 'wrong_place')).statusCode).toBe(204);
+    expect((await report(PAT, 'wrong_place')).statusCode).toBe(403);
+    expect((await report(LEE, 'rude')).statusCode).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/places/${placeId}/report`,
+          payload: { reason: 'other' },
+        })
+      ).statusCode,
+    ).toBe(401);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/places/public/nearby',
+          payload: { ...nearBody, radiusM: 60_000 },
+          ...asDriver(LEE),
+        })
+      ).statusCode,
+    ).toBe(400);
+  });
+});

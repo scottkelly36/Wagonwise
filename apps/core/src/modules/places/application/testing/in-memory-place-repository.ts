@@ -1,7 +1,9 @@
+import { REPORTS_TO_HIDE } from '../../domain/place.js';
 import type {
   CompanyId,
   DriverId,
   GeoPoint,
+  PlaceReportReason,
   SavedPlace,
   SavedPlaceId,
 } from '../../domain/place.js';
@@ -18,6 +20,7 @@ function metres(a: GeoPoint, b: GeoPoint): number {
 
 export class InMemoryPlaceRepository implements PlaceRepository {
   readonly #byId = new Map<SavedPlaceId, SavedPlace>();
+  readonly #reports = new Map<SavedPlaceId, Map<DriverId, PlaceReportReason>>();
 
   findById(id: SavedPlaceId): Promise<SavedPlace | null> {
     return Promise.resolve(this.#byId.get(id) ?? null);
@@ -67,7 +70,38 @@ export class InMemoryPlaceRepository implements PlaceRepository {
 
   shareWithCompany(id: SavedPlaceId, companyId: CompanyId, at: Date): Promise<void> {
     const place = this.#byId.get(id);
-    if (place !== undefined) this.#byId.set(id, { ...place, companyId, updatedAt: at });
+    if (place !== undefined) {
+      this.#byId.set(id, { ...place, companyId, isPublic: false, updatedAt: at });
+    }
+    return Promise.resolve();
+  }
+
+  findPublicNear(point: GeoPoint, radiusM: number, limit: number): Promise<SavedPlace[]> {
+    return Promise.resolve(
+      [...this.#byId.values()]
+        .filter(
+          (p) =>
+            p.isPublic &&
+            (this.#reports.get(p.id)?.size ?? 0) < REPORTS_TO_HIDE &&
+            metres(point, p.location) <= radiusM,
+        )
+        .sort((a, b) => metres(point, a.location) - metres(point, b.location))
+        .slice(0, limit),
+    );
+  }
+
+  setPublic(id: SavedPlaceId, isPublic: boolean, at: Date): Promise<void> {
+    const place = this.#byId.get(id);
+    if (place !== undefined && place.companyId === undefined) {
+      this.#byId.set(id, { ...place, isPublic, updatedAt: at });
+    }
+    return Promise.resolve();
+  }
+
+  addReport(id: SavedPlaceId, reporter: DriverId, reason: PlaceReportReason): Promise<void> {
+    const reports = this.#reports.get(id) ?? new Map<DriverId, PlaceReportReason>();
+    if (!reports.has(reporter)) reports.set(reporter, reason);
+    this.#reports.set(id, reports);
     return Promise.resolve();
   }
 

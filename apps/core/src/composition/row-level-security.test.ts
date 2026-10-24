@@ -424,6 +424,40 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
         expect(await visible()).toEqual([PLACE_ACME, 'f3000000-0000-4000-8000-000000000003']);
       });
     });
+
+    it('a public personal place can be read by any driver, and changed only by its owner; a private one cannot', async () => {
+      const owner = 'e6000000-0000-4000-8000-000000000006';
+      const reader = 'e7000000-0000-4000-8000-000000000007';
+      const PUBLIC = 'f7000000-0000-4000-8000-000000000007';
+      const PRIVATE = 'f8000000-0000-4000-8000-000000000008';
+      const personal = (id: string, isPublic: boolean) =>
+        sql`insert into places.saved_places
+              (id, company_id, category, name, location, created_by, is_public, created_at, updated_at)
+            values (${id}, null, 'farm', 'A gate',
+                    ST_SetSRID(ST_MakePoint(-2.2, 54.95), 4326)::geography, ${owner}, ${isPublic}, now(), now())`.execute(
+          db,
+        );
+      await scopes.run(as(owner), () => personal(PUBLIC, true));
+      await scopes.run(as(owner), () => personal(PRIVATE, false));
+      await scopes.run(as(reader), async () => {
+        expect(await visible()).toEqual([PUBLIC]);
+        // Reading is all they get: the update touches no row.
+        const changed =
+          await sql`update places.saved_places set name = 'Mine now' where id = ${PUBLIC}`.execute(
+            db,
+          );
+        expect(changed.numAffectedRows).toBe(0n);
+      });
+      // Public is only for a personal place: the database refuses a company's.
+      await expect(
+        ownerPool.query(
+          `update places.saved_places set is_public = true where id = '${PLACE_ACME}'`,
+        ),
+      ).rejects.toThrow(/saved_places_public_is_personal/);
+      await ownerPool.query(
+        `delete from places.saved_places where id in ('${PUBLIC}', '${PRIVATE}')`,
+      );
+    });
   });
 
   describe('jobs driver scope (migration 0030)', () => {

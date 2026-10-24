@@ -16,9 +16,16 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError } from '../api/errors';
-import { useDeletePlace, useSharePlace, useUpdatePlace } from '../api/use-places';
+import {
+  useDeletePlace,
+  useMyPlaces,
+  useReportPlace,
+  useSetPlaceVisibility,
+  useSharePlace,
+  useUpdatePlace,
+} from '../api/use-places';
 import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
-import { PLACE_CATEGORY_LABELS } from '../lib/places';
+import { PLACE_CATEGORY_LABELS, PLACE_REPORT_REASONS } from '../lib/places';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
 import { Icon } from './ui/icon';
@@ -37,6 +44,8 @@ interface Props {
  * A saved place's details as a bottom sheet (an ordinary Modal, outside the map's view tree, like the
  * hazard and parking drawers): what it is, where, and the note, which any driver of the company can
  * improve; a button to go there; and delete, which core allows only for whoever marked it or dispatch.
+ * A driver's own personal place can be made public (every WagonWise driver sees it, never who marked it) and back; a public place
+ * someone else shared is read-only here, with a way to report it.
  */
 export function PlaceSheet(props: Props) {
   // Mounted only while a place is chosen, and fresh for each (and after its note is saved), so the
@@ -54,6 +63,13 @@ function PlaceSheetBody({ place, onClose, onGo, goDisabled = false, shareCompany
   const update = useUpdatePlace();
   const remove = useDeletePlace();
   const share = useSharePlace();
+  const visibility = useSetPlaceVisibility();
+  const reportPlace = useReportPlace();
+  // A place the driver cannot find among their own is another driver's public one: theirs to read, report and go to, not to change.
+  const mine = useMyPlaces().places.some((p) => p.id === place?.id);
+  const [confirmingPublic, setConfirmingPublic] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const [reported, setReported] = useState(false);
   const savedNote = place?.note ?? '';
   const [note, setNote] = useState(savedNote);
   const [problem, setProblem] = useState<string | undefined>(undefined);
@@ -85,23 +101,36 @@ function PlaceSheetBody({ place, onClose, onGo, goDisabled = false, shareCompany
                   <Text style={styles.title}>{place.name}</Text>
                   <Text style={styles.status}>
                     {PLACE_CATEGORY_LABELS[place.category]} ·{' '}
-                    {place.companyId === undefined ? 'only you' : 'shared with your company'}
+                    {!mine
+                      ? 'shared by a WagonWise driver'
+                      : place.companyId !== undefined
+                        ? 'shared with your company'
+                        : place.isPublic
+                          ? 'public: every WagonWise driver can see it'
+                          : 'only you'}
                   </Text>
                 </View>
               </View>
 
               <Text style={styles.label}>Note</Text>
-              <TextInput
-                style={styles.input}
-                value={note}
-                onChangeText={setNote}
-                placeholder="Gate on the left, tight turn, ask for Jim"
-                placeholderTextColor={colors.textDim}
-                multiline
-                maxLength={500}
-                testID="place-note-input"
-              />
-              {changed && (
+              {!mine && (
+                <Text style={styles.readNote} testID="place-note-readonly">
+                  {savedNote.length > 0 ? savedNote : 'No note.'}
+                </Text>
+              )}
+              {mine && (
+                <TextInput
+                  style={styles.input}
+                  value={note}
+                  onChangeText={setNote}
+                  placeholder="Gate on the left, tight turn, ask for Jim"
+                  placeholderTextColor={colors.textDim}
+                  multiline
+                  maxLength={500}
+                  testID="place-note-input"
+                />
+              )}
+              {mine && changed && (
                 <TouchableOpacity
                   style={[styles.saveNote, update.isPending && styles.disabled]}
                   disabled={update.isPending}
@@ -123,7 +152,78 @@ function PlaceSheetBody({ place, onClose, onGo, goDisabled = false, shareCompany
 
               {problem !== undefined && <Text style={styles.error}>{problem}</Text>}
 
-              {place.companyId === undefined && shareCompanyId !== undefined && (
+              {mine && place.companyId === undefined && (
+                <View style={styles.shareBox}>
+                  {place.isPublic ? (
+                    <>
+                      <Text style={styles.shareText}>
+                        Every WagonWise driver can see this place and its note. Your name is never
+                        shown with it.
+                      </Text>
+                      <TouchableOpacity
+                        style={[styles.share, visibility.isPending && styles.disabled]}
+                        disabled={visibility.isPending}
+                        onPress={() =>
+                          visibility.mutate(
+                            { id: place.id, isPublic: false },
+                            { onError: () => setProblem('Couldn’t make it private. Try again.') },
+                          )
+                        }
+                        testID="place-make-private-button"
+                      >
+                        <Text style={styles.shareButtonText}>Make private again</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : confirmingPublic ? (
+                    <>
+                      <Text style={styles.shareText}>
+                        Every WagonWise driver will see this place and its note, and it may be used
+                        by drivers you will never meet. Your name is never shown. Don’t put phone
+                        numbers, names or a home address in the note, and don’t share someone’s
+                        private land without their say-so.
+                      </Text>
+                      <TouchableOpacity
+                        style={[styles.share, visibility.isPending && styles.disabled]}
+                        disabled={visibility.isPending}
+                        onPress={() =>
+                          visibility.mutate(
+                            { id: place.id, isPublic: true },
+                            {
+                              onSuccess: () => setConfirmingPublic(false),
+                              onError: () => setProblem('Couldn’t share it. Try again.'),
+                            },
+                          )
+                        }
+                        testID="place-make-public-confirm"
+                      >
+                        <Text style={styles.shareButtonText}>Yes, share with all drivers</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.linkButton}
+                        onPress={() => setConfirmingPublic(false)}
+                      >
+                        <Text style={styles.linkButtonText}>Not now</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.shareText}>
+                        Only you can see this. Share it so other drivers can find the right gate
+                        too.
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.share}
+                        onPress={() => setConfirmingPublic(true)}
+                        testID="place-make-public-button"
+                      >
+                        <Text style={styles.shareButtonText}>Share with all drivers</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              )}
+
+              {mine && place.companyId === undefined && shareCompanyId !== undefined && (
                 <View style={styles.shareBox}>
                   <Text style={styles.shareText}>
                     This one is only yours. Share it so every driver at your company sees it too.
@@ -159,24 +259,67 @@ function PlaceSheetBody({ place, onClose, onGo, goDisabled = false, shareCompany
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity
-                style={[styles.delete, remove.isPending && styles.disabled]}
-                disabled={remove.isPending}
-                onPress={() =>
-                  remove.mutate(place.id, {
-                    onSuccess: onClose,
-                    onError: (error) =>
-                      setProblem(
-                        error instanceof ApiError && error.status === 403
-                          ? 'Only the driver who marked it, or dispatch, can remove it.'
-                          : 'Couldn’t remove it. Try again.',
-                      ),
-                  })
-                }
-                testID="place-delete-button"
-              >
-                <Text style={styles.deleteText}>Remove this place</Text>
-              </TouchableOpacity>
+              {!mine && (
+                <View style={styles.shareBox}>
+                  {reported ? (
+                    <Text style={styles.shareText}>
+                      Thanks. If enough drivers report it, it stops being shown while we look at it.
+                    </Text>
+                  ) : reporting ? (
+                    <>
+                      <Text style={styles.shareText}>What is wrong with it?</Text>
+                      {PLACE_REPORT_REASONS.map(({ reason, label }) => (
+                        <TouchableOpacity
+                          key={reason}
+                          style={[styles.share, reportPlace.isPending && styles.disabled]}
+                          disabled={reportPlace.isPending}
+                          onPress={() =>
+                            reportPlace.mutate(
+                              { id: place.id, reason },
+                              {
+                                onSuccess: () => setReported(true),
+                                onError: () => setProblem('Couldn’t send the report. Try again.'),
+                              },
+                            )
+                          }
+                          testID={`place-report-${reason}`}
+                        >
+                          <Text style={styles.shareButtonText}>{label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.linkButton}
+                      onPress={() => setReporting(true)}
+                      testID="place-report-button"
+                    >
+                      <Text style={styles.deleteText}>Report this place</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              {mine && (
+                <TouchableOpacity
+                  style={[styles.delete, remove.isPending && styles.disabled]}
+                  disabled={remove.isPending}
+                  onPress={() =>
+                    remove.mutate(place.id, {
+                      onSuccess: onClose,
+                      onError: (error) =>
+                        setProblem(
+                          error instanceof ApiError && error.status === 403
+                            ? 'Only the driver who marked it, or dispatch, can remove it.'
+                            : 'Couldn’t remove it. Try again.',
+                        ),
+                    })
+                  }
+                  testID="place-delete-button"
+                >
+                  <Text style={styles.deleteText}>Remove this place</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={styles.close} onPress={onClose} testID="place-close-button">
                 <Text style={styles.closeText}>Close</Text>
               </TouchableOpacity>
@@ -249,6 +392,9 @@ function createStyles(colors: ThemeColors) {
     },
     saveNoteText: { fontSize: 17, fontWeight: '700', color: colors.textOnAccent },
     error: { fontSize: 15, color: colors.danger, marginTop: 10 },
+    readNote: { marginTop: 6, fontSize: 17, color: colors.text },
+    linkButton: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+    linkButtonText: { fontSize: 16, fontWeight: '600', color: colors.textMuted },
     shareBox: { marginTop: 16, gap: 8 },
     shareText: { fontSize: 15, color: colors.textSecondary },
     share: {

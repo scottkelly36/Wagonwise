@@ -2,6 +2,7 @@ import type {
   CompanyId,
   DriverId,
   GeoPoint,
+  PlaceReportReason,
   SavedPlace,
   SavedPlaceId,
 } from '../../domain/place.js';
@@ -19,6 +20,17 @@ export interface PlaceRepository {
   /** Insert, or replace what is stored under the same id (name, category, note, updatedAt). */
   save(place: SavedPlace): Promise<void>;
   delete(id: SavedPlaceId): Promise<void>;
-  /** Makes a personal place the company's (it keeps everything else, including who marked it). */
+  /** Makes a personal place the company's (it keeps everything else, including who marked it). It is no longer public. */
   shareWithCompany(id: SavedPlaceId, companyId: CompanyId, at: Date): Promise<void>;
+  /** Public places (any driver's) within `radiusM` of `point`, nearest first, at most `limit`; not those reported enough to hide. */
+  findPublicNear(point: GeoPoint, radiusM: number, limit: number): Promise<SavedPlace[]>;
+  /** Makes a personal place public or private again. */
+  setPublic(id: SavedPlaceId, isPublic: boolean, at: Date): Promise<void>;
+  /** Records a report; one per driver per place, a second changes nothing. */
+  addReport(
+    id: SavedPlaceId,
+    reporter: DriverId,
+    reason: PlaceReportReason,
+    at: Date,
+  ): Promise<void>;
 }

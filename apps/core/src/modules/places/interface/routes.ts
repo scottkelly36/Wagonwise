@@ -2,7 +2,10 @@ import {
   listPlacesRequestSchema,
   markPlaceRequestSchema,
   nearbyPlacesRequestSchema,
+  nearbyPublicPlacesRequestSchema,
   placeIdParamsSchema,
+  placeVisibilityRequestSchema,
+  reportPlaceRequestSchema,
   sharePlaceRequestSchema,
   placesCompanyParamsSchema,
   updatePlaceRequestSchema,
@@ -17,6 +20,9 @@ import {
   listPlaces,
   markPlace,
   placesNear,
+  publicPlacesNear,
+  reportPlace,
+  setPlaceVisibility,
   sharePlace,
   updatePlace,
   type PlaceDeps,
@@ -66,6 +72,7 @@ function placeDto(place: SavedPlace) {
     ...(place.companyId === undefined ? {} : { companyId: place.companyId }),
     ...(place.note === undefined ? {} : { note: place.note }),
     location: place.location,
+    isPublic: place.isPublic,
     createdAt: place.createdAt.toISOString(),
     updatedAt: place.updatedAt.toISOString(),
   };
@@ -202,6 +209,45 @@ export function registerPlacesRoutes(app: FastifyInstance, deps: PlacesRouteDeps
     return result.ok ? { status: 200, body: placeDto(result.value) } : failure(result.error);
   };
 
+  const publicNear = async (actor: PlaceActor, body: unknown): Promise<Outcome> => {
+    const parsed = nearbyPublicPlacesRequestSchema.safeParse(body);
+    if (!parsed.success) return INVALID;
+    const result = await publicPlacesNear(deps.places, {
+      actor,
+      location: parsed.data.location,
+      radiusM: parsed.data.radiusM,
+    });
+    return result.ok
+      ? { status: 200, body: { places: result.value.map(placeDto) } }
+      : failure(result.error);
+  };
+  const visibility = async (
+    actor: PlaceActor,
+    params: unknown,
+    body: unknown,
+  ): Promise<Outcome> => {
+    const p = placeIdParamsSchema.safeParse(params);
+    const b = placeVisibilityRequestSchema.safeParse(body);
+    if (!p.success || !b.success) return INVALID;
+    const result = await setPlaceVisibility(deps.places, {
+      actor,
+      id: makeId<'SavedPlaceId'>(p.data.id),
+      isPublic: b.data.isPublic,
+    });
+    return result.ok ? { status: 200, body: placeDto(result.value) } : failure(result.error);
+  };
+  const report = async (actor: PlaceActor, params: unknown, body: unknown): Promise<Outcome> => {
+    const p = placeIdParamsSchema.safeParse(params);
+    const b = reportPlaceRequestSchema.safeParse(body);
+    if (!p.success || !b.success) return INVALID;
+    const result = await reportPlace(deps.places, {
+      actor,
+      id: makeId<'SavedPlaceId'>(p.data.id),
+      reason: b.data.reason,
+    });
+    return result.ok ? { status: 204 } : failure(result.error);
+  };
+
   // Drivers
   app.post('/places', (request, reply) =>
     asDriver(request, reply, (actor) => mark(actor, request.body)),
@@ -214,6 +260,15 @@ export function registerPlacesRoutes(app: FastifyInstance, deps: PlacesRouteDeps
   );
   app.post('/places/nearby', (request, reply) =>
     asDriver(request, reply, (actor) => near(actor, request.body)),
+  );
+  app.post('/places/public/nearby', (request, reply) =>
+    asDriver(request, reply, (actor) => publicNear(actor, request.body)),
+  );
+  app.put('/places/:id/visibility', (request, reply) =>
+    asDriver(request, reply, (actor) => visibility(actor, request.params, request.body)),
+  );
+  app.post('/places/:id/report', (request, reply) =>
+    asDriver(request, reply, (actor) => report(actor, request.params, request.body)),
   );
   app.put('/places/:id', (request, reply) =>
     asDriver(request, reply, (actor) => update(actor, request.params, request.body)),
