@@ -1,3 +1,5 @@
+import type { GeoPoint } from './geo.js';
+
 /**
  * What to show a driver about the speed limit along a route. Deliberately cautious: a wrong number is worse than none.
  *
@@ -84,6 +86,71 @@ export function joinZones(zones: readonly SpeedZone[]): SpeedZone[] {
       out[out.length - 1] = { ...last, to: zone.to };
     } else {
       out.push(zone);
+    }
+  }
+  return out;
+}
+
+/** A stretch of the route that runs over a bridge, as the points where it starts and ends. Points, not a share of the route's length,
+ *  because the app places them on its own copy of the route and a share can be tens of metres out on a long route: more than a
+ *  short bridge. */
+export interface BridgeStretch {
+  readonly from: GeoPoint;
+  readonly to: GeoPoint;
+}
+
+/** Everything read about the road along a route that the app shows or uses. */
+export interface RoadFeatures {
+  readonly zones: SpeedZone[];
+  readonly bridges: BridgeStretch[];
+}
+
+/** One section of the route as the router reports it, with where it sits in the matched line. */
+export interface BridgeEdge {
+  readonly bridge: boolean;
+  readonly beginShapeIndex: number;
+  readonly endShapeIndex: number;
+}
+
+/**
+ * The parts of the route that run over a bridge. A low-bridge restriction is on the road underneath, so such a hazard on one of
+ * these stretches is not the driver's: they are going over the top. Neighbouring sections that are both bridge are one stretch.
+ */
+export function bridgesFromShape(
+  edges: readonly BridgeEdge[],
+  shape: readonly GeoPoint[],
+): BridgeStretch[] {
+  const out: BridgeStretch[] = [];
+  let lastEnd = -1;
+  for (const edge of edges) {
+    if (!edge.bridge) continue;
+    const from = shape[edge.beginShapeIndex];
+    const to = shape[edge.endShapeIndex];
+    if (from === undefined || to === undefined) continue;
+    const last = out[out.length - 1];
+    if (last !== undefined && edge.beginShapeIndex === lastEnd) {
+      out[out.length - 1] = { from: last.from, to };
+    } else {
+      out.push({ from, to });
+    }
+    lastEnd = edge.endShapeIndex;
+  }
+  return out;
+}
+
+const SAME_POINT_DEGREES = 1e-6;
+const samePoint = (a: GeoPoint, b: GeoPoint): boolean =>
+  Math.abs(a.lat - b.lat) < SAME_POINT_DEGREES && Math.abs(a.lon - b.lon) < SAME_POINT_DEGREES;
+
+/** Joins stretches that meet, e.g. where two pieces of a long route were read separately. */
+export function joinBridges(stretches: readonly BridgeStretch[]): BridgeStretch[] {
+  const out: BridgeStretch[] = [];
+  for (const stretch of stretches) {
+    const last = out[out.length - 1];
+    if (last !== undefined && samePoint(last.to, stretch.from)) {
+      out[out.length - 1] = { from: last.from, to: stretch.to };
+    } else {
+      out.push(stretch);
     }
   }
   return out;
