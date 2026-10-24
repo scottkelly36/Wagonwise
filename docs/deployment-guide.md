@@ -494,7 +494,33 @@ key is written to `apps/driver-app/google-play-service-account.json` for the bui
 afterwards (git-ignored, referenced by `eas.json`'s submit profile). Releases run one at a time and are never
 cancelled half way. A bad over-the-air update can be rolled back from the Expo dashboard; a bad native build
 can only be superseded by a higher version. There is no staging copy of the app: a change is verified by CI
-and then goes to drivers when labelled. iOS is not included (no Apple developer account yet).
+and then goes to drivers when labelled. iOS is not included yet (see section 9c).
+
+## 9c. iPhone: the first TestFlight build (once Apple approves the developer account)
+
+Enrolment as an organisation was submitted on 2026-10-24. Nothing below can be done until Apple's approval email arrives and the
+membership shows as Active (the **Team ID** is then in Membership details on developer.apple.com; it is safe to share, a password is
+not). The app's iPhone settings are already in `app.config.ts` (bundle id `com.wagonwise.driverapp`, permission wording, no tablet
+support, the export-compliance answer). Steps, in order:
+
+1. **App Store Connect** (appstoreconnect.apple.com, same Apple Account): My Apps, New App. Platform iOS, name WagonWise, primary
+   language English (UK), the bundle id above (it appears in the list once EAS has registered it in step 2; do step 2 first if it
+   does not), any SKU (for example `wagonwise-driver`).
+2. **Build.** On the owner's machine, in `apps/driver-app`: `eas build -p ios --profile production`. EAS asks the owner to sign in
+   to Apple (password and the two-factor code: only the owner can answer them) and offers to manage the certificates and
+   provisioning profile: say yes. About 15 to 30 minutes. `autoIncrement` raises the build number each time.
+3. **Send it to TestFlight:** `eas submit -p ios --latest`. The first time it asks for the App Store Connect app (or its numeric
+   id, which can then be added to `eas.json` under `submit.production.ios.ascAppId`).
+4. **TestFlight.** Apple processes the build for 10 to 30 minutes. Internal testers (people added to the team in App Store Connect,
+   up to 100) can install straight away; external testers need the first build to pass Beta App Review (usually a day) and can then be
+   added by email or a public link.
+5. **Store release** later needs: screenshots, the privacy answers (location, email), the age rating, and review notes with a login
+   Apple can use (the reviewer mailbox described in `play-store-listing.md`).
+
+Things to know. The JavaScript is shared, so the over-the-air updates (`driver-app-release.yml`) reach iPhones that have a build
+of the same `version` without a new build; only native changes need one. Voice reporting (speech recognition) and the push
+notifications have never been tried on an iPhone, so test those first. If Apple rejects the build or the app, the message is in
+App Store Connect and by email.
 
 ## 9a. Telling drivers a new build is out
 

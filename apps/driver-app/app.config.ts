@@ -43,6 +43,9 @@ const config: ExpoConfig = {
   ios: {
     bundleIdentifier: 'com.wagonwise.driverapp',
     supportsTablet: false,
+    // The app only uses the encryption built into iOS (HTTPS), which is exempt, so each TestFlight build is not held up
+    // asking the export-compliance question.
+    config: { usesNonExemptEncryption: false },
   },
   android: {
     package: 'com.wagonwise.driverapp',
