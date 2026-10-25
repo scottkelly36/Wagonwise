@@ -14,6 +14,7 @@ import { registerChecksRoutes } from './checks-routes.js';
 import { registerHoursRoutes } from './hours-routes.js';
 import { registerPlacesRoutes } from './places-routes.js';
 import { registerWeatherRoutes } from './weather-routes.js';
+import { registerSosRoutes } from './sos-routes.js';
 import { registerWhat3wordsRoutes } from './what3words-routes.js';
 import { registerSignupsRoutes } from './signups-routes.js';
 import { registerWebhooksRoutes } from './webhooks-routes.js';
@@ -51,6 +52,7 @@ registerChecksRoutes(app, routeDeps);
 registerHoursRoutes(app, routeDeps);
 registerWeatherRoutes(app, routeDeps);
 registerWhat3wordsRoutes(app, routeDeps);
+registerSosRoutes(app, routeDeps);
 registerSignupsRoutes(app, routeDeps);
 registerWebhooksRoutes(app, {
   coreClient: routeDeps.coreClient,

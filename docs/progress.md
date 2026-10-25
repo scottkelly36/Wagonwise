@@ -53,6 +53,8 @@ publishes nothing.
 
 ## Open items
 
+- **SOS (2026-10-25):** add it to the privacy notice and DPIA before the pilot: a driver presses and holds a button, and their position (as three words and a map point), name, sign-in number or email, vehicle and job are sent to the company or companies they drive for by email and in the portal; kept 30 days after it is closed; deleted with the account. Say plainly that WagonWise does not contact the emergency services. Test on a real phone: hold for two seconds, the red strip in the portal, the email, the cancel.
+
 - **Deferred, P2-M6.4c:** a reroute-alert indicator on the live map. Needs reroute detection written for company jobs first.
   Revisit if the pilot firm wants it. Also open from M6: no Valhalla-backed check of the ETA and route preview.
 - **Company:** WagonWise Ltd, company number 17530209. Registered office: 5 Portland Terrace, Hexham NE46 3DT (on the website and privacy notice, with "registered in England and Wales"). The D-U-N-S number is in hand (2026-10-23; not recorded here). Still to do: register with the ICO under the company name, open the business bank

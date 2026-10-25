@@ -87,6 +87,13 @@ export interface JobsModule {
   activeVehicleFor(driverId: string): Promise<string | null>;
   /** The company of the job a driver is on right now (assigned up to at_delivery), or null. Same scope rule. */
   activeCompanyFor(driverId: string): Promise<string | null>;
+  /** The job a driver is on right now: its company, vehicle (if one is assigned) and reference, or null. For SOS, which tells
+   *  the company of that job which lorry the driver is in. Same scope rule. */
+  activeJobFor(driverId: string): Promise<{
+    readonly companyId: string;
+    readonly vehicleId: string | null;
+    readonly reference: string;
+  } | null>;
   /** The drivers on a job for the company right now. */
   activeDriverIds(companyId: string): Promise<string[]>;
   /**
@@ -201,6 +208,12 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
       return jobs.flatMap((j) =>
         j.driverId !== undefined && isActive(j.status) ? [j.driverId] : [],
       );
+    },
+    async activeJobFor(driverId: string) {
+      const job = await repo.findActiveForDriver(makeId<'DriverId'>(driverId));
+      return job === null || job === undefined
+        ? null
+        : { companyId: job.companyId, vehicleId: job.vehicleId ?? null, reference: job.reference };
     },
     async activeVehicleFor(driverId: string): Promise<string | null> {
       const job = await repo.findActiveForDriver(makeId<'DriverId'>(driverId));

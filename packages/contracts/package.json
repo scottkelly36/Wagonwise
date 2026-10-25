@@ -114,6 +114,11 @@
       "import": "./dist/weather.js",
       "default": "./dist/weather.js"
     },
+    "./sos": {
+      "types": "./dist/sos.d.ts",
+      "import": "./dist/sos.js",
+      "default": "./dist/sos.js"
+    },
     "./what3words": {
       "types": "./dist/what3words.d.ts",
       "import": "./dist/what3words.js",
