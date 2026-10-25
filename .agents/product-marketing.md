@@ -53,7 +53,7 @@ campaign should start before it. Where that stands (from `progress.md`):
 
 **Primary (portal buyer):** small UK haulage firms, roughly 1 to 40 vehicles. The landing page already segments 1–5,
 6–15, 16–40 and 40+. Strategy says: small firms first, **no big fleets until the end of Phase 4** (reached only via people the owner knows).
-Starting geography: Northumberland / North East, because routing tiles cover only that area today (national coverage is built-ready but waits on a customer outside the region).
+Geography: routing covers Great Britain (England, Scotland and Wales; the owner confirmed this on 2026-10-25, so the older repo docs that say Northumberland, Tyne and Wear and Cumbria only are out of date). Northern Ireland is not covered. Early outreach will still start near Hexham and the North East, where the owner's contacts and hands-on set-up are most practical.
 
 **Secondary (adoption engine):** HGV drivers, many in their 40s–50s, not tech-keen, rural roads, patchy signal. They are not the
 payer, but if they like the app they bring the firm in, and the firm's jobs and checks run through their phones.
@@ -110,7 +110,7 @@ Do **not** claim: that it makes a firm compliant, that it replaces the tachograp
 
 **Likely objections** `[confirm in the first calls]`: "my drivers won't use it"; "I already have WhatsApp / a spreadsheet / a system"; "is this tracking my drivers (drivers' objection)"; "you're one person: what if you disappear?"; "is the hazard data reliable?"; "do I have to change how I work?"; "what about iPhone?" (iOS is not live yet).
 
-**Anti-personas (not yet):** fleets of 40+ with an entrenched telematics suite; firms outside the North East needing national routing now; anyone wanting a tachograph-grade legal record or abnormal-load permits.
+**Anti-personas (not yet):** fleets of 40+ with an entrenched telematics suite; firms in Northern Ireland (not covered); anyone wanting a tachograph-grade legal record or abnormal-load permits.
 
 ## 8. Switching dynamics
 
