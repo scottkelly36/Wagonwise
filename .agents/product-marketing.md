@@ -182,4 +182,4 @@ None yet. Entries go here as dated lines with evidence and status (active / watc
 4. **Competitor detail:** who small firms compare you with.
 5. **Where the first firms come from:** which known contacts, and how to find and reach unknown ones (trade associations, local operators, operator-licence data). `prospecting` can help once the stores are close.
 6. **Proof:** nothing yet. The first firm's results are the first case study.
-7. **Landing page pricing:** decide what to publish (see the 2026-10-25 discussion: show £15 per vehicle, driver app free, and a capped founders offer).
+7. **Pricing on the web:** the haulage firms page (`/for-hauliers/`) now shows £15 per vehicle, the free driver app and the founding offer (3 months free, then £10 for the first year, then the standard price). It names no cap on founding firms and no VAT position. Decide both, and whether the main page should show a price too.

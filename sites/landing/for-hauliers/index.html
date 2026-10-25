@@ -1,0 +1,1344 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fleet dashboard for small UK haulage firms | WagonWise</title>
+    <meta
+      name="description"
+      content="Send jobs, see them live, keep walk-round checks and maintenance dates in one place, and see what each job made. Nothing to fit in the lorry. Free driver app."
+    />
+    <meta name="theme-color" content="#0b1220" />
+    <link rel="canonical" href="https://wagon-wise.co.uk/for-hauliers/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="WagonWise" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:title" content="Fleet dashboard for small UK haulage firms | WagonWise" />
+    <meta
+      property="og:description"
+      content="Send jobs, see them live, keep walk-round checks and maintenance dates in one place, and see what each job made. Nothing to fit in the lorry. Free driver app."
+    />
+    <meta property="og:url" content="https://wagon-wise.co.uk/for-hauliers/" />
+    <meta property="og:image" content="https://wagon-wise.co.uk/img/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="WagonWise: navigation made for HGV drivers, with the app icon."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Fleet dashboard for small UK haulage firms | WagonWise" />
+    <meta
+      name="twitter:description"
+      content="Send jobs, see them live, keep walk-round checks and maintenance dates in one place, and see what each job made. Nothing to fit in the lorry. Free driver app."
+    />
+    <meta name="twitter:image" content="https://wagon-wise.co.uk/img/og-image.jpg" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebPage",
+            "@id": "https://wagon-wise.co.uk/for-hauliers/#webpage",
+            "url": "https://wagon-wise.co.uk/for-hauliers/",
+            "name": "Fleet dashboard for small UK haulage firms | WagonWise",
+            "description": "Send jobs, see them live, keep walk-round checks and maintenance dates in one place, and see what each job made. Nothing to fit in the lorry. Free driver app.",
+            "inLanguage": "en-GB",
+            "isPartOf": { "@id": "https://wagon-wise.co.uk/#website" },
+            "about": { "@id": "https://wagon-wise.co.uk/#organization" }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "WagonWise",
+                "item": "https://wagon-wise.co.uk/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "For haulage firms",
+                "item": "https://wagon-wise.co.uk/for-hauliers/"
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+    <link rel="icon" type="image/png" href="/img/icon-64.png" />
+    <link rel="apple-touch-icon" href="/img/icon-192.png" />
+    <style>
+      :root {
+        --navy: #0b1220;
+        --navy-2: #121c30;
+        --navy-3: #1a2740;
+        --blue: #1a73e8;
+        --blue-dark: #1558b8;
+        --blue-soft: #e5eefc;
+        --sky: #7fb2ff;
+        --green: #34d399;
+        --green-dark: #0b7050;
+        --bg: #f3f6fb;
+        --card: #ffffff;
+        --text: #0f1a2e;
+        --muted: #55617a;
+        --line: #d9e1ee;
+        --bad: #b91c1c;
+        --on-navy: #e8eefb;
+        --on-navy-muted: #a9b8d3;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 84px;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          17px/1.6 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      img {
+        max-width: 100%;
+        display: block;
+      }
+      a {
+        color: var(--blue);
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.12;
+        margin: 0;
+        text-wrap: balance;
+        letter-spacing: -0.02em;
+      }
+      p {
+        margin: 0;
+      }
+      .wrap {
+        width: min(1120px, 100% - 32px);
+        margin-inline: auto;
+      }
+      /* Top bar */
+      .bar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: color-mix(in srgb, var(--bg) 88%, transparent);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+      }
+      .bar .wrap {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        height: 68px;
+      }
+      .logo {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        font-size: 1.15rem;
+        letter-spacing: -0.01em;
+        color: var(--text);
+        text-decoration: none;
+      }
+      .logo img {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+      }
+      nav {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+      }
+      nav a.plain {
+        color: var(--muted);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+      nav a.plain:hover {
+        color: var(--text);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 22px;
+        border-radius: 999px;
+        border: 0;
+        font: inherit;
+        font-weight: 700;
+        font-size: 0.98rem;
+        color: #fff;
+        background: var(--blue);
+        text-decoration: none;
+        cursor: pointer;
+        min-height: 46px;
+      }
+      .btn:hover {
+        background: var(--blue-dark);
+      }
+      .btn.dark {
+        background: var(--navy);
+      }
+      .btn.dark:hover {
+        background: #000;
+      }
+      .btn.ghost {
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+      }
+      .btn.ghost:hover {
+        background: rgba(255, 255, 255, 0.18);
+      }
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      :focus-visible {
+        outline: 3px solid var(--sky);
+        outline-offset: 3px;
+      }
+      /* Hero */
+      .hero {
+        margin-top: 16px;
+        border-radius: 32px;
+        color: var(--on-navy);
+        background:
+          radial-gradient(900px 480px at 78% 12%, rgba(26, 115, 232, 0.55), transparent 62%),
+          radial-gradient(700px 420px at 8% 100%, rgba(52, 211, 153, 0.18), transparent 60%),
+          linear-gradient(160deg, #0b1220 0%, #12203a 100%);
+        overflow: hidden;
+      }
+      .hero .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+        gap: 24px;
+        align-items: center;
+        padding: clamp(32px, 6vw, 72px) clamp(24px, 5vw, 64px) 0;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: rgba(52, 211, 153, 0.14);
+        color: var(--green);
+        font-weight: 700;
+        font-size: 0.85rem;
+        letter-spacing: 0.02em;
+      }
+      .eyebrow::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+      }
+      .hero h1 {
+        font-size: clamp(2.3rem, 5.4vw, 3.8rem);
+        color: #fff;
+        margin-top: 18px;
+      }
+      .hero h1 em {
+        font-style: normal;
+        color: var(--sky);
+      }
+      .hero .lead {
+        margin-top: 18px;
+        font-size: 1.12rem;
+        color: var(--on-navy-muted);
+        max-width: 34em;
+      }
+      .cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+      }
+      .section-head {
+        text-align: center;
+        max-width: 640px;
+        margin: clamp(56px, 9vw, 104px) auto 0;
+      }
+      .section-head .tag {
+        display: inline-block;
+        color: var(--blue-dark);
+        font-weight: 800;
+        font-size: 0.82rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .section-head h2 {
+        font-size: clamp(1.9rem, 4vw, 2.7rem);
+        margin-top: 10px;
+      }
+      .section-head p {
+        margin-top: 14px;
+        color: var(--muted);
+      }
+      .fine {
+        font-size: 0.86rem;
+        margin-top: 14px;
+        color: var(--muted);
+      }
+      /* Portal */
+      .portal {
+        margin-top: clamp(56px, 9vw, 104px);
+        border-radius: 32px;
+        color: var(--on-navy);
+        background:
+          radial-gradient(800px 420px at 90% 0%, rgba(26, 115, 232, 0.45), transparent 60%),
+          linear-gradient(170deg, #0b1220, #12203a);
+        padding: clamp(28px, 5vw, 64px) clamp(20px, 5vw, 64px);
+      }
+      .portal .section-head {
+        margin-top: 0;
+      }
+      .portal .section-head .tag {
+        color: var(--green);
+      }
+      .portal .section-head h2 {
+        color: #fff;
+      }
+      .portal .section-head p {
+        color: var(--on-navy-muted);
+      }
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 30px;
+      }
+      .tabs button {
+        min-height: 44px;
+        padding: 9px 16px;
+        border-radius: 999px;
+        border: 0;
+        font: inherit;
+        font-weight: 700;
+        font-size: 0.92rem;
+        color: var(--on-navy);
+        background: rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+      }
+      .tabs button:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+      .tabs button[aria-selected='true'] {
+        background: #fff;
+        color: var(--navy);
+      }
+      .browser {
+        margin: 24px auto 0;
+        max-width: 960px;
+        border-radius: 16px;
+        background: #e9eef7;
+        overflow: hidden;
+        box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.6);
+      }
+      .browser .top {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 11px 14px;
+        background: #dfe6f2;
+      }
+      .browser .top i {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #b6c2d6;
+      }
+      .browser .top span {
+        margin-left: 10px;
+        padding: 3px 14px;
+        border-radius: 999px;
+        background: #f5f8fd;
+        color: #6b7890;
+        font-size: 0.78rem;
+      }
+      .browser img {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1280 / 800;
+      }
+      .caption {
+        margin: 18px auto 0;
+        max-width: 640px;
+        text-align: center;
+        color: var(--on-navy-muted);
+        min-height: 3.2em;
+      }
+      .caption b {
+        color: #fff;
+      }
+      .portal-points {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 34px;
+      }
+      .portal-points div {
+        padding: 20px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+      }
+      .portal-points b {
+        display: block;
+        color: #fff;
+        font-size: 1.05rem;
+      }
+      .portal-points span {
+        display: block;
+        margin-top: 6px;
+        color: var(--on-navy-muted);
+        font-size: 0.94rem;
+        line-height: 1.5;
+      }
+      /* Trust */
+      .trust {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 36px;
+      }
+      .trust div {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 22px;
+      }
+      .trust b {
+        display: block;
+        font-size: 1.05rem;
+      }
+      .trust span {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      /* Questions */
+      .faq {
+        max-width: 760px;
+        margin: 36px auto 0;
+      }
+      .faq details {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        margin-top: 12px;
+      }
+      .faq summary {
+        cursor: pointer;
+        font-weight: 700;
+        padding: 16px 20px;
+      }
+      .faq details[open] summary {
+        padding-bottom: 8px;
+      }
+      .faq p {
+        margin: 0;
+        padding: 0 20px 16px;
+        color: var(--muted);
+      }
+      /* Register */
+      .register {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+        gap: clamp(24px, 5vw, 64px);
+        align-items: start;
+        margin-top: clamp(56px, 9vw, 104px);
+      }
+      .register h2 {
+        font-size: clamp(1.9rem, 4vw, 2.7rem);
+      }
+      .register .copy p {
+        margin-top: 14px;
+        color: var(--muted);
+      }
+      .register .copy ul {
+        margin: 18px 0 0;
+        padding-left: 20px;
+        color: var(--muted);
+      }
+      form#signup {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        padding: clamp(20px, 4vw, 32px);
+        box-shadow: 0 24px 50px -30px rgba(15, 26, 46, 0.4);
+      }
+      form#signup h3 {
+        font-size: 1.35rem;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-top: 14px;
+        font-size: 0.97rem;
+      }
+      .hint {
+        font-weight: 400;
+        color: var(--muted);
+      }
+      input[type='email'],
+      input[type='text'],
+      select {
+        width: 100%;
+        margin-top: 5px;
+        padding: 12px 14px;
+        font: inherit;
+        color: var(--text);
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      .check {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        font-weight: 400;
+        margin-top: 18px;
+      }
+      .check input {
+        margin-top: 2px;
+        width: 24px;
+        height: 24px;
+        flex: none;
+      }
+      form#signup .btn {
+        margin-top: 20px;
+        width: 100%;
+      }
+      button.link {
+        background: none;
+        border: 0;
+        font: inherit;
+        color: var(--blue-dark);
+        padding: 0;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .msg {
+        margin: 14px 0 0;
+        font-weight: 600;
+      }
+      .msg.ok {
+        color: var(--green-dark);
+      }
+      .msg.bad {
+        color: var(--bad);
+      }
+      .trap {
+        position: absolute;
+        left: -10000px;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+      }
+      #remove {
+        margin-top: 12px;
+        max-width: 420px;
+      }
+      #remove .btn {
+        margin-top: 12px;
+      }
+      footer a,
+      footer button.link {
+        color: var(--blue-dark);
+        display: inline-block;
+        padding: 12px 4px;
+      }
+      footer {
+        margin-top: clamp(48px, 8vw, 88px);
+        padding: 28px 0 56px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      footer .cols {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 18px;
+      }
+      footer p + p {
+        margin-top: 8px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+
+      /* Haulage firms page */
+      .hero .grid {
+        grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+        padding-bottom: clamp(32px, 5vw, 56px);
+      }
+      .hero h1 {
+        font-size: clamp(2.1rem, 4.4vw, 3.2rem);
+      }
+      .hero .note {
+        margin-top: 18px;
+        color: var(--on-navy-muted);
+        font-size: 0.92rem;
+        max-width: 34em;
+      }
+      .hero-shot .browser {
+        margin: 0;
+        max-width: none;
+        box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 0.6);
+      }
+      .hero-shot .browser img {
+        aspect-ratio: 1280 / 470;
+        object-fit: cover;
+        object-position: top left;
+      }
+      .hero-shot .fine {
+        margin-top: 10px;
+        text-align: center;
+        color: var(--on-navy-muted);
+      }
+      .trust.four {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .trust a {
+        color: var(--blue-dark);
+      }
+      .steps {
+        list-style: none;
+        margin: 36px 0 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        counter-reset: step;
+      }
+      .steps li {
+        counter-increment: step;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 22px;
+      }
+      .steps li::before {
+        content: counter(step);
+        display: flex;
+        width: 34px;
+        height: 34px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: var(--blue-dark);
+        color: #fff;
+        font-weight: 800;
+      }
+      .steps b {
+        display: block;
+        margin-top: 12px;
+        font-size: 1.05rem;
+      }
+      .steps span {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .plans {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 36px;
+      }
+      .plan {
+        display: flex;
+        flex-direction: column;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: 26px;
+      }
+      .plan h3 {
+        font-size: 1.1rem;
+      }
+      .plan .price {
+        margin-top: 12px;
+        font-size: 2.1rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+      }
+      .plan .price small {
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: 0;
+        color: var(--muted);
+      }
+      .plan p {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .plan.offer {
+        border: 2px solid var(--blue);
+        background: linear-gradient(160deg, #eaf1fd, #fff);
+      }
+      .plan .badge {
+        align-self: flex-start;
+        margin-bottom: 10px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: var(--blue-dark);
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.8rem;
+      }
+      .swipe {
+        display: none;
+      }
+
+      @media (max-width: 860px) {
+        nav a.plain {
+          display: none;
+        }
+        .hero .grid,
+        .register {
+          grid-template-columns: 1fr;
+        }
+
+        .portal-points,
+        .trust {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 560px) {
+        .portal-points,
+        .trust {
+          grid-template-columns: 1fr;
+        }
+        .hero {
+          border-radius: 24px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+
+      @media (max-width: 860px) {
+        .steps,
+        .plans,
+        .trust.four {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 560px) {
+        .portal .browser {
+          overflow-x: auto;
+        }
+        .portal .browser img {
+          width: 900px;
+          max-width: none;
+        }
+        .swipe {
+          display: block;
+          margin-top: 10px;
+          text-align: center;
+          color: var(--on-navy-muted);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="bar">
+      <div class="wrap">
+        <a class="logo" href="/">
+          <img src="/img/icon-64.png" alt="" width="36" height="36" />
+          WagonWise
+        </a>
+        <nav aria-label="Main">
+          <a class="plain" href="/">Driver app</a>
+          <a class="plain" href="#dashboard">Dashboard</a>
+          <a class="plain" href="#pricing">Pricing</a>
+          <a class="btn" href="#register">Ask for a demo</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap">
+        <section class="hero" aria-labelledby="top">
+          <div class="grid">
+            <div>
+              <span class="eyebrow">For UK haulage firms</span>
+              <h1 id="top">Jobs, checks and maintenance, <em>in one place</em>.</h1>
+              <p class="lead">
+                WagonWise is a fleet dashboard for small haulage firms, with a free driver app that
+                connects to it. Nothing to fit in the lorry: it runs on the phones your drivers
+                already have.
+              </p>
+              <div class="cta-row">
+                <a class="btn" href="#register">Ask for a demo</a>
+                <a class="btn ghost" href="#dashboard">See the dashboard</a>
+              </div>
+              <p class="note">
+                The driver app is in testing on Android now. The Google Play and App Store releases
+                are coming.
+              </p>
+            </div>
+            <div class="hero-shot">
+              <div class="browser">
+                <div class="top"><i></i><i></i><i></i><span>Fleet dashboard</span></div>
+                <img
+                  src="/img/portal-job-profit.webp"
+                  width="1280"
+                  height="800"
+                  fetchpriority="high"
+                  alt="The job profit page: revenue, wages, fuel, running costs and profit for the month, with a row for each job."
+                />
+              </div>
+              <p class="fine">Example data for a fictional firm.</p>
+            </div>
+          </div>
+        </section>
+
+        <div class="section-head">
+          <span class="tag">Sound familiar?</span>
+          <h2>Where does the paperwork pile up?</h2>
+        </div>
+        <div class="trust four">
+          <div>
+            <b>Chasing drivers by phone?</b>
+            <span
+              >See every job and where it is, without ringing round. Drivers update the status as
+              they go.</span
+            >
+          </div>
+          <div>
+            <b>Checks that reach the office late?</b>
+            <span
+              >Daily walk-round checks are done on the driver's phone, and any defect goes straight
+              to the office.</span
+            >
+          </div>
+          <div>
+            <b>Dates kept in a diary?</b>
+            <span
+              >MOT, inspection and service dates for every vehicle, with a reminder by email when
+              one is due.</span
+            >
+          </div>
+          <div>
+            <b>Not sure what a job made?</b>
+            <span
+              >Price, wages, fuel and running costs on every job, so you can see which work is worth
+              having.</span
+            >
+          </div>
+        </div>
+
+        <section class="portal" id="dashboard" aria-labelledby="portal-title">
+          <div class="section-head">
+            <span class="tag">The fleet dashboard</span>
+            <h2 id="portal-title">Your whole operation on one screen</h2>
+            <p>
+              Send jobs, see where they are, and know what each one cost and made. It links straight
+              to the driver app.
+            </p>
+          </div>
+          <div class="tabs" role="tablist" aria-label="Dashboard pages">
+            <button type="button" role="tab" aria-selected="true" data-i="0">Overview</button>
+            <button type="button" role="tab" aria-selected="false" data-i="1">Live trips</button>
+            <button type="button" role="tab" aria-selected="false" data-i="2">Job profit</button>
+            <button type="button" role="tab" aria-selected="false" data-i="3">Looking ahead</button>
+            <button type="button" role="tab" aria-selected="false" data-i="4">Maintenance</button>
+            <button type="button" role="tab" aria-selected="false" data-i="5">
+              Vehicle checks
+            </button>
+          </div>
+          <div
+            class="browser"
+            tabindex="0"
+            role="region"
+            aria-label="Dashboard screenshot. On a small screen it scrolls sideways."
+          >
+            <div class="top"><i></i><i></i><i></i><span>Fleet dashboard</span></div>
+            <img
+              id="portal-img"
+              src="/img/portal-overview.webp"
+              width="1280"
+              height="800"
+              alt="The dashboard overview: jobs on the road now, maintenance overdue and today’s compliance."
+            />
+          </div>
+          <p class="fine swipe">Swipe the screenshot sideways to see more.</p>
+          <p class="caption" id="portal-caption" aria-live="polite">
+            <b>Overview.</b> What needs attention today: jobs on the road, overdue maintenance and
+            walk-round checks.
+          </p>
+          <div class="portal-points">
+            <div>
+              <b>Send jobs, see them done</b>
+              <span
+                >Jobs with several stops, a driver and a vehicle. Drivers accept on their phone and
+                send back proof-of-delivery photos. You see each vehicle on a live map while the
+                driver has the app open.</span
+              >
+            </div>
+            <div>
+              <b>Checks and dates, handled</b>
+              <span
+                >Daily walk-round checks with defects sent straight to the office, and MOT,
+                inspection and service reminders by email. Each firm builds its own check
+                lists.</span
+              >
+            </div>
+            <div>
+              <b>Know what each job made</b>
+              <span
+                >Price, wages, fuel and running costs on every job, with a look at the months
+                ahead.</span
+              >
+            </div>
+          </div>
+          <p class="fine" style="margin-top: 22px; text-align: center; color: var(--on-navy-muted)">
+            Screens show example data for a fictional firm. WagonWise helps you keep records in one
+            place. It does not make a firm compliant, and the tachograph is still the legal record
+            of driving hours.
+          </p>
+        </section>
+
+        <div class="section-head">
+          <span class="tag">Getting started</span>
+          <h2>Start small, with a few vehicles</h2>
+        </div>
+        <ol class="steps">
+          <li>
+            <b>We set it up with you</b>
+            <span
+              >We help you add your vehicles and drivers, and shape the dashboard around how you
+              work. Your first three months are for exactly this.</span
+            >
+          </li>
+          <li>
+            <b>Drivers use the free app</b>
+            <span
+              >Drivers put the app on their own phone. It plans routes that fit the vehicle, warns
+              of low bridges and hazards, and takes proof-of-delivery photos.</span
+            >
+          </li>
+          <li>
+            <b>You run it from the dashboard</b>
+            <span
+              >Send jobs, watch them live, read the check results and keep dates up to date. Add
+              more vehicles when you are ready.</span
+            >
+          </li>
+        </ol>
+
+        <div class="section-head">
+          <span class="tag">Your drivers’ data</span>
+          <h2>Fair to your drivers, and to you</h2>
+        </div>
+        <div class="trust">
+          <div>
+            <b>Location only on a job</b>
+            <span
+              >A driver’s position reaches you only while they are on one of your jobs and the app
+              is open. The app never tracks in the background.</span
+            >
+          </div>
+          <div>
+            <b>You choose how long records are kept</b>
+            <span
+              >Each firm sets how long its job photos and check records are kept. Read the
+              <a href="/privacy/">privacy notice</a>.</span
+            >
+          </div>
+          <div>
+            <b>Nothing to fit</b>
+            <span
+              >It runs on the phones your drivers already have, so you can start with one
+              vehicle.</span
+            >
+          </div>
+        </div>
+
+        <div class="section-head" id="pricing">
+          <span class="tag">Pricing</span>
+          <h2>Simple, per vehicle</h2>
+        </div>
+        <div class="plans">
+          <div class="plan">
+            <h3>Driver app</h3>
+            <div class="price">Free</div>
+            <p>For every driver. Navigation, hazard warnings and safe parking cost nothing.</p>
+          </div>
+          <div class="plan">
+            <h3>Fleet dashboard</h3>
+            <div class="price">£15 <small>per vehicle, per month</small></div>
+            <p>
+              Jobs, live trips, checks, maintenance and job profit, billed on the vehicles you have.
+            </p>
+          </div>
+          <div class="plan offer">
+            <span class="badge">Founding firms</span>
+            <h3>The first firms we set up</h3>
+            <div class="price">3 months free</div>
+            <p>
+              Time to learn the dashboard and shape it around how you work. Then £10 per vehicle,
+              per month, for your first year, and the standard price after that. We put the terms in
+              writing before you start.
+            </p>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <span class="tag">Questions</span>
+          <h2>Common questions</h2>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>Do I need to fit anything in my lorries?</summary>
+            <p>No. There is nothing to fit. It runs on the phones your drivers already have.</p>
+          </details>
+          <details>
+            <summary>What phones do my drivers need?</summary>
+            <p>
+              The app is in testing on Android now. An iPhone version is planned, and the Google
+              Play and App Store releases are coming. Register your firm and we will tell you when
+              there is a place for you.
+            </p>
+          </details>
+          <details>
+            <summary>Can I see where my drivers are all the time?</summary>
+            <p>
+              No. A driver’s position is shared with you only while they are on one of your jobs and
+              the app is open. The app never tracks in the background, and a driver can delete their
+              own account in the app.
+            </p>
+          </details>
+          <details>
+            <summary>Does WagonWise make us compliant?</summary>
+            <p>
+              No. It helps you keep checks, defects and maintenance dates in one place, but you stay
+              responsible for your legal duties. The driving-hours clock in the app is a guide: the
+              tachograph is the legal record.
+            </p>
+          </details>
+          <details>
+            <summary>What does it cost?</summary>
+            <p>
+              The driver app is free. The fleet dashboard is £15 per vehicle per month. Founding
+              firms get three free months, then £10 per vehicle per month for their first year.
+            </p>
+          </details>
+          <details>
+            <summary>Where does the routing work?</summary>
+            <p>
+              At the moment routing covers Northumberland, Tyne and Wear and Cumbria. We add more of
+              Great Britain when a firm needs it. Northern Ireland is not covered.
+            </p>
+          </details>
+        </div>
+
+        <section class="register" id="register">
+          <div class="copy">
+            <span
+              style="
+                color: var(--blue-dark);
+                font-weight: 800;
+                font-size: 0.82rem;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+              "
+              >For haulage firms</span
+            >
+            <h2 style="margin-top: 10px">Ask for a demo</h2>
+            <p>
+              Tell us about your firm and we will get in touch to show you the dashboard, using
+              example data. No charge and no obligation.
+            </p>
+            <ul>
+              <li>Founding firms get three free months.</li>
+              <li>We put the terms in writing before you start.</li>
+              <li>The driver app is in testing on Android now.</li>
+            </ul>
+            <p>
+              Questions, or want to talk it through? Email
+              <a href="mailto:support@wagon-wise.co.uk">support@wagon-wise.co.uk</a>.
+            </p>
+          </div>
+
+          <form id="signup" novalidate>
+            <h3>Register your firm</h3>
+            <label for="email">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              maxlength="254"
+            />
+            <label for="name">Name <span class="hint">(optional)</span></label>
+            <input id="name" name="name" type="text" autocomplete="name" maxlength="80" />
+            <label for="role">I am</label>
+            <select id="role" name="role" required>
+              <option value="company" selected>Running a fleet or haulage firm</option>
+              <option value="both">Both: I drive and run the firm</option>
+              <option value="other">Something else</option>
+            </select>
+            <div id="firm">
+              <label for="company">Company <span class="hint">(optional)</span></label>
+              <input
+                id="company"
+                name="company"
+                type="text"
+                autocomplete="organization"
+                maxlength="120"
+              />
+              <label for="fleet">How many vehicles? <span class="hint">(optional)</span></label>
+              <select id="fleet" name="fleetSize">
+                <option value="">Prefer not to say</option>
+                <option value="1-5">1 to 5</option>
+                <option value="6-15">6 to 15</option>
+                <option value="16-40">16 to 40</option>
+                <option value="40+">More than 40</option>
+              </select>
+            </div>
+            <div class="trap" aria-hidden="true">
+              <label for="website">Leave this empty</label>
+              <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+            </div>
+            <label class="check" for="consent">
+              <input id="consent" name="consent" type="checkbox" />
+              <span>
+                I agree to WagonWise emailing me about testing the app. I can ask to be removed at
+                any time.
+              </span>
+            </label>
+            <button id="submit" class="btn" type="submit">Register my firm</button>
+            <p id="result" class="msg" role="status" hidden></p>
+          </form>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <div class="cols">
+          <div>
+            <p>
+              We keep only what you type above, use it only to write to you about testing WagonWise,
+              and never share or sell it.
+            </p>
+            <p>
+              Changed your mind?
+              <button id="show-remove" class="link" type="button">Remove my email</button>
+            </p>
+            <form id="remove" hidden novalidate>
+              <label for="remove-email">Email to remove</label>
+              <input id="remove-email" type="email" autocomplete="email" maxlength="254" />
+              <button type="submit" class="btn dark">Remove it</button>
+              <p id="remove-result" class="msg" role="status" hidden></p>
+            </form>
+          </div>
+          <div>
+            <p>
+              <a href="/">Driver app</a> · <a href="/privacy/">Privacy notice</a> ·
+              <a href="/delete-account/">Delete your account</a> ·
+              <a
+                href="https://www.facebook.com/profile.php?id=61595279979515"
+                rel="noopener"
+                target="_blank"
+                >Facebook</a
+              >
+            </p>
+            <p>
+              Made by WagonWise Ltd in Hexham, Northumberland. Contact:
+              <a href="mailto:support@wagon-wise.co.uk">support@wagon-wise.co.uk</a>
+            </p>
+            <p>Map images © MapTiler © OpenStreetMap contributors.</p>
+            <p>WagonWise is a planning aid. Always follow road signs and the law.</p>
+            <p>
+              WagonWise Ltd. Registered in England and Wales, company number 17530209. Registered
+              office: 5 Portland Terrace, Hexham NE46 3DT.
+            </p>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      function show(el, text, ok) {
+        el.hidden = false;
+        el.textContent = text;
+        el.className = 'msg ' + (ok ? 'ok' : 'bad');
+      }
+
+      // Dashboard pages: one tab per picture.
+      const portal = [
+        [
+          'overview',
+          'Overview',
+          'What needs attention today: jobs on the road, overdue maintenance and walk-round checks.',
+          'The dashboard overview: jobs on the road now, maintenance overdue and today’s compliance.',
+        ],
+        [
+          'live-map',
+          'Live trips',
+          'Every vehicle on a job, on a map, with arrival times and when each was last seen.',
+          'The live trips page: a map with vehicles on a job and a list with arrival times.',
+        ],
+        [
+          'job-profit',
+          'Job profit',
+          'What each job cost and made, by job, vehicle and customer: price, wages, fuel and running costs.',
+          'The job profit page: revenue, wages, fuel, running costs and profit for the month, with a row for each job.',
+        ],
+        [
+          'looking-ahead',
+          'Looking ahead',
+          'How the last few months went, and a guess at the next three if the work carries on as it has.',
+          'The looking ahead page: revenue and cost by month with a three-month forecast.',
+        ],
+        [
+          'maintenance',
+          'Maintenance',
+          'MOTs, inspections and services, with what is overdue and what is due soon, so nothing is missed.',
+          'The maintenance page listing overdue and due-soon items for each vehicle.',
+        ],
+        [
+          'check-results',
+          'Vehicle checks',
+          'The daily walk-round checks drivers do on their phones, with any defects sent straight to the office.',
+          'The walk-round check results page, one line per vehicle check.',
+        ],
+      ];
+      document.querySelectorAll('.tabs button').forEach((button) => {
+        button.addEventListener('click', () => {
+          const [file, name, text, alt] = portal[Number(button.dataset.i)];
+          document
+            .querySelectorAll('.tabs button')
+            .forEach((b) => b.setAttribute('aria-selected', String(b === button)));
+          const img = $('portal-img');
+          img.src = '/img/portal-' + file + '.webp';
+          img.alt = alt;
+          const caption = $('portal-caption');
+          caption.textContent = '';
+          const strong = document.createElement('b');
+          strong.textContent = name + '. ';
+          caption.append(strong, text);
+        });
+      });
+
+      $('role').addEventListener('change', () => {
+        $('firm').hidden = !['company', 'both'].includes($('role').value);
+      });
+
+      $('signup').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const result = $('result');
+        const email = $('email').value.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          return show(result, 'That email does not look right. Please check it.', false);
+        }
+        if (!$('consent').checked) {
+          return show(result, 'Please tick the box so we know you are happy to be emailed.', false);
+        }
+        const firm = !$('firm').hidden;
+        const body = {
+          email,
+          role: $('role').value,
+          consent: true,
+          website: $('website').value,
+        };
+        if ($('name').value.trim()) body.name = $('name').value.trim();
+        if (firm && $('company').value.trim()) body.company = $('company').value.trim();
+        if (firm && $('fleet').value) body.fleetSize = $('fleet').value;
+
+        $('submit').disabled = true;
+        try {
+          const response = await fetch('/signups', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (response.status === 204) {
+            $('signup').reset();
+            $('firm').hidden = !['company', 'both'].includes($('role').value);
+            show(result, 'Thank you. You are on the list and we will be in touch.', true);
+          } else if (response.status === 429) {
+            show(
+              result,
+              'We are getting a lot of sign-ups today. Please try again tomorrow.',
+              false,
+            );
+          } else {
+            show(
+              result,
+              'Something in the form is not right. Please check it and try again.',
+              false,
+            );
+          }
+        } catch {
+          show(result, 'We could not reach the server. Please try again in a moment.', false);
+        } finally {
+          $('submit').disabled = false;
+        }
+      });
+
+      $('show-remove').addEventListener('click', () => {
+        $('remove').hidden = !$('remove').hidden;
+      });
+
+      $('remove').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const result = $('remove-result');
+        const email = $('remove-email').value.trim();
+        if (!email) return show(result, 'Please type the email to remove.', false);
+        try {
+          const response = await fetch('/signups/remove', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+          if (response.status === 204) {
+            show(result, 'Done. If that email was on the list, it has been removed.', true);
+          } else {
+            show(result, 'That did not work. Please try again.', false);
+          }
+        } catch {
+          show(result, 'We could not reach the server. Please try again in a moment.', false);
+        }
+      });
+    </script>
+  </body>
+</html>
