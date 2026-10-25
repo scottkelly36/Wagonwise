@@ -162,8 +162,9 @@ None yet. Entries go here as dated lines with evidence and status (active / watc
 - **Founders terms:** free for the first 3 months, then £10 per vehicle per month for the first year, then the standard £15.
   The free months are a demo and tailoring period: the owner shows the firm how to use it and shapes it to how they work.
   This settles the question the sales playbook left open (whether £10 is kept for good: it is not, it is a first-year rate).
-  `[confirm]` whether "the first year" runs from signup or from the first paid month, and the standard price after it. Put it
-  in writing to each firm before they start, as the playbook advises. The landing page still shows no price.
+  The first year of £10 starts **after** the 3 free months (decided 2026-10-25), so a founding firm has 15 months of special
+  terms in all. `[confirm]` the price after that is the standard £15. Put it in writing to each firm before they start, as the
+  playbook advises. The landing page still shows no price.
 - **No pilot firm yet.** Earlier docs (`sales-playbook.md`, `phase-3-scope.md`) talk about "the pilot firm" as if one exists; treat that as the first firm to sign.
 - **Store release comes first.** The portal is of no use to a company until its drivers can install the app from the stores.
 - **First firms: a deliberate mix of companies the owner knows and companies they don't,** to learn what works with each.
@@ -181,4 +182,4 @@ None yet. Entries go here as dated lines with evidence and status (active / watc
 4. **Competitor detail:** who small firms compare you with.
 5. **Where the first firms come from:** which known contacts, and how to find and reach unknown ones (trade associations, local operators, operator-licence data). `prospecting` can help once the stores are close.
 6. **Proof:** nothing yet. The first firm's results are the first case study.
-7. **Terms detail** from section 15.
+7. **Landing page pricing:** decide what to publish (see the 2026-10-25 discussion: show £15 per vehicle, driver app free, and a capped founders offer).
