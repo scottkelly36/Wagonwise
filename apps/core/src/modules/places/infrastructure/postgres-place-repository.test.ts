@@ -208,6 +208,40 @@ describe('PostgresPlaceRepository', () => {
       expect(await repo().findById(gate.id)).toMatchObject({ companyId: acme, isPublic: false });
     });
 
+    it('lists reported public places with who-agrees counts and reasons, and forgets them when cleared', async () => {
+      const gate = gateFor(5);
+      const quiet = {
+        ...gateFor(6),
+        id: makeId<'SavedPlaceId'>('aa00000b-0000-4000-8000-00000000000b'),
+      };
+      await repo().save(gate);
+      await repo().save(quiet);
+      await repo().setPublic(gate.id, true, at);
+      await repo().setPublic(quiet.id, true, at);
+      await repo().addReport(gate.id, reporter(1), 'offensive', at);
+      await repo().addReport(gate.id, reporter(2), 'other', at);
+      await repo().addReport(gate.id, reporter(3), 'other', at);
+
+      const listed = (await repo().listReported(50)).filter((r) => r.place.id === gate.id);
+      expect(listed).toHaveLength(1);
+      expect(listed[0]).toMatchObject({ reportCount: 3, place: { name: 'Public gate' } });
+      expect(listed[0]?.reasons).toEqual(
+        expect.arrayContaining([
+          { reason: 'offensive', count: 1 },
+          { reason: 'other', count: 2 },
+        ]),
+      );
+      expect((await repo().listReported(50)).map((r) => r.place.id)).not.toContain(quiet.id);
+
+      // Made private, it drops out of the list; clearing forgets the reports.
+      await repo().setPublic(gate.id, false, at);
+      expect((await repo().listReported(50)).map((r) => r.place.id)).not.toContain(gate.id);
+      await repo().setPublic(gate.id, true, at);
+      await repo().clearReports(gate.id);
+      expect((await repo().listReported(50)).map((r) => r.place.id)).not.toContain(gate.id);
+      expect(await repo().findPublicNear(centre(5), 5000, 50)).toHaveLength(1);
+    });
+
     it('erasing a driver also removes the reports they made', async () => {
       const gate = gateFor(4);
       await repo().save(gate);

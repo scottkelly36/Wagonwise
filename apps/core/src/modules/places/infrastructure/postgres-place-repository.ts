@@ -7,6 +7,7 @@ import {
   type DriverId,
   type GeoPoint,
   type PlaceReportReason,
+  type ReportedPlace,
   type SavedPlace,
   type SavedPlaceId,
 } from '../domain/place.js';
@@ -143,6 +144,34 @@ export class PostgresPlaceRepository implements PlaceRepository {
       update places.saved_places set is_public = ${isPublic}, updated_at = ${at}
       where id = ${id} and company_id is null
     `.execute(this.db);
+  }
+
+  async listReported(limit: number): Promise<ReportedPlace[]> {
+    const { rows } = await sql<PlaceRow & { report_count: number }>`
+      select ${sql.raw(SELECT_COLUMNS)},
+        (select count(*)::int from places.place_reports r where r.place_id = p.id) as report_count
+      from places.saved_places p
+      where is_public and exists (select 1 from places.place_reports r where r.place_id = p.id)
+      order by report_count desc, updated_at desc
+      limit ${limit}
+    `.execute(this.db);
+    if (rows.length === 0) return [];
+    const reasons = await sql<{ place_id: string; reason: PlaceReportReason; count: number }>`
+      select place_id, reason, count(*)::int as count from places.place_reports
+      where place_id in (${sql.join(rows.map((r) => r.id))})
+      group by place_id, reason order by count desc
+    `.execute(this.db);
+    return rows.map((row) => ({
+      place: toDomain(row),
+      reportCount: row.report_count,
+      reasons: reasons.rows
+        .filter((r) => r.place_id === row.id)
+        .map((r) => ({ reason: r.reason, count: r.count })),
+    }));
+  }
+
+  async clearReports(id: SavedPlaceId): Promise<void> {
+    await sql`delete from places.place_reports where place_id = ${id}`.execute(this.db);
   }
 
   async addReport(

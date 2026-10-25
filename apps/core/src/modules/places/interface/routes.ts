@@ -1,6 +1,7 @@
 import {
   listPlacesRequestSchema,
   markPlaceRequestSchema,
+  moderatePlaceRequestSchema,
   nearbyPlacesRequestSchema,
   nearbyPublicPlacesRequestSchema,
   placeIdParamsSchema,
@@ -18,7 +19,9 @@ import type { Forbidden, PlaceNotFound } from '../application/errors.js';
 import {
   deletePlace,
   listPlaces,
+  listReportedPlaces,
   markPlace,
+  moderatePlace,
   placesNear,
   publicPlacesNear,
   reportPlace,
@@ -248,6 +251,34 @@ export function registerPlacesRoutes(app: FastifyInstance, deps: PlacesRouteDeps
     return result.ok ? { status: 204 } : failure(result.error);
   };
 
+  const listReported = async (actor: PlaceActor): Promise<Outcome> => {
+    const result = await listReportedPlaces(deps.places, { actor });
+    return result.ok
+      ? {
+          status: 200,
+          body: {
+            places: result.value.map((r) => ({
+              place: placeDto(r.place),
+              reportCount: r.reportCount,
+              hidden: r.hidden,
+              reasons: r.reasons,
+            })),
+          },
+        }
+      : failure(result.error);
+  };
+  const moderate = async (actor: PlaceActor, params: unknown, body: unknown): Promise<Outcome> => {
+    const p = placeIdParamsSchema.safeParse(params);
+    const b = moderatePlaceRequestSchema.safeParse(body);
+    if (!p.success || !b.success) return INVALID;
+    const result = await moderatePlace(deps.places, {
+      actor,
+      id: makeId<'SavedPlaceId'>(p.data.id),
+      decision: b.data.decision,
+    });
+    return result.ok ? { status: 204 } : failure(result.error);
+  };
+
   // Drivers
   app.post('/places', (request, reply) =>
     asDriver(request, reply, (actor) => mark(actor, request.body)),
@@ -289,6 +320,12 @@ export function registerPlacesRoutes(app: FastifyInstance, deps: PlacesRouteDeps
   );
   app.post('/staff/places/companies/:companyId/places', (request, reply) =>
     asStaff(request, reply, (actor) => mark(actor, request.body)),
+  );
+  app.get('/staff/places/reported', (request, reply) =>
+    asStaff(request, reply, (actor) => listReported(actor)),
+  );
+  app.post('/staff/places/:id/moderate', (request, reply) =>
+    asStaff(request, reply, (actor) => moderate(actor, request.params, request.body)),
   );
   app.put('/staff/places/:id', (request, reply) =>
     asStaff(request, reply, (actor) => update(actor, request.params, request.body)),

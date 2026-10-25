@@ -62,6 +62,8 @@ const VALID = [
   ],
   ['PUT', `/staff/places/${ID}`, { note: 'Gate on the left' }],
   ['DELETE', `/staff/places/${ID}`, undefined],
+  ['GET', '/staff/places/reported', undefined],
+  ['POST', `/staff/places/${ID}/moderate`, { decision: 'make_private' }],
   ['GET', `/staff/jobs/companies/${ACME}/positions`, undefined],
   ['GET', '/staff/hazard-reports/moderation-queue', undefined],
   ['POST', `/staff/hazard-reports/${ID}/moderate`, { action: 'reject' }],

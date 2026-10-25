@@ -8,7 +8,9 @@ import {
   type InvalidName,
   type InvalidPlaceNote,
   type PlaceCategory,
+  REPORTS_TO_HIDE,
   type PlaceReportReason,
+  type ReportedPlace,
   type SavedPlace,
   type SavedPlaceId,
 } from '../domain/place.js';
@@ -246,5 +248,44 @@ export async function reportPlace(
   if (place === null || !place.isPublic) return err({ tag: 'PlaceNotFound' });
   if (place.createdBy === input.actor.driverId) return err({ tag: 'Forbidden' });
   await deps.repo.addReport(place.id, input.actor.driverId, input.reason, deps.clock.now());
+  return ok(undefined);
+}
+
+/** A reported public place and whether other drivers still see it. */
+export interface ReportedPlaceView extends ReportedPlace {
+  readonly hidden: boolean;
+}
+
+const REPORTED_PLACES_LIMIT = 100;
+
+/** The public places drivers have reported, most reported first. WagonWise staff only: a company's staff have no say over the public map. */
+export async function listReportedPlaces(
+  deps: PlaceDeps,
+  input: { readonly actor: PlaceActor },
+): Promise<Result<ReportedPlaceView[], Forbidden>> {
+  if (input.actor.kind !== 'platform') return err({ tag: 'Forbidden' });
+  const reported = await deps.repo.listReported(REPORTED_PLACES_LIMIT);
+  return ok(reported.map((r) => ({ ...r, hidden: r.reportCount >= REPORTS_TO_HIDE })));
+}
+
+/**
+ * A moderator decides on a reported public place: keep it public (the reports are cleared, so a hidden place shows again) or take it
+ * off the public map (it goes back to its owner alone, who keeps it). Neither deletes what a driver marked.
+ */
+export async function moderatePlace(
+  deps: PlaceDeps,
+  input: {
+    readonly actor: PlaceActor;
+    readonly id: SavedPlaceId;
+    readonly decision: 'keep' | 'make_private';
+  },
+): Promise<Result<void, Forbidden | PlaceNotFound>> {
+  if (input.actor.kind !== 'platform') return err({ tag: 'Forbidden' });
+  const place = await deps.repo.findById(input.id);
+  if (place === null || !place.isPublic) return err({ tag: 'PlaceNotFound' });
+  if (input.decision === 'make_private') {
+    await deps.repo.setPublic(place.id, false, deps.clock.now());
+  }
+  await deps.repo.clearReports(place.id);
   return ok(undefined);
 }
