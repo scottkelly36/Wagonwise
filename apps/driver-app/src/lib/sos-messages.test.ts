@@ -1,4 +1,4 @@
-import { namesText, outcomeText, positionText, readOutText } from './sos-messages';
+import { namesText, outcomeText, positionText, readOutLines, readOutText } from './sos-messages';
 
 const acme = '11111111-1111-4111-8111-111111111111';
 const beta = '22222222-2222-4222-8222-222222222222';
@@ -9,6 +9,18 @@ describe('readOutText', () => {
     expect(readOutText({ words: 'filled.count.soap', location })).toBe('///filled.count.soap');
     expect(readOutText({ words: undefined, location })).toBe('54.97310, -2.10130');
     expect(positionText(location)).toBe('54.97310, -2.10130');
+  });
+});
+
+describe('readOutLines', () => {
+  it('puts each word on its own line, and the position on one line when there are no words', () => {
+    const location = { lat: 54.9731, lon: -2.1013 };
+    expect(readOutLines({ words: 'recapture.streaking.parent', location })).toEqual([
+      '///recapture.',
+      'streaking.',
+      'parent',
+    ]);
+    expect(readOutLines({ words: undefined, location })).toEqual(['54.97310, -2.10130']);
   });
 });
 

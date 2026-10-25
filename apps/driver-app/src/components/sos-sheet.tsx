@@ -24,6 +24,7 @@ import {
   NOT_EMERGENCY_SERVICES,
   outcomeText,
   positionText,
+  readOutLines,
   readOutText,
 } from '../lib/sos-messages';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
@@ -175,9 +176,17 @@ function SosSheetBody({ onClose, point }: Props) {
 
             {phase.kind === 'sent' && (
               <>
-                <Text style={styles.readOut} testID="sos-words">
-                  {readOutText(phase.sent)}
-                </Text>
+                <View
+                  style={styles.readOutBox}
+                  testID="sos-words"
+                  accessibilityLabel={readOutText(phase.sent)}
+                >
+                  {readOutLines(phase.sent).map((line) => (
+                    <Text key={line} style={styles.readOut}>
+                      {line}
+                    </Text>
+                  ))}
+                </View>
                 {phase.sent.nearestPlace !== undefined && (
                   <Text style={styles.near}>near {phase.sent.nearestPlace}</Text>
                 )}
@@ -303,7 +312,8 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
     },
     retryText: { fontSize: 17, fontWeight: '700', color: colors.accent },
-    readOut: { fontSize: 34, fontWeight: '800', color: colors.text, marginTop: 14 },
+    readOutBox: { marginTop: 14 },
+    readOut: { fontSize: 34, fontWeight: '800', color: colors.text, lineHeight: 40 },
     near: { fontSize: 18, color: colors.textSecondary, marginTop: 2 },
     call: {
       marginTop: 18,

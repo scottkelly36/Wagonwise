@@ -14,6 +14,16 @@ export function readOutText(sent: Pick<RaiseSosResponse, 'words' | 'location'>):
   return sent.words === undefined ? positionText(sent.location) : `///${sent.words}`;
 }
 
+/**
+ * What to read out, one line for each word, so a long word never wraps in the middle: ["///recapture.", "streaking.", "parent"].
+ * With no three words, the position on one line.
+ */
+export function readOutLines(sent: Pick<RaiseSosResponse, 'words' | 'location'>): string[] {
+  if (sent.words === undefined) return [positionText(sent.location)];
+  const words = sent.words.split('.');
+  return words.map((word, i) => `${i === 0 ? '///' : ''}${word}${i < words.length - 1 ? '.' : ''}`);
+}
+
 /** The company names as a sentence: "Acme", "Acme and Beta", "Acme, Beta and Gamma". */
 export function namesText(names: readonly string[]): string {
   if (names.length <= 1) return names[0] ?? '';
