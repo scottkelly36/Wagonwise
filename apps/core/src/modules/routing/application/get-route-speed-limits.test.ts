@@ -30,6 +30,7 @@ async function setup() {
   const features: RoadFeatures = {
     zones: [{ from: 0, to: 1, limitMph: 30 }],
     bridges: [{ from: { lat: 54.97, lon: -2.1 }, to: { lat: 54.971, lon: -2.1 } }],
+    wayIds: [581694342, 4001],
   };
   return {
     asked,
@@ -53,6 +54,7 @@ describe('getRouteSpeedLimits', () => {
       value: {
         zones: [{ from: 0, to: 1, limitMph: 30 }],
         bridges: [{ from: { lat: 54.97, lon: -2.1 }, to: { lat: 54.971, lon: -2.1 } }],
+        wayIds: [581694342, 4001],
       },
     });
     expect(asked).toEqual([plan.geometry]);

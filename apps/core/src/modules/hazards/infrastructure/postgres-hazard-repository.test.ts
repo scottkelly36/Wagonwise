@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import type { HazardReport } from '../domain/hazard-report.js';
 import type { UntypedDb } from './db.js';
-import { PostgresHazardRepository } from './postgres-hazard-repository.js';
+import { osmWayIdOf, PostgresHazardRepository } from './postgres-hazard-repository.js';
 import { applySchema } from './testing/apply-schema.js';
 import { createDb, createPool } from './testing/db-for-tests.js';
 
@@ -57,6 +57,33 @@ describe('PostgresHazardRepository', () => {
     });
     await repo().save(r);
     expect(await repo().findById(r.id)).toEqual(r);
+  });
+
+  it('says which OpenStreetMap way a hazard from OpenStreetMap is mapped on, and nothing for a driver’s report or a point', async () => {
+    const mapped = report({ id: makeId<'HazardReportId'>('33333333-3333-4333-8333-333333333333') });
+    const point = report({ id: makeId<'HazardReportId'>('44444444-4444-4444-8444-444444444444') });
+    const driversOwn = report({
+      id: makeId<'HazardReportId'>('55555555-5555-4555-8555-555555555555'),
+    });
+    for (const r of [mapped, point, driversOwn]) await repo().save(r);
+    await pool.query(
+      `update hazards.reports set source = 'osm', osm_id = 'way/999999999001' where id = $1`,
+      [mapped.id],
+    );
+    await pool.query(
+      `update hazards.reports set source = 'osm', osm_id = 'node/999999999002' where id = $1`,
+      [point.id],
+    );
+    expect((await repo().findById(mapped.id))?.osmWayId).toBe(999999999001);
+    expect(await repo().findById(point.id)).not.toHaveProperty('osmWayId');
+    expect(await repo().findById(driversOwn.id)).not.toHaveProperty('osmWayId');
+  });
+
+  it('reads a way id only from the "way/123" form', () => {
+    expect(osmWayIdOf('way/123')).toBe(123);
+    for (const odd of ['node/123', 'way/', 'way/12x', 'way/-4', 'way/0', '', null]) {
+      expect(osmWayIdOf(odd)).toBeUndefined();
+    }
   });
 
   it('returns null for an unknown id', async () => {

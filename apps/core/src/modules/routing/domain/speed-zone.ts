@@ -103,6 +103,9 @@ export interface BridgeStretch {
 export interface RoadFeatures {
   readonly zones: SpeedZone[];
   readonly bridges: BridgeStretch[];
+  /** The OpenStreetMap ways the route runs along, in order, each once. A restriction mapped on a way that is not here is on a
+   *  different road (one that crosses over or under, or a side road), however close it is. Empty if they could not be read. */
+  readonly wayIds: number[];
 }
 
 /** One section of the route as the router reports it, with where it sits in the matched line. */
@@ -154,4 +157,20 @@ export function joinBridges(stretches: readonly BridgeStretch[]): BridgeStretch[
     }
   }
   return out;
+}
+
+/** The ways of the route's sections in order, a way that continues over several sections only once, and one met again later only once. */
+export function wayIdsFromEdges(edges: readonly { readonly wayId?: unknown }[]): number[] {
+  const seen = new Set<number>();
+  for (const edge of edges) {
+    if (typeof edge.wayId === 'number' && Number.isSafeInteger(edge.wayId) && edge.wayId > 0) {
+      seen.add(edge.wayId);
+    }
+  }
+  return [...seen];
+}
+
+/** Joins the ways read from several pieces of one route, each once. */
+export function joinWayIds(pieces: readonly (readonly number[])[]): number[] {
+  return [...new Set(pieces.flat())];
 }

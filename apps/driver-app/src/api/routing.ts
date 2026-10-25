@@ -133,7 +133,7 @@ export async function getRoutePlan(accessToken: string, id: string): Promise<Rou
 export async function getRouteSpeedLimits(
   accessToken: string,
   routePlanId: string,
-): Promise<{ zones: SpeedZoneDto[]; bridges: BridgeStretchDto[] }> {
+): Promise<{ zones: SpeedZoneDto[]; bridges: BridgeStretchDto[]; wayIds: number[] }> {
   const { status, json } = await requestJson(
     'GET',
     `/routing/route-plans/${routePlanId}/speed-limits`,

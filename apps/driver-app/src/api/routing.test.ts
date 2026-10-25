@@ -276,17 +276,22 @@ describe('getRouteSpeedLimits', () => {
       { from: 0.6, to: 1 },
     ];
     const bridges = [{ from: { lat: 54.97, lon: -2.1 }, to: { lat: 54.971, lon: -2.1 } }];
-    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, { zones, bridges }));
+    const wayIds = [581694342, 4001];
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, { zones, bridges, wayIds }));
     globalThis.fetch = fetchMock;
 
-    expect(await getRouteSpeedLimits('token-1', planId)).toEqual({ zones, bridges });
+    expect(await getRouteSpeedLimits('token-1', planId)).toEqual({ zones, bridges, wayIds });
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toMatch(new RegExp(`/routing/route-plans/${planId}/speed-limits$`));
   });
 
   it('treats a reply with no bridges as none', async () => {
     globalThis.fetch = jest.fn().mockResolvedValue(jsonResponse(200, { zones: [] }));
-    expect(await getRouteSpeedLimits('token-1', planId)).toEqual({ zones: [], bridges: [] });
+    expect(await getRouteSpeedLimits('token-1', planId)).toEqual({
+      zones: [],
+      bridges: [],
+      wayIds: [],
+    });
   });
 
   it('throws an ApiError when the plan is not the caller’s', async () => {

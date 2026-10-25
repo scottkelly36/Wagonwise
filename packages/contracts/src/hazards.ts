@@ -46,6 +46,9 @@ export const hazardReportSchema = z.object({
   note: z.string().optional(),
   measurement: measurementSchema.optional(),
   source: hazardSourceSchema,
+  /** The OpenStreetMap way a hazard from OpenStreetMap is mapped on (the restricted road itself), so it can be matched to the road a
+   *  route runs along. Absent for drivers' reports and for hazards mapped on a point. */
+  osmWayId: z.number().int().positive().optional(),
   confirmations: z.number(),
   dismissals: z.number(),
   status: hazardStatusSchema,

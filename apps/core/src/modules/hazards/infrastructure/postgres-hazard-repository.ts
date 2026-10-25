@@ -34,6 +34,7 @@ interface HazardReportRow {
   readonly measurement_value: number | null;
   readonly measurement_unit: MeasurementUnit | null;
   readonly source: HazardSource;
+  readonly osm_id: string | null;
   readonly confirmations: number;
   readonly dismissals: number;
   readonly status: HazardStatus;
@@ -43,11 +44,19 @@ interface HazardReportRow {
 
 const SELECT_COLUMNS = `
   id, reporter_id, type, ST_Y(location::geometry) as lat, ST_X(location::geometry) as lon,
-  note, measurement_kind, measurement_value, measurement_unit, source, confirmations,
+  note, measurement_kind, measurement_value, measurement_unit, source, osm_id, confirmations,
   dismissals, status, expires_at, created_at
 `;
 
+/** "way/123" (the form stored for an OpenStreetMap hazard) is the way 123; a point ("node/123") or nothing is no way. */
+export function osmWayIdOf(osmId: string | null): number | undefined {
+  const match = /^way\/(\d+)$/.exec(osmId ?? '');
+  const id = match === null ? NaN : Number(match[1]);
+  return Number.isSafeInteger(id) && id > 0 ? id : undefined;
+}
+
 function toDomain(row: HazardReportRow): HazardReport {
+  const osmWayId = osmWayIdOf(row.osm_id);
   return {
     id: makeId<'HazardReportId'>(row.id),
     reporterId: makeId<'DriverId'>(row.reporter_id),
@@ -62,6 +71,7 @@ function toDomain(row: HazardReportRow): HazardReport {
         ? { kind: row.measurement_kind, value: row.measurement_value, unit: row.measurement_unit }
         : undefined,
     source: row.source,
+    ...(osmWayId === undefined ? {} : { osmWayId }),
     confirmations: row.confirmations,
     dismissals: row.dismissals,
     status: row.status,
