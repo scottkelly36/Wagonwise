@@ -84,6 +84,9 @@ const envSchema = z.object({
   // only; never sent to an app. The free tier allows about 2,500 non-tile calls a day, so the default cap
   // leaves headroom; raise it with the plan.
   TOMTOM_API_KEY: z.string().min(1).optional(),
+  // Optional: the what3words key (three words to a spot, and a spot to three words). Unset means no lookup. Server-side only; never
+  // sent to an app. The Basic plan allows 1,000 lookups a month, so the app asks only when the driver asks.
+  W3W_API_KEY: z.string().min(1).optional(),
   // Where to email the owner when Resend reports a sign-in email that did not get through. Unset: the problem is only logged.
   ALERT_EMAIL: z.string().trim().email().optional(),
   // Optional: the DVLA Vehicle Enquiry Service key (MOT and road tax dates by registration). Unset means the portal does not
@@ -178,6 +181,7 @@ export interface Config {
         readonly scope: string;
       }
     | undefined;
+  readonly what3wordsApiKey: string | undefined;
   readonly trafficDailyRequestLimit: number;
   readonly trafficCacheTtlMs: number;
   readonly dashboardUrl: string | undefined;
@@ -245,6 +249,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     anthropicApiKey: values.ANTHROPIC_API_KEY,
     metOfficeApiKey: values.METOFFICE_API_KEY,
     tomtomApiKey: values.TOMTOM_API_KEY,
+    what3wordsApiKey: values.W3W_API_KEY,
     alertEmail: values.ALERT_EMAIL,
     dvlaVesApiKey: values.DVLA_VES_API_KEY,
     dvsaMot:

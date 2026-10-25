@@ -202,6 +202,9 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
      diarise both (a new secret is issued through DVSA's `/credentials` endpoint),
      `TOMTOM_API_KEY` (TomTom live traffic; optional, unset means no traffic data; core only, never the
      BFFs or apps; `TRAFFIC_DAILY_REQUEST_LIMIT` caps calls a day, default 2000, under the free tier's 2,500),
+     `W3W_API_KEY` (what3words: search by three words, and the three words for where a driver is; optional, unset means
+     no lookup and the app says it is not available; core only, never the BFFs or apps; the Basic plan is 1,000 lookups
+     a month and the app asks only when the driver asks, so watch the count in the what3words account),
      `STAFF_SECRET_KEY` (`openssl rand -base64 32`; keep a copy somewhere safe: losing it
      makes every staff authenticator-app enrolment unreadable), `APP_DATABASE_URL` (below),
      `NODE_ENV=production`.

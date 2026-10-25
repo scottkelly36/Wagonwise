@@ -59,6 +59,7 @@ import { createCamerasModule, type UntypedDb as CamerasUntypedDb } from '../modu
 import { createParkingModule, type UntypedDb as ParkingUntypedDb } from '../modules/parking/api.js';
 import { createTrafficModule } from '../modules/traffic/api.js';
 import { createWeatherModule } from '../modules/weather/api.js';
+import { createWhat3wordsModule } from '../modules/what3words/api.js';
 import { createBillingModule, type UntypedDb as BillingUntypedDb } from '../modules/billing/api.js';
 import { createPlacesModule, type UntypedDb as PlacesUntypedDb } from '../modules/places/api.js';
 import {
@@ -263,6 +264,12 @@ export function composeCore(
     // `app` is built further down; this only runs on a request, after it exists.
     onProblem: (what, error) =>
       app.log.warn({ err: error, what }, 'live traffic: provider call failed or allowance used up'),
+  });
+  // what3words: three words to a spot and a spot to three words (the driver app's Where to? screen, and SOS).
+  const what3words = createWhat3wordsModule({
+    apiKey: config.what3wordsApiKey,
+    // A refused key or an outage is logged, so it is not silent. `app` is built further down; this only runs on a request.
+    onProblem: (what, detail) => app.log.warn({ detail, what }, 'what3words lookup failed'),
   });
   const cameras = createCamerasModule({ db: camerasDb });
   const routing = createRoutingModule({
@@ -761,6 +768,7 @@ export function composeCore(
   emailAlerts.registerRoutes(app);
   usage.registerRoutes(app);
   weather.registerRoutes(app);
+  what3words.registerRoutes(app);
 
   return {
     app,

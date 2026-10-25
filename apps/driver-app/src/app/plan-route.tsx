@@ -19,6 +19,7 @@ import { useCreateVehicleProfile, useVehicleProfiles } from '../api/use-vehicle-
 import { useNearbyHazards } from '../api/use-hazards';
 import { useCreateRoutePlan, usePreviewRouteOptions } from '../api/use-route-plans';
 import { AddressSearchField } from '../components/address-search-field';
+import { WordsSearchField } from '../components/words-search-field';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap, type MapPoint, type RouteOptionLine } from '../components/route-map';
 import { formatDuration } from '../lib/format-duration';
@@ -66,6 +67,7 @@ const FROM_OPTIONS = [
 ] as const;
 const TO_OPTIONS = [
   { key: 'search', label: 'Search' },
+  { key: 'words', label: '3 words' },
   { key: 'map', label: 'Map' },
 ] as const;
 
@@ -206,7 +208,9 @@ export default function PlanRouteScreen() {
           : destination === undefined
             ? toMode === 'search'
               ? 'Now search for where you are going.'
-              : 'Now tap the map where you are going.'
+              : toMode === 'words'
+                ? 'Now type the three words and tap Find.'
+                : 'Now tap the map where you are going.'
             : undefined;
 
   function setDimensionField(field: keyof Omit<VehicleProfileFormValues, 'name'>) {
@@ -578,6 +582,18 @@ export default function PlanRouteScreen() {
                     near={effectiveOrigin ?? location.point}
                     onSelect={handleDestinationSearchSelect}
                     testID="destination-search"
+                  />
+                ) : toMode === 'words' ? (
+                  <WordsSearchField
+                    onSelect={(address) => {
+                      setRouteOptions(undefined);
+                      setDestination(address.location);
+                    }}
+                    onEdit={() => {
+                      setRouteOptions(undefined);
+                      setDestination(undefined);
+                    }}
+                    testID="destination-words"
                   />
                 ) : (
                   mapHelp('destination')
