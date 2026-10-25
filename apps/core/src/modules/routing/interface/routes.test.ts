@@ -87,6 +87,7 @@ function buildApp(): {
           Promise.resolve({
             zones: [{ from: 0, to: 1, limitMph: 30 }],
             bridges: [{ from: { lat: 54.97, lon: -2.1 }, to: { lat: 54.971, lon: -2.1 } }],
+            wayIds: [581694342],
           }),
       },
     },
@@ -602,6 +603,7 @@ describe('GET /routing/route-plans/:id/speed-limits', () => {
     expect(response.json()).toEqual({
       zones: [{ from: 0, to: 1, limitMph: 30 }],
       bridges: [{ from: { lat: 54.97, lon: -2.1 }, to: { lat: 54.971, lon: -2.1 } }],
+      wayIds: [581694342],
     });
   });
 

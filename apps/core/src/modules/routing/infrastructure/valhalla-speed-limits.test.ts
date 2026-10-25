@@ -99,6 +99,25 @@ describe('ValhallaSpeedLimits', () => {
     expect(bridges[0]!.to.lon).toBeCloseTo(matched[5]!.lon, 5);
   });
 
+  it('lists the roads (OpenStreetMap ways) the route runs along, each once', async () => {
+    const source = new ValhallaSpeedLimits('http://valhalla', (_url, init) => {
+      const attributes = (JSON.parse(init.body as string) as { filters: { attributes: string[] } })
+        .filters.attributes;
+      expect(attributes).toContain('edge.way_id');
+      return Promise.resolve(
+        reply(200, {
+          edges: [
+            { length: 0.3, speed_limit: 112, way_id: 7001 },
+            { length: 0.3, speed_limit: 112, way_id: 7001 }, // the same road, in two sections
+            { length: 0.2, speed_limit: 112, way_id: 7002 },
+            { length: 0.2, speed_limit: 112 }, // no way known for this section
+          ],
+        }),
+      );
+    });
+    expect((await source.featuresAlong(route)).wayIds).toEqual([7001, 7002]);
+  });
+
   it('counts only the part of the first and last section the route uses', async () => {
     const source = new ValhallaSpeedLimits('http://valhalla', () =>
       Promise.resolve(
@@ -119,11 +138,11 @@ describe('ValhallaSpeedLimits', () => {
 
   it('gives no signs, never an error, when Valhalla refuses or is down', async () => {
     const refused = new ValhallaSpeedLimits('http://valhalla', () => Promise.resolve(reply(400)));
-    expect(await refused.featuresAlong(route)).toEqual({ zones: [], bridges: [] });
+    expect(await refused.featuresAlong(route)).toEqual({ zones: [], bridges: [], wayIds: [] });
     const down = new ValhallaSpeedLimits('http://valhalla', () => Promise.reject(new Error('x')));
-    expect(await down.featuresAlong(route)).toEqual({ zones: [], bridges: [] });
+    expect(await down.featuresAlong(route)).toEqual({ zones: [], bridges: [], wayIds: [] });
     const odd = new ValhallaSpeedLimits('http://valhalla', () => Promise.resolve(reply(200, {})));
-    expect(await odd.featuresAlong(route)).toEqual({ zones: [], bridges: [] });
+    expect(await odd.featuresAlong(route)).toEqual({ zones: [], bridges: [], wayIds: [] });
   });
 
   it('remembers a route it read in full, but not one it could not', async () => {

@@ -69,8 +69,8 @@ export default function RouteOverviewScreen() {
   );
   const nearbyHazards = useNearbyHazards(corridor, ON_ROUTE_HAZARD_RADIUS_M);
   const nearbyHazardsData = nearbyHazards.data;
-  // Where the route is up on a bridge: a low bridge there is the road underneath, not the driver's.
-  const bridges = useRouteSpeedLimits(plan?.id).data?.bridges;
+  // Which roads the route runs along, and where it is up on a bridge: a hazard on a road that crosses it is not the driver's.
+  const roads = useRouteSpeedLimits(plan?.id).data;
   // `plan.hazardsOnRoute` is the authoritative "on this route" list (a real, ~30m-of-the-final-
   // route server query as of the plan/hazardsOnRoute-populate change) but it's bare ids, nothing
   // a driver can read. Cross-referencing against `nearbyHazards`' fuller objects (already fetched
@@ -81,13 +81,13 @@ export default function RouteOverviewScreen() {
   const onRouteHazards = useMemo(
     () =>
       routeLine && nearbyHazardsData
-        ? placeOnRoute(routeLine, nearbyHazardsData, bridges).map(({ item: h }) => ({
+        ? placeOnRoute(routeLine, nearbyHazardsData, roads).map(({ item: h }) => ({
             id: h.id,
             type: h.type,
             location: h.location,
           }))
         : [],
-    [routeLine, nearbyHazardsData, bridges],
+    [routeLine, nearbyHazardsData, roads],
   );
   const hazardsOnRoute = useMemo(() => {
     if (!plan || !nearbyHazardsData) return [];

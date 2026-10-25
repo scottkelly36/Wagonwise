@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   bridgesFromShape,
   joinBridges,
+  joinWayIds,
   joinZones,
   postedLimit,
   zonesFromEdges,
+  wayIdsFromEdges,
   type RoadEdge,
 } from './speed-zone.js';
 
@@ -153,5 +155,27 @@ describe('joinBridges', () => {
       { from: shape[1]!, to: shape[3]! },
       { from: shape[6]!, to: shape[7]! },
     ]);
+  });
+});
+
+describe('wayIdsFromEdges', () => {
+  it('lists each road once, in the order the route meets it, ignoring sections with no way', () => {
+    expect(
+      wayIdsFromEdges([
+        { wayId: 30 },
+        { wayId: 10 },
+        { wayId: 30 },
+        {},
+        { wayId: 'x' },
+        { wayId: 0 },
+        { wayId: 20 },
+      ]),
+    ).toEqual([30, 10, 20]);
+  });
+});
+
+describe('joinWayIds', () => {
+  it('joins the roads of several pieces, a road met in two pieces only once', () => {
+    expect(joinWayIds([[1, 2], [], [2, 3]])).toEqual([1, 2, 3]);
   });
 });

@@ -51,6 +51,8 @@ export interface HazardReport {
   readonly note?: string | undefined;
   readonly measurement?: Measurement | undefined;
   readonly source: HazardSource;
+  /** For a hazard from OpenStreetMap mapped on a way: that way's id, the road the restriction is on. */
+  readonly osmWayId?: number | undefined;
   readonly confirmations: number;
   readonly dismissals: number;
   readonly status: HazardStatus;

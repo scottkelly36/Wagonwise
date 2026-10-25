@@ -2,7 +2,9 @@ import type { SpeedLimitSource } from '../application/ports/speed-limit-source.j
 import { decodePolyline, type GeoLine, type GeoPoint } from '../domain/geo.js';
 import {
   bridgesFromShape,
+  wayIdsFromEdges,
   joinBridges,
+  joinWayIds,
   joinZones,
   zonesFromEdges,
   type RoadEdge,
@@ -75,6 +77,7 @@ interface TraceEdge {
   bridge?: unknown;
   begin_shape_index?: unknown;
   end_shape_index?: unknown;
+  way_id?: unknown;
 }
 
 const text = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
@@ -114,7 +117,7 @@ export class ValhallaSpeedLimits implements SpeedLimitSource {
     if (cached !== undefined) return cached;
 
     const { pieces, totalM } = splitIntoPieces(decodePolyline(route));
-    if (totalM <= 0) return { zones: [], bridges: [] };
+    if (totalM <= 0) return { zones: [], bridges: [], wayIds: [] };
 
     const results: (RoadFeatures | undefined)[] = new Array<RoadFeatures | undefined>(
       pieces.length,
@@ -130,6 +133,7 @@ export class ValhallaSpeedLimits implements SpeedLimitSource {
     const features: RoadFeatures = {
       zones: joinZones(results.flatMap((r) => r?.zones ?? [])),
       bridges: joinBridges(results.flatMap((r) => r?.bridges ?? [])),
+      wayIds: joinWayIds(results.map((r) => r?.wayIds ?? [])),
     };
     // A failed piece is not remembered, so asking again can fill it in.
     if (results.every((r) => r !== undefined)) this.remember(route, features);
@@ -161,6 +165,7 @@ export class ValhallaSpeedLimits implements SpeedLimitSource {
               'edge.road_class',
               'edge.use',
               'edge.bridge',
+              'edge.way_id',
               'edge.begin_shape_index',
               'edge.end_shape_index',
               'shape',
@@ -189,6 +194,7 @@ export class ValhallaSpeedLimits implements SpeedLimitSource {
       return {
         zones: zonesFromEdges(edges, start, end),
         bridges: bridgesFromShape(bridgeEdges, shape),
+        wayIds: wayIdsFromEdges(traced.map((e) => ({ wayId: e.way_id }))),
       };
     } catch {
       return undefined;
