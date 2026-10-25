@@ -68,6 +68,11 @@ real entrance, but the next job to that farm sends the next driver to the wrong 
   to 50 km), `PUT /places/:id/visibility`, `POST /places/:id/report`; the driver BFF forwards all three. Account deletion removes a
   driver's places (public ones too) and the reports they made.
 
+### Just me or My company when marking (added 2026-10-25)
+
+- A driver with a company used to always mark for the company, so none of their places could be made public (only a personal place can). The mark sheet now has **My company** (the default) and **Just me** for a driver who has a company; a driver with none sees no choice and always marks for themselves. **Just me** makes a personal place: only they see it, it can be shared with every driver (**Share with all drivers**) or handed to their company later (**Share with my company**). Core already allowed this (a personal place has no company and is the driver's), so no server change; the personal list was already loaded alongside the company's.
+- Unchanged: a place marked for a company stays the company's and cannot be turned personal or public.
+
 ### Reviewing reported places (added 2026-10-25)
 
 - Dashboard, WagonWise staff only: **Content > Reported places**. Lists public places that have at least one report, most reported first, with
