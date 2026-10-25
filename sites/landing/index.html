@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -46,7 +46,25 @@
             "legalName": "WagonWise Ltd",
             "url": "https://wagon-wise.co.uk/",
             "logo": "https://wagon-wise.co.uk/img/icon-192.png",
-            "sameAs": ["https://www.facebook.com/profile.php?id=61595279979515"]
+            "email": "support@wagon-wise.co.uk",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "5 Portland Terrace",
+              "addressLocality": "Hexham",
+              "postalCode": "NE46 3DT",
+              "addressCountry": "GB"
+            },
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "contactType": "customer support",
+              "email": "support@wagon-wise.co.uk",
+              "areaServed": "GB",
+              "availableLanguage": "en-GB"
+            },
+            "sameAs": [
+              "https://www.facebook.com/profile.php?id=61595279979515",
+              "https://find-and-update.company-information.service.gov.uk/company/17530209"
+            ]
           },
           {
             "@type": "WebSite",
@@ -157,7 +175,7 @@
         --blue-soft: #e5eefc;
         --sky: #7fb2ff;
         --green: #34d399;
-        --green-dark: #0f8a5f;
+        --green-dark: #0b7050;
         --bg: #f3f6fb;
         --card: #ffffff;
         --text: #0f1a2e;
@@ -226,6 +244,7 @@
         height: 68px;
       }
       .logo {
+        min-height: 44px;
         display: flex;
         align-items: center;
         gap: 10px;
@@ -373,7 +392,7 @@
         line-height: 1.15;
       }
       .store small {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         color: var(--on-navy-muted);
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -437,37 +456,6 @@
         object-fit: cover;
         border-radius: 28px;
         background: var(--navy-2);
-      }
-
-      /* Quick row */
-      .quick {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 16px;
-        margin-top: 28px;
-      }
-      .quick div {
-        background: var(--card);
-        border: 1px solid var(--line);
-        border-radius: 20px;
-        padding: 20px;
-      }
-      .quick svg {
-        width: 30px;
-        height: 30px;
-        color: var(--blue);
-      }
-      .quick b {
-        display: block;
-        margin-top: 12px;
-        font-size: 1.02rem;
-      }
-      .quick span {
-        display: block;
-        margin-top: 4px;
-        color: var(--muted);
-        font-size: 0.93rem;
-        line-height: 1.45;
       }
 
       /* Feature sections */
@@ -591,6 +579,7 @@
         margin-top: 30px;
       }
       .tabs button {
+        min-height: 44px;
         padding: 9px 16px;
         border-radius: 999px;
         border: 0;
@@ -710,18 +699,19 @@
         background: var(--card);
         border: 1px solid var(--line);
         border-radius: 16px;
-        padding: 16px 20px;
         margin-top: 12px;
       }
       .faq summary {
         cursor: pointer;
         font-weight: 700;
+        padding: 16px 20px;
       }
       .faq details[open] summary {
-        margin-bottom: 8px;
+        padding-bottom: 8px;
       }
       .faq p {
         margin: 0;
+        padding: 0 20px 16px;
         color: var(--muted);
       }
 
@@ -785,9 +775,9 @@
         margin-top: 18px;
       }
       .check input {
-        margin-top: 5px;
-        width: 18px;
-        height: 18px;
+        margin-top: 2px;
+        width: 24px;
+        height: 24px;
         flex: none;
       }
       form#signup .btn {
@@ -828,8 +818,11 @@
         margin-top: 12px;
       }
 
-      footer a {
+      footer a,
+      footer button.link {
         color: var(--blue-dark);
+        display: inline-block;
+        padding: 12px 4px;
       }
       footer {
         margin-top: clamp(48px, 8vw, 88px);
@@ -870,14 +863,12 @@
         .hero-phones .p-right {
           display: none;
         }
-        .quick,
         .portal-points,
         .trust {
           grid-template-columns: 1fr 1fr;
         }
       }
       @media (max-width: 560px) {
-        .quick,
         .portal-points,
         .trust {
           grid-template-columns: 1fr;
@@ -902,7 +893,7 @@
         </a>
         <nav aria-label="Main">
           <a class="plain" href="#driver-app">Driver app</a>
-          <a class="plain" href="#fleet-portal">Fleet dashboard</a>
+          <a class="plain" href="/for-hauliers/">For haulage firms</a>
           <a class="btn" href="#register">Register to test</a>
         </nav>
       </div>
@@ -922,6 +913,7 @@
               <div class="cta-row">
                 <a class="btn" href="#register">Register to test</a>
                 <a class="btn ghost" href="#driver-app">See how it works</a>
+                <a class="btn ghost" href="/for-hauliers/">For haulage firms</a>
               </div>
               <div class="stores" aria-label="Where to get the app">
                 <span class="store"><small>Coming soon to</small><b>Google Play</b></span>
@@ -957,74 +949,6 @@
             </div>
           </div>
         </section>
-
-        <div class="quick" aria-label="At a glance">
-          <div>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M3 15V9a2 2 0 0 1 2-2h8v8M13 10h4l3 3v2h-7M3 15h2m8 0h-2" />
-              <circle cx="7" cy="17" r="2" />
-              <circle cx="17" cy="17" r="2" />
-            </svg>
-            <b>Fits your vehicle</b>
-            <span>Height, width, length and weight saved once.</span>
-          </div>
-          <div>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M12 3l9 16H3L12 3z" />
-              <path d="M12 10v4m0 3h.01" />
-            </svg>
-            <b>Hazards ahead</b>
-            <span>Reports from other drivers, spoken as you approach.</span>
-          </div>
-          <div>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <rect x="4" y="3" width="16" height="18" rx="3" />
-              <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
-            </svg>
-            <b>Safe parking</b>
-            <span>HGV parks and services, including the amenities at each one.</span>
-          </div>
-          <div>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <rect x="5" y="3" width="14" height="18" rx="2" />
-              <path d="M9 8h6M9 12h6M9 16h3" />
-            </svg>
-            <b>Jobs from your firm</b>
-            <span>Stops, notes and proof of delivery on your phone.</span>
-          </div>
-        </div>
 
         <div class="section-head" id="driver-app">
           <span class="tag">The driver app</span>
@@ -1265,6 +1189,9 @@
           <p class="fine" style="margin-top: 22px; text-align: center; color: var(--on-navy-muted)">
             Screens show example data for a fictional firm.
           </p>
+          <p style="margin-top: 22px; text-align: center">
+            <a class="btn" href="/for-hauliers/">See more for haulage firms</a>
+          </p>
         </section>
 
         <div class="section-head">
@@ -1378,6 +1305,10 @@
               <li>It is still in testing, so things will change.</li>
               <li>Tell us what is wrong with it. That is the point.</li>
             </ul>
+            <p>
+              Questions, or want to talk it through? Email
+              <a href="mailto:support@wagon-wise.co.uk">support@wagon-wise.co.uk</a>.
+            </p>
           </div>
 
           <form id="signup" novalidate>
@@ -1473,6 +1404,10 @@
                 target="_blank"
                 >Facebook</a
               >
+            </p>
+            <p>
+              Made by WagonWise Ltd in Hexham, Northumberland. Contact:
+              <a href="mailto:support@wagon-wise.co.uk">support@wagon-wise.co.uk</a>
             </p>
             <p>Map images © MapTiler © OpenStreetMap contributors.</p>
             <p>WagonWise is a planning aid. Always follow road signs and the law.</p>
