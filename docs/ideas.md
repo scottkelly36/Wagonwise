@@ -12,7 +12,7 @@ not attached to a milestone yet.
   like Google Maps. **Nothing here is verified yet**; these are the first things to check, roughly
   in order of likelihood:
 
-1. **Map coverage (now unlikely).** The live Valhalla covers Northumberland, Tyne and Wear and Cumbria (expanded 2026-09-26, `docs/deployment-guide.md`), so Hexham and Hebburn are both inside it. Still worth ruling out: confirm the tiles were rebuilt after the expansion, and that the A69 and A1 are in them.
+1. **Map coverage (now unlikely).** The live Valhalla covers Great Britain (rebuilt 2026-10-16, `docs/deployment-guide.md` section 10; it covered Northumberland, Tyne and Wear and Cumbria from 2026-09-26 before that), so Hexham and Hebburn are both inside it. Still worth ruling out: confirm the A69 and A1 are in the tiles.
 2. **Costing.** The request is `truck` costing with only a 55 mph `top_speed` cap
    (`valhalla-routing-engine.ts`). No highway preference is set, so Valhalla's own defaults decide
    how much it favours A-roads and dual carriageways. Valhalla has options for this
