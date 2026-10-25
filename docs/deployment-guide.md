@@ -22,8 +22,8 @@ down to exactly that — no more, no less:
   stable address for nothing extra. The domain purchase is a separate track (§6), blocked on
   a proper trademark check, not on this week's goal.
 - **Northumberland Valhalla extract only** — not UK-wide (a separate, later decision).
-  **Superseded 2026-09-26**: expanded to Northumberland + Tyne and Wear + Cumbria, still not
-  UK-wide — see §7's provisioned list.
+  **Superseded**: expanded to Northumberland + Tyne and Wear + Cumbria on 2026-09-26 (§7's
+  provisioned list), then to the whole of Great Britain on 2026-10-16 (§10).
 
 Checklist, in order — **all done as of 2026-09-25** except the last step:
 
@@ -46,15 +46,15 @@ Checklist, in order — **all done as of 2026-09-25** except the last step:
 
 ## 1. What needs hosting, and what doesn't
 
-| Piece                     | Needs hosting? | Notes                                                     |
-| ------------------------- | -------------- | --------------------------------------------------------- |
-| `apps/core`               | Yes            | Private only — never reachable from outside               |
-| `apps/driver-bff`         | Yes            | The one public HTTP surface                               |
-| Postgres + PostGIS        | Yes            | Currently `infra/docker/compose.yml`'s local container    |
-| Valhalla                  | Yes            | Currently local, Northumberland extract only              |
-| MapTiler (map tiles)      | No             | Already a hosted SaaS, just needs the API key set         |
-| Anthropic (voice parsing) | No             | Already a hosted SaaS, just needs `ANTHROPIC_API_KEY` set |
-| Expo Push                 | No             | Already a hosted SaaS                                     |
+| Piece                     | Needs hosting? | Notes                                                        |
+| ------------------------- | -------------- | ------------------------------------------------------------ |
+| `apps/core`               | Yes            | Private only — never reachable from outside                  |
+| `apps/driver-bff`         | Yes            | The one public HTTP surface                                  |
+| Postgres + PostGIS        | Yes            | Currently `infra/docker/compose.yml`'s local container       |
+| Valhalla                  | Yes            | Live: Great Britain (§10). Local dev: Northumberland extract |
+| MapTiler (map tiles)      | No             | Already a hosted SaaS, just needs the API key set            |
+| Anthropic (voice parsing) | No             | Already a hosted SaaS, just needs `ANTHROPIC_API_KEY` set    |
+| Expo Push                 | No             | Already a hosted SaaS                                        |
 
 ## 2. Gaps found during this spike, beyond hosting
 
@@ -92,9 +92,9 @@ returned 403 …`): search core's runtime logs for the request id. Only core tal
    `local-dev-internal-key` default both sides fall back to.
 4. **`ANTHROPIC_API_KEY` must be set**, or voice reports silently degrade to
    `NullHazardParser` (every transcript filed as type `other` with itself as the note).
-5. Valhalla covers **Northumberland, Tyne and Wear and Cumbria** (expanded 2026-09-26 from
-   Northumberland alone) — correct for the Hexham test area and its surrounding counties, but a
-   reminder this isn't a UK-wide deployment yet.
+5. Valhalla covers **Great Britain** (England, Scotland and Wales; expanded on 2026-10-16 from
+   Northumberland, Tyne and Wear and Cumbria, see §10). **Northern Ireland is deliberately not
+   covered.**
 
 ## 3. Recommended architecture (DigitalOcean)
 
@@ -123,7 +123,7 @@ returned 403 …`): search core's runtime logs for the request id. Only core tal
     ┌─────────▼─────────┐          ┌──────────▼─────────┐
     │ DO Managed Postgres│          │   DO Droplet        │
     │  (PostGIS enabled) │          │   Valhalla container │
-    └─────────────────────┘          │  (Northumberland tiles,
+    └─────────────────────┘          │  (Great Britain tiles,
                                       │   baked onto a volume) │
                                       └───────────────────────┘
 ```
@@ -562,8 +562,9 @@ The secret and the alert address are read only in each app's `config.ts`. Nothin
 
 The original plan follows, for the next rebuild.
 
-Today Valhalla covers Northumberland, Tyne and Wear and Cumbria on a 2 GB droplet. National coverage
-(Great Britain; **Northern Ireland is deliberately left out for now**) is mostly an infrastructure job:
+Until 2026-10-16 Valhalla covered Northumberland, Tyne and Wear and Cumbria on a 2 GB droplet. National
+coverage (Great Britain; **Northern Ireland is deliberately left out for now**) was mostly an infrastructure
+job, and is now done as described above. The steps are kept for the next rebuild:
 
 1. **Build the tiles on a temporary big droplet**, not the serving one. The national graph needs very
    roughly 16 to 32 GB of RAM and several cores for a build of a couple of hours; serving it needs about
