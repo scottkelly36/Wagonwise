@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -46,7 +46,25 @@
             "legalName": "WagonWise Ltd",
             "url": "https://wagon-wise.co.uk/",
             "logo": "https://wagon-wise.co.uk/img/icon-192.png",
-            "sameAs": ["https://www.facebook.com/profile.php?id=61595279979515"]
+            "email": "support@wagon-wise.co.uk",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "5 Portland Terrace",
+              "addressLocality": "Hexham",
+              "postalCode": "NE46 3DT",
+              "addressCountry": "GB"
+            },
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "contactType": "customer support",
+              "email": "support@wagon-wise.co.uk",
+              "areaServed": "GB",
+              "availableLanguage": "en-GB"
+            },
+            "sameAs": [
+              "https://www.facebook.com/profile.php?id=61595279979515",
+              "https://find-and-update.company-information.service.gov.uk/company/17530209"
+            ]
           },
           {
             "@type": "WebSite",
@@ -226,6 +244,7 @@
         height: 68px;
       }
       .logo {
+        min-height: 44px;
         display: flex;
         align-items: center;
         gap: 10px;
@@ -373,7 +392,7 @@
         line-height: 1.15;
       }
       .store small {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         color: var(--on-navy-muted);
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -591,6 +610,7 @@
         margin-top: 30px;
       }
       .tabs button {
+        min-height: 44px;
         padding: 9px 16px;
         border-radius: 999px;
         border: 0;
@@ -710,18 +730,19 @@
         background: var(--card);
         border: 1px solid var(--line);
         border-radius: 16px;
-        padding: 16px 20px;
         margin-top: 12px;
       }
       .faq summary {
         cursor: pointer;
         font-weight: 700;
+        padding: 16px 20px;
       }
       .faq details[open] summary {
-        margin-bottom: 8px;
+        padding-bottom: 8px;
       }
       .faq p {
         margin: 0;
+        padding: 0 20px 16px;
         color: var(--muted);
       }
 
@@ -785,9 +806,9 @@
         margin-top: 18px;
       }
       .check input {
-        margin-top: 5px;
-        width: 18px;
-        height: 18px;
+        margin-top: 2px;
+        width: 24px;
+        height: 24px;
         flex: none;
       }
       form#signup .btn {
@@ -828,8 +849,11 @@
         margin-top: 12px;
       }
 
-      footer a {
+      footer a,
+      footer button.link {
         color: var(--blue-dark);
+        display: inline-block;
+        padding: 12px 4px;
       }
       footer {
         margin-top: clamp(48px, 8vw, 88px);
@@ -922,6 +946,7 @@
               <div class="cta-row">
                 <a class="btn" href="#register">Register to test</a>
                 <a class="btn ghost" href="#driver-app">See how it works</a>
+                <a class="btn ghost" href="#fleet-portal">For haulage firms</a>
               </div>
               <div class="stores" aria-label="Where to get the app">
                 <span class="store"><small>Coming soon to</small><b>Google Play</b></span>
@@ -1378,6 +1403,10 @@
               <li>It is still in testing, so things will change.</li>
               <li>Tell us what is wrong with it. That is the point.</li>
             </ul>
+            <p>
+              Questions, or want to talk it through? Email
+              <a href="mailto:support@wagon-wise.co.uk">support@wagon-wise.co.uk</a>.
+            </p>
           </div>
 
           <form id="signup" novalidate>
@@ -1473,6 +1502,10 @@
                 target="_blank"
                 >Facebook</a
               >
+            </p>
+            <p>
+              Made by WagonWise Ltd in Hexham, Northumberland. Contact:
+              <a href="mailto:support@wagon-wise.co.uk">support@wagon-wise.co.uk</a>
             </p>
             <p>Map images © MapTiler © OpenStreetMap contributors.</p>
             <p>WagonWise is a planning aid. Always follow road signs and the law.</p>
