@@ -34,9 +34,32 @@ describe('placeOnRoute', () => {
         lowBridge('under', 0.02),
         { ...at('pothole', 0.013), type: 'pothole' },
       ],
-      [bridge],
+      { bridges: [bridge] },
     );
     expect(placed.map((p) => p.item.id)).toEqual(['under', 'pothole']);
+  });
+
+  it('drops a hazard mapped on a road the route does not use, keeps one on a road it does, and rules nothing out when the roads are unknown', () => {
+    const hazard = (id: string, osmWayId: number | undefined) => ({
+      ...at(id, 0.013),
+      type: 'low_bridge',
+      ...(osmWayId === undefined ? {} : { osmWayId }),
+    });
+    const items = [hazard('crossing', 111), hazard('mine', 222), hazard('drivers', undefined)];
+    const ids = (roads: Parameters<typeof placeOnRoute>[2]) =>
+      placeOnRoute(route, items, roads).map((p) => p.item.id);
+
+    expect(ids({ wayIds: [222, 333] })).toEqual(['mine', 'drivers']);
+    // Roads not read (empty or missing): nothing is dropped on this account.
+    expect(ids({ wayIds: [] })).toEqual(['crossing', 'mine', 'drivers']);
+    expect(ids(undefined)).toEqual(['crossing', 'mine', 'drivers']);
+  });
+
+  it('keeps a limit that is on the bridge the route is on (its way is a road of the route), whatever the bridge rule says', () => {
+    const bridge = { from: { lat: 0, lon: 0.012 }, to: { lat: 0, lon: 0.014 } };
+    const onTheBridge = { ...at('weight', 0.013), type: 'low_bridge', osmWayId: 222 };
+    const placed = placeOnRoute(route, [onTheBridge], { bridges: [bridge], wayIds: [222] });
+    expect(placed.map((p) => p.item.id)).toEqual(['weight']);
   });
 
   it('uses a lateral limit of the width of a road', () => {

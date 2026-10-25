@@ -205,6 +205,9 @@ export type BridgeStretchDto = z.infer<typeof bridgeStretchSchema>;
 export const routeSpeedLimitsSchema = z.object({
   zones: z.array(speedZoneSchema),
   bridges: z.array(bridgeStretchSchema).default([]),
+  /** The OpenStreetMap ways the route runs along. A hazard mapped on a way that is not among them is on another road, one that
+   *  crosses or joins the route, so is not the driver's. Empty when they could not be read: then nothing is ruled out. */
+  wayIds: z.array(z.number().int().positive()).default([]),
 });
 export type RouteSpeedLimitsDto = z.infer<typeof routeSpeedLimitsSchema>;
 

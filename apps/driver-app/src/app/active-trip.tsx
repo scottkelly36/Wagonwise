@@ -307,9 +307,9 @@ export default function ActiveTripScreen() {
   const hazardsPlaced = useMemo(
     () =>
       routeLine && nearbyHazardsData
-        ? placeOnRoute(routeLine, nearbyHazardsData, routeSpeedLimits.data?.bridges)
+        ? placeOnRoute(routeLine, nearbyHazardsData, routeSpeedLimits.data)
         : [],
-    [routeLine, nearbyHazardsData, routeSpeedLimits.data?.bridges],
+    [routeLine, nearbyHazardsData, routeSpeedLimits.data],
   );
   const aheadFromM = progress
     ? Math.floor(progress.traveledMetres / AHEAD_STEP_M) * AHEAD_STEP_M
