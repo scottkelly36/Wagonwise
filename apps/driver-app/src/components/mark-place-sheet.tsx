@@ -30,24 +30,27 @@ interface Props {
   readonly onClose: () => void;
   /** The stop being marked for, to name the place after it. */
   readonly stopName?: string | undefined;
-  /** The company the place is shared with; absent for a personal one. */
+  /** The company the place would be shared with; absent for a driver with no company, whose places are always personal. */
   readonly companyId: string | undefined;
 }
+
+/** Who a place is for, when the driver has a company: all of them, or just the driver (who can later share it with every driver). */
+type Audience = 'company' | 'me';
 
 type Phase = { readonly kind: 'form' } | { readonly kind: 'saved'; readonly id: string };
 
 /**
  * Marks the spot the driver is standing on: the real gate of a farm whose postcode lands elsewhere, a
  * customer's yard entrance. Name, a note for the next driver ("gate on the left, tight turn"), saved
- * where they are now. Shared with the company when they have one, otherwise personal. Right after
- * saving it can be taken back.
+ * where they are now. A driver with a company chooses **My company** (the default) or **Just me**; a
+ * driver with none always marks for themselves. Right after saving it can be taken back.
  */
 export function MarkPlaceSheet(props: Props) {
   // Mounted only while open, so every opening starts a fresh form.
   return props.visible ? <MarkPlaceForm {...props} /> : null;
 }
 
-function MarkPlaceForm({ visible, onClose, stopName, companyId }: Props) {
+function MarkPlaceForm({ visible, onClose, stopName, companyId: companyOfDriver }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
@@ -59,6 +62,9 @@ function MarkPlaceForm({ visible, onClose, stopName, companyId }: Props) {
   const [note, setNote] = useState('');
   const [phase, setPhase] = useState<Phase>({ kind: 'form' });
   const [problem, setProblem] = useState<string | undefined>(undefined);
+  const [audience, setAudience] = useState<Audience>('company');
+  // The company the place is for: the driver's, unless they chose Just me. Absent means personal.
+  const companyId = audience === 'company' ? companyOfDriver : undefined;
 
   async function save(): Promise<void> {
     setProblem(undefined);
@@ -104,7 +110,7 @@ function MarkPlaceForm({ visible, onClose, stopName, companyId }: Props) {
               </View>
               <Text style={styles.body}>
                 {companyId === undefined
-                  ? 'Saved for you. It will show on your map.'
+                  ? 'Saved for you. It will show on your map. Open it any time to share it with all drivers.'
                   : 'Saved for your company. Every driver will see it for future jobs.'}
               </Text>
               <View style={styles.row}>
@@ -130,6 +136,34 @@ function MarkPlaceForm({ visible, onClose, stopName, companyId }: Props) {
                   ? 'Only you will see it.'
                   : 'Your whole company will see it.'}
               </Text>
+
+              {companyOfDriver !== undefined && (
+                <View style={styles.chips} testID="mark-place-audience">
+                  {(
+                    [
+                      { key: 'company', label: 'My company', icon: 'truck-outline' },
+                      { key: 'me', label: 'Just me', icon: 'account-outline' },
+                    ] as const
+                  ).map((option) => (
+                    <TouchableOpacity
+                      key={option.key}
+                      style={[styles.chip, option.key === audience && styles.chipOn]}
+                      onPress={() => setAudience(option.key)}
+                      accessibilityRole="button"
+                      testID={`mark-place-audience-${option.key}`}
+                    >
+                      <Icon
+                        name={option.icon}
+                        size={20}
+                        color={option.key === audience ? colors.textOnAccent : colors.text}
+                      />
+                      <Text style={[styles.chipText, option.key === audience && styles.chipTextOn]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
 
               <View style={styles.chips}>
                 {PLACE_CATEGORIES.map((c) => (
