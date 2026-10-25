@@ -28,6 +28,13 @@ export type PlaceReportReason = (typeof PLACE_REPORT_REASONS)[number];
 /** A public place that this many different drivers have reported is no longer shown to others, until a person at WagonWise decides. */
 export const REPORTS_TO_HIDE = 3;
 
+/** A public place that has been reported, for a moderator: how many different drivers reported it and for what. */
+export interface ReportedPlace {
+  readonly place: SavedPlace;
+  readonly reportCount: number;
+  readonly reasons: readonly { readonly reason: PlaceReportReason; readonly count: number }[];
+}
+
 export const PLACE_NAME_MAX = 80;
 export const PLACE_NOTE_MAX = 500;
 

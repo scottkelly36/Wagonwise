@@ -6,7 +6,9 @@ import type { PlaceActor } from './authorization.js';
 import {
   deletePlace,
   listPlaces,
+  listReportedPlaces,
   markPlace,
+  moderatePlace,
   placesNear,
   publicPlacesNear,
   reportPlace,
@@ -506,5 +508,112 @@ describe('public places', () => {
       radiusM: 1000,
     });
     expect(seen.ok && seen.value).toEqual([]);
+  });
+});
+
+describe('reviewing reported places', () => {
+  const solo = makeId<'DriverId'>('driver-solo');
+  const here = { lat: 54.95, lon: -2.2 };
+  const reporters = ['a', 'b', 'c'].map((n) => makeId<'DriverId'>(`driver-${n}`));
+
+  async function publicPlace(deps: ReturnType<typeof setup>['deps'], placeId: SavedPlaceId) {
+    await mark(deps, driver(solo), placeId, { companyId: undefined });
+    await setPlaceVisibility(deps, { actor: driver(solo), id: placeId, isPublic: true });
+  }
+
+  it('lists reported public places, most reported first, saying which are hidden, for WagonWise staff only', async () => {
+    const { deps } = setup();
+    await publicPlace(deps, id(1));
+    await publicPlace(deps, id(2));
+    await publicPlace(deps, id(3)); // never reported
+    await reportPlace(deps, { actor: driver(reporters[0]!), id: id(1), reason: 'wrong_place' });
+    for (const [n, reporter] of reporters.entries()) {
+      await reportPlace(deps, {
+        actor: driver(reporter),
+        id: id(2),
+        reason: n === 0 ? 'offensive' : 'other',
+      });
+    }
+
+    const listed = await listReportedPlaces(deps, { actor: admin });
+    expect(listed.ok && listed.value.map((r) => [r.place.id, r.reportCount, r.hidden])).toEqual([
+      [id(2), 3, true],
+      [id(1), 1, false],
+    ]);
+    expect(listed.ok && listed.value[0]?.reasons).toEqual(
+      expect.arrayContaining([
+        { reason: 'offensive', count: 1 },
+        { reason: 'other', count: 2 },
+      ]),
+    );
+    for (const actor of [driver(solo), dispatcher, viewer]) {
+      expect(await listReportedPlaces(deps, { actor })).toEqual({
+        ok: false,
+        error: { tag: 'Forbidden' },
+      });
+    }
+  });
+
+  it('keeping a place clears its reports, so a hidden one shows again', async () => {
+    const { deps } = setup();
+    await publicPlace(deps, id(1));
+    for (const reporter of reporters) {
+      await reportPlace(deps, { actor: driver(reporter), id: id(1), reason: 'other' });
+    }
+    expect(
+      await publicPlacesNear(deps, { actor: driver(lee), location: here, radiusM: 1000 }),
+    ).toEqual({ ok: true, value: [] });
+
+    expect(await moderatePlace(deps, { actor: admin, id: id(1), decision: 'keep' })).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    const seen = await publicPlacesNear(deps, {
+      actor: driver(lee),
+      location: here,
+      radiusM: 1000,
+    });
+    expect(seen.ok && seen.value.map((p) => p.id)).toEqual([id(1)]);
+    const listed = await listReportedPlaces(deps, { actor: admin });
+    expect(listed.ok && listed.value).toEqual([]);
+  });
+
+  it('making a place private takes it off the public map but leaves it with its owner', async () => {
+    const { deps } = setup();
+    await publicPlace(deps, id(1));
+    await reportPlace(deps, { actor: driver(reporters[0]!), id: id(1), reason: 'offensive' });
+
+    expect(
+      await moderatePlace(deps, { actor: admin, id: id(1), decision: 'make_private' }),
+    ).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    const seen = await publicPlacesNear(deps, {
+      actor: driver(lee),
+      location: here,
+      radiusM: 1000,
+    });
+    expect(seen.ok && seen.value).toEqual([]);
+    const mine = await listPlaces(deps, { actor: driver(solo), companyId: undefined });
+    expect(mine.ok && mine.value.map((p) => [p.id, p.isPublic])).toEqual([[id(1), false]]);
+  });
+
+  it('refuses anyone but WagonWise staff, and a place that is not public', async () => {
+    const { deps } = setup();
+    await publicPlace(deps, id(1));
+    await mark(deps, driver(solo), id(2), { companyId: undefined }); // private
+    for (const actor of [driver(solo), dispatcher]) {
+      expect(await moderatePlace(deps, { actor, id: id(1), decision: 'keep' })).toEqual({
+        ok: false,
+        error: { tag: 'Forbidden' },
+      });
+    }
+    for (const placeId of [id(2), id(99)]) {
+      expect(await moderatePlace(deps, { actor: admin, id: placeId, decision: 'keep' })).toEqual({
+        ok: false,
+        error: { tag: 'PlaceNotFound' },
+      });
+    }
   });
 });

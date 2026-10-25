@@ -1,7 +1,9 @@
 import {
   listPlacesResponseSchema,
+  listReportedPlacesResponseSchema,
   markPlaceRequestSchema,
   type MarkPlaceRequest,
+  type ReportedPlaceDto,
   savedPlaceSchema,
   updatePlaceRequestSchema,
   type SavedPlaceDto,
@@ -58,4 +60,26 @@ export async function createPlace(
   );
   throwUnlessSuccess(status, json, [201]);
   return savedPlaceSchema.parse(json);
+}
+
+/** Public places drivers have reported, most reported first (WagonWise staff only; core checks). */
+export async function listReportedPlaces(accessToken: string): Promise<ReportedPlaceDto[]> {
+  const { status, json } = await requestJson('GET', '/staff/places/reported', {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return listReportedPlacesResponseSchema.parse(json).places;
+}
+
+/** Keep a reported place public (clearing its reports) or take it off the public map. */
+export async function moderatePlace(
+  accessToken: string,
+  id: string,
+  decision: 'keep' | 'make_private',
+): Promise<void> {
+  const { status, json } = await requestJson('POST', `/staff/places/${id}/moderate`, {
+    body: { decision },
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [204]);
 }

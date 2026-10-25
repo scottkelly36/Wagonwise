@@ -297,3 +297,74 @@ describe('public places', () => {
     ).toBe(400);
   });
 });
+
+describe('reviewing reported places: /staff/places', () => {
+  const personal = { ...body, companyId: undefined };
+
+  it('shows WagonWise staff a reported place, and lets them take it off the public map', async () => {
+    const { app } = buildApp();
+    await app.inject({ method: 'POST', url: '/places', payload: personal, ...asDriver(PAT) });
+    await app.inject({
+      method: 'PUT',
+      url: `/places/${placeId}/visibility`,
+      payload: { isPublic: true },
+      ...asDriver(PAT),
+    });
+    await app.inject({
+      method: 'POST',
+      url: `/places/${placeId}/report`,
+      payload: { reason: 'offensive' },
+      ...asDriver(LEE),
+    });
+
+    const listed = await app.inject({
+      method: 'GET',
+      url: '/staff/places/reported',
+      ...asStaff('admin'),
+    });
+    expect(listed.statusCode).toBe(200);
+    const result = listed.json<{
+      places: { place: { id: string }; reportCount: number; hidden: boolean }[];
+    }>();
+    expect(result.places).toHaveLength(1);
+    expect(result.places[0]).toMatchObject({
+      place: { id: placeId },
+      reportCount: 1,
+      hidden: false,
+    });
+    expect(JSON.stringify(result)).not.toContain(PAT);
+    expect(JSON.stringify(result)).not.toContain(LEE);
+
+    const moderated = await app.inject({
+      method: 'POST',
+      url: `/staff/places/${placeId}/moderate`,
+      payload: { decision: 'make_private' },
+      ...asStaff('admin'),
+    });
+    expect(moderated.statusCode).toBe(204);
+    const after = await app.inject({
+      method: 'GET',
+      url: '/staff/places/reported',
+      ...asStaff('admin'),
+    });
+    expect(after.json<{ places: unknown[] }>().places).toEqual([]);
+  });
+
+  it('403s a company’s staff, 400s a bad decision, 404s a place that is not public', async () => {
+    const { app } = buildApp();
+    expect(
+      (await app.inject({ method: 'GET', url: '/staff/places/reported', ...asStaff('dispatcher') }))
+        .statusCode,
+    ).toBe(403);
+    const moderate = (decision: string, who = 'admin') =>
+      app.inject({
+        method: 'POST',
+        url: `/staff/places/${placeId}/moderate`,
+        payload: { decision },
+        ...asStaff(who),
+      });
+    expect((await moderate('delete')).statusCode).toBe(400);
+    expect((await moderate('keep', 'dispatcher')).statusCode).toBe(403);
+    expect((await moderate('keep')).statusCode).toBe(404);
+  });
+});

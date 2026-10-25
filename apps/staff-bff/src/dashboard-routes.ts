@@ -99,6 +99,7 @@ import {
 } from '@wagonwise/contracts/jobs';
 import {
   markPlaceRequestSchema,
+  moderatePlaceRequestSchema,
   placeIdParamsSchema,
   placesCompanyParamsSchema,
   updatePlaceRequestSchema,
@@ -635,6 +636,14 @@ const FORWARDS: readonly Forward[] = [
     body: updatePlaceRequestSchema,
   },
   { method: 'DELETE', path: '/staff/places/:id', params: placeIdParamsSchema },
+  // Public places that drivers have reported, for WagonWise staff to keep or take off the public map.
+  { method: 'GET', path: '/staff/places/reported', params: noParams },
+  {
+    method: 'POST',
+    path: '/staff/places/:id/moderate',
+    params: placeIdParamsSchema,
+    body: moderatePlaceRequestSchema,
+  },
   // Met Office weather warnings for the banner and the live map; the same for every company.
   { method: 'GET', path: '/staff/weather/warnings', params: noParams },
   // P2-M8: the jobs report (needs `view_reports`, which core checks).

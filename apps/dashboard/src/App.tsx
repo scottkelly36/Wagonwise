@@ -30,6 +30,7 @@ import { InviteCodes } from './pages/admin/InviteCodes';
 import { Feedback } from './pages/admin/Feedback';
 import { Testers } from './pages/admin/Testers';
 import { Parking } from './pages/admin/Parking';
+import { ReportedPlaces } from './pages/admin/ReportedPlaces';
 import { AppUsage } from './pages/admin/AppUsage';
 import { Activity } from './pages/staff/Activity';
 import { Settings } from './pages/staff/Settings';
@@ -89,6 +90,7 @@ export function App() {
             <Route path="/admin/testers" element={<Testers />} />
             <Route path="/admin/feedback" element={<Feedback />} />
             <Route path="/admin/parking" element={<Parking />} />
+            <Route path="/admin/reported-places" element={<ReportedPlaces />} />
             <Route path="/admin/usage" element={<AppUsage />} />
             <Route path="/admin/plans" element={<Plans />} />
             <Route path="/admin/invoices" element={<Invoices />} />

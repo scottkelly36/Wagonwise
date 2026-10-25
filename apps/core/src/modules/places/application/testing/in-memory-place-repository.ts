@@ -4,6 +4,7 @@ import type {
   DriverId,
   GeoPoint,
   PlaceReportReason,
+  ReportedPlace,
   SavedPlace,
   SavedPlaceId,
 } from '../../domain/place.js';
@@ -95,6 +96,27 @@ export class InMemoryPlaceRepository implements PlaceRepository {
     if (place !== undefined && place.companyId === undefined) {
       this.#byId.set(id, { ...place, isPublic, updatedAt: at });
     }
+    return Promise.resolve();
+  }
+
+  listReported(limit: number): Promise<ReportedPlace[]> {
+    const reported: ReportedPlace[] = [];
+    for (const place of this.#byId.values()) {
+      const reports = this.#reports.get(place.id);
+      if (!place.isPublic || reports === undefined || reports.size === 0) continue;
+      const counts = new Map<PlaceReportReason, number>();
+      for (const reason of reports.values()) counts.set(reason, (counts.get(reason) ?? 0) + 1);
+      reported.push({
+        place,
+        reportCount: reports.size,
+        reasons: [...counts].map(([reason, count]) => ({ reason, count })),
+      });
+    }
+    return Promise.resolve(reported.sort((a, b) => b.reportCount - a.reportCount).slice(0, limit));
+  }
+
+  clearReports(id: SavedPlaceId): Promise<void> {
+    this.#reports.delete(id);
     return Promise.resolve();
   }
 

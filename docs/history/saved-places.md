@@ -68,9 +68,18 @@ real entrance, but the next job to that farm sends the next driver to the wrong 
   to 50 km), `PUT /places/:id/visibility`, `POST /places/:id/report`; the driver BFF forwards all three. Account deletion removes a
   driver's places (public ones too) and the reports they made.
 
+### Reviewing reported places (added 2026-10-25)
+
+- Dashboard, WagonWise staff only: **Content > Reported places**. Lists public places that have at least one report, most reported first, with
+  the note, a map link, how many different drivers reported it, why, and whether it is hidden from other drivers yet. Never who marked it
+  or who reported it.
+- **Keep it public** clears the reports (a hidden place shows again). **Make private** takes it off the public map and gives it back to its
+  owner, who keeps it and does not lose anything; the reports are cleared. Nothing is deleted by a moderator.
+- Core: `GET /staff/places/reported` and `POST /staff/places/:id/moderate` (`{ decision: 'keep' | 'make_private' }`), WagonWise staff
+  only (a company's staff get 403); the staff BFF forwards both.
+
 ## Not done
 
-- A WagonWise admin screen for reported places (the reports are only in the database), and a way to restore a hidden place.
 - Public places on the trip screen's map (the home map only so far), and copying someone's public place to your own.
 
 - Marking from the trip screen with one tap and a voice note (the job screen and Saved tab do it for now).

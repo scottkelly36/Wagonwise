@@ -3,6 +3,7 @@ import type {
   DriverId,
   GeoPoint,
   PlaceReportReason,
+  ReportedPlace,
   SavedPlace,
   SavedPlaceId,
 } from '../../domain/place.js';
@@ -26,6 +27,10 @@ export interface PlaceRepository {
   findPublicNear(point: GeoPoint, radiusM: number, limit: number): Promise<SavedPlace[]>;
   /** Makes a personal place public or private again. */
   setPublic(id: SavedPlaceId, isPublic: boolean, at: Date): Promise<void>;
+  /** Public places with at least one report, most reported first, at most `limit`. */
+  listReported(limit: number): Promise<ReportedPlace[]>;
+  /** Forgets every report of a place (a moderator has decided). */
+  clearReports(id: SavedPlaceId): Promise<void>;
   /** Records a report; one per driver per place, a second changes nothing. */
   addReport(
     id: SavedPlaceId,

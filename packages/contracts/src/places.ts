@@ -84,6 +84,26 @@ export type PlaceReportReasonDto = z.infer<typeof placeReportReasonSchema>;
 export const reportPlaceRequestSchema = z.object({ reason: placeReportReasonSchema });
 export type ReportPlaceRequest = z.infer<typeof reportPlaceRequestSchema>;
 
+/** A public place that drivers have reported, for a WagonWise moderator: the place, how many different drivers reported it and why.
+ *  Never who marked it or who reported it. `hidden` is true once enough have reported that other drivers no longer see it. */
+export const reportedPlaceSchema = z.object({
+  place: savedPlaceSchema,
+  reportCount: z.number().int().positive(),
+  hidden: z.boolean(),
+  reasons: z.array(
+    z.object({ reason: placeReportReasonSchema, count: z.number().int().positive() }),
+  ),
+});
+export type ReportedPlaceDto = z.infer<typeof reportedPlaceSchema>;
+
+export const listReportedPlacesResponseSchema = z.object({ places: z.array(reportedPlaceSchema) });
+export type ListReportedPlacesResponse = z.infer<typeof listReportedPlacesResponseSchema>;
+
+/** `POST /staff/places/:id/moderate`: `keep` leaves a reported place public and clears its reports (it shows again if it was hidden);
+ *  `make_private` takes it off the public map, back to its owner alone, and clears the reports. */
+export const moderatePlaceRequestSchema = z.object({ decision: z.enum(['keep', 'make_private']) });
+export type ModeratePlaceRequest = z.infer<typeof moderatePlaceRequestSchema>;
+
 export const placeIdParamsSchema = z.object({ id: z.uuid() });
 export type PlaceIdParams = z.infer<typeof placeIdParamsSchema>;
 
