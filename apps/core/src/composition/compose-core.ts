@@ -59,6 +59,7 @@ import { createCamerasModule, type UntypedDb as CamerasUntypedDb } from '../modu
 import { createParkingModule, type UntypedDb as ParkingUntypedDb } from '../modules/parking/api.js';
 import { createTrafficModule } from '../modules/traffic/api.js';
 import { createWeatherModule } from '../modules/weather/api.js';
+import { createSosModule, type UntypedDb as SosUntypedDb } from '../modules/sos/api.js';
 import { createWhat3wordsModule } from '../modules/what3words/api.js';
 import { createBillingModule, type UntypedDb as BillingUntypedDb } from '../modules/billing/api.js';
 import { createPlacesModule, type UntypedDb as PlacesUntypedDb } from '../modules/places/api.js';
@@ -213,6 +214,7 @@ export function composeCore(
         await places.eraseDriverData(driverId);
         await parking.eraseDriverData(driverId);
         await hours.eraseDriverData(driverId);
+        await sos.eraseDriverData(driverId);
       },
     },
   });
@@ -387,6 +389,66 @@ export function composeCore(
       driversOnJobs: async (companyId) =>
         (await jobs.activeDriverIds(companyId)).map((id) => makeId<'DriverId'>(id)),
     },
+  });
+  // SOS: a driver presses and holds a button and the companies they drive for are told where they are, by email and in the portal.
+  // Composition is where identity, fleet, jobs, companies and what3words meet it (AGENTS.md rule 7); `jobs` is built further down,
+  // so what needs it is read only when called.
+  const sosDb: SosUntypedDb = identityDb;
+  const sos = createSosModule({
+    db: sosDb,
+    clock,
+    ids,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+    driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+    situations: {
+      // Reads in the driver's own scope, one query at a time. A driver on a job tells that job's company, with the lorry and the
+      // job, if they are still an active member of it; otherwise every company they are an active member of.
+      forDriver: async (driverId, identifier) => {
+        const name = await identity.getDriverName(driverId);
+        const active = await fleet.activeCompaniesOfDriver(driverId, identifier);
+        const job = await jobs.activeJobFor(driverId);
+        const onJob = job === null ? undefined : active.find((c) => c.id === job.companyId);
+        const vehicle =
+          onJob !== undefined && job?.vehicleId != null
+            ? await fleet.getVehicleSummary(job.vehicleId)
+            : null;
+        return {
+          name: name ?? undefined,
+          contact: identifier,
+          companies:
+            onJob !== undefined && job !== null
+              ? [
+                  {
+                    id: makeId<'CompanyId'>(onJob.id),
+                    name: onJob.name,
+                    vehicle:
+                      vehicle === null
+                        ? undefined
+                        : { name: vehicle.name, registration: vehicle.registration },
+                    jobReference: job.reference,
+                  },
+                ]
+              : active.map((c) => ({ id: makeId<'CompanyId'>(c.id), name: c.name })),
+        };
+      },
+    },
+    words: {
+      wordsFor: async (point) => {
+        const found = await what3words.wordsFor(point);
+        return found.ok
+          ? { words: found.value.words, nearestPlace: found.value.nearestPlace }
+          : undefined;
+      },
+    },
+    contacts: {
+      forCompany: async (companyId) => {
+        const people = await companies.listFleetContacts(companyId);
+        return people.map((p) => ({ name: p.name, email: p.email, privileges: p.privileges }));
+      },
+    },
+    mailer: { send: (to, subject, text) => identity.sendEmail(to, subject, text) },
+    portalUrl: config.dashboardUrl,
   });
   // Fuel: a card statement imported and matched to the company's vehicles by registration.
   // The landing page's "register to test" list: public sign-up, and a list for WagonWise staff.
@@ -694,6 +756,15 @@ export function composeCore(
   });
 
   periodicTasks.start({
+    name: 'prune-closed-sos',
+    intervalMs: config.positionSweepIntervalMs,
+    run: async () => {
+      const removed = await sos.pruneClosed(config.jobPositionRetentionDays);
+      if (removed > 0) app.log.info({ removed }, 'deleted old closed SOS alerts');
+    },
+  });
+
+  periodicTasks.start({
     name: 'prune-hours-status',
     intervalMs: config.positionSweepIntervalMs,
     run: async () => {
@@ -769,6 +840,7 @@ export function composeCore(
   usage.registerRoutes(app);
   weather.registerRoutes(app);
   what3words.registerRoutes(app);
+  sos.registerRoutes(app);
 
   return {
     app,

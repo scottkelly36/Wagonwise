@@ -460,6 +460,84 @@ describe('Row-Level Security (migration 0021) as wagonwise_app', () => {
     });
   });
 
+  describe('SOS alerts (migration 0077)', () => {
+    const SD_ACME = 'e8000000-0000-4000-8000-000000000008'; // an active driver of ACME
+    const SD_OTHER = 'e9000000-0000-4000-8000-000000000009'; // a driver of nobody
+    const ALERT_ACME = 'f9000000-0000-4000-8000-000000000001';
+    const ALERT_BETA = 'f9000000-0000-4000-8000-000000000002';
+    const as = (driverId: string) =>
+      ({ kind: 'driver', driverId, identifier: `${driverId}@example.com` }) as const;
+    const insertAlert = (id: string, company: string, driver: string) =>
+      sql`insert into sos.alerts
+            (id, request_id, company_id, driver_id, location, status, created_at, updated_at)
+          values (${id}, gen_random_uuid(), ${company}, ${driver},
+                  ST_SetSRID(ST_MakePoint(-2.2, 54.95), 4326)::geography, 'open', now(), now())`.execute(
+        db,
+      );
+    const visible = async () =>
+      (await sql<{ id: string }>`select id from sos.alerts order by id`.execute(db)).rows.map(
+        (r) => r.id,
+      );
+
+    beforeAll(async () => {
+      await ownerPool.query(`
+        insert into fleet.driver_links (id, company_id, driver_id, status, created_at)
+          values ('b8000000-0000-4000-8000-000000000008', '${ACME}', '${SD_ACME}', 'active', now());
+        insert into sos.alerts (id, request_id, company_id, driver_id, location, status, created_at, updated_at)
+          values ('${ALERT_ACME}', gen_random_uuid(), '${ACME}', '${SD_ACME}',
+                  ST_SetSRID(ST_MakePoint(-2.2, 54.95), 4326)::geography, 'open', now(), now()),
+                 ('${ALERT_BETA}', gen_random_uuid(), '${BETA}', '${SD_OTHER}',
+                  ST_SetSRID(ST_MakePoint(-1.6, 54.97), 4326)::geography, 'open', now(), now());
+      `);
+    });
+
+    it('a company sees only its own alerts, a WagonWise admin sees all, and nothing outside a scope', async () => {
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await visible()).toEqual([ALERT_ACME]);
+      });
+      await scopes.run({ kind: 'company', companyId: BETA }, async () => {
+        expect(await visible()).toEqual([ALERT_BETA]);
+      });
+      await scopes.run({ kind: 'platform' }, async () => {
+        expect(await visible()).toEqual([ALERT_ACME, ALERT_BETA]);
+      });
+      expect(await visible()).toEqual([]);
+    });
+
+    it('a driver sees only their own alerts', async () => {
+      await scopes.run(as(SD_ACME), async () => {
+        expect(await visible()).toEqual([ALERT_ACME]);
+      });
+      await scopes.run(as(SD_OTHER), async () => {
+        expect(await visible()).toEqual([ALERT_BETA]);
+      });
+      await scopes.run(as('ea000000-0000-4000-8000-00000000000a'), async () => {
+        expect(await visible()).toEqual([]);
+      });
+    });
+
+    it('a driver can raise an alert for a company they are an active member of, and not for another', async () => {
+      await scopes.run(as(SD_ACME), () =>
+        insertAlert('f9000000-0000-4000-8000-000000000003', ACME, SD_ACME),
+      );
+      // Another company: refused, and in a scope of its own, since a refused insert aborts its transaction.
+      await expect(
+        scopes.run(as(SD_ACME), () =>
+          insertAlert('f9000000-0000-4000-8000-000000000004', BETA, SD_ACME),
+        ),
+      ).rejects.toThrow(/row-level security/);
+      // And never in someone else's name.
+      await expect(
+        scopes.run(as(SD_ACME), () =>
+          insertAlert('f9000000-0000-4000-8000-000000000005', ACME, SD_OTHER),
+        ),
+      ).rejects.toThrow(/row-level security/);
+      await scopes.run({ kind: 'company', companyId: ACME }, async () => {
+        expect(await visible()).toEqual([ALERT_ACME, 'f9000000-0000-4000-8000-000000000003']);
+      });
+    });
+  });
+
   describe('jobs driver scope (migration 0030)', () => {
     const JOB_DRIVER_1 = 'e1000000-0000-4000-8000-000000000001';
     const JOB_DRIVER_2 = 'e2000000-0000-4000-8000-000000000002';

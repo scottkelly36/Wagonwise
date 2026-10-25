@@ -104,6 +104,7 @@ import {
   placesCompanyParamsSchema,
   updatePlaceRequestSchema,
 } from '@wagonwise/contracts/places';
+import { listSosQuerySchema, sosIdParamsSchema } from '@wagonwise/contracts/sos';
 import { createInviteCodesRequestSchema } from '@wagonwise/contracts/identity';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -636,6 +637,9 @@ const FORWARDS: readonly Forward[] = [
     body: updatePlaceRequestSchema,
   },
   { method: 'DELETE', path: '/staff/places/:id', params: placeIdParamsSchema },
+  // SOS alerts from the company's drivers, and marking one dealt with (core checks the dispatch privilege).
+  { method: 'GET', path: '/staff/sos', params: noParams, query: listSosQuerySchema },
+  { method: 'POST', path: '/staff/sos/:id/resolve', params: sosIdParamsSchema },
   // Public places that drivers have reported, for WagonWise staff to keep or take off the public map.
   { method: 'GET', path: '/staff/places/reported', params: noParams },
   {

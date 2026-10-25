@@ -23,6 +23,7 @@ import { MarkPlaceSheet } from '../components/mark-place-sheet';
 import { ReportCameraSheet } from '../components/report-camera-sheet';
 import { isCameraType, withoutCameras } from '../lib/camera-report';
 import { PlaceSheet } from '../components/place-sheet';
+import { SosButton } from '../components/sos-button';
 import { WeatherButton } from '../components/weather-button';
 import { useMyPlaces } from '../api/use-places';
 import type { SavedPlaceDto } from '@wagonwise/contracts/places';
@@ -582,6 +583,7 @@ export default function ActiveTripScreen() {
             onPress={() => setMarkingPlace(true)}
             testID="mark-place-button"
           />
+          <SosButton point={location.point} />
           {!following && (
             <RoundButton
               icon="crosshairs-gps"

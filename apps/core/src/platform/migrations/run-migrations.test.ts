@@ -106,6 +106,7 @@ describe('runMigrations', () => {
       '0074_speed_cameras.sql',
       '0075_seed_osm_speed_cameras.sql',
       '0076_public_places.sql',
+      '0077_sos.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -288,6 +289,7 @@ describe('runMigrations', () => {
       '0074_speed_cameras.sql',
       '0075_seed_osm_speed_cameras.sql',
       '0076_public_places.sql',
+      '0077_sos.sql',
     ]);
   });
 });

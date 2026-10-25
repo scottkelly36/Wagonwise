@@ -5,6 +5,7 @@ import { foldingSections, sectionForPath, toggled } from '../lib/nav';
 import { holds, isPlatform } from '../state/access';
 import { useStaffAuthStore } from '../state/staff-auth-store';
 import { GuideLink } from './GuideLink';
+import { SosBanner } from './SosBanner';
 import { WeatherBanner } from './WeatherBanner';
 
 interface NavItem {
@@ -297,6 +298,7 @@ export function StaffLayout() {
           )}
         </header>
         <main className="content">
+          <SosBanner />
           <WeatherBanner />
           <GuideLink />
           <Outlet />
