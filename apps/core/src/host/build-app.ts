@@ -34,6 +34,7 @@ const DRIVER_AUTH_PREFIXES = [
   '/places/',
   '/checks/',
   '/weather/',
+  '/what3words/',
   '/fleet/',
   '/jobs/',
   '/hours/',

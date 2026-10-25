@@ -1,6 +1,6 @@
 export type PointEnd = 'origin' | 'destination';
 export type FromMode = 'here' | 'search' | 'map';
-export type ToMode = 'search' | 'map';
+export type ToMode = 'search' | 'words' | 'map';
 
 /**
  * Which end of the route a tap on the map sets. The end that is on Map; with both on Map, the one

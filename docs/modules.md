@@ -364,6 +364,15 @@ The shared status also carries optional `breakMin`, `stretchMin` and `untilLimit
 - **Routes:** staff `GET/PUT /staff/hours/companies/:companyId/settings` (read: company staff; change: `manage_fleet`), `GET /staff/hours/companies/:companyId/status`; driver `GET /hours/sharing`, `PUT /hours/sharing/:companyId`, `PUT /hours/status`, `DELETE /hours/status`.
 - **Driver app:** `state/hours-sharing-store.ts`, `hooks/use-share-hours.ts` (sends on change and every minute), `lib/hours-share.ts` (the payload and the consent wording), the Share section of the Driving hours screen, and a chip on the trip screen.
 
+## what3words (2026-10-25)
+
+`what3words` module in core (`W3W_API_KEY`, optional, core only; unset means every lookup is `LookupUnavailable` and the app says it is not available). Two driver routes, forwarded by the driver BFF: `POST /what3words/to-location` (`{ words }` to `{ words, location, nearestPlace, country }`) and `POST /what3words/to-words` (`{ location }` to the same). Errors are tagged and have their own status: `InvalidWords` 400 (not exactly three words, checked before any lookup), `WordsNotFound` 404 (what3words' `BadWords`), `LookupUnavailable` 503 (no key, a refused key, the monthly allowance used up, an outage; logged once as `what3words lookup failed`). `parseWords` accepts `///Filled Count Soap`, `filled,count,soap` and so on and gives `filled.count.soap`.
+
+- **No typeahead, no caching, no storage.** The Basic plan is 1,000 lookups a month, so the app looks up only when the driver taps Find (a mutation, never a query that refetches), and the module keeps nothing. what3words' autosuggest is not used.
+- **Driver app:** _Where to?_ has a third way to set the destination, **3 words** (`WordsSearchField`): type, tap Find, and the destination is set with the nearest town beside it so a wrong word is plain to see.
+- Other modules use it through composition (`wordsFor(point)`, `locationOf(words)`), not by importing it (AGENTS.md rule 7).
+- Not done: the dashboard job form (the stop's location from three words) and _From_ by three words; SOS is the next piece (it needs `wordsFor`).
+
 ## Hazards from OpenStreetMap
 
 `hazards.reports.source = 'osm'` marks the one-off starting set (migration 0072, from `apps/core/scripts/fetch-osm-hazards.mjs`; the rules for what is taken are at the top of that script). Each row has an `osm_id` (unique where set), the import reporter id, a measurement and no expiry. `hazards/api.ts` `findAvoidanceCandidates` and `findAwaitingReview` skip `osm` rows: routing already reads these limits from the same OpenStreetMap data, and a first-time import must not flood the moderation queue. Everything else treats them as ordinary hazards (map, spoken warnings, the route's hazard list, confirm and dismiss). © OpenStreetMap contributors (ODbL): the driver hazard card and the portal's Hazard reports page credit it.
