@@ -10,6 +10,13 @@ import {
   listItemTypesResponseSchema,
   markDoneRequestSchema,
   myRemindersSchema,
+  reminderSettingsSchema,
+  updateMyRemindersRequestSchema,
+  updateReminderSettingsRequestSchema,
+  type MyRemindersDto,
+  type ReminderCompanyChannel,
+  type ReminderSettingsDto,
+  type UpdateMyRemindersRequest,
   overviewResponseSchema,
   repairSchema,
   scheduleSchema,
@@ -27,7 +34,6 @@ import {
   type MarkDoneRequest,
   type OverviewRowDto,
   type RepairDto,
-  type ReminderChannel,
   type ScheduleDto,
   type FleetLookupResponse,
   type VehicleLookupResponse,
@@ -170,26 +176,57 @@ export async function markDone(
   return scheduleSchema.parse(json);
 }
 
-/** How the signed-in person is reminded: an email each morning (until they choose otherwise), or only in the portal. */
-export async function getMyReminders(accessToken: string): Promise<ReminderChannel> {
+/** How the signed-in person is reminded: an email each morning (until they choose otherwise), or only in the portal; and their
+ *  own mobile, if they have added one, for when the company chooses texts. */
+export async function getMyReminders(accessToken: string): Promise<MyRemindersDto> {
   const { status, json } = await requestJson('GET', '/staff/maintenance/my-reminders', {
     authorization: bearer(accessToken),
   });
   throwUnlessSuccess(status, json, [200]);
-  return myRemindersSchema.parse(json).channel;
+  return myRemindersSchema.parse(json);
 }
 
+/** Changes the person's own choice, their mobile, or both. An empty `mobile` removes it; a UK mobile is saved as +447... */
 export async function setMyReminders(
   accessToken: string,
-  channel: ReminderChannel,
-): Promise<ReminderChannel> {
-  const body = myRemindersSchema.parse({ channel });
+  update: UpdateMyRemindersRequest,
+): Promise<MyRemindersDto> {
+  const body = updateMyRemindersRequestSchema.parse(update);
   const { status, json } = await requestJson('PUT', '/staff/maintenance/my-reminders', {
     body,
     authorization: bearer(accessToken),
   });
   throwUnlessSuccess(status, json, [200]);
-  return myRemindersSchema.parse(json).channel;
+  return myRemindersSchema.parse(json);
+}
+
+/** How a company's reminders go (email, text or both), and how many texts it has used this month. */
+export async function getReminderSettings(
+  accessToken: string,
+  companyId: string,
+): Promise<ReminderSettingsDto> {
+  const { status, json } = await requestJson(
+    'GET',
+    `/staff/maintenance/companies/${companyId}/reminder-settings`,
+    { authorization: bearer(accessToken) },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return reminderSettingsSchema.parse(json);
+}
+
+export async function setReminderSettings(
+  accessToken: string,
+  companyId: string,
+  channel: ReminderCompanyChannel,
+): Promise<ReminderSettingsDto> {
+  const body = updateReminderSettingsRequestSchema.parse({ channel });
+  const { status, json } = await requestJson(
+    'PUT',
+    `/staff/maintenance/companies/${companyId}/reminder-settings`,
+    { body, authorization: bearer(accessToken) },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return reminderSettingsSchema.parse(json);
 }
 
 /** Books a repair for a defect a driver found, due on `dueDate`. Booking again returns the one already booked. */

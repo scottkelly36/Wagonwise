@@ -12,6 +12,7 @@ import { CompanySelect } from '../../components/CompanySelect';
 import { DataTable, type Column } from '../../components/DataTable';
 import { FleetLookup } from '../../components/FleetLookup';
 import { ImportDates } from '../../components/ImportDates';
+import { CompanyReminders } from '../../components/CompanyReminders';
 import { MyReminders } from '../../components/MyReminders';
 import { Repairs } from '../../components/Repairs';
 import { VehicleMaintenance } from '../../components/VehicleMaintenance';
@@ -60,7 +61,8 @@ export function Maintenance() {
           />
         </div>
       )}
-      {!everyCompany && holds(me, 'manage_maintenance') && <MyReminders />}
+      {companyId !== undefined && canManage && <CompanyReminders companyId={companyId} />}
+      {!everyCompany && holds(me, 'manage_maintenance') && <MyReminders companyId={companyId} />}
       {companyId === undefined ? (
         <p>Choose a company.</p>
       ) : (
