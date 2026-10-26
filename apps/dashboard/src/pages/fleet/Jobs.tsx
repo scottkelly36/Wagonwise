@@ -16,6 +16,7 @@ import {
 import { DataTable, type Column } from '../../components/DataTable';
 import { FieldError } from '../../components/FieldError';
 import { resolvePostcode } from '../../hooks/use-postcode';
+import { resolveWords } from '../../hooks/use-words';
 import { driverDisplayName, driverNamesById } from '../../lib/driver-name';
 import { focusFirstInvalid, hasErrors, type FieldErrors } from '../../lib/forms';
 import { formatDuration, formatMiles } from '../../lib/live-map';
@@ -137,6 +138,20 @@ export function Jobs() {
               store: false,
             };
           }
+          if (source === 'words') {
+            // Three words: the spot comes from what3words (the lookup Find already made, or one now), and the words go on the
+            // stop as its note so the driver sees them.
+            const found = await resolveWords(queryClient, withAccessToken, draft.words);
+            return {
+              stop: {
+                kind: draft.kind,
+                name: draft.name.trim(),
+                location: found.location,
+                notes: `///${found.words}`,
+              },
+              store: draft.save,
+            };
+          }
           const point = await resolvePostcode(queryClient, draft.postcode);
           return {
             stop: {
@@ -172,6 +187,7 @@ export function Jobs() {
               category: 'other',
               name: r.stop.name,
               location: r.stop.location,
+              ...(r.stop.notes === undefined ? {} : { note: r.stop.notes }),
             }),
           ).catch(() => undefined),
         ),

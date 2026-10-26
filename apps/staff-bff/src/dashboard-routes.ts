@@ -105,6 +105,7 @@ import {
   updatePlaceRequestSchema,
 } from '@wagonwise/contracts/places';
 import { listSosQuerySchema, sosIdParamsSchema } from '@wagonwise/contracts/sos';
+import { wordsToLocationRequestSchema } from '@wagonwise/contracts/what3words';
 import { createInviteCodesRequestSchema } from '@wagonwise/contracts/identity';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -637,6 +638,13 @@ const FORWARDS: readonly Forward[] = [
     body: updatePlaceRequestSchema,
   },
   { method: 'DELETE', path: '/staff/places/:id', params: placeIdParamsSchema },
+  // Three words to a spot, for the job form's stops (any signed-in staff account; core holds the key).
+  {
+    method: 'POST',
+    path: '/staff/what3words/to-location',
+    params: noParams,
+    body: wordsToLocationRequestSchema,
+  },
   // SOS alerts from the company's drivers, and marking one dealt with (core checks the dispatch privilege).
   { method: 'GET', path: '/staff/sos', params: noParams, query: listSosQuerySchema },
   { method: 'POST', path: '/staff/sos/:id/resolve', params: sosIdParamsSchema },
