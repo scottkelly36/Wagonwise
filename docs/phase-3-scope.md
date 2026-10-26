@@ -17,11 +17,11 @@ Everything on the whiteboard is built except the items under "Left" below.
 - **M4 Fleet maintenance:** done, with reminders by email, text or both (the company chooses): registration numbers, items and dates per vehicle, the morning email,
   defects into repair tasks, a spreadsheet import, and a MOT and tax lookup by registration (MOT from DVSA is on; road tax from DVLA
   is parked: DVLA is not taking new key applications and its API is in beta, 2026-10-26).
-- **M7 what3words:** done: _Where to?_ (2026-10-25), SOS, and the portal's job form (2026-10-26). _From_ by three words is not built.
+- **M7 what3words:** done: _Where to?_ (2026-10-25), SOS, and the portal's job form (2026-10-26). _From_ by three words is not built, and not planned unless a driver asks (owner, 2026-10-26).
 - **M8 UK coverage:** done (Great Britain, 2026-10-16).
 - **M9 Driver hours:** done as a driver-entered clock, break planning and sharing with a company; a tachograph source is not built.
 
-**Left:** _From_ by three words (M7, optional); road tax by registration (parked, see above); a tachograph source (needs what the pilot firm's lorries have).
+**Left:** road tax by registration (parked, see above); a tachograph source (needs what the pilot firm's lorries have).
 
 ## Principles (the owner's)
 
