@@ -146,6 +146,66 @@ Start with the three most asked-for, build them small, and put each in the guide
   driver can see for themselves (jobs done, checks done), not a single number.
 - **Open question:** does the firm want a score, or a list of events it can look at? The second is simpler and safer.
 
+### 7. Breakdown help: garages and mechanics near the driver (the owner, 2026-10-26)
+
+- **The idea:** a driver is a long way from base with a problem. The app shows mechanics, tyre fitters and recovery firms near
+  them, with a call button, so they are not searching on a phone at the roadside. Some firms have in-house mechanics or a
+  breakdown contract, but for a driver stuck far from home it saves time.
+- **Where it goes (owner's decision):** a separate **Breakdown help** button inside the SOS sheet, which already has the driver's
+  position and three words. SOS stays for emergencies: holding the red button still alerts the office, and Call 999 stays. The
+  breakdown button is a different action: it sends nothing and needs no hold.
+- **What it can reuse:** the `parking` module's pattern (OpenStreetMap import with `source` and `osm_id`, driver suggestions, staff
+  approval); SOS and what3words for the position; "navigate there" for a fixed garage; the maintenance and costing modules to
+  record the repair.
+- **Stages (rough, one developer):**
+  - **0. The company's own numbers (a few days):** a company sets its breakdown contacts in the portal (insurer or recovery
+    contract, preferred garage) and the app shows them first. Many firms already have a contract, so this comes before any
+    public list.
+  - **1. The list (1 to 1.5 weeks):** nearest garages with a call button, "navigate there", services (tyres, trailers, recovery,
+    mobile engineer, 24 hours) and a "last confirmed" date. Seeded from OpenStreetMap's `shop=truck_repair` and drivers'
+    suggestions, and approved by staff. The tag exists but the Great Britain count has not been checked: run a count first.
+  - **2. Garages claim a listing (3 to 4 weeks):** a verified badge, a service area for mobile engineers, opening hours, and a
+    small garage login. Billing would reuse the billing module if it can bill a second kind of customer: check.
+  - **3. A breakdown in the portal (3 to 5 weeks):** the driver taps "I've broken down", the dispatcher sees it, picks a garage
+    and approves the cost, and it links to the vehicle's maintenance record and the job cost.
+- **Earning from it (all small):** a monthly fee from a garage for a verified listing and a profile; a flat fee per call-out the
+  driver confirms ("Did they help?", because a tap on Call does not prove a call happened); and the fleet-side value, which is
+  probably the best return because it makes the portal harder to leave. **Skip "paid through us":** WagonWise holding the payment
+  brings payment-services regulation, disputes over the work, VAT and liability. Breakdowns that need outside help are rare: if 1
+  driver in 10 of 3,000 needed one a year that is about 300 call-outs, and at a £20 fee about £6,000 a year (an illustration, not
+  data). Garages will not pay much until the app has scale.
+- **Rules:** show "listed, not endorsed" and never promise cover or availability; share the driver's position with a garage only
+  when they tap; a paying garage never pushes a nearer one down the list; link to official motorway breakdown guidance (check its
+  wording first).
+- **Competition:** truck makers run their own 24-hour roadside services (Mercedes-Benz Trucks, MAN Mobile24), RAC has commercial
+  cover, and there are independent mobile mechanics. I found no single national directory, which does not prove there is not one.
+  The list helps owner-drivers, small firms and a driver stuck far from home.
+- **Next step (no code):** count `shop=truck_repair` in the North East and Cumbria, ring 10 to 20 garages to ask whether they want
+  to be listed, and decide the Stage 0 fields.
+
+### 8. Earning from the free driver app (the owner, 2026-10-26)
+
+- **The aim:** the driver app stays free, with no ads. Small partner earnings should cover running costs that grow with use (map,
+  routing, text and what3words fees, data feeds), so the portal's money is profit. A target to test, not a promise: with
+  placeholder numbers 3,000 active drivers earn about £1,300 a month, about 3% of what the portal would earn from a similar number
+  of vehicles. Set it against the real monthly bill when partners give real terms.
+- **Ground rules:** nothing commercial on the active trip screen or while moving; safety information (hazards, restrictions,
+  routes) is never ranked or hidden for a partner; every partner link is labelled and says WagonWise may earn a commission; no
+  driver data goes to a partner without a tap; one quiet row, no pop-ups or push messages; nothing regulated (insurance, credit)
+  until a solicitor has looked; link before integrating (the 13 October rule in ask 1).
+- **Start with two, as links:** pre-booked truck parking (ask 1) and a "Need a bed?" hotel link on the break plan. A hotel
+  affiliate pays a share of the booking site's own commission (one third-party source says up to about 40% at the top volume
+  tier; not checked against the booking site's terms).
+- **Later:** truck stop food, showers and washes; fuel offers after the fuel price feature (ask 2); Driver CPC training; gear such as
+  dash cams and tyres; breakdown help (ask 7). Fuel cards, telematics and tyres are firm-side purchases, so the portal is the better
+  place for those referrals.
+- **Not:** display or video ads, selling or sharing location or contact data, pay-to-rank in parking, fuel or routes, lead selling,
+  or insurance and credit offers.
+- **Money is unknown until asked:** no partner publishes a commission for parking, fuel cards or Driver CPC. Send the five
+  questions in ask 1 to SNAP, TRAVIS and Park Safe (add Bosch and Park Your Truck), and the equivalent to two hotel affiliate
+  networks. Apple and Google payment rules mostly cover digital goods; hotels and parking are real-world services, but check the
+  current wording before submitting.
+
 ## Themes
 
 ### A. Run it as a business
