@@ -1,17 +1,28 @@
-# Phase 3 scope (draft, 2026-10-08)
+# Phase 3 scope (agreed with the owner; built, status updated 2026-10-26)
 
-A draft to agree with the owner before building. The modules and their numbering come from the owner's whiteboard; the
-order, sizes and "proof it works" are proposals. Update this file as decisions are made, and keep it short.
+The modules and their numbering come from the owner's whiteboard; the order, sizes and "proof it works" were proposals that
+the owner agreed. Update the status below as things change, and keep it short.
 
-## Where Phase 3 stands (2026-10-09)
+## Where Phase 3 stands (2026-10-26)
 
-- **Built:** item 0 billing; M5 walk-round checks (each firm builds its own, with rules before a job and retention); M4 fleet
-  maintenance (registration numbers, items and dates per vehicle, the `manage_maintenance` privilege, morning email reminders,
-  defects into repair tasks, spreadsheet import); M1, M2 and M6 as WagonWise's own books (the Finances page).
-- **Waiting on something from the owner:** M3 fuel card (a sample statement and the provider); M9 (what the pilot's
-  lorries have; see below); text reminders (a text sender, mobile numbers, cost sign-off). M8 UK coverage is done
-  (Great Britain, 2026-10-16) and the what3words key has arrived (2026-10-25).
-- **Client money (started 2026-10-09):** a customer and a price on each job; fuel card import; running costs per vehicle and for the firm, and what each driver costs an hour; and the cost and profit of a month's jobs by job, vehicle and customer (all built; costs are money-person only). and a look ahead (the last six months and a three-month guess with what-if sliders). The money board is done; what the first real firm shows is missing comes next.
+Everything on the whiteboard is built except the items under "Left" below.
+
+- **0 Billing basics:** done (billing details, plans and capacity, one live job per vehicle, invoices viewed in the company's portal).
+- **M1 Costing, M2 Revenue, M6 Profit projection:** done, both as WagonWise's own books (the Finances page) and for a company
+  (running costs, what a driver costs an hour, job costs by job, vehicle and customer, a look ahead with what-if sliders). Costs are
+  visible to the money-person only.
+- **M3 Fuel card CSV:** done (import, matched to vehicles by registration; migration 0056). A real provider's sample would still help.
+- **M5 Walk-round checks:** done (each firm builds its own lists, drivers do them offline with photos, the office sees results and
+  defects, rules before a job, retention).
+- **M4 Fleet maintenance:** done bar text reminders: registration numbers, items and dates per vehicle, the morning email,
+  defects into repair tasks, a spreadsheet import, and a MOT and tax lookup by registration (MOT from DVSA is on; road tax from DVLA
+  needs a DVLA key).
+- **M7 what3words:** _Where to?_ done (2026-10-25); SOS uses it too.
+- **M8 UK coverage:** done (Great Britain, 2026-10-16).
+- **M9 Driver hours:** done as a driver-entered clock, break planning and sharing with a company; a tachograph source is not built.
+
+**Left:** the portal job form and _From_ by three words (M7); text-message reminders (needs a text sender, mobile numbers and a
+cost sign-off); the DVLA key for road tax; a tachograph source (needs what the pilot firm's lorries have).
 
 ## Principles (the owner's)
 
@@ -24,18 +35,16 @@ order, sizes and "proof it works" are proposals. Update this file as decisions a
 
 ## Order and why
 
-| #   | Module                                    | What it is                                                                                                                                         | Needs from the owner                                                                       | Proof it works                                                                       | Size |
-| --- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ---- |
-| 0   | Billing basics (not on the board, add it) | Bill the vehicle capacity a company commits to (admin-set, changed month to month), not vehicles in use. Invoices generated from the admin portal. | How the first paying company wants to be billed; WagonWise's trading name and bank details | The first invoice is right without a spreadsheet                                     | S    |
-| M1  | Costing                                   | WagonWise's own running costs, entered once and carried on (built as the Finances page). A client's cost per vehicle and per job is not built      | Nothing for now; a client's own cost headings if one asks                                  | The owner trusts the monthly cost figure                                             | M    |
-| M2  | Revenue                                   | Revenue taken from the invoices WagonWise issues (built, Finances page). A client's revenue per job, rates and customers is not built              | How a pilot firm prices jobs and whether they invoice per job or load, if one asks         | The Finances figures match the invoices                                              | M    |
-| M3  | Fuel card CSV                             | Import a fuel card statement and match fuel to vehicles and jobs                                                                                   | A sample CSV and which card provider the pilot firm uses                                   | A month's fuel matches the card statement to the pound                               | M    |
-| M6  | Profit projection                         | Profit and a look-ahead on the Finances page (built, for WagonWise's own books). Per job and per vehicle needs the client-side M1 and M2           | Nothing new                                                                                | The owner trusts the number for a decision they were already making                  | M    |
-| M5  | Driver walk-round checks                  | The daily vehicle check in the app, with photos and defects                                                                                        | The pilot firm's current check form                                                        | Drivers do it daily and a defect reaches the office the same day                     | M-L  |
-| M4  | Fleet maintenance                         | Service, MOT and inspection due dates per vehicle, reminders, defects from M5                                                                      | The pilot firm's inspection routine                                                        | Nothing due is missed for a month                                                    | M    |
-| M7  | what3words                                | Look up three words on the Where to? screen and the job form (**Where to? built 2026-10-25**; the job form is not)                                 | The Basic plan key (£7.99 a month): **in hand**                                            | A driver finds a farm gate from three words                                          | S-M  |
-| M8  | UK coverage                               | National GB routing tiles (**done 2026-10-16**: Great Britain, not Northern Ireland)                                                               | Nothing                                                                                    | Golden routes for Great Britain pass (`test:golden:gb`, deployment guide section 10) | M-L  |
-| M9  | Tachograph / driver hours                 | Driver-entered clock first (no connection), then a tachograph source: see "Driver hours and tachograph" below                                      | What the pilot firm's lorries and tachographs have, and their rule set                     | Break advice drivers use and trust                                                   | L    |
+Done in this order (the whiteboard's numbering is kept). Size is S, M, L.
+
+- **0 Billing basics (S).** Bill the capacity a company commits to; invoices from the admin portal. _Proof:_ the first invoice is right without a spreadsheet.
+- **M1 Costing (M), M2 Revenue (M), M6 Profit projection (M).** _Proof:_ the owner trusts the monthly figure; the Finances page matches the invoices.
+- **M3 Fuel card CSV (M).** _Proof:_ a month's fuel matches the card statement to the pound.
+- **M5 Walk-round checks (M-L).** _Proof:_ drivers do it daily and a defect reaches the office the same day.
+- **M4 Fleet maintenance (M).** _Proof:_ nothing due is missed for a month.
+- **M7 what3words (S-M).** _Proof:_ a driver finds a farm gate from three words.
+- **M8 UK coverage (M-L).** _Proof:_ golden routes for Great Britain pass (`test:golden:gb`, deployment guide section 10).
+- **M9 Tachograph and driver hours (L).** _Proof:_ break advice drivers use and trust. See "Driver hours and tachograph" below.
 
 ## Suggested sequence
 

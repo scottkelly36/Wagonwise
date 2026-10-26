@@ -5,8 +5,8 @@ dimensions, get routes that avoid restrictions they can't clear (low bridges, we
 width limits), and report hazards for other drivers — hands-free by voice while driving,
 tap-to-drop when parked.
 
-Full design: `docs/phase-1-tech-design.md` — read it before starting any milestone.
-Running status and decisions: `docs/progress.md`.
+Running status, what is next and what is open: `docs/progress.md` (read it first).
+Original Phase 1 design: `docs/phase-1-tech-design.md`: background only, open the section you need.
 The name is not final ("Wide Load Watch" was the earlier name). Keep the product name in
 one config constant so it's easy to change.
 
@@ -19,12 +19,13 @@ one config constant so it's easy to change.
 
 ## Current phase
 
-Phase 1 — the free driver app. Build order is milestones M1–M8 in the tech design.
-**Next up: M1 Foundations.**
+Phases 1 to 3 are built and live: the free driver app (Android; iOS waits on Apple), the company
+portal (fleet, jobs, live map, moderation, reports) and the Phase 3 modules (billing, costing,
+walk-round checks, maintenance, driver hours, what3words, Great Britain coverage). The owner is
+waiting on app-store approval and then a pilot; what is open is in `docs/progress.md`.
 
-Out of scope right now (don't build, don't scaffold): staff portal, dispatch, job
-tracking, finance/maintenance, abnormal-load compliance. Domain events exist so those
-can subscribe later.
+Phase 4 is an idea list (`docs/ideas.md`, `docs/phase-3-scope.md`): don't build it unprompted.
+The product stays phone-only ("Lite"): no hardware, no abnormal-load compliance for now.
 
 ## Stack
 
@@ -69,7 +70,7 @@ can subscribe later.
 
 ### Bounded contexts
 
-6. **`identity`, `routing`, `hazards` and `feedback` are separate modules.** A module may
+6. **Every folder under `apps/core/src/modules` is a separate module** (identity, routing, hazards, fleet, jobs, places, sos and the rest). A module may
    only be imported through its facade (`<module>/api.ts`) — by another module, or by anything
    else (`composition/`, `host/`). Reaching into a module's `domain/`, `application/`,
    `infrastructure/` or `interface/` from outside it fails CI either way.
@@ -131,6 +132,15 @@ can subscribe later.
   Docs are size-limited (`.github/scripts/doc-sizes.test.mjs`, run by the pre-push hook): when it
   fails, move detail out as it says rather than raising the limit.
 - UK English in user-facing text. Show bridge heights in metres and feet/inches.
+- **Hand-over rules** (for any assistant picking this up):
+  - I merge PRs myself. Never merge one, add the `release` label or deploy without my say-so. Core and the portal go live
+    before the app; the `release` label publishes the app to drivers.
+  - Open every PR against `main`. Never stack PRs.
+  - Never print or commit a secret. Keys live in `apps/core/.env` locally and in the DigitalOcean app settings; check
+    names only (`doctl apps spec get <app>`). Say plainly when a key is missing.
+  - Check, don't assume: confirm a deploy, a release or an outside service with the real tool (`doctl`, `gh`, a live call).
+  - `git push` runs `pnpm verify` and takes minutes: run it in the background and wait for it.
+  - Never claim a feature does more than it does (no "compliant", and SOS does not call the emergency services).
 
 ## Tooling gotchas
 
