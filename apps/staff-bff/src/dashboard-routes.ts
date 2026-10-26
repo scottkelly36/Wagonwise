@@ -36,7 +36,8 @@ import {
   maintenanceVehicleItemParamsSchema,
   maintenanceVehicleParamsSchema,
   markDoneRequestSchema,
-  myRemindersSchema,
+  updateMyRemindersRequestSchema,
+  updateReminderSettingsRequestSchema,
   repairParamsSchema,
   repairsQuerySchema,
   setDueRequestSchema,
@@ -253,7 +254,19 @@ const FORWARDS: readonly Forward[] = [
     method: 'PUT',
     path: '/staff/maintenance/my-reminders',
     params: noParams,
-    body: myRemindersSchema,
+    body: updateMyRemindersRequestSchema,
+  },
+  // How a company's reminders go (email, text or both) and how many texts it has used this month.
+  {
+    method: 'GET',
+    path: '/staff/maintenance/companies/:companyId/reminder-settings',
+    params: maintenanceCompanyParamsSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/maintenance/companies/:companyId/reminder-settings',
+    params: maintenanceCompanyParamsSchema,
+    body: updateReminderSettingsRequestSchema,
   },
   // Fleet maintenance: what a company tracks, and when each item is next due on each vehicle. Core decides who may.
   { method: 'GET', path: '/staff/maintenance/starter', params: noParams },

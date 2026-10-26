@@ -8,7 +8,8 @@ import {
   maintenanceVehicleItemParamsSchema,
   maintenanceVehicleParamsSchema,
   markDoneRequestSchema,
-  myRemindersSchema,
+  updateMyRemindersRequestSchema,
+  updateReminderSettingsRequestSchema,
   repairParamsSchema,
   repairsQuerySchema,
   importDatesRequestSchema,
@@ -55,7 +56,16 @@ import type {
   LookupUnavailable,
   VehicleLookup,
 } from '../application/ports/vehicle-lookup.js';
-import { getMyReminders, setMyReminders, type ReminderDeps } from '../application/reminders.js';
+import {
+  getMyMobile,
+  getMyReminders,
+  getReminderSettings,
+  type InvalidMobile,
+  setMyMobile,
+  setMyReminders,
+  setReminderChannel,
+  type ReminderDeps,
+} from '../application/reminders.js';
 import {
   maintenanceOverview,
   markDone,
@@ -78,7 +88,7 @@ export interface MaintenanceRouteDeps {
   readonly items: ItemTypeDeps;
   readonly schedule: ScheduleDeps;
   readonly repairs: RepairDeps;
-  readonly reminders: Pick<ReminderDeps, 'preferences' | 'clock'>;
+  readonly reminders: Pick<ReminderDeps, 'preferences' | 'clock' | 'settings' | 'texts' | 'texter'>;
   readonly lookup: VehicleLookup;
   readonly callerDirectory: CallerDirectory;
   /** Row-Level Security scope per request (migration 0050). */
@@ -99,6 +109,7 @@ type MaintenanceError =
   | RepairNotFound
   | RepairNotOpen
   | InvalidRepair
+  | InvalidMobile
   | TooManyRows
   | LookupNotConfigured
   | NoRegistration
@@ -130,6 +141,7 @@ function statusFor(error: MaintenanceError): number {
     case 'InvalidDay':
     case 'InvalidWork':
     case 'InvalidRepair':
+    case 'InvalidMobile':
       return 400;
   }
 }
@@ -279,22 +291,72 @@ export function registerMaintenanceRoutes(app: FastifyInstance, deps: Maintenanc
 
   app.get('/staff/maintenance/my-reminders', (request, reply) =>
     asStaff(request, reply, async (caller, staffId) => {
-      const result = await getMyReminders(deps.reminders, caller, makeId<'StaffId'>(staffId));
-      return result.ok ? { status: 200, body: { channel: result.value } } : failure(result.error);
+      const me = makeId<'StaffId'>(staffId);
+      const result = await getMyReminders(deps.reminders, caller, me);
+      if (!result.ok) return failure(result.error);
+      const mobile = await getMyMobile(deps.reminders, caller, me);
+      return {
+        status: 200,
+        body: {
+          channel: result.value,
+          ...(mobile.ok && mobile.value !== undefined ? { mobile: mobile.value } : {}),
+        },
+      };
     }),
   );
 
   app.put('/staff/maintenance/my-reminders', (request, reply) =>
     asStaff(request, reply, async (caller, staffId) => {
-      const body = myRemindersSchema.safeParse(request.body);
+      const body = updateMyRemindersRequestSchema.safeParse(request.body);
       if (!body.success) return INVALID;
-      const result = await setMyReminders(
+      const me = makeId<'StaffId'>(staffId);
+      if (body.data.mobile !== undefined) {
+        const saved = await setMyMobile(deps.reminders, caller, me, body.data.mobile);
+        if (!saved.ok) return failure(saved.error);
+      }
+      if (body.data.channel !== undefined) {
+        const result = await setMyReminders(deps.reminders, caller, me, body.data.channel);
+        if (!result.ok) return failure(result.error);
+      }
+      const channel = await getMyReminders(deps.reminders, caller, me);
+      if (!channel.ok) return failure(channel.error);
+      const mobile = await getMyMobile(deps.reminders, caller, me);
+      return {
+        status: 200,
+        body: {
+          channel: channel.value,
+          ...(mobile.ok && mobile.value !== undefined ? { mobile: mobile.value } : {}),
+        },
+      };
+    }),
+  );
+
+  app.get('/staff/maintenance/companies/:companyId/reminder-settings', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = maintenanceCompanyParamsSchema.safeParse(request.params);
+      if (!params.success) return INVALID;
+      const result = await getReminderSettings(
+        deps.reminders,
+        caller,
+        makeId<'CompanyId'>(params.data.companyId),
+      );
+      return result.ok ? { status: 200, body: result.value } : failure(result.error);
+    }),
+  );
+
+  app.put('/staff/maintenance/companies/:companyId/reminder-settings', (request, reply) =>
+    asStaff(request, reply, async (caller, staffId) => {
+      const params = maintenanceCompanyParamsSchema.safeParse(request.params);
+      const body = updateReminderSettingsRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return INVALID;
+      const result = await setReminderChannel(
         deps.reminders,
         caller,
         makeId<'StaffId'>(staffId),
+        makeId<'CompanyId'>(params.data.companyId),
         body.data.channel,
       );
-      return result.ok ? { status: 200, body: { channel: result.value } } : failure(result.error);
+      return result.ok ? { status: 200, body: result.value } : failure(result.error);
     }),
   );
 

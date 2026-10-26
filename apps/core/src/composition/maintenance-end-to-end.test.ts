@@ -25,6 +25,16 @@ class RecordingMailer {
   }
 }
 
+/** Records the texts that would have been sent. */
+class RecordingTexter {
+  readonly available = true;
+  readonly sent: { to: string; text: string }[] = [];
+  send(to: string, text: string): Promise<void> {
+    this.sent.push({ to, text });
+    return Promise.resolve();
+  }
+}
+
 const migrationsDir = fileURLToPath(new URL('../../migrations', import.meta.url));
 
 const ACME = '11111111-1111-4111-8111-111111111111';
@@ -58,6 +68,7 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
   let maintenance: ReturnType<typeof createMaintenanceModule>;
   let clock: FakeClock;
   const mailer = new RecordingMailer();
+  const texter = new RecordingTexter();
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgis/postgis:16-3.4').start();
@@ -104,6 +115,7 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
       clock,
       dataScopes: scopes,
       mailer,
+      texter,
       // The government's record, faked: it says the van's MOT runs out on 1 March 2028.
       vehicleLookup: {
         configured: true,
@@ -448,12 +460,16 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
 
     it('emails each person who books vehicles in, once, and records the day in the database', async () => {
       const first = await maintenance.sendDueReminders(contacts());
-      expect(first).toEqual({ sent: 2, failed: 0 });
+      expect(first).toEqual({ sent: 2, failed: 0, texts: 0 });
       expect(mailer.sent.map((m) => m.to).sort()).toEqual(['pat@acme.test', 'sam@acme.test']);
       expect(mailer.sent[0]?.text).toContain('Big Wagon: MOT, overdue by 9 days');
       expect(mailer.sent[0]?.text).toContain('https://portal.example.com/fleet/maintenance');
 
-      expect(await maintenance.sendDueReminders(contacts())).toEqual({ sent: 0, failed: 0 });
+      expect(await maintenance.sendDueReminders(contacts())).toEqual({
+        sent: 0,
+        failed: 0,
+        texts: 0,
+      });
       const { rows } = await ownerPool.query(
         'select count(*)::int as n from maintenance.reminder_log',
       );
@@ -488,12 +504,24 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
     it('tries again after a failed send, and does not wait for 7am UK time', async () => {
       mailer.sent.length = 0;
       clock.set('2026-10-12T05:30:00.000Z'); // 06:30 in the UK
-      expect(await maintenance.sendDueReminders(contacts())).toEqual({ sent: 0, failed: 0 });
+      expect(await maintenance.sendDueReminders(contacts())).toEqual({
+        sent: 0,
+        failed: 0,
+        texts: 0,
+      });
       clock.set('2026-10-12T06:00:00.000Z'); // 07:00 in the UK
       mailer.failFor.add('pat@acme.test');
-      expect(await maintenance.sendDueReminders(contacts())).toEqual({ sent: 0, failed: 1 });
+      expect(await maintenance.sendDueReminders(contacts())).toEqual({
+        sent: 0,
+        failed: 1,
+        texts: 0,
+      });
       mailer.failFor.clear();
-      expect(await maintenance.sendDueReminders(contacts())).toEqual({ sent: 1, failed: 0 });
+      expect(await maintenance.sendDueReminders(contacts())).toEqual({
+        sent: 1,
+        failed: 0,
+        texts: 0,
+      });
       expect(mailer.sent.map((m) => m.to)).toEqual(['pat@acme.test']);
     });
 
@@ -530,7 +558,149 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
           },
         ],
       };
-      expect(await maintenance.sendDueReminders([other])).toEqual({ sent: 0, failed: 0 });
+      expect(await maintenance.sendDueReminders([other])).toEqual({ sent: 0, failed: 0, texts: 0 });
+    });
+  });
+
+  describe('reminder texts', () => {
+    const settingsUrl = `/staff/maintenance/companies/${ACME}/reminder-settings`;
+    const contacts = () => [
+      {
+        id: makeId<'CompanyId'>(ACME),
+        name: 'Acme Freight',
+        recipients: [
+          {
+            staffId: makeId<'StaffId'>(BOOKER),
+            name: 'Sam',
+            email: 'sam@acme.test',
+            privileges: ['manage_maintenance'],
+          },
+          {
+            staffId: makeId<'StaffId'>(PAT),
+            name: 'Pat',
+            email: 'pat@acme.test',
+            privileges: ['manage_maintenance'],
+          },
+        ],
+      },
+    ];
+
+    it('starts as email, for the company’s own staff only, and a company can choose text or both', async () => {
+      const first = await app.inject({ method: 'GET', url: settingsUrl, ...as(BOOKER) });
+      expect(first.statusCode).toBe(200);
+      expect(first.json()).toEqual({
+        channel: 'email',
+        textsAvailable: true,
+        textsThisMonth: 0,
+        textLimit: 100,
+      });
+      expect((await app.inject({ method: 'GET', url: settingsUrl, ...as(RIVAL) })).statusCode).toBe(
+        403,
+      );
+      expect(
+        (await app.inject({ method: 'GET', url: settingsUrl, ...as(DISPATCHER) })).statusCode,
+      ).toBe(403);
+      expect(
+        (
+          await app.inject({
+            method: 'PUT',
+            url: settingsUrl,
+            payload: { channel: 'both' },
+            ...as(DISPATCHER),
+          })
+        ).statusCode,
+      ).toBe(403);
+      expect(
+        (
+          await app.inject({
+            method: 'PUT',
+            url: settingsUrl,
+            payload: { channel: 'fax' },
+            ...as(BOOKER),
+          })
+        ).statusCode,
+      ).toBe(400);
+      const chosen = await app.inject({
+        method: 'PUT',
+        url: settingsUrl,
+        payload: { channel: 'text' },
+        ...as(BOOKER),
+      });
+      expect(chosen.statusCode).toBe(200);
+      expect(chosen.json()).toMatchObject({ channel: 'text' });
+    });
+
+    it('keeps a person’s own mobile in the form +447..., refuses what is not a UK mobile, and shows it back', async () => {
+      const bad = await app.inject({
+        method: 'PUT',
+        url: '/staff/maintenance/my-reminders',
+        payload: { mobile: '01434 600000' },
+        ...as(BOOKER),
+      });
+      expect(bad.statusCode).toBe(400);
+      const saved = await app.inject({
+        method: 'PUT',
+        url: '/staff/maintenance/my-reminders',
+        payload: { channel: 'email', mobile: '07700 900123' }, // earlier tests chose portal only
+        ...as(BOOKER),
+      });
+      expect(saved.statusCode).toBe(200);
+      expect(saved.json()).toEqual({ channel: 'email', mobile: '+447700900123' });
+      const read = await app.inject({
+        method: 'GET',
+        url: '/staff/maintenance/my-reminders',
+        ...as(BOOKER),
+      });
+      expect(read.json()).toEqual({ channel: 'email', mobile: '+447700900123' });
+      // Nobody else sees it.
+      const pat = await app.inject({
+        method: 'GET',
+        url: '/staff/maintenance/my-reminders',
+        ...as(PAT),
+      });
+      expect(pat.json()).not.toHaveProperty('mobile');
+    });
+
+    it('texts the person with a mobile, emails the one without, and counts the text for the month in the database', async () => {
+      // Earlier tests may have chosen portal only; both choose to be reminded.
+      for (const who of [BOOKER, PAT]) {
+        await app.inject({
+          method: 'PUT',
+          url: '/staff/maintenance/my-reminders',
+          payload: { channel: 'email' },
+          ...as(who),
+        });
+      }
+      mailer.sent.length = 0;
+      clock.set('2026-10-20T08:00:00.000Z');
+      const result = await maintenance.sendDueReminders(contacts());
+      expect(result).toEqual({ sent: 2, failed: 0, texts: 1 });
+      expect(texter.sent).toHaveLength(1);
+      expect(texter.sent[0]?.to).toBe('+447700900123');
+      expect(texter.sent[0]?.text).toMatch(/^WagonWise maintenance: 1 overdue \(Acme Freight\)\./);
+      expect(mailer.sent.map((m) => m.to)).toEqual(['pat@acme.test']);
+      const { rows } = await ownerPool.query(
+        "select sent from maintenance.reminder_text_counts where company_id = $1 and month = '2026-10'",
+        [ACME],
+      );
+      expect(rows).toEqual([{ sent: 1 }]);
+      const shown = await app.inject({ method: 'GET', url: settingsUrl, ...as(BOOKER) });
+      expect(shown.json()).toMatchObject({ channel: 'text', textsThisMonth: 1 });
+    });
+
+    it('removes a mobile when it is emptied', async () => {
+      const removed = await app.inject({
+        method: 'PUT',
+        url: '/staff/maintenance/my-reminders',
+        payload: { mobile: '' },
+        ...as(BOOKER),
+      });
+      expect(removed.json()).toEqual({ channel: 'email' });
+      const { rows } = await ownerPool.query(
+        'select mobile from maintenance.reminder_preferences where staff_id = $1',
+        [BOOKER],
+      );
+      expect(rows[0]).toEqual({ mobile: null });
     });
   });
 });

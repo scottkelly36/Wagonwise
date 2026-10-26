@@ -9,6 +9,7 @@ import type { DriverId } from './domain/driver.js';
 import type { PlatformStaffDirectory } from './application/ports/platform-staff.js';
 import { ChannelRoutingOtpSender } from './infrastructure/channel-routing-otp-sender.js';
 import { ClickSendOtpSender } from './infrastructure/clicksend-otp-sender.js';
+import { ClickSendTextSender } from './infrastructure/clicksend-text-sender.js';
 import { ConsoleOtpSender } from './infrastructure/console-otp-sender.js';
 import { ResendMailer } from './infrastructure/resend-mailer.js';
 import { ResendOtpSender } from './infrastructure/resend-otp-sender.js';
@@ -99,6 +100,10 @@ export interface IdentityModule {
    *  (P2-M1.4) reach it through `companies`' own `CodeSender` port, so ClickSend/Resend accounts
    *  and credentials stay configured in one place. */
   sendOneTimeCode(destination: string, code: string): Promise<void>;
+  /** Whether ordinary text messages really go out (ClickSend is set up). When false, `sendText` throws instead of pretending. */
+  readonly canSendText: boolean;
+  /** Sends one text message that is not a sign-in code, such as a maintenance reminder. Throws if texts are not set up or it fails. */
+  sendText(to: string, message: string): Promise<void>;
   /** Sends a plain-text email through the same Resend account as sign-in codes (or logs it in local dev,
    *  where no key is set). Throws when the email cannot be sent, with the provider's reason. Used for
    *  staff invitations (`companies`' own `InviteMailer` port). */
@@ -127,6 +132,10 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     deps.clickSendUsername !== undefined && deps.clickSendApiKey !== undefined
       ? new ClickSendOtpSender(deps.clickSendUsername, deps.clickSendApiKey)
       : new ConsoleOtpSender();
+  const textSender =
+    deps.clickSendUsername !== undefined && deps.clickSendApiKey !== undefined
+      ? new ClickSendTextSender(deps.clickSendUsername, deps.clickSendApiKey)
+      : undefined;
   const emailSender =
     deps.resendApiKey !== undefined
       ? new ResendOtpSender(deps.resendApiKey, deps.resendFromEmail)
@@ -206,6 +215,12 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     },
     sendOneTimeCode(destination: string, code: string): Promise<void> {
       return otpSender.send(destination, code);
+    },
+    canSendText: textSender !== undefined,
+    sendText(to: string, message: string): Promise<void> {
+      if (textSender === undefined)
+        return Promise.reject(new Error('text messages are not set up'));
+      return textSender.send(to, message);
     },
     sendEmail(to: string, subject: string, text: string): Promise<void> {
       if (mailer === undefined) {
