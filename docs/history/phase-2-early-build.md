@@ -1,7 +1,7 @@
 # Phase 2, how it was built early (to 2026-10-08)
 
 Moved out of `docs/progress.md` to keep that file short. What was built ahead of the Phase 2 plan, and what the early
-milestones (P2-M1 to P2-M4) delivered. Open it only when working on those areas. The newer entries are in `log.md`.
+milestones (P2-M1 to P2-M4) delivered. Open it only when working on those areas. The newer entries are in `log.md` and `log-archive.md`.
 
 Plan: the [Phase 2 tech design doc](https://claude.ai/artifact/LK2oYrVSwotj7E8W9tXykD)
 (milestones P2-M1 … P2-M9, decision log). Built early, ahead of its sequencing, because an admin
