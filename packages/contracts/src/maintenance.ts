@@ -164,9 +164,41 @@ export type ScheduleDto = z.infer<typeof scheduleSchema>;
 export const reminderChannelSchema = z.enum(['email', 'none']);
 export type ReminderChannel = z.infer<typeof reminderChannelSchema>;
 
-/** `GET` and `PUT /staff/maintenance/my-reminders`: the signed-in person's own choice (email until they choose). */
-export const myRemindersSchema = z.object({ channel: reminderChannelSchema });
+/** `GET` and `PUT /staff/maintenance/my-reminders`: the signed-in person's own choice (email until they choose) and, if they
+ *  have added one, their mobile (+447700900123), which reminder texts go to when the company chooses texts. */
+export const myRemindersSchema = z.object({
+  channel: reminderChannelSchema,
+  mobile: z.string().optional(),
+});
 export type MyRemindersDto = z.infer<typeof myRemindersSchema>;
+
+/** `PUT /staff/maintenance/my-reminders`: change either or both. An empty `mobile` removes it; a UK mobile is saved as +447... */
+export const updateMyRemindersRequestSchema = z
+  .object({ channel: reminderChannelSchema.optional(), mobile: z.string().max(40).optional() })
+  .refine((v) => v.channel !== undefined || v.mobile !== undefined, {
+    message: 'nothing to change',
+  });
+export type UpdateMyRemindersRequest = z.infer<typeof updateMyRemindersRequestSchema>;
+
+/** How a company's reminders go: email, text or both. A person with no mobile, or a company past its monthly text limit, gets email. */
+export const reminderCompanyChannelSchema = z.enum(['email', 'text', 'both']);
+export type ReminderCompanyChannel = z.infer<typeof reminderCompanyChannelSchema>;
+
+/** `GET /staff/maintenance/companies/:companyId/reminder-settings`. */
+export const reminderSettingsSchema = z.object({
+  channel: reminderCompanyChannelSchema,
+  /** Whether a text account is set up. When false, text and both still save but every reminder goes by email. */
+  textsAvailable: z.boolean(),
+  textsThisMonth: z.number().int().nonnegative(),
+  textLimit: z.number().int().positive(),
+});
+export type ReminderSettingsDto = z.infer<typeof reminderSettingsSchema>;
+
+/** `PUT /staff/maintenance/companies/:companyId/reminder-settings`. */
+export const updateReminderSettingsRequestSchema = z.object({
+  channel: reminderCompanyChannelSchema,
+});
+export type UpdateReminderSettingsRequest = z.infer<typeof updateReminderSettingsRequestSchema>;
 
 // ---------------------------------------------------------------------------------------------
 // Repairs: a defect a driver found, booked for fixing.

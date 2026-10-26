@@ -538,6 +538,8 @@ export function composeCore(
     clock,
     dataScopes,
     mailer: { send: (to, subject, text) => identity.sendEmail(to, subject, text) },
+    // Reminder texts go through the same ClickSend account as sign-in codes; with none set up, everything goes by email.
+    texter: { available: identity.canSendText, send: (to, text) => identity.sendText(to, text) },
     // The defects checks found: read when a repair is booked or finished, in the booker's own request. checks is built
     // after jobs, so this is read only when called.
     defects: {

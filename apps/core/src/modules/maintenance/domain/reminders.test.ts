@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import type { OverviewRow } from './maintenance.js';
-import { buildReminder, isChannel, needsReminder, ukHour } from './reminders.js';
+import {
+  buildReminder,
+  isChannel,
+  needsReminder,
+  ukHour,
+  buildTextReminder,
+  normaliseUkMobile,
+  ukMonth,
+} from './reminders.js';
 
 const row = (over: Partial<OverviewRow>): OverviewRow => ({
   vehicleId: makeId<'FleetVehicleId'>('v1'),
@@ -101,5 +109,64 @@ describe('buildReminder', () => {
 
   it('tells the person how to stop getting it', () => {
     expect(buildReminder({ ...base, rows: [row({})] })?.text).toContain('switch it off');
+  });
+});
+
+describe('normaliseUkMobile', () => {
+  it.each([
+    ['07700 900123', '+447700900123'],
+    ['07700900123', '+447700900123'],
+    ['+447700900123', '+447700900123'],
+    ['+44 7700 900123', '+447700900123'],
+    ['+44 (0)7700 900123', '+447700900123'],
+    ['0044 7700 900123', '+447700900123'],
+    ['07700-900-123', '+447700900123'],
+  ])('reads %j as %j', (raw, mobile) => {
+    expect(normaliseUkMobile(raw)).toBe(mobile);
+  });
+
+  it.each([
+    '',
+    '01434 600000',
+    '0207 946 0000',
+    '07000 123456',
+    '0770090012',
+    '07700 9001234',
+    'pat@example.com',
+    '+1 202 555 0100',
+  ])('refuses %j: not a UK mobile that can be texted', (raw) => {
+    expect(normaliseUkMobile(raw)).toBeUndefined();
+  });
+});
+
+describe('ukMonth', () => {
+  it('is the month in UK time, so the end of the month in summer moves on an hour early', () => {
+    expect(ukMonth(new Date('2026-10-14T08:00:00.000Z'))).toBe('2026-10');
+    expect(ukMonth(new Date('2026-07-31T23:30:00.000Z'))).toBe('2026-08');
+    expect(ukMonth(new Date('2026-01-31T23:30:00.000Z'))).toBe('2026-01');
+  });
+});
+
+describe('buildTextReminder', () => {
+  const row = (status: 'overdue' | 'due_soon' | 'ok') => ({ status }) as never;
+
+  it('says how many are overdue and due soon in one short text, and nothing on a quiet day', () => {
+    const text = buildTextReminder({
+      companyName: 'Acme Freight',
+      rows: [row('overdue'), row('overdue'), row('due_soon')],
+    });
+    expect(text).toBe(
+      'WagonWise maintenance: 2 overdue, 1 due soon (Acme Freight). Open the portal for details.',
+    );
+    expect(buildTextReminder({ companyName: 'Acme', rows: [row('ok')] })).toBeUndefined();
+    expect(buildTextReminder({ companyName: 'Acme', rows: [] })).toBeUndefined();
+  });
+
+  it('stays within one text message even for a long company name', () => {
+    const text = buildTextReminder({
+      companyName: 'A very long haulage company name that goes on and on and on and on',
+      rows: [row('overdue')],
+    });
+    expect(text?.length).toBeLessThanOrEqual(160);
   });
 });

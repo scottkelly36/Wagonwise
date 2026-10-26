@@ -3,7 +3,7 @@ import type { Clock } from '../../shared/ports/clock.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { CallerDirectory, VehicleDirectory } from './application/ports/directories.js';
-import type { Mailer } from './application/ports/reminders.js';
+import type { Mailer, Texter } from './application/ports/reminders.js';
 import type { DefectDirectory } from './application/ports/repairs.js';
 import type { VehicleLookup } from './application/ports/vehicle-lookup.js';
 import {
@@ -16,6 +16,8 @@ import { PostgresItemTypeRepository } from './infrastructure/postgres-item-type-
 import {
   PostgresPreferenceRepository,
   PostgresReminderLog,
+  PostgresReminderSettings,
+  PostgresTextCounter,
 } from './infrastructure/postgres-reminders.js';
 import { PostgresRepairRepository } from './infrastructure/postgres-repair-repository.js';
 import { PostgresScheduleRepository } from './infrastructure/postgres-schedule-repository.js';
@@ -28,7 +30,7 @@ export type {
   StaffCaller,
   VehicleDirectory,
 } from './application/ports/directories.js';
-export type { Mailer } from './application/ports/reminders.js';
+export type { Mailer, Texter } from './application/ports/reminders.js';
 export type { DefectDirectory, DefectInfo } from './application/ports/repairs.js';
 export type { VehicleLookup } from './application/ports/vehicle-lookup.js';
 export { CombinedVehicleLookup } from './infrastructure/combined-vehicle-lookup.js';
@@ -50,6 +52,8 @@ export interface MaintenanceModuleDeps {
   readonly vehicles: VehicleDirectory;
   /** Sends a plain-text email. Supplied by composition over `identity`. */
   readonly mailer: Mailer;
+  /** Sends a reminder text. Supplied by composition over identity's `sendText`; `available` false means no text account is set up. */
+  readonly texter?: Texter | undefined;
   /** Defects found by the walk-round checks, to book repairs for. Supplied by composition over `checks`. */
   readonly defects: DefectDirectory;
   /** Looks MOT and road tax dates up by registration. Supplied by composition: the DVLA once a key is set. */
@@ -78,6 +82,8 @@ export function createMaintenanceModule(deps: MaintenanceModuleDeps): Maintenanc
   const schedules = new PostgresScheduleRepository(deps.db);
   const preferences = new PostgresPreferenceRepository(deps.db);
   const log = new PostgresReminderLog(deps.db);
+  const settings = new PostgresReminderSettings(deps.db);
+  const texts = new PostgresTextCounter(deps.db);
   const repairs = new PostgresRepairRepository(deps.db);
   return {
     registerRoutes(app: FastifyInstance): void {
@@ -90,7 +96,7 @@ export function createMaintenanceModule(deps: MaintenanceModuleDeps): Maintenanc
           ids: deps.ids,
           clock: deps.clock,
         },
-        reminders: { preferences, clock: deps.clock },
+        reminders: { preferences, clock: deps.clock, settings, texts, texter: deps.texter },
         repairs: { repairs, defects: deps.defects, ids: deps.ids, clock: deps.clock },
         lookup: deps.vehicleLookup,
         callerDirectory: deps.callers,
@@ -108,6 +114,9 @@ export function createMaintenanceModule(deps: MaintenanceModuleDeps): Maintenanc
             preferences,
             log,
             mailer: deps.mailer,
+            settings,
+            texts,
+            texter: deps.texter,
             clock: deps.clock,
             dashboardUrl: deps.dashboardUrl,
           },
