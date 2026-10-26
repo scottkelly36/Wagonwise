@@ -13,6 +13,7 @@ import { MarkedPlaces } from './MarkedPlaces';
 import { PostcodeField } from './PostcodeField';
 import { SavedLocationPicker } from './SavedLocationPicker';
 import { Seg } from './Seg';
+import { WordsField } from './WordsField';
 
 const KINDS = [
   { key: 'pickup', label: 'Collect' },
@@ -21,6 +22,7 @@ const KINDS = [
 const SOURCES = [
   { key: 'saved', label: 'Stored location' },
   { key: 'new', label: 'New address' },
+  { key: 'words', label: 'Three words' },
 ] as const;
 
 interface Props {
@@ -36,7 +38,7 @@ interface Props {
 }
 
 /**
- * One stop on the job form: a collection or a delivery, from a stored location or a new address. The driver
+ * One stop on the job form: a collection or a delivery, from a stored location, a new address or three words. The driver
  * works down the list in the order it is shown.
  */
 export function StopEditor({
@@ -113,6 +115,35 @@ export function StopEditor({
           onChoose={(place) => set({ place })}
           error={problems.place}
         />
+      ) : source === 'words' ? (
+        <div className="job-form">
+          <div className="field">
+            <label htmlFor={`${id}-name`}>Name</label>
+            <input
+              id={`${id}-name`}
+              value={stop.name}
+              onChange={(e) => set({ name: e.target.value })}
+              placeholder={stop.kind === 'pickup' ? 'e.g. Smith Farm gate' : 'e.g. Hebburn depot'}
+              aria-invalid={problems.name !== undefined}
+              aria-describedby={`${id}-name-error`}
+            />
+            <FieldError id={`${id}-name-error`} message={problems.name} />
+          </div>
+          <WordsField
+            id={`${id}-words`}
+            value={stop.words}
+            onChange={(words) => set({ words })}
+            error={problems.words}
+          />
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={stop.save}
+              onChange={(e) => set({ save: e.target.checked })}
+            />
+            Save this location for next time
+          </label>
+        </div>
       ) : (
         <div className="job-form">
           <div className="field">

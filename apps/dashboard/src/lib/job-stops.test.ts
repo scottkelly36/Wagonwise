@@ -39,6 +39,26 @@ describe('stopProblems', () => {
   });
 });
 
+describe('stopProblems for three words', () => {
+  const stop = { ...newStopDraft('delivery'), source: 'words' as const };
+
+  it('needs a name and three words, and says which is missing', () => {
+    expect(stopProblems(stop, 0)).toMatchObject({
+      name: expect.stringContaining('going'),
+      words: 'Enter the three words.',
+    });
+    expect(stopProblems({ ...stop, name: 'Smith Farm', words: 'filled.count' }, 0)).toEqual({
+      words: 'Type exactly three words, like filled.count.soap.',
+    });
+  });
+
+  it('needs no postcode, and accepts the words however they were typed', () => {
+    for (const words of ['filled.count.soap', '///Filled Count Soap', 'filled,count,soap']) {
+      expect(stopProblems({ ...stop, name: 'Smith Farm', words }, 0)).toEqual({});
+    }
+  });
+});
+
 describe('stopsProblem', () => {
   const done = (kind: 'pickup' | 'delivery') => ({
     ...newStopDraft(kind),

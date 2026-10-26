@@ -58,6 +58,19 @@ describe('POST /what3words/to-location', () => {
   });
 });
 
+describe('POST /staff/what3words/to-location', () => {
+  it('answers the portal the same way: the spot, 400, 404 and 503', async () => {
+    const post = (app: ReturnType<typeof build>, words: string) =>
+      app.inject({ method: 'POST', url: '/staff/what3words/to-location', payload: { words } });
+    const found = await post(build(), 'filled.count.soap');
+    expect(found.statusCode).toBe(200);
+    expect(found.json()).toEqual(address);
+    expect((await post(build(), 'filled.count')).statusCode).toBe(400);
+    expect((await post(build(), 'index.home.raft')).statusCode).toBe(404);
+    expect((await post(build(false), 'filled.count.soap')).statusCode).toBe(503);
+  });
+});
+
 describe('POST /what3words/to-words', () => {
   it('200s the words for a position and 503s when the lookup is off', async () => {
     const payload = { location: { lat: 51.52, lon: -0.2 } };

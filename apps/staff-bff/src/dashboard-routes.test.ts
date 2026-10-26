@@ -63,6 +63,7 @@ const VALID = [
   ['PUT', `/staff/places/${ID}`, { note: 'Gate on the left' }],
   ['DELETE', `/staff/places/${ID}`, undefined],
   ['GET', '/staff/places/reported', undefined],
+  ['POST', '/staff/what3words/to-location', { words: 'filled.count.soap' }],
   ['GET', '/staff/sos?status=open', undefined],
   ['GET', '/staff/sos?status=all', undefined],
   ['POST', `/staff/sos/${ID}/resolve`, undefined],

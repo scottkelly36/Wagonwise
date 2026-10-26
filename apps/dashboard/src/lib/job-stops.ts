@@ -1,9 +1,10 @@
 import type { SavedPlaceDto } from '@wagonwise/contracts/places';
 
 import { normalisePostcode } from './postcodes';
+import { wordsKey } from './words';
 
 export type StopKind = 'pickup' | 'delivery';
-export type StopSource = 'saved' | 'new';
+export type StopSource = 'saved' | 'new' | 'words';
 
 /** One stop on the job form, as the dispatcher has filled it in so far. */
 export interface StopDraft {
@@ -16,7 +17,9 @@ export interface StopDraft {
   readonly place: SavedPlaceDto | undefined;
   readonly name: string;
   readonly postcode: string;
-  /** For a new address: keep it as a stored location for next time. */
+  /** For a stop set by three words (what3words): what has been typed, with or without the `///`. */
+  readonly words: string;
+  /** For a new address or three words: keep it as a stored location for next time. */
   readonly save: boolean;
 }
 
@@ -28,6 +31,7 @@ export function newStopDraft(kind: StopKind): StopDraft {
     place: undefined,
     name: '',
     postcode: '',
+    words: '',
     save: true,
   };
 }
@@ -45,22 +49,30 @@ export interface StopProblems {
   readonly place?: string;
   readonly name?: string;
   readonly postcode?: string;
+  readonly words?: string;
 }
 
 /** What is still missing on a stop. A stored location only needs choosing; a new address needs a name and a
- *  postcode that looks like one. */
+ *  postcode that looks like one; a stop by three words needs a name and three words. */
 export function stopProblems(stop: StopDraft, storedCount: number): StopProblems {
   if (effectiveSource(stop, storedCount) === 'saved') {
     return stop.place === undefined
       ? { place: 'Choose a stored location, or switch to New address.' }
       : {};
   }
-  const problems: { name?: string; postcode?: string } = {};
+  const problems: { name?: string; postcode?: string; words?: string } = {};
   if (stop.name.trim() === '') {
     problems.name =
       stop.kind === 'pickup'
         ? 'Enter where the load is collected from.'
         : 'Enter where the load is going.';
+  }
+  if (stop.source === 'words') {
+    if (stop.words.trim() === '') problems.words = 'Enter the three words.';
+    else if (wordsKey(stop.words) === undefined) {
+      problems.words = 'Type exactly three words, like filled.count.soap.';
+    }
+    return problems;
   }
   if (stop.postcode.trim() === '') problems.postcode = 'Enter the postcode.';
   else if (normalisePostcode(stop.postcode) === undefined) {
