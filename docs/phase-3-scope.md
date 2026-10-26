@@ -51,7 +51,7 @@ Done in this order (the whiteboard's numbering is kept). Size is S, M, L.
 1. **The money chain first: 0, M1, M2, M3, M6.** It is what a paying company will ask about, and M1 feeds the income
    projections. M1 needs the owner's real running costs.
 2. **Then the compliance chain: M5, then M4.** Walk-round checks create the defects that maintenance tracks.
-3. **In parallel, only when asked:** M7 (the key has arrived and what3words search is built; `history/log.md` has what is left). M8 is done (2026-10-16).
+3. **In parallel, only when asked:** M7 (the key has arrived and what3words search is built; `progress.md` has what is left). M8 is done (2026-10-16).
 4. **M9 starts as a cheap research spike now**, to learn what the pilot's lorries have, and is built last.
 
 ## Billing model (decided with the owner, 2026-10-09)
