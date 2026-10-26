@@ -14,15 +14,14 @@ Everything on the whiteboard is built except the items under "Left" below.
 - **M3 Fuel card CSV:** done (import, matched to vehicles by registration; migration 0056). A real provider's sample would still help.
 - **M5 Walk-round checks:** done (each firm builds its own lists, drivers do them offline with photos, the office sees results and
   defects, rules before a job, retention).
-- **M4 Fleet maintenance:** done bar text reminders: registration numbers, items and dates per vehicle, the morning email,
+- **M4 Fleet maintenance:** done, with reminders by email, text or both (the company chooses): registration numbers, items and dates per vehicle, the morning email,
   defects into repair tasks, a spreadsheet import, and a MOT and tax lookup by registration (MOT from DVSA is on; road tax from DVLA
-  needs a DVLA key).
-- **M7 what3words:** done: _Where to?_ (2026-10-25), SOS, and the portal's job form (2026-10-26). _From_ by three words is not built.
+  is parked: DVLA is not taking new key applications and its API is in beta, 2026-10-26).
+- **M7 what3words:** done: _Where to?_ (2026-10-25), SOS, and the portal's job form (2026-10-26). _From_ by three words is not built, and not planned unless a driver asks (owner, 2026-10-26).
 - **M8 UK coverage:** done (Great Britain, 2026-10-16).
 - **M9 Driver hours:** done as a driver-entered clock, break planning and sharing with a company; a tachograph source is not built.
 
-**Left:** _From_ by three words (M7, optional); text-message reminders (needs a text sender, mobile numbers and a
-cost sign-off); the DVLA key for road tax; a tachograph source (needs what the pilot firm's lorries have).
+**Left:** road tax by registration (parked, see above); a tachograph source (needs what the pilot firm's lorries have).
 
 ## Principles (the owner's)
 
