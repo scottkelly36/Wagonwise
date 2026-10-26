@@ -9,11 +9,13 @@ work should be handed over.
 
 Then, depending on the task:
 
+- [`docs/progress.md`](docs/progress.md) — short: status, what's next, open items, and an index
+  into `docs/history/` (per-milestone decisions and deviations). Read the history file for a
+  milestone only when working in that area. The dated change log is `docs/history/log.md`
+  (newest first: read its top ~40 lines, or `grep`).
 - [`README.md`](README.md) — prerequisites, first-time set-up, commands. Source of truth
-  for getting the project running. Per-module notes (sign-in, routing, hazards, the BFFs,
-  the driver app) are in [`docs/modules.md`](docs/modules.md): open only the section you need.
-- [`docs/phase-1-tech-design.md`](docs/phase-1-tech-design.md) — the full design. Read
-  before starting any milestone.
-- [`docs/progress.md`](docs/progress.md) — short: milestone status, what's next, open items,
-  and an index into `docs/history/` (per-milestone decisions and deviations). Read the history
-  file for a milestone only when working in that area.
+  for getting the project running.
+- [`docs/modules.md`](docs/modules.md) — per-module notes (sign-in, routing, hazards, SOS,
+  the BFFs, the driver app). It is long: `grep -n '^## ' docs/modules.md`, then read only that section.
+- [`docs/phase-1-tech-design.md`](docs/phase-1-tech-design.md) — the original design, background
+  only. Open the section you need, not the whole file.

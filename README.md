@@ -6,9 +6,9 @@ HGV-aware routing with a live, driver-fed hazard layer. Drivers set their vehicl
 dimensions, get routes that avoid restrictions they can't clear, and report hazards for
 other drivers — by voice while driving, tap-to-drop when parked.
 
-Phase 1 is the free driver app, in development. See
-[`docs/phase-1-tech-design.md`](docs/phase-1-tech-design.md) for the full design and
-[`docs/progress.md`](docs/progress.md) for current status.
+The free driver app and the company portal are built and live (Android; iOS waits on Apple). See
+[`docs/progress.md`](docs/progress.md) for current status and
+[`docs/phase-1-tech-design.md`](docs/phase-1-tech-design.md) for the original design.
 
 > **This README is the single source of truth for getting the project running.**
 > Every new set-up step — a service, a container, an environment variable, a seed
