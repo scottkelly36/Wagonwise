@@ -382,8 +382,9 @@ The shared status also carries optional `breakMin`, `stretchMin` and `untilLimit
 
 - **No typeahead, no caching, no storage.** The Basic plan is 1,000 lookups a month, so the app looks up only when the driver taps Find (a mutation, never a query that refetches), and the module keeps nothing. what3words' autosuggest is not used.
 - **Driver app:** _Where to?_ has a third way to set the destination, **3 words** (`WordsSearchField`): type, tap Find, and the destination is set with the nearest town beside it so a wrong word is plain to see.
-- Other modules use it through composition (`wordsFor(point)`, `locationOf(words)`), not by importing it (AGENTS.md rule 7).
-- Not done: the dashboard job form (the stop's location from three words) and _From_ by three words; SOS is the next piece (it needs `wordsFor`).
+- **Portal job form (2026-10-26):** each stop has a third location choice, **Three words** (`WordsField`, `hooks/use-words.ts`, `lib/words.ts`): name the stop, type the words (`///Filled Count Soap`, commas and spaces all work), press **Find** (one lookup; the answer is cached for the session, so Create job does not look up again) and the spot is shown with the nearest town. The job's stop gets that location and `///words` as its note, so the driver sees the words; **Save this location for next time** stores it with the words as its note. Core route `POST /staff/what3words/to-location` (any signed-in staff account; same answers and statuses as the driver's), forwarded by the staff BFF.
+- Other modules use it through composition (`wordsFor(point)`, `locationOf(words)`), not by importing it (AGENTS.md rule 7). SOS uses `wordsFor`.
+- Not done: _From_ by three words on the driver app's Where to?.
 
 ## Hazards from OpenStreetMap
 

@@ -38,7 +38,7 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 3. **Check on real devices** (none of these has been tried on a phone yet): hold-to-send SOS and its cancel, the portal strip and the
    email; 3 words on Where to?; Share with all drivers, Make private, Report, and the Reported places page; the A69 bridge and
    crossing-road fix; push notifications; voice with accents and cab noise.
-4. **Small code left:** the portal job form and _From_ by three words (what3words is only on _Where to?_); text-message
+4. **Small code left:** _From_ by three words on the driver app (what3words is on _Where to?_, SOS and the portal job form); text-message
    reminders for maintenance (needs a text sender, mobile numbers and a cost sign-off); the DVLA key for road tax (MOT comes from DVSA,
    which is on); a tachograph source for driver hours (waits on what the pilot's lorries have). Unscheduled ideas in
    `ideas.md` (for example email and password sign-in for drivers) are not in this list.
