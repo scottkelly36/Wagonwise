@@ -112,7 +112,9 @@ export async function sendDueReminders(
       texter !== undefined &&
       deps.texts !== undefined &&
       (companyChannel === 'text' || companyChannel === 'both');
-    const mobiles = mayText ? await deps.preferences.listMobilesForCompany(company.id) : new Map();
+    const mobiles = mayText
+      ? await deps.preferences.listMobilesForCompany(company.id)
+      : new Map<StaffId, string>();
     let textsThisMonth =
       mayText && deps.texts ? await deps.texts.sentInMonth(company.id, month) : 0;
 
