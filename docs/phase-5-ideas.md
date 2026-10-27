@@ -129,7 +129,36 @@ Start with the three most asked-for, build them small, and put each in the guide
   the hours and parking considered).
 - **A smaller first step:** let a firm share a job with a set list of trusted hauliers (subcontractors it already uses), with
   the job flowing into the other firm's WagonWise. That tests demand and the legal side without an open marketplace.
-- **Not researched yet.** Needs a look at existing load boards, and a solicitor, before any design.
+- **When (the owner, 2026-10-27): much later,** once there are many more operators on the books. People post jobs, or approach
+  the firms that have opted in to receive them, and WagonWise takes a cut of the contract amount paid by the poster (the
+  owner's example: an £8,000 job at 5% or 10%).
+- **The fee, with numbers (an illustration, not data):** £8,000 is £400 at 5% and £800 at 10%. To earn £50,000 a year it takes
+  about £1 million of contracts at 5% (125 jobs of £8,000) or £500,000 at 10% (about 63 jobs). £8,000 is a large contract; most
+  single loads are far smaller, so the fee on a typical job is a lot less. The poster paying the fee on top is clearest; taking
+  it out of the haulier's price will not be welcome.
+- **What others charge (first look, 2026-10-27, public pages only):** the UK freight exchanges (Returnloads, Haulage Exchange,
+  TimoCom, Trans.eu) appear to earn from subscriptions: the one price found was Returnloads at £29.50 a month, from an old blog
+  post, and the rest give no price. A percentage of the contract is different, and no UK broker commission data was found. US
+  evidence (analyst estimates, not filings): digital freight marketplaces run on thin margins, often single digits and about 1%
+  on some large shippers; a 2018 benchmark put traditional brokers' gross margin at about 12 to 13%, and one analysis says a broker
+  doing the calling and paperwork by hand needs 15 to 20%. So 5 to 10% for software-only matching is plausible, at the upper end
+  for a digital platform.
+- **The hard parts:**
+  - **Leakage:** once two firms are matched they can deal directly and skip the fee. The defence is value after the match: the
+    job flows into WagonWise (tracking, proof of delivery, hours, checks, invoicing), so staying is easier than leaving.
+  - **Both sides at once:** it starts empty (above).
+  - **Trust and fraud:** fake carriers and fake jobs are a known freight problem. WagonWise holds the public operator licence
+    register, which helps verify an operator; insurance certificates would be the other check.
+  - **Payment:** hauliers are often paid late (one report gives a large logistics firm an average of 72 days), and government
+    late-payment reform is reported to be on the way (the bill's name and status vary between sources: check). WagonWise holding
+    the money would need a regulated payment provider.
+  - **Liability and tax:** who is responsible for the load, goods-in-transit cover, whether WagonWise acts as agent or principal,
+    and VAT on the fee once WagonWise is registered. A solicitor reads the terms before any design.
+- **Order of doing it:** 1) the smaller first step above, with no fee (it makes the portal stickier); 2) an opt-in directory of
+  firms that accept offers; 3) open posting with a fee, only when there are enough firms and real demand, starting low. Do not
+  plan revenue on it.
+- **Still not researched:** UK broker margins and current exchange prices (ask each provider's sales team), subcontractor payment
+  protection, and the legal position (a solicitor).
 - **Haulage requests and payment links (on the board):** a firm posts a request, a haulier accepts, and a payment link settles
   it. A payment link means a payments provider (a card or bank payment service) holding money between two firms. That adds
   regulation and fees, and who is the merchant matters (WagonWise, or each firm). Skip payments in the first version: let the
