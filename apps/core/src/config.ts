@@ -100,6 +100,12 @@ const envSchema = z.object({
   DVSA_MOT_API_KEY: z.string().min(1).optional(),
   DVSA_MOT_TOKEN_URL: z.url().optional(),
   DVSA_MOT_SCOPE: z.string().min(1).default('https://tapi.dvsa.gov.uk/.default'),
+  // Optional pair: the GOV.UK Fuel Finder credentials (pump prices by station). Both set turns it on, neither leaves it off, one is a
+  // mistake and stops the boot. Server-side only, never sent to an app or the portal. The address is the live service; the test
+  // service is https://test.fuel-finder.service.gov.uk/api/v1 with its own credentials (live ones do not work there).
+  FUEL_FINDER_ID: z.string().min(1).optional(),
+  FUEL_FINDER_SECRET: z.string().min(1).optional(),
+  FUEL_FINDER_URL: z.url().default('https://www.fuel-finder.service.gov.uk/api/v1'),
   TRAFFIC_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(2000),
   // Traffic moves in minutes; a reading is reused for this long, and shared by every driver on that road.
   TRAFFIC_CACHE_TTL_MS: z.coerce.number().int().min(10_000).default(300_000),
@@ -182,6 +188,10 @@ export interface Config {
       }
     | undefined;
   readonly what3wordsApiKey: string | undefined;
+  /** GOV.UK Fuel Finder (pump prices): undefined unless both its credentials are set. */
+  readonly fuelFinder:
+    | { readonly clientId: string; readonly clientSecret: string; readonly baseUrl: string }
+    | undefined;
   readonly trafficDailyRequestLimit: number;
   readonly trafficCacheTtlMs: number;
   readonly dashboardUrl: string | undefined;
@@ -235,6 +245,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       `DVSA MOT history needs all four of its settings together; missing: ${dvsaMissing.join(', ')}`,
     ]);
   }
+  if ((values.FUEL_FINDER_ID === undefined) !== (values.FUEL_FINDER_SECRET === undefined)) {
+    throw new ConfigError([
+      `Fuel Finder needs FUEL_FINDER_ID and FUEL_FINDER_SECRET together; missing: ${
+        values.FUEL_FINDER_ID === undefined ? 'FUEL_FINDER_ID' : 'FUEL_FINDER_SECRET'
+      }`,
+    ]);
+  }
   return {
     nodeEnv: values.NODE_ENV,
     host: values.HOST,
@@ -264,6 +281,14 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
             apiKey: values.DVSA_MOT_API_KEY,
             tokenUrl: values.DVSA_MOT_TOKEN_URL,
             scope: values.DVSA_MOT_SCOPE,
+          },
+    fuelFinder:
+      values.FUEL_FINDER_ID === undefined || values.FUEL_FINDER_SECRET === undefined
+        ? undefined
+        : {
+            clientId: values.FUEL_FINDER_ID,
+            clientSecret: values.FUEL_FINDER_SECRET,
+            baseUrl: values.FUEL_FINDER_URL,
           },
     trafficDailyRequestLimit: values.TRAFFIC_DAILY_REQUEST_LIMIT,
     trafficCacheTtlMs: values.TRAFFIC_CACHE_TTL_MS,

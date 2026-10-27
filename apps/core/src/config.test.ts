@@ -31,6 +31,7 @@ describe('loadConfig', () => {
       alertEmail: undefined,
       dvlaVesApiKey: undefined,
       dvsaMot: undefined,
+      fuelFinder: undefined,
       trafficDailyRequestLimit: 2000,
       trafficCacheTtlMs: 300_000,
       dashboardUrl: undefined,
@@ -82,6 +83,38 @@ describe('loadConfig', () => {
 
     it('rejects a token address that is not a web address', () => {
       expect(() => loadConfig({ ...all, DVSA_MOT_TOKEN_URL: 'not a url' })).toThrow(ConfigError);
+    });
+  });
+
+  describe('Fuel Finder settings', () => {
+    const both = { FUEL_FINDER_ID: 'the-id', FUEL_FINDER_SECRET: 'the-secret' };
+
+    it('is off when neither is set', () => {
+      expect(loadConfig({}).fuelFinder).toBeUndefined();
+    });
+
+    it('is on when both are set, at the live service unless an address is given', () => {
+      expect(loadConfig(both).fuelFinder).toEqual({
+        clientId: 'the-id',
+        clientSecret: 'the-secret',
+        baseUrl: 'https://www.fuel-finder.service.gov.uk/api/v1',
+      });
+      expect(
+        loadConfig({ ...both, FUEL_FINDER_URL: 'https://test.fuel-finder.service.gov.uk/api/v1' })
+          .fuelFinder?.baseUrl,
+      ).toBe('https://test.fuel-finder.service.gov.uk/api/v1');
+    });
+
+    it('stops the boot when only one is set, naming the one missing and never printing a value', () => {
+      expect(() => loadConfig({ FUEL_FINDER_ID: 'the-id' })).toThrow(/missing: FUEL_FINDER_SECRET/);
+      expect(() => loadConfig({ FUEL_FINDER_SECRET: 'the-secret' })).toThrow(
+        /missing: FUEL_FINDER_ID/,
+      );
+      expect(() => loadConfig({ FUEL_FINDER_ID: 'the-id' })).not.toThrow(/the-id/);
+    });
+
+    it('rejects an address that is not a web address', () => {
+      expect(() => loadConfig({ ...both, FUEL_FINDER_URL: 'not a url' })).toThrow(ConfigError);
     });
   });
 
