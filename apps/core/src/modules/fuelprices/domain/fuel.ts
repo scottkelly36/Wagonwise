@@ -49,6 +49,16 @@ export interface FuelSourceUnavailable {
 }
 
 /**
+ * What came back from Fuel Finder is far smaller than what is stored (or is nearly empty), which is a fault at their end or in
+ * the clean-up, never a country that lost its petrol stations. The stored copy is left as it was.
+ */
+export interface SnapshotTooSmall {
+  readonly tag: 'SnapshotTooSmall';
+  readonly received: number;
+  readonly stored: number;
+}
+
+/**
  * A position inside the United Kingdom's bounding box. Catches coordinates a retailer typed wrongly (swapped, or zero) before they
  * put a station in the sea; it is a sanity check, not a border.
  */

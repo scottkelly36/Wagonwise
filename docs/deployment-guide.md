@@ -207,8 +207,9 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
      a month and the app asks only when the driver asks, so watch the count in the what3words account),
      `FUEL_FINDER_ID` and `FUEL_FINDER_SECRET` (GOV.UK Fuel Finder, pump prices by station: **both or neither**, one alone
      stops core booting; core only, never the BFFs or apps; the live credentials from the Fuel Finder developer portal, and
-     `FUEL_FINDER_URL` is optional and defaults to the live service; nothing reads them yet, so set them as encrypted
-     secrets before the refresh job ships),
+     `FUEL_FINDER_URL` is optional and defaults to the live service; with both set core copies every station and price
+     into the `fuelprices` schema at boot and then every hour, about 34 requests each time, and `FUEL_REFRESH_INTERVAL_MS`
+     changes that (never under 10 minutes). **Run one core instance only**: the service allows one request at a time),
      `STAFF_SECRET_KEY` (`openssl rand -base64 32`; keep a copy somewhere safe: losing it
      makes every staff authenticator-app enrolment unreadable), `APP_DATABASE_URL` (below),
      `NODE_ENV=production`.

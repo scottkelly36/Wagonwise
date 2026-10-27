@@ -32,6 +32,7 @@ describe('loadConfig', () => {
       dvlaVesApiKey: undefined,
       dvsaMot: undefined,
       fuelFinder: undefined,
+      fuelRefreshIntervalMs: 3_600_000,
       trafficDailyRequestLimit: 2000,
       trafficCacheTtlMs: 300_000,
       dashboardUrl: undefined,
@@ -116,6 +117,14 @@ describe('loadConfig', () => {
     it('rejects an address that is not a web address', () => {
       expect(() => loadConfig({ ...both, FUEL_FINDER_URL: 'not a url' })).toThrow(ConfigError);
     });
+
+    it('refreshes hourly unless told otherwise, and never more often than every ten minutes', () => {
+      expect(loadConfig({}).fuelRefreshIntervalMs).toBe(3_600_000);
+      expect(loadConfig({ FUEL_REFRESH_INTERVAL_MS: '1800000' }).fuelRefreshIntervalMs).toBe(
+        1_800_000,
+      );
+      expect(() => loadConfig({ FUEL_REFRESH_INTERVAL_MS: '60000' })).toThrow(ConfigError);
+    });
   });
 
   it('accepts a 32-byte base64 STAFF_SECRET_KEY and rejects any other length', () => {
@@ -185,6 +194,7 @@ describe('loadConfig', () => {
       jobPositionRetentionDays: 30,
       routeRetentionDays: 30,
       fuelPricePerLitreGBP: 1.75,
+      fuelRefreshIntervalMs: 3_600_000,
       staffSecretKey: undefined,
     });
   });
