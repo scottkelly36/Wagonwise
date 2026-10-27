@@ -56,6 +56,10 @@ import {
   type UntypedDb as JobsUntypedDb,
 } from '../modules/jobs/api.js';
 import { createCamerasModule, type UntypedDb as CamerasUntypedDb } from '../modules/cameras/api.js';
+import {
+  createFuelPricesModule,
+  type UntypedDb as FuelPricesUntypedDb,
+} from '../modules/fuelprices/api.js';
 import { createParkingModule, type UntypedDb as ParkingUntypedDb } from '../modules/parking/api.js';
 import { createTrafficModule } from '../modules/traffic/api.js';
 import { createWeatherModule } from '../modules/weather/api.js';
@@ -228,6 +232,7 @@ export function composeCore(
   const companiesDb: CompaniesUntypedDb = identityDb;
   const parkingDb: ParkingUntypedDb = identityDb;
   const camerasDb: CamerasUntypedDb = identityDb;
+  const fuelPricesDb: FuelPricesUntypedDb = identityDb;
   const placesDb: PlacesUntypedDb = identityDb;
   const billingDb: BillingUntypedDb = identityDb;
   const checksDb: ChecksUntypedDb = identityDb;
@@ -274,6 +279,14 @@ export function composeCore(
     onProblem: (what, detail) => app.log.warn({ detail, what }, 'what3words lookup failed'),
   });
   const cameras = createCamerasModule({ db: camerasDb });
+  // Pump prices from GOV.UK Fuel Finder, kept as our own copy by a job below. Unset credentials mean no job and no requests.
+  const fuelPrices = createFuelPricesModule({
+    db: fuelPricesDb,
+    clock,
+    credentials: config.fuelFinder,
+    // `app` is built further down; this only runs when a refresh fails, long after boot.
+    onProblem: (what, detail) => app.log.warn({ detail, what }, 'fuel prices: Fuel Finder problem'),
+  });
   const routing = createRoutingModule({
     db: routingDb,
     ids,
@@ -737,6 +750,32 @@ export function composeCore(
     // First fetch now, so warnings are there soon after a restart rather than after one interval.
     void periodicTasks.runOnce(weatherTask);
     periodicTasks.start(weatherTask);
+  }
+  app.log.info({ enabled: fuelPrices.enabled }, 'fuel prices (GOV.UK Fuel Finder)');
+  if (fuelPrices.enabled) {
+    // Replaces our whole copy. Safe to run twice in turn, but Fuel Finder allows one request at a time per client, so a second
+    // core instance would need this to run on one of them only.
+    const fuelTask = {
+      name: 'refresh-fuel-prices',
+      intervalMs: config.fuelRefreshIntervalMs,
+      run: async () => {
+        const refreshed = await fuelPrices.refresh();
+        if (refreshed.ok) {
+          app.log.info(
+            { stations: refreshed.value.stations, prices: refreshed.value.prices },
+            'refreshed fuel prices',
+          );
+        } else {
+          app.log.warn(
+            { problem: refreshed.error },
+            'fuel prices not refreshed; the last copy stays',
+          );
+        }
+      },
+    };
+    // First refresh now, so prices are there soon after a restart rather than after one interval.
+    void periodicTasks.runOnce(fuelTask);
+    periodicTasks.start(fuelTask);
   }
   periodicTasks.start({
     name: 'prune-job-positions',

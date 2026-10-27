@@ -106,6 +106,9 @@ const envSchema = z.object({
   FUEL_FINDER_ID: z.string().min(1).optional(),
   FUEL_FINDER_SECRET: z.string().min(1).optional(),
   FUEL_FINDER_URL: z.url().default('https://www.fuel-finder.service.gov.uk/api/v1'),
+  // How often our copy of Fuel Finder is replaced. A refresh is about 34 requests against a limit of 100 a minute, and retailers
+  // report within 30 minutes, so hourly is plenty; the floor stops a typo from hammering the service.
+  FUEL_REFRESH_INTERVAL_MS: z.coerce.number().int().min(600_000).default(3_600_000),
   TRAFFIC_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(2000),
   // Traffic moves in minutes; a reading is reused for this long, and shared by every driver on that road.
   TRAFFIC_CACHE_TTL_MS: z.coerce.number().int().min(10_000).default(300_000),
@@ -192,6 +195,7 @@ export interface Config {
   readonly fuelFinder:
     | { readonly clientId: string; readonly clientSecret: string; readonly baseUrl: string }
     | undefined;
+  readonly fuelRefreshIntervalMs: number;
   readonly trafficDailyRequestLimit: number;
   readonly trafficCacheTtlMs: number;
   readonly dashboardUrl: string | undefined;
@@ -290,6 +294,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
             clientSecret: values.FUEL_FINDER_SECRET,
             baseUrl: values.FUEL_FINDER_URL,
           },
+    fuelRefreshIntervalMs: values.FUEL_REFRESH_INTERVAL_MS,
     trafficDailyRequestLimit: values.TRAFFIC_DAILY_REQUEST_LIMIT,
     trafficCacheTtlMs: values.TRAFFIC_CACHE_TTL_MS,
     dashboardUrl: values.DASHBOARD_URL,
