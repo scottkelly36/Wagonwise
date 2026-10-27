@@ -221,7 +221,8 @@ Start with the three most asked-for, build them small, and put each in the guide
 - **Ground rules:** nothing commercial on the active trip screen or while moving; safety information (hazards, restrictions,
   routes) is never ranked or hidden for a partner; every partner link is labelled and says WagonWise may earn a commission; no
   driver data goes to a partner without a tap; one quiet row, no pop-ups or push messages; nothing regulated (insurance, credit)
-  until a solicitor has looked; link before integrating (the 13 October rule in ask 1).
+  until a solicitor has looked (insurance for firms in the portal is ask 9); link before integrating (the 13 October rule in
+  ask 1).
 - **Start with two, as links:** pre-booked truck parking (ask 1) and a "Need a bed?" hotel link on the break plan. A hotel
   affiliate pays a share of the booking site's own commission (one third-party source says up to about 40% at the top volume
   tier; not checked against the booking site's terms).
@@ -229,11 +230,41 @@ Start with the three most asked-for, build them small, and put each in the guide
   dash cams and tyres; breakdown help (ask 7). Fuel cards, telematics and tyres are firm-side purchases, so the portal is the better
   place for those referrals.
 - **Not:** display or video ads, selling or sharing location or contact data, pay-to-rank in parking, fuel or routes, lead selling,
-  or insurance and credit offers.
+  or insurance and credit offers (in the driver app; the portal case is ask 9).
 - **Money is unknown until asked:** no partner publishes a commission for parking, fuel cards or Driver CPC. Send the five
   questions in ask 1 to SNAP, TRAVIS and Park Safe (add Bosch and Park Your Truck), and the equivalent to two hotel affiliate
   networks. Apple and Google payment rules mostly cover digital goods; hotels and parking are real-world services, but check the
   current wording before submitting.
+
+### 9. Insurance renewal sponsor in the portal (the owner, 2026-10-27)
+
+- **The idea:** a firm's insurance renews once a year, and the portal already holds the expiry dates (ask 3 and the document
+  expiry theme). Eight weeks before expiry, one quiet row on the vehicle or firm page: "Insurance renews on 14 March. Get quotes
+  from our partner [broker]." The link goes to a haulage broker. A firm-side referral in the portal, so it does not touch the
+  free, no-ads driver app (ask 8).
+- **Who pays:** a specialist haulage broker, not a consumer comparison site. Go Compare and similar sites sell car and home
+  cover; haulage and fleet insurance (hire and reward, goods in transit) is mostly quoted by hand through brokers.
+- **The fee: a flat sum a year, not a percentage (the owner's choice).** The broker pays a fixed amount up front for one labelled
+  sponsor slot, so the cash is certain and the broker can budget. No sales to track and no firm data passed on, which also keeps
+  it nearer advertising than arranging insurance (a solicitor to confirm). Tier it by the vehicles on the portal, on a one-year
+  term with a review and an exit if the numbers fall well short. An optional bonus per policy placed can wait: it brings back the
+  tracking and the regulation questions.
+- **Rough numbers (unchecked guesses; the owner thinks they may be well off).** Premiums quoted by broker and comparison sites run
+  about £1,500 to £3,000 per HGV a year, and up to £3,500 to £6,500 for an artic with goods in transit. Fleet broker commission
+  has no solid UK figure found: 7.5 to 10% on large fleets (a forum), 10 to 20% (a pricing directory), 10% for motor fleet (an
+  Irish insurer, 2020). At about £3,000 a vehicle and 10%, that is roughly £300 a vehicle a year to the broker. If 100 firms see
+  the link and 10% switch, the broker gets about £30,000 a year of recurring commission, so it might pay 10 to 30% of that for
+  the exposure: about £3,000 to £9,000 a year. Little at 10 firms, worth asking at 100. Compare the portal itself at £180 a
+  vehicle a year. A broker with a high conversion rate would find a fixed fee cheap; one with a low rate would walk.
+- **Rules:** label it as a paid sponsor, never as advice or "best price"; one sponsor per category (that is what makes the slot
+  worth buying, and it means choosing one broker for everyone, another point for the solicitor); the expiry reminder works with or
+  without a sponsor, and "renew with your own broker" is always there; nothing about a firm goes to the broker without their tap.
+- **Regulation:** arranging or advising on insurance is FCA-regulated. A plain, labelled link or flat-fee advertisement is the
+  usual unregulated route, but this is not checked. A solicitor decides before anything is built (the ask 8 rule).
+- **When:** after the portal tracks insurance documents and expiry dates (already a Phase 5 theme), and once there are enough
+  firms for a broker to care. Nothing built.
+- **Next step (no code):** ask two or three haulage brokers whether they would pay a fixed yearly fee for a sponsor slot, how
+  much, how many firms or vehicles they would want to see first, and whether they would also pay per policy placed.
 
 ## Themes
 
