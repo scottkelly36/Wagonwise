@@ -129,7 +129,36 @@ Start with the three most asked-for, build them small, and put each in the guide
   the hours and parking considered).
 - **A smaller first step:** let a firm share a job with a set list of trusted hauliers (subcontractors it already uses), with
   the job flowing into the other firm's WagonWise. That tests demand and the legal side without an open marketplace.
-- **Not researched yet.** Needs a look at existing load boards, and a solicitor, before any design.
+- **When (the owner, 2026-10-27): much later,** once there are many more operators on the books. People post jobs, or approach
+  the firms that have opted in to receive them, and WagonWise takes a cut of the contract amount paid by the poster (the
+  owner's example: an £8,000 job at 5% or 10%).
+- **The fee, with numbers (an illustration, not data):** £8,000 is £400 at 5% and £800 at 10%. To earn £50,000 a year it takes
+  about £1 million of contracts at 5% (125 jobs of £8,000) or £500,000 at 10% (about 63 jobs). £8,000 is a large contract; most
+  single loads are far smaller, so the fee on a typical job is a lot less. The poster paying the fee on top is clearest; taking
+  it out of the haulier's price will not be welcome.
+- **What others charge (first look, 2026-10-27, public pages only):** the UK freight exchanges (Returnloads, Haulage Exchange,
+  TimoCom, Trans.eu) appear to earn from subscriptions: the one price found was Returnloads at £29.50 a month, from an old blog
+  post, and the rest give no price. A percentage of the contract is different, and no UK broker commission data was found. US
+  evidence (analyst estimates, not filings): digital freight marketplaces run on thin margins, often single digits and about 1%
+  on some large shippers; a 2018 benchmark put traditional brokers' gross margin at about 12 to 13%, and one analysis says a broker
+  doing the calling and paperwork by hand needs 15 to 20%. So 5 to 10% for software-only matching is plausible, at the upper end
+  for a digital platform.
+- **The hard parts:**
+  - **Leakage:** once two firms are matched they can deal directly and skip the fee. The defence is value after the match: the
+    job flows into WagonWise (tracking, proof of delivery, hours, checks, invoicing), so staying is easier than leaving.
+  - **Both sides at once:** it starts empty (above).
+  - **Trust and fraud:** fake carriers and fake jobs are a known freight problem. WagonWise holds the public operator licence
+    register, which helps verify an operator; insurance certificates would be the other check.
+  - **Payment:** hauliers are often paid late (one report gives a large logistics firm an average of 72 days), and government
+    late-payment reform is reported to be on the way (the bill's name and status vary between sources: check). WagonWise holding
+    the money would need a regulated payment provider.
+  - **Liability and tax:** who is responsible for the load, goods-in-transit cover, whether WagonWise acts as agent or principal,
+    and VAT on the fee once WagonWise is registered. A solicitor reads the terms before any design.
+- **Order of doing it:** 1) the smaller first step above, with no fee (it makes the portal stickier); 2) an opt-in directory of
+  firms that accept offers; 3) open posting with a fee, only when there are enough firms and real demand, starting low. Do not
+  plan revenue on it.
+- **Still not researched:** UK broker margins and current exchange prices (ask each provider's sales team), subcontractor payment
+  protection, and the legal position (a solicitor).
 - **Haulage requests and payment links (on the board):** a firm posts a request, a haulier accepts, and a payment link settles
   it. A payment link means a payments provider (a card or bank payment service) holding money between two firms. That adds
   regulation and fees, and who is the merchant matters (WagonWise, or each firm). Skip payments in the first version: let the
@@ -145,6 +174,66 @@ Start with the three most asked-for, build them small, and put each in the guide
   big fleet's union or drivers' representative may well ask to see how it works. Keep the first version to simple facts the
   driver can see for themselves (jobs done, checks done), not a single number.
 - **Open question:** does the firm want a score, or a list of events it can look at? The second is simpler and safer.
+
+### 7. Breakdown help: garages and mechanics near the driver (the owner, 2026-10-26)
+
+- **The idea:** a driver is a long way from base with a problem. The app shows mechanics, tyre fitters and recovery firms near
+  them, with a call button, so they are not searching on a phone at the roadside. Some firms have in-house mechanics or a
+  breakdown contract, but for a driver stuck far from home it saves time.
+- **Where it goes (owner's decision):** a separate **Breakdown help** button inside the SOS sheet, which already has the driver's
+  position and three words. SOS stays for emergencies: holding the red button still alerts the office, and Call 999 stays. The
+  breakdown button is a different action: it sends nothing and needs no hold.
+- **What it can reuse:** the `parking` module's pattern (OpenStreetMap import with `source` and `osm_id`, driver suggestions, staff
+  approval); SOS and what3words for the position; "navigate there" for a fixed garage; the maintenance and costing modules to
+  record the repair.
+- **Stages (rough, one developer):**
+  - **0. The company's own numbers (a few days):** a company sets its breakdown contacts in the portal (insurer or recovery
+    contract, preferred garage) and the app shows them first. Many firms already have a contract, so this comes before any
+    public list.
+  - **1. The list (1 to 1.5 weeks):** nearest garages with a call button, "navigate there", services (tyres, trailers, recovery,
+    mobile engineer, 24 hours) and a "last confirmed" date. Seeded from OpenStreetMap's `shop=truck_repair` and drivers'
+    suggestions, and approved by staff. The tag exists but the Great Britain count has not been checked: run a count first.
+  - **2. Garages claim a listing (3 to 4 weeks):** a verified badge, a service area for mobile engineers, opening hours, and a
+    small garage login. Billing would reuse the billing module if it can bill a second kind of customer: check.
+  - **3. A breakdown in the portal (3 to 5 weeks):** the driver taps "I've broken down", the dispatcher sees it, picks a garage
+    and approves the cost, and it links to the vehicle's maintenance record and the job cost.
+- **Earning from it (all small):** a monthly fee from a garage for a verified listing and a profile; a flat fee per call-out the
+  driver confirms ("Did they help?", because a tap on Call does not prove a call happened); and the fleet-side value, which is
+  probably the best return because it makes the portal harder to leave. **Skip "paid through us":** WagonWise holding the payment
+  brings payment-services regulation, disputes over the work, VAT and liability. Breakdowns that need outside help are rare: if 1
+  driver in 10 of 3,000 needed one a year that is about 300 call-outs, and at a £20 fee about £6,000 a year (an illustration, not
+  data). Garages will not pay much until the app has scale.
+- **Rules:** show "listed, not endorsed" and never promise cover or availability; share the driver's position with a garage only
+  when they tap; a paying garage never pushes a nearer one down the list; link to official motorway breakdown guidance (check its
+  wording first).
+- **Competition:** truck makers run their own 24-hour roadside services (Mercedes-Benz Trucks, MAN Mobile24), RAC has commercial
+  cover, and there are independent mobile mechanics. I found no single national directory, which does not prove there is not one.
+  The list helps owner-drivers, small firms and a driver stuck far from home.
+- **Next step (no code):** count `shop=truck_repair` in the North East and Cumbria, ring 10 to 20 garages to ask whether they want
+  to be listed, and decide the Stage 0 fields.
+
+### 8. Earning from the free driver app (the owner, 2026-10-26)
+
+- **The aim:** the driver app stays free, with no ads. Small partner earnings should cover running costs that grow with use (map,
+  routing, text and what3words fees, data feeds), so the portal's money is profit. A target to test, not a promise: with
+  placeholder numbers 3,000 active drivers earn about £1,300 a month, about 3% of what the portal would earn from a similar number
+  of vehicles. Set it against the real monthly bill when partners give real terms.
+- **Ground rules:** nothing commercial on the active trip screen or while moving; safety information (hazards, restrictions,
+  routes) is never ranked or hidden for a partner; every partner link is labelled and says WagonWise may earn a commission; no
+  driver data goes to a partner without a tap; one quiet row, no pop-ups or push messages; nothing regulated (insurance, credit)
+  until a solicitor has looked; link before integrating (the 13 October rule in ask 1).
+- **Start with two, as links:** pre-booked truck parking (ask 1) and a "Need a bed?" hotel link on the break plan. A hotel
+  affiliate pays a share of the booking site's own commission (one third-party source says up to about 40% at the top volume
+  tier; not checked against the booking site's terms).
+- **Later:** truck stop food, showers and washes; fuel offers after the fuel price feature (ask 2); Driver CPC training; gear such as
+  dash cams and tyres; breakdown help (ask 7). Fuel cards, telematics and tyres are firm-side purchases, so the portal is the better
+  place for those referrals.
+- **Not:** display or video ads, selling or sharing location or contact data, pay-to-rank in parking, fuel or routes, lead selling,
+  or insurance and credit offers.
+- **Money is unknown until asked:** no partner publishes a commission for parking, fuel cards or Driver CPC. Send the five
+  questions in ask 1 to SNAP, TRAVIS and Park Safe (add Bosch and Park Your Truck), and the equivalent to two hotel affiliate
+  networks. Apple and Google payment rules mostly cover digital goods; hotels and parking are real-world services, but check the
+  current wording before submitting.
 
 ## Themes
 
