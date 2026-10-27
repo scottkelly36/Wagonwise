@@ -59,6 +59,10 @@ Merging alone publishes nothing. Core and the portal go live before the app.
   SDK), portrait lock (ignored on tablets from Android 16; low priority).
 - **Keys that expire or cost:** the DVSA key is revoked if unused for 90 days and its secret expires every 2 years; what3words is
   1,000 lookups a month, used only when a driver taps Find or presses SOS.
+- **Fuel prices (GOV.UK Fuel Finder), started 2026-10-27:** the credentials are on core's `.env` and checked live; the `fuelprices` module
+  has the client and the join (see `modules.md`). Still to do: add `FUEL_FINDER_ID` and `FUEL_FINDER_SECRET` to core on DigitalOcean
+  (encrypted); the PostGIS copy and its refresh job; "cheapest diesel near here" in core, the driver BFF and the app; **read the
+  data licence and terms first** (not found in the docs). Prices can be over a week old, so show their age.
 - **Deferred, P2-M6.4c:** a reroute-alert indicator on the live map (needs reroute detection for company jobs). No Valhalla-backed
   check of the ETA and route preview.
 
