@@ -1,7 +1,7 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { FuelPrice, FuelSnapshot, FuelStation } from '../domain/fuel.js';
+import type { FuelPrice, FuelSnapshot, FuelStation, NearbyFuelQuery } from '../domain/fuel.js';
 import type { UntypedDb } from './db.js';
 import { PostgresFuelRepository } from './postgres-fuel-repository.js';
 import { applySchema } from './testing/apply-schema.js';
@@ -232,5 +232,98 @@ describe('PostgresFuelRepository', () => {
       await client.query('rollback');
       client.release();
     }
+  });
+
+  describe('asking for the cheapest fuel near a point', () => {
+    const HERE = { lat: 54.97, lon: -2.1 };
+    const ask = (overrides: Partial<NearbyFuelQuery> = {}): NearbyFuelQuery => ({
+      centre: HERE,
+      radiusM: 10_000,
+      fuelType: 'B7_STANDARD',
+      minPencePerLitre: undefined,
+      updatedSince: undefined,
+      limit: 20,
+      ...overrides,
+    });
+
+    beforeEach(async () => {
+      await repo().replaceAll(
+        {
+          stations: [
+            station('dear', { position: { lat: 54.97, lon: -2.1 } }),
+            station('cheap-far', { position: { lat: 55.0, lon: -2.1 } }),
+            station('cheap-near', { position: { lat: 54.98, lon: -2.1 } }),
+            station('closed', { closed: true }),
+            station('too-far', { position: { lat: 55.5, lon: -2.1 } }),
+            station('slip'),
+            station('bare', { brand: undefined, phone: undefined, amenities: [] }),
+          ],
+          prices: [
+            price('dear', 'B7_STANDARD', 205),
+            price('cheap-far', 'B7_STANDARD', 190, '2026-10-01T08:00:00.000Z'),
+            price('cheap-near', 'B7_STANDARD', 190),
+            price('cheap-near', 'E10', 150),
+            price('closed', 'B7_STANDARD', 150),
+            price('too-far', 'B7_STANDARD', 150),
+            price('slip', 'B7_STANDARD', 60),
+            price('bare', 'HVO', 210),
+          ],
+        },
+        T0,
+      );
+    });
+
+    it('lists open stations within the radius for the fuel, cheapest first and nearer first on a tie', async () => {
+      const found = await repo().findNearby(ask({ minPencePerLitre: 100 }));
+      expect(found.stations.map((s) => s.station.id)).toEqual(['cheap-near', 'cheap-far', 'dear']);
+      expect(found.stations.map((s) => s.pencePerLitre)).toEqual([190, 190, 205]);
+      expect(found.refreshedAt).toEqual(T0);
+    });
+
+    it('measures the distance in metres and returns the station as stored', async () => {
+      const found = await repo().findNearby(ask({ minPencePerLitre: 100, fuelType: 'E10' }));
+      expect(found.stations).toHaveLength(1);
+      const [only] = found.stations;
+      expect(only?.distanceM).toBeGreaterThan(1000);
+      expect(only?.distanceM).toBeLessThan(1200);
+      expect(only?.station).toEqual(station('cheap-near', { position: { lat: 54.98, lon: -2.1 } }));
+      expect(only?.updatedAt).toEqual(new Date('2026-10-27T08:00:00.000Z'));
+    });
+
+    it('hands back absent details as undefined, not null', async () => {
+      const found = await repo().findNearby(ask({ fuelType: 'HVO' }));
+      expect(found.stations[0]?.station).toEqual(
+        station('bare', { brand: undefined, phone: undefined, amenities: [] }),
+      );
+    });
+
+    it('leaves out prices under the floor and prices reported before the cut-off', async () => {
+      expect((await repo().findNearby(ask())).stations.map((s) => s.station.id)).toContain('slip');
+      const found = await repo().findNearby(
+        ask({
+          minPencePerLitre: 100,
+          updatedSince: new Date('2026-10-20T00:00:00.000Z'),
+        }),
+      );
+      expect(found.stations.map((s) => s.station.id)).toEqual(['cheap-near', 'dear']);
+    });
+
+    it('stops at the limit', async () => {
+      const found = await repo().findNearby(ask({ minPencePerLitre: 100, limit: 1 }));
+      expect(found.stations.map((s) => s.station.id)).toEqual(['cheap-near']);
+    });
+
+    it('works out the national median over open stations only', async () => {
+      // Diesel at open stations: 205, 190, 190, 150 (too-far still counts: it is open), 60 -> median 190.
+      expect(await repo().nationalMedian('B7_STANDARD')).toBe(190);
+      expect(await repo().nationalMedian('B10')).toBeUndefined();
+    });
+
+    it('answers with nothing, and no date, before the first refresh', async () => {
+      await pool.query('delete from fuelprices.stations');
+      await pool.query('delete from fuelprices.refreshes');
+      expect(await repo().findNearby(ask())).toEqual({ stations: [], refreshedAt: undefined });
+      expect(await repo().nationalMedian('B7_STANDARD')).toBeUndefined();
+    });
   });
 });

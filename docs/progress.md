@@ -61,7 +61,8 @@ Merging alone publishes nothing. Core and the portal go live before the app.
 - **Fuel prices (GOV.UK Fuel Finder), started 2026-10-27:** the credentials are on core's `.env` and checked live; the `fuelprices` module
   has the client, the join and our own copy in Postgres, refreshed hourly by a job in core (see `modules.md`). Still to do: add
   `FUEL_FINDER_ID` and `FUEL_FINDER_SECRET` to core on DigitalOcean (encrypted; the job starts when both are set, so the first
-  refresh runs on the next deploy); "cheapest diesel near here" in core, the driver BFF and the app; **read the data licence and
+  refresh runs on the next deploy); `POST /fuel/nearby` (cheapest first, in core and the driver BFF, built 2026-10-28) still needs the app
+  screens (map markers, a list, or both: the owner decides); **read the data licence and
   terms first** (not found in the docs). Prices can be over a week old, so show their age. Run one core instance only.
 - **Deferred, P2-M6.4c:** a reroute-alert indicator on the live map (needs reroute detection for company jobs). No Valhalla-backed
   check of the ETA and route preview.

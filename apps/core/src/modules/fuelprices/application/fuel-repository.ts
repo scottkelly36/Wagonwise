@@ -1,4 +1,4 @@
-import type { FuelSnapshot } from '../domain/fuel.js';
+import type { FuelSnapshot, FuelType, NearbyFuel, NearbyFuelQuery } from '../domain/fuel.js';
 
 export interface StoredFuelCounts {
   readonly stations: number;
@@ -7,7 +7,7 @@ export interface StoredFuelCounts {
   readonly refreshedAt: Date | undefined;
 }
 
-/** Our copy of Fuel Finder. Written only by the refresh job, in one piece. */
+/** Our copy of Fuel Finder. Written only by the refresh job, in one piece; read by drivers asking for the cheapest fuel. */
 export interface FuelRepository {
   /**
    * Makes the stored copy exactly the snapshot, atomically: a reader sees the old copy or the new one, never a mix, and a failure
@@ -15,4 +15,11 @@ export interface FuelRepository {
    */
   replaceAll(snapshot: FuelSnapshot, refreshedAt: Date): Promise<void>;
   counts(): Promise<StoredFuelCounts>;
+  /** The median price of one fuel across every open station in the country; undefined when no station has one. */
+  nationalMedian(fuelType: FuelType): Promise<number | undefined>;
+  /**
+   * Open stations within the radius that have a price for the fuel (at least `minPencePerLitre`, reported since `updatedSince`),
+   * cheapest first, nearer first among equals, at most `limit`.
+   */
+  findNearby(query: NearbyFuelQuery): Promise<NearbyFuel>;
 }

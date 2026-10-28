@@ -73,3 +73,36 @@ export function isPlausibleUkPosition(position: FuelPosition): boolean {
 export function isPlausiblePencePerLitre(price: number): boolean {
   return Number.isFinite(price) && price >= 50 && price <= 500;
 }
+
+/** What a driver asks for: the stations around a point selling one fuel, cheapest first. */
+export interface NearbyFuelQuery {
+  readonly centre: FuelPosition;
+  readonly radiusM: number;
+  readonly fuelType: FuelType;
+  /** Prices under this are left out (see {@link MIN_SHARE_OF_MEDIAN}); undefined when the country has no price to compare with. */
+  readonly minPencePerLitre: number | undefined;
+  /** Prices last reported before this moment are left out; undefined keeps every age. */
+  readonly updatedSince: Date | undefined;
+  readonly limit: number;
+}
+
+/** One station's price for the fuel asked about, with how far away it is in a straight line. */
+export interface NearbyFuelStation {
+  readonly station: FuelStation;
+  readonly pencePerLitre: number;
+  readonly updatedAt: Date;
+  readonly distanceM: number;
+}
+
+export interface NearbyFuel {
+  readonly stations: readonly NearbyFuelStation[];
+  /** When our copy of Fuel Finder was last replaced; undefined before the first refresh. */
+  readonly refreshedAt: Date | undefined;
+}
+
+/**
+ * A price under this share of the national median for its fuel is a typing slip (14.29 for 142.9, a missing digit), not a bargain:
+ * the lowest real diesel price seen was 142.9p against a median near 199p, 72% of it. A cheapest-first list would otherwise send
+ * a driver to the one station whose retailer slipped. High prices need no guard; they sort to the bottom.
+ */
+export const MIN_SHARE_OF_MEDIAN = 0.6;
