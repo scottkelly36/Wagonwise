@@ -24,6 +24,9 @@
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
         "track": "internal"
+      },
+      "ios": {
+        "appleTeamId": "5FW3CVS33S"
       }
     }
   }
