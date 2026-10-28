@@ -504,12 +504,12 @@ cancelled half way. A bad over-the-air update can be rolled back from the Expo d
 can only be superseded by a higher version. There is no staging copy of the app: a change is verified by CI
 and then goes to drivers when labelled. iOS is not included yet (see section 9c).
 
-## 9c. iPhone: the first TestFlight build (once Apple approves the developer account)
+## 9c. iPhone: the first TestFlight build
 
-Enrolment as an organisation was submitted on 2026-10-24. Nothing below can be done until Apple's approval email arrives and the
-membership shows as Active (the **Team ID** is then in Membership details on developer.apple.com; it is safe to share, a password is
-not). The app's iPhone settings are already in `app.config.ts` (bundle id `com.wagonwise.driverapp`, permission wording, no tablet
-support, the export-compliance answer). Steps, in order:
+Enrolment as an organisation (WagonWise Ltd) was submitted on 2026-10-24 and approved on 2026-10-28; the owner paid the fee. The
+**Team ID** is `5FW3CVS33S` (Membership details on developer.apple.com; it is safe to share, a password is not) and is set in
+`apps/driver-app/eas.json` under `submit.production.ios.appleTeamId`. The app's iPhone settings are in `app.config.ts` (bundle id
+`com.wagonwise.driverapp`, permission wording, no tablet support, the export-compliance answer). Steps, in order:
 
 1. **App Store Connect** (appstoreconnect.apple.com, same Apple Account): My Apps, New App. Platform iOS, name WagonWise, primary
    language English (UK), the bundle id above (it appears in the list once EAS has registered it in step 2; do step 2 first if it
