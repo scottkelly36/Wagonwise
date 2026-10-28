@@ -13,7 +13,7 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 ## Status (2026-10-26)
 
 - **Phase 1** (M1 foundations, M2 routing, M3 hazards, M4 BFF and sign-in, M5 driver app, M6 alerts, M7 voice, M8 field-ready, M9
-  route options and safe parking): done. Android is live (Play closed test, over-the-air updates). iOS waits on Apple.
+  route options and safe parking): done. Android is live (Play closed test, over-the-air updates). iOS: the Apple account is approved, first TestFlight build next.
 - **Phase 2** (staff accounts, fleet, jobs, live map, moderation, reports, privacy, spoken directions): done 2026-10-08, plus
   follow-ups (saved places, weather warnings, stored locations, several stops per job, emailed staff invitations).
 - **Phase 3** (`phase-3-scope.md`): built. Billing and invoices, Finances (WagonWise's own books), costing for a company (fuel
@@ -26,8 +26,8 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 
 ## Next up
 
-1. **App stores** (owner, waiting). Apple: enrolment for WagonWise Ltd submitted 2026-10-24, being processed; then
-   `deployment-guide.md` section 9c for the first TestFlight build (voice on iOS is untested). Google Play: the closed test runs
+1. **App stores** (owner). Apple: the WagonWise Ltd developer account was approved 2026-10-28 (Team ID in `eas.json`); next is
+   `deployment-guide.md` section 9c, the first TestFlight build (voice, push and SOS on iOS are untested). Google Play: the closed test runs
    with about 25 testers, and 12 or more must stay opted in for 14 days in a row before applying for production access.
 2. **Before the pilot, no code:** privacy notice, DPA and DPIA need the photo retention wording, **SOS** (position, name and
    contact sent to the company on a button press, kept 30 days after it closes, deleted with the account; WagonWise does not
