@@ -8,3 +8,4 @@
 GET  /health                                                      200
 GET  /jobs/current                                                401
 POST /jobs/00000000-0000-4000-8000-000000000000/navigation-profile 401
+POST /fuel/nearby                                                 401
