@@ -84,6 +84,11 @@
       "import": "./dist/places.js",
       "default": "./dist/places.js"
     },
+    "./fuel": {
+      "types": "./dist/fuel.d.ts",
+      "import": "./dist/fuel.js",
+      "default": "./dist/fuel.js"
+    },
     "./cameras": {
       "types": "./dist/cameras.d.ts",
       "import": "./dist/cameras.js",

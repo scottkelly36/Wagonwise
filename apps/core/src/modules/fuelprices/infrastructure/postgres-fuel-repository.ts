@@ -1,7 +1,52 @@
 import { sql } from 'kysely';
 import type { FuelRepository, StoredFuelCounts } from '../application/fuel-repository.js';
-import type { FuelSnapshot } from '../domain/fuel.js';
+import type {
+  FuelSnapshot,
+  FuelType,
+  NearbyFuel,
+  NearbyFuelQuery,
+  NearbyFuelStation,
+} from '../domain/fuel.js';
 import type { UntypedDb } from './db.js';
+
+interface NearbyRow {
+  readonly id: string;
+  readonly name: string;
+  readonly brand: string | null;
+  readonly address_line: string | null;
+  readonly city: string | null;
+  readonly postcode: string | null;
+  readonly phone: string | null;
+  readonly lat: number;
+  readonly lon: number;
+  readonly is_motorway: boolean;
+  readonly is_supermarket: boolean;
+  readonly closed: boolean;
+  readonly amenities: string[];
+  readonly pence: number;
+  readonly updated_at: Date;
+  readonly distance_m: number;
+}
+
+const toNearby = (row: NearbyRow): NearbyFuelStation => ({
+  station: {
+    id: row.id,
+    name: row.name,
+    brand: row.brand ?? undefined,
+    addressLine: row.address_line ?? undefined,
+    city: row.city ?? undefined,
+    postcode: row.postcode ?? undefined,
+    phone: row.phone ?? undefined,
+    position: { lat: row.lat, lon: row.lon },
+    isMotorway: row.is_motorway,
+    isSupermarket: row.is_supermarket,
+    closed: row.closed,
+    amenities: row.amenities,
+  },
+  pencePerLitre: row.pence,
+  updatedAt: row.updated_at,
+  distanceM: row.distance_m,
+});
 
 /** Rows sent to Postgres per statement: a country is about 8,000 stations and 26,000 prices, so a few dozen statements. */
 const CHUNK = 1000;
@@ -88,6 +133,51 @@ export class PostgresFuelRepository implements FuelRepository {
           refreshed_at = excluded.refreshed_at, stations = excluded.stations, prices = excluded.prices
       `.execute(trx);
     });
+  }
+
+  async nationalMedian(fuelType: FuelType): Promise<number | undefined> {
+    const { rows } = await sql<{ median: number | null }>`
+      select percentile_cont(0.5) within group (order by p.pence_per_litre)::float8 as median
+      from fuelprices.prices p
+      join fuelprices.stations s on s.id = p.station_id
+      where p.fuel_type = ${fuelType} and not s.closed
+    `.execute(this.db);
+    return rows[0]?.median ?? undefined;
+  }
+
+  async findNearby(query: NearbyFuelQuery): Promise<NearbyFuel> {
+    const centre = sql`ST_SetSRID(ST_MakePoint(${query.centre.lon}, ${query.centre.lat}), 4326)::geography`;
+    const notTooCheap =
+      query.minPencePerLitre === undefined
+        ? sql``
+        : sql`and p.pence_per_litre >= ${query.minPencePerLitre}`;
+    const notTooOld =
+      query.updatedSince === undefined
+        ? sql``
+        : sql`and p.updated_at >= ${query.updatedSince.toISOString()}::timestamptz`;
+    const { rows } = await sql<NearbyRow>`
+      select s.id, s.name, s.brand, s.address_line, s.city, s.postcode, s.phone,
+             ST_Y(s.location::geometry) as lat, ST_X(s.location::geometry) as lon,
+             s.is_motorway, s.is_supermarket, s.closed, s.amenities,
+             p.pence_per_litre::float8 as pence, p.updated_at,
+             ST_Distance(s.location, ${centre}) as distance_m
+      from fuelprices.stations s
+      join fuelprices.prices p on p.station_id = s.id
+      where p.fuel_type = ${query.fuelType}
+        and not s.closed
+        and ST_DWithin(s.location, ${centre}, ${query.radiusM})
+        ${notTooCheap}
+        ${notTooOld}
+      order by p.pence_per_litre, distance_m, s.id
+      limit ${query.limit}
+    `.execute(this.db);
+    const refreshed = await sql<{ refreshed_at: Date }>`
+      select refreshed_at from fuelprices.refreshes
+    `.execute(this.db);
+    return {
+      stations: rows.map(toNearby),
+      refreshedAt: refreshed.rows[0]?.refreshed_at ?? undefined,
+    };
   }
 
   async counts(): Promise<StoredFuelCounts> {

@@ -868,6 +868,7 @@ export function composeCore(
   companies.registerRoutes(app);
   parking.registerRoutes(app);
   cameras.registerRoutes(app);
+  fuelPrices.registerRoutes(app);
   fleet.registerRoutes(app);
   jobs.registerRoutes(app);
   places.registerRoutes(app);

@@ -1,3 +1,4 @@
+import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { Result } from '../../shared/result.js';
 import type { FuelRepository } from './application/fuel-repository.js';
@@ -14,6 +15,7 @@ import {
   type FuelFinderCredentials,
 } from './infrastructure/fuel-finder-client.js';
 import { PostgresFuelRepository } from './infrastructure/postgres-fuel-repository.js';
+import { registerFuelRoutes } from './interface/routes.js';
 
 // Re-exported so composition/ can type its wiring without reaching past this facade.
 export type { UntypedDb } from './infrastructure/db.js';
@@ -50,6 +52,8 @@ export interface FuelPricesModule {
    * fetch or an answer that is clearly too small leaves the last good copy in place and comes back as an error value.
    */
   refresh(): Promise<Result<RefreshSummary, RefreshError>>;
+  /** `POST /fuel/nearby`: the cheapest stations around a point for one fuel, from the stored copy. */
+  registerRoutes(app: FastifyInstance): void;
 }
 
 /** `fuelprices`' only public surface (AGENTS.md rule 6): pump prices by station from GOV.UK Fuel Finder, kept as our own copy. */
@@ -63,5 +67,8 @@ export function createFuelPricesModule(deps: FuelPricesModuleDeps): FuelPricesMo
   return {
     enabled: source.enabled,
     refresh: () => refreshFuelPrices({ source, repo, clock: deps.clock }),
+    registerRoutes(app) {
+      registerFuelRoutes(app, { repo, clock: deps.clock });
+    },
   };
 }
