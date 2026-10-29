@@ -70,9 +70,10 @@ describe('Nearby fuel list', () => {
   it('lists the cheapest first, with each price and when it was reported', async () => {
     await render(<NearbyFuelScreen />);
     expect(rowIds()).toEqual(['cheap', 'dear']);
-    expect(screen.getByText(/189\.9p/)).toBeTruthy();
-    expect(screen.getByText('Updated 2 hours ago')).toBeTruthy();
-    expect(screen.getByText('Updated yesterday')).toBeTruthy();
+    expect(screen.getByText(/189.9p a litre/)).toBeTruthy();
+    expect(screen.getAllByText(/Diesel/).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/Updated 2 hours ago/)).toBeTruthy();
+    expect(screen.getByText(/Updated yesterday/)).toBeTruthy();
   });
 
   it('switches to the closest first', async () => {

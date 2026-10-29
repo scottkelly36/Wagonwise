@@ -172,25 +172,28 @@ function FuelRow({
       disabled={disabled}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${stationTitle(station)}, ${priceText(station.pencePerLitre)} a litre, ${shortDistance(station.distanceM)} away. Take me there`}
+      accessibilityLabel={`${stationTitle(station)}, diesel ${priceText(station.pencePerLitre)} a litre, ${shortDistance(station.distanceM)} away. Take me there`}
       testID={`fuel-row-${station.id}`}
     >
       <View style={styles.badge}>
         <Icon name="gas-station" size={28} color={FUEL_COLOUR} />
       </View>
       <View style={styles.rowText}>
-        <Text style={styles.price}>
-          {priceText(station.pencePerLitre)}
-          {cheapest && <Text style={styles.cheapest}>{'  Cheapest'}</Text>}
-        </Text>
+        <View style={styles.priceRow}>
+          <Text style={styles.price}>
+            {priceText(station.pencePerLitre)}
+            <Text style={styles.perLitre}> a litre</Text>
+          </Text>
+          <Text style={styles.distance}>{shortDistance(station.distanceM)}</Text>
+        </View>
         <Text style={styles.title} numberOfLines={1}>
           {stationTitle(station)}
-          <Text style={styles.distance}>
-            {'  ·  '}
-            {shortDistance(station.distanceM)} away
-          </Text>
+          {cheapest && <Text style={styles.cheapest}>{'  Cheapest'}</Text>}
         </Text>
-        <Text style={styles.updated}>{updatedText(station.priceUpdatedAt, now)}</Text>
+        <Text style={styles.updated}>
+          Diesel{'  ·  '}
+          {updatedText(station.priceUpdatedAt, now)}
+        </Text>
       </View>
       <Icon name="chevron-right" size={26} color={colors.textMuted} />
     </TouchableOpacity>
@@ -232,10 +235,12 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
     },
     rowText: { flex: 1 },
+    priceRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+    distance: { fontSize: 16, fontWeight: '600', color: colors.textMuted },
     price: { fontSize: 24, fontWeight: '800', color: colors.text },
+    perLitre: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
     cheapest: { fontSize: 14, fontWeight: '700', color: colors.accentGreen },
     title: { fontSize: 16, fontWeight: '600', color: colors.textSecondary, marginTop: 2 },
-    distance: { fontSize: 15, fontWeight: '500', color: colors.textMuted },
     updated: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
     message: { fontSize: 16, color: colors.textMuted, textAlign: 'center', marginTop: 16 },
     note: { fontSize: 13, color: colors.textDim, textAlign: 'center' },
