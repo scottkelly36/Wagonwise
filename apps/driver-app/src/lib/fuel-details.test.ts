@@ -3,6 +3,8 @@ import type { FuelStationDto } from '@wagonwise/contracts/fuel';
 import {
   addressText,
   FUEL_MAX_AGE_DAYS,
+  fuelName,
+  fuelTypeFor,
   priceText,
   sortFuel,
   stationTitle,
@@ -92,6 +94,18 @@ describe('sortFuel', () => {
     const before = list.map((s) => s.id);
     sortFuel(list, 'closest');
     expect(list.map((s) => s.id)).toEqual(before);
+  });
+});
+
+describe('fuelTypeFor and fuelName', () => {
+  it('maps diesel to ordinary diesel and petrol to E10', () => {
+    expect(fuelTypeFor('diesel')).toBe('B7_STANDARD');
+    expect(fuelTypeFor('petrol')).toBe('E10');
+  });
+
+  it('names each choice', () => {
+    expect(fuelName('diesel')).toBe('Diesel');
+    expect(fuelName('petrol')).toBe('Petrol');
   });
 });
 

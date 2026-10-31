@@ -3,11 +3,16 @@ import type { FuelStationDto } from '@wagonwise/contracts/fuel';
 
 import NearbyFuelScreen from '../app/nearby-fuel';
 import { FuelStationDrawer } from '../components/fuel-station-drawer';
+import { useFuelChoiceStore } from '../state/fuel-choice-store';
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), back: jest.fn() }) }));
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual<object>('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn(),
 }));
 jest.mock('../hooks/use-current-location', () => ({
   useCurrentLocation: () => ({ status: 'ready', point: { lat: 54.97, lon: -2.1 } }),
@@ -58,6 +63,7 @@ const cheap = station({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  useFuelChoiceStore.setState({ choice: 'diesel' });
   mockFuel = { data: { stations: [dear, cheap] }, isPending: false, isError: false };
 });
 
@@ -80,6 +86,16 @@ describe('Nearby fuel list', () => {
     await render(<NearbyFuelScreen />);
     await fireEvent.press(screen.getByTestId('fuel-order-closest'));
     expect(rowIds()).toEqual(['dear', 'cheap']);
+  });
+
+  it('switches between diesel and petrol, naming the fuel on every row', async () => {
+    await render(<NearbyFuelScreen />);
+    expect(screen.getByText('Diesel prices from the last week')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('fuel-choice-petrol'));
+    expect(useFuelChoiceStore.getState().choice).toBe('petrol');
+    expect(screen.getByText('Petrol prices from the last week')).toBeTruthy();
+    expect(screen.getAllByText(/Petrol\s+·/)).toHaveLength(2);
+    expect(screen.queryAllByText(/Diesel\s+·/)).toHaveLength(0);
   });
 
   it('takes the driver to the station that was tapped', async () => {
@@ -109,6 +125,13 @@ describe('Fuel station drawer', () => {
     expect(screen.getByTestId('fuel-updated')).toHaveTextContent('Updated yesterday');
     await fireEvent.press(screen.getByTestId('fuel-navigate-button'));
     expect(onNavigate).toHaveBeenCalledWith(cheap);
+  });
+
+  it('names petrol when that is the driver’s fuel', async () => {
+    useFuelChoiceStore.setState({ choice: 'petrol' });
+    await render(<FuelStationDrawer station={cheap} onClose={jest.fn()} onNavigate={jest.fn()} />);
+    expect(screen.getByText('Petrol')).toBeTruthy();
+    expect(screen.queryByText('Diesel')).toBeNull();
   });
 
   it('is closed with no station', async () => {
