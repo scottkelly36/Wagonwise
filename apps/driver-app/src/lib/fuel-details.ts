@@ -1,4 +1,4 @@
-import type { FuelStationDto } from '@wagonwise/contracts/fuel';
+import type { FuelStationDto, FuelTypeDto } from '@wagonwise/contracts/fuel';
 
 /**
  * Prices older than this are not asked for at all: many stations report rarely, and a price from last month says nothing about
@@ -13,6 +13,24 @@ export const FUEL_CREDIT = 'Prices from GOV.UK Fuel Finder, as the stations repo
 export const FUEL_ACCESS_NOTE = 'Fuel Finder does not say if a lorry fits. Check the entrance.';
 
 export type FuelOrder = 'cheapest' | 'closest';
+
+/** What a driver picks between: diesel (a lorry's grade) or petrol (a van or car's). */
+export type FuelChoice = 'diesel' | 'petrol';
+
+export const FUEL_CHOICES: readonly { readonly key: FuelChoice; readonly label: string }[] = [
+  { key: 'diesel', label: 'Diesel' },
+  { key: 'petrol', label: 'Petrol' },
+];
+
+/** The Fuel Finder grade behind each choice: ordinary diesel, and E10, the unleaded petrol every pump sells. */
+export function fuelTypeFor(choice: FuelChoice): FuelTypeDto {
+  return choice === 'diesel' ? 'B7_STANDARD' : 'E10';
+}
+
+/** The choice in words, for headings and labels. */
+export function fuelName(choice: FuelChoice): string {
+  return choice === 'diesel' ? 'Diesel' : 'Petrol';
+}
 
 const MS_PER_MINUTE = 60_000;
 const MS_PER_HOUR = 60 * MS_PER_MINUTE;

@@ -14,11 +14,13 @@ import {
   addressText,
   FUEL_ACCESS_NOTE,
   FUEL_CREDIT,
+  fuelName,
   priceText,
   stationTitle,
   updatedText,
 } from '../lib/fuel-details';
 import { shortDistance } from '../lib/uk-distance';
+import { useFuelChoiceStore } from '../state/fuel-choice-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
 import { FUEL_COLOUR } from './fuel-colour';
@@ -33,7 +35,7 @@ interface Props {
 }
 
 /**
- * A fuel station's diesel price as a bottom drawer, the same pattern as `ParkingSpotDrawer`. The station is already in the list the
+ * A fuel station's price for the driver's fuel (diesel or petrol) as a bottom drawer, the same pattern as `ParkingSpotDrawer`. The station is already in the list the
  * map drew its marker from, so there is nothing to fetch. The price always carries when the station reported it.
  */
 export function FuelStationDrawer({
@@ -45,6 +47,7 @@ export function FuelStationDrawer({
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const choice = useFuelChoiceStore((s) => s.choice);
   const address = station === undefined ? undefined : addressText(station);
 
   return (
@@ -69,7 +72,7 @@ export function FuelStationDrawer({
               <Text style={styles.title} numberOfLines={2}>
                 {station === undefined ? 'Fuel' : stationTitle(station)}
               </Text>
-              <Text style={styles.status}>Diesel</Text>
+              <Text style={styles.status}>{fuelName(choice)}</Text>
             </View>
           </View>
 
