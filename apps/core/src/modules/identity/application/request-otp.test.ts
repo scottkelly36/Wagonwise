@@ -17,6 +17,7 @@ function buildDeps(overrides: Partial<RequestOtpDeps> = {}): RequestOtpDeps {
     otpRepo: new InMemoryOtpRepository(),
     otpSender: new FakeOtpSender(),
     otpCodeGenerator: new SequentialOtpCodeGenerator(),
+    inviteRequired: true,
     clock: new FakeClock('2026-06-15T08:00:00.000Z'),
     ids: new SequentialIdGenerator(),
     ...overrides,
@@ -90,6 +91,15 @@ describe('requestOtp', () => {
 
     const sender = deps.otpSender as FakeOtpSender;
     expect(sender.sent).toEqual([{ identifier: 'new@example.com', code: '000001' }]);
+  });
+
+  it('sends a code for a new identifier with no invite code at all when codes are switched off', async () => {
+    const deps = buildDeps({ inviteRequired: false });
+    const result = await requestOtp(deps, { identifier: 'new@example.com' });
+    expect(result).toEqual({ ok: true, value: undefined });
+    expect((deps.otpSender as FakeOtpSender).sent).toEqual([
+      { identifier: 'new@example.com', code: '000001' },
+    ]);
   });
 
   it('sends a code for an existing driver without needing an invite code', async () => {

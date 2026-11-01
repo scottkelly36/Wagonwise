@@ -33,6 +33,8 @@ export interface VerifyOtpDeps {
   readonly tokenSigner: TokenSigner;
   readonly refreshTokenGenerator: RefreshTokenGenerator;
   readonly unitOfWork: UnitOfWork;
+  /** `DRIVER_INVITE_REQUIRED`: false lets a new driver in with no code. */
+  readonly inviteRequired: boolean;
   readonly clock: Clock;
   readonly ids: IdGenerator;
 }
@@ -122,12 +124,17 @@ async function createDriverFromInvite(
   inviteCode: string | undefined,
   now: Date,
 ): Promise<Result<Driver, InviteCodeRequired | InvalidInviteCode>> {
-  if (!inviteCode) {
-    return err({ tag: 'InviteCodeRequired' });
-  }
-  const invite = await deps.inviteCodeRepo.findByCode(inviteCode);
-  if (!invite || isRedeemed(invite)) {
-    return err({ tag: 'InvalidInviteCode' });
+  // With codes optional, a valid unused code typed anyway is still redeemed (it records which tester signed up); a missing or
+  // wrong one is simply ignored.
+  let invite = inviteCode ? await deps.inviteCodeRepo.findByCode(inviteCode) : null;
+  if (invite && isRedeemed(invite)) invite = null;
+  if (deps.inviteRequired) {
+    if (!inviteCode) {
+      return err({ tag: 'InviteCodeRequired' });
+    }
+    if (!invite) {
+      return err({ tag: 'InvalidInviteCode' });
+    }
   }
 
   const driverId: DriverId = makeId<'DriverId'>(deps.ids.newId());
@@ -136,8 +143,8 @@ async function createDriverFromInvite(
     identifier,
     createdAt: now,
   };
-  const redeemed = redeem(invite, driverId, now);
-  if (!redeemed.ok) {
+  const redeemed = invite ? redeem(invite, driverId, now) : null;
+  if (redeemed && !redeemed.ok) {
     // Lost a race with another verify() call for the same code, between the check above and
     // here — rare at Phase 1 scale. Not a domain Result: there is no sane per-driver response,
     // so this surfaces as a thrown (infra-level) error and the caller retries with a fresh code.
@@ -146,7 +153,7 @@ async function createDriverFromInvite(
 
   await deps.unitOfWork.run(async (tx) => {
     await deps.driverRepo.save(newDriver, tx);
-    await deps.inviteCodeRepo.save(redeemed.value, tx);
+    if (redeemed?.ok) await deps.inviteCodeRepo.save(redeemed.value, tx);
   });
   return ok(newDriver);
 }

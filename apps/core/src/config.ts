@@ -87,6 +87,11 @@ const envSchema = z.object({
   // Optional: the what3words key (three words to a spot, and a spot to three words). Unset means no lookup. Server-side only; never
   // sent to an app. The Basic plan allows 1,000 lookups a month, so the app asks only when the driver asks.
   W3W_API_KEY: z.string().min(1).optional(),
+  // Whether a driver's first sign-in needs an invite code. Default true; 'false' opens sign-up (the released app already sends no
+  // code when its box is empty, so this works with no app update). A valid code typed anyway is still redeemed.
+  DRIVER_INVITE_REQUIRED: z.enum(['true', 'false']).default('true'),
+  // Registers the password and emailed-code sign-in routes (docs/driver-sign-in-plan.md). Off until the app can use them.
+  DRIVER_PASSWORD_SIGN_IN: z.enum(['true', 'false']).default('false'),
   // Where to email the owner when Resend reports a sign-in email that did not get through. Unset: the problem is only logged.
   ALERT_EMAIL: z.string().trim().email().optional(),
   // Optional: the DVLA Vehicle Enquiry Service key (MOT and road tax dates by registration). Unset means the portal does not
@@ -179,6 +184,10 @@ export interface Config {
   readonly tomtomApiKey: string | undefined;
   /** Where email-delivery alerts go; undefined means they are only logged. */
   readonly alertEmail: string | undefined;
+  /** False opens sign-up with no invite code. */
+  readonly driverInviteRequired: boolean;
+  /** True registers the password sign-in routes. */
+  readonly driverPasswordSignIn: boolean;
   readonly dvlaVesApiKey: string | undefined;
   /** DVSA's MOT history API: undefined unless all four of its settings are set. */
   readonly dvsaMot:
@@ -272,6 +281,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     tomtomApiKey: values.TOMTOM_API_KEY,
     what3wordsApiKey: values.W3W_API_KEY,
     alertEmail: values.ALERT_EMAIL,
+    driverInviteRequired: values.DRIVER_INVITE_REQUIRED === 'true',
+    driverPasswordSignIn: values.DRIVER_PASSWORD_SIGN_IN === 'true',
     dvlaVesApiKey: values.DVLA_VES_API_KEY,
     dvsaMot:
       values.DVSA_MOT_CLIENT_ID === undefined ||

@@ -18,6 +18,8 @@ export interface RequestOtpDeps {
   readonly otpRepo: OtpRepository;
   readonly otpSender: OtpSender;
   readonly otpCodeGenerator: OtpCodeGenerator;
+  /** `DRIVER_INVITE_REQUIRED`: false lets a new driver in with no code. */
+  readonly inviteRequired: boolean;
   readonly clock: Clock;
   readonly ids: IdGenerator;
 }
@@ -52,7 +54,7 @@ export async function requestOtp(
   // round: find it either way, and use the form it is stored under for the code, so sign-in finds the same code.
   const existingDriver = await deps.driverRepo.findByAnyIdentifier(forms.value);
   const identifier = existingDriver?.identifier ?? forms.value[0];
-  if (!existingDriver) {
+  if (!existingDriver && deps.inviteRequired) {
     if (!input.inviteCode) {
       return err({ tag: 'InviteCodeRequired' });
     }

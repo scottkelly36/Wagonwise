@@ -78,6 +78,8 @@ export interface IdentityModuleDeps {
    *  with a fake) for tests or a local run that shouldn't reach ClickSend's/Resend's real
    *  endpoints. */
   readonly otpSender?: OtpSender | undefined;
+  /** Does a first sign-in need an invite code? (`DRIVER_INVITE_REQUIRED`) */
+  readonly inviteRequired: boolean;
 }
 
 export interface IdentityModule {
@@ -156,6 +158,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
       otpRepo,
       otpSender,
       otpCodeGenerator,
+      inviteRequired: deps.inviteRequired,
       clock: deps.clock,
       ids: deps.ids,
     },
@@ -167,6 +170,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
       tokenSigner: deps.tokenSigner,
       refreshTokenGenerator,
       unitOfWork: deps.unitOfWork,
+      inviteRequired: deps.inviteRequired,
       clock: deps.clock,
       ids: deps.ids,
     },
