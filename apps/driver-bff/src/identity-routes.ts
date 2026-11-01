@@ -1,7 +1,18 @@
 import {
+  confirmSignupRequestSchema,
+  passwordResetConfirmRequestSchema,
+  passwordResetRequestRequestSchema,
+  passwordSignInRequestSchema,
+  passwordVerifyRequestSchema,
   refreshTokenRequestSchema,
   registerDeviceRequestSchema,
   setDriverNameRequestSchema,
+  setPasswordRequestSchema,
+  signupRequestRequestSchema,
+  addEmailRequestSchema,
+  confirmEmailRequestSchema,
+  linkSocialRequestSchema,
+  socialSignInRequestSchema,
   requestOtpRequestSchema,
   revokeSessionParamsSchema,
   verifyOtpRequestSchema,
@@ -16,6 +27,27 @@ export interface IdentityRouteDeps {
   readonly accessTokenVerifier: AccessTokenVerifier;
 }
 
+/**
+ * The email-and-password sign-in steps (docs/driver-sign-in-plan.md): before any token exists, so nothing to verify here, only the shape.
+ * Core registers them only when `DRIVER_PASSWORD_SIGN_IN` is on; with it off core answers 404 and this relays that.
+ */
+const PASSWORD_SIGN_IN_ROUTES = [
+  ['/identity/signup/request', signupRequestRequestSchema],
+  ['/identity/signup/confirm', confirmSignupRequestSchema],
+  ['/identity/password/sign-in', passwordSignInRequestSchema],
+  ['/identity/password/verify', passwordVerifyRequestSchema],
+  ['/identity/password/reset/request', passwordResetRequestRequestSchema],
+  ['/identity/password/reset/confirm', passwordResetConfirmRequestSchema],
+  ['/identity/social/sign-in', socialSignInRequestSchema],
+] as const;
+
+/** Routes that need a signed-in driver; core takes the driver id from the verified token. */
+const ACCOUNT_LINK_ROUTES = [
+  ['/identity/account/link/social', linkSocialRequestSchema],
+  ['/identity/account/email/request', addEmailRequestSchema],
+  ['/identity/account/email/confirm', confirmEmailRequestSchema],
+] as const;
+
 const BEARER_PREFIX = 'Bearer ';
 
 function bearerToken(header: string | undefined): string | undefined {
@@ -28,6 +60,50 @@ function bearerToken(header: string | undefined): string | undefined {
  * relays core's status and body back unchanged; core is what actually decides anything.
  */
 export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRouteDeps): void {
+  for (const [path, schema] of PASSWORD_SIGN_IN_ROUTES) {
+    app.post(path, async (request, reply) => {
+      const parsed = schema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+      }
+      const core = await deps.coreClient.request('POST', path, request.id, { body: parsed.data });
+      return reply.status(core.status).send(core.body);
+    });
+  }
+
+  // A signed-in driver adds a sign-in method to their account (docs/driver-sign-in-plan.md).
+  for (const [path, schema] of ACCOUNT_LINK_ROUTES) {
+    app.post(path, async (request, reply) => {
+      const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+      if (token === undefined) return reply;
+
+      const parsed = schema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+      }
+      const core = await deps.coreClient.request('POST', path, request.id, {
+        body: parsed.data,
+        authorization: `Bearer ${token}`,
+      });
+      return reply.status(core.status).send(core.body);
+    });
+  }
+
+  app.put('/identity/account/password', async (request, reply) => {
+    const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+    if (token === undefined) return reply;
+
+    const parsed = setPasswordRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request('PUT', '/identity/account/password', request.id, {
+      body: parsed.data,
+      authorization: `Bearer ${token}`,
+    });
+    return reply.status(core.status).send(core.body);
+  });
+
   app.post('/identity/otp/request', async (request, reply) => {
     const parsed = requestOtpRequestSchema.safeParse(request.body);
     if (!parsed.success) {

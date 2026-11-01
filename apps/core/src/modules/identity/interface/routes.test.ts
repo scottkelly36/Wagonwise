@@ -6,6 +6,8 @@ import { InMemoryUnitOfWork } from '../../../shared/testing/in-memory-unit-of-wo
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { InviteCode } from '../domain/invite-code.js';
 import { RecordingDriverDataEraser } from '../application/testing/recording-driver-data-eraser.js';
+import { InMemoryCredentialRepository } from '../application/testing/in-memory-credential-repository.js';
+import { InMemoryFederatedIdentityRepository } from '../application/testing/in-memory-federated-identity-repository.js';
 import { InMemoryDeviceRepository } from '../application/testing/in-memory-device-repository.js';
 import { InMemoryDriverRepository } from '../application/testing/in-memory-driver-repository.js';
 import { InMemoryInviteCodeRepository } from '../application/testing/in-memory-invite-code-repository.js';
@@ -47,6 +49,7 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
   const otpRepo = new InMemoryOtpRepository();
   const sessionRepo = new InMemorySessionRepository();
   const deviceRepo = new InMemoryDeviceRepository();
+  const credentialRepo = new InMemoryCredentialRepository();
   const clock = new FakeClock(now);
   const ids = new SequentialIdGenerator();
   const tokenSigner = new FakeTokenSigner();
@@ -57,20 +60,24 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
     requestOtp: {
       driverRepo,
       inviteCodeRepo,
+      credentialRepo,
       otpRepo,
       otpSender: new FakeOtpSender(),
       otpCodeGenerator: new SequentialOtpCodeGenerator(),
+      inviteRequired: true,
       clock,
       ids,
     },
     verifyOtp: {
       driverRepo,
       inviteCodeRepo,
+      credentialRepo,
       otpRepo,
       sessionRepo,
       tokenSigner,
       refreshTokenGenerator,
       unitOfWork: new InMemoryUnitOfWork(),
+      inviteRequired: true,
       clock,
       ids,
     },
@@ -83,6 +90,8 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
       driverRepo,
       sessionRepo,
       deviceRepo,
+      credentialRepo,
+      federatedRepo: new InMemoryFederatedIdentityRepository(),
       dataEraser: new RecordingDriverDataEraser(),
       clock,
     },
