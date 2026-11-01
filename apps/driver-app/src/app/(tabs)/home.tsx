@@ -12,6 +12,7 @@ import { useNearbySafeParkingSpots } from '../../api/use-parking';
 import { HazardDetailDrawer } from '../../components/hazard-detail-drawer';
 import { useNavigateToPlace } from '../../hooks/use-navigate-to-spot';
 import { useDrivingProfileId } from '../../hooks/use-parking-drive-times';
+import { FuelChoiceSwitch } from '../../components/fuel-choice-switch';
 import { FuelStationDrawer } from '../../components/fuel-station-drawer';
 import { ParkingSpotDrawer } from '../../components/parking-spot-drawer';
 import { MarkPlaceSheet } from '../../components/mark-place-sheet';
@@ -329,6 +330,7 @@ export default function HomeScreen() {
               colors={colors}
             />
             <LayerRow label="Fuel" value={showFuel} onChange={setShowFuel} colors={colors} />
+            {showFuel && <FuelChoiceSwitch compact />}
             <LayerRow label="Lay-bys" value={showLaybys} onChange={setShowLaybys} colors={colors} />
           </View>
         )}

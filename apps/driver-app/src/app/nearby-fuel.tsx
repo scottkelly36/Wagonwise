@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useNearbyFuel } from '../api/use-fuel';
 import { FUEL_COLOUR } from '../components/fuel-colour';
+import { FuelChoiceSwitch } from '../components/fuel-choice-switch';
 import { Icon } from '../components/ui/icon';
 import { ScreenHeader } from '../components/ui/screen-header';
 import { useCurrentLocation } from '../hooks/use-current-location';
@@ -22,6 +23,7 @@ import { jobNavigationErrorMessage } from '../lib/error-messages';
 import {
   FUEL_ACCESS_NOTE,
   FUEL_CREDIT,
+  fuelName,
   priceText,
   sortFuel,
   stationTitle,
@@ -29,6 +31,7 @@ import {
   type FuelOrder,
 } from '../lib/fuel-details';
 import { shortDistance } from '../lib/uk-distance';
+import { useFuelChoiceStore } from '../state/fuel-choice-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle } from '../theme/tokens';
 
@@ -43,7 +46,7 @@ const ORDERS: readonly { readonly key: FuelOrder; readonly label: string }[] = [
 ];
 
 /**
- * Nearby fuel: the diesel prices around the driver, cheapest or closest first, each with how long ago the station reported it.
+ * Nearby fuel: the diesel or petrol prices around the driver, cheapest or closest first, each with how long ago the station reported it.
  * Tapping a station plans the route and opens the trip screen, as nearby parking does. Only prices from the last week are asked
  * for (`FUEL_MAX_AGE_DAYS`).
  */
@@ -52,6 +55,7 @@ export default function NearbyFuelScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [order, setOrder] = useState<FuelOrder>('cheapest');
+  const fuelLabel = fuelName(useFuelChoiceStore((s) => s.choice));
   const fuel = useNearbyFuel(location.point, SEARCH_RADIUS_M, LIST_LIMIT);
   const profileId = useDrivingProfileId();
   const navigate = useNavigateToPlace(profileId);
@@ -67,7 +71,7 @@ export default function NearbyFuelScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.header}>
-        <ScreenHeader title="Nearby fuel" subtitle="Diesel prices from the last week" />
+        <ScreenHeader title="Nearby fuel" subtitle={`${fuelLabel} prices from the last week`} />
       </View>
       <ScrollView
         contentContainerStyle={styles.content}
@@ -79,6 +83,7 @@ export default function NearbyFuelScreen() {
           />
         }
       >
+        <FuelChoiceSwitch />
         <View style={styles.orderRow}>
           {ORDERS.map((o) => (
             <TouchableOpacity
@@ -112,7 +117,7 @@ export default function NearbyFuelScreen() {
 
         {!loading && location.point !== undefined && !fuel.isError && rows.length === 0 && (
           <Text style={styles.message} testID="nearby-fuel-empty">
-            No recent diesel prices near you. Try again later.
+            No recent {fuelLabel.toLowerCase()} prices near you. Try again later.
           </Text>
         )}
 
@@ -121,6 +126,7 @@ export default function NearbyFuelScreen() {
             key={station.id}
             station={station}
             cheapest={station.id === cheapestId}
+            fuelLabel={fuelLabel}
             now={now}
             styles={styles}
             colors={colors}
@@ -152,6 +158,7 @@ export default function NearbyFuelScreen() {
 function FuelRow({
   station,
   cheapest,
+  fuelLabel,
   now,
   styles,
   colors,
@@ -160,6 +167,7 @@ function FuelRow({
 }: {
   station: FuelStationDto;
   cheapest: boolean;
+  fuelLabel: string;
   now: Date;
   styles: ReturnType<typeof createStyles>;
   colors: ThemeColors;
@@ -172,7 +180,7 @@ function FuelRow({
       disabled={disabled}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${stationTitle(station)}, diesel ${priceText(station.pencePerLitre)} a litre, ${shortDistance(station.distanceM)} away. Take me there`}
+      accessibilityLabel={`${stationTitle(station)}, ${fuelLabel.toLowerCase()} ${priceText(station.pencePerLitre)} a litre, ${shortDistance(station.distanceM)} away. Take me there`}
       testID={`fuel-row-${station.id}`}
     >
       <View style={styles.badge}>
@@ -191,7 +199,8 @@ function FuelRow({
           {cheapest && <Text style={styles.cheapest}>{'  Cheapest'}</Text>}
         </Text>
         <Text style={styles.updated}>
-          Diesel{'  ·  '}
+          {fuelLabel}
+          {'  ·  '}
           {updatedText(station.priceUpdatedAt, now)}
         </Text>
       </View>
