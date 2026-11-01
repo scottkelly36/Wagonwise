@@ -3,6 +3,7 @@ import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { InviteCode } from '../domain/invite-code.js';
 import { makeId } from '../../../shared/brand.js';
+import { InMemoryCredentialRepository } from './testing/in-memory-credential-repository.js';
 import { InMemoryDriverRepository } from './testing/in-memory-driver-repository.js';
 import { InMemoryInviteCodeRepository } from './testing/in-memory-invite-code-repository.js';
 import { InMemoryOtpRepository } from './testing/in-memory-otp-repository.js';
@@ -14,9 +15,11 @@ function buildDeps(overrides: Partial<RequestOtpDeps> = {}): RequestOtpDeps {
   return {
     driverRepo: new InMemoryDriverRepository(),
     inviteCodeRepo: new InMemoryInviteCodeRepository(),
+    credentialRepo: new InMemoryCredentialRepository(),
     otpRepo: new InMemoryOtpRepository(),
     otpSender: new FakeOtpSender(),
     otpCodeGenerator: new SequentialOtpCodeGenerator(),
+    inviteRequired: true,
     clock: new FakeClock('2026-06-15T08:00:00.000Z'),
     ids: new SequentialIdGenerator(),
     ...overrides,
@@ -90,6 +93,15 @@ describe('requestOtp', () => {
 
     const sender = deps.otpSender as FakeOtpSender;
     expect(sender.sent).toEqual([{ identifier: 'new@example.com', code: '000001' }]);
+  });
+
+  it('sends a code for a new identifier with no invite code at all when codes are switched off', async () => {
+    const deps = buildDeps({ inviteRequired: false });
+    const result = await requestOtp(deps, { identifier: 'new@example.com' });
+    expect(result).toEqual({ ok: true, value: undefined });
+    expect((deps.otpSender as FakeOtpSender).sent).toEqual([
+      { identifier: 'new@example.com', code: '000001' },
+    ]);
   });
 
   it('sends a code for an existing driver without needing an invite code', async () => {

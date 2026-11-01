@@ -38,6 +38,26 @@ Calling core directly (bypassing the BFF) needs `X-Internal-Key: local-dev-inter
 every request except `/health` — core is not publicly exposed (design doc §2), and this header is
 the BFF's job to add, not something an app or a curl-from-your-laptop test should normally send.
 
+**Sign-in without an invite code, passwords, Google and Apple (2026-11-01, server only; plan in `docs/driver-sign-in-plan.md`).**
+Two switches, both read in `config.ts`. `DRIVER_INVITE_REQUIRED` (default `true`): `false` lets a first sign-in through with no code
+(`create-driver.ts`; a valid unused code typed anyway is still redeemed), on the existing `/identity/otp/*` routes too, so the **released app,
+which sends no code when its box is empty, needs no update**. `DRIVER_PASSWORD_SIGN_IN` (default `false`) registers the routes below, which
+`apps/driver-bff` forwards: `POST /identity/signup/request` and `/signup/confirm` (a code proves the email; the password is sent only with the
+code, so nothing waits for a stranger's address; `AccountExists` if there is already a driver), `POST /identity/password/sign-in` then
+`/password/verify` (a right password only sends a code; the code signs in; one `InvalidCredentials` for a wrong email or password, with a decoy
+hash so it takes as long; five wrong passwords lock the account 15 minutes, `identity.driver_credentials`), `/password/reset/request` (always 200)
+and `/reset/confirm` (new password, every other session ended), `PUT /identity/account/password` (a signed-in driver with an email and no
+password adds one), and `POST /identity/social/sign-in` (`{ provider: 'google' | 'apple', idToken }`: `JoseIdTokenVerifier` checks signature,
+issuer and audience against `GOOGLE_OAUTH_CLIENT_IDS` / `APPLE_CLIENT_IDS`; a returning driver is found by the provider's `sub`
+(`identity.federated_identities`), otherwise a **confirmed** email joins the account with that email or makes a new one; no second factor,
+since the provider has proved who they are). A driver who has a password is refused on the code-only routes (`PasswordRequired`), or the code
+alone would walk round it. Passwords: scrypt (identity has its own copy of staff's hasher), 10 to 128 characters, no composition rules. The second
+factor is an emailed code, so **the inbox is the real key** (it also resets the password). Phone-number drivers stay on text codes until they have
+an email. A signed-in driver adds methods to the account they have (`account-links.ts`, under the gated `/identity/account/`):
+`POST /identity/account/link/social` (a Google/Apple login; `AlreadyLinked` if it is on another account) and
+`POST /identity/account/email/request` + `/confirm` (a phone-number account proves an email with a code, and the email replaces the
+phone number as its identifier; the account keeps its id, so its data and company links stay). Nothing in the app uses any of this yet.
+
 ## Routing (vehicle profiles)
 
 `routing`'s first slice (M2.2) — CRUD for `VehicleProfile`, the height/width/length/weight a

@@ -7,6 +7,7 @@ import type { Driver } from '../domain/driver.js';
 import type { InviteCode } from '../domain/invite-code.js';
 import { MAX_OTP_ATTEMPTS, type Otp } from '../domain/otp.js';
 import { sha256Hex } from './hash.js';
+import { InMemoryCredentialRepository } from './testing/in-memory-credential-repository.js';
 import { InMemoryDriverRepository } from './testing/in-memory-driver-repository.js';
 import { FakeTokenSigner } from './testing/fake-token-signer.js';
 import { InMemoryInviteCodeRepository } from './testing/in-memory-invite-code-repository.js';
@@ -23,11 +24,13 @@ function buildDeps(overrides: Partial<VerifyOtpDeps> = {}): VerifyOtpDeps {
   return {
     driverRepo: new InMemoryDriverRepository(),
     inviteCodeRepo: new InMemoryInviteCodeRepository(),
+    credentialRepo: new InMemoryCredentialRepository(),
     otpRepo: new InMemoryOtpRepository(),
     sessionRepo: new InMemorySessionRepository(),
     tokenSigner: new FakeTokenSigner(),
     refreshTokenGenerator: new SequentialRefreshTokenGenerator(),
     unitOfWork: new InMemoryUnitOfWork(),
+    inviteRequired: true,
     clock: new FakeClock(now),
     ids: new SequentialIdGenerator(),
     ...overrides,
@@ -220,5 +223,50 @@ describe('verifyOtp: the same UK number written differently', () => {
     const result = await verifyOtp(deps, { identifier: '+44 7700 900123', code: CODE });
     expect(result.ok).toBe(true);
     expect(result.ok && result.value.driver.id).toBe('driver-1');
+  });
+
+  it('makes a driver with no invite code when codes are switched off', async () => {
+    const otpRepo = new InMemoryOtpRepository();
+    await seedOtp(otpRepo);
+    const driverRepo = new InMemoryDriverRepository();
+    const deps = buildDeps({ otpRepo, driverRepo, inviteRequired: false });
+
+    const result = await verifyOtp(deps, { identifier: IDENTIFIER, code: CODE });
+    expect(result.ok).toBe(true);
+    expect(await driverRepo.findByIdentifier(IDENTIFIER)).not.toBeNull();
+  });
+
+  it('with codes switched off, ignores a wrong code but still redeems a right one', async () => {
+    const inviteCodeRepo = new InMemoryInviteCodeRepository();
+    inviteCodeRepo.seed({
+      code: 'HEXHAM24',
+      redeemedBy: null,
+      redeemedAt: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    const wrongOtp = new InMemoryOtpRepository();
+    await seedOtp(wrongOtp);
+    const wrong = await verifyOtp(
+      buildDeps({ otpRepo: wrongOtp, inviteCodeRepo, inviteRequired: false }),
+      { identifier: IDENTIFIER, code: CODE, inviteCode: 'NOPE' },
+    );
+    expect(wrong.ok).toBe(true);
+    expect((await inviteCodeRepo.findByCode('HEXHAM24'))?.redeemedBy).toBeNull();
+
+    const rightOtp = new InMemoryOtpRepository();
+    await seedOtp(rightOtp);
+    const right = await verifyOtp(
+      buildDeps({
+        otpRepo: rightOtp,
+        inviteCodeRepo,
+        driverRepo: new InMemoryDriverRepository(),
+        inviteRequired: false,
+      }),
+      { identifier: IDENTIFIER, code: CODE, inviteCode: 'HEXHAM24' },
+    );
+    expect(right.ok).toBe(true);
+    if (!right.ok) return;
+    expect((await inviteCodeRepo.findByCode('HEXHAM24'))?.redeemedBy).toBe(right.value.driver.id);
   });
 });
