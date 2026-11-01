@@ -141,7 +141,9 @@ describe('runMigrations', () => {
     );
     expect(identityTables.map((row) => row.table_name)).toEqual([
       'devices',
+      'driver_credentials',
       'drivers',
+      'federated_identities',
       'invite_codes',
       'otp_codes',
       'sessions',
