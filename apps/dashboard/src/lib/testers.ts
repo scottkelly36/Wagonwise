@@ -1,4 +1,8 @@
-import type { SendInvitesResponse, TesterDto } from '@wagonwise/contracts/signups';
+import type {
+  SendInvitesResponse,
+  SendLaunchEmailsResponse,
+  TesterDto,
+} from '@wagonwise/contracts/signups';
 
 import { csvCell } from './job-report';
 
@@ -46,6 +50,21 @@ export function inviteSummary(results: SendInvitesResponse['results']): string {
   if (skipped > 0) parts.push(`${skipped} left out (already invited, or no longer on the list).`);
   return parts.join(' ');
 }
+
+/** What happened when the "out now" emails were sent, in a sentence: "3 emails sent. 1 could not be sent, so try again." */
+export function launchEmailSummary(results: SendLaunchEmailsResponse['results']): string {
+  const count = (status: string) => results.filter((r) => r.status === status).length;
+  const sent = count('sent');
+  const failed = count('failed');
+  const skipped = count('already_sent') + count('not_found');
+  const parts = [`${sent} ${sent === 1 ? 'email' : 'emails'} sent.`];
+  if (failed > 0) parts.push(`${failed} could not be sent, so try again.`);
+  if (skipped > 0) parts.push(`${skipped} left out (already sent, or no longer on the list).`);
+  return parts.join(' ');
+}
+
+/** Only people not yet sent the "out now" email can be sent it. */
+export const canLaunchEmail = (t: TesterDto): boolean => t.launchEmailedAt === undefined;
 
 /** Only people not yet sent an invite can be picked to be sent one. */
 export const canInvite = (t: TesterDto): boolean => t.invitedAt === undefined;

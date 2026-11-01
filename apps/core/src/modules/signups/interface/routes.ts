@@ -1,6 +1,7 @@
 import {
   removeSignupRequestSchema,
   sendInvitesRequestSchema,
+  sendLaunchEmailsRequestSchema,
   signupRequestSchema,
   testerIdParamsSchema,
 } from '@wagonwise/contracts/signups';
@@ -12,6 +13,7 @@ import {
   listTesters,
   removeMe,
   sendInvites,
+  sendLaunchEmails,
   signUp,
   type CallerDirectory,
   type InvitePorts,
@@ -81,6 +83,9 @@ export function registerSignupRoutes(app: FastifyInstance, deps: SignupRouteDeps
         createdAt: t.createdAt.toISOString(),
         ...(t.invitedAt === undefined ? {} : { invitedAt: t.invitedAt.toISOString() }),
         ...(t.inviteCode === undefined ? {} : { inviteCode: t.inviteCode }),
+        ...(t.launchEmailedAt === undefined
+          ? {}
+          : { launchEmailedAt: t.launchEmailedAt.toISOString() }),
       })),
     });
   });
@@ -100,6 +105,28 @@ export function registerSignupRoutes(app: FastifyInstance, deps: SignupRouteDeps
       sendInvites({ ...deps.signups, invites: deps.invites }, caller, {
         ids: body.data.ids.map((id) => makeId<'TesterId'>(id)),
         optInLink: body.data.optInLink,
+      }),
+    );
+    if (!result.ok) return reply.status(403).send({ ...result.error, requestId: request.id });
+    return reply.status(200).send({ results: result.value });
+  });
+
+  app.post('/staff/signups/launch-email', async (request, reply) => {
+    if (request.staffId === undefined) {
+      return reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+    }
+    const body = sendLaunchEmailsRequestSchema.safeParse(request.body);
+    if (!body.success)
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    const caller = await deps.callerDirectory.getCaller(request.staffId);
+    if (caller === null || caller.kind !== 'platform') {
+      return reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
+    }
+    const result = await deps.dataScopes.run({ kind: 'platform' }, () =>
+      sendLaunchEmails({ ...deps.signups, invites: deps.invites }, caller, {
+        ids: body.data.ids.map((id) => makeId<'TesterId'>(id)),
+        appStoreLink: body.data.appStoreLink,
+        playStoreLink: body.data.playStoreLink,
       }),
     );
     if (!result.ok) return reply.status(403).send({ ...result.error, requestId: request.id });

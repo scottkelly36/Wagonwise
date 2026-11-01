@@ -1,9 +1,12 @@
 import {
   listTestersResponseSchema,
   sendInvitesResponseSchema,
+  sendLaunchEmailsResponseSchema,
   type ListTestersResponse,
   type SendInvitesRequest,
   type SendInvitesResponse,
+  type SendLaunchEmailsRequest,
+  type SendLaunchEmailsResponse,
 } from '@wagonwise/contracts/signups';
 
 import { requestJson, throwUnlessSuccess } from './http';
@@ -33,4 +36,16 @@ export async function sendInvites(
   });
   throwUnlessSuccess(status, json, [200]);
   return sendInvitesResponseSchema.parse(json);
+}
+
+export async function sendLaunchEmails(
+  accessToken: string,
+  request: SendLaunchEmailsRequest,
+): Promise<SendLaunchEmailsResponse> {
+  const { status, json } = await requestJson('POST', '/staff/signups/launch-email', {
+    authorization: `Bearer ${accessToken}`,
+    body: request,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return sendLaunchEmailsResponseSchema.parse(json);
 }

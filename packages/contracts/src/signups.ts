@@ -34,6 +34,8 @@ export const testerSchema = z.object({
   /** When the standard invite email was sent, and the invite code that went with it. */
   invitedAt: z.iso.datetime().optional(),
   inviteCode: z.string().optional(),
+  /** When the "out now" email was sent to them. */
+  launchEmailedAt: z.iso.datetime().optional(),
 });
 export type TesterDto = z.infer<typeof testerSchema>;
 
@@ -60,3 +62,26 @@ export const sendInvitesResponseSchema = z.object({
   results: z.array(z.object({ id: z.string(), status: z.enum(INVITE_STATUSES) })),
 });
 export type SendInvitesResponse = z.infer<typeof sendInvitesResponseSchema>;
+
+/** An address a person is sent to by a button in an email: https only, so a slip cannot put a javascript: or http: link there. */
+const httpsLinkSchema = z
+  .url()
+  .max(300)
+  .refine((link) => link.startsWith('https://'), 'must start with https://');
+
+/**
+ * `POST /staff/signups/launch-email` (WagonWise staff only): send the "WagonWise is out now" email, with the two store links,
+ * to each chosen tester. Nobody is sent it twice.
+ */
+export const sendLaunchEmailsRequestSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(50),
+  appStoreLink: httpsLinkSchema,
+  playStoreLink: httpsLinkSchema,
+});
+export type SendLaunchEmailsRequest = z.infer<typeof sendLaunchEmailsRequestSchema>;
+
+export const LAUNCH_EMAIL_STATUSES = ['sent', 'already_sent', 'not_found', 'failed'] as const;
+export const sendLaunchEmailsResponseSchema = z.object({
+  results: z.array(z.object({ id: z.string(), status: z.enum(LAUNCH_EMAIL_STATUSES) })),
+});
+export type SendLaunchEmailsResponse = z.infer<typeof sendLaunchEmailsResponseSchema>;
