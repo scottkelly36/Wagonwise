@@ -84,6 +84,11 @@
       "import": "./dist/places.js",
       "default": "./dist/places.js"
     },
+    "./closures": {
+      "types": "./dist/closures.d.ts",
+      "import": "./dist/closures.js",
+      "default": "./dist/closures.js"
+    },
     "./fuel": {
       "types": "./dist/fuel.d.ts",
       "import": "./dist/fuel.js",

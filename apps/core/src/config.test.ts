@@ -32,6 +32,8 @@ describe('loadConfig', () => {
       dvlaVesApiKey: undefined,
       dvsaMot: undefined,
       fuelFinder: undefined,
+      nationalHighways: undefined,
+      closuresRefreshIntervalMs: 600_000,
       fuelRefreshIntervalMs: 3_600_000,
       trafficDailyRequestLimit: 2000,
       trafficCacheTtlMs: 300_000,
@@ -84,6 +86,40 @@ describe('loadConfig', () => {
 
     it('rejects a token address that is not a web address', () => {
       expect(() => loadConfig({ ...all, DVSA_MOT_TOKEN_URL: 'not a url' })).toThrow(ConfigError);
+    });
+  });
+
+  describe('National Highways closures settings', () => {
+    const URL = 'https://api.data.nationalhighways.co.uk/roads/v2.0/closures';
+
+    it('is off without the primary key', () => {
+      expect(loadConfig({}).nationalHighways).toBeUndefined();
+      // A secondary alone is not enough: it is only the spare.
+      expect(
+        loadConfig({ NATIONAL_HIGHWAYS_SECONDARY_KEY: 'spare' }).nationalHighways,
+      ).toBeUndefined();
+    });
+
+    it('is on with the primary key, which is tried first, then the secondary if there is one', () => {
+      expect(loadConfig({ NATIONAL_HIGHWAYS_PRIMARY_KEY: 'one' }).nationalHighways).toEqual({
+        keys: ['one'],
+        url: URL,
+      });
+      expect(
+        loadConfig({
+          NATIONAL_HIGHWAYS_PRIMARY_KEY: 'one',
+          NATIONAL_HIGHWAYS_SECONDARY_KEY: 'two',
+          NATIONAL_HIGHWAYS_CLOSURES_URL: 'https://example.test/closures',
+        }).nationalHighways,
+      ).toEqual({ keys: ['one', 'two'], url: 'https://example.test/closures' });
+    });
+
+    it('refreshes every ten minutes by default and never more often than every five', () => {
+      expect(loadConfig({}).closuresRefreshIntervalMs).toBe(600_000);
+      expect(loadConfig({ CLOSURES_REFRESH_INTERVAL_MS: '900000' }).closuresRefreshIntervalMs).toBe(
+        900_000,
+      );
+      expect(() => loadConfig({ CLOSURES_REFRESH_INTERVAL_MS: '60000' })).toThrow(ConfigError);
     });
   });
 
@@ -194,6 +230,8 @@ describe('loadConfig', () => {
       jobPositionRetentionDays: 30,
       routeRetentionDays: 30,
       fuelPricePerLitreGBP: 1.75,
+      nationalHighways: undefined,
+      closuresRefreshIntervalMs: 600_000,
       fuelRefreshIntervalMs: 3_600_000,
       staffSecretKey: undefined,
     });

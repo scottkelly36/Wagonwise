@@ -110,6 +110,7 @@ describe('runMigrations', () => {
       '0078_maintenance_text_reminders.sql',
       '0079_fuel_prices.sql',
       '0080_tester_launch_email.sql',
+      '0083_closures.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -296,6 +297,7 @@ describe('runMigrations', () => {
       '0078_maintenance_text_reminders.sql',
       '0079_fuel_prices.sql',
       '0080_tester_launch_email.sql',
+      '0083_closures.sql',
     ]);
   });
 });
