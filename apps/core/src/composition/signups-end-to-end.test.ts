@@ -29,7 +29,7 @@ const staff: Record<string, StaffCaller> = {
  * but WagonWise staff can read the list (the table refuses the app role everywhere else), an address already held changes
  * nothing, and a trap field stores nothing.
  */
-const sentEmails: { to: string; subject: string; text: string }[] = [];
+const sentEmails: { to: string; subject: string; text: string; html?: string | undefined }[] = [];
 
 describe('signups end to end (real RLS, real scopes)', () => {
   let container: StartedPostgreSqlContainer;
@@ -62,8 +62,8 @@ describe('signups end to end (real RLS, real scopes)', () => {
       callers: { getCaller: (id) => Promise.resolve(staff[id] ?? null) },
       invites: {
         newInviteCode: () => Promise.resolve(`CODE000${sentEmails.length + 1}`),
-        sendEmail: (to, subject, text) => {
-          sentEmails.push({ to, subject, text });
+        sendEmail: (to, subject, text, html) => {
+          sentEmails.push({ to, subject, text, html });
           return Promise.resolve();
         },
       },
@@ -191,6 +191,52 @@ describe('signups end to end (real RLS, real scopes)', () => {
       inviteCode: 'CODE0001',
       invitedAt: '2026-10-09T09:00:00.000Z',
     });
+  });
+
+  it('sends the launch email once to each chosen tester, as HTML and text, for WagonWise staff only', async () => {
+    const id =
+      (
+        await ownerPool.query<{ id: string }>(
+          `select id from signups.testers where email = 'kim@example.com'`,
+        )
+      ).rows[0]?.id ?? '';
+    const payload = {
+      ids: [id],
+      appStoreLink: 'https://apps.apple.com/gb/app/wagonwise/id1',
+      playStoreLink: 'https://play.google.com/store/apps/details?id=com.wagonwise.driverapp',
+    };
+    const send = (who: string | undefined, body: object = payload) =>
+      app.inject({
+        method: 'POST',
+        url: '/staff/signups/launch-email',
+        payload: body,
+        ...(who === undefined ? {} : as(who)),
+      });
+    const before = sentEmails.length;
+    expect((await send(undefined)).statusCode).toBe(401);
+    expect((await send(FLEET)).statusCode).toBe(403);
+    expect(
+      (await send(ADMIN, { ...payload, playStoreLink: 'http://insecure.test' })).statusCode,
+    ).toBe(400);
+    expect(sentEmails).toHaveLength(before);
+
+    const first = await send(ADMIN);
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toEqual({ results: [{ id, status: 'sent' }] });
+    expect(sentEmails).toHaveLength(before + 1);
+    const email = sentEmails[before];
+    expect(email).toMatchObject({ to: 'kim@example.com' });
+    expect(email?.text).toContain('Hello Kim,');
+    expect(email?.html).toContain('>Google Play<');
+
+    expect((await send(ADMIN)).json()).toEqual({ results: [{ id, status: 'already_sent' }] });
+    expect(sentEmails).toHaveLength(before + 1);
+
+    const list = await app.inject({ method: 'GET', url: '/staff/signups', ...as(ADMIN) });
+    const kim = list
+      .json<{ testers: { email: string; launchEmailedAt?: string }[] }>()
+      .testers.find((t) => t.email === 'kim@example.com');
+    expect(kim?.launchEmailedAt).toBe('2026-10-09T09:00:00.000Z');
   });
 
   it('keeps the table closed to everything but the platform scope', async () => {

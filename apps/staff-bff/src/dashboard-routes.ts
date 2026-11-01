@@ -17,7 +17,11 @@ import {
   listFeedbackQuerySchema,
   setFeedbackResolvedRequestSchema,
 } from '@wagonwise/contracts/feedback';
-import { sendInvitesRequestSchema, testerIdParamsSchema } from '@wagonwise/contracts/signups';
+import {
+  sendInvitesRequestSchema,
+  sendLaunchEmailsRequestSchema,
+  testerIdParamsSchema,
+} from '@wagonwise/contracts/signups';
 import { hoursCompanyParamsSchema, hoursSettingsSchema } from '@wagonwise/contracts/hours';
 import {
   listParkingSpotsQuerySchema,
@@ -471,6 +475,12 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/signups/invite',
     params: noParams,
     body: sendInvitesRequestSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/signups/launch-email',
+    params: noParams,
+    body: sendLaunchEmailsRequestSchema,
   },
   { method: 'DELETE', path: '/staff/signups/:id', params: testerIdParamsSchema },
   // Driver hours sharing: the firm's switch, and the statuses of drivers who agreed to share. Core decides who may.

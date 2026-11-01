@@ -16,10 +16,11 @@ interface Row {
   readonly created_at: Date;
   readonly invited_at: Date | null;
   readonly invite_code: string | null;
+  readonly launch_emailed_at: Date | null;
 }
 
 const COLUMNS =
-  'id, email, name, role, company, fleet_size, consented_at, created_at, invited_at, invite_code';
+  'id, email, name, role, company, fleet_size, consented_at, created_at, invited_at, invite_code, launch_emailed_at';
 
 const toTester = (r: Row): Tester => ({
   id: makeId<'TesterId'>(r.id),
@@ -32,6 +33,7 @@ const toTester = (r: Row): Tester => ({
   createdAt: r.created_at,
   invitedAt: r.invited_at ?? undefined,
   inviteCode: r.invite_code ?? undefined,
+  launchEmailedAt: r.launch_emailed_at ?? undefined,
 });
 
 /** Raw `sql` like every repository here (decision 26). Row-Level Security (migration 0058) lets only WagonWise staff in. */
@@ -59,6 +61,12 @@ export class PostgresTesterRepository implements TesterRepository {
   async markInvited(id: TesterId, inviteCode: string, at: Date): Promise<void> {
     await sql`
       update signups.testers set invited_at = ${at}, invite_code = ${inviteCode} where id = ${id}
+    `.execute(this.db);
+  }
+
+  async markLaunchEmailed(id: TesterId, at: Date): Promise<void> {
+    await sql`
+      update signups.testers set launch_emailed_at = ${at} where id = ${id}
     `.execute(this.db);
   }
 

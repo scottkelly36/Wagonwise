@@ -5,7 +5,9 @@ import * as signupsApi from '../../api/signups';
 import { DataTable, type Column } from '../../components/DataTable';
 import {
   canInvite,
+  canLaunchEmail,
   inviteSummary,
+  launchEmailSummary,
   playTesterEmailsCsv,
   roleLabel,
   testersCsv,
@@ -15,22 +17,29 @@ import { staffErrorMessage } from '../staff/messages';
 
 const TESTERS_KEY = ['testers'] as const;
 const OPT_IN_LINK_KEY = 'wagonwise.testerOptInLink';
+const APP_STORE_LINK_KEY = 'wagonwise.testerAppStoreLink';
+const PLAY_STORE_LINK_KEY = 'wagonwise.testerPlayStoreLink';
+/** The app's Google Play page follows from its package name, so it is filled in; the App Store one needs Apple's number for the app. */
+const DEFAULT_PLAY_STORE_LINK =
+  'https://play.google.com/store/apps/details?id=com.wagonwise.driverapp';
 
-function savedLink(): string {
+function savedLink(key: string, fallback = ''): string {
   try {
-    return window.localStorage.getItem(OPT_IN_LINK_KEY) ?? '';
+    return window.localStorage.getItem(key) ?? fallback;
   } catch {
-    return '';
+    return fallback;
   }
 }
 
-function saveLink(link: string): void {
+function saveLink(key: string, link: string): void {
   try {
-    window.localStorage.setItem(OPT_IN_LINK_KEY, link);
+    window.localStorage.setItem(key, link);
   } catch {
     // Not kept: the link just has to be pasted again next time.
   }
 }
+
+const isHttpsLink = (link: string): boolean => /^https:\/\/\S+$/.test(link.trim());
 
 function download(fileName: string, text: string): void {
   const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
@@ -58,7 +67,12 @@ export function Testers() {
   });
 
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
-  const [optInLink, setOptInLink] = useState(savedLink);
+  const [optInLink, setOptInLink] = useState(() => savedLink(OPT_IN_LINK_KEY));
+  const [appStoreLink, setAppStoreLink] = useState(() => savedLink(APP_STORE_LINK_KEY));
+  const [playStoreLink, setPlayStoreLink] = useState(() =>
+    savedLink(PLAY_STORE_LINK_KEY, DEFAULT_PLAY_STORE_LINK),
+  );
+  const [launchOutcome, setLaunchOutcome] = useState<string | undefined>();
   const [outcome, setOutcome] = useState<string | undefined>();
   const invite = useMutation({
     mutationFn: (ids: string[]) =>
@@ -71,20 +85,36 @@ export function Testers() {
       void queryClient.invalidateQueries({ queryKey: TESTERS_KEY });
     },
   });
+  const launch = useMutation({
+    mutationFn: (ids: string[]) =>
+      withAccessToken((token) =>
+        signupsApi.sendLaunchEmails(token, {
+          ids,
+          appStoreLink: appStoreLink.trim(),
+          playStoreLink: playStoreLink.trim(),
+        }),
+      ),
+    onSuccess: (response) => {
+      setLaunchOutcome(launchEmailSummary(response.results));
+      setPicked(new Set());
+      void queryClient.invalidateQueries({ queryKey: TESTERS_KEY });
+    },
+  });
   const toggle = (id: string) =>
     setPicked((current) => {
       const next = new Set(current);
       if (!next.delete(id)) next.add(id);
       return next;
     });
-  const linkOk = /^https:\/\/\S+$/.test(optInLink.trim());
+  const linkOk = isHttpsLink(optInLink);
+  const storeLinksOk = isHttpsLink(appStoreLink) && isHttpsLink(playStoreLink);
 
   const columns: Column<TesterDto>[] = [
     {
       key: 'pick',
       header: '',
       cell: (t) =>
-        canInvite(t) ? (
+        canInvite(t) || canLaunchEmail(t) ? (
           <input
             type="checkbox"
             aria-label={`Pick ${t.email}`}
@@ -118,6 +148,15 @@ export function Testers() {
           : `${new Date(t.invitedAt).toLocaleDateString('en-GB')} · ${t.inviteCode ?? ''}`,
     },
     {
+      key: 'launched',
+      header: 'Out-now email',
+      sortValue: (t) => t.launchEmailedAt ?? '',
+      cell: (t) =>
+        t.launchEmailedAt === undefined
+          ? ''
+          : new Date(t.launchEmailedAt).toLocaleDateString('en-GB'),
+    },
+    {
       key: 'remove',
       header: '',
       align: 'right',
@@ -135,8 +174,10 @@ export function Testers() {
     },
   ];
 
-  const error = testers.error ?? remove.error ?? invite.error;
+  const error = testers.error ?? remove.error ?? invite.error ?? launch.error;
   const data = testers.data;
+  const toInvite = data?.testers.filter((t) => picked.has(t.id) && canInvite(t)) ?? [];
+  const toLaunch = data?.testers.filter((t) => picked.has(t.id) && canLaunchEmail(t)) ?? [];
 
   return (
     <div>
@@ -195,7 +236,7 @@ export function Testers() {
                 style={{ width: 'min(100%, 460px)' }}
                 onChange={(event) => {
                   setOptInLink(event.target.value);
-                  saveLink(event.target.value.trim());
+                  saveLink(OPT_IN_LINK_KEY, event.target.value.trim());
                 }}
               />
             </label>
@@ -208,27 +249,97 @@ export function Testers() {
               </button>{' '}
               <button
                 className="btn-primary"
-                disabled={picked.size === 0 || !linkOk || invite.isPending}
+                disabled={toInvite.length === 0 || !linkOk || invite.isPending}
                 onClick={() => {
                   if (
                     window.confirm(
-                      `Email the test invite to ${picked.size} ${picked.size === 1 ? 'person' : 'people'}?`,
+                      `Email the test invite to ${toInvite.length} ${toInvite.length === 1 ? 'person' : 'people'}?`,
                     )
                   ) {
                     setOutcome(undefined);
-                    invite.mutate([...picked]);
+                    invite.mutate(toInvite.map((t) => t.id));
                   }
                 }}
               >
                 {invite.isPending
                   ? 'Sending…'
-                  : `Send invite to ${picked.size} ${picked.size === 1 ? 'person' : 'people'}`}
+                  : `Send invite to ${toInvite.length} ${toInvite.length === 1 ? 'person' : 'people'}`}
               </button>
             </p>
             {!linkOk && optInLink.trim() !== '' && (
               <p style={{ color: 'var(--danger)' }}>The link should start with https://</p>
             )}
             {outcome !== undefined && <p>{outcome}</p>}
+          </section>
+          <section className="card" style={{ marginBottom: 16 }}>
+            <h2 style={{ marginTop: 0 }}>Send the "out now" email</h2>
+            <p style={{ color: 'var(--text-muted)' }}>
+              For when the app is in the App Store and on Google Play. Tick the people to tell (the
+              same ticks as above). Each gets a branded email thanking them for signing up, with a
+              button for each store. It makes no invite code. Who was sent it, and when, is recorded
+              below, and nobody is ever sent it twice.
+            </p>
+            <p>
+              <label>
+                App Store link{' '}
+                <input
+                  type="url"
+                  value={appStoreLink}
+                  placeholder="https://apps.apple.com/gb/app/…"
+                  style={{ width: 'min(100%, 460px)' }}
+                  onChange={(event) => {
+                    setAppStoreLink(event.target.value);
+                    saveLink(APP_STORE_LINK_KEY, event.target.value.trim());
+                  }}
+                />
+              </label>
+            </p>
+            <p>
+              <label>
+                Google Play link{' '}
+                <input
+                  type="url"
+                  value={playStoreLink}
+                  style={{ width: 'min(100%, 460px)' }}
+                  onChange={(event) => {
+                    setPlayStoreLink(event.target.value);
+                    saveLink(PLAY_STORE_LINK_KEY, event.target.value.trim());
+                  }}
+                />
+              </label>
+            </p>
+            <p>
+              <button
+                className="btn-secondary"
+                onClick={() =>
+                  setPicked(new Set(data.testers.filter(canLaunchEmail).map((t) => t.id)))
+                }
+              >
+                Pick everyone not yet told
+              </button>{' '}
+              <button
+                className="btn-primary"
+                disabled={toLaunch.length === 0 || !storeLinksOk || launch.isPending}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Email the "out now" message to ${toLaunch.length} ${toLaunch.length === 1 ? 'person' : 'people'}? It cannot be unsent.`,
+                    )
+                  ) {
+                    setLaunchOutcome(undefined);
+                    launch.mutate(toLaunch.map((t) => t.id));
+                  }
+                }}
+              >
+                {launch.isPending
+                  ? 'Sending…'
+                  : `Send "out now" email to ${toLaunch.length} ${toLaunch.length === 1 ? 'person' : 'people'}`}
+              </button>
+            </p>
+            {!storeLinksOk && (appStoreLink.trim() !== '' || playStoreLink.trim() !== '') && (
+              <p style={{ color: 'var(--danger)' }}>Both links should start with https://</p>
+            )}
+            {launchOutcome !== undefined && <p>{launchOutcome}</p>}
           </section>
           <DataTable
             columns={columns}

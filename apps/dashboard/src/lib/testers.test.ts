@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { canInvite, inviteSummary, playTesterEmailsCsv, roleLabel, testersCsv } from './testers';
+import {
+  canInvite,
+  canLaunchEmail,
+  inviteSummary,
+  launchEmailSummary,
+  playTesterEmailsCsv,
+  roleLabel,
+  testersCsv,
+} from './testers';
 
 describe('testersCsv', () => {
   it('writes a header and a row each, with blanks for what was not given', () => {
@@ -71,5 +79,32 @@ describe('playTesterEmailsCsv', () => {
 
   it('is empty for nobody', () => {
     expect(playTesterEmailsCsv([])).toBe('');
+  });
+});
+
+describe('the "out now" email', () => {
+  it('sums up a send in a sentence', () => {
+    expect(launchEmailSummary([{ id: 'a', status: 'sent' }])).toBe('1 email sent.');
+    expect(
+      launchEmailSummary([
+        { id: 'a', status: 'sent' },
+        { id: 'b', status: 'sent' },
+        { id: 'c', status: 'failed' },
+        { id: 'd', status: 'already_sent' },
+      ]),
+    ).toBe(
+      '2 emails sent. 1 could not be sent, so try again. 1 left out (already sent, or no longer on the list).',
+    );
+  });
+
+  it('only offers those not yet sent it', () => {
+    const base = {
+      id: '1',
+      email: 'a@b.co',
+      role: 'driver' as const,
+      createdAt: '2026-10-09T09:00:00.000Z',
+    };
+    expect(canLaunchEmail(base)).toBe(true);
+    expect(canLaunchEmail({ ...base, launchEmailedAt: '2026-11-01T09:00:00.000Z' })).toBe(false);
   });
 });
