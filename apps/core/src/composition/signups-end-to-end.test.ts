@@ -227,7 +227,7 @@ describe('signups end to end (real RLS, real scopes)', () => {
     const email = sentEmails[before];
     expect(email).toMatchObject({ to: 'kim@example.com' });
     expect(email?.text).toContain('Hello Kim,');
-    expect(email?.html).toContain('Get it on Google Play');
+    expect(email?.html).toContain('>Google Play<');
 
     expect((await send(ADMIN)).json()).toEqual({ results: [{ id, status: 'already_sent' }] });
     expect(sentEmails).toHaveLength(before + 1);
