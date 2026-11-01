@@ -24,3 +24,8 @@ export type PasswordRequired = TaggedError<'PasswordRequired'>;
 export type AccountExists = TaggedError<'AccountExists'>;
 /** The driver already has a password; changing one goes through "forgot password". */
 export type PasswordAlreadySet = TaggedError<'PasswordAlreadySet'>;
+
+/** This Google or Apple sign-in already belongs to a different account, so it cannot also be added to this one. */
+export type AlreadyLinked = TaggedError<'AlreadyLinked'>;
+/** The account already has an email, so there is nothing to add. */
+export type EmailAlreadySet = TaggedError<'EmailAlreadySet'>;

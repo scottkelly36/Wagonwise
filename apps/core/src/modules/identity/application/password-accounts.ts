@@ -90,8 +90,8 @@ export const TIMING_DECOY_HASH =
   'scrypt$32768$8$1$m0TAaeC8QwOWfjrR7yYOAw==$3gKOuoWXwXQubsB5y6HMWCAuBmmZybcF+62KpQLvqsK6YRNv+aEw8tPKRrUrRVWLYLdXE7V37xz6e2olxHQnEA==';
 
 /** Checks a typed code against the latest one sent to this identifier. A wrong guess is counted, so it is saved either way. */
-async function consumeOtp(
-  deps: PasswordAccountDeps,
+export async function consumeOtp(
+  deps: Pick<PasswordAccountDeps, 'otpRepo'>,
   identifier: string,
   code: string,
   now: Date,

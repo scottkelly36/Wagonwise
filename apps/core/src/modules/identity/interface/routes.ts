@@ -29,6 +29,8 @@ import { statusFor } from './error-mapping.js';
 import { registerPasswordRoutes } from './password-routes.js';
 import type { SocialSignInDeps } from '../application/social-sign-in.js';
 import { registerSocialRoutes } from './social-routes.js';
+import type { AccountLinkDeps } from '../application/account-links.js';
+import { registerAccountLinkRoutes } from './account-link-routes.js';
 
 export interface IdentityRouteDeps {
   readonly requestOtp: RequestOtpDeps;
@@ -46,6 +48,8 @@ export interface IdentityRouteDeps {
   readonly passwordAccounts?: PasswordAccountDeps | undefined;
   /** Set with `passwordAccounts`: Google and Apple sign-in. */
   readonly socialSignIn?: SocialSignInDeps | undefined;
+  /** Set with `passwordAccounts`: a signed-in driver adds a Google/Apple login or an email to their account. */
+  readonly accountLinks?: AccountLinkDeps | undefined;
 }
 
 function driverDto(driver: {
@@ -118,6 +122,7 @@ function requireDriverId(request: FastifyRequest, reply: FastifyReply): Id<'Driv
 export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRouteDeps): void {
   if (deps.passwordAccounts) registerPasswordRoutes(app, deps.passwordAccounts);
   if (deps.socialSignIn) registerSocialRoutes(app, deps.socialSignIn);
+  if (deps.accountLinks) registerAccountLinkRoutes(app, deps.accountLinks);
 
   app.post('/identity/otp/request', async (request, reply) => {
     const parsed = requestOtpRequestSchema.safeParse(request.body);

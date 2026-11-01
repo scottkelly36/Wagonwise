@@ -185,3 +185,21 @@ export const socialSignInRequestSchema = z.object({
   inviteCode: z.string().optional(),
 });
 export type SocialSignInRequest = z.infer<typeof socialSignInRequestSchema>;
+
+// ---- Adding sign-in methods to the account a driver already has ---------------------------------------------------
+// All need a signed-in driver. The confirm-email route answers with the updated driver (`driverSchema`).
+
+/** `POST /identity/account/link/social`: add a Google or Apple login to this account. Answers 204. */
+export const linkSocialRequestSchema = z.object({
+  provider: socialProviderSchema,
+  idToken: z.string().min(1).max(16_384),
+});
+export type LinkSocialRequest = z.infer<typeof linkSocialRequestSchema>;
+
+/** `POST /identity/account/email/request`: add an email to an account made with a phone number; emails a code to it. */
+export const addEmailRequestSchema = z.object({ email: z.string() });
+export type AddEmailRequest = z.infer<typeof addEmailRequestSchema>;
+
+/** `POST /identity/account/email/confirm`: the code; the email then becomes the account's sign-in. */
+export const confirmEmailRequestSchema = z.object({ email: z.string(), code: z.string() });
+export type ConfirmEmailRequest = z.infer<typeof confirmEmailRequestSchema>;

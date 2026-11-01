@@ -42,8 +42,15 @@ release.
   for an email that already has a driver signs into that driver (linked); otherwise a driver is made. The
   link is stored by the provider's stable `sub`, so a later email change at Google does not lose the account.
 - Apple may give a private relay address; it is used as the identifier like any other email.
-- **Phone-number drivers** keep text-code sign-in until they add an email (the second factor is an emailed
-  code, so they need one). Open question: do we want that prompt, or retire phone sign-in? Not blocking.
+- **Existing drivers keep their account** when they add a sign-in method, rather than starting again empty. Google/Apple
+  sign-in finds an email account by its confirmed email. For everyone else (a phone-number account, or a Google email that
+  differs from the one signed up with) a signed-in driver **adds the method to the account they have**: a Google/Apple login
+  (`POST /identity/account/link/social`) or an email (`POST /identity/account/email/request` then `/confirm`, which makes the
+  email the account's sign-in in place of the phone number; the account keeps its id, vehicles, routes and company links). A
+  Google/Apple login already on another account is refused (`AlreadyLinked`); joining two accounts is not supported.
+  Phone-number drivers keep text-code sign-in until they add an email (the second factor is an emailed code).
+  Open question: when the sign-in becomes the email, a company that sees the driver by identifier now sees the email, and a
+  pending company invitation addressed to the old phone number would no longer match; whether that matters is for the owner.
 - A driver who signed up with Google/Apple and no password has nothing to "close": they sign in with the
   provider each time. They can add a password later (same endpoint as migrating drivers).
 
@@ -66,6 +73,9 @@ New endpoints (all internal, forwarded unchanged by the driver BFF; **off unless
 | `POST /identity/password/reset/request` | `{ email }` → emails a code (always 200)                                                          |
 | `POST /identity/password/reset/confirm` | `{ email, code, newPassword }` → sets it, ends other sessions, tokens                             |
 | `PUT /identity/account/password`        | signed in: `{ password }` for a driver who has none (migrating drivers)                           |
+| `POST /identity/account/link/social`    | signed in: `{ provider, idToken }` adds a Google/Apple login to this account (204)                |
+| `POST /identity/account/email/request`  | signed in, phone-number account: `{ email }` emails a code to it                                  |
+| `POST /identity/account/email/confirm`  | signed in: `{ email, code }` makes the email the sign-in; answers the driver                      |
 | `POST /identity/social/sign-in`         | `{ provider: 'google' \| 'apple', idToken, inviteCode? }` → tokens                                |
 
 Passwords: scrypt, same parameters as staff (identity gets its own copy of the small hasher, per the rule
@@ -128,7 +138,7 @@ Switches (read only in `config.ts`):
 ## What is built (2026-11-01: server and driver BFF only, nothing in the app)
 
 - `DRIVER_INVITE_REQUIRED`, `DRIVER_PASSWORD_SIGN_IN`, `GOOGLE_OAUTH_CLIENT_IDS`, `APPLE_CLIENT_IDS` in `config.ts`.
-- Core: every route in the table above and `POST /identity/social/sign-in`, forwarded by the driver BFF. A driver
+- Core: every route in the table above, forwarded by the driver BFF. A driver
   with a password is refused on the code-only routes (`PasswordRequired`). Account deletion removes the password
   and the provider links.
 - Tests: unit, routes, real-Postgres repositories, and `composition/driver-sign-in-end-to-end.test.ts` through

@@ -17,6 +17,7 @@ import { JoseIdTokenVerifier } from './infrastructure/jose-id-token-verifier.js'
 import { PostgresFederatedIdentityRepository } from './infrastructure/postgres-federated-identity-repository.js';
 import type { IdTokenVerifier } from './application/ports/id-token-verifier.js';
 import type { SocialSignInDeps } from './application/social-sign-in.js';
+import type { AccountLinkDeps } from './application/account-links.js';
 import { PostgresCredentialRepository } from './infrastructure/postgres-credential-repository.js';
 import { ScryptPasswordHasher } from './infrastructure/scrypt-password-hasher.js';
 import type { PasswordAccountDeps } from './application/password-accounts.js';
@@ -204,9 +205,21 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     ids: deps.ids,
   };
 
+  const accountLinks: AccountLinkDeps = {
+    driverRepo,
+    federatedRepo,
+    idTokenVerifier: socialSignIn.idTokenVerifier,
+    otpRepo,
+    otpSender,
+    otpCodeGenerator,
+    clock: deps.clock,
+    ids: deps.ids,
+  };
+
   const routeDeps: IdentityRouteDeps = {
     passwordAccounts: deps.passwordSignIn ? passwordAccounts : undefined,
     socialSignIn: deps.passwordSignIn ? socialSignIn : undefined,
+    accountLinks: deps.passwordSignIn ? accountLinks : undefined,
     requestOtp: {
       driverRepo,
       inviteCodeRepo,

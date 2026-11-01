@@ -233,4 +233,90 @@ describe('driver sign-in end to end (real Postgres)', () => {
         .rowCount,
     ).toBe(0);
   });
+
+  describe('a driver who signed up with a phone number', () => {
+    const PHONE = '+447700900555';
+    let id = '';
+
+    const postAs = (url: string, payload: Record<string, unknown>) =>
+      app.inject({ method: 'POST', url, payload, headers: { 'x-test-driver-id': id } });
+
+    it('signs up by text code as before', async () => {
+      expect((await post('/identity/otp/request', { identifier: PHONE })).statusCode).toBe(200);
+      const done = await post('/identity/otp/verify', { identifier: PHONE, code: lastCode() });
+      expect(done.statusCode).toBe(200);
+      id = body<{ driver: { id: string } }>(done).driver.id;
+    });
+
+    it('cannot start a password yet: there is no email', async () => {
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/identity/account/password',
+        payload: { password: PASSWORD },
+        headers: { 'x-test-driver-id': id },
+      });
+      expect(response.statusCode).toBe(400);
+      expect(response.json<{ tag: string }>().tag).toBe('EmailRequired');
+    });
+
+    it('adds a Google login, and then signing in with Google finds this account, not a new one', async () => {
+      knownTokens.set('google:phone-user', {
+        subject: 'g-phone',
+        email: 'phone.user@gmail.com',
+        emailVerified: true,
+      });
+      expect(
+        (
+          await postAs('/identity/account/link/social', {
+            provider: 'google',
+            idToken: 'phone-user',
+          })
+        ).statusCode,
+      ).toBe(204);
+      const before = await count('drivers');
+      const again = await post('/identity/social/sign-in', {
+        provider: 'google',
+        idToken: 'phone-user',
+      });
+      expect(again.statusCode).toBe(200);
+      expect(body<{ driver: { id: string } }>(again).driver.id).toBe(id);
+      expect(await count('drivers')).toBe(before);
+    });
+
+    it('refuses a Google login that is already on another account', async () => {
+      const response = await postAs('/identity/account/link/social', {
+        provider: 'google',
+        idToken: 'new',
+      });
+      expect(response.statusCode).toBe(409);
+      expect(response.json<{ tag: string }>().tag).toBe('AlreadyLinked');
+    });
+
+    it('adds an email with a code; the account keeps its id and can then have a password', async () => {
+      expect(
+        (await postAs('/identity/account/email/request', { email: 'phone.user@example.com' }))
+          .statusCode,
+      ).toBe(200);
+      const done = await postAs('/identity/account/email/confirm', {
+        email: 'phone.user@example.com',
+        code: lastCode(),
+      });
+      expect(done.statusCode).toBe(200);
+      expect(body<{ id: string; identifier: string }>(done)).toMatchObject({
+        id,
+        identifier: 'phone.user@example.com',
+      });
+
+      const password = await app.inject({
+        method: 'PUT',
+        url: '/identity/account/password',
+        payload: { password: PASSWORD },
+        headers: { 'x-test-driver-id': id },
+      });
+      expect(password.statusCode).toBe(204);
+
+      const taken = await postAs('/identity/account/email/request', { email: 'kim@example.com' });
+      expect(taken.statusCode).toBe(409);
+    });
+  });
 });

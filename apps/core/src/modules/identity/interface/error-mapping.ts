@@ -11,6 +11,11 @@ import type {
 import type { GiveConsentError } from '../application/give-consent.js';
 import type { SetDriverNameError } from '../application/set-driver-name.js';
 import type { RegisterDeviceError } from '../application/register-device.js';
+import type {
+  ConfirmEmailAdditionError,
+  LinkSocialError,
+  RequestEmailAdditionError,
+} from '../application/account-links.js';
 import type { SocialSignInError } from '../application/social-sign-in.js';
 import type { RequestOtpError } from '../application/request-otp.js';
 import type { RefreshTokenError } from '../application/refresh-token.js';
@@ -33,7 +38,10 @@ export type IdentityError =
   | RequestPasswordResetError
   | ConfirmPasswordResetError
   | SetPasswordError
-  | SocialSignInError;
+  | SocialSignInError
+  | LinkSocialError
+  | RequestEmailAdditionError
+  | ConfirmEmailAdditionError;
 
 /**
  * Tag -> HTTP status, in exactly one table (AGENTS.md rule 13). `switch-exhaustiveness-check`
@@ -57,6 +65,8 @@ export function statusFor(error: IdentityError): number {
       return 404;
     case 'OtpAlreadyConsumed':
     case 'AccountExists':
+    case 'AlreadyLinked':
+    case 'EmailAlreadySet':
     case 'PasswordRequired':
     case 'PasswordAlreadySet':
       return 409;

@@ -397,3 +397,49 @@ describe('the email-and-password sign-in routes', () => {
     });
   });
 });
+
+describe('adding a sign-in method to the account', () => {
+  const routes: readonly [string, Record<string, unknown>][] = [
+    ['/identity/account/link/social', { provider: 'apple', idToken: 'a-token' }],
+    ['/identity/account/email/request', { email: 'a@example.com' }],
+    ['/identity/account/email/confirm', { email: 'a@example.com', code: '123456' }],
+  ];
+
+  it.each(routes)('%s needs a token, without calling core', async (url, payload) => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({ method: 'POST', url, payload });
+    expect(response.statusCode).toBe(401);
+    expect(coreClient.calls).toEqual([]);
+  });
+
+  it.each(routes)('%s forwards the token and the body', async (url, payload) => {
+    const { app, coreClient, verifier } = buildApp();
+    verifier.claimsByToken.set('a-real-token', { driverId: 'driver-1', sessionId: 'session-1' });
+    coreClient.nextResponse = { status: 409, body: { tag: 'AlreadyLinked' } };
+    const response = await app.inject({
+      method: 'POST',
+      url,
+      payload,
+      headers: { authorization: 'Bearer a-real-token' },
+    });
+    expect(response.statusCode).toBe(409);
+    expect(coreClient.calls[0]).toMatchObject({
+      path: url,
+      body: payload,
+      authorization: 'Bearer a-real-token',
+    });
+  });
+
+  it.each(routes)('%s 400s a malformed body without calling core', async (url) => {
+    const { app, coreClient, verifier } = buildApp();
+    verifier.claimsByToken.set('a-real-token', { driverId: 'driver-1', sessionId: 'session-1' });
+    const response = await app.inject({
+      method: 'POST',
+      url,
+      payload: { nonsense: true },
+      headers: { authorization: 'Bearer a-real-token' },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+});

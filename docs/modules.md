@@ -53,7 +53,10 @@ issuer and audience against `GOOGLE_OAUTH_CLIENT_IDS` / `APPLE_CLIENT_IDS`; a re
 since the provider has proved who they are). A driver who has a password is refused on the code-only routes (`PasswordRequired`), or the code
 alone would walk round it. Passwords: scrypt (identity has its own copy of staff's hasher), 10 to 128 characters, no composition rules. The second
 factor is an emailed code, so **the inbox is the real key** (it also resets the password). Phone-number drivers stay on text codes until they have
-an email. Nothing in the app uses any of this yet.
+an email. A signed-in driver adds methods to the account they have (`account-links.ts`, under the gated `/identity/account/`):
+`POST /identity/account/link/social` (a Google/Apple login; `AlreadyLinked` if it is on another account) and
+`POST /identity/account/email/request` + `/confirm` (a phone-number account proves an email with a code, and the email replaces the
+phone number as its identifier; the account keeps its id, so its data and company links stay). Nothing in the app uses any of this yet.
 
 ## Routing (vehicle profiles)
 

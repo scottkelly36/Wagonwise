@@ -9,6 +9,9 @@ import {
   setDriverNameRequestSchema,
   setPasswordRequestSchema,
   signupRequestRequestSchema,
+  addEmailRequestSchema,
+  confirmEmailRequestSchema,
+  linkSocialRequestSchema,
   socialSignInRequestSchema,
   requestOtpRequestSchema,
   revokeSessionParamsSchema,
@@ -38,6 +41,13 @@ const PASSWORD_SIGN_IN_ROUTES = [
   ['/identity/social/sign-in', socialSignInRequestSchema],
 ] as const;
 
+/** Routes that need a signed-in driver; core takes the driver id from the verified token. */
+const ACCOUNT_LINK_ROUTES = [
+  ['/identity/account/link/social', linkSocialRequestSchema],
+  ['/identity/account/email/request', addEmailRequestSchema],
+  ['/identity/account/email/confirm', confirmEmailRequestSchema],
+] as const;
+
 const BEARER_PREFIX = 'Bearer ';
 
 function bearerToken(header: string | undefined): string | undefined {
@@ -57,6 +67,24 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
         return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
       }
       const core = await deps.coreClient.request('POST', path, request.id, { body: parsed.data });
+      return reply.status(core.status).send(core.body);
+    });
+  }
+
+  // A signed-in driver adds a sign-in method to their account (docs/driver-sign-in-plan.md).
+  for (const [path, schema] of ACCOUNT_LINK_ROUTES) {
+    app.post(path, async (request, reply) => {
+      const token = await authenticateOrReject(request, reply, deps.accessTokenVerifier);
+      if (token === undefined) return reply;
+
+      const parsed = schema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+      }
+      const core = await deps.coreClient.request('POST', path, request.id, {
+        body: parsed.data,
+        authorization: `Bearer ${token}`,
+      });
       return reply.status(core.status).send(core.body);
     });
   }
