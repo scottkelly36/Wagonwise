@@ -31,8 +31,16 @@ describe('launch email', () => {
     const html = launchEmailHtml(input);
     expect(html).toContain('href="https://apps.apple.com/gb/app/wagonwise/id1?x=1&amp;y=2"');
     expect(html).toContain(`href="${input.playStoreLink}"`);
-    expect(html).toContain('Download on the App Store');
-    expect(html).toContain('Get it on Google Play');
+    expect(html).toContain('Download on the');
+    expect(html).toContain('>App Store<');
+    expect(html).toContain('Get it on');
+    expect(html).toContain('>Google Play<');
+  });
+
+  it("puts each store's mark in its button, as a picture on the website (mail apps do not draw SVG)", () => {
+    const html = launchEmailHtml(input);
+    expect(html).toContain('src="https://wagon-wise.co.uk/img/store-apple.png"');
+    expect(html).toContain('src="https://wagon-wise.co.uk/img/store-play.png"');
   });
 
   it('never puts a typed name or link into the HTML unescaped', () => {

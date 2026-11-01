@@ -20,6 +20,9 @@ const MUTED = '#55617a';
 const LINE = '#d9e1ee';
 
 const LOGO_URL = 'https://wagon-wise.co.uk/img/icon-192.png';
+/** White marks for the two stores, kept with the site's images (`sites/landing/img`). */
+const APPLE_ICON_URL = 'https://wagon-wise.co.uk/img/store-apple.png';
+const PLAY_ICON_URL = 'https://wagon-wise.co.uk/img/store-play.png';
 const SITE_URL = 'https://wagon-wise.co.uk';
 const SUPPORT_EMAIL = 'support@wagon-wise.co.uk';
 const ADDRESS = 'WagonWise Ltd, 5 Portland Terrace, Hexham, NE46 3DT';
@@ -87,16 +90,31 @@ export function launchEmailText(input: LaunchEmailInput): string {
   ].join('\n');
 }
 
-/** A button as a table cell with a background colour, which is the one form every mail app, Outlook included, draws as a button. */
-function button(label: string, small: string, href: string, background: string): string {
+/**
+ * A button as a table cell with a background colour, which is the one form every mail app, Outlook included, draws as a button.
+ * The store's mark sits to the left as a small white picture: mail apps do not draw inline SVG, so it is a PNG on the website,
+ * and with images blocked the words alone still make a button.
+ */
+function button(
+  label: string,
+  small: string,
+  href: string,
+  background: string,
+  iconUrl: string,
+): string {
   const url = escapeHtml(href);
   return `
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 12px 0;">
           <tr>
             <td align="center" bgcolor="${background}" style="border-radius:14px;background:${background};">
               <a href="${url}" target="_blank" style="display:block;padding:14px 20px;font-family:Arial,Helvetica,sans-serif;text-decoration:none;color:#ffffff;">
-                <span style="display:block;font-size:12px;line-height:14px;color:#cfd8ea;">${escapeHtml(small)}</span>
-                <span style="display:block;font-size:20px;line-height:26px;font-weight:700;color:#ffffff;">${escapeHtml(label)}</span>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr>
+                  <td valign="middle" style="padding-right:14px;"><img src="${iconUrl}" width="32" height="32" alt="" style="display:block;border:0;" /></td>
+                  <td valign="middle" align="left" style="font-family:Arial,Helvetica,sans-serif;">
+                    <span style="display:block;font-size:12px;line-height:14px;color:#cfd8ea;">${escapeHtml(small)}</span>
+                    <span style="display:block;font-size:20px;line-height:26px;font-weight:700;color:#ffffff;">${escapeHtml(label)}</span>
+                  </td>
+                </tr></table>
               </a>
             </td>
           </tr>
@@ -151,7 +169,7 @@ export function launchEmailHtml(input: LaunchEmailInput): string {
               <td bgcolor="#ffffff" style="background:#ffffff;padding:32px 28px 8px 28px;font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:26px;color:${TEXT};">
                 <p style="margin:0 0 14px 0;">${greeting}</p>
                 <p style="margin:0 0 24px 0;">Thank you for signing up to test WagonWise. It is out now, <strong>free</strong>, on iPhone and Android.</p>
-${button('Download on the App Store', 'iPhone', input.appStoreLink, NAVY)}${button('Get it on Google Play', 'Android', input.playStoreLink, BLUE)}
+${button('App Store', 'Download on the', input.appStoreLink, NAVY, APPLE_ICON_URL)}${button('Google Play', 'Get it on', input.playStoreLink, BLUE, PLAY_ICON_URL)}
                 <p style="margin:12px 0 0 0;font-size:15px;line-height:22px;color:${MUTED};">Open the app and sign in with this email address. It sends you a short code to type in.</p>
               </td>
             </tr>
