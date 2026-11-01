@@ -42,9 +42,10 @@ function buildApp(): { app: FastifyInstance; deps: PasswordAccountDeps; sender: 
   const app = Fastify();
   // Stands in for core's driver-auth hook, which sets `request.driverId` from a verified token.
   app.decorateRequest('driverId', undefined);
-  app.addHook('onRequest', async (request) => {
+  app.addHook('onRequest', (request, _reply, done) => {
     const driverId = request.headers[DRIVER_HEADER];
     if (typeof driverId === 'string') request.driverId = driverId;
+    done();
   });
   registerPasswordRoutes(app, deps);
   return { app, deps, sender };
@@ -70,7 +71,7 @@ describe('the email-and-password routes', () => {
     expect(signUp.json()).toMatchObject({
       driver: { identifier: EMAIL, isAdmin: false, scopes: [] },
     });
-    expect(signUp.json().accessToken).toBeTruthy();
+    expect(signUp.json<{ accessToken: string }>().accessToken).toBeTruthy();
 
     expect(
       (await post('/identity/password/sign-in', { identifier: EMAIL, password: PASSWORD }))
@@ -81,7 +82,7 @@ describe('the email-and-password routes', () => {
       code: sender.sent.at(-1)?.code,
     });
     expect(verified.statusCode).toBe(200);
-    expect(verified.json().refreshToken).toBeTruthy();
+    expect(verified.json<{ refreshToken: string }>().refreshToken).toBeTruthy();
   });
 
   it('answers a wrong password 401 InvalidCredentials, and a taken address 409 AccountExists', async () => {

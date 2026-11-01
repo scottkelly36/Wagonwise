@@ -78,8 +78,11 @@ describe('driver sign-in end to end (real Postgres)', () => {
   const post = (url: string, payload: Record<string, unknown>) =>
     app.inject({ method: 'POST', url, payload });
   const lastCode = () => sent.at(-1)?.code;
+  /** A response body, typed for what the test reads from it. */
+  const body = <T>(response: { json(): unknown }): T => response.json() as T;
   const count = async (table: string): Promise<number> =>
-    Number((await pool.query(`select count(*)::int as n from identity.${table}`)).rows[0].n);
+    (await pool.query<{ n: number }>(`select count(*)::int as n from identity.${table}`)).rows[0]
+      ?.n ?? 0;
 
   async function signUp(email: string): Promise<string> {
     expect((await post('/identity/signup/request', { email })).statusCode).toBe(200);
@@ -89,19 +92,19 @@ describe('driver sign-in end to end (real Postgres)', () => {
       code: lastCode(),
     });
     expect(response.statusCode).toBe(200);
-    return response.json().driver.id as string;
+    return body<{ driver: { id: string } }>(response).driver.id;
   }
 
   it('signs up with no invite code, storing a hash and never the password', async () => {
     const id = await signUp('sam@example.com');
     const row = (
-      await pool.query(
+      await pool.query<{ password_hash: string }>(
         `select password_hash from identity.driver_credentials where driver_id = $1`,
         [id],
       )
     ).rows[0];
-    expect(row.password_hash).toMatch(/^scrypt\$/);
-    expect(row.password_hash).not.toContain(PASSWORD);
+    expect(row?.password_hash).toMatch(/^scrypt\$/);
+    expect(row?.password_hash).not.toContain(PASSWORD);
   });
 
   it('signs in with the password and then a code, and refuses a code on its own', async () => {
@@ -118,7 +121,7 @@ describe('driver sign-in end to end (real Postgres)', () => {
       code: lastCode(),
     });
     expect(done.statusCode).toBe(200);
-    expect(done.json().accessToken).toBeTruthy();
+    expect(body<{ accessToken: string }>(done).accessToken).toBeTruthy();
 
     const codeOnly = await post('/identity/otp/request', { identifier: 'sam@example.com' });
     expect(codeOnly.statusCode).toBe(409);
@@ -157,10 +160,10 @@ describe('driver sign-in end to end (real Postgres)', () => {
     });
     expect(reset.statusCode).toBe(200);
     const revoked = (
-      await pool.query(
+      await pool.query<{ n: number }>(
         `select count(*)::int as n from identity.sessions where revoked_at is not null`,
       )
-    ).rows[0].n;
+    ).rows[0]?.n;
     expect(revoked).toBeGreaterThan(0);
   });
 
@@ -183,7 +186,9 @@ describe('driver sign-in end to end (real Postgres)', () => {
     });
     const created = await post('/identity/social/sign-in', { provider: 'google', idToken: 'new' });
     expect(created.statusCode).toBe(200);
-    expect(created.json().driver.identifier).toBe('kim@example.com');
+    expect(body<{ driver: { identifier: string } }>(created).driver.identifier).toBe(
+      'kim@example.com',
+    );
     expect(await count('drivers')).toBe(before + 1);
 
     const forged = await post('/identity/social/sign-in', {
@@ -196,9 +201,12 @@ describe('driver sign-in end to end (real Postgres)', () => {
   });
 
   it('removes the password and the Google link when the account is deleted', async () => {
-    const id = (
-      await pool.query(`select id from identity.drivers where identifier = 'sam@example.com'`)
-    ).rows[0].id as string;
+    const id =
+      (
+        await pool.query<{ id: string }>(
+          `select id from identity.drivers where identifier = 'sam@example.com'`,
+        )
+      ).rows[0]?.id ?? '';
     const gone = await app.inject({
       method: 'DELETE',
       url: '/identity/account',
