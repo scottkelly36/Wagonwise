@@ -210,6 +210,12 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
      `FUEL_FINDER_URL` is optional and defaults to the live service; with both set core copies every station and price
      into the `fuelprices` schema at boot and then every hour, about 34 requests each time, and `FUEL_REFRESH_INTERVAL_MS`
      changes that (never under 10 minutes). **Run one core instance only**: the service allows one request at a time),
+     `NATIONAL_HIGHWAYS_PRIMARY_KEY` and, optionally, `NATIONAL_HIGHWAYS_SECONDARY_KEY` (National Highways road and lane
+     closures on motorways and major A roads, from developer.data.nationalhighways.co.uk, Road and Lane Closures v2.0; core
+     only, never the BFFs or apps; unset means no closures and no requests; the secondary is tried if the primary is
+     refused, so a key can be replaced without a gap; with a key set core copies the feed into the `closures` schema at boot
+     and then every ten minutes (one ~10 MB request), and `CLOSURES_REFRESH_INTERVAL_MS` changes that (never under five
+     minutes). Free for now; National Highways may charge later with at least six months' notice),
      `STAFF_SECRET_KEY` (`openssl rand -base64 32`; keep a copy somewhere safe: losing it
      makes every staff authenticator-app enrolment unreadable), `APP_DATABASE_URL` (below),
      `NODE_ENV=production`.
