@@ -8,7 +8,6 @@ import {
   createTokenSigner,
   type UntypedDb,
 } from '../modules/identity/api.js';
-import { FakeIdTokenVerifier } from '../modules/identity/application/testing/fake-id-token-verifier.js';
 import { createDb, createPool } from '../platform/db.js';
 import { runMigrations } from '../platform/migrations/run-migrations.js';
 import { PostgresUnitOfWork } from '../platform/postgres-unit-of-work.js';
@@ -30,7 +29,19 @@ describe('driver sign-in end to end (real Postgres)', () => {
   let pool: Pool;
   let app: FastifyInstance;
   const sent: { identifier: string; code: string }[] = [];
-  const idTokens = new FakeIdTokenVerifier();
+  // Stands in for Google's and Apple's token check: knows the tokens a test registers, keyed "provider:token", and refuses any other.
+  const knownTokens = new Map<string, { subject: string; email: string; emailVerified: boolean }>();
+  const idTokens = {
+    tokens: knownTokens,
+    verify: (provider: string, idToken: string) => {
+      const identity = knownTokens.get(`${provider}:${idToken}`);
+      return Promise.resolve(
+        identity
+          ? { ok: true as const, value: identity }
+          : { ok: false as const, error: { tag: 'InvalidIdToken' as const } },
+      );
+    },
+  };
   const clock = new FakeClock('2026-11-01T09:00:00.000Z');
 
   beforeAll(async () => {
