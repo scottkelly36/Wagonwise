@@ -107,7 +107,7 @@ export interface IdentityModule {
   /** Sends a plain-text email through the same Resend account as sign-in codes (or logs it in local dev,
    *  where no key is set). Throws when the email cannot be sent, with the provider's reason. Used for
    *  staff invitations (`companies`' own `InviteMailer` port). */
-  sendEmail(to: string, subject: string, text: string): Promise<void>;
+  sendEmail(to: string, subject: string, text: string, html?: string): Promise<void>;
   /** Makes and stores a fresh, unused invite code and returns it. No caller check: the caller (`signups`' send-invites,
    *  supplied by composition) has already confirmed WagonWise staff. */
   newInviteCode(): Promise<string>;
@@ -222,12 +222,12 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
         return Promise.reject(new Error('text messages are not set up'));
       return textSender.send(to, message);
     },
-    sendEmail(to: string, subject: string, text: string): Promise<void> {
+    sendEmail(to: string, subject: string, text: string, html?: string): Promise<void> {
       if (mailer === undefined) {
         console.log(`[dev] email to ${to}: ${subject}\n${text}`);
         return Promise.resolve();
       }
-      return mailer.send({ to, subject, text });
+      return mailer.send({ to, subject, text, html });
     },
     async newInviteCode(): Promise<string> {
       const code = inviteCodeGenerator.next();

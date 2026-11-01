@@ -1,5 +1,6 @@
 import { makeId } from '../../../shared/brand.js';
 import { INVITE_SUBJECT, inviteEmail } from '../domain/invite-email.js';
+import { LAUNCH_SUBJECT, launchEmailHtml, launchEmailText } from '../domain/launch-email.js';
 import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import { err, ok, type Result, type TaggedError } from '../../../shared/result.js';
@@ -33,6 +34,7 @@ export interface TesterRepository {
   count(): Promise<number>;
   findByIds(ids: readonly TesterId[]): Promise<Tester[]>;
   markInvited(id: TesterId, inviteCode: string, at: Date): Promise<void>;
+  markLaunchEmailed(id: TesterId, at: Date): Promise<void>;
   delete(id: TesterId): Promise<boolean>;
   deleteByEmail(email: string): Promise<void>;
 }
@@ -109,7 +111,7 @@ export const MAX_INVITES_PER_SEND = 50;
 /** Supplied by composition over `identity`: a fresh invite code nobody has used, and the sender that carries sign-in codes. */
 export interface InvitePorts {
   newInviteCode(): Promise<string>;
-  sendEmail(to: string, subject: string, text: string): Promise<void>;
+  sendEmail(to: string, subject: string, text: string, html?: string): Promise<void>;
 }
 
 export type InviteStatus = 'sent' | 'already_invited' | 'not_found' | 'failed';
@@ -151,6 +153,58 @@ export async function sendInvites(
         }),
       );
       await deps.testers.markInvited(id, inviteCode, deps.clock.now());
+      results.push({ id, status: 'sent' });
+    } catch {
+      results.push({ id, status: 'failed' });
+    }
+  }
+  return ok(results);
+}
+
+export type LaunchEmailStatus = 'sent' | 'already_sent' | 'not_found' | 'failed';
+
+/**
+ * Sends the "WagonWise is out now" email, with the App Store and Google Play links, to each chosen tester and records who was
+ * sent it and when. Anyone sent it already is skipped (never a second one), and one failed email does not stop the rest. The
+ * tester is marked only after the email has gone, so a failure can simply be tried again. Unlike the invite it makes no invite
+ * code: the app is public now. WagonWise staff only.
+ */
+export async function sendLaunchEmails(
+  deps: Pick<SignupDeps, 'testers' | 'clock'> & { readonly invites: InvitePorts },
+  caller: StaffCaller,
+  input: {
+    readonly ids: readonly TesterId[];
+    readonly appStoreLink: string;
+    readonly playStoreLink: string;
+  },
+): Promise<Result<{ id: TesterId; status: LaunchEmailStatus }[], Forbidden>> {
+  if (caller.kind !== 'platform') return err({ tag: 'Forbidden' });
+  const ids = [...new Set(input.ids)].slice(0, MAX_INVITES_PER_SEND);
+  const found = new Map((await deps.testers.findByIds(ids)).map((t) => [t.id, t]));
+  const results: { id: TesterId; status: LaunchEmailStatus }[] = [];
+  for (const id of ids) {
+    const tester = found.get(id);
+    if (tester === undefined) {
+      results.push({ id, status: 'not_found' });
+      continue;
+    }
+    if (tester.launchEmailedAt !== undefined) {
+      results.push({ id, status: 'already_sent' });
+      continue;
+    }
+    try {
+      const email = {
+        name: tester.name,
+        appStoreLink: input.appStoreLink,
+        playStoreLink: input.playStoreLink,
+      };
+      await deps.invites.sendEmail(
+        tester.email,
+        LAUNCH_SUBJECT,
+        launchEmailText(email),
+        launchEmailHtml(email),
+      );
+      await deps.testers.markLaunchEmailed(id, deps.clock.now());
       results.push({ id, status: 'sent' });
     } catch {
       results.push({ id, status: 'failed' });

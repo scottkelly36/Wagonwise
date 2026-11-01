@@ -473,7 +473,7 @@ export function composeCore(
     callers: { getCaller: staffCaller },
     invites: {
       newInviteCode: () => identity.newInviteCode(),
-      sendEmail: (to, subject, text) => identity.sendEmail(to, subject, text),
+      sendEmail: (to, subject, text, html) => identity.sendEmail(to, subject, text, html),
     },
   });
   // Told by the driver BFF when Resend reports an email that did not get through: logged, and the owner is emailed (if an
