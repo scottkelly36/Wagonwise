@@ -49,7 +49,7 @@ release.
 
 ## Server: what it needs
 
-New tables (migration `0081_driver_passwords.sql`). There is no "pending signup" table: the password is sent
+New tables (migrations `0081_driver_passwords.sql` and `0082_federated_identities.sql`). There is no "pending signup" table: the password is sent
 only with the code in the second step, so nobody can plant a password for someone else's email:
 
 - `identity.driver_credentials (driver_id pk → drivers, password_hash, failed_attempts, locked_until, updated_at)`.
@@ -65,7 +65,7 @@ New endpoints (all internal, forwarded unchanged by the driver BFF; **off unless
 | `POST /identity/password/verify`        | `{ identifier, code }` → tokens                                                                   |
 | `POST /identity/password/reset/request` | `{ email }` → emails a code (always 200)                                                          |
 | `POST /identity/password/reset/confirm` | `{ email, code, newPassword }` → sets it, ends other sessions, tokens                             |
-| `PUT /identity/password`                | signed in: `{ password }` for a driver who has none (migrating drivers)                           |
+| `PUT /identity/account/password`        | signed in: `{ password }` for a driver who has none (migrating drivers)                           |
 | `POST /identity/social/sign-in`         | `{ provider: 'google' \| 'apple', idToken, inviteCode? }` → tokens                                |
 
 Passwords: scrypt, same parameters as staff (identity gets its own copy of the small hasher, per the rule
@@ -113,9 +113,10 @@ Switches (read only in `config.ts`):
 
 ## Risks
 
-- **Open sign-up means anyone can create accounts:** the sign-in rate limit at the BFF counts each caller,
-  each email code costs a send, and the account lockout stops guessing. Disposable-email blocking and a
-  per-day cap on new accounts are not built; add them if abuse shows.
+- **Open sign-up means anyone can create accounts:** each email code costs a send (a code lasts 10 minutes and
+  allows 5 guesses), and the account lockout stops password guessing. **The driver BFF has no per-address rate
+  limit** (the staff BFF has), so a flood of sign-up requests is not slowed down: add one before opening
+  sign-up widely. Disposable-email blocking and a per-day cap on new accounts are not built either.
 - Email deliverability is now part of signing in. The sender domain must be verified with Resend (the
   sandbox sender only delivers to the owner).
 - Social sign-in skips our code step, by design (the provider has already done its own).
@@ -124,6 +125,16 @@ Switches (read only in `config.ts`):
   or leaked password, not a hijacked inbox. An authenticator app as a second factor (as staff have) would
   fix that, and is left as a later extra.
 
-## What is built
+## What is built (2026-11-01: server and driver BFF only, nothing in the app)
 
-See the end of `docs/history/log.md` for the day's entry and `docs/modules.md` (Identity) for the details.
+- `DRIVER_INVITE_REQUIRED`, `DRIVER_PASSWORD_SIGN_IN`, `GOOGLE_OAUTH_CLIENT_IDS`, `APPLE_CLIENT_IDS` in `config.ts`.
+- Core: every route in the table above and `POST /identity/social/sign-in`, forwarded by the driver BFF. A driver
+  with a password is refused on the code-only routes (`PasswordRequired`). Account deletion removes the password
+  and the provider links.
+- Tests: unit, routes, real-Postgres repositories, and `composition/driver-sign-in-end-to-end.test.ts` through
+  the real module.
+- **Not built:** anything in the app; revoking the Apple token when an account is deleted; a nonce check on ID
+  tokens (a stolen token could be replayed until it expires, about an hour); a per-address rate limit at the driver
+  BFF; disposable-email blocking.
+
+Details: `docs/modules.md` (Identity) and the 2026-11-01 entry in `docs/history/log.md`.

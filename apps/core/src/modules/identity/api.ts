@@ -13,6 +13,10 @@ import { ClickSendTextSender } from './infrastructure/clicksend-text-sender.js';
 import { ConsoleOtpSender } from './infrastructure/console-otp-sender.js';
 import { ResendMailer } from './infrastructure/resend-mailer.js';
 import { ResendOtpSender } from './infrastructure/resend-otp-sender.js';
+import { JoseIdTokenVerifier } from './infrastructure/jose-id-token-verifier.js';
+import { PostgresFederatedIdentityRepository } from './infrastructure/postgres-federated-identity-repository.js';
+import type { IdTokenVerifier } from './application/ports/id-token-verifier.js';
+import type { SocialSignInDeps } from './application/social-sign-in.js';
 import { PostgresCredentialRepository } from './infrastructure/postgres-credential-repository.js';
 import { ScryptPasswordHasher } from './infrastructure/scrypt-password-hasher.js';
 import type { PasswordAccountDeps } from './application/password-accounts.js';
@@ -85,6 +89,11 @@ export interface IdentityModuleDeps {
   readonly inviteRequired: boolean;
   /** Registers the email-and-password sign-in routes (`DRIVER_PASSWORD_SIGN_IN`). */
   readonly passwordSignIn: boolean;
+  /** Our client ids at Google and at Apple (`GOOGLE_OAUTH_CLIENT_IDS`, `APPLE_CLIENT_IDS`). A provider with none answers `ProviderNotConfigured`. */
+  readonly googleClientIds: readonly string[];
+  readonly appleClientIds: readonly string[];
+  /** Defaults to `JoseIdTokenVerifier` over the two lists above; override with a fake in tests. */
+  readonly idTokenVerifier?: IdTokenVerifier | undefined;
 }
 
 export interface IdentityModule {
@@ -136,6 +145,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
   const otpRepo = new PostgresOtpRepository(deps.db);
   const deviceRepo = new PostgresDeviceRepository(deps.db);
   const credentialRepo = new PostgresCredentialRepository(deps.db);
+  const federatedRepo = new PostgresFederatedIdentityRepository(deps.db);
   const smsSender =
     deps.clickSendUsername !== undefined && deps.clickSendApiKey !== undefined
       ? new ClickSendOtpSender(deps.clickSendUsername, deps.clickSendApiKey)
@@ -174,8 +184,29 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     ids: deps.ids,
   };
 
+  const socialSignIn: SocialSignInDeps = {
+    driverRepo,
+    inviteCodeRepo,
+    credentialRepo,
+    federatedRepo,
+    idTokenVerifier:
+      deps.idTokenVerifier ??
+      new JoseIdTokenVerifier({
+        googleClientIds: deps.googleClientIds,
+        appleClientIds: deps.appleClientIds,
+      }),
+    sessionRepo,
+    tokenSigner: deps.tokenSigner,
+    refreshTokenGenerator,
+    unitOfWork: deps.unitOfWork,
+    inviteRequired: deps.inviteRequired,
+    clock: deps.clock,
+    ids: deps.ids,
+  };
+
   const routeDeps: IdentityRouteDeps = {
     passwordAccounts: deps.passwordSignIn ? passwordAccounts : undefined,
+    socialSignIn: deps.passwordSignIn ? socialSignIn : undefined,
     requestOtp: {
       driverRepo,
       inviteCodeRepo,
@@ -215,6 +246,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
       sessionRepo,
       deviceRepo,
       credentialRepo,
+      federatedRepo,
       dataEraser: deps.driverDataEraser,
       clock: deps.clock,
     },

@@ -7,6 +7,7 @@ import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-gen
 import type { InviteCode } from '../domain/invite-code.js';
 import { RecordingDriverDataEraser } from '../application/testing/recording-driver-data-eraser.js';
 import { InMemoryCredentialRepository } from '../application/testing/in-memory-credential-repository.js';
+import { InMemoryFederatedIdentityRepository } from '../application/testing/in-memory-federated-identity-repository.js';
 import { InMemoryDeviceRepository } from '../application/testing/in-memory-device-repository.js';
 import { InMemoryDriverRepository } from '../application/testing/in-memory-driver-repository.js';
 import { InMemoryInviteCodeRepository } from '../application/testing/in-memory-invite-code-repository.js';
@@ -90,6 +91,7 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
       sessionRepo,
       deviceRepo,
       credentialRepo,
+      federatedRepo: new InMemoryFederatedIdentityRepository(),
       dataEraser: new RecordingDriverDataEraser(),
       clock,
     },

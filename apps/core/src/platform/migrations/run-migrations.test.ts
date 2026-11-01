@@ -111,6 +111,7 @@ describe('runMigrations', () => {
       '0079_fuel_prices.sql',
       '0080_tester_launch_email.sql',
       '0081_driver_passwords.sql',
+      '0082_federated_identities.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -298,6 +299,7 @@ describe('runMigrations', () => {
       '0079_fuel_prices.sql',
       '0080_tester_launch_email.sql',
       '0081_driver_passwords.sql',
+      '0082_federated_identities.sql',
     ]);
   });
 });

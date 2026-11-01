@@ -8,6 +8,7 @@ import type { Otp } from '../domain/otp.js';
 import type { Session } from '../domain/session.js';
 import { newCredential } from '../domain/password.js';
 import { PostgresCredentialRepository } from './postgres-credential-repository.js';
+import { PostgresFederatedIdentityRepository } from './postgres-federated-identity-repository.js';
 import { PostgresDeviceRepository } from './postgres-device-repository.js';
 import { PostgresDriverRepository } from './postgres-driver-repository.js';
 import { PostgresInviteCodeRepository } from './postgres-invite-code-repository.js';
@@ -376,6 +377,42 @@ describe('identity Postgres repositories', () => {
 
       await repo().deleteForDriver(driverId);
       expect(await repo().findByDriverId(driverId)).toBeNull();
+    });
+  });
+
+  describe('PostgresFederatedIdentityRepository', () => {
+    const repo = () => new PostgresFederatedIdentityRepository(db);
+    const driverId = makeId<'DriverId'>('dddddddd-dddd-4ddd-8ddd-dddddddddddd');
+
+    beforeAll(async () => {
+      await new PostgresDriverRepository(db).save({
+        id: driverId,
+        identifier: 'federated-driver@example.com',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      });
+    });
+
+    it('has nothing for an unknown provider id', async () => {
+      expect(await repo().find('google', 'nobody')).toBeNull();
+    });
+
+    it('saves, finds by provider and id, keeps Google and Apple apart, and deletes by driver', async () => {
+      const google = {
+        provider: 'google' as const,
+        subject: 'g-1',
+        driverId,
+        email: 'federated-driver@example.com',
+        createdAt: new Date('2026-11-01T09:00:00.000Z'),
+      };
+      await repo().save(google);
+      await repo().save({ ...google, provider: 'apple', subject: 'a-1', email: undefined });
+      expect(await repo().find('google', 'g-1')).toEqual(google);
+      expect((await repo().find('apple', 'a-1'))?.email).toBeUndefined();
+      expect(await repo().find('apple', 'g-1')).toBeNull();
+
+      await repo().deleteForDriver(driverId);
+      expect(await repo().find('google', 'g-1')).toBeNull();
+      expect(await repo().find('apple', 'a-1')).toBeNull();
     });
   });
 });

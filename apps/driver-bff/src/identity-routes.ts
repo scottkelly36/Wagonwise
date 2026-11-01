@@ -9,6 +9,7 @@ import {
   setDriverNameRequestSchema,
   setPasswordRequestSchema,
   signupRequestRequestSchema,
+  socialSignInRequestSchema,
   requestOtpRequestSchema,
   revokeSessionParamsSchema,
   verifyOtpRequestSchema,
@@ -34,6 +35,7 @@ const PASSWORD_SIGN_IN_ROUTES = [
   ['/identity/password/verify', passwordVerifyRequestSchema],
   ['/identity/password/reset/request', passwordResetRequestRequestSchema],
   ['/identity/password/reset/confirm', passwordResetConfirmRequestSchema],
+  ['/identity/social/sign-in', socialSignInRequestSchema],
 ] as const;
 
 const BEARER_PREFIX = 'Bearer ';

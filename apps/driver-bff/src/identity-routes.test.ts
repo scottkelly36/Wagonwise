@@ -348,6 +348,7 @@ describe('the email-and-password sign-in routes', () => {
       '/identity/password/reset/confirm',
       { email: 'a@example.com', code: '123456', newPassword: 'long enough pw' },
     ],
+    ['/identity/social/sign-in', { provider: 'google', idToken: 'a-token' }],
   ];
 
   it.each(routes)(

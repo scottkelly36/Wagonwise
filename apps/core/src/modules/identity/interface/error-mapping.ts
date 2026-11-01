@@ -11,6 +11,7 @@ import type {
 import type { GiveConsentError } from '../application/give-consent.js';
 import type { SetDriverNameError } from '../application/set-driver-name.js';
 import type { RegisterDeviceError } from '../application/register-device.js';
+import type { SocialSignInError } from '../application/social-sign-in.js';
 import type { RequestOtpError } from '../application/request-otp.js';
 import type { RefreshTokenError } from '../application/refresh-token.js';
 import type { SessionNotFound } from '../application/revoke-session.js';
@@ -31,7 +32,8 @@ export type IdentityError =
   | VerifyPasswordSignInError
   | RequestPasswordResetError
   | ConfirmPasswordResetError
-  | SetPasswordError;
+  | SetPasswordError
+  | SocialSignInError;
 
 /**
  * Tag -> HTTP status, in exactly one table (AGENTS.md rule 13). `switch-exhaustiveness-check`
@@ -61,6 +63,7 @@ export function statusFor(error: IdentityError): number {
     case 'OtpExpired':
       return 410;
     case 'OtpIncorrect':
+    case 'InvalidIdToken':
     case 'InvalidCredentials':
     case 'SessionRevoked':
     case 'SessionExpired':
@@ -71,7 +74,10 @@ export function statusFor(error: IdentityError): number {
       return 429;
     case 'CodeNotSent':
       return 502;
+    case 'ProviderNotConfigured':
+      return 503;
     case 'Forbidden':
+    case 'EmailNotVerified':
       return 403;
   }
 }

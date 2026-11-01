@@ -168,3 +168,20 @@ export type PasswordResetConfirmRequest = z.infer<typeof passwordResetConfirmReq
 /** A signed-in driver with no password adds one. */
 export const setPasswordRequestSchema = z.object({ password: z.string().max(1024) });
 export type SetPasswordRequest = z.infer<typeof setPasswordRequestSchema>;
+
+// ---- Google and Apple sign-in ------------------------------------------------------------------------------------
+
+export const SOCIAL_PROVIDERS = ['google', 'apple'] as const;
+export const socialProviderSchema = z.enum(SOCIAL_PROVIDERS);
+export type SocialProvider = z.infer<typeof socialProviderSchema>;
+
+/**
+ * `POST /identity/social/sign-in`: the ID token the phone got from Google or Apple. Answers with `verifyOtpResponseSchema` (tokens and
+ * the driver). `inviteCode` only while codes are required.
+ */
+export const socialSignInRequestSchema = z.object({
+  provider: socialProviderSchema,
+  idToken: z.string().min(1).max(16_384),
+  inviteCode: z.string().optional(),
+});
+export type SocialSignInRequest = z.infer<typeof socialSignInRequestSchema>;

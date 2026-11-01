@@ -27,6 +27,8 @@ import type { TokenSigner } from '../application/ports/token-signer.js';
 import type { PasswordAccountDeps } from '../application/password-accounts.js';
 import { statusFor } from './error-mapping.js';
 import { registerPasswordRoutes } from './password-routes.js';
+import type { SocialSignInDeps } from '../application/social-sign-in.js';
+import { registerSocialRoutes } from './social-routes.js';
 
 export interface IdentityRouteDeps {
   readonly requestOtp: RequestOtpDeps;
@@ -42,6 +44,8 @@ export interface IdentityRouteDeps {
   readonly tokenSigner: TokenSigner;
   /** Set when `DRIVER_PASSWORD_SIGN_IN` is on: the email-and-password routes are registered. */
   readonly passwordAccounts?: PasswordAccountDeps | undefined;
+  /** Set with `passwordAccounts`: Google and Apple sign-in. */
+  readonly socialSignIn?: SocialSignInDeps | undefined;
 }
 
 function driverDto(driver: {
@@ -113,6 +117,7 @@ function requireDriverId(request: FastifyRequest, reply: FastifyReply): Id<'Driv
  */
 export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRouteDeps): void {
   if (deps.passwordAccounts) registerPasswordRoutes(app, deps.passwordAccounts);
+  if (deps.socialSignIn) registerSocialRoutes(app, deps.socialSignIn);
 
   app.post('/identity/otp/request', async (request, reply) => {
     const parsed = requestOtpRequestSchema.safeParse(request.body);
