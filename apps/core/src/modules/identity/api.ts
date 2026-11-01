@@ -13,6 +13,9 @@ import { ClickSendTextSender } from './infrastructure/clicksend-text-sender.js';
 import { ConsoleOtpSender } from './infrastructure/console-otp-sender.js';
 import { ResendMailer } from './infrastructure/resend-mailer.js';
 import { ResendOtpSender } from './infrastructure/resend-otp-sender.js';
+import { PostgresCredentialRepository } from './infrastructure/postgres-credential-repository.js';
+import { ScryptPasswordHasher } from './infrastructure/scrypt-password-hasher.js';
+import type { PasswordAccountDeps } from './application/password-accounts.js';
 import { CryptoInviteCodeGenerator } from './infrastructure/crypto-invite-code-generator.js';
 import { CryptoOtpCodeGenerator } from './infrastructure/crypto-otp-code-generator.js';
 import { CryptoRefreshTokenGenerator } from './infrastructure/crypto-refresh-token-generator.js';
@@ -80,6 +83,8 @@ export interface IdentityModuleDeps {
   readonly otpSender?: OtpSender | undefined;
   /** Does a first sign-in need an invite code? (`DRIVER_INVITE_REQUIRED`) */
   readonly inviteRequired: boolean;
+  /** Registers the email-and-password sign-in routes (`DRIVER_PASSWORD_SIGN_IN`). */
+  readonly passwordSignIn: boolean;
 }
 
 export interface IdentityModule {
@@ -130,6 +135,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
   const sessionRepo = new PostgresSessionRepository(deps.db);
   const otpRepo = new PostgresOtpRepository(deps.db);
   const deviceRepo = new PostgresDeviceRepository(deps.db);
+  const credentialRepo = new PostgresCredentialRepository(deps.db);
   const smsSender =
     deps.clickSendUsername !== undefined && deps.clickSendApiKey !== undefined
       ? new ClickSendOtpSender(deps.clickSendUsername, deps.clickSendApiKey)
@@ -151,10 +157,29 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
   const refreshTokenGenerator = new CryptoRefreshTokenGenerator();
   const inviteCodeGenerator = new CryptoInviteCodeGenerator();
 
+  const passwordAccounts: PasswordAccountDeps = {
+    driverRepo,
+    inviteCodeRepo,
+    credentialRepo,
+    otpRepo,
+    otpSender,
+    otpCodeGenerator,
+    passwordHasher: new ScryptPasswordHasher(),
+    sessionRepo,
+    tokenSigner: deps.tokenSigner,
+    refreshTokenGenerator,
+    unitOfWork: deps.unitOfWork,
+    inviteRequired: deps.inviteRequired,
+    clock: deps.clock,
+    ids: deps.ids,
+  };
+
   const routeDeps: IdentityRouteDeps = {
+    passwordAccounts: deps.passwordSignIn ? passwordAccounts : undefined,
     requestOtp: {
       driverRepo,
       inviteCodeRepo,
+      credentialRepo,
       otpRepo,
       otpSender,
       otpCodeGenerator,
@@ -165,6 +190,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     verifyOtp: {
       driverRepo,
       inviteCodeRepo,
+      credentialRepo,
       otpRepo,
       sessionRepo,
       tokenSigner: deps.tokenSigner,
@@ -188,6 +214,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
       driverRepo,
       sessionRepo,
       deviceRepo,
+      credentialRepo,
       dataEraser: deps.driverDataEraser,
       clock: deps.clock,
     },

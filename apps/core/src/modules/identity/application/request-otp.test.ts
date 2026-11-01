@@ -3,6 +3,7 @@ import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { InviteCode } from '../domain/invite-code.js';
 import { makeId } from '../../../shared/brand.js';
+import { InMemoryCredentialRepository } from './testing/in-memory-credential-repository.js';
 import { InMemoryDriverRepository } from './testing/in-memory-driver-repository.js';
 import { InMemoryInviteCodeRepository } from './testing/in-memory-invite-code-repository.js';
 import { InMemoryOtpRepository } from './testing/in-memory-otp-repository.js';
@@ -14,6 +15,7 @@ function buildDeps(overrides: Partial<RequestOtpDeps> = {}): RequestOtpDeps {
   return {
     driverRepo: new InMemoryDriverRepository(),
     inviteCodeRepo: new InMemoryInviteCodeRepository(),
+    credentialRepo: new InMemoryCredentialRepository(),
     otpRepo: new InMemoryOtpRepository(),
     otpSender: new FakeOtpSender(),
     otpCodeGenerator: new SequentialOtpCodeGenerator(),

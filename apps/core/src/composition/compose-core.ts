@@ -208,6 +208,7 @@ export function composeCore(
     resendFromEmail: config.resendFromEmail,
     otpSender: overrides.otpSender,
     inviteRequired: config.driverInviteRequired,
+    passwordSignIn: config.driverPasswordSignIn,
     platformStaff: { isPlatformStaff },
     // Called when a driver deletes their account, long after every module below is built. Each
     // part is safe to run twice, and the account is only scrubbed once all of them have succeeded.

@@ -15,3 +15,12 @@ export type CodeNotSent = TaggedError<'CodeNotSent'> & { readonly cause: unknown
  *  somehow no longer exists — a data-integrity bug, not a request shape a driver can trigger
  *  (`give-consent.ts`, `delete-account.ts`). */
 export type DriverNotFound = TaggedError<'DriverNotFound'>;
+
+/** Wrong email or wrong password: one error, so the response never reveals which accounts exist. */
+export type InvalidCredentials = TaggedError<'InvalidCredentials'>;
+/** This account has a password, so a code alone cannot sign in to it. The app sends the driver to the password screen. */
+export type PasswordRequired = TaggedError<'PasswordRequired'>;
+/** A password sign-up for an email that already has an account. */
+export type AccountExists = TaggedError<'AccountExists'>;
+/** The driver already has a password; changing one goes through "forgot password". */
+export type PasswordAlreadySet = TaggedError<'PasswordAlreadySet'>;

@@ -116,3 +116,55 @@ export const identityErrorResponseSchema = z.object({
   requestId: z.string(),
 });
 export type IdentityErrorResponse = z.infer<typeof identityErrorResponseSchema>;
+
+// ---- Email and password sign-in (docs/driver-sign-in-plan.md) ------------------------------------------------
+// The routes exist in core only when DRIVER_PASSWORD_SIGN_IN is on. Each answers with `verifyOtpResponseSchema` (tokens and the
+// driver) where it signs someone in.
+
+/** The shortest and longest password. Length is the only rule. */
+export const MIN_PASSWORD_LENGTH = 10;
+export const MAX_PASSWORD_LENGTH = 128;
+
+/** Step 1 of signing up: an emailed code. `inviteCode` only while codes are required. */
+export const signupRequestRequestSchema = z.object({
+  email: z.string(),
+  inviteCode: z.string().optional(),
+});
+export type SignupRequestRequest = z.infer<typeof signupRequestRequestSchema>;
+
+/** Step 2: the code and the chosen password, which makes the account and signs in. */
+export const confirmSignupRequestSchema = z.object({
+  email: z.string(),
+  password: z.string().max(1024),
+  code: z.string(),
+  inviteCode: z.string().optional(),
+});
+export type ConfirmSignupRequest = z.infer<typeof confirmSignupRequestSchema>;
+
+/** Step 1 of signing in: a right password sends a code. */
+export const passwordSignInRequestSchema = z.object({
+  identifier: z.string(),
+  password: z.string().max(1024),
+});
+export type PasswordSignInRequest = z.infer<typeof passwordSignInRequestSchema>;
+
+/** Step 2 of signing in: the code. */
+export const passwordVerifyRequestSchema = z.object({
+  identifier: z.string(),
+  code: z.string(),
+});
+export type PasswordVerifyRequest = z.infer<typeof passwordVerifyRequestSchema>;
+
+export const passwordResetRequestRequestSchema = z.object({ email: z.string() });
+export type PasswordResetRequestRequest = z.infer<typeof passwordResetRequestRequestSchema>;
+
+export const passwordResetConfirmRequestSchema = z.object({
+  email: z.string(),
+  code: z.string(),
+  newPassword: z.string().max(1024),
+});
+export type PasswordResetConfirmRequest = z.infer<typeof passwordResetConfirmRequestSchema>;
+
+/** A signed-in driver with no password adds one. */
+export const setPasswordRequestSchema = z.object({ password: z.string().max(1024) });
+export type SetPasswordRequest = z.infer<typeof setPasswordRequestSchema>;

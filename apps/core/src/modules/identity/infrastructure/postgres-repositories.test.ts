@@ -6,6 +6,8 @@ import type { Driver } from '../domain/driver.js';
 import type { InviteCode } from '../domain/invite-code.js';
 import type { Otp } from '../domain/otp.js';
 import type { Session } from '../domain/session.js';
+import { newCredential } from '../domain/password.js';
+import { PostgresCredentialRepository } from './postgres-credential-repository.js';
 import { PostgresDeviceRepository } from './postgres-device-repository.js';
 import { PostgresDriverRepository } from './postgres-driver-repository.js';
 import { PostgresInviteCodeRepository } from './postgres-invite-code-repository.js';
@@ -339,6 +341,41 @@ describe('identity Postgres repositories', () => {
         expect.objectContaining({ pushToken: 'ExponentPushToken[upsert]' }),
       );
       expect(await repo().findByDriverId(otherDriverId)).toEqual([reassigned]);
+    });
+  });
+
+  describe('PostgresCredentialRepository', () => {
+    const repo = () => new PostgresCredentialRepository(db);
+    const driverId = makeId<'DriverId'>('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+
+    beforeAll(async () => {
+      await new PostgresDriverRepository(db).save({
+        id: driverId,
+        identifier: 'credential-driver@example.com',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      });
+    });
+
+    it('has nothing for a driver with no password', async () => {
+      expect(await repo().findByDriverId(driverId)).toBeNull();
+    });
+
+    it('saves, reads back, updates in place, and deletes', async () => {
+      const first = newCredential(driverId, 'scrypt$hash', new Date('2026-11-01T09:00:00.000Z'));
+      await repo().save(first);
+      expect(await repo().findByDriverId(driverId)).toEqual(first);
+
+      const locked = {
+        ...first,
+        failedAttempts: 3,
+        lockedUntil: new Date('2026-11-01T09:15:00.000Z'),
+        updatedAt: new Date('2026-11-01T09:01:00.000Z'),
+      };
+      await repo().save(locked);
+      expect(await repo().findByDriverId(driverId)).toEqual(locked);
+
+      await repo().deleteForDriver(driverId);
+      expect(await repo().findByDriverId(driverId)).toBeNull();
     });
   });
 });

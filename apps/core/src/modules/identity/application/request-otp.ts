@@ -1,11 +1,16 @@
 import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
-import { err, ok, type Result } from '../../../shared/result.js';
+import { err, type Result } from '../../../shared/result.js';
 import { identifierForms, type InvalidIdentifier } from '../domain/identifier.js';
 import { isRedeemed } from '../domain/invite-code.js';
-import type { Otp } from '../domain/otp.js';
-import type { CodeNotSent, InvalidInviteCode, InviteCodeRequired } from './errors.js';
-import { sha256Hex } from './hash.js';
+import type {
+  CodeNotSent,
+  InvalidInviteCode,
+  InviteCodeRequired,
+  PasswordRequired,
+} from './errors.js';
+import { issueOtp, OTP_TTL_MS as ISSUED_OTP_TTL_MS } from './issue-otp.js';
+import type { CredentialRepository } from './ports/credential-repository.js';
 import type { DriverRepository } from './ports/driver-repository.js';
 import type { InviteCodeRepository } from './ports/invite-code-repository.js';
 import type { OtpCodeGenerator } from './ports/otp-code-generator.js';
@@ -15,6 +20,7 @@ import type { OtpSender } from './ports/otp-sender.js';
 export interface RequestOtpDeps {
   readonly driverRepo: DriverRepository;
   readonly inviteCodeRepo: InviteCodeRepository;
+  readonly credentialRepo: CredentialRepository;
   readonly otpRepo: OtpRepository;
   readonly otpSender: OtpSender;
   readonly otpCodeGenerator: OtpCodeGenerator;
@@ -32,10 +38,10 @@ export interface RequestOtpInput {
   readonly inviteCode?: string | undefined;
 }
 
-export const OTP_TTL_MS = 10 * 60 * 1000;
+export const OTP_TTL_MS = ISSUED_OTP_TTL_MS;
 
 export type RequestOtpError =
-  InvalidIdentifier | InviteCodeRequired | InvalidInviteCode | CodeNotSent;
+  InvalidIdentifier | InviteCodeRequired | InvalidInviteCode | CodeNotSent | PasswordRequired;
 
 /**
  * Sends a one-time code. For a new identifier, validates an invite code without redeeming it —
@@ -53,6 +59,9 @@ export async function requestOtp(
   // An account made before UK numbers were made consistent may be stored as 07… when the driver types +44…, or the other way
   // round: find it either way, and use the form it is stored under for the code, so sign-in finds the same code.
   const existingDriver = await deps.driverRepo.findByAnyIdentifier(forms.value);
+  if (existingDriver && (await deps.credentialRepo.findByDriverId(existingDriver.id))) {
+    return err({ tag: 'PasswordRequired' });
+  }
   const identifier = existingDriver?.identifier ?? forms.value[0];
   if (!existingDriver && deps.inviteRequired) {
     if (!input.inviteCode) {
@@ -64,22 +73,5 @@ export async function requestOtp(
     }
   }
 
-  const code = deps.otpCodeGenerator.next();
-  const now = deps.clock.now();
-  const otp: Otp = {
-    id: deps.ids.newId(),
-    codeHash: sha256Hex(code),
-    expiresAt: new Date(now.getTime() + OTP_TTL_MS),
-    consumedAt: null,
-    attempts: 0,
-  };
-  await deps.otpRepo.save(identifier, otp);
-  try {
-    await deps.otpSender.send(identifier, code);
-  } catch (cause) {
-    // The provider refused or could not be reached. The caller logs why; the driver is told the code was
-    // not sent, instead of an unexplained failure.
-    return err({ tag: 'CodeNotSent', cause });
-  }
-  return ok(undefined);
+  return issueOtp(deps, identifier);
 }

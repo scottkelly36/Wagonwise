@@ -1,4 +1,13 @@
 import type { Forbidden } from '../application/authorization.js';
+import type {
+  ConfirmPasswordResetError,
+  ConfirmSignupError,
+  PasswordSignInError,
+  RequestPasswordResetError,
+  RequestSignupCodeError,
+  SetPasswordError,
+  VerifyPasswordSignInError,
+} from '../application/password-accounts.js';
 import type { GiveConsentError } from '../application/give-consent.js';
 import type { SetDriverNameError } from '../application/set-driver-name.js';
 import type { RegisterDeviceError } from '../application/register-device.js';
@@ -15,7 +24,14 @@ export type IdentityError =
   | RegisterDeviceError
   | GiveConsentError
   | SetDriverNameError
-  | Forbidden;
+  | Forbidden
+  | RequestSignupCodeError
+  | ConfirmSignupError
+  | PasswordSignInError
+  | VerifyPasswordSignInError
+  | RequestPasswordResetError
+  | ConfirmPasswordResetError
+  | SetPasswordError;
 
 /**
  * Tag -> HTTP status, in exactly one table (AGENTS.md rule 13). `switch-exhaustiveness-check`
@@ -28,16 +44,24 @@ export function statusFor(error: IdentityError): number {
     case 'InvalidInviteCode':
     case 'InvalidPushToken':
     case 'NameTooLong':
+    case 'EmailRequired':
+    case 'PasswordTooShort':
+    case 'PasswordTooLong':
+    case 'PasswordIsEmail':
       return 400;
     case 'OtpNotFound':
     case 'SessionNotFound':
     case 'DriverNotFound':
       return 404;
     case 'OtpAlreadyConsumed':
+    case 'AccountExists':
+    case 'PasswordRequired':
+    case 'PasswordAlreadySet':
       return 409;
     case 'OtpExpired':
       return 410;
     case 'OtpIncorrect':
+    case 'InvalidCredentials':
     case 'SessionRevoked':
     case 'SessionExpired':
     case 'RefreshTokenReused':

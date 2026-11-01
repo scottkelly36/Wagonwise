@@ -6,6 +6,7 @@ import type { Driver } from '../domain/driver.js';
 import type { Session } from '../domain/session.js';
 import { deleteAccount, type DeleteAccountDeps } from './delete-account.js';
 import { RecordingDriverDataEraser } from './testing/recording-driver-data-eraser.js';
+import { InMemoryCredentialRepository } from './testing/in-memory-credential-repository.js';
 import { InMemoryDeviceRepository } from './testing/in-memory-device-repository.js';
 import { InMemoryDriverRepository } from './testing/in-memory-driver-repository.js';
 import { InMemorySessionRepository } from './testing/in-memory-session-repository.js';
@@ -51,6 +52,7 @@ function buildDeps(overrides: Partial<DeleteAccountDeps> = {}): DeleteAccountDep
     driverRepo: new InMemoryDriverRepository(),
     sessionRepo: new InMemorySessionRepository(),
     deviceRepo: new InMemoryDeviceRepository(),
+    credentialRepo: new InMemoryCredentialRepository(),
     dataEraser: new RecordingDriverDataEraser(),
     clock: new FakeClock(now),
     ...overrides,

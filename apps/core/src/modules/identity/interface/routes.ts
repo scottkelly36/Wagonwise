@@ -24,7 +24,9 @@ import { revokeSession, type RevokeSessionDeps } from '../application/revoke-ses
 import { setDriverName, type SetDriverNameDeps } from '../application/set-driver-name.js';
 import { verifyOtp, type VerifyOtpDeps } from '../application/verify-otp.js';
 import type { TokenSigner } from '../application/ports/token-signer.js';
+import type { PasswordAccountDeps } from '../application/password-accounts.js';
 import { statusFor } from './error-mapping.js';
+import { registerPasswordRoutes } from './password-routes.js';
 
 export interface IdentityRouteDeps {
   readonly requestOtp: RequestOtpDeps;
@@ -38,6 +40,8 @@ export interface IdentityRouteDeps {
   readonly createInviteCode: CreateInviteCodeDeps;
   readonly listInviteCodes: ListInviteCodesDeps;
   readonly tokenSigner: TokenSigner;
+  /** Set when `DRIVER_PASSWORD_SIGN_IN` is on: the email-and-password routes are registered. */
+  readonly passwordAccounts?: PasswordAccountDeps | undefined;
 }
 
 function driverDto(driver: {
@@ -108,6 +112,8 @@ function requireDriverId(request: FastifyRequest, reply: FastifyReply): Id<'Driv
  * reaches here.
  */
 export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRouteDeps): void {
+  if (deps.passwordAccounts) registerPasswordRoutes(app, deps.passwordAccounts);
+
   app.post('/identity/otp/request', async (request, reply) => {
     const parsed = requestOtpRequestSchema.safeParse(request.body);
     if (!parsed.success) {

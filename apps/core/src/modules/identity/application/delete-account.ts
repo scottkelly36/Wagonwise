@@ -2,6 +2,7 @@ import type { Clock } from '../../../shared/ports/clock.js';
 import { err, ok, type Result } from '../../../shared/result.js';
 import { anonymize, isDeleted, type DriverId } from '../domain/driver.js';
 import type { DriverNotFound } from './errors.js';
+import type { CredentialRepository } from './ports/credential-repository.js';
 import type { DeviceRepository } from './ports/device-repository.js';
 import type { DriverRepository } from './ports/driver-repository.js';
 import type { DriverDataEraser } from './ports/driver-data-eraser.js';
@@ -11,6 +12,7 @@ export interface DeleteAccountDeps {
   readonly driverRepo: DriverRepository;
   readonly sessionRepo: SessionRepository;
   readonly deviceRepo: DeviceRepository;
+  readonly credentialRepo: CredentialRepository;
   /** Removes the driver's data held by other modules (vehicle profiles, routes, feedback...). */
   readonly dataEraser: DriverDataEraser;
   readonly clock: Clock;
@@ -55,5 +57,6 @@ export async function deleteAccount(
   await deps.driverRepo.save(anonymize(driver, now));
   await deps.sessionRepo.revokeAllForDriver(driver.id, now);
   await deps.deviceRepo.deleteAllForDriver(driver.id);
+  await deps.credentialRepo.deleteForDriver(driver.id);
   return ok(undefined);
 }

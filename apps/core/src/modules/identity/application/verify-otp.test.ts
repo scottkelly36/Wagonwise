@@ -7,6 +7,7 @@ import type { Driver } from '../domain/driver.js';
 import type { InviteCode } from '../domain/invite-code.js';
 import { MAX_OTP_ATTEMPTS, type Otp } from '../domain/otp.js';
 import { sha256Hex } from './hash.js';
+import { InMemoryCredentialRepository } from './testing/in-memory-credential-repository.js';
 import { InMemoryDriverRepository } from './testing/in-memory-driver-repository.js';
 import { FakeTokenSigner } from './testing/fake-token-signer.js';
 import { InMemoryInviteCodeRepository } from './testing/in-memory-invite-code-repository.js';
@@ -23,6 +24,7 @@ function buildDeps(overrides: Partial<VerifyOtpDeps> = {}): VerifyOtpDeps {
   return {
     driverRepo: new InMemoryDriverRepository(),
     inviteCodeRepo: new InMemoryInviteCodeRepository(),
+    credentialRepo: new InMemoryCredentialRepository(),
     otpRepo: new InMemoryOtpRepository(),
     sessionRepo: new InMemorySessionRepository(),
     tokenSigner: new FakeTokenSigner(),
