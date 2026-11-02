@@ -92,3 +92,85 @@ describe('POST /closures/nearby', () => {
     ).toBe(400);
   });
 });
+
+describe('POST /closures/along-route', () => {
+  // A route that runs along the fixture closure's line.
+  const corridor = [
+    { lat: 53.35, lon: -2.31 },
+    { lat: 53.36, lon: -2.3 },
+    { lat: 53.37, lon: -2.29 },
+  ];
+
+  it('answers with the closures along the route, each with its lines and no distance', async () => {
+    const response = await buildApp().inject({
+      method: 'POST',
+      url: '/closures/along-route',
+      payload: { corridor },
+    });
+    expect(response.statusCode).toBe(200);
+    const json = response.json<{
+      closures: { id: string; lines: { lat: number; lon: number }[][]; distanceM?: number }[];
+      refreshedAt: string;
+    }>();
+    expect(json.closures.map((c) => c.id)).toEqual(['now', 'tonight']);
+    expect(json.closures[1]?.lines).toEqual([
+      [
+        { lat: 53.35, lon: -2.31 },
+        { lat: 53.36, lon: -2.3 },
+        { lat: 53.37, lon: -2.29 },
+      ],
+    ]);
+    expect(json.closures[1]).not.toHaveProperty('distanceM');
+    expect(json.refreshedAt).toBe('2026-11-01T19:55:00.000Z');
+  });
+
+  it('leaves out a closure on another road, one that starts beyond the look-ahead, and a paused one', async () => {
+    const app = Fastify();
+    const repo = new InMemoryClosureRepository();
+    repo.closures = [
+      closure({
+        id: 'elsewhere',
+        lines: [
+          [
+            { lat: 52.0, lon: -1.0 },
+            { lat: 52.01, lon: -1.0 },
+          ],
+        ],
+      }),
+      closure({ id: 'far-off', startsAt: new Date('2026-11-05T22:00:00.000Z') }),
+      closure({ id: 'paused', status: 'suspended' }),
+      closure({ id: 'tonight' }),
+    ];
+    registerClosureRoutes(app, { repo, clock: new FakeClock('2026-11-01T20:00:00.000Z') });
+    const response = await app.inject({
+      method: 'POST',
+      url: '/closures/along-route',
+      payload: { corridor, withinHours: 48 },
+    });
+    expect(response.json<{ closures: { id: string }[] }>().closures.map((c) => c.id)).toEqual([
+      'tonight',
+    ]);
+  });
+
+  it('400s an empty route or a look-ahead beyond a week', async () => {
+    const app = buildApp();
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/closures/along-route',
+          payload: { corridor: [] },
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/closures/along-route',
+          payload: { corridor, withinHours: 200 },
+        })
+      ).statusCode,
+    ).toBe(400);
+  });
+});

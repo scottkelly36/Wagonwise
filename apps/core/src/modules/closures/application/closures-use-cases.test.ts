@@ -3,6 +3,7 @@ import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { err, ok } from '../../../shared/result.js';
 import type { Closure, ClosureSourceUnavailable } from '../domain/closure.js';
 import type { ClosureSource } from './closure-source.js';
+import { findClosuresAlongRoute } from './find-closures-along-route.js';
 import { findNearbyClosures } from './find-nearby-closures.js';
 import { refreshClosures } from './refresh-closures.js';
 import { closure } from './testing/closure-fixtures.js';
@@ -155,5 +156,46 @@ describe('findNearbyClosures', () => {
       { centre: here, radiusM: 5000, withinDays: 7, limit: 2 },
     );
     expect(found.closures).toHaveLength(2);
+  });
+});
+
+describe('findClosuresAlongRoute', () => {
+  const route = [
+    { lat: 53.35, lon: -2.31 },
+    { lat: 53.37, lon: -2.29 },
+  ];
+  const deps = (closures: readonly Closure[]) => {
+    const repo = new InMemoryClosureRepository();
+    repo.closures = closures;
+    return { repo, clock: new FakeClock(NOW) };
+  };
+
+  it('finds closures along the route that are in force now or start within the look-ahead', async () => {
+    const found = await findClosuresAlongRoute(
+      deps([
+        closure({ id: 'tonight' }),
+        closure({
+          id: 'beyond',
+          startsAt: new Date('2026-11-04T22:00:00.000Z'),
+          endsAt: new Date('2026-11-05T06:00:00.000Z'),
+        }),
+      ]),
+      { corridor: route, withinHours: 48, limit: 100 },
+    );
+    expect(found.closures.map((c) => c.id)).toEqual(['tonight']);
+  });
+
+  it('counts the look-ahead from now', async () => {
+    const found = await findClosuresAlongRoute(
+      deps([
+        closure({
+          id: 'beyond',
+          startsAt: new Date('2026-11-04T22:00:00.000Z'),
+          endsAt: new Date('2026-11-05T06:00:00.000Z'),
+        }),
+      ]),
+      { corridor: route, withinHours: 75, limit: 100 },
+    );
+    expect(found.closures.map((c) => c.id)).toEqual(['beyond']);
   });
 });

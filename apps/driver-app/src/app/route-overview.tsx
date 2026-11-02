@@ -12,9 +12,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useStartTrip } from '../api/use-active-trip';
+import { useClosuresAlongRoute } from '../api/use-closures';
 import { useNearbyHazards } from '../api/use-hazards';
+import { ClosureDrawer } from '../components/closure-drawer';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
+import { RouteClosuresSection } from '../components/route-closures-section';
 import { RouteMap } from '../components/route-map';
+import { closuresAtArrival, placeClosuresOnRoute } from '../lib/closures-on-route';
 import { planForShift } from '../lib/break-plan';
 import { breakExplanation } from '../lib/break-explanation';
 import { computeEta } from '../lib/eta';
@@ -55,6 +59,7 @@ export default function RouteOverviewScreen() {
   const [leaveAt, setLeaveAt] = useState<Date | undefined>(undefined);
   const [showPicker, setShowPicker] = useState(false);
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
+  const [selectedClosureId, setSelectedClosureId] = useState<string | undefined>(undefined);
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -108,6 +113,29 @@ export default function RouteOverviewScreen() {
         ),
     );
   }, [plan, nearbyHazardsData, onRouteHazards, routeLine]);
+
+  // Closures the route runs along (matched by line and direction, once per route) and which of them will be in force when the driver
+  // gets there, which follows the departure time. Nothing is said until they have been fetched.
+  const routeClosuresData = useClosuresAlongRoute(corridor).data;
+  const placedClosures = useMemo(
+    () =>
+      routeLine && routeClosuresData
+        ? placeClosuresOnRoute(routeLine, routeClosuresData.closures)
+        : [],
+    [routeLine, routeClosuresData],
+  );
+  const routeClosures = plan
+    ? closuresAtArrival(placedClosures, {
+        leaveAtMs: (leaveAt ?? new Date()).getTime(),
+        durationMin: plan.durationMin,
+      })
+    : [];
+  const mapClosures = routeClosures.map((c) => ({
+    id: c.closure.id,
+    location: c.closure.location,
+    kind: c.closure.kind,
+  }));
+  const selectedClosure = routeClosures.find((c) => c.closure.id === selectedClosureId)?.closure;
 
   const eta = plan ? computeEta(leaveAt ?? new Date(), plan.durationMin) : undefined;
 
@@ -178,12 +206,15 @@ export default function RouteOverviewScreen() {
         routeLine={routeLine}
         hazards={onRouteHazards}
         onHazardPress={setSelectedHazardId}
+        closures={mapClosures}
+        onClosurePress={setSelectedClosureId}
       />
 
       <HazardDetailDrawer
         hazardId={selectedHazardId}
         onClose={() => setSelectedHazardId(undefined)}
       />
+      <ClosureDrawer closure={selectedClosure} onClose={() => setSelectedClosureId(undefined)} />
 
       <View style={[styles.backOverlay, { top: insets.top + 8 }]} pointerEvents="box-none">
         <RoundButton
@@ -264,6 +295,12 @@ export default function RouteOverviewScreen() {
             ))
           )}
         </View>
+
+        <RouteClosuresSection
+          items={routeClosures}
+          ready={routeClosuresData?.refreshedAt !== undefined}
+          onSelect={setSelectedClosureId}
+        />
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hazards on this route</Text>

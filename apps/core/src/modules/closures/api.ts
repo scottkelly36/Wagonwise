@@ -51,7 +51,7 @@ export interface ClosuresModule {
    * it. A failed fetch, or an empty answer when plenty is stored, leaves the last good copy in place and comes back as an error value.
    */
   refresh(): Promise<Result<RefreshSummary, RefreshError>>;
-  /** `POST /closures/nearby`: the closures near a point, from the stored copy. */
+  /** `POST /closures/nearby` and `POST /closures/along-route`: the closures near a point, and along a planned route, from the stored copy. */
   registerRoutes(app: FastifyInstance): void;
 }
 

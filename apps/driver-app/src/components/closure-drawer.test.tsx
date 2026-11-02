@@ -84,6 +84,16 @@ describe('ClosureDrawer', () => {
     expect(screen.getByTestId('closure-window-note')).toBeTruthy();
   });
 
+  it('says how far away a closure on the map is', async () => {
+    await render(<ClosureDrawer closure={closure()} onClose={jest.fn()} />);
+    expect(screen.getByText(/ away$/)).toBeTruthy();
+  });
+
+  it('says nothing about distance for a closure on a planned route, which is on the route', async () => {
+    await render(<ClosureDrawer closure={closure({ distanceM: undefined })} onClose={jest.fn()} />);
+    expect(screen.queryByText(/ away$/)).toBeNull();
+  });
+
   it('closes from the button', async () => {
     const onClose = jest.fn();
     await render(<ClosureDrawer closure={closure()} onClose={onClose} />);

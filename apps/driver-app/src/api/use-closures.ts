@@ -34,3 +34,19 @@ export function useNearbyClosures(
     ...(keepPrevious ? { placeholderData: keepPreviousData } : {}),
   });
 }
+
+/**
+ * The closures along a planned route, in force now or starting within the next two days. Asked for once per route and refreshed every
+ * few minutes while the screen is open, since a closure can be added or lifted while a driver is deciding. Nothing shows until they
+ * arrive; if they cannot be had the driver simply sees no warning (as for the hazards and the speed limits).
+ */
+export function useClosuresAlongRoute(corridor: readonly { lat: number; lon: number }[]) {
+  const accessToken = useAccessToken();
+  return useQuery({
+    queryKey: ['route-closures', corridor],
+    queryFn: () => closuresApi.findClosuresAlongRoute(accessToken, { corridor: [...corridor] }),
+    enabled: corridor.length > 1,
+    refetchInterval: NEARBY_CLOSURES_POLL_MS,
+    retry: 1,
+  });
+}
