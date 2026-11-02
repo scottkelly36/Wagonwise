@@ -469,9 +469,30 @@ hazards), withinHours (default 48, max 168), limit (default 100) }`. Core only f
     westbound route did not; an M3 route passing 7 m from a closed slip road did not match, one that takes the slip road did.
   - **Screen:** the route overview has a "Road closures" part (only once closures have been fetched, so "None found" is never said about
     something nobody checked): up to two closures with a headline, "Closed until … · you reach it about …", and a tap for the drawer, hard-hat
-    markers on the route map, and a red note when a whole road is shut that **routes do not avoid closures yet**. Nothing about the route itself changes.
-- **Not built yet (stage 3):** routing around full closures (a narrow avoid-zone along the closure's own line, matching the route's direction: Valhalla cannot block
-  one direction of a carriageway, so a wide zone would also block the other side). The stored lines are there for it.
+    markers on the route map, and a red note when the route still goes through a whole road that is shut (stage 3 below goes round them first, so the note is for when it
+    could not, or the driver set off later than the plan assumed).
+- **Routing round full closures (stage 3, 2026-11-02):** `planRoute` (`routing/application/plan-route.ts`) goes round a closed road when there is a way. After the first route (and
+  the hazard pass, if any) it asks `ClosureAvoidanceQuery` (routing's own port; the adapter wraps `closures.findAlongRoute`, the same candidate query as `/closures/along-route`)
+  for closures along the route, works out which the route really runs along and which are shut when the driver would get there, and plans again with avoid zones. Going round one
+  can lead through another, so it looks again at the new route, at most twice. **The matching is in core now as well as in the app** (`routing/domain/closure-on-route.ts`, the same
+  rules and constants as `apps/driver-app/src/lib/closures-on-route.ts`; change both together or the screen and the route will disagree). What is avoided: `full` closures only (a lane
+  closure leaves the road open) and not a scheme with a window over 48 hours (the road may be open: that is left to the warning). The time is when the plan is made (leaving now),
+  with the same margins as the screen.
+  - **The avoid zones** (`routing/domain/closure-avoid-zones.ts`) are thin boxes (10 m long, 6 m wide) laid along **the route's own line**, at the places it runs along the closure,
+    every 100 m, and not within 60 m of either end. Not along National Highways' line: that is not exact enough to hit one carriageway when the other is 12 to 30 m away, while the
+    route's line is the router's own road, so a zone on it is on the carriageway the route uses. Valhalla drops a whole road between two junctions that a zone touches, in both
+    directions, so a zone on the other carriageway would shut the wrong one.
+  - **Checked against real Valhalla** (2026-11-02, the local Northumberland tiles; `closure-avoidance.golden-test.ts`, part of `pnpm test:golden`): on the A1 north of Newcastle
+    (carriageways 12 to 16 m apart) zones on the northbound carriageway sent the northbound route round and left the southbound route exactly as it was, with zones from 6 to 16 m
+    wide. On the slip road off the A1 at Morpeth, zones within 20 m of its ends also shut the A1 itself, so the end inset: 40 m was enough, 60 is used.
+  - **It never fails a plan.** If there is no way round (the router finds no route), the plan keeps the route through the closure and the screen's red note says so; a route that still
+    runs along a closure is not said to have avoided it. When it did go round, the plan's `avoidedRestrictions` has "Road closure avoided: <National Highways' wording>", shown under
+    "Restrictions avoided".
+  - **Limits.** Valhalla refuses avoid areas with more than 10 km of edge in all, so closures get at most 100 zones between them (a zone has 32 m of edge, and hazards use some too),
+    and one closure at most 40. The zone is flat, so a road that crosses over a closed motorway on a bridge, right at a zone, is shut too (rare: a zone is 10 m long). A driver who
+    changes the departure time on the route screen is **not** planned again: the route is as made for leaving now, and the screen's own check (which does follow the time) warns if it
+    goes through a closure at the new time. The faster-route offer (`check-faster-route`) refuses an alternative that goes through a shut road. The hazard-triggered reroute
+    (`detect-reroute`) does not look at closures.
 
 ## Hazards from OpenStreetMap
 

@@ -42,7 +42,7 @@ describe('RouteClosuresSection', () => {
     expect(screen.queryByTestId('route-closure-warning')).toBeNull();
   });
 
-  it('lists a closure with when the driver reaches it, warns that routes do not avoid it, and credits the data', async () => {
+  it('lists a closure with when the driver reaches it, warns about the road being shut, and credits the data', async () => {
     await render(<RouteClosuresSection items={[item('a')]} ready onSelect={jest.fn()} />);
     expect(screen.getByTestId('route-closure-warning')).toBeTruthy();
     expect(screen.getByText('M56 is closed on your route')).toBeTruthy();

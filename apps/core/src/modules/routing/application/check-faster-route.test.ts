@@ -12,6 +12,7 @@ import {
   type CheckFasterRouteInput,
 } from './check-faster-route.js';
 import { FakeCongestionQuery } from './testing/fake-congestion-query.js';
+import { FakeClosureAvoidanceQuery } from './testing/fake-closure-avoidance-query.js';
 import { FakeHazardAvoidanceQuery } from './testing/fake-hazard-avoidance-query.js';
 import { FakeHazardsOnRouteQuery } from './testing/fake-hazards-on-route-query.js';
 import { FakeRestrictionOverrideRepository } from './testing/fake-restriction-override-repository.js';
@@ -102,6 +103,7 @@ async function build(options: { congestion?: FakeCongestionQuery; ended?: boolea
     routingEngine: engine,
     hazardAvoidanceQuery: hazards,
     hazardsOnRouteQuery: new FakeHazardsOnRouteQuery(),
+    closureAvoidanceQuery: new FakeClosureAvoidanceQuery(),
     restrictionOverrideRepo: new FakeRestrictionOverrideRepository(),
     congestionQuery: options.congestion ?? new FakeCongestionQuery(),
     trafficQuery: traffic,
@@ -180,6 +182,23 @@ describe('checkFasterRoute', () => {
         kind: 'height',
         limit: 3.5,
         zone: { points: [{ lat: 55.1, lon: -1.95 }] },
+      },
+    ];
+    expect(await offerOf(b.deps, b.input)).toBeNull();
+  });
+
+  it('never offers a route through a road that is shut when the driver would get there', async () => {
+    const b = await build({ congestion: waitOnCurrentRoute(20) });
+    const shut = altPoints.slice(10, 14);
+    (b.deps.closureAvoidanceQuery as FakeClosureAvoidanceQuery).candidates = [
+      {
+        id: 'c1',
+        kind: 'full',
+        description: 'closed',
+        startsAt: new Date('2026-10-10T08:00:00.000Z'),
+        endsAt: new Date('2026-10-10T20:00:00.000Z'),
+        position: shut[0] as GeoPoint,
+        lines: [shut],
       },
     ];
     expect(await offerOf(b.deps, b.input)).toBeNull();

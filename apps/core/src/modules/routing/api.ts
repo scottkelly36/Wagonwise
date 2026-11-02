@@ -3,6 +3,7 @@ import { eraseDriverRoutingData, pruneOldRoutePlans } from './application/housek
 import { PostgresRoutingHousekeeping } from './infrastructure/postgres-routing-housekeeping.js';
 import type { HazardsModule } from '../hazards/api.js';
 import type { CamerasModule } from '../cameras/api.js';
+import type { ClosuresModule } from '../closures/api.js';
 import type { CongestionModule } from '../congestion/api.js';
 import type { IdentityModule } from '../identity/api.js';
 import type { TrafficModule } from '../traffic/api.js';
@@ -15,6 +16,7 @@ import {
   type RoutingEventHandler,
 } from './application/reroute-event-handlers.js';
 import { ExpoPushNotifier } from './infrastructure/expo-push-notifier.js';
+import { ClosureAvoidanceQueryAdapter } from './infrastructure/closure-avoidance-query.js';
 import { HazardAvoidanceQueryAdapter } from './infrastructure/hazard-avoidance-query.js';
 import { CamerasOnRouteQueryAdapter } from './infrastructure/cameras-on-route-query.js';
 import { CongestionQueryAdapter } from './infrastructure/congestion-query.js';
@@ -58,6 +60,9 @@ export interface RoutingModuleDeps {
    *  pattern as `ValhallaRoutingEngine` below. Also read directly by the reroute-detection
    *  handlers (M6.4) to re-check a hazard is still active. */
   readonly hazards: Pick<HazardsModule, 'findAvoidanceCandidates' | 'findHazardIdsNear'>;
+  /** `closures`' facade: this module's `ClosureAvoidanceQueryAdapter` wraps it, so a planned route goes round a road that is shut when
+   *  the driver would get there. */
+  readonly closures: Pick<ClosuresModule, 'findAlongRoute'>;
   /** `cameras`' facade: the cameras along a planned route, for the trip screen's warning. */
   readonly cameras: Pick<CamerasModule, 'findNear'>;
   /** `identity`'s facade — the reroute-detection handlers' only source of a driver's push
@@ -118,6 +123,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
   const routingEngine = new ValhallaRoutingEngine(deps.valhallaUrl);
   const hazardAvoidanceQuery = new HazardAvoidanceQueryAdapter(deps.hazards);
   const hazardsOnRouteQuery = new HazardsOnRouteQueryAdapter(deps.hazards);
+  const closureAvoidanceQuery = new ClosureAvoidanceQueryAdapter(deps.closures);
   const pushNotifier = deps.pushNotifier ?? new ExpoPushNotifier(deps.expoAccessToken);
 
   const detectRerouteDeps = {
@@ -149,6 +155,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
       routingEngine,
       hazardAvoidanceQuery,
       hazardsOnRouteQuery,
+      closureAvoidanceQuery,
       restrictionOverrideRepo,
       clock: deps.clock,
       ids: deps.ids,
@@ -181,6 +188,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
       routingEngine,
       hazardAvoidanceQuery,
       hazardsOnRouteQuery,
+      closureAvoidanceQuery,
       restrictionOverrideRepo,
       congestionQuery: new CongestionQueryAdapter(deps.congestion),
       trafficQuery: new TrafficQueryAdapter(deps.traffic),

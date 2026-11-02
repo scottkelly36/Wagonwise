@@ -45,7 +45,7 @@ export function RouteClosuresSection({ items, ready, onSelect }: Props) {
         <>
           {hasFullClosure(items) && (
             <Text style={styles.warning} testID="route-closure-warning">
-              Your route goes through a road closure. Routes do not avoid them yet.
+              Your route goes through a road closure. Check it before you set off.
             </Text>
           )}
           {listed.map((item) => (
