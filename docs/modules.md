@@ -468,7 +468,7 @@ hazards), withinHours (default 48, max 168), limit (default 100) }`. Core only f
   - Checked on 2026-11-02 against real data: a real OpenStreetMap route (public OSRM) along the M56 eastbound matched the real closure and the
     westbound route did not; an M3 route passing 7 m from a closed slip road did not match, one that takes the slip road did.
   - **Screen:** the route overview has a "Road closures" part (only once closures have been fetched, so "None found" is never said about
-    something nobody checked): up to three closures with a headline, "Closed until … · you reach it about …", and a tap for the drawer, hard-hat
+    something nobody checked): up to two closures with a headline, "Closed until … · you reach it about …", and a tap for the drawer, hard-hat
     markers on the route map, and a red note when a whole road is shut that **routes do not avoid closures yet**. Nothing about the route itself changes.
 - **Not built yet (stage 3):** routing around full closures (a narrow avoid-zone along the closure's own line, matching the route's direction: Valhalla cannot block
   one direction of a carriageway, so a wide zone would also block the other side). The stored lines are there for it.

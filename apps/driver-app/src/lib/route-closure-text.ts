@@ -6,7 +6,7 @@ import { formatTime } from './format-date';
 const roadName = (item: ClosureOnRoute): string => item.closure.road ?? 'The road';
 
 /** How many closures the route screen lists before "and N more": the panel is not scrollable, so the list has to stay short. */
-export const MAX_LISTED_CLOSURES = 3;
+export const MAX_LISTED_CLOSURES = 2;
 
 /** What is shut, as a headline for the route screen: "M56 is closed on your route". */
 export function routeClosureHeadline(item: ClosureOnRoute): string {

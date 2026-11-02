@@ -69,13 +69,13 @@ describe('RouteClosuresSection', () => {
     expect(onSelect).toHaveBeenCalledWith('b');
   });
 
-  it('lists three and counts the rest', async () => {
+  it('lists two and counts the rest', async () => {
     const many = ['a', 'b', 'c', 'd', 'e'].map((id) => item(id));
     await render(<RouteClosuresSection items={many} ready onSelect={jest.fn()} />);
-    expect(screen.getByTestId('route-closure-c')).toBeTruthy();
-    expect(screen.queryByTestId('route-closure-d')).toBeNull();
+    expect(screen.getByTestId('route-closure-b')).toBeTruthy();
+    expect(screen.queryByTestId('route-closure-c')).toBeNull();
     expect(screen.getByTestId('route-closures-more').props.children).toBe(
-      'and 2 more on this route',
+      'and 3 more on this route',
     );
   });
 });
