@@ -313,6 +313,7 @@ export function composeCore(
     fuelPricePerLitreGBP: config.fuelPricePerLitreGBP,
     expoAccessToken: config.expoAccessToken,
     hazards,
+    closures,
     cameras,
     identity,
     congestion,

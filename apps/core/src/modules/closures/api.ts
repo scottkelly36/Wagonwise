@@ -3,11 +3,13 @@ import type { Clock } from '../../shared/ports/clock.js';
 import type { Result } from '../../shared/result.js';
 import type { ClosureRepository } from './application/closure-repository.js';
 import type { ClosureSource } from './application/closure-source.js';
+import { findClosuresAlongRoute } from './application/find-closures-along-route.js';
 import {
   refreshClosures,
   type RefreshError,
   type RefreshSummary,
 } from './application/refresh-closures.js';
+import type { ClosurePoint, ClosuresAlongRoute } from './domain/closure.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import {
   NationalHighwaysClient,
@@ -25,6 +27,7 @@ export type {
   ClosureKind,
   ClosurePoint,
   ClosureSourceUnavailable,
+  ClosuresAlongRoute,
   ClosureStatus,
   SnapshotEmpty,
 } from './domain/closure.js';
@@ -51,6 +54,15 @@ export interface ClosuresModule {
    * it. A failed fetch, or an empty answer when plenty is stored, leaves the last good copy in place and comes back as an error value.
    */
   refresh(): Promise<Result<RefreshSummary, RefreshError>>;
+  /**
+   * The closures along a planned route that could be in force when a drive gets there, from the stored copy: candidates, as the same
+   * query behind `POST /closures/along-route`. For `routing`, which decides which the route really runs along and goes round them.
+   */
+  findAlongRoute(input: {
+    readonly corridor: readonly ClosurePoint[];
+    readonly withinHours: number;
+    readonly limit: number;
+  }): Promise<ClosuresAlongRoute>;
   /** `POST /closures/nearby` and `POST /closures/along-route`: the closures near a point, and along a planned route, from the stored copy. */
   registerRoutes(app: FastifyInstance): void;
 }
@@ -69,6 +81,7 @@ export function createClosuresModule(deps: ClosuresModuleDeps): ClosuresModule {
   return {
     enabled: source.enabled,
     refresh: () => refreshClosures({ source, repo, clock: deps.clock }),
+    findAlongRoute: (input) => findClosuresAlongRoute({ repo, clock: deps.clock }, input),
     registerRoutes(app) {
       registerClosureRoutes(app, { repo, clock: deps.clock });
     },

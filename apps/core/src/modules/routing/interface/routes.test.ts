@@ -8,6 +8,7 @@ import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-gen
 import { InMemoryActiveTripRepository } from '../application/testing/in-memory-active-trip-repository.js';
 import { InMemoryRoutePlanRepository } from '../application/testing/in-memory-route-plan-repository.js';
 import { InMemoryVehicleProfileRepository } from '../application/testing/in-memory-vehicle-profile-repository.js';
+import { FakeClosureAvoidanceQuery } from '../application/testing/fake-closure-avoidance-query.js';
 import { FakeHazardAvoidanceQuery } from '../application/testing/fake-hazard-avoidance-query.js';
 import { FakeHazardsOnRouteQuery } from '../application/testing/fake-hazards-on-route-query.js';
 import { FakeRestrictionOverrideRepository } from '../application/testing/fake-restriction-override-repository.js';
@@ -49,6 +50,7 @@ function buildApp(): {
       routingEngine,
       hazardAvoidanceQuery: new FakeHazardAvoidanceQuery(),
       hazardsOnRouteQuery: new FakeHazardsOnRouteQuery(),
+      closureAvoidanceQuery: new FakeClosureAvoidanceQuery(),
       restrictionOverrideRepo: new FakeRestrictionOverrideRepository(),
       clock,
       ids,
@@ -101,6 +103,7 @@ function buildApp(): {
       routingEngine,
       hazardAvoidanceQuery: new FakeHazardAvoidanceQuery(),
       hazardsOnRouteQuery: new FakeHazardsOnRouteQuery(),
+      closureAvoidanceQuery: new FakeClosureAvoidanceQuery(),
       restrictionOverrideRepo: new FakeRestrictionOverrideRepository(),
       congestionQuery: new FakeCongestionQuery(),
       trafficQuery: new FakeTrafficQuery(),
