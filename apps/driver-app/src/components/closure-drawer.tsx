@@ -28,9 +28,12 @@ import { radius } from '../theme/tokens';
 import { closureColour } from './closure-colour';
 import { Icon } from './ui/icon';
 
+/** A closure from the map (which says how far away it is) or from a planned route (which does not: it is on the route). */
+type DrawerClosure = Omit<ClosureDto, 'distanceM'> & { readonly distanceM?: number | undefined };
+
 interface Props {
   /** The tapped closure, or undefined when the drawer is closed. */
-  readonly closure: ClosureDto | undefined;
+  readonly closure: DrawerClosure | undefined;
   readonly onClose: () => void;
 }
 
@@ -105,7 +108,13 @@ export function ClosureDrawer({ closure, onClose }: Props) {
                 <Text style={styles.detail}>{closure.locationText}</Text>
               )}
               <Text style={styles.detail}>
-                {[direction, cause, `${shortDistance(closure.distanceM)} away`]
+                {[
+                  direction,
+                  cause,
+                  closure.distanceM === undefined
+                    ? undefined
+                    : `${shortDistance(closure.distanceM)} away`,
+                ]
                   .filter((part): part is string => part !== undefined)
                   .join(' · ')}
               </Text>

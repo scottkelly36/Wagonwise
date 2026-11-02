@@ -1,5 +1,8 @@
 import {
+  findClosuresAlongRouteResponseSchema,
   findNearbyClosuresResponseSchema,
+  type FindClosuresAlongRouteRequest,
+  type FindClosuresAlongRouteResponse,
   type FindNearbyClosuresRequest,
   type FindNearbyClosuresResponse,
 } from '@wagonwise/contracts/closures';
@@ -17,4 +20,17 @@ export async function findNearbyClosures(
   });
   throwUnlessSuccess(status, json, [200]);
   return findNearbyClosuresResponseSchema.parse(json);
+}
+
+/** The closures that lie along a planned route (its decoded line), with their lines, for the route screen to check against. */
+export async function findClosuresAlongRoute(
+  accessToken: string,
+  input: FindClosuresAlongRouteRequest,
+): Promise<FindClosuresAlongRouteResponse> {
+  const { status, json } = await requestJson('POST', '/closures/along-route', {
+    body: input,
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return findClosuresAlongRouteResponseSchema.parse(json);
 }

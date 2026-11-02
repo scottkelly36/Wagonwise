@@ -70,6 +70,41 @@ export const closureSchema = z.object({
 });
 export type ClosureDto = z.infer<typeof closureSchema>;
 
+/** Closures starting further ahead than this are not sent for a route, and the number of hours asked for when the request says none. */
+export const MAX_ROUTE_CLOSURE_LOOKAHEAD_HOURS = 168;
+export const DEFAULT_ROUTE_CLOSURE_LOOKAHEAD_HOURS = 48;
+
+/**
+ * `POST /closures/along-route`: the closures that lie along a planned route (`corridor` is its decoded line, origin first, as for
+ * hazards) and are in force now or start within `withinHours`. The answer carries each closure's lines, so the app can tell the
+ * carriageway the route is on from the other one and say whether the closure will be in force when the driver gets there.
+ */
+export const findClosuresAlongRouteRequestSchema = z.object({
+  corridor: z.array(geoPointSchema).min(1).max(2000),
+  withinHours: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_ROUTE_CLOSURE_LOOKAHEAD_HOURS)
+    .default(DEFAULT_ROUTE_CLOSURE_LOOKAHEAD_HOURS),
+  limit: z.number().int().min(1).max(MAX_CLOSURES).default(MAX_CLOSURES),
+});
+export type FindClosuresAlongRouteRequest = z.input<typeof findClosuresAlongRouteRequestSchema>;
+
+/** A closure with the lines National Highways draws for it: short pieces of road, each from where traffic enters to where it leaves. */
+export const routeClosureSchema = closureSchema.omit({ distanceM: true }).extend({
+  lines: z.array(z.array(geoPointSchema)),
+});
+export type RouteClosureDto = z.infer<typeof routeClosureSchema>;
+
+export const findClosuresAlongRouteResponseSchema = z.object({
+  /** In force first, then the soonest to start. */
+  closures: z.array(routeClosureSchema),
+  /** When WagonWise last fetched the closures; absent before the first fetch, when `closures` is empty. */
+  refreshedAt: z.string().datetime().optional(),
+});
+export type FindClosuresAlongRouteResponse = z.infer<typeof findClosuresAlongRouteResponseSchema>;
+
 export const findNearbyClosuresResponseSchema = z.object({
   /** In force first, then the soonest to start. */
   closures: z.array(closureSchema),

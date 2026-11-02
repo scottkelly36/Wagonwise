@@ -55,3 +55,46 @@ describe('POST /closures/nearby', () => {
     expect(coreClient.calls).toEqual([]);
   });
 });
+
+describe('POST /closures/along-route', () => {
+  const corridor = [centre, { lat: 53.37, lon: -2.29 }];
+
+  it('forwards the route with its defaults filled in, and the original token, and relays the answer', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 200, body: { closures: [] } };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/closures/along-route',
+      payload: { corridor },
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ closures: [] });
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: '/closures/along-route',
+      body: { corridor, withinHours: 48, limit: 100 },
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('requires a Bearer token and a valid body, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const anonymous = await app.inject({
+      method: 'POST',
+      url: '/closures/along-route',
+      payload: { corridor },
+    });
+    const bad = await app.inject({
+      method: 'POST',
+      url: '/closures/along-route',
+      payload: { corridor: [] },
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    });
+    expect(anonymous.statusCode).toBe(401);
+    expect(bad.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+});

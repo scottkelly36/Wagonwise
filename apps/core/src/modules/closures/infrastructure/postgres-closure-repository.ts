@@ -1,12 +1,15 @@
 import { sql } from 'kysely';
 import type { ClosureRepository, StoredClosureCounts } from '../application/closure-repository.js';
-import type {
-  Closure,
-  ClosureKind,
-  ClosurePoint,
-  ClosureStatus,
-  NearbyClosures,
-  NearbyClosuresQuery,
+import {
+  ROUTE_CANDIDATE_M,
+  type Closure,
+  type ClosureKind,
+  type ClosurePoint,
+  type ClosureStatus,
+  type ClosuresAlongRoute,
+  type ClosuresAlongRouteQuery,
+  type NearbyClosures,
+  type NearbyClosuresQuery,
 } from '../domain/closure.js';
 import type { UntypedDb } from './db.js';
 
@@ -28,7 +31,8 @@ interface ClosureRow {
   /** GeoJSON, as text. */
   readonly geojson: string;
   readonly updated_at: Date;
-  readonly distance_m: number;
+  /** Only when the query measures from a point. */
+  readonly distance_m?: number;
 }
 
 /** GeoJSON is [longitude, latitude]. */
@@ -154,7 +158,37 @@ export class PostgresClosureRepository implements ClosureRepository {
       select refreshed_at from closures.refreshes
     `.execute(this.db);
     return {
-      closures: rows.map((row) => ({ closure: toClosure(row), distanceM: row.distance_m })),
+      closures: rows.map((row) => ({ closure: toClosure(row), distanceM: row.distance_m ?? 0 })),
+      refreshedAt: refreshed.rows[0]?.refreshed_at ?? undefined,
+    };
+  }
+
+  async findAlongRoute(query: ClosuresAlongRouteQuery): Promise<ClosuresAlongRoute> {
+    // A line needs two points: a one-point route is a point.
+    const points =
+      query.corridor.length === 1 ? [...query.corridor, ...query.corridor] : query.corridor;
+    const route = JSON.stringify({
+      type: 'LineString',
+      coordinates: points.map((p) => [p.lon, p.lat]),
+    });
+    const { rows } = await sql<ClosureRow>`
+      select c.id, c.situation_id, c.kind, c.status, c.road, c.direction, c.description, c.location_text, c.cause,
+             c.starts_at, c.ends_at, c.lanes_closed,
+             ST_Y(c.position::geometry) as lat, ST_X(c.position::geometry) as lon,
+             ST_AsGeoJSON(c.geometry::geometry) as geojson, c.updated_at
+      from closures.closures c
+      where c.status <> 'suspended'
+        and c.ends_at > ${query.now.toISOString()}::timestamptz
+        and c.starts_at <= ${query.startsBefore.toISOString()}::timestamptz
+        and ST_DWithin(c.geometry, ST_SetSRID(ST_GeomFromGeoJSON(${route}), 4326)::geography, ${ROUTE_CANDIDATE_M})
+      order by (c.status = 'active') desc, c.starts_at, c.id
+      limit ${query.limit}
+    `.execute(this.db);
+    const refreshed = await sql<{ refreshed_at: Date }>`
+      select refreshed_at from closures.refreshes
+    `.execute(this.db);
+    return {
+      closures: rows.map(toClosure),
       refreshedAt: refreshed.rows[0]?.refreshed_at ?? undefined,
     };
   }

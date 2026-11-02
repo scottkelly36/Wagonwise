@@ -79,6 +79,29 @@ export interface NearbyClosuresQuery {
   readonly limit: number;
 }
 
+/**
+ * How near a closure's line must come to a route's line to be handed back as a candidate. Loose on purpose: the driver app decides
+ * which of them the route really runs along (it knows the heading and the time), and a dual carriageway's two sides are only about
+ * 30 m apart, so this only keeps the question to the roads around the route.
+ */
+export const ROUTE_CANDIDATE_M = 40;
+
+export interface ClosuresAlongRouteQuery {
+  /** The route's line, origin first. */
+  readonly corridor: readonly ClosurePoint[];
+  /** Closures that have ended by this time are left out. */
+  readonly now: Date;
+  /** Closures that start after this time are left out. */
+  readonly startsBefore: Date;
+  readonly limit: number;
+}
+
+export interface ClosuresAlongRoute {
+  readonly closures: readonly Closure[];
+  /** When the copy was last replaced; undefined before the first refresh. */
+  readonly refreshedAt: Date | undefined;
+}
+
 export interface NearbyClosure {
   readonly closure: Closure;
   /** Straight-line metres from the centre to the nearest point of the closure's line. */

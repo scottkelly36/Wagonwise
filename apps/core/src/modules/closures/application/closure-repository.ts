@@ -1,4 +1,10 @@
-import type { Closure, NearbyClosures, NearbyClosuresQuery } from '../domain/closure.js';
+import type {
+  Closure,
+  ClosuresAlongRoute,
+  ClosuresAlongRouteQuery,
+  NearbyClosures,
+  NearbyClosuresQuery,
+} from '../domain/closure.js';
 
 export interface StoredClosureCounts {
   readonly closures: number;
@@ -19,4 +25,9 @@ export interface ClosureRepository {
    * first, then the soonest to start, then the nearer. At most `limit`. Paused (suspended) ones are left out: they are not in force.
    */
   findNearby(query: NearbyClosuresQuery): Promise<NearbyClosures>;
+  /**
+   * Closures whose line comes within `ROUTE_CANDIDATE_M` of the route's line, that have not ended and start before the cut-off, those
+   * in force first, then the soonest to start. At most `limit`. Paused (suspended) ones are left out.
+   */
+  findAlongRoute(query: ClosuresAlongRouteQuery): Promise<ClosuresAlongRoute>;
 }

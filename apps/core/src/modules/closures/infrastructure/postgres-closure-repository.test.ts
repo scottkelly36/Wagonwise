@@ -2,7 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { closure } from '../application/testing/closure-fixtures.js';
-import type { NearbyClosuresQuery } from '../domain/closure.js';
+import type { ClosuresAlongRouteQuery, NearbyClosuresQuery } from '../domain/closure.js';
 import type { UntypedDb } from './db.js';
 import { PostgresClosureRepository } from './postgres-closure-repository.js';
 import { applySchema } from './testing/apply-schema.js';
@@ -171,5 +171,101 @@ describe('PostgresClosureRepository', () => {
       'now',
       'tonight',
     ]);
+  });
+  describe('findAlongRoute', () => {
+    const along = (overrides: Partial<ClosuresAlongRouteQuery> = {}): ClosuresAlongRouteQuery => ({
+      // The fixture closure's own line, as a route that runs along it.
+      corridor: [
+        { lat: 53.35, lon: -2.31 },
+        { lat: 53.36, lon: -2.3 },
+        { lat: 53.37, lon: -2.29 },
+      ],
+      now: NOW,
+      startsBefore: new Date('2026-11-03T20:00:00.000Z'),
+      limit: 100,
+      ...overrides,
+    });
+
+    it('finds a closure whose line the route runs along, with its lines, and says when the copy was made', async () => {
+      await repo.replaceAll([closure({ id: 'on-route' })], REFRESHED);
+      const found = await repo.findAlongRoute(along());
+      expect(found.refreshedAt).toEqual(REFRESHED);
+      expect(found.closures).toHaveLength(1);
+      expect(found.closures[0]).toMatchObject({
+        id: 'on-route',
+        lines: [
+          [
+            { lat: 53.35, lon: -2.31 },
+            { lat: 53.36, lon: -2.3 },
+            { lat: 53.37, lon: -2.29 },
+          ],
+        ],
+      });
+    });
+
+    it('keeps a closure about 30 m to the side (the other carriageway is left to the app) and drops one 500 m away', async () => {
+      await repo.replaceAll([closure({ id: 'beside' })], REFRESHED);
+      // 0.0004 degrees of longitude is about 27 m at this latitude.
+      const beside = along({
+        corridor: [
+          { lat: 53.35, lon: -2.3104 },
+          { lat: 53.37, lon: -2.2904 },
+        ],
+      });
+      expect((await repo.findAlongRoute(beside)).closures.map((c) => c.id)).toEqual(['beside']);
+      const away = along({
+        corridor: [
+          { lat: 53.35, lon: -2.318 },
+          { lat: 53.37, lon: -2.298 },
+        ],
+      });
+      expect((await repo.findAlongRoute(away)).closures).toEqual([]);
+    });
+
+    it('takes a route of one point, and leaves out paused, ended and too-distant closures', async () => {
+      await repo.replaceAll(
+        [
+          closure({ id: 'tonight' }),
+          closure({ id: 'paused', status: 'suspended' }),
+          closure({
+            id: 'ended',
+            startsAt: new Date('2026-11-01T01:00:00.000Z'),
+            endsAt: new Date('2026-11-01T05:00:00.000Z'),
+          }),
+          closure({
+            id: 'next-week',
+            startsAt: new Date('2026-11-09T22:00:00.000Z'),
+            endsAt: new Date('2026-11-10T06:00:00.000Z'),
+          }),
+        ],
+        REFRESHED,
+      );
+      const found = await repo.findAlongRoute(along({ corridor: [{ lat: 53.36, lon: -2.3 }] }));
+      expect(found.closures.map((c) => c.id)).toEqual(['tonight']);
+    });
+
+    it('orders those in force first, then the soonest to start, and stops at the limit', async () => {
+      await repo.replaceAll(
+        [
+          closure({
+            id: 'tomorrow',
+            startsAt: new Date('2026-11-02T22:00:00.000Z'),
+            endsAt: new Date('2026-11-03T06:00:00.000Z'),
+          }),
+          closure({ id: 'tonight' }),
+          closure({ id: 'now', status: 'active', startsAt: new Date('2026-11-01T19:00:00.000Z') }),
+        ],
+        REFRESHED,
+      );
+      expect((await repo.findAlongRoute(along())).closures.map((c) => c.id)).toEqual([
+        'now',
+        'tonight',
+        'tomorrow',
+      ]);
+      expect((await repo.findAlongRoute(along({ limit: 2 }))).closures.map((c) => c.id)).toEqual([
+        'now',
+        'tonight',
+      ]);
+    });
   });
 });

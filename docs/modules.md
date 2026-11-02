@@ -451,8 +451,26 @@ key in the `Ocp-Apim-Subscription-Key` header). Same shape as fuel prices: a job
 - **Licence** (National Highways Transport Data Feeds Licence, based on OGL v2.0): commercial use allowed; the credit "Powered by National
   Highways' Transport Data Feeds" must be shown (the drawer does); free for now, with at least six months' notice before any charge;
   scraping is banned, and one request every ten minutes through the official API is the intended use.
-- **Not built yet (stages 2 and 3):** warning when a planned route crosses a closure that is in force at the driver's arrival time, and
-  routing around full closures (a narrow avoid-zone along the closure's own line, matching the route's direction: Valhalla cannot block
+- **Along a planned route (stage 2, 2026-11-02):** `POST /closures/along-route` `{ corridor (the decoded route line, up to 2000 points, as for
+hazards), withinHours (default 48, max 168), limit (default 100) }`. Core only finds **candidates**: closures whose line comes within
+  40 m of the route's line (`ROUTE_CANDIDATE_M`), not ended and starting within the look-ahead, each with its `lines`. The app decides which the
+  route really runs along and when it gets there (`lib/closures-on-route.ts`; the driver can change the departure time, so the geometry is
+  worked out once per route and only the timing again):
+  - **Which carriageway.** The feed's lines are short chained pieces, each drawn in the direction of travel (the compass word in
+    `direction` is not reliable: an "eastBound" slip road is described as northbound). A piece of closure matches the route if some
+    segment of the route is within 25 m of it **and heads the same way, within 45 degrees**. The other carriageway is only about 30 m away, so
+    distance alone cannot tell them apart; the heading does, and a road that crosses the route is turned well past 45 degrees.
+  - **A slip road the route only passes.** A route on the main carriageway runs beside the start of a slip road with the same heading. A
+    closure under 700 m (a slip or link road) counts only if the route runs along 80% of it, i.e. takes it; a longer one (a carriageway) if the
+    route runs along at least 300 m of it, since a route that joins or leaves part-way still drives on the shut road.
+  - **When.** The time to a point is taken in proportion to the distance. A closure counts if it is in force at any time from 30 minutes (and
+    a tenth of the drive so far) before the driver reaches it to the same after they pass it. A window over 48 hours is "may be closed".
+  - Checked on 2026-11-02 against real data: a real OpenStreetMap route (public OSRM) along the M56 eastbound matched the real closure and the
+    westbound route did not; an M3 route passing 7 m from a closed slip road did not match, one that takes the slip road did.
+  - **Screen:** the route overview has a "Road closures" part (only once closures have been fetched, so "None found" is never said about
+    something nobody checked): up to two closures with a headline, "Closed until … · you reach it about …", and a tap for the drawer, hard-hat
+    markers on the route map, and a red note when a whole road is shut that **routes do not avoid closures yet**. Nothing about the route itself changes.
+- **Not built yet (stage 3):** routing around full closures (a narrow avoid-zone along the closure's own line, matching the route's direction: Valhalla cannot block
   one direction of a carriageway, so a wide zone would also block the other side). The stored lines are there for it.
 
 ## Hazards from OpenStreetMap
