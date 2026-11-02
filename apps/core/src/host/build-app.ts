@@ -32,6 +32,7 @@ const DRIVER_AUTH_PREFIXES = [
   '/parking/',
   '/cameras/',
   '/fuel/',
+  '/closures/',
   '/places/',
   '/checks/',
   '/weather/',

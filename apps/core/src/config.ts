@@ -125,6 +125,17 @@ const envSchema = z.object({
   // How often our copy of Fuel Finder is replaced. A refresh is about 34 requests against a limit of 100 a minute, and retailers
   // report within 30 minutes, so hourly is plenty; the floor stops a typo from hammering the service.
   FUEL_REFRESH_INTERVAL_MS: z.coerce.number().int().min(600_000).default(3_600_000),
+  // Optional: National Highways' Road and Lane Closures feed (planned and unplanned closures on motorways and major A roads), from
+  // their developer portal. The primary key turns it on; the secondary is optional and is tried if the primary is refused (they are
+  // issued as a pair so one can be replaced without a gap). Server-side only, never sent to an app or the portal.
+  NATIONAL_HIGHWAYS_PRIMARY_KEY: z.string().min(1).optional(),
+  NATIONAL_HIGHWAYS_SECONDARY_KEY: z.string().min(1).optional(),
+  NATIONAL_HIGHWAYS_CLOSURES_URL: z
+    .url()
+    .default('https://api.data.nationalhighways.co.uk/roads/v2.0/closures'),
+  // How often our copy of the closures is replaced. The feed is one ~10 MB file rebuilt on every request, so ten minutes is
+  // plenty; the floor stops a typo from hammering the service (its limit is 10 requests a minute per key).
+  CLOSURES_REFRESH_INTERVAL_MS: z.coerce.number().int().min(300_000).default(600_000),
   TRAFFIC_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(2000),
   // Traffic moves in minutes; a reading is reused for this long, and shared by every driver on that road.
   TRAFFIC_CACHE_TTL_MS: z.coerce.number().int().min(10_000).default(300_000),
@@ -218,6 +229,9 @@ export interface Config {
     | { readonly clientId: string; readonly clientSecret: string; readonly baseUrl: string }
     | undefined;
   readonly fuelRefreshIntervalMs: number;
+  /** National Highways' closures feed: undefined unless the primary key is set. */
+  readonly nationalHighways: { readonly keys: readonly string[]; readonly url: string } | undefined;
+  readonly closuresRefreshIntervalMs: number;
   readonly trafficDailyRequestLimit: number;
   readonly trafficCacheTtlMs: number;
   readonly dashboardUrl: string | undefined;
@@ -321,6 +335,19 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
             baseUrl: values.FUEL_FINDER_URL,
           },
     fuelRefreshIntervalMs: values.FUEL_REFRESH_INTERVAL_MS,
+    nationalHighways:
+      values.NATIONAL_HIGHWAYS_PRIMARY_KEY === undefined
+        ? undefined
+        : {
+            keys: [
+              values.NATIONAL_HIGHWAYS_PRIMARY_KEY,
+              ...(values.NATIONAL_HIGHWAYS_SECONDARY_KEY === undefined
+                ? []
+                : [values.NATIONAL_HIGHWAYS_SECONDARY_KEY]),
+            ],
+            url: values.NATIONAL_HIGHWAYS_CLOSURES_URL,
+          },
+    closuresRefreshIntervalMs: values.CLOSURES_REFRESH_INTERVAL_MS,
     trafficDailyRequestLimit: values.TRAFFIC_DAILY_REQUEST_LIMIT,
     trafficCacheTtlMs: values.TRAFFIC_CACHE_TTL_MS,
     dashboardUrl: values.DASHBOARD_URL,

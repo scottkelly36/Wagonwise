@@ -112,6 +112,7 @@ describe('runMigrations', () => {
       '0080_tester_launch_email.sql',
       '0081_driver_passwords.sql',
       '0082_federated_identities.sql',
+      '0083_closures.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -302,6 +303,7 @@ describe('runMigrations', () => {
       '0080_tester_launch_email.sql',
       '0081_driver_passwords.sql',
       '0082_federated_identities.sql',
+      '0083_closures.sql',
     ]);
   });
 });

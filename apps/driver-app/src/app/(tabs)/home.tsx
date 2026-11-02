@@ -7,11 +7,13 @@ import { useNearbyCameras } from '../../api/use-cameras';
 import { useNearbyCongestion } from '../../api/use-congestion';
 import { useNearbyHazards } from '../../api/use-hazards';
 import { useCurrentJob } from '../../api/use-jobs';
+import { useNearbyClosures } from '../../api/use-closures';
 import { useNearbyFuel } from '../../api/use-fuel';
 import { useNearbySafeParkingSpots } from '../../api/use-parking';
 import { HazardDetailDrawer } from '../../components/hazard-detail-drawer';
 import { useNavigateToPlace } from '../../hooks/use-navigate-to-spot';
 import { useDrivingProfileId } from '../../hooks/use-parking-drive-times';
+import { ClosureDrawer } from '../../components/closure-drawer';
 import { FuelChoiceSwitch } from '../../components/fuel-choice-switch';
 import { FuelStationDrawer } from '../../components/fuel-station-drawer';
 import { ParkingSpotDrawer } from '../../components/parking-spot-drawer';
@@ -51,6 +53,10 @@ const NEARBY_PARKING_RADIUS_M = 20_000;
 // Fuel is looked for as far out as parking, for the same reason, and the map shows the cheapest few within it.
 const NEARBY_FUEL_RADIUS_M = 20_000;
 const MAP_FUEL_LIMIT = 50;
+
+// Closures on motorways and major A roads are looked for as far out as parking: a driver wants to see one before the junction before it.
+const NEARBY_CLOSURES_RADIUS_M = 20_000;
+const MAP_CLOSURES_LIMIT = 100;
 
 // How long the map must stay still before the markers for that view are asked for.
 const MAP_VIEW_SETTLE_MS = 500;
@@ -101,6 +107,12 @@ export default function HomeScreen() {
     MAP_FUEL_LIMIT,
     true,
   );
+  const nearbyClosures = useNearbyClosures(
+    queryPoints[0],
+    viewRadiusM ?? NEARBY_CLOSURES_RADIUS_M,
+    MAP_CLOSURES_LIMIT,
+    true,
+  );
   const drivingProfileId = useDrivingProfileId();
   const navigateToSpot = useNavigateToPlace(drivingProfileId);
   const myPlaces = useMyPlaces();
@@ -120,6 +132,8 @@ export default function HomeScreen() {
   const selectedParking = nearbyParkingSpots.data?.find((s) => s.id === selectedParkingId);
   const [selectedFuelId, setSelectedFuelId] = useState<string | undefined>(undefined);
   const selectedFuel = nearbyFuel.data?.stations.find((s) => s.id === selectedFuelId);
+  const [selectedClosureId, setSelectedClosureId] = useState<string | undefined>(undefined);
+  const selectedClosure = nearbyClosures.data?.closures.find((c) => c.id === selectedClosureId);
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   // Which kinds of marker the map shows. All on until a driver turns something off to declutter.
   const [layersOpen, setLayersOpen] = useState(false);
@@ -128,6 +142,7 @@ export default function HomeScreen() {
   const [showParking, setShowParking] = useState(true);
   const [showCameras, setShowCameras] = useState(true);
   const [showFuel, setShowFuel] = useState(true);
+  const [showClosures, setShowClosures] = useState(true);
   const [reportingCamera, setReportingCamera] = useState(false);
   // Parking and lay-bys are separate layers: a lay-by is a roadside stop nobody has checked suits a lorry.
   const [showLaybys, setShowLaybys] = useState(true);
@@ -141,6 +156,15 @@ export default function HomeScreen() {
   const mapFuelStations = useMemo(
     () => (nearbyFuel.data?.stations ?? []).map((s) => ({ id: s.id, location: s.location })),
     [nearbyFuel.data],
+  );
+  const mapClosures = useMemo(
+    () =>
+      (nearbyClosures.data?.closures ?? []).map((c) => ({
+        id: c.id,
+        location: c.location,
+        kind: c.kind,
+      })),
+    [nearbyClosures.data],
   );
   // Cameras get their own markers, apart from hazards: the map-data ones near the driver or the view, and the ones drivers marked.
   const mapHazards = useMemo(
@@ -199,13 +223,15 @@ export default function HomeScreen() {
         parkingSpots={mapParkingSpots}
         fuelStations={showFuel ? mapFuelStations : undefined}
         onFuelStationPress={setSelectedFuelId}
+        closures={showClosures ? mapClosures : undefined}
+        onClosurePress={setSelectedClosureId}
       />
 
       {viewTooWide && (
         <View style={[styles.zoomHint, { bottom: insets.bottom + 220 }]} pointerEvents="none">
           <View style={styles.zoomHintCard}>
             <Text style={styles.zoomHintText} testID="zoom-hint">
-              Zoom in to see hazards, cameras, traffic, parking and fuel
+              Zoom in to see hazards, cameras, traffic, parking, fuel and closures
             </Text>
           </View>
         </View>
@@ -241,6 +267,8 @@ export default function HomeScreen() {
         onNavigate={(station) => navigateToSpot.mutate(station.location)}
         navigateDisabled={navigateToSpot.isPending || drivingProfileId === undefined}
       />
+
+      <ClosureDrawer closure={selectedClosure} onClose={() => setSelectedClosureId(undefined)} />
 
       <HazardDetailDrawer
         hazardId={selectedHazardId}
@@ -332,6 +360,12 @@ export default function HomeScreen() {
             <LayerRow label="Fuel" value={showFuel} onChange={setShowFuel} colors={colors} />
             {showFuel && <FuelChoiceSwitch compact />}
             <LayerRow label="Lay-bys" value={showLaybys} onChange={setShowLaybys} colors={colors} />
+            <LayerRow
+              label="Road closures"
+              value={showClosures}
+              onChange={setShowClosures}
+              colors={colors}
+            />
           </View>
         )}
       </View>

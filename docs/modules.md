@@ -423,6 +423,38 @@ The shared status also carries optional `breakMin`, `stretchMin` and `untilLimit
 - **Checked live (2026-10-27):** a real refresh into a fresh PostGIS stored 8,146 stations and 26,529 prices in about 30 seconds with no problems, a second refresh replaced them cleanly, and "cheapest diesel within 25 km of Hexham" used the spatial index.
 - **Not confirmed:** the data licence and terms of use (only a general Open Government Licence line was found) and the test service's behaviour. Read the portal's terms before the prices appear in a product.
 
+## Road and lane closures (National Highways) (2026-11-01)
+
+`apps/core/src/modules/closures`: closures on the strategic road network (motorways and major A roads, **not** local roads),
+copied from National Highways' Road and Lane Closures feed (v2.0, DATEX II 3.4, `GET https://api.data.nationalhighways.co.uk/roads/v2.0/closures`,
+key in the `Ocp-Apim-Subscription-Key` header). Same shape as fuel prices: a job in core replaces our whole copy
+(`closures.closures`, migration 0083) every ten minutes, and nothing a driver does ever reaches National Highways.
+
+- **The feed:** one ~10 MB XML file rebuilt on every request (about 1.2 s; no ETag or Last-Modified, so it cannot be fetched "only if
+  changed"); limit 10 requests a minute per key. Each record has the road, a direction, a line of lat/lon points, a start and an end
+  (the whole window of the scheme, not which nights inside it), a status (`active`, `planned`, `suspended`), National Highways' own
+  wording and a cause. `infrastructure/datex-closures-parser.ts` finds values by tag name, since the nesting varies from record to record.
+- **What is kept:** `full` closures (`roadOrCarriagewayOrLaneManagementType` is `carriagewayClosures`: a whole carriageway, slip road or
+  link road; always kept) and `lane` closures (lanes or the hard shoulder shut) only when they last 3 days or less
+  (`MAX_LANE_CLOSURE_DAYS`; about half the feed's lane closures run for weeks to years and would bury the rest). Narrowed lanes, speed
+  limits and records with no window or no line are dropped. On 2026-11-01 that was 350 of 500 records (222 full, 128 lane; 20 active).
+  Full closures are mostly overnight (median about 10 hours).
+- **Refresh:** `NationalHighwaysClient` tries the primary key and, if the service refuses it (401/403), the secondary. A failed fetch
+  keeps the last copy; so does an empty answer when 10 or more are stored. Off unless `NATIONAL_HIGHWAYS_PRIMARY_KEY` is set.
+- **API:** `POST /closures/nearby` `{ centre, radiusM (up to 50 km), withinDays (default 7), limit (default 50) }` (driver sign-in; the
+  driver BFF forwards it). Matches by the closure's **line**, not its marker, so a long closure is near anyone along it. In force first,
+  then the soonest to start. Suspended (paused) closures are never sent. Each answer carries when the copy was made.
+- **App:** a hard-hat marker on the home map, red when the whole road is shut and amber when lanes are, under the "Road closures" layer;
+  a tap opens `ClosureDrawer`: what National Highways says, what is shut, when (in force: until when and how long is left; planned: when
+  it starts, ends and how long it lasts, in UK time), and the credit. A window over 48 hours carries a note that the road is not
+  necessarily shut all of it. "In force now" follows National Highways' own status, not the dates.
+- **Licence** (National Highways Transport Data Feeds Licence, based on OGL v2.0): commercial use allowed; the credit "Powered by National
+  Highways' Transport Data Feeds" must be shown (the drawer does); free for now, with at least six months' notice before any charge;
+  scraping is banned, and one request every ten minutes through the official API is the intended use.
+- **Not built yet (stages 2 and 3):** warning when a planned route crosses a closure that is in force at the driver's arrival time, and
+  routing around full closures (a narrow avoid-zone along the closure's own line, matching the route's direction: Valhalla cannot block
+  one direction of a carriageway, so a wide zone would also block the other side). The stored lines are there for it.
+
 ## Hazards from OpenStreetMap
 
 `hazards.reports.source = 'osm'` marks the one-off starting set (migration 0072, from `apps/core/scripts/fetch-osm-hazards.mjs`; the rules for what is taken are at the top of that script). Each row has an `osm_id` (unique where set), the import reporter id, a measurement and no expiry. `hazards/api.ts` `findAvoidanceCandidates` and `findAwaitingReview` skip `osm` rows: routing already reads these limits from the same OpenStreetMap data, and a first-time import must not flood the moderation queue. Everything else treats them as ordinary hazards (map, spoken warnings, the route's hazard list, confirm and dismiss). © OpenStreetMap contributors (ODbL): the driver hazard card and the portal's Hazard reports page credit it.
