@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import { companyIdSchema } from '@wagonwise/contracts/companies';
 import type { FleetVehicleDto } from '@wagonwise/contracts/fleet';
@@ -62,6 +63,7 @@ export function VehicleProfiles() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [maintenanceId, setMaintenanceId] = useState<string | undefined>(undefined);
+  const notify = useNotify();
   const createVehicle = useMutation({
     mutationFn: () =>
       withAccessToken((token) =>
@@ -78,6 +80,7 @@ export function VehicleProfiles() {
         }),
       ),
     onSuccess: () => {
+      notify('Vehicle added');
       setForm(EMPTY_FORM);
       setShowErrors(false);
       void queryClient.invalidateQueries({ queryKey: vehiclesKey });
@@ -85,7 +88,6 @@ export function VehicleProfiles() {
   });
 
   const ask = useConfirm();
-  const notify = useNotify();
   const deleteVehicle = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => fleetApi.deleteFleetVehicle(token, id)),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: vehiclesKey }),
@@ -281,7 +283,7 @@ export function VehicleProfiles() {
           </form>
 
           {vehicles.isPending ? (
-            <p>Loading…</p>
+            <Loading />
           ) : (
             <DataTable
               columns={vehicleColumns}

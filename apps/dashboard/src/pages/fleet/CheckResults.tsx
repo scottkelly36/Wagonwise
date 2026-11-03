@@ -1,3 +1,5 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
+import { Loading } from '../../components/Loading';
 import type { CheckDetailDto, CheckSummaryDto } from '@wagonwise/contracts/checks';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -140,11 +142,9 @@ export function CheckResults() {
               </select>
             </label>
           </div>
-          {checks.isError && (
-            <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(checks.error)}</p>
-          )}
+          {checks.isError && <ErrorNotice error={checks.error} />}
           {checks.isPending ? (
-            <p>Loading…</p>
+            <Loading />
           ) : (
             <DataTable
               columns={columns}
@@ -196,10 +196,8 @@ function CheckDetail({
     <section
       style={{ marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
     >
-      {detail.isPending && <p>Loading…</p>}
-      {detail.isError && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(detail.error)}</p>
-      )}
+      {detail.isPending && <Loading />}
+      {detail.isError && <ErrorNotice error={detail.error} />}
       {detail.data !== undefined && (
         <Body
           detail={detail.data}

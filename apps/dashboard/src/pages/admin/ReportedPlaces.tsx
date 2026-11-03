@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import type { ReportedPlaceDto } from '@wagonwise/contracts/places';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as placesApi from '../../api/places';
@@ -101,7 +102,7 @@ export function ReportedPlaces() {
       {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
 
       {reported.data === undefined ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <DataTable
           columns={columns}

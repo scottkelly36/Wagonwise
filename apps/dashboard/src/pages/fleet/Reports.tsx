@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import type { JobReportRowDto } from '@wagonwise/contracts/jobs';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
@@ -232,7 +233,7 @@ export function Reports() {
       )}
       {everyCompany && companyId === undefined && <p className="muted">Choose a company.</p>}
       {report.error !== null && <p className="error">{staffErrorMessage(report.error)}</p>}
-      {report.isPending && companyId !== undefined && range !== undefined && <p>Loading…</p>}
+      {report.isPending && companyId !== undefined && range !== undefined && <Loading />}
 
       {summary !== undefined && (
         <div className="report-stats" data-testid="report-summary">

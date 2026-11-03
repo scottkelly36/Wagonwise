@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { DriverRatesDto, RunningCostDto } from '@wagonwise/contracts/costing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -102,6 +103,7 @@ function RunningCosts({ companyId }: { companyId: string }) {
     fromMonth: thisMonth,
   });
   const amount = form.pounds.trim() === '' ? undefined : parsePounds(form.pounds);
+  const notify = useNotify();
   const add = useMutation({
     mutationFn: () =>
       withAccessToken((t) =>
@@ -113,6 +115,7 @@ function RunningCosts({ companyId }: { companyId: string }) {
         }),
       ),
     onSuccess: () => {
+      notify('Cost added');
       setForm((f) => ({ ...f, description: '', pounds: '' }));
       refresh();
     },
@@ -131,6 +134,7 @@ function RunningCosts({ companyId }: { companyId: string }) {
         }),
       ),
     onSuccess: () => {
+      notify('Cost changed');
       setEditing(undefined);
       refresh();
     },
@@ -139,12 +143,12 @@ function RunningCosts({ companyId }: { companyId: string }) {
     mutationFn: (id: string) =>
       withAccessToken((t) => costingApi.stopRunningCost(t, id, edit.fromMonth)),
     onSuccess: () => {
+      notify('Cost stopped');
       setEditing(undefined);
       refresh();
     },
   });
   const ask = useConfirm();
-  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (id: string) => withAccessToken((t) => costingApi.deleteRunningCost(t, id)),
     onSuccess: refresh,
@@ -378,7 +382,7 @@ function RunningCosts({ companyId }: { companyId: string }) {
         </p>
       )}
       {costs.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <DataTable
           columns={columns}
@@ -406,6 +410,7 @@ function DriverPay({ companyId }: { companyId: string }) {
     fromDay: ukToday(),
   });
   const amount = form.pounds.trim() === '' ? undefined : parsePounds(form.pounds);
+  const notify = useNotify();
   const save = useMutation({
     mutationFn: () =>
       withAccessToken((t) =>
@@ -416,12 +421,12 @@ function DriverPay({ companyId }: { companyId: string }) {
         }),
       ),
     onSuccess: () => {
+      notify('Rate saved');
       setForm((f) => ({ ...f, pounds: '' }));
       refresh();
     },
   });
   const ask = useConfirm();
-  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (id: string) => withAccessToken((t) => costingApi.deleteDriverRate(t, id)),
     onSuccess: refresh,
@@ -491,7 +496,7 @@ function DriverPay({ companyId }: { companyId: string }) {
         <p className="error">{staffErrorMessage(drivers.error ?? save.error ?? remove.error)}</p>
       )}
       {drivers.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : list.length === 0 ? (
         <p className="muted">No drivers have joined your company yet.</p>
       ) : (

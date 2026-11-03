@@ -1,3 +1,5 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import {
   savedPlaceIdSchema,
@@ -15,7 +17,6 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { mapLink, PLACE_CATEGORY_LABELS } from '../../lib/places';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const CATEGORIES = Object.keys(PLACE_CATEGORY_LABELS) as PlaceCategory[];
 
@@ -56,6 +57,7 @@ export function Places() {
   const [newNote, setNewNote] = useState('');
   const [showAddErrors, setShowAddErrors] = useState(false);
   const newPostcodeLookup = usePostcode(newPostcode);
+  const notify = useNotify();
   const add = useMutation({
     mutationFn: async () => {
       const resolved = await resolvePostcode(queryClient, newPostcode);
@@ -71,6 +73,7 @@ export function Places() {
       );
     },
     onSuccess: () => {
+      notify('Place added');
       setNewName('');
       setNewPostcode('');
       setNewNote('');
@@ -88,12 +91,12 @@ export function Places() {
     mutationFn: (id: string) =>
       withAccessToken((token) => placesApi.updatePlace(token, id, { name, category, note })),
     onSuccess: () => {
+      notify('Place saved');
       setEditingId(undefined);
       refresh();
     },
   });
   const ask = useConfirm();
-  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => placesApi.deletePlace(token, id)),
     onSuccess: refresh,
@@ -247,8 +250,8 @@ export function Places() {
           </label>
         </div>
       )}
-      {error !== null && error !== undefined && <p className="error">{staffErrorMessage(error)}</p>}
-      {places.isPending && companyId !== undefined && <p>Loading…</p>}
+      {error !== null && error !== undefined && <ErrorNotice error={error} />}
+      {places.isPending && companyId !== undefined && <Loading />}
 
       {canEdit && companyId !== undefined && (
         <section className="card" style={{ maxWidth: 720, marginBottom: 16 }}>

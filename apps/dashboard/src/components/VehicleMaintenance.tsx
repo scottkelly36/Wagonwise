@@ -1,3 +1,4 @@
+import { Loading } from './Loading';
 import type { DateSuggestionDto, OverviewRowDto } from '@wagonwise/contracts/maintenance';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -55,7 +56,7 @@ export function VehicleMaintenance({
       {onClose !== undefined && (
         <h2 style={{ marginTop: 0 }}>Maintenance{name === undefined ? '' : `: ${name}`}</h2>
       )}
-      {data.isPending && <p>Loading…</p>}
+      {data.isPending && <Loading />}
       {data.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(data.error)}</p>}
       {canManage && data.data?.lookupAvailable === true && rows.length > 0 && (
         <RegistrationLookup vehicleId={vehicleId} onDone={refresh} />

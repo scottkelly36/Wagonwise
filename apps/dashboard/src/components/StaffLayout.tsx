@@ -193,6 +193,9 @@ export function StaffLayout() {
 
   return (
     <FeedbackProvider>
+      <a className="skip-link" href="#main-content">
+        Skip to the page
+      </a>
       <div className="shell">
         <nav id="main-nav" className={navOpen ? 'sidebar open' : 'sidebar'} aria-label="Main">
           <div className="brand">
@@ -295,7 +298,7 @@ export function StaffLayout() {
               </>
             )}
           </header>
-          <main className="content">
+          <main id="main-content" className="content" tabIndex={-1}>
             <SosBanner />
             <WeatherBanner />
             <GuideLink />

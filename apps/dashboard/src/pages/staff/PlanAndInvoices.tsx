@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import type { InvoiceDto } from '@wagonwise/contracts/billing';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -126,7 +127,7 @@ export function PlanAndInvoices() {
         <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(invoices.error)}</p>
       )}
       {invoices.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <DataTable
           columns={columns}

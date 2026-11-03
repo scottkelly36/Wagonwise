@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { HazardReportDto } from '@wagonwise/contracts/hazards';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -91,7 +92,7 @@ export function HazardReports() {
       {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
 
       {hazards.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <DataTable
           columns={columns}

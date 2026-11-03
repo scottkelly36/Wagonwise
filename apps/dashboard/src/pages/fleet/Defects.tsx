@@ -1,3 +1,6 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
+import { Loading } from '../../components/Loading';
+import { useNotify } from '../../components/feedback-context';
 import type { DefectDto, DefectStatus } from '@wagonwise/contracts/checks';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -62,10 +65,14 @@ export function Defects() {
       ),
     enabled: companyId !== undefined,
   });
+  const notify = useNotify();
   const change = useMutation({
     mutationFn: ({ id, to }: { id: string; to: DefectStatus }) =>
       withAccessToken((token) => checksApi.setDefectStatus(token, id, { status: to })),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['check-defects'] }),
+    onSuccess: (_defect, { to }) => {
+      void queryClient.invalidateQueries({ queryKey: ['check-defects'] });
+      notify(to === 'fixed' ? 'Marked fixed' : to === 'acknowledged' ? 'Marked seen' : 'Reopened');
+    },
   });
 
   // Whoever keeps maintenance can book a defect in for repair; the repairs already booked show against each defect.
@@ -83,6 +90,7 @@ export function Defects() {
     mutationFn: (input: { defectId: string; dueDate: string }) =>
       withAccessToken((token) => maintenanceApi.bookRepair(token, input.defectId, input.dueDate)),
     onSuccess: () => {
+      notify('Repair booked');
       setBooking(undefined);
       void queryClient.invalidateQueries({ queryKey: ['repairs'] });
       void queryClient.invalidateQueries({ queryKey: ['check-defects'] });
@@ -256,12 +264,10 @@ export function Defects() {
             </form>
           )}
           {(defects.isError || change.isError) && (
-            <p style={{ color: 'var(--danger)' }}>
-              {staffErrorMessage(defects.error ?? change.error)}
-            </p>
+            <ErrorNotice error={defects.error ?? change.error} />
           )}
           {defects.isPending ? (
-            <p>Loading…</p>
+            <Loading />
           ) : (
             <DataTable
               columns={columns}

@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import {
   PARKING_FACILITIES,
@@ -377,7 +378,7 @@ export function Parking() {
       )}
 
       {data === undefined ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <>
           {data.total > data.spots.length && (

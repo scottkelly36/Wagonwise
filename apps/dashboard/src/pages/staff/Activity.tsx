@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import type { Privilege, StaffAuditEntryDto } from '@wagonwise/contracts/staff';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -130,7 +131,7 @@ export function Activity() {
       )}
 
       {entries.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <DataTable
           columns={columns}

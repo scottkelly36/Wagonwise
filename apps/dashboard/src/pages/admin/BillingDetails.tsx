@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import { BILLING_FIELD_MAX, type BillingDetailsDto } from '@wagonwise/contracts/billing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -46,7 +47,7 @@ export function BillingDetails() {
     queryFn: () => withAccessToken((token) => billingApi.getBillingDetails(token)),
   });
 
-  if (details.isPending) return <p>Loading…</p>;
+  if (details.isPending) return <Loading />;
   if (details.isError) {
     return <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(details.error)}</p>;
   }

@@ -1,3 +1,5 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import {
   maintenanceItemIdSchema,
@@ -188,9 +190,9 @@ function Due({ companyId, canManage }: { companyId: string; canManage: boolean }
           </button>
         ))}
       </div>
-      {rows.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(rows.error)}</p>}
+      {rows.isError && <ErrorNotice error={rows.error} />}
       {rows.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <DataTable
           columns={columns}
@@ -266,7 +268,10 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
         );
       }
     },
-    onSuccess: refresh,
+    onSuccess: () => {
+      refresh();
+      notify('Examples added');
+    },
   });
 
   const edit = (i: ItemTypeDto): void =>
@@ -332,7 +337,7 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
         </p>
       )}
       {items.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (items.data ?? []).length === 0 ? (
         <p>Nothing yet.</p>
       ) : (
@@ -419,6 +424,7 @@ function ItemEditor({
     problems.push('Choose which vehicles, or make it for all.');
   }
 
+  const notify = useNotify();
   const save = useMutation({
     mutationFn: () =>
       withAccessToken((token) =>
@@ -429,7 +435,10 @@ function ItemEditor({
             })
           : maintenanceApi.updateItemType(token, draft.id, body),
       ),
-    onSuccess: onDone,
+    onSuccess: () => {
+      onDone();
+      notify('Item saved');
+    },
   });
 
   return (
