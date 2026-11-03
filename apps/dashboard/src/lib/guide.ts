@@ -93,7 +93,7 @@ export const GUIDE: readonly GuideSection[] = [
       {
         heading: 'Create a job',
         steps: [
-          'Under Create a job, type a reference.',
+          'Choose New job above the list, then type a reference.',
           'Add the customer and the price if you want job profit to work for it.',
           'Add the stops in the order the driver does them. If a stop is near a gate your drivers have marked, it is offered to you.',
           'Choose Create job.',
@@ -161,15 +161,15 @@ export const GUIDE: readonly GuideSection[] = [
       {
         heading: 'Add a driver with your join code',
         steps: [
-          'Give the driver your join code. It is shown on this page.',
+          'Open Add drivers at the bottom of the page. Give the driver your join code, which is shown there.',
           'They enter it in the app to ask to join.',
-          'Their request appears under Pending requests. Approve it.',
+          'Their request appears under Pending requests, at the top of the page. Approve it.',
         ],
       },
       {
         heading: 'Invite by email',
         steps: [
-          'Under Invite a driver, type their email and send.',
+          'In Add drivers, under Invite a driver, type their email and send.',
           'They sign in to the app with that email and accept under Settings, My companies.',
         ],
       },

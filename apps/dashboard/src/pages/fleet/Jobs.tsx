@@ -108,6 +108,8 @@ export function Jobs() {
   const refreshJobs = () => void queryClient.invalidateQueries({ queryKey: jobsKey });
 
   const [form, setForm] = useState(EMPTY_FORM);
+  // The create form is kept out of the way until asked for: most visits are to look at or assign jobs, not to make one.
+  const [creating, setCreating] = useState(false);
   // A rural postcode often lands away from the gate. Entrances drivers have marked near it are offered,
   // and one chosen here sends the driver to the real spot, with its note on the stop.
   const markedPlaces = useQuery({
@@ -202,6 +204,7 @@ export function Jobs() {
       setForm(EMPTY_FORM);
       setStops(defaultStops(stops.map((s) => s.kind)));
       setShowErrors(false);
+      setCreating(false);
       refreshJobs();
     },
   });
@@ -694,9 +697,9 @@ export function Jobs() {
         </p>
       ) : (
         <>
-          {canDispatch && (
-            <section style={{ marginBottom: 24 }}>
-              <h2>Create a job</h2>
+          {canDispatch && creating && (
+            <section className="card" aria-label="New job">
+              <h2>New job</h2>
               <form
                 ref={formRef}
                 noValidate
@@ -786,13 +789,30 @@ export function Jobs() {
                   <button type="submit" disabled={createJob.isPending}>
                     {createJob.isPending ? 'Creating…' : 'Create job'}
                   </button>
+                  <button
+                    type="button"
+                    disabled={createJob.isPending}
+                    onClick={() => {
+                      setCreating(false);
+                      setShowErrors(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
                 </div>
               </form>
             </section>
           )}
 
           <section>
-            <h2>All jobs</h2>
+            <div className="section-head">
+              <h2>All jobs</h2>
+              {canDispatch && !creating && (
+                <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
+                  + New job
+                </button>
+              )}
+            </div>
             {jobs.isPending ? (
               <p>Loading…</p>
             ) : (

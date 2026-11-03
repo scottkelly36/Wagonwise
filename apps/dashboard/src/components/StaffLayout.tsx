@@ -203,21 +203,8 @@ export function StaffLayout() {
         )}
 
         {visible.map((section) => {
-          // A section of one link is just that link: a heading over a single entry says nothing.
-          const [only] = section.items;
-          if (section.items.length === 1 && only !== undefined) {
-            return (
-              <NavLink
-                key={section.title}
-                to={only.to}
-                end
-                onClick={() => setNavOpen(false)}
-                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-              >
-                {only.label}
-              </NavLink>
-            );
-          }
+          // A section of one link keeps its heading: without it the link reads as part of whatever section sits above it
+          // (a dispatcher's lone "Fuel" looked like an Operations page).
           const folds = folding.has(section.title);
           const expanded = !folds || open === section.title;
           const listId = `nav-${section.title.toLowerCase().replace(/\s+/g, '-')}`;
