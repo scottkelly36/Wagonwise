@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { InvoiceDto } from '@wagonwise/contracts/billing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -167,6 +168,8 @@ function InvoicePanel({
   onClose: () => void;
 }) {
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
+  const ask = useConfirm();
+  const notify = useNotify();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [isCredit, setIsCredit] = useState(true);
@@ -351,13 +354,16 @@ function InvoicePanel({
               className="btn-caution"
               type="button"
               onClick={() => {
-                if (
-                  window.confirm(
+                void ask({
+                  message:
                     'Cancel this invoice? It keeps its number, and the month can be invoiced again.',
-                  )
-                ) {
-                  cancel.mutate();
-                }
+                  confirmLabel: 'Cancel invoice',
+                  cancelLabel: 'Keep invoice',
+                  tone: 'caution',
+                }).then((ok) => {
+                  if (ok)
+                    cancel.mutate(undefined, { onSuccess: () => notify('Invoice cancelled') });
+                });
               }}
               disabled={cancel.isPending}
             >

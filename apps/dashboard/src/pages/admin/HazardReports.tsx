@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { HazardReportDto } from '@wagonwise/contracts/hazards';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as hazardsApi from '../../api/hazards';
@@ -19,6 +20,8 @@ export function HazardReports() {
     queryFn: () => withAccessToken((token) => hazardsApi.listHazards(token)),
   });
 
+  const ask = useConfirm();
+  const notify = useNotify();
   const deleteHazard = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => hazardsApi.deleteHazard(token, id)),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: HAZARDS_KEY }),
@@ -69,9 +72,12 @@ export function HazardReports() {
           label="Delete this hazard report"
           disabled={deleteHazard.isPending && deleteHazard.variables === h.id}
           onClick={() => {
-            if (confirm('Delete this hazard report? This cannot be undone.')) {
-              deleteHazard.mutate(h.id);
-            }
+            void ask({
+              message: 'Delete this hazard report? This cannot be undone.',
+              confirmLabel: 'Delete report',
+            }).then((ok) => {
+              if (ok) deleteHazard.mutate(h.id, { onSuccess: () => notify('Report deleted') });
+            });
           }}
         />
       ),

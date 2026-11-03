@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import type {
   FuelSummaryLineDto,
   FuelTransactionDto,
@@ -498,6 +499,8 @@ function PastImports({ companyId, canManage }: { companyId: string; canManage: b
     queryFn: () => withAccessToken((t) => costingApi.listFuelImports(t, companyId)),
     retry: false,
   });
+  const ask = useConfirm();
+  const notify = useNotify();
   const undo = useMutation({
     mutationFn: (id: string) => withAccessToken((t) => costingApi.undoFuelImport(t, id)),
     onSuccess: () => {
@@ -537,13 +540,13 @@ function PastImports({ companyId, canManage }: { companyId: string; canManage: b
                 className="btn-caution"
                 disabled={undo.isPending}
                 onClick={() => {
-                  if (
-                    window.confirm(
-                      `Undo ${i.fileName}? The ${i.rowsImported} purchases it added are removed.`,
-                    )
-                  ) {
-                    undo.mutate(i.id);
-                  }
+                  void ask({
+                    message: `Undo ${i.fileName}? The ${i.rowsImported} purchases it added are removed.`,
+                    confirmLabel: 'Undo import',
+                    tone: 'caution',
+                  }).then((ok) => {
+                    if (ok) undo.mutate(i.id, { onSuccess: () => notify('Import undone') });
+                  });
                 }}
               >
                 Undo

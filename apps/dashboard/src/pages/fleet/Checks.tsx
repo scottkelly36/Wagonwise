@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import {
   checkTemplateIdSchema,
   type CheckItem,
@@ -65,6 +66,8 @@ export function Checks() {
   });
 
   const [draft, setDraft] = useState<Draft | undefined>(undefined);
+  const ask = useConfirm();
+  const notify = useNotify();
   const archive = useMutation({
     mutationFn: (id: string) =>
       withAccessToken((token) => checksApi.archiveCheckTemplate(token, id)),
@@ -175,13 +178,14 @@ export function Checks() {
                         type="button"
                         disabled={archive.isPending}
                         onClick={() => {
-                          if (
-                            window.confirm(
-                              `Remove "${t.name}"? Checks already done keep their record.`,
-                            )
-                          ) {
-                            archive.mutate(t.id);
-                          }
+                          void ask({
+                            message: `Remove "${t.name}"? Checks already done keep their record.`,
+                            confirmLabel: 'Remove check',
+                            tone: 'caution',
+                          }).then((ok) => {
+                            if (ok)
+                              archive.mutate(t.id, { onSuccess: () => notify('Check removed') });
+                          });
                         }}
                       >
                         Remove

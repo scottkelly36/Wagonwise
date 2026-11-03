@@ -1564,3 +1564,82 @@ textarea {
     position: static;
   }
 }
+
+/* A question that needs an answer before anything happens (replaces the browser's confirm box) */
+.confirm-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 24px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 20px 50px rgba(11, 18, 34, 0.35);
+}
+
+.confirm-dialog::backdrop {
+  background: rgba(11, 18, 34, 0.55);
+}
+
+.confirm-message {
+  margin: 0 0 20px;
+  font-size: 16px;
+}
+
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* A short message that says what just happened, bottom right (centred on a phone) */
+.toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 8px 10px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--navy-800);
+  color: var(--on-dark);
+  box-shadow: var(--shadow);
+  font-weight: 600;
+  pointer-events: auto;
+}
+
+.toast .toast-close {
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: var(--on-dark-muted);
+  line-height: 1;
+}
+
+.toast .toast-close:hover:not(:disabled) {
+  background: var(--navy-600);
+  color: var(--on-dark);
+}
+
+@media (max-width: 700px) {
+  .toasts {
+    right: 16px;
+    left: 16px;
+    align-items: stretch;
+  }
+
+  .toast {
+    max-width: none;
+  }
+}

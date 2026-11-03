@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { TesterDto } from '@wagonwise/contracts/signups';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -61,6 +62,8 @@ export function Testers() {
     queryKey: TESTERS_KEY,
     queryFn: () => withAccessToken((token) => signupsApi.listTesters(token)),
   });
+  const ask = useConfirm();
+  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => signupsApi.deleteTester(token, id)),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: TESTERS_KEY }),
@@ -165,7 +168,12 @@ export function Testers() {
           className="btn-danger"
           disabled={remove.isPending}
           onClick={() => {
-            if (window.confirm(`Remove ${t.email} from the list?`)) remove.mutate(t.id);
+            void ask({
+              message: `Remove ${t.email} from the list?`,
+              confirmLabel: 'Remove tester',
+            }).then((ok) => {
+              if (ok) remove.mutate(t.id, { onSuccess: () => notify('Tester removed') });
+            });
           }}
         >
           Remove
@@ -251,14 +259,16 @@ export function Testers() {
                 className="btn-primary"
                 disabled={toInvite.length === 0 || !linkOk || invite.isPending}
                 onClick={() => {
-                  if (
-                    window.confirm(
-                      `Email the test invite to ${toInvite.length} ${toInvite.length === 1 ? 'person' : 'people'}?`,
-                    )
-                  ) {
-                    setOutcome(undefined);
-                    invite.mutate(toInvite.map((t) => t.id));
-                  }
+                  void ask({
+                    message: `Email the test invite to ${toInvite.length} ${toInvite.length === 1 ? 'person' : 'people'}?`,
+                    confirmLabel: 'Send invites',
+                    tone: 'normal',
+                  }).then((ok) => {
+                    if (ok) {
+                      setOutcome(undefined);
+                      invite.mutate(toInvite.map((t) => t.id));
+                    }
+                  });
                 }}
               >
                 {invite.isPending
@@ -321,14 +331,16 @@ export function Testers() {
                 className="btn-primary"
                 disabled={toLaunch.length === 0 || !storeLinksOk || launch.isPending}
                 onClick={() => {
-                  if (
-                    window.confirm(
-                      `Email the "out now" message to ${toLaunch.length} ${toLaunch.length === 1 ? 'person' : 'people'}? It cannot be unsent.`,
-                    )
-                  ) {
-                    setLaunchOutcome(undefined);
-                    launch.mutate(toLaunch.map((t) => t.id));
-                  }
+                  void ask({
+                    message: `Email the "out now" message to ${toLaunch.length} ${toLaunch.length === 1 ? 'person' : 'people'}? It cannot be unsent.`,
+                    confirmLabel: 'Send message',
+                    tone: 'caution',
+                  }).then((ok) => {
+                    if (ok) {
+                      setLaunchOutcome(undefined);
+                      launch.mutate(toLaunch.map((t) => t.id));
+                    }
+                  });
                 }}
               >
                 {launch.isPending

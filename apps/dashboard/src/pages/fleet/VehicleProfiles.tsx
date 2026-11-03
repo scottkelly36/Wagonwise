@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import { companyIdSchema } from '@wagonwise/contracts/companies';
 import type { FleetVehicleDto } from '@wagonwise/contracts/fleet';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -83,6 +84,8 @@ export function VehicleProfiles() {
     },
   });
 
+  const ask = useConfirm();
+  const notify = useNotify();
   const deleteVehicle = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => fleetApi.deleteFleetVehicle(token, id)),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: vehiclesKey }),
@@ -168,7 +171,11 @@ export function VehicleProfiles() {
           label={`Delete ${v.name}`}
           disabled={deleteVehicle.isPending}
           onClick={() => {
-            if (window.confirm(`Delete ${v.name}?`)) deleteVehicle.mutate(v.id);
+            void ask({ message: `Delete ${v.name}?`, confirmLabel: 'Delete vehicle' }).then(
+              (ok) => {
+                if (ok) deleteVehicle.mutate(v.id, { onSuccess: () => notify('Vehicle deleted') });
+              },
+            );
           }}
         />
       ),

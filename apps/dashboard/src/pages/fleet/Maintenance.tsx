@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import {
   maintenanceItemIdSchema,
   type ItemTypeBody,
@@ -245,6 +246,8 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
     queryKey: ['fleet-vehicles', companyId],
     queryFn: () => withAccessToken((token) => fleetApi.listFleetVehicles(token, companyId)),
   });
+  const ask = useConfirm();
+  const notify = useNotify();
   const archive = useMutation({
     mutationFn: (id: string) =>
       withAccessToken((token) => maintenanceApi.archiveItemType(token, id)),
@@ -364,9 +367,17 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
                     type="button"
                     disabled={archive.isPending}
                     onClick={() => {
-                      if (window.confirm(`Stop tracking ${i.name}? What was recorded is kept.`)) {
-                        archive.mutate(i.id);
-                      }
+                      void ask({
+                        message: `Stop tracking ${i.name}? What was recorded is kept.`,
+                        confirmLabel: 'Stop tracking',
+                        tone: 'caution',
+                      }).then((ok) => {
+                        if (ok) {
+                          archive.mutate(i.id, {
+                            onSuccess: () => notify(`Stopped tracking ${i.name}`),
+                          });
+                        }
+                      });
                     }}
                   >
                     Remove

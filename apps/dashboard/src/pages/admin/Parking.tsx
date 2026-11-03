@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import {
   PARKING_FACILITIES,
   type ParkingKind,
@@ -71,6 +72,8 @@ export function Parking() {
       refresh();
     },
   });
+  const ask = useConfirm();
+  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => parkingApi.deleteParkingSpot(token, id)),
     onSuccess: refresh,
@@ -158,9 +161,12 @@ export function Parking() {
             className="btn-danger"
             disabled={remove.isPending}
             onClick={() => {
-              if (window.confirm('Delete this parking spot? Drivers will stop seeing it.')) {
-                remove.mutate(s.id);
-              }
+              void ask({
+                message: 'Delete this parking spot? Drivers will stop seeing it.',
+                confirmLabel: 'Delete spot',
+              }).then((ok) => {
+                if (ok) remove.mutate(s.id, { onSuccess: () => notify('Parking spot deleted') });
+              });
             }}
           >
             Delete

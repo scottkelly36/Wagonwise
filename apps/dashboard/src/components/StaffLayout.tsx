@@ -5,6 +5,7 @@ import { foldingSections, sectionForPath, toggled } from '../lib/nav';
 import { pageTitle } from '../lib/page-title';
 import { holds, isPlatform } from '../state/access';
 import { useStaffAuthStore } from '../state/staff-auth-store';
+import { FeedbackProvider } from './Feedback';
 import { GuideLink } from './GuideLink';
 import { SosBanner } from './SosBanner';
 import { WeatherBanner } from './WeatherBanner';
@@ -191,113 +192,117 @@ export function StaffLayout() {
       : sectionForPath(visible, pathname);
 
   return (
-    <div className="shell">
-      <nav id="main-nav" className={navOpen ? 'sidebar open' : 'sidebar'} aria-label="Main">
-        <div className="brand">
-          <span className="brand-mark" />
-          WagonWise
-        </div>
+    <FeedbackProvider>
+      <div className="shell">
+        <nav id="main-nav" className={navOpen ? 'sidebar open' : 'sidebar'} aria-label="Main">
+          <div className="brand">
+            <span className="brand-mark" />
+            WagonWise
+          </div>
 
-        {staff !== undefined && HOME.shows(staff) && (
+          {staff !== undefined && HOME.shows(staff) && (
+            <NavLink
+              to={HOME.to}
+              end
+              onClick={() => setNavOpen(false)}
+              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+            >
+              {HOME.label}
+            </NavLink>
+          )}
+
+          {visible.map((section) => {
+            // A section of one link keeps its heading: without it the link reads as part of whatever section sits above it
+            // (a dispatcher's lone "Fuel" looked like an Operations page).
+            const folds = folding.has(section.title);
+            const expanded = !folds || open === section.title;
+            const listId = `nav-${section.title.toLowerCase().replace(/\s+/g, '-')}`;
+            return (
+              <div key={section.title} className="nav-group" data-area={section.area}>
+                {folds ? (
+                  <button
+                    type="button"
+                    className="nav-section nav-toggle"
+                    aria-expanded={expanded}
+                    aria-controls={listId}
+                    onClick={() =>
+                      setChoice({ path: pathname, title: toggled(open, section.title) })
+                    }
+                  >
+                    <span>{section.title}</span>
+                    <span className="nav-chevron" aria-hidden="true">
+                      {expanded ? '▾' : '▸'}
+                    </span>
+                  </button>
+                ) : (
+                  <p className="nav-section">{section.title}</p>
+                )}
+                <div id={listId} hidden={!expanded}>
+                  {section.items.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end
+                      onClick={() => setNavOpen(false)}
+                      className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+                    >
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
           <NavLink
-            to={HOME.to}
-            end
+            to="/guide"
             onClick={() => setNavOpen(false)}
             className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
           >
-            {HOME.label}
+            Guide
           </NavLink>
-        )}
+        </nav>
 
-        {visible.map((section) => {
-          // A section of one link keeps its heading: without it the link reads as part of whatever section sits above it
-          // (a dispatcher's lone "Fuel" looked like an Operations page).
-          const folds = folding.has(section.title);
-          const expanded = !folds || open === section.title;
-          const listId = `nav-${section.title.toLowerCase().replace(/\s+/g, '-')}`;
-          return (
-            <div key={section.title} className="nav-group" data-area={section.area}>
-              {folds ? (
+        {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
+
+        <div className="main-column">
+          <header className="topbar">
+            <button
+              type="button"
+              className="menu-button"
+              aria-label={navOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={navOpen}
+              aria-controls="main-nav"
+              onClick={() => setNavOpen((open) => !open)}
+            >
+              <span aria-hidden="true">{navOpen ? '✕' : '☰'}</span>
+            </button>
+            {staff !== undefined && (
+              <>
+                <div className="who">
+                  {staff.name}
+                  <small>{staff.kind === 'platform' ? 'WagonWise staff' : staff.email}</small>
+                </div>
+                <span className="avatar">{staff.name.trim().charAt(0).toUpperCase()}</span>
                 <button
-                  type="button"
-                  className="nav-section nav-toggle"
-                  aria-expanded={expanded}
-                  aria-controls={listId}
-                  onClick={() => setChoice({ path: pathname, title: toggled(open, section.title) })}
+                  className="btn-light"
+                  onClick={() => {
+                    void signOut().then(() => navigate('/staff/sign-in'));
+                  }}
                 >
-                  <span>{section.title}</span>
-                  <span className="nav-chevron" aria-hidden="true">
-                    {expanded ? '▾' : '▸'}
-                  </span>
+                  Sign out
                 </button>
-              ) : (
-                <p className="nav-section">{section.title}</p>
-              )}
-              <div id={listId} hidden={!expanded}>
-                {section.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end
-                    onClick={() => setNavOpen(false)}
-                    className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-
-        <NavLink
-          to="/guide"
-          onClick={() => setNavOpen(false)}
-          className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-        >
-          Guide
-        </NavLink>
-      </nav>
-
-      {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
-
-      <div className="main-column">
-        <header className="topbar">
-          <button
-            type="button"
-            className="menu-button"
-            aria-label={navOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={navOpen}
-            aria-controls="main-nav"
-            onClick={() => setNavOpen((open) => !open)}
-          >
-            <span aria-hidden="true">{navOpen ? '✕' : '☰'}</span>
-          </button>
-          {staff !== undefined && (
-            <>
-              <div className="who">
-                {staff.name}
-                <small>{staff.kind === 'platform' ? 'WagonWise staff' : staff.email}</small>
-              </div>
-              <span className="avatar">{staff.name.trim().charAt(0).toUpperCase()}</span>
-              <button
-                className="btn-light"
-                onClick={() => {
-                  void signOut().then(() => navigate('/staff/sign-in'));
-                }}
-              >
-                Sign out
-              </button>
-            </>
-          )}
-        </header>
-        <main className="content">
-          <SosBanner />
-          <WeatherBanner />
-          <GuideLink />
-          <Outlet />
-        </main>
+              </>
+            )}
+          </header>
+          <main className="content">
+            <SosBanner />
+            <WeatherBanner />
+            <GuideLink />
+            <Outlet />
+          </main>
+        </div>
       </div>
-    </div>
+    </FeedbackProvider>
   );
 }

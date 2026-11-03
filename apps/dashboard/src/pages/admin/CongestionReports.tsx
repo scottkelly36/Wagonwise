@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { StaffCongestionReportDto } from '@wagonwise/contracts/congestion';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as congestionApi from '../../api/congestion';
@@ -22,6 +23,8 @@ export function CongestionReports() {
     queryFn: () => withAccessToken((token) => congestionApi.listCongestionReports(token)),
   });
   const refresh = (): void => void queryClient.invalidateQueries({ queryKey: CONGESTION_KEY });
+  const ask = useConfirm();
+  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (id: string) =>
       withAccessToken((token) => congestionApi.deleteCongestionReport(token, id)),
@@ -74,9 +77,12 @@ export function CongestionReports() {
           label="Delete this congestion report"
           disabled={remove.isPending && remove.variables === r.id}
           onClick={() => {
-            if (confirm('Delete this congestion report? This cannot be undone.')) {
-              remove.mutate(r.id);
-            }
+            void ask({
+              message: 'Delete this congestion report? This cannot be undone.',
+              confirmLabel: 'Delete report',
+            }).then((ok) => {
+              if (ok) remove.mutate(r.id, { onSuccess: () => notify('Report deleted') });
+            });
           }}
         />
       ),
@@ -107,9 +113,13 @@ export function CongestionReports() {
               className="btn-secondary"
               disabled={expired === 0 || clear.isPending}
               onClick={() => {
-                if (confirm(`Remove the ${expired} expired report${expired === 1 ? '' : 's'}?`)) {
-                  clear.mutate();
-                }
+                void ask({
+                  message: `Remove the ${expired} expired report${expired === 1 ? '' : 's'}?`,
+                  confirmLabel: 'Remove expired reports',
+                }).then((ok) => {
+                  if (ok)
+                    clear.mutate(undefined, { onSuccess: () => notify('Expired reports removed') });
+                });
               }}
             >
               {clear.isPending ? 'Clearing…' : 'Clear expired reports'}

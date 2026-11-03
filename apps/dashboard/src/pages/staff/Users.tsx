@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import { companyIdSchema } from '@wagonwise/contracts/companies';
 import type { Privilege, StaffAccountDto } from '@wagonwise/contracts/staff';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -55,6 +56,8 @@ export function Users() {
     onSuccess: refreshList,
   });
 
+  const ask = useConfirm();
+  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (staffId: string) =>
       withAccessToken((token) => staffApi.removeMember(token, staffId)),
@@ -135,9 +138,14 @@ export function Users() {
             danger
             label={`Remove ${member.name}`}
             onClick={() => {
-              if (window.confirm(`Remove ${member.name}? They'll be signed out straight away.`)) {
-                remove.mutate(member.id);
-              }
+              void ask({
+                message: `Remove ${member.name}? They'll be signed out straight away.`,
+                confirmLabel: 'Remove person',
+              }).then((ok) => {
+                if (ok) {
+                  remove.mutate(member.id, { onSuccess: () => notify(`${member.name} removed`) });
+                }
+              });
             }}
           />
         ) : null,
