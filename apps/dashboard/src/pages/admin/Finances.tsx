@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import { COST_CATEGORIES, type CostDto, type FinanceReportDto } from '@wagonwise/contracts/billing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -221,6 +222,8 @@ function Costs({ month, costs }: { month: string; costs: CostDto[] }) {
   const queryClient = useQueryClient();
   const refresh = () => void queryClient.invalidateQueries({ queryKey: KEY });
   const [editing, setEditing] = useState<string | undefined>(undefined);
+  const ask = useConfirm();
+  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => billingApi.deleteCost(token, id)),
     onSuccess: () => {
@@ -283,13 +286,12 @@ function Costs({ month, costs }: { month: string; costs: CostDto[] }) {
             refresh();
           }}
           onDelete={() => {
-            if (
-              window.confirm(
-                'Remove this entry altogether? Use this only for one entered by mistake.',
-              )
-            ) {
-              remove.mutate(selected.id);
-            }
+            void ask({
+              message: 'Remove this entry altogether? Use this only for one entered by mistake.',
+              confirmLabel: 'Remove entry',
+            }).then((ok) => {
+              if (ok) remove.mutate(selected.id, { onSuccess: () => notify('Entry removed') });
+            });
           }}
         />
       )}

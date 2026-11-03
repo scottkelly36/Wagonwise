@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from './feedback-context';
 import type { RepairDto } from '@wagonwise/contracts/maintenance';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -49,6 +50,8 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
       refresh();
     },
   });
+  const ask = useConfirm();
+  const notify = useNotify();
   const cancel = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => maintenanceApi.cancelRepair(token, id)),
     onSuccess: refresh,
@@ -104,9 +107,14 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
               type="button"
               disabled={cancel.isPending}
               onClick={() => {
-                if (window.confirm('Cancel this repair? The defect is left as it is.')) {
-                  cancel.mutate(r.id);
-                }
+                void ask({
+                  message: 'Cancel this repair? The defect is left as it is.',
+                  confirmLabel: 'Cancel repair',
+                  cancelLabel: 'Keep repair',
+                  tone: 'caution',
+                }).then((ok) => {
+                  if (ok) cancel.mutate(r.id, { onSuccess: () => notify('Repair cancelled') });
+                });
               }}
             >
               Cancel

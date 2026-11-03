@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { DriverRatesDto, RunningCostDto } from '@wagonwise/contracts/costing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -142,6 +143,8 @@ function RunningCosts({ companyId }: { companyId: string }) {
       refresh();
     },
   });
+  const ask = useConfirm();
+  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (id: string) => withAccessToken((t) => costingApi.deleteRunningCost(t, id)),
     onSuccess: refresh,
@@ -214,13 +217,12 @@ function RunningCosts({ companyId }: { companyId: string }) {
             className="btn-danger"
             disabled={remove.isPending}
             onClick={() => {
-              if (
-                window.confirm(
-                  `Remove ${c.description} altogether? Use Stop for a cost that was real.`,
-                )
-              ) {
-                remove.mutate(c.id);
-              }
+              void ask({
+                message: `Remove ${c.description} altogether? Use Stop for a cost that was real.`,
+                confirmLabel: 'Remove cost',
+              }).then((ok) => {
+                if (ok) remove.mutate(c.id, { onSuccess: () => notify('Cost removed') });
+              });
             }}
           >
             Remove
@@ -418,6 +420,8 @@ function DriverPay({ companyId }: { companyId: string }) {
       refresh();
     },
   });
+  const ask = useConfirm();
+  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (id: string) => withAccessToken((t) => costingApi.deleteDriverRate(t, id)),
     onSuccess: refresh,
@@ -513,7 +517,13 @@ function DriverPay({ companyId }: { companyId: string }) {
                         className="btn-danger"
                         disabled={remove.isPending}
                         onClick={() => {
-                          if (window.confirm('Remove this rate?')) remove.mutate(r.id);
+                          void ask({
+                            message: 'Remove this rate?',
+                            confirmLabel: 'Remove rate',
+                          }).then((ok) => {
+                            if (ok)
+                              remove.mutate(r.id, { onSuccess: () => notify('Rate removed') });
+                          });
                         }}
                       >
                         Remove

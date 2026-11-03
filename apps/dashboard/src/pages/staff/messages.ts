@@ -95,6 +95,12 @@ const MESSAGES: Record<string, string> = {
     'No route found for that vehicle between the stops. It may be too tall, wide or heavy for the roads.',
 };
 
+const TRY_AGAIN = 'Something went wrong on our side. Please try again in a moment.';
+
+/**
+ * What to tell a person when a call failed. A tag with its own wording above wins; after that the HTTP status says what kind of
+ * failure it was. A tag with no wording is never shown (it means nothing to the person); it stays in the network response.
+ */
 export function staffErrorMessage(error: unknown): string {
   // Core's per-account lockout (TooManyAttempts) and the staff BFF's per-address limit.
   if (error instanceof ApiError && error.status === 429) {
@@ -103,7 +109,18 @@ export function staffErrorMessage(error: unknown): string {
   if (error instanceof PostcodeNotFoundError) {
     return `We can't find the postcode ${error.postcode}. Check it and try again.`;
   }
-  if (error instanceof ApiError)
-    return MESSAGES[error.tag] ?? `Something went wrong (${error.tag}).`;
-  return 'Something went wrong. Please try again.';
+  if (error instanceof ApiError) {
+    const known = MESSAGES[error.tag];
+    if (known !== undefined) return known;
+    if (error.status === 401) return MESSAGES.NotSignedIn as string;
+    if (error.status === 403) return MESSAGES.Forbidden as string;
+    if (error.status === 404) return MESSAGES.NotFound as string;
+    if (error.status >= 500) return `${TRY_AGAIN} If it keeps happening, tell WagonWise.`;
+    return TRY_AGAIN;
+  }
+  // `fetch` rejects with a TypeError when the request never got an answer (offline, or the server is down).
+  if (error instanceof TypeError) {
+    return "We couldn't reach WagonWise. Check your internet connection and try again.";
+  }
+  return TRY_AGAIN;
 }

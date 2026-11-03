@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { HazardReportDto, ModerateHazardRequest } from '@wagonwise/contracts/hazards';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -62,6 +63,8 @@ export function Moderation() {
     refetchInterval: 30_000,
   });
 
+  const ask = useConfirm();
+  const notify = useNotify();
   const decide = useMutation({
     mutationFn: ({ id, input }: { id: string; input: ModerateHazardRequest }) =>
       withAccessToken((token) => hazardsApi.moderateHazard(token, id, input)),
@@ -146,9 +149,17 @@ export function Moderation() {
                     className="btn-danger"
                     disabled={decide.isPending}
                     onClick={() => {
-                      if (window.confirm('Reject this report? It will stop affecting routes.')) {
-                        decide.mutate({ id: hazard.id, input: { action: 'reject' } });
-                      }
+                      void ask({
+                        message: 'Reject this report? It will stop affecting routes.',
+                        confirmLabel: 'Reject report',
+                      }).then((ok) => {
+                        if (ok) {
+                          decide.mutate(
+                            { id: hazard.id, input: { action: 'reject' } },
+                            { onSuccess: () => notify('Report rejected') },
+                          );
+                        }
+                      });
                     }}
                   >
                     Reject

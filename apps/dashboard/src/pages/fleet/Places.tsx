@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import {
   savedPlaceIdSchema,
   type PlaceCategory,
@@ -91,6 +92,8 @@ export function Places() {
       refresh();
     },
   });
+  const ask = useConfirm();
+  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => placesApi.deletePlace(token, id)),
     onSuccess: refresh,
@@ -203,9 +206,12 @@ export function Places() {
               className="secondary"
               disabled={remove.isPending}
               onClick={() => {
-                if (window.confirm(`Remove ${p.name}? Drivers will no longer see it.`)) {
-                  remove.mutate(p.id);
-                }
+                void ask({
+                  message: `Remove ${p.name}? Drivers will no longer see it.`,
+                  confirmLabel: 'Remove place',
+                }).then((ok) => {
+                  if (ok) remove.mutate(p.id, { onSuccess: () => notify('Place removed') });
+                });
               }}
             >
               Remove

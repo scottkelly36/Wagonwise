@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import { companyIdSchema } from '@wagonwise/contracts/companies';
 import type { JobDto, ProofOfDeliveryResponse } from '@wagonwise/contracts/jobs';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
@@ -256,6 +257,8 @@ export function Jobs() {
     onSuccess: refreshJobs,
   });
 
+  const ask = useConfirm();
+  const notify = useNotify();
   const cancel = useMutation({
     mutationFn: (jobId: string) => withAccessToken((token) => jobsApi.cancelJob(token, jobId)),
     onSuccess: refreshJobs,
@@ -572,7 +575,14 @@ export function Jobs() {
                     <button
                       className="btn-danger"
                       onClick={() => {
-                        if (window.confirm('Cancel this job?')) cancel.mutate(job.id);
+                        void ask({
+                          message: 'Cancel this job?',
+                          confirmLabel: 'Cancel job',
+                          cancelLabel: 'Keep job',
+                        }).then((ok) => {
+                          if (ok)
+                            cancel.mutate(job.id, { onSuccess: () => notify('Job cancelled') });
+                        });
                       }}
                       disabled={cancel.isPending}
                       style={{ marginTop: job.status === 'draft' ? 6 : 0 }}

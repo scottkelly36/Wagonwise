@@ -1,3 +1,4 @@
+import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { DriverLinkDto } from '@wagonwise/contracts/fleet';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
@@ -72,6 +73,8 @@ export function Drivers() {
     mutationFn: (id: string) => withAccessToken((token) => fleetApi.declineDriverLink(token, id)),
     onSuccess: refreshLinks,
   });
+  const ask = useConfirm();
+  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => fleetApi.removeDriverLink(token, id)),
     onSuccess: refreshLinks,
@@ -196,9 +199,12 @@ export function Drivers() {
               <button
                 className="btn-danger"
                 onClick={() => {
-                  if (window.confirm('Remove this driver from your company?')) {
-                    remove.mutate(link.id);
-                  }
+                  void ask({
+                    message: 'Remove this driver from your company?',
+                    confirmLabel: 'Remove driver',
+                  }).then((ok) => {
+                    if (ok) remove.mutate(link.id, { onSuccess: () => notify('Driver removed') });
+                  });
                 }}
                 disabled={remove.isPending}
               >
@@ -238,13 +244,18 @@ export function Drivers() {
               <button
                 className="btn-caution"
                 onClick={() => {
-                  if (
-                    window.confirm(
+                  void ask({
+                    message:
                       'Make a new code? The old one will stop working for anyone who hasn’t used it yet.',
-                    )
-                  ) {
-                    regenerateCode.mutate();
-                  }
+                    confirmLabel: 'Make a new code',
+                    tone: 'caution',
+                  }).then((ok) => {
+                    if (ok) {
+                      regenerateCode.mutate(undefined, {
+                        onSuccess: () => notify('New join code made'),
+                      });
+                    }
+                  });
                 }}
                 disabled={regenerateCode.isPending}
               >
