@@ -2,10 +2,9 @@ import {
   maintenanceItemIdSchema,
   type ItemTypeBody,
   type ItemTypeDto,
-  type OverviewRowDto,
 } from '@wagonwise/contracts/maintenance';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import * as fleetApi from '../../api/fleet';
 import * as maintenanceApi from '../../api/maintenance';
 import { CompanySelect } from '../../components/CompanySelect';
@@ -16,19 +15,21 @@ import { CompanyReminders } from '../../components/CompanyReminders';
 import { MyReminders } from '../../components/MyReminders';
 import { Repairs } from '../../components/Repairs';
 import { VehicleMaintenance } from '../../components/VehicleMaintenance';
+import { intervalText, STATUS_COLOURS, STATUS_LABELS, vehicleLabel } from '../../lib/maintenance';
 import {
-  dueText,
-  intervalText,
-  STATUS_COLOURS,
-  STATUS_LABELS,
-  vehicleLabel,
-} from '../../lib/maintenance';
+  countsText,
+  fleetTotals,
+  groupByVehicle,
+  needsAttention,
+  worstText,
+  type VehicleSummary,
+} from '../../lib/maintenance-by-vehicle';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
 
 type Tab = 'due' | 'repairs' | 'items';
-type Filter = 'needs' | 'all';
+type Filter = 'needs' | 'overdue' | 'all';
 
 /**
  * Maintenance: what is overdue or due soon across the company's vehicles, and what the company keeps track of (MOT,
@@ -102,39 +103,61 @@ function Due({ companyId, canManage }: { companyId: string; canManage: boolean }
     queryFn: () => withAccessToken((token) => maintenanceApi.getOverview(token, companyId)),
   });
 
-  const shown = (rows.data ?? []).filter((r) => filter === 'all' || r.status !== 'ok');
-  const columns: Column<OverviewRowDto>[] = [
+  const vehicles = useMemo(() => groupByVehicle(rows.data ?? []), [rows.data]);
+  const totals = fleetTotals(vehicles);
+  // The vehicle that is open stays listed even once its last item is put right, so it does not vanish mid-update.
+  const shown = vehicles.filter(
+    (v) =>
+      filter === 'all' ||
+      v.vehicleId === openVehicle ||
+      (filter === 'overdue' ? v.status === 'overdue' : needsAttention(v)),
+  );
+  const columns: Column<VehicleSummary>[] = [
     {
       key: 'status',
       header: 'Status',
-      sortValue: (r) => ['overdue', 'due_soon', 'no_date', 'ok'].indexOf(r.status),
-      cell: (r) => (
-        <strong style={{ color: STATUS_COLOURS[r.status] }}>{STATUS_LABELS[r.status]}</strong>
+      sortValue: (v) => ['overdue', 'due_soon', 'no_date', 'ok'].indexOf(v.status),
+      cell: (v) => (
+        <strong style={{ color: STATUS_COLOURS[v.status] }}>{STATUS_LABELS[v.status]}</strong>
       ),
     },
     {
       key: 'vehicle',
       header: 'Vehicle',
-      sortValue: (r) => r.vehicleName,
-      cell: (r) => vehicleLabel(r),
+      sortValue: (v) => v.vehicleName,
+      cell: (v) => vehicleLabel(v),
     },
-    { key: 'item', header: 'What', sortValue: (r) => r.itemName, cell: (r) => r.itemName },
     {
-      key: 'due',
-      header: 'Due',
-      sortValue: (r) => r.dueDate ?? '9999',
-      cell: (r) => dueText(r),
+      key: 'counts',
+      header: 'Items',
+      cell: (v) => countsText(v.counts),
+    },
+    {
+      key: 'worst',
+      header: 'Most urgent',
+      sortValue: (v) => v.worst.dueDate ?? '9999',
+      cell: (v) => worstText(v),
     },
     {
       key: 'open',
       header: '',
       align: 'right',
-      cell: (r) => (
-        <button type="button" onClick={() => setOpenVehicle(r.vehicleId)}>
-          {canManage ? 'Update' : 'Open'}
+      cell: (v) => (
+        <button
+          type="button"
+          aria-expanded={openVehicle === v.vehicleId}
+          onClick={() => setOpenVehicle(openVehicle === v.vehicleId ? undefined : v.vehicleId)}
+        >
+          {openVehicle === v.vehicleId ? 'Hide' : canManage ? 'Show and update' : 'Show'}
         </button>
       ),
     },
+  ];
+
+  const choices: { value: Filter; label: string }[] = [
+    { value: 'needs', label: `Needs attention (${totals.needAttention})` },
+    { value: 'overdue', label: `Overdue (${totals.overdue})` },
+    { value: 'all', label: `All vehicles (${totals.vehicles})` },
   ];
 
   return (
@@ -151,13 +174,19 @@ function Due({ companyId, canManage }: { companyId: string; canManage: boolean }
           )}
         </div>
       )}
-      <label style={{ display: 'block', marginBottom: 12 }}>
-        Show{' '}
-        <select value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
-          <option value="needs">Only what needs attention</option>
-          <option value="all">Everything</option>
-        </select>
-      </label>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        {choices.map((c) => (
+          <button
+            key={c.value}
+            type="button"
+            aria-pressed={filter === c.value}
+            disabled={filter === c.value}
+            onClick={() => setFilter(c.value)}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
       {rows.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(rows.error)}</p>}
       {rows.isPending ? (
         <p>Loading…</p>
@@ -165,21 +194,19 @@ function Due({ companyId, canManage }: { companyId: string; canManage: boolean }
         <DataTable
           columns={columns}
           rows={shown}
-          rowKey={(r) => `${r.vehicleId}-${r.itemId}`}
-          searchText={(r) => `${r.vehicleName} ${r.registration ?? ''} ${r.itemName}`}
+          rowKey={(v) => v.vehicleId}
+          searchText={(v) => `${v.vehicleName} ${v.registration ?? ''}`}
+          expandedKey={openVehicle}
+          renderDetail={(v) => (
+            <VehicleMaintenance key={v.vehicleId} vehicleId={v.vehicleId} canManage={canManage} />
+          )}
           emptyText={
-            (rows.data ?? []).length === 0
+            vehicles.length === 0
               ? 'Nothing is tracked yet. Add what you keep track of under “What you keep track of”.'
-              : 'Nothing needs attention. Well done.'
+              : filter === 'overdue'
+                ? 'Nothing is overdue. Well done.'
+                : 'Nothing needs attention. Well done.'
           }
-        />
-      )}
-      {openVehicle !== undefined && (
-        <VehicleMaintenance
-          key={openVehicle}
-          vehicleId={openVehicle}
-          canManage={canManage}
-          onClose={() => setOpenVehicle(undefined)}
         />
       )}
     </>
