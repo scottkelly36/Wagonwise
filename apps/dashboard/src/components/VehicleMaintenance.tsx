@@ -7,12 +7,14 @@ import { ukToday } from '../lib/money';
 import { staffErrorMessage } from '../pages/staff/messages';
 import { useStaffAuthStore } from '../state/staff-auth-store';
 
-type Action = { itemId: string; kind: 'set' | 'done' } | undefined;
+/** The item whose "Done on another day" form is open. */
+type Action = { itemId: string } | undefined;
 
 /**
  * One vehicle's maintenance: each item the company tracks, when it is next due, and what has been done. Whoever has
- * `manage_maintenance` can enter a date or mark an item done, which records it and moves the next date on. Anyone
- * who can see the page can read it.
+ * `manage_maintenance` can change a date in place, or press "Done today", which records it and moves the next date on by the
+ * usual interval; "Done on another day" asks for the day, the next date and a note. Anyone who can see the page can read it.
+ * Given `onClose` it is a framed panel with a heading (Vehicle profiles); without, it is the body of an opened row.
  */
 export function VehicleMaintenance({
   vehicleId,
@@ -21,7 +23,7 @@ export function VehicleMaintenance({
 }: {
   vehicleId: string;
   canManage: boolean;
-  onClose: () => void;
+  onClose?: (() => void) | undefined;
 }) {
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
   const queryClient = useQueryClient();
@@ -44,9 +46,15 @@ export function VehicleMaintenance({
 
   return (
     <section
-      style={{ marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
+      style={
+        onClose === undefined
+          ? undefined
+          : { marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }
+      }
     >
-      <h2 style={{ marginTop: 0 }}>Maintenance{name === undefined ? '' : `: ${name}`}</h2>
+      {onClose !== undefined && (
+        <h2 style={{ marginTop: 0 }}>Maintenance{name === undefined ? '' : `: ${name}`}</h2>
+      )}
       {data.isPending && <p>Loading…</p>}
       {data.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(data.error)}</p>}
       {canManage && data.data?.lookupAvailable === true && rows.length > 0 && (
@@ -64,10 +72,8 @@ export function VehicleMaintenance({
           row={row}
           vehicleId={vehicleId}
           canManage={canManage}
-          action={action?.itemId === row.itemId ? action.kind : undefined}
-          onAction={(kind) =>
-            setAction(kind === undefined ? undefined : { itemId: row.itemId, kind })
-          }
+          otherDay={action?.itemId === row.itemId}
+          onOtherDay={(open) => setAction(open ? { itemId: row.itemId } : undefined)}
           onDone={refresh}
         />
       ))}
@@ -85,9 +91,11 @@ export function VehicleMaintenance({
           </ul>
         </>
       )}
-      <button type="button" onClick={onClose} style={{ marginTop: 12 }}>
-        Close
-      </button>
+      {onClose !== undefined && (
+        <button type="button" onClick={onClose} style={{ marginTop: 12 }}>
+          Close
+        </button>
+      )}
     </section>
   );
 }
@@ -177,15 +185,15 @@ function ItemRow({
   row,
   vehicleId,
   canManage,
-  action,
-  onAction,
+  otherDay,
+  onOtherDay,
   onDone,
 }: {
   row: OverviewRowDto;
   vehicleId: string;
   canManage: boolean;
-  action: 'set' | 'done' | undefined;
-  onAction: (kind: 'set' | 'done' | undefined) => void;
+  otherDay: boolean;
+  onOtherDay: (open: boolean) => void;
   onDone: () => void;
 }) {
   return (
@@ -207,29 +215,28 @@ function ItemRow({
           </div>
         </div>
         {canManage && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-            <button
-              className="btn-confirm"
-              type="button"
-              onClick={() => onAction(action === 'done' ? undefined : 'done')}
-            >
-              Mark done
-            </button>
-            <button type="button" onClick={() => onAction(action === 'set' ? undefined : 'set')}>
-              {row.dueDate === undefined ? 'Enter due date' : 'Change due date'}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <DueDateField
+              key={row.dueDate ?? 'none'}
+              vehicleId={vehicleId}
+              itemId={row.itemId}
+              current={row.dueDate}
+              onDone={onDone}
+            />
+            <DoneToday vehicleId={vehicleId} itemId={row.itemId} onDone={onDone} />
+            <button type="button" onClick={() => onOtherDay(!otherDay)}>
+              Done on another day
             </button>
           </div>
         )}
       </div>
-      {action === 'set' && (
-        <SetDue vehicleId={vehicleId} itemId={row.itemId} current={row.dueDate} onDone={onDone} />
-      )}
-      {action === 'done' && <MarkDone vehicleId={vehicleId} itemId={row.itemId} onDone={onDone} />}
+      {otherDay && <MarkDone vehicleId={vehicleId} itemId={row.itemId} onDone={onDone} />}
     </div>
   );
 }
 
-function SetDue({
+/** The next due date, edited where it stands: the box shows the current date, and "Save" appears once it is changed. */
+function DueDateField({
   vehicleId,
   itemId,
   current,
@@ -247,25 +254,64 @@ function SetDue({
       withAccessToken((token) => maintenanceApi.setDueDate(token, vehicleId, itemId, date)),
     onSuccess: onDone,
   });
+  const changed = date !== '' && date !== (current ?? '');
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (date !== '') save.mutate();
+        if (changed) save.mutate();
       }}
-      style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 8, flexWrap: 'wrap' }}
+      style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}
     >
       <label>
-        <span style={{ display: 'block' }}>Next due</span>
+        <span style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)' }}>Next due</span>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </label>
-      <button type="submit" disabled={date === '' || save.isPending}>
-        {save.isPending ? 'Saving…' : 'Save date'}
-      </button>
+      {changed && (
+        <button type="submit" className="btn-confirm" disabled={save.isPending}>
+          {save.isPending ? 'Saving…' : 'Save'}
+        </button>
+      )}
       {save.isError && (
         <span style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</span>
       )}
     </form>
+  );
+}
+
+/** One press: it was done today, and the next date is the usual interval on from today. */
+function DoneToday({
+  vehicleId,
+  itemId,
+  onDone,
+}: {
+  vehicleId: string;
+  itemId: string;
+  onDone: () => void;
+}) {
+  const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
+  const save = useMutation({
+    mutationFn: () =>
+      withAccessToken((token) =>
+        maintenanceApi.markDone(token, vehicleId, itemId, { doneOn: ukToday() }),
+      ),
+    onSuccess: onDone,
+  });
+  return (
+    <>
+      <button
+        type="button"
+        className="btn-confirm"
+        disabled={save.isPending}
+        title="Records it as done today and sets the next date from the usual interval"
+        onClick={() => save.mutate()}
+      >
+        {save.isPending ? 'Saving…' : 'Done today'}
+      </button>
+      {save.isError && (
+        <span style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</span>
+      )}
+    </>
   );
 }
 
