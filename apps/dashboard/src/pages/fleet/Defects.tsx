@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as checksApi from '../../api/checks';
 import * as maintenanceApi from '../../api/maintenance';
+import { Badge, type BadgeTone } from '../../components/Badge';
 import { CompanySelect } from '../../components/CompanySelect';
 import { DataTable, type Column } from '../../components/DataTable';
 import { STATUS_LABELS, whenText } from '../../lib/check-results';
@@ -29,6 +30,12 @@ const NEXT_STEPS: Record<DefectStatus, { to: DefectStatus; label: string }[]> = 
     { to: 'open', label: 'Reopen' },
   ],
   fixed: [{ to: 'open', label: 'Reopen' }],
+};
+
+const STATUS_TONES: Record<DefectStatus, BadgeTone> = {
+  open: 'neutral',
+  acknowledged: 'info',
+  fixed: 'ok',
 };
 
 /**
@@ -89,9 +96,13 @@ export function Defects() {
       sortValue: (d) => (d.severity === 'do_not_drive' ? 0 : 1),
       cell: (d) =>
         d.severity === 'do_not_drive' ? (
-          <strong style={{ color: 'var(--danger)' }}>Do not drive</strong>
+          <Badge tone="danger" icon="stop">
+            Do not drive
+          </Badge>
         ) : (
-          <span style={{ color: 'var(--warning)' }}>Fix soon</span>
+          <Badge tone="warning" icon="warning">
+            Fix soon
+          </Badge>
         ),
     },
     {
@@ -126,7 +137,11 @@ export function Defects() {
       key: 'status',
       header: 'Status',
       sortValue: (d) => d.status,
-      cell: (d) => STATUS_LABELS[d.status],
+      cell: (d) => (
+        <Badge tone={STATUS_TONES[d.status]} icon={d.status === 'fixed' ? 'tick' : undefined}>
+          {STATUS_LABELS[d.status]}
+        </Badge>
+      ),
     },
     {
       key: 'act',
@@ -134,15 +149,31 @@ export function Defects() {
       align: 'right',
       cell: (d) =>
         canHandle || canBook ? (
-          <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+          <div className="row-actions">
             {bookedFor.has(d.id) && (
               <span style={{ color: '#047857' }}>
                 Repair booked for {bookedFor.get(d.id)?.dueDate}
               </span>
             )}
+            {canHandle &&
+              NEXT_STEPS[d.status].map((step, index) => (
+                <button
+                  key={step.to}
+                  // The first step is the one to take next; the rest are there when needed.
+                  className={
+                    index > 0 ? 'btn-quiet' : step.to === 'fixed' ? 'btn-confirm' : undefined
+                  }
+                  type="button"
+                  disabled={change.isPending}
+                  onClick={() => change.mutate({ id: d.id, to: step.to })}
+                >
+                  {step.label}
+                </button>
+              ))}
             {canBook && d.status !== 'fixed' && !bookedFor.has(d.id) && (
               <button
                 type="button"
+                className="btn-quiet"
                 onClick={() => {
                   setBooking(d);
                   setDueDate('');
@@ -151,19 +182,7 @@ export function Defects() {
                 Book repair
               </button>
             )}
-            {canHandle &&
-              NEXT_STEPS[d.status].map((step) => (
-                <button
-                  key={step.to}
-                  className={step.to === 'fixed' ? 'btn-confirm' : undefined}
-                  type="button"
-                  disabled={change.isPending}
-                  onClick={() => change.mutate({ id: d.id, to: step.to })}
-                >
-                  {step.label}
-                </button>
-              ))}
-          </span>
+          </div>
         ) : null,
     },
   ];

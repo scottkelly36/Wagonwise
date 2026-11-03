@@ -2,6 +2,7 @@ import type { StaffAccountDto } from '@wagonwise/contracts/staff';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { foldingSections, sectionForPath, toggled } from '../lib/nav';
+import { pageTitle } from '../lib/page-title';
 import { holds, isPlatform } from '../state/access';
 import { useStaffAuthStore } from '../state/staff-auth-store';
 import { GuideLink } from './GuideLink';
@@ -172,6 +173,12 @@ export function StaffLayout() {
           items: section.items.filter((item) => item.shows(staff)),
         })).filter((section) => section.items.length > 0);
   const folding = foldingSections(visible);
+
+  // The tab's title follows the page, so several tabs open at once can be told apart.
+  const title = pageTitle(pathname, [HOME, ...visible.flatMap((section) => section.items)]);
+  useEffect(() => {
+    document.title = title;
+  }, [title]);
 
   // Only one folded section is open at a time. Going to a page opens the section it belongs to; a click on a heading
   // overrides that until the person moves to another page.
