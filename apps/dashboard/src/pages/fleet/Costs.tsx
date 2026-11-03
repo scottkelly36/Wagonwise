@@ -41,7 +41,7 @@ export function Costs() {
 
   return (
     <div>
-      <h1>Costs</h1>
+      <h1>Running costs and pay</h1>
       <p style={{ color: 'var(--text-muted)' }}>
         What your vehicles and drivers cost to run. Enter each cost once and it carries on every
         month until you change or stop it. Fuel comes from the Fuel page. Together these are what

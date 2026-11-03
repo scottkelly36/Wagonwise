@@ -7,6 +7,7 @@
   --blue-500: #2e9eff;
   --blue-600: #1f7fe6;
   --blue-700: #1565d8;
+  --blue-800: #0f4aa8;
   /* One colour per area of the product: a dot by the menu section and the edge of its current link. Blue stays the brand. */
   --area-ops: #2e9eff;
   --area-compliance: #14b8a6;
@@ -17,15 +18,15 @@
   --surface: #ffffff;
   --border: #e3e9f3;
   --text: #0f1a2e;
-  --text-muted: #6b778c;
+  --text-muted: #566174;
   --on-dark: #e8eefb;
   --on-dark-muted: #8d9bb5;
-  --danger: #dc2626;
-  --warning: #b45309;
+  --danger: #c62828;
+  --warning: #9a4a07;
   --info: #2563eb;
   /* Button variants. Blue is for the one main action on a page; the rest are quieter. */
-  --btn-primary: var(--blue-600);
-  --btn-primary-hover: var(--blue-700);
+  --btn-primary: var(--blue-700);
+  --btn-primary-hover: var(--blue-800);
   --btn-secondary-fg: var(--blue-700);
   --btn-confirm-bg: #ecfdf5;
   --btn-confirm-fg: #047857;
@@ -35,7 +36,7 @@
   --btn-caution-fg: #b45309;
   --btn-caution-border: #fde68a;
   --btn-caution-hover: #fef3c7;
-  --success: #16a34a;
+  --success: #15803d;
   --radius: 12px;
   --radius-sm: 8px;
   --shadow: 0 2px 10px rgba(15, 26, 46, 0.07);
@@ -653,7 +654,7 @@ details.card[open] > summary {
   background: var(--surface);
   border-top: 1px solid var(--border);
   border-bottom: 3px solid var(--border);
-  padding: 12px 16px;
+  padding: 4px 16px;
   font-size: 14px;
   text-transform: none;
   letter-spacing: 0;
@@ -700,6 +701,8 @@ details.card[open] > summary {
   align-items: center;
   gap: 6px;
   cursor: pointer;
+  /* A header is something to press: tall enough for a finger (the header row keeps its height; the padding moved in here). */
+  min-height: 40px;
 }
 
 .sort-button:hover:not(:disabled) {
@@ -709,11 +712,81 @@ details.card[open] > summary {
 
 .sort-off {
   color: var(--text-muted);
-  opacity: 0.6;
 }
 
 .sort-on {
   color: var(--blue-700);
+}
+
+/* A label with a word and (optionally) an icon, so a state never relies on colour alone */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.badge svg {
+  flex: none;
+}
+
+.badge-danger {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.badge-warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.badge-ok {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+.badge-info {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.badge-neutral {
+  background: #eef2f8;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+/* A row's less-used action: text only, so one button in the row reads as the main one */
+button.btn-quiet {
+  background: none;
+  border-color: transparent;
+  color: var(--blue-700);
+  padding: 6px 8px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+button.btn-quiet:hover:not(:disabled) {
+  background: var(--bg);
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px 6px;
 }
 
 .data-table-empty {
