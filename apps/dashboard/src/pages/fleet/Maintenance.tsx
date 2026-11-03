@@ -196,6 +196,8 @@ function Due({ companyId, canManage }: { companyId: string; canManage: boolean }
           rows={shown}
           rowKey={(v) => v.vehicleId}
           searchText={(v) => `${v.vehicleName} ${v.registration ?? ''}`}
+          // A vehicle opens inside the list, so the list grows with it rather than scrolling inside a box.
+          maxHeight="none"
           expandedKey={openVehicle}
           renderDetail={(v) => (
             <VehicleMaintenance key={v.vehicleId} vehicleId={v.vehicleId} canManage={canManage} />
