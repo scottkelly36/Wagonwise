@@ -160,146 +160,36 @@ export function Drivers() {
         </p>
       ) : (
         <>
-          <section style={{ marginBottom: 24 }}>
-            <h2>Join code</h2>
-            <p style={{ color: 'var(--text-muted)' }}>
-              Give this to a driver to ask to join. It never admits anyone by itself — every request
-              still needs approval below.
-            </p>
-            <p style={{ fontSize: 24, fontFamily: 'monospace' }}>
-              {code.isPending ? 'Loading…' : code.data}
-            </p>
-            <button
-              className="btn-caution"
-              onClick={() => {
-                if (
-                  window.confirm(
-                    'Make a new code? The old one will stop working for anyone who hasn’t used it yet.',
-                  )
-                ) {
-                  regenerateCode.mutate();
-                }
-              }}
-              disabled={regenerateCode.isPending}
-            >
-              {regenerateCode.isPending ? 'Regenerating…' : 'Regenerate code'}
-            </button>
-          </section>
-
-          {myEmail !== undefined && (
-            <section style={{ marginBottom: 24 }}>
-              <h2>Do you drive too?</h2>
-              {myLink === undefined ? (
+          {/* What needs a person comes first, then the drivers; adding people is occasional, so it folds away. */}
+          {requested.length > 0 && (
+            <DriverLinksSection
+              title="Pending requests"
+              empty="No one is asking to join right now."
+              links={requested}
+              renderActions={(link) => (
                 <>
-                  <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
-                    Sends an invitation to your own email ({myEmail}) so you can be given jobs like
-                    any other driver. Then open the WagonWise driver app, sign in with that email
-                    and accept under Settings, My companies. If you have not used the app before,
-                    you will need an invite code from WagonWise for your first sign-in.
-                  </p>
                   <button
-                    type="button"
-                    onClick={() => invite.mutate(myEmail)}
-                    disabled={invite.isPending}
+                    className="btn-confirm"
+                    onClick={() => approve.mutate(link.id)}
+                    disabled={approve.isPending}
                   >
-                    {invite.isPending ? 'Sending…' : 'Add me as a driver'}
+                    Approve
+                  </button>{' '}
+                  <button
+                    className="btn-danger"
+                    onClick={() => decline.mutate(link.id)}
+                    disabled={decline.isPending}
+                  >
+                    Reject
                   </button>
                 </>
-              ) : myLink.status === 'active' ? (
-                <p style={{ margin: 0 }}>
-                  You are set up as a driver here. You will show as "(you)" when assigning jobs.
-                </p>
-              ) : myLink.status === 'invited' ? (
-                <p style={{ margin: 0 }}>
-                  Invitation sent to {myEmail}. Open the driver app, sign in with that email and
-                  accept it under Settings, My companies.
-                </p>
-              ) : (
-                <p style={{ margin: 0 }}>
-                  You have asked to join as a driver. Approve your own request under Pending
-                  requests below.
-                </p>
               )}
-            </section>
+            />
           )}
-
-          <section style={{ marginBottom: 24 }}>
-            <h2>Invite a driver</h2>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (driverError !== undefined) {
-                  setShowIdentifierError(true);
-                  return;
-                }
-                invite.mutate(identifier);
-              }}
-              noValidate
-              style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}
-            >
-              <div className="field">
-                <input
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="Phone number or email"
-                  aria-label="Driver's phone number or email"
-                  aria-invalid={showIdentifierError && driverError !== undefined}
-                  aria-describedby="driver-identifier-error"
-                  style={{ width: 260 }}
-                />
-                <FieldError
-                  id="driver-identifier-error"
-                  message={showIdentifierError ? driverError : undefined}
-                />
-              </div>
-              <button type="submit" disabled={invite.isPending}>
-                {invite.isPending ? 'Inviting…' : 'Invite'}
-              </button>
-            </form>
-          </section>
-
-          <DriverLinksSection
-            title="Pending requests"
-            empty="No one is asking to join right now."
-            links={requested}
-            renderActions={(link) => (
-              <>
-                <button
-                  className="btn-confirm"
-                  onClick={() => approve.mutate(link.id)}
-                  disabled={approve.isPending}
-                >
-                  Approve
-                </button>{' '}
-                <button
-                  className="btn-danger"
-                  onClick={() => decline.mutate(link.id)}
-                  disabled={decline.isPending}
-                >
-                  Reject
-                </button>
-              </>
-            )}
-          />
-
-          <DriverLinksSection
-            title="Pending invitations"
-            empty="No open invitations."
-            links={invited}
-            renderActions={(link) => (
-              <button
-                className="btn-danger"
-                onClick={() => decline.mutate(link.id)}
-                disabled={decline.isPending}
-              >
-                Cancel
-              </button>
-            )}
-          />
 
           <DriverLinksSection
             title="Active drivers"
-            empty="No drivers yet."
+            empty="No drivers yet. Add some below."
             links={active}
             onRename={(id, label) => rename.mutateAsync({ id, label }).then(() => undefined)}
             renderActions={(link) => (
@@ -316,6 +206,124 @@ export function Drivers() {
               </button>
             )}
           />
+
+          {invited.length > 0 && (
+            <DriverLinksSection
+              title="Pending invitations"
+              empty="No open invitations."
+              links={invited}
+              renderActions={(link) => (
+                <button
+                  className="btn-danger"
+                  onClick={() => decline.mutate(link.id)}
+                  disabled={decline.isPending}
+                >
+                  Cancel
+                </button>
+              )}
+            />
+          )}
+
+          <details className="card add-drivers" open={active.length === 0}>
+            <summary>Add drivers</summary>
+            <section style={{ marginBottom: 24 }}>
+              <h2>Join code</h2>
+              <p style={{ color: 'var(--text-muted)' }}>
+                Give this to a driver to ask to join. It never admits anyone by itself — every
+                request still needs approval under Pending requests above.
+              </p>
+              <p style={{ fontSize: 24, fontFamily: 'monospace' }}>
+                {code.isPending ? 'Loading…' : code.data}
+              </p>
+              <button
+                className="btn-caution"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      'Make a new code? The old one will stop working for anyone who hasn’t used it yet.',
+                    )
+                  ) {
+                    regenerateCode.mutate();
+                  }
+                }}
+                disabled={regenerateCode.isPending}
+              >
+                {regenerateCode.isPending ? 'Regenerating…' : 'Regenerate code'}
+              </button>
+            </section>
+
+            {myEmail !== undefined && (
+              <section style={{ marginBottom: 24 }}>
+                <h2>Do you drive too?</h2>
+                {myLink === undefined ? (
+                  <>
+                    <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
+                      Sends an invitation to your own email ({myEmail}) so you can be given jobs
+                      like any other driver. Then open the WagonWise driver app, sign in with that
+                      email and accept under Settings, My companies. If you have not used the app
+                      before, you will need an invite code from WagonWise for your first sign-in.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => invite.mutate(myEmail)}
+                      disabled={invite.isPending}
+                    >
+                      {invite.isPending ? 'Sending…' : 'Add me as a driver'}
+                    </button>
+                  </>
+                ) : myLink.status === 'active' ? (
+                  <p style={{ margin: 0 }}>
+                    You are set up as a driver here. You will show as "(you)" when assigning jobs.
+                  </p>
+                ) : myLink.status === 'invited' ? (
+                  <p style={{ margin: 0 }}>
+                    Invitation sent to {myEmail}. Open the driver app, sign in with that email and
+                    accept it under Settings, My companies.
+                  </p>
+                ) : (
+                  <p style={{ margin: 0 }}>
+                    You have asked to join as a driver. Approve your own request under Pending
+                    requests above.
+                  </p>
+                )}
+              </section>
+            )}
+
+            <section style={{ marginBottom: 24 }}>
+              <h2>Invite a driver</h2>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (driverError !== undefined) {
+                    setShowIdentifierError(true);
+                    return;
+                  }
+                  invite.mutate(identifier);
+                }}
+                noValidate
+                style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}
+              >
+                <div className="field">
+                  <input
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="Phone number or email"
+                    aria-label="Driver's phone number or email"
+                    aria-invalid={showIdentifierError && driverError !== undefined}
+                    aria-describedby="driver-identifier-error"
+                    style={{ width: 260 }}
+                  />
+                  <FieldError
+                    id="driver-identifier-error"
+                    message={showIdentifierError ? driverError : undefined}
+                  />
+                </div>
+                <button type="submit" disabled={invite.isPending}>
+                  {invite.isPending ? 'Inviting…' : 'Invite'}
+                </button>
+              </form>
+            </section>
+          </details>
         </>
       )}
     </div>

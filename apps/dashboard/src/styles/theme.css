@@ -586,6 +586,31 @@ select[aria-invalid='true']:focus {
   gap: 6px;
 }
 
+/* A page section's title with its one main action beside it */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+/* A panel folded under its heading until it is wanted */
+details.card > summary {
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  list-style-position: inside;
+}
+
+details.card[open] > summary {
+  margin-bottom: 12px;
+}
+
 /* Lists: a card with a blue top edge, sticky sortable headers, search and paging */
 .data-table-card {
   padding: 0;
@@ -1101,8 +1126,11 @@ textarea {
 }
 
 /* Stops on the job form: each is a card with its type and how it is entered along the top */
+/* minmax(0, 1fr), not the default auto track: a card's minimum width would otherwise be that of its form's three 220px columns
+   (the form's max-width makes the grid count them), and on a phone the whole page scrolled sideways. */
 .stops-editor {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -1112,7 +1140,21 @@ textarea {
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
+  min-width: 0;
+}
+
+@media (max-width: 700px) {
+  /* The two choosers take a line each, their buttons sharing it, so none runs off the card */
+  .stop-editor-head .seg {
+    flex: 1 1 100%;
+  }
+
+  .stop-editor-head .seg button {
+    flex: 1 1 0;
+    padding-inline: 8px;
+  }
 }
 
 .stop-editor-head {
