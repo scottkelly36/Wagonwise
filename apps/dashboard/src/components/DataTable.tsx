@@ -32,6 +32,9 @@ interface Props<T> {
   readonly maxHeight?: number | string;
   /** Anything to sit on the left of the search box, such as a filter. */
   readonly toolbar?: ReactNode;
+  /** The row whose detail is open (its `rowKey`), shown in a full-width line under it. The page owns which row that is. */
+  readonly expandedKey?: string | undefined;
+  readonly renderDetail?: (row: T) => ReactNode;
 }
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -50,6 +53,8 @@ export function DataTable<T>({
   pageSize = DEFAULT_PAGE_SIZE,
   maxHeight = '65vh',
   toolbar,
+  expandedKey,
+  renderDetail,
 }: Props<T>) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortState | undefined>(undefined);
@@ -159,19 +164,31 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody>
-            {pageRows.map((row) => (
-              <tr key={rowKey(row)}>
-                {columns.map((column) => (
-                  <td
-                    key={column.key}
-                    data-label={column.header}
-                    style={{ textAlign: column.align ?? 'left' }}
-                  >
-                    {column.cell(row)}
+            {pageRows.flatMap((row) => {
+              const key = rowKey(row);
+              const line = (
+                <tr key={key} className={key === expandedKey ? 'data-table-open' : undefined}>
+                  {columns.map((column) => (
+                    <td
+                      key={column.key}
+                      data-label={column.header}
+                      style={{ textAlign: column.align ?? 'left' }}
+                    >
+                      {column.cell(row)}
+                    </td>
+                  ))}
+                </tr>
+              );
+              if (renderDetail === undefined || key !== expandedKey) return [line];
+              return [
+                line,
+                <tr key={`${key}-detail`} className="data-table-detail">
+                  <td colSpan={columns.length} data-label="">
+                    <div>{renderDetail(row)}</div>
                   </td>
-                ))}
-              </tr>
-            ))}
+                </tr>,
+              ];
+            })}
           </tbody>
         </table>
         {visible.length === 0 && (

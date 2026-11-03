@@ -650,6 +650,20 @@ select[aria-invalid='true']:focus {
   background: var(--bg);
 }
 
+/* A row opened to show its detail: the detail sits under it, on the page background, and does not take the hover colour */
+.data-table tbody tr.data-table-open {
+  background: var(--bg);
+}
+
+.data-table tbody tr.data-table-detail {
+  background: var(--bg);
+}
+
+.data-table tbody tr.data-table-detail td {
+  padding: 4px 16px 18px;
+  border-top: 0;
+}
+
 .sort-button {
   background: none;
   border: 0;
@@ -790,6 +804,11 @@ select[aria-invalid='true']:focus {
 
   .data-table tbody tr:first-child {
     border-top: 0;
+  }
+
+  .data-table tbody tr.data-table-detail {
+    border-top: 0;
+    padding-top: 0;
   }
 
   .data-table td,

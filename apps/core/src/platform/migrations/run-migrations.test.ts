@@ -109,6 +109,10 @@ describe('runMigrations', () => {
       '0077_sos.sql',
       '0078_maintenance_text_reminders.sql',
       '0079_fuel_prices.sql',
+      '0080_tester_launch_email.sql',
+      '0081_driver_passwords.sql',
+      '0082_federated_identities.sql',
+      '0083_closures.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -138,7 +142,9 @@ describe('runMigrations', () => {
     );
     expect(identityTables.map((row) => row.table_name)).toEqual([
       'devices',
+      'driver_credentials',
       'drivers',
+      'federated_identities',
       'invite_codes',
       'otp_codes',
       'sessions',
@@ -294,6 +300,10 @@ describe('runMigrations', () => {
       '0077_sos.sql',
       '0078_maintenance_text_reminders.sql',
       '0079_fuel_prices.sql',
+      '0080_tester_launch_email.sql',
+      '0081_driver_passwords.sql',
+      '0082_federated_identities.sql',
+      '0083_closures.sql',
     ]);
   });
 });

@@ -60,6 +60,10 @@ import {
   createFuelPricesModule,
   type UntypedDb as FuelPricesUntypedDb,
 } from '../modules/fuelprices/api.js';
+import {
+  createClosuresModule,
+  type UntypedDb as ClosuresUntypedDb,
+} from '../modules/closures/api.js';
 import { createParkingModule, type UntypedDb as ParkingUntypedDb } from '../modules/parking/api.js';
 import { createTrafficModule } from '../modules/traffic/api.js';
 import { createWeatherModule } from '../modules/weather/api.js';
@@ -207,6 +211,10 @@ export function composeCore(
     resendApiKey: config.resendApiKey,
     resendFromEmail: config.resendFromEmail,
     otpSender: overrides.otpSender,
+    inviteRequired: config.driverInviteRequired,
+    passwordSignIn: config.driverPasswordSignIn,
+    googleClientIds: config.googleOauthClientIds,
+    appleClientIds: config.appleClientIds,
     platformStaff: { isPlatformStaff },
     // Called when a driver deletes their account, long after every module below is built. Each
     // part is safe to run twice, and the account is only scrubbed once all of them have succeeded.
@@ -233,6 +241,7 @@ export function composeCore(
   const parkingDb: ParkingUntypedDb = identityDb;
   const camerasDb: CamerasUntypedDb = identityDb;
   const fuelPricesDb: FuelPricesUntypedDb = identityDb;
+  const closuresDb: ClosuresUntypedDb = identityDb;
   const placesDb: PlacesUntypedDb = identityDb;
   const billingDb: BillingUntypedDb = identityDb;
   const checksDb: ChecksUntypedDb = identityDb;
@@ -287,6 +296,15 @@ export function composeCore(
     // `app` is built further down; this only runs when a refresh fails, long after boot.
     onProblem: (what, detail) => app.log.warn({ detail, what }, 'fuel prices: Fuel Finder problem'),
   });
+  // Road and lane closures from National Highways, kept as our own copy by a job below. No key means no job and no requests.
+  const closures = createClosuresModule({
+    db: closuresDb,
+    clock,
+    settings: config.nationalHighways,
+    // `app` is built further down; this only runs when a refresh fails, long after boot.
+    onProblem: (what, detail) =>
+      app.log.warn({ detail, what }, 'closures: National Highways problem'),
+  });
   const routing = createRoutingModule({
     db: routingDb,
     ids,
@@ -295,6 +313,7 @@ export function composeCore(
     fuelPricePerLitreGBP: config.fuelPricePerLitreGBP,
     expoAccessToken: config.expoAccessToken,
     hazards,
+    closures,
     cameras,
     identity,
     congestion,
@@ -473,7 +492,7 @@ export function composeCore(
     callers: { getCaller: staffCaller },
     invites: {
       newInviteCode: () => identity.newInviteCode(),
-      sendEmail: (to, subject, text) => identity.sendEmail(to, subject, text),
+      sendEmail: (to, subject, text, html) => identity.sendEmail(to, subject, text, html),
     },
   });
   // Told by the driver BFF when Resend reports an email that did not get through: logged, and the owner is emailed (if an
@@ -777,6 +796,26 @@ export function composeCore(
     void periodicTasks.runOnce(fuelTask);
     periodicTasks.start(fuelTask);
   }
+  app.log.info({ enabled: closures.enabled }, 'closures (National Highways)');
+  if (closures.enabled) {
+    // Replaces our whole copy; safe to run twice in turn. The feed allows 10 requests a minute per key, so a second core instance
+    // would still be far inside that.
+    const closuresTask = {
+      name: 'refresh-closures',
+      intervalMs: config.closuresRefreshIntervalMs,
+      run: async () => {
+        const refreshed = await closures.refresh();
+        if (refreshed.ok) {
+          app.log.info({ closures: refreshed.value.closures }, 'refreshed closures');
+        } else {
+          app.log.warn({ problem: refreshed.error }, 'closures not refreshed; the last copy stays');
+        }
+      },
+    };
+    // First refresh now, so closures are there soon after a restart rather than after one interval.
+    void periodicTasks.runOnce(closuresTask);
+    periodicTasks.start(closuresTask);
+  }
   periodicTasks.start({
     name: 'prune-job-positions',
     intervalMs: config.positionSweepIntervalMs,
@@ -869,6 +908,7 @@ export function composeCore(
   parking.registerRoutes(app);
   cameras.registerRoutes(app);
   fuelPrices.registerRoutes(app);
+  closures.registerRoutes(app);
   fleet.registerRoutes(app);
   jobs.registerRoutes(app);
   places.registerRoutes(app);

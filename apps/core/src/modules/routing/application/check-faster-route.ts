@@ -31,8 +31,10 @@ import { toReportedObstruction } from '../domain/restriction-override.js';
 import { estimateFuelCostGBP } from '../domain/route-option.js';
 import type { RoutePlan, RoutePlanId } from '../domain/route-plan.js';
 import type { Dimensions, DriverId } from '../domain/vehicle-profile.js';
+import { closuresToAvoidAlong } from './avoid-closures.js';
 import type { ActiveTripNotFound } from './errors.js';
 import type { ActiveTripRepository } from './ports/active-trip-repository.js';
+import type { ClosureAvoidanceQuery } from './ports/closure-avoidance.js';
 import type { CongestionQuery } from './ports/congestion-query.js';
 import type { FasterRouteOfferLog } from './ports/faster-route-offer-log.js';
 import type { HazardAvoidanceQuery } from './ports/hazard-avoidance.js';
@@ -50,6 +52,7 @@ export interface CheckFasterRouteDeps {
   readonly routingEngine: RoutingEngine;
   readonly hazardAvoidanceQuery: HazardAvoidanceQuery;
   readonly hazardsOnRouteQuery: HazardsOnRouteQuery;
+  readonly closureAvoidanceQuery: ClosureAvoidanceQuery;
   readonly restrictionOverrideRepo: RestrictionOverrideRepository;
   readonly congestionQuery: CongestionQuery;
   readonly trafficQuery: TrafficQuery;
@@ -184,6 +187,12 @@ export async function checkFasterRoute(
     if (kept.has(key)) continue;
     // Engine alternatives can ignore avoid areas: refuse any that still pass a blocking obstruction.
     if ((await blockingNear(deps, route.geometry, profile.dimensions)).length > 0) continue;
+    // Nor one that goes through a road that is shut when the driver would get there: a quicker way is no use through a closure.
+    const shut = await closuresToAvoidAlong(deps.closureAvoidanceQuery, route, now, {
+      skip: new Set(),
+      maxZones: 0,
+    });
+    if (shut.onRoute.length > 0) continue;
 
     const timed = await measure(deps, decodePolyline(route.geometry), route.durationMin);
     // Compare like with like: a provider delay counts only when both routes have enough readings.

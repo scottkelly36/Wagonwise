@@ -13,6 +13,14 @@ import { ClickSendTextSender } from './infrastructure/clicksend-text-sender.js';
 import { ConsoleOtpSender } from './infrastructure/console-otp-sender.js';
 import { ResendMailer } from './infrastructure/resend-mailer.js';
 import { ResendOtpSender } from './infrastructure/resend-otp-sender.js';
+import { JoseIdTokenVerifier } from './infrastructure/jose-id-token-verifier.js';
+import { PostgresFederatedIdentityRepository } from './infrastructure/postgres-federated-identity-repository.js';
+import type { IdTokenVerifier } from './application/ports/id-token-verifier.js';
+import type { SocialSignInDeps } from './application/social-sign-in.js';
+import type { AccountLinkDeps } from './application/account-links.js';
+import { PostgresCredentialRepository } from './infrastructure/postgres-credential-repository.js';
+import { ScryptPasswordHasher } from './infrastructure/scrypt-password-hasher.js';
+import type { PasswordAccountDeps } from './application/password-accounts.js';
 import { CryptoInviteCodeGenerator } from './infrastructure/crypto-invite-code-generator.js';
 import { CryptoOtpCodeGenerator } from './infrastructure/crypto-otp-code-generator.js';
 import { CryptoRefreshTokenGenerator } from './infrastructure/crypto-refresh-token-generator.js';
@@ -78,6 +86,15 @@ export interface IdentityModuleDeps {
    *  with a fake) for tests or a local run that shouldn't reach ClickSend's/Resend's real
    *  endpoints. */
   readonly otpSender?: OtpSender | undefined;
+  /** Does a first sign-in need an invite code? (`DRIVER_INVITE_REQUIRED`) */
+  readonly inviteRequired: boolean;
+  /** Registers the email-and-password sign-in routes (`DRIVER_PASSWORD_SIGN_IN`). */
+  readonly passwordSignIn: boolean;
+  /** Our client ids at Google and at Apple (`GOOGLE_OAUTH_CLIENT_IDS`, `APPLE_CLIENT_IDS`). A provider with none answers `ProviderNotConfigured`. */
+  readonly googleClientIds: readonly string[];
+  readonly appleClientIds: readonly string[];
+  /** Defaults to `JoseIdTokenVerifier` over the two lists above; override with a fake in tests. */
+  readonly idTokenVerifier?: IdTokenVerifier | undefined;
 }
 
 export interface IdentityModule {
@@ -107,7 +124,7 @@ export interface IdentityModule {
   /** Sends a plain-text email through the same Resend account as sign-in codes (or logs it in local dev,
    *  where no key is set). Throws when the email cannot be sent, with the provider's reason. Used for
    *  staff invitations (`companies`' own `InviteMailer` port). */
-  sendEmail(to: string, subject: string, text: string): Promise<void>;
+  sendEmail(to: string, subject: string, text: string, html?: string): Promise<void>;
   /** Makes and stores a fresh, unused invite code and returns it. No caller check: the caller (`signups`' send-invites,
    *  supplied by composition) has already confirmed WagonWise staff. */
   newInviteCode(): Promise<string>;
@@ -128,6 +145,8 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
   const sessionRepo = new PostgresSessionRepository(deps.db);
   const otpRepo = new PostgresOtpRepository(deps.db);
   const deviceRepo = new PostgresDeviceRepository(deps.db);
+  const credentialRepo = new PostgresCredentialRepository(deps.db);
+  const federatedRepo = new PostgresFederatedIdentityRepository(deps.db);
   const smsSender =
     deps.clickSendUsername !== undefined && deps.clickSendApiKey !== undefined
       ? new ClickSendOtpSender(deps.clickSendUsername, deps.clickSendApiKey)
@@ -149,24 +168,79 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
   const refreshTokenGenerator = new CryptoRefreshTokenGenerator();
   const inviteCodeGenerator = new CryptoInviteCodeGenerator();
 
+  const passwordAccounts: PasswordAccountDeps = {
+    driverRepo,
+    inviteCodeRepo,
+    credentialRepo,
+    otpRepo,
+    otpSender,
+    otpCodeGenerator,
+    passwordHasher: new ScryptPasswordHasher(),
+    sessionRepo,
+    tokenSigner: deps.tokenSigner,
+    refreshTokenGenerator,
+    unitOfWork: deps.unitOfWork,
+    inviteRequired: deps.inviteRequired,
+    clock: deps.clock,
+    ids: deps.ids,
+  };
+
+  const socialSignIn: SocialSignInDeps = {
+    driverRepo,
+    inviteCodeRepo,
+    credentialRepo,
+    federatedRepo,
+    idTokenVerifier:
+      deps.idTokenVerifier ??
+      new JoseIdTokenVerifier({
+        googleClientIds: deps.googleClientIds,
+        appleClientIds: deps.appleClientIds,
+      }),
+    sessionRepo,
+    tokenSigner: deps.tokenSigner,
+    refreshTokenGenerator,
+    unitOfWork: deps.unitOfWork,
+    inviteRequired: deps.inviteRequired,
+    clock: deps.clock,
+    ids: deps.ids,
+  };
+
+  const accountLinks: AccountLinkDeps = {
+    driverRepo,
+    federatedRepo,
+    idTokenVerifier: socialSignIn.idTokenVerifier,
+    otpRepo,
+    otpSender,
+    otpCodeGenerator,
+    clock: deps.clock,
+    ids: deps.ids,
+  };
+
   const routeDeps: IdentityRouteDeps = {
+    passwordAccounts: deps.passwordSignIn ? passwordAccounts : undefined,
+    socialSignIn: deps.passwordSignIn ? socialSignIn : undefined,
+    accountLinks: deps.passwordSignIn ? accountLinks : undefined,
     requestOtp: {
       driverRepo,
       inviteCodeRepo,
+      credentialRepo,
       otpRepo,
       otpSender,
       otpCodeGenerator,
+      inviteRequired: deps.inviteRequired,
       clock: deps.clock,
       ids: deps.ids,
     },
     verifyOtp: {
       driverRepo,
       inviteCodeRepo,
+      credentialRepo,
       otpRepo,
       sessionRepo,
       tokenSigner: deps.tokenSigner,
       refreshTokenGenerator,
       unitOfWork: deps.unitOfWork,
+      inviteRequired: deps.inviteRequired,
       clock: deps.clock,
       ids: deps.ids,
     },
@@ -184,6 +258,8 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
       driverRepo,
       sessionRepo,
       deviceRepo,
+      credentialRepo,
+      federatedRepo,
       dataEraser: deps.driverDataEraser,
       clock: deps.clock,
     },
@@ -222,12 +298,12 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
         return Promise.reject(new Error('text messages are not set up'));
       return textSender.send(to, message);
     },
-    sendEmail(to: string, subject: string, text: string): Promise<void> {
+    sendEmail(to: string, subject: string, text: string, html?: string): Promise<void> {
       if (mailer === undefined) {
         console.log(`[dev] email to ${to}: ${subject}\n${text}`);
         return Promise.resolve();
       }
-      return mailer.send({ to, subject, text });
+      return mailer.send({ to, subject, text, html });
     },
     async newInviteCode(): Promise<string> {
       const code = inviteCodeGenerator.next();

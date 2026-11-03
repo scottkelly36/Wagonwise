@@ -26,6 +26,7 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 
 ## Next up
 
+0. **Driver sign-in without invite codes** (plan: `docs/driver-sign-in-plan.md`). Server and driver BFF are built behind switches (2026-11-01); the app screens, Google/Apple (a store build) and the owner's Google/Apple set-up are not. Nothing ships until after the store release.
 1. **App stores** (owner). Apple: the WagonWise Ltd developer account was approved 2026-10-28 (Team ID in `eas.json`); next is
    `deployment-guide.md` section 9c, the first TestFlight build (voice, push and SOS on iOS are untested). Google Play: the closed test runs
    with about 25 testers, and 12 or more must stay opted in for 14 days in a row before applying for production access.
@@ -61,8 +62,9 @@ Merging alone publishes nothing. Core and the portal go live before the app.
 - **Fuel prices (GOV.UK Fuel Finder), started 2026-10-27:** the credentials are on core's `.env` and checked live; the `fuelprices` module
   has the client, the join and our own copy in Postgres, refreshed hourly by a job in core (see `modules.md`). Still to do: add
   `FUEL_FINDER_ID` and `FUEL_FINDER_SECRET` to core on DigitalOcean (encrypted; the job starts when both are set, so the first
-  refresh runs on the next deploy); `POST /fuel/nearby` (cheapest first, in core and the driver BFF, built 2026-10-28) still needs the app
-  screens (map markers, a list, or both: the owner decides); **read the data licence and
+  refresh runs on the next deploy); `POST /fuel/nearby` (core and the driver BFF, 2026-10-28) and the driver app's fuel markers, Nearby fuel list and Take me there
+  (built 2026-10-29, JavaScript only, goes out with the next `release` label; untested on a phone) show diesel or petrol prices (a switch, 2026-10-31) from the last week with
+  their age; **read the data licence and
   terms first** (not found in the docs). Prices can be over a week old, so show their age. Run one core instance only.
 - **Deferred, P2-M6.4c:** a reroute-alert indicator on the live map (needs reroute detection for company jobs). No Valhalla-backed
   check of the ETA and route preview.

@@ -15,9 +15,11 @@ export interface PlainEmail {
   readonly to: string;
   readonly subject: string;
   readonly text: string;
+  /** A designed version of the same message. Mail apps show this one; the text stays for those that cannot. */
+  readonly html?: string | undefined;
 }
 
-/** Sends one plain-text email through Resend's API. Hand-rolled HTTP, like the other adapters. Throws,
+/** Sends one email (plain text, plus HTML when given) through Resend's API. Hand-rolled HTTP, like the other adapters. Throws,
  *  with Resend's own message in it, when Resend refuses, so the log says why. */
 export class ResendMailer {
   constructor(
@@ -38,6 +40,7 @@ export class ResendMailer {
         to: email.to,
         subject: email.subject,
         text: email.text,
+        ...(email.html === undefined ? {} : { html: email.html }),
       }),
     });
     const parsed: unknown = await response.json();

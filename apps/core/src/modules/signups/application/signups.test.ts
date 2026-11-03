@@ -14,6 +14,7 @@ import {
   listTesters,
   MAX_INVITES_PER_SEND,
   sendInvites,
+  sendLaunchEmails,
   type InvitePorts,
   removeMe,
   signUp,
@@ -50,6 +51,12 @@ class InMemoryTesters implements TesterRepository {
   markInvited(id: TesterId, inviteCode: string, at: Date): Promise<void> {
     const t = this.rows.get(id);
     if (t !== undefined) this.rows.set(id, { ...t, invitedAt: at, inviteCode });
+    return Promise.resolve();
+  }
+
+  markLaunchEmailed(id: TesterId, at: Date): Promise<void> {
+    const t = this.rows.get(id);
+    if (t !== undefined) this.rows.set(id, { ...t, launchEmailedAt: at });
     return Promise.resolve();
   }
 
@@ -293,6 +300,106 @@ describe('sendInvites', () => {
       makeId<'TesterId'>(`x${i}`),
     );
     const result = await sendInvites(deps, platform, { ids: many, optInLink: link });
+    expect(result.ok && result.value).toHaveLength(MAX_INVITES_PER_SEND);
+  });
+});
+
+describe('sendLaunchEmails', () => {
+  const links = {
+    appStoreLink: 'https://apps.apple.com/gb/app/wagonwise/id1',
+    playStoreLink: 'https://play.google.com/store/apps/details?id=com.wagonwise.driverapp',
+  };
+
+  function launchSetup() {
+    const base = setup();
+    const sent: { to: string; subject: string; text: string; html: string | undefined }[] = [];
+    const state = { failFor: undefined as string | undefined };
+    const invites: InvitePorts = {
+      newInviteCode: () => Promise.reject(new Error('a launch email makes no invite code')),
+      sendEmail: (to, subject, text, html) => {
+        if (to === state.failFor) return Promise.reject(new Error('mail down'));
+        sent.push({ to, subject, text, html });
+        return Promise.resolve();
+      },
+    };
+    return { ...base, deps: { ...base.deps, invites }, sent, state };
+  }
+
+  const idOf = (testers: InMemoryTesters, email: string) =>
+    [...testers.rows.values()].find((t) => t.email === email)?.id as TesterId;
+
+  it('emails each tester the HTML and text versions with both store links, and records when', async () => {
+    const { deps, testers, sent, clock } = launchSetup();
+    await signUp(deps, { ...good, name: 'Sam' });
+    await signUp(deps, { ...good, email: 'kim@example.com' });
+    const sam = idOf(testers, 'sam@example.com');
+    const kim = idOf(testers, 'kim@example.com');
+    const result = await sendLaunchEmails(deps, platform, { ids: [sam, kim], ...links });
+    expect(result).toEqual({
+      ok: true,
+      value: [
+        { id: sam, status: 'sent' },
+        { id: kim, status: 'sent' },
+      ],
+    });
+    expect(sent.map((m) => m.to)).toEqual(['sam@example.com', 'kim@example.com']);
+    expect(sent[0]?.subject).toBe('WagonWise is out now on iPhone and Android');
+    expect(sent[0]?.text).toContain('Hello Sam,');
+    expect(sent[0]?.html).toContain('Hello Sam,');
+    for (const m of sent) {
+      expect(m.text).toContain(links.appStoreLink);
+      expect(m.text).toContain(links.playStoreLink);
+      expect(m.html).toContain(links.appStoreLink);
+    }
+    expect(testers.rows.get(sam)?.launchEmailedAt).toEqual(clock.now());
+  });
+
+  it('never sends a second one to the same person', async () => {
+    const { deps, testers, sent } = launchSetup();
+    await signUp(deps, good);
+    const sam = idOf(testers, 'sam@example.com');
+    await sendLaunchEmails(deps, platform, { ids: [sam], ...links });
+    const again = await sendLaunchEmails(deps, platform, { ids: [sam, sam], ...links });
+    expect(again).toEqual({ ok: true, value: [{ id: sam, status: 'already_sent' }] });
+    expect(sent).toHaveLength(1);
+  });
+
+  it('carries on past a failed email, leaves that person unmarked so it can be retried, and reports unknown ids', async () => {
+    const { deps, testers, sent, state } = launchSetup();
+    await signUp(deps, good);
+    await signUp(deps, { ...good, email: 'kim@example.com' });
+    const sam = idOf(testers, 'sam@example.com');
+    const kim = idOf(testers, 'kim@example.com');
+    const ghost = makeId<'TesterId'>('nobody');
+    state.failFor = 'sam@example.com';
+    const result = await sendLaunchEmails(deps, platform, { ids: [sam, kim, ghost], ...links });
+    expect(result).toEqual({
+      ok: true,
+      value: [
+        { id: sam, status: 'failed' },
+        { id: kim, status: 'sent' },
+        { id: ghost, status: 'not_found' },
+      ],
+    });
+    expect(testers.rows.get(sam)?.launchEmailedAt).toBeUndefined();
+    state.failFor = undefined;
+    await sendLaunchEmails(deps, platform, { ids: [sam], ...links });
+    expect(sent.map((m) => m.to)).toEqual(['kim@example.com', 'sam@example.com']);
+  });
+
+  it('is for WagonWise staff only, and takes a limited number at once', async () => {
+    const { deps, testers, sent } = launchSetup();
+    await signUp(deps, good);
+    const sam = idOf(testers, 'sam@example.com');
+    expect(await sendLaunchEmails(deps, fleet, { ids: [sam], ...links })).toEqual({
+      ok: false,
+      error: { tag: 'Forbidden' },
+    });
+    expect(sent).toHaveLength(0);
+    const many = Array.from({ length: MAX_INVITES_PER_SEND + 10 }, (_, i) =>
+      makeId<'TesterId'>(`x${i}`),
+    );
+    const result = await sendLaunchEmails(deps, platform, { ids: many, ...links });
     expect(result.ok && result.value).toHaveLength(MAX_INVITES_PER_SEND);
   });
 });

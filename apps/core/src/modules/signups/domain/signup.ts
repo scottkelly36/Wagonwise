@@ -23,6 +23,8 @@ export interface Tester {
   /** When the standard invite email was sent to them, and the invite code that went with it. Both or neither. */
   readonly invitedAt?: Date | undefined;
   readonly inviteCode?: string | undefined;
+  /** When the "out now" email was sent to them. Absent until it is. */
+  readonly launchEmailedAt?: Date | undefined;
 }
 
 export interface InvalidSignup extends TaggedError<'InvalidSignup'> {

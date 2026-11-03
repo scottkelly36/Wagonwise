@@ -6,6 +6,7 @@ import type { Dimensions } from '../domain/vehicle-profile.js';
 import type { ReportedObstruction } from '../domain/reported-obstruction.js';
 import { InMemoryRoutePlanRepository } from './testing/in-memory-route-plan-repository.js';
 import { InMemoryVehicleProfileRepository } from './testing/in-memory-vehicle-profile-repository.js';
+import { FakeClosureAvoidanceQuery } from './testing/fake-closure-avoidance-query.js';
 import { FakeHazardAvoidanceQuery } from './testing/fake-hazard-avoidance-query.js';
 import { FakeHazardsOnRouteQuery } from './testing/fake-hazards-on-route-query.js';
 import { FakeRestrictionOverrideRepository } from './testing/fake-restriction-override-repository.js';
@@ -31,6 +32,7 @@ async function buildDeps(): Promise<
     routingEngine: new FakeRoutingEngine(),
     hazardAvoidanceQuery: new FakeHazardAvoidanceQuery(),
     hazardsOnRouteQuery: new FakeHazardsOnRouteQuery(),
+    closureAvoidanceQuery: new FakeClosureAvoidanceQuery(),
     restrictionOverrideRepo: new FakeRestrictionOverrideRepository(),
     clock: new FakeClock(now),
     ids: new SequentialIdGenerator(),

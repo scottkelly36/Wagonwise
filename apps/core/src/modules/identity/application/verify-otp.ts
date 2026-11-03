@@ -1,11 +1,9 @@
-import { makeId } from '../../../shared/brand.js';
 import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import type { UnitOfWork } from '../../../shared/ports/unit-of-work.js';
 import { err, ok, type Result, type TaggedError } from '../../../shared/result.js';
-import type { Driver, DriverId } from '../domain/driver.js';
+import type { Driver } from '../domain/driver.js';
 import { identifierForms, type InvalidIdentifier } from '../domain/identifier.js';
-import { isRedeemed, redeem } from '../domain/invite-code.js';
 import {
   verify as verifyOtpCode,
   type OtpAlreadyConsumed,
@@ -13,26 +11,31 @@ import {
   type OtpIncorrect,
   type TooManyAttempts,
 } from '../domain/otp.js';
-import { REFRESH_LIFETIME_MS, type Session } from '../domain/session.js';
-import type { InvalidInviteCode, InviteCodeRequired } from './errors.js';
+import { createDriver } from './create-driver.js';
+import type { InvalidInviteCode, InviteCodeRequired, PasswordRequired } from './errors.js';
 import { sha256Hex } from './hash.js';
+import { issueSession } from './issue-session.js';
+import type { CredentialRepository } from './ports/credential-repository.js';
 import type { DriverRepository } from './ports/driver-repository.js';
 import type { InviteCodeRepository } from './ports/invite-code-repository.js';
 import type { OtpRepository } from './ports/otp-repository.js';
 import type { RefreshTokenGenerator } from './ports/refresh-token-generator.js';
 import type { SessionRepository } from './ports/session-repository.js';
-import type { AccessTokenClaims, TokenSigner } from './ports/token-signer.js';
+import type { TokenSigner } from './ports/token-signer.js';
 
 export type OtpNotFound = TaggedError<'OtpNotFound'>;
 
 export interface VerifyOtpDeps {
   readonly driverRepo: DriverRepository;
   readonly inviteCodeRepo: InviteCodeRepository;
+  readonly credentialRepo: CredentialRepository;
   readonly otpRepo: OtpRepository;
   readonly sessionRepo: SessionRepository;
   readonly tokenSigner: TokenSigner;
   readonly refreshTokenGenerator: RefreshTokenGenerator;
   readonly unitOfWork: UnitOfWork;
+  /** `DRIVER_INVITE_REQUIRED`: false lets a new driver in with no code. */
+  readonly inviteRequired: boolean;
   readonly clock: Clock;
   readonly ids: IdGenerator;
 }
@@ -60,11 +63,15 @@ export type VerifyOtpError =
   | OtpIncorrect
   | TooManyAttempts
   | InviteCodeRequired
-  | InvalidInviteCode;
+  | InvalidInviteCode
+  | PasswordRequired;
 
 /**
  * Confirms a code, creating the Driver (redeeming the invite code atomically via UnitOfWork,
  * decision 4) on a first sign-in, and issues a session: an access token plus a refresh token.
+ *
+ * A driver who has a password is refused (`PasswordRequired`): their way in is the password and then a code (`password-accounts.ts`),
+ * or a code alone would walk round the password.
  */
 export async function verifyOtp(
   deps: VerifyOtpDeps,
@@ -76,6 +83,9 @@ export async function verifyOtp(
   }
   // Found under whichever form it is stored in (see requestOtp), so the code asked for and the code checked share a key.
   let driver = await deps.driverRepo.findByAnyIdentifier(forms.value);
+  if (driver && (await deps.credentialRepo.findByDriverId(driver.id))) {
+    return err({ tag: 'PasswordRequired' });
+  }
   const identifier = driver?.identifier ?? forms.value[0];
   const now = deps.clock.now();
 
@@ -90,63 +100,13 @@ export async function verifyOtp(
   }
 
   if (!driver) {
-    const created = await createDriverFromInvite(deps, identifier, input.inviteCode, now);
+    const created = await createDriver(deps, { identifier, inviteCode: input.inviteCode, now });
     if (!created.ok) {
       return created;
     }
     driver = created.value;
   }
 
-  const rawRefreshToken = deps.refreshTokenGenerator.next();
-  const session: Session = {
-    id: makeId<'SessionId'>(deps.ids.newId()),
-    driverId: driver.id,
-    refreshTokenHash: sha256Hex(rawRefreshToken),
-    previousRefreshTokenHash: null,
-    issuedAt: now,
-    lastUsedAt: now,
-    refreshExpiresAt: new Date(now.getTime() + REFRESH_LIFETIME_MS),
-    revokedAt: null,
-  };
-  await deps.sessionRepo.save(session);
-
-  const claims: AccessTokenClaims = { driverId: driver.id, sessionId: session.id };
-  const accessToken = await deps.tokenSigner.signAccessToken(claims);
-
-  return ok({ accessToken, refreshToken: rawRefreshToken, driver });
-}
-
-async function createDriverFromInvite(
-  deps: VerifyOtpDeps,
-  identifier: string,
-  inviteCode: string | undefined,
-  now: Date,
-): Promise<Result<Driver, InviteCodeRequired | InvalidInviteCode>> {
-  if (!inviteCode) {
-    return err({ tag: 'InviteCodeRequired' });
-  }
-  const invite = await deps.inviteCodeRepo.findByCode(inviteCode);
-  if (!invite || isRedeemed(invite)) {
-    return err({ tag: 'InvalidInviteCode' });
-  }
-
-  const driverId: DriverId = makeId<'DriverId'>(deps.ids.newId());
-  const newDriver: Driver = {
-    id: driverId,
-    identifier,
-    createdAt: now,
-  };
-  const redeemed = redeem(invite, driverId, now);
-  if (!redeemed.ok) {
-    // Lost a race with another verify() call for the same code, between the check above and
-    // here — rare at Phase 1 scale. Not a domain Result: there is no sane per-driver response,
-    // so this surfaces as a thrown (infra-level) error and the caller retries with a fresh code.
-    throw new Error('invite code redeemed concurrently');
-  }
-
-  await deps.unitOfWork.run(async (tx) => {
-    await deps.driverRepo.save(newDriver, tx);
-    await deps.inviteCodeRepo.save(redeemed.value, tx);
-  });
-  return ok(newDriver);
+  const session = await issueSession(deps, driver, now);
+  return ok({ ...session, driver });
 }

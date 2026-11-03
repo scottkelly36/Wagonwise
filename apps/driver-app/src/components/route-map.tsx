@@ -31,6 +31,8 @@ import { INITIAL_MAP_LOAD, mapLoadMessage, mapLoadReducer, SLOW_AFTER_MS } from 
 import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
 import type { CameraMarker } from '../lib/camera-marker-type';
 import type { CongestionLine } from '../lib/route-slice';
+import { closureColour } from './closure-colour';
+import { FUEL_COLOUR } from './fuel-colour';
 import { Icon } from './ui/icon';
 
 export interface MapPoint {
@@ -69,6 +71,20 @@ export interface ParkingSpotMarker {
   readonly location: MapPoint;
   /** A lay-by nobody has checked suits a lorry is drawn smaller and grey, as its own layer. */
   readonly kind?: 'parking' | 'layby' | undefined;
+}
+
+/** A fuel station with a recent diesel price, drawn as a pump on a dark square. The price and its age are in the drawer. */
+export interface FuelStationMarker {
+  readonly id: string;
+  readonly location: MapPoint;
+}
+
+/** A road or lane closure from National Highways: a worker in a hard hat on a red square (the whole road is shut) or an amber one
+ *  (some lanes are). What is closed, and when, is in the drawer. */
+export interface ClosureMarker {
+  readonly id: string;
+  readonly location: MapPoint;
+  readonly kind: 'full' | 'lane';
 }
 
 const HAZARD_MARKER_COLOR: Record<'high' | 'caution', string> = {
@@ -147,6 +163,12 @@ interface Props {
   /** Fired when a parking-spot marker is tapped (the home screen opens `ParkingSpotDrawer`). Same as
    *  `onCongestionPress`. */
   readonly onParkingSpotPress?: (parkingSpotId: string) => void;
+  /** Fuel stations with a recent diesel price, drawn as their own markers; a tap opens `FuelStationDrawer` on the home screen. */
+  readonly fuelStations?: readonly FuelStationMarker[];
+  readonly onFuelStationPress?: (stationId: string) => void;
+  /** Road and lane closures, drawn as their own markers; a tap opens `ClosureDrawer` on the home screen. */
+  readonly closures?: readonly ClosureMarker[];
+  readonly onClosurePress?: (closureId: string) => void;
   /** Zoom while following `currentPosition`. A street-level 16 suits driving; the home map wants a
    *  wider, town-level view. */
   readonly followZoom?: number;
@@ -217,6 +239,10 @@ export function RouteMap({
   onCongestionPress,
   parkingSpots,
   onParkingSpotPress,
+  fuelStations,
+  onFuelStationPress,
+  closures,
+  onClosurePress,
   places,
   onPlacePress,
   followZoom = 16,
@@ -559,6 +585,40 @@ export function RouteMap({
             </View>
           </ViewAnnotation>
         ))}
+        {fuelStations?.map((station) => (
+          <ViewAnnotation
+            key={station.id}
+            id={`fuel-${station.id}`}
+            lngLat={toLngLat(station.location)}
+            onPress={() => onFuelStationPress?.(station.id)}
+          >
+            <View
+              style={[styles.fuelMarker, navigating && styles.fuelMarkerSmall]}
+              testID={`fuel-pin-${station.id}`}
+            >
+              <Icon name="gas-station" size={navigating ? 13 : 17} color="#FFFFFF" />
+            </View>
+          </ViewAnnotation>
+        ))}
+        {closures?.map((closure) => (
+          <ViewAnnotation
+            key={closure.id}
+            id={`closure-${closure.id}`}
+            lngLat={toLngLat(closure.location)}
+            onPress={() => onClosurePress?.(closure.id)}
+          >
+            <View
+              style={[
+                styles.closureMarker,
+                navigating && styles.closureMarkerSmall,
+                { backgroundColor: closureColour(closure.kind) },
+              ]}
+              testID={`closure-pin-${closure.id}`}
+            >
+              <Icon name="account-hard-hat" size={navigating ? 13 : 17} color="#0B1220" />
+            </View>
+          </ViewAnnotation>
+        ))}
       </MapLibreMap>
       {loadMessage !== undefined && (
         <TouchableOpacity
@@ -741,6 +801,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // A fuel station: a dark slate square with a pump, apart from the blue parking square and the coloured warnings.
+  fuelMarker: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    backgroundColor: FUEL_COLOUR,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fuelMarkerSmall: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5 },
+  // A closure: the same square as a hazard (red when the road is shut, amber when lanes are) but with a worker on it, so it reads as
+  // roadworks, not as a driver's warning.
+  closureMarker: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closureMarkerSmall: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5 },
   // While driving the map is busy and the lorry is moving: the same marker, smaller, so a row of
   // parking spots along the route does not crowd the road.
   parkingMarkerSmall: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5 },

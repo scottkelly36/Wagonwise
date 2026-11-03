@@ -3,13 +3,22 @@ import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import { err, ok, type Result } from '../../../shared/result.js';
 import { applies } from '../domain/avoidance-policy.js';
-import { decodePolyline, ON_ROUTE_RADIUS_M, type GeoPoint } from '../domain/geo.js';
+import { MAX_CLOSURE_ZONES } from '../domain/closure-avoid-zones.js';
+import { describeAvoidedClosure, type ClosureCandidate } from '../domain/closure-on-route.js';
+import {
+  decodePolyline,
+  ON_ROUTE_RADIUS_M,
+  type GeoPoint,
+  type GeoPolygon,
+} from '../domain/geo.js';
 import { describeAvoidedOverride, toReportedObstruction } from '../domain/restriction-override.js';
 import { estimateFuelCostGBP } from '../domain/route-option.js';
 import type { Maneuver } from '../domain/maneuver.js';
 import type { RoutePlan } from '../domain/route-plan.js';
 import type { DriverId, VehicleProfileId } from '../domain/vehicle-profile.js';
+import { closuresToAvoidAlong } from './avoid-closures.js';
 import type { VehicleProfileNotFound } from './errors.js';
+import type { ClosureAvoidanceQuery } from './ports/closure-avoidance.js';
 import type { HazardAvoidanceQuery } from './ports/hazard-avoidance.js';
 import type { HazardsOnRouteQuery } from './ports/hazards-on-route.js';
 import type { RestrictionOverrideRepository } from './ports/restriction-override-repository.js';
@@ -23,6 +32,7 @@ export interface PlanRouteDeps {
   readonly routingEngine: RoutingEngine;
   readonly hazardAvoidanceQuery: HazardAvoidanceQuery;
   readonly hazardsOnRouteQuery: HazardsOnRouteQuery;
+  readonly closureAvoidanceQuery: ClosureAvoidanceQuery;
   readonly restrictionOverrideRepo: RestrictionOverrideRepository;
   readonly clock: Clock;
   readonly ids: IdGenerator;
@@ -52,6 +62,10 @@ export interface PlanRouteInput {
 
 export type PlanRouteError = VehicleProfileNotFound | NoRouteFound;
 
+/** How many times a route is planned again to go round closed roads. Going round one can lead through another, so more than once;
+ *  each is a full routing request, so not many. */
+const MAX_CLOSURE_REPLANS = 2;
+
 /**
  * Plans a route for one of a driver's vehicle profiles (design doc §4/§5): looks up the profile's
  * dimensions, asks the `RoutingEngine` for a truck-aware route, checks whether any active hazard
@@ -69,6 +83,11 @@ export type PlanRouteError = VehicleProfileNotFound | NoRouteFound;
  * (`HazardsOnRouteQuery`, every hazard type near the *final* routed line) — `HazardAvoidanceQuery`
  * above stays scoped to blocking-type candidates only (decision, M3.5), since re-planning around
  * a hazard and telling a driver one is nearby are different questions with different answers.
+ *
+ * Roads that are shut are gone round too (National Highways closures, `avoid-closures.ts`): a full closure the route runs along
+ * that is in force when the driver would get there becomes thin avoid zones on the route's own line, and the route is planned
+ * again, up to twice. That is best-effort: if the router finds no way round, the route through the closure stands and the app
+ * warns about it; it is never a reason for `NoRouteFound`.
  */
 export async function planRoute(
   deps: PlanRouteDeps,
@@ -134,13 +153,14 @@ export async function planRoute(
     durationMin: firstPassDurationMin,
     maneuvers: firstPassManeuvers,
   };
+  const hazardZones = blocking.map((obstruction) => obstruction.zone);
   if (blocking.length > 0) {
     const secondPass = await deps.routingEngine.route({
       origin: input.origin,
       originHeadingDeg: input.originHeadingDeg,
       destination: input.destination,
       dimensions: profile.dimensions,
-      avoid: blocking.map((obstruction) => obstruction.zone),
+      avoid: hazardZones,
     });
     if (!secondPass.ok) {
       return secondPass;
@@ -148,10 +168,42 @@ export async function planRoute(
     routed = secondPass.value;
   }
 
+  // Closed roads are gone round if there is a way, and kept if there is not: a closure is never a reason for "no route", as the
+  // route screen still tells the driver about one the route goes through.
+  const departAt = deps.clock.now();
+  const zonedClosures = new Map<string, ClosureCandidate>();
+  const closureZones: GeoPolygon[] = [];
+  let stillShut: ReadonlySet<string> = new Set();
+  for (let replan = 0; ; replan++) {
+    const found = await closuresToAvoidAlong(deps.closureAvoidanceQuery, routed, departAt, {
+      skip: new Set(zonedClosures.keys()),
+      maxZones: MAX_CLOSURE_ZONES - closureZones.length,
+    });
+    stillShut = new Set(found.onRoute.map((c) => c.closure.id));
+    if (found.zones.length === 0 || replan >= MAX_CLOSURE_REPLANS) break;
+
+    const around = await deps.routingEngine.route({
+      origin: input.origin,
+      originHeadingDeg: input.originHeadingDeg,
+      destination: input.destination,
+      dimensions: profile.dimensions,
+      avoid: [...hazardZones, ...closureZones, ...found.zones],
+    });
+    if (!around.ok) break;
+    routed = around.value;
+    closureZones.push(...found.zones);
+    for (const c of found.fresh) zonedClosures.set(c.closure.id, c.closure);
+  }
+  // Only those the final route no longer runs along: a closure the router could not keep off is not claimed as avoided.
+  const avoidedClosures = [...zonedClosures.values()]
+    .filter((closure) => !stillShut.has(closure.id))
+    .map(describeAvoidedClosure);
+
   const blockingIds = new Set(blocking.map((obstruction) => obstruction.id));
-  const avoidedRestrictions = overrides
-    .filter((override) => blockingIds.has(override.id))
-    .map(describeAvoidedOverride);
+  const avoidedRestrictions = [
+    ...overrides.filter((override) => blockingIds.has(override.id)).map(describeAvoidedOverride),
+    ...avoidedClosures,
+  ];
 
   // Against `routed`, not `firstPass` — a driver reading "hazards on this route" means the route
   // they're actually about to take, which after a second pass may no longer pass near a hazard

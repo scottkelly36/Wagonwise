@@ -1,16 +1,21 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useNearbyCameras } from '../../api/use-cameras';
 import { useNearbyCongestion } from '../../api/use-congestion';
 import { useNearbyHazards } from '../../api/use-hazards';
 import { useCurrentJob } from '../../api/use-jobs';
+import { useNearbyClosures } from '../../api/use-closures';
+import { useNearbyFuel } from '../../api/use-fuel';
 import { useNearbySafeParkingSpots } from '../../api/use-parking';
 import { HazardDetailDrawer } from '../../components/hazard-detail-drawer';
 import { useNavigateToPlace } from '../../hooks/use-navigate-to-spot';
 import { useDrivingProfileId } from '../../hooks/use-parking-drive-times';
+import { ClosureDrawer } from '../../components/closure-drawer';
+import { FuelChoiceSwitch } from '../../components/fuel-choice-switch';
+import { FuelStationDrawer } from '../../components/fuel-station-drawer';
 import { ParkingSpotDrawer } from '../../components/parking-spot-drawer';
 import { MarkPlaceSheet } from '../../components/mark-place-sheet';
 import { ReportCameraSheet } from '../../components/report-camera-sheet';
@@ -44,6 +49,17 @@ const NEARBY_RADIUS_M = 5_000;
 // Parking is looked for further out than hazards and traffic: a driver wants to see where the nearest
 // safe place to stop is, and it is rarely within a few streets.
 const NEARBY_PARKING_RADIUS_M = 20_000;
+
+// Fuel is looked for as far out as parking, for the same reason, and the map shows the cheapest few within it.
+const NEARBY_FUEL_RADIUS_M = 20_000;
+const MAP_FUEL_LIMIT = 50;
+
+// Closures on motorways and major A roads are looked for as far out as parking: a driver wants to see one before the junction before it.
+const NEARBY_CLOSURES_RADIUS_M = 20_000;
+const MAP_CLOSURES_LIMIT = 100;
+
+// Space kept between the layers list and the report buttons below it.
+const LAYERS_PANEL_GAP = 8;
 
 // How long the map must stay still before the markers for that view are asked for.
 const MAP_VIEW_SETTLE_MS = 500;
@@ -88,6 +104,18 @@ export default function HomeScreen() {
     viewRadiusM ?? NEARBY_PARKING_RADIUS_M,
     true,
   );
+  const nearbyFuel = useNearbyFuel(
+    queryPoints[0],
+    viewRadiusM ?? NEARBY_FUEL_RADIUS_M,
+    MAP_FUEL_LIMIT,
+    true,
+  );
+  const nearbyClosures = useNearbyClosures(
+    queryPoints[0],
+    viewRadiusM ?? NEARBY_CLOSURES_RADIUS_M,
+    MAP_CLOSURES_LIMIT,
+    true,
+  );
   const drivingProfileId = useDrivingProfileId();
   const navigateToSpot = useNavigateToPlace(drivingProfileId);
   const myPlaces = useMyPlaces();
@@ -105,13 +133,21 @@ export default function HomeScreen() {
   const [markingPlace, setMarkingPlace] = useState(false);
   const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
   const selectedParking = nearbyParkingSpots.data?.find((s) => s.id === selectedParkingId);
+  const [selectedFuelId, setSelectedFuelId] = useState<string | undefined>(undefined);
+  const selectedFuel = nearbyFuel.data?.stations.find((s) => s.id === selectedFuelId);
+  const [selectedClosureId, setSelectedClosureId] = useState<string | undefined>(undefined);
+  const selectedClosure = nearbyClosures.data?.closures.find((c) => c.id === selectedClosureId);
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   // Which kinds of marker the map shows. All on until a driver turns something off to declutter.
   const [layersOpen, setLayersOpen] = useState(false);
+  // How tall the report buttons and "Where to?" sheet are, so the layers list can stop above them on any screen size.
+  const [overlayHeight, setOverlayHeight] = useState(220);
   const [showHazards, setShowHazards] = useState(true);
   const [showTraffic, setShowTraffic] = useState(true);
   const [showParking, setShowParking] = useState(true);
   const [showCameras, setShowCameras] = useState(true);
+  const [showFuel, setShowFuel] = useState(true);
+  const [showClosures, setShowClosures] = useState(true);
   const [reportingCamera, setReportingCamera] = useState(false);
   // Parking and lay-bys are separate layers: a lay-by is a roadside stop nobody has checked suits a lorry.
   const [showLaybys, setShowLaybys] = useState(true);
@@ -121,6 +157,19 @@ export default function HomeScreen() {
         .filter((s) => (s.kind === 'layby' ? showLaybys : showParking))
         .map((s) => ({ id: s.id, location: s.location, kind: s.kind })),
     [nearbyParkingSpots.data, showParking, showLaybys],
+  );
+  const mapFuelStations = useMemo(
+    () => (nearbyFuel.data?.stations ?? []).map((s) => ({ id: s.id, location: s.location })),
+    [nearbyFuel.data],
+  );
+  const mapClosures = useMemo(
+    () =>
+      (nearbyClosures.data?.closures ?? []).map((c) => ({
+        id: c.id,
+        location: c.location,
+        kind: c.kind,
+      })),
+    [nearbyClosures.data],
   );
   // Cameras get their own markers, apart from hazards: the map-data ones near the driver or the view, and the ones drivers marked.
   const mapHazards = useMemo(
@@ -177,13 +226,17 @@ export default function HomeScreen() {
             : undefined
         }
         parkingSpots={mapParkingSpots}
+        fuelStations={showFuel ? mapFuelStations : undefined}
+        onFuelStationPress={setSelectedFuelId}
+        closures={showClosures ? mapClosures : undefined}
+        onClosurePress={setSelectedClosureId}
       />
 
       {viewTooWide && (
         <View style={[styles.zoomHint, { bottom: insets.bottom + 220 }]} pointerEvents="none">
           <View style={styles.zoomHintCard}>
             <Text style={styles.zoomHintText} testID="zoom-hint">
-              Zoom in to see hazards, cameras, traffic and parking
+              Zoom in to see hazards, cameras, traffic, parking, fuel and closures
             </Text>
           </View>
         </View>
@@ -212,6 +265,15 @@ export default function HomeScreen() {
         onNavigate={(spot) => navigateToSpot.mutate(spot.location)}
         navigateDisabled={navigateToSpot.isPending || drivingProfileId === undefined}
       />
+
+      <FuelStationDrawer
+        station={selectedFuel}
+        onClose={() => setSelectedFuelId(undefined)}
+        onNavigate={(station) => navigateToSpot.mutate(station.location)}
+        navigateDisabled={navigateToSpot.isPending || drivingProfileId === undefined}
+      />
+
+      <ClosureDrawer closure={selectedClosure} onClose={() => setSelectedClosureId(undefined)} />
 
       <HazardDetailDrawer
         hazardId={selectedHazardId}
@@ -255,6 +317,12 @@ export default function HomeScreen() {
           testID="nearby-parking-button"
         />
         <RoundButton
+          icon="gas-station"
+          label="Nearby fuel"
+          onPress={() => router.push('/nearby-fuel')}
+          testID="nearby-fuel-button"
+        />
+        <RoundButton
           icon="map-marker-plus-outline"
           label="Mark a place here"
           onPress={() => setMarkingPlace(true)}
@@ -268,38 +336,69 @@ export default function HomeScreen() {
           onPress={() => setLayersOpen((open) => !open)}
           testID="layers-button"
         />
-        {layersOpen && (
-          <View style={styles.layersPanel} testID="layers-panel">
-            <LayerRow
-              label="Hazards"
-              value={showHazards}
-              onChange={setShowHazards}
-              colors={colors}
-            />
-            <LayerRow
-              label="Cameras"
-              value={showCameras}
-              onChange={setShowCameras}
-              colors={colors}
-            />
-            <LayerRow
-              label="Traffic"
-              value={showTraffic}
-              onChange={setShowTraffic}
-              colors={colors}
-            />
-            <LayerRow
-              label="Parking"
-              value={showParking}
-              onChange={setShowParking}
-              colors={colors}
-            />
-            <LayerRow label="Lay-bys" value={showLaybys} onChange={setShowLaybys} colors={colors} />
-          </View>
-        )}
       </View>
 
-      <View style={styles.overlay} pointerEvents="box-none">
+      {layersOpen && (
+        // Beside the buttons, not under them, and stopping above the report buttons and sheet: on a short phone the list ran
+        // behind them and the bottom rows could not be reached. It scrolls when the space is too small for every row.
+        <View
+          style={[styles.layersArea, { top, bottom: overlayHeight + LAYERS_PANEL_GAP }]}
+          pointerEvents="box-none"
+        >
+          <View style={styles.layersPanel} testID="layers-panel">
+            <ScrollView
+              contentContainerStyle={styles.layersRows}
+              showsVerticalScrollIndicator
+              testID="layers-scroll"
+            >
+              <LayerRow
+                label="Hazards"
+                value={showHazards}
+                onChange={setShowHazards}
+                colors={colors}
+              />
+              <LayerRow
+                label="Cameras"
+                value={showCameras}
+                onChange={setShowCameras}
+                colors={colors}
+              />
+              <LayerRow
+                label="Traffic"
+                value={showTraffic}
+                onChange={setShowTraffic}
+                colors={colors}
+              />
+              <LayerRow
+                label="Parking"
+                value={showParking}
+                onChange={setShowParking}
+                colors={colors}
+              />
+              <LayerRow label="Fuel" value={showFuel} onChange={setShowFuel} colors={colors} />
+              {showFuel && <FuelChoiceSwitch compact />}
+              <LayerRow
+                label="Lay-bys"
+                value={showLaybys}
+                onChange={setShowLaybys}
+                colors={colors}
+              />
+              <LayerRow
+                label="Road closures"
+                value={showClosures}
+                onChange={setShowClosures}
+                colors={colors}
+              />
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      <View
+        style={styles.overlay}
+        pointerEvents="box-none"
+        onLayout={(e) => setOverlayHeight(e.nativeEvent.layout.height)}
+      >
         {location.status === 'denied' && (
           <Text style={styles.hint}>
             Location access is off — you can still plan a route, but the map won’t centre on you.
@@ -415,12 +514,19 @@ function createStyles(colors: ThemeColors) {
     },
     zoomHintCard: { ...cardStyle(colors), paddingVertical: 8, paddingHorizontal: 14 },
     zoomHintText: { fontSize: 14, fontWeight: '600', color: colors.text },
+    // Left of the round buttons (16 gutter + 52 button + 12 gap), top of the screen down to just above the bottom overlay.
+    layersArea: {
+      position: 'absolute',
+      right: 16 + 52 + 12,
+      alignItems: 'flex-end',
+      justifyContent: 'flex-start',
+    },
     layersPanel: {
       ...cardStyle(colors),
-      padding: 14,
-      gap: 12,
+      flexShrink: 1,
       minWidth: 190,
     },
+    layersRows: { padding: 14, gap: 12 },
     overlay: {
       position: 'absolute',
       left: 0,

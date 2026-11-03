@@ -17,6 +17,14 @@ const DEFAULT_INTERNAL_KEYS = 'local-dev-internal-key';
 // configuration needed once `docker compose --profile valhalla up` is running (M2.1).
 const DEFAULT_VALHALLA_URL = 'http://127.0.0.1:8002';
 
+/** A comma separated list tidied into its items; unset gives none. */
+function commaList(value: string | undefined): readonly string[] {
+  return (value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item !== '');
+}
+
 function isEd25519Pkcs8Pem(pem: string): boolean {
   try {
     return createPrivateKey(pem).asymmetricKeyType === 'ed25519';
@@ -87,6 +95,14 @@ const envSchema = z.object({
   // Optional: the what3words key (three words to a spot, and a spot to three words). Unset means no lookup. Server-side only; never
   // sent to an app. The Basic plan allows 1,000 lookups a month, so the app asks only when the driver asks.
   W3W_API_KEY: z.string().min(1).optional(),
+  // Whether a driver's first sign-in needs an invite code. Default true; 'false' opens sign-up (the released app already sends no
+  // code when its box is empty, so this works with no app update). A valid code typed anyway is still redeemed.
+  DRIVER_INVITE_REQUIRED: z.enum(['true', 'false']).default('true'),
+  // Our client ids at Google and at Apple, comma separated, for checking their sign-in tokens. Unset: that provider's sign-in is off.
+  GOOGLE_OAUTH_CLIENT_IDS: z.string().optional(),
+  APPLE_CLIENT_IDS: z.string().optional(),
+  // Registers the password and emailed-code sign-in routes (docs/driver-sign-in-plan.md). Off until the app can use them.
+  DRIVER_PASSWORD_SIGN_IN: z.enum(['true', 'false']).default('false'),
   // Where to email the owner when Resend reports a sign-in email that did not get through. Unset: the problem is only logged.
   ALERT_EMAIL: z.string().trim().email().optional(),
   // Optional: the DVLA Vehicle Enquiry Service key (MOT and road tax dates by registration). Unset means the portal does not
@@ -109,6 +125,17 @@ const envSchema = z.object({
   // How often our copy of Fuel Finder is replaced. A refresh is about 34 requests against a limit of 100 a minute, and retailers
   // report within 30 minutes, so hourly is plenty; the floor stops a typo from hammering the service.
   FUEL_REFRESH_INTERVAL_MS: z.coerce.number().int().min(600_000).default(3_600_000),
+  // Optional: National Highways' Road and Lane Closures feed (planned and unplanned closures on motorways and major A roads), from
+  // their developer portal. The primary key turns it on; the secondary is optional and is tried if the primary is refused (they are
+  // issued as a pair so one can be replaced without a gap). Server-side only, never sent to an app or the portal.
+  NATIONAL_HIGHWAYS_PRIMARY_KEY: z.string().min(1).optional(),
+  NATIONAL_HIGHWAYS_SECONDARY_KEY: z.string().min(1).optional(),
+  NATIONAL_HIGHWAYS_CLOSURES_URL: z
+    .url()
+    .default('https://api.data.nationalhighways.co.uk/roads/v2.0/closures'),
+  // How often our copy of the closures is replaced. The feed is one ~10 MB file rebuilt on every request, so ten minutes is
+  // plenty; the floor stops a typo from hammering the service (its limit is 10 requests a minute per key).
+  CLOSURES_REFRESH_INTERVAL_MS: z.coerce.number().int().min(300_000).default(600_000),
   TRAFFIC_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(2000),
   // Traffic moves in minutes; a reading is reused for this long, and shared by every driver on that road.
   TRAFFIC_CACHE_TTL_MS: z.coerce.number().int().min(10_000).default(300_000),
@@ -179,6 +206,12 @@ export interface Config {
   readonly tomtomApiKey: string | undefined;
   /** Where email-delivery alerts go; undefined means they are only logged. */
   readonly alertEmail: string | undefined;
+  /** False opens sign-up with no invite code. */
+  readonly driverInviteRequired: boolean;
+  /** True registers the password sign-in routes. */
+  readonly driverPasswordSignIn: boolean;
+  readonly googleOauthClientIds: readonly string[];
+  readonly appleClientIds: readonly string[];
   readonly dvlaVesApiKey: string | undefined;
   /** DVSA's MOT history API: undefined unless all four of its settings are set. */
   readonly dvsaMot:
@@ -196,6 +229,9 @@ export interface Config {
     | { readonly clientId: string; readonly clientSecret: string; readonly baseUrl: string }
     | undefined;
   readonly fuelRefreshIntervalMs: number;
+  /** National Highways' closures feed: undefined unless the primary key is set. */
+  readonly nationalHighways: { readonly keys: readonly string[]; readonly url: string } | undefined;
+  readonly closuresRefreshIntervalMs: number;
   readonly trafficDailyRequestLimit: number;
   readonly trafficCacheTtlMs: number;
   readonly dashboardUrl: string | undefined;
@@ -272,6 +308,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     tomtomApiKey: values.TOMTOM_API_KEY,
     what3wordsApiKey: values.W3W_API_KEY,
     alertEmail: values.ALERT_EMAIL,
+    driverInviteRequired: values.DRIVER_INVITE_REQUIRED === 'true',
+    driverPasswordSignIn: values.DRIVER_PASSWORD_SIGN_IN === 'true',
+    googleOauthClientIds: commaList(values.GOOGLE_OAUTH_CLIENT_IDS),
+    appleClientIds: commaList(values.APPLE_CLIENT_IDS),
     dvlaVesApiKey: values.DVLA_VES_API_KEY,
     dvsaMot:
       values.DVSA_MOT_CLIENT_ID === undefined ||
@@ -295,6 +335,19 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
             baseUrl: values.FUEL_FINDER_URL,
           },
     fuelRefreshIntervalMs: values.FUEL_REFRESH_INTERVAL_MS,
+    nationalHighways:
+      values.NATIONAL_HIGHWAYS_PRIMARY_KEY === undefined
+        ? undefined
+        : {
+            keys: [
+              values.NATIONAL_HIGHWAYS_PRIMARY_KEY,
+              ...(values.NATIONAL_HIGHWAYS_SECONDARY_KEY === undefined
+                ? []
+                : [values.NATIONAL_HIGHWAYS_SECONDARY_KEY]),
+            ],
+            url: values.NATIONAL_HIGHWAYS_CLOSURES_URL,
+          },
+    closuresRefreshIntervalMs: values.CLOSURES_REFRESH_INTERVAL_MS,
     trafficDailyRequestLimit: values.TRAFFIC_DAILY_REQUEST_LIMIT,
     trafficCacheTtlMs: values.TRAFFIC_CACHE_TTL_MS,
     dashboardUrl: values.DASHBOARD_URL,

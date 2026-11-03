@@ -38,6 +38,26 @@ Calling core directly (bypassing the BFF) needs `X-Internal-Key: local-dev-inter
 every request except `/health` — core is not publicly exposed (design doc §2), and this header is
 the BFF's job to add, not something an app or a curl-from-your-laptop test should normally send.
 
+**Sign-in without an invite code, passwords, Google and Apple (2026-11-01, server only; plan in `docs/driver-sign-in-plan.md`).**
+Two switches, both read in `config.ts`. `DRIVER_INVITE_REQUIRED` (default `true`): `false` lets a first sign-in through with no code
+(`create-driver.ts`; a valid unused code typed anyway is still redeemed), on the existing `/identity/otp/*` routes too, so the **released app,
+which sends no code when its box is empty, needs no update**. `DRIVER_PASSWORD_SIGN_IN` (default `false`) registers the routes below, which
+`apps/driver-bff` forwards: `POST /identity/signup/request` and `/signup/confirm` (a code proves the email; the password is sent only with the
+code, so nothing waits for a stranger's address; `AccountExists` if there is already a driver), `POST /identity/password/sign-in` then
+`/password/verify` (a right password only sends a code; the code signs in; one `InvalidCredentials` for a wrong email or password, with a decoy
+hash so it takes as long; five wrong passwords lock the account 15 minutes, `identity.driver_credentials`), `/password/reset/request` (always 200)
+and `/reset/confirm` (new password, every other session ended), `PUT /identity/account/password` (a signed-in driver with an email and no
+password adds one), and `POST /identity/social/sign-in` (`{ provider: 'google' | 'apple', idToken }`: `JoseIdTokenVerifier` checks signature,
+issuer and audience against `GOOGLE_OAUTH_CLIENT_IDS` / `APPLE_CLIENT_IDS`; a returning driver is found by the provider's `sub`
+(`identity.federated_identities`), otherwise a **confirmed** email joins the account with that email or makes a new one; no second factor,
+since the provider has proved who they are). A driver who has a password is refused on the code-only routes (`PasswordRequired`), or the code
+alone would walk round it. Passwords: scrypt (identity has its own copy of staff's hasher), 10 to 128 characters, no composition rules. The second
+factor is an emailed code, so **the inbox is the real key** (it also resets the password). Phone-number drivers stay on text codes until they have
+an email. A signed-in driver adds methods to the account they have (`account-links.ts`, under the gated `/identity/account/`):
+`POST /identity/account/link/social` (a Google/Apple login; `AlreadyLinked` if it is on another account) and
+`POST /identity/account/email/request` + `/confirm` (a phone-number account proves an email with a code, and the email replaces the
+phone number as its identifier; the account keeps its id, so its data and company links stay). Nothing in the app uses any of this yet.
+
 ## Routing (vehicle profiles)
 
 `routing`'s first slice (M2.2) — CRUD for `VehicleProfile`, the height/width/length/weight a
@@ -323,7 +343,7 @@ second check on top — core alone decides ownership/authorization for those.
   orders everything: overdue, due soon, no date, fine.
 - **Permissions:** `manage_maintenance` changes anything; `manage_fleet`, `dispatch` and `view_reports` read. The migration gave the
   new privilege to every account that could manage users or vehicles.
-- **Dashboard:** Maintenance page (what is due, and what the firm tracks) and a panel per vehicle on Vehicle profiles. Advisory only.
+- **Dashboard:** Maintenance page (what is due, and what the firm tracks) and a panel per vehicle on Vehicle profiles. Advisory only. **By vehicle (2026-11-03):** "What is due" is a line per vehicle (`lib/maintenance-by-vehicle.ts` groups the overview rows: worst status, counts, the most urgent item), with filters Needs attention / Overdue / All and counts; a vehicle opens in place (`DataTable` `expandedKey` + `renderDetail`) to its items, which `VehicleMaintenance` shows without its frame. There the date is edited where it stands (Save appears once changed), **Done today** is one press (`markDone` with today, next date by the usual interval), and "Done on another day" keeps the old form. No server change.
 - **Reminders** (migration 0051; `domain/reminders.ts`, `application/reminders.ts`): an hourly task emails each person with `manage_maintenance` once a day from 7am UK, if something is overdue or due soon; they choose email or portal-only on the Maintenance page. The day is claimed in `reminder_log` before sending and released on failure. The people to tell are passed in (gathered with `companies.listFleetContacts`) because the run uses one data scope. Text messages are not offered yet.
 - **Repairs** (migration 0052; `domain/repair.ts`, `application/repairs.ts`): a defect booked for fixing with a due date. Booking marks the defect seen; finishing can mark it fixed (releasing a held-back vehicle). The defect is reached only through the `DefectDirectory` port, filled in `compose-core.ts` from the checks facade (`findDefect`, `setDefectStatus`). One open repair per defect.
 - **Import** (`application/import.ts`): sets next-due dates in bulk by registration and item name, row by row; the CSV is read in the dashboard (`lib/maintenance-import.ts`).
@@ -388,7 +408,7 @@ The shared status also carries optional `breakMin`, `stretchMin` and `untilLimit
 
 ## Fuel prices (GOV.UK Fuel Finder) (2026-10-27)
 
-`fuelprices` module in core: a client for the government's Fuel Finder public API and a use case that joins its two lists. **Our own copy, refreshed by a job (2026-10-27, migration 0079):** `fuelprices.stations`, `fuelprices.prices` and a one-row `fuelprices.refreshes`. **Drivers read it through `POST /fuel/nearby`** (2026-10-28, below); no screen shows it yet. Settings (core only, never the BFFs or apps): `FUEL_FINDER_ID` and `FUEL_FINDER_SECRET`, **both or neither** (one alone stops the boot, naming the missing one), and `FUEL_FINDER_URL` (defaults to the live service; the test service is `https://test.fuel-finder.service.gov.uk/api/v1` and needs its own credentials). They come from the Fuel Finder developer portal (GOV.UK One Login). `FUEL_REFRESH_INTERVAL_MS` is how often the copy is replaced (default hourly, never under 10 minutes). Unset credentials: `refresh()` is `FuelSourceUnavailable`, no request is made and the job does not start.
+`fuelprices` module in core: a client for the government's Fuel Finder public API and a use case that joins its two lists. **Our own copy, refreshed by a job (2026-10-27, migration 0079):** `fuelprices.stations`, `fuelprices.prices` and a one-row `fuelprices.refreshes`. **Drivers read it through `POST /fuel/nearby`** (2026-10-28, below), and the driver app shows it (2026-10-29, below). Settings (core only, never the BFFs or apps): `FUEL_FINDER_ID` and `FUEL_FINDER_SECRET`, **both or neither** (one alone stops the boot, naming the missing one), and `FUEL_FINDER_URL` (defaults to the live service; the test service is `https://test.fuel-finder.service.gov.uk/api/v1` and needs its own credentials). They come from the Fuel Finder developer portal (GOV.UK One Login). `FUEL_REFRESH_INTERVAL_MS` is how often the copy is replaced (default hourly, never under 10 minutes). Unset credentials: `refresh()` is `FuelSourceUnavailable`, no request is made and the job does not start.
 
 - **The API, as checked live on 2026-10-27** (the official docs print none of these addresses; their `api.fuelfinder.service.gov.uk` example does not exist). Token: `POST {base}/oauth/generate_access_token`, form body `grant_type=client_credentials`, `client_id`, `client_secret`, `scope=fuelfinder.read`; the answer is `{ success, data: { access_token, expires_in, ... } }` and the token lasts an hour. Stations: `GET {base}/pfs?batch-number=N`. Prices: `GET {base}/pfs/fuel-prices?batch-number=N`. Both are a plain JSON array of 500 per batch from 1, ending with a 404 (about 17 batches, roughly 8,000 stations). **The two lists do not line up batch for batch**, so they are joined on `node_id`.
 - **Limits:** 100 requests a minute and one at a time. The client sends one request at a time, at least 700 ms apart, waits out a 429 (`Retry-After`, up to three times) and renews a refused token once. A full refresh is about 34 requests.
@@ -398,9 +418,81 @@ The shared status also carries optional `breakMin`, `stretchMin` and `untilLimit
 - **The copy and the job:** `refresh-fuel-prices` is a periodic task in core (`PeriodicTasks`), run once at boot and then every `FUEL_REFRESH_INTERVAL_MS`, and only when both credentials are set. A refresh takes about 30 to 45 seconds and ends in one transaction: stations are upserted and the ones Fuel Finder no longer lists are deleted (their prices go with them, `on delete cascade`); prices are emptied and refilled; `refreshes` records when and how many. A reader sees the old copy until the commit and the new one after it, and a failure part-way leaves the old copy as it was. Stations carry `location geography(Point, 4326)` with a GiST index (`ST_DWithin`, in metres, as parking and cameras), and prices are `numeric(5,1)` pence per litre with `updated_at` (when the retailer reported it) beside an index on `(fuel_type, pence_per_litre)`.
 - **Safeguards:** a refresh is refused (`SnapshotTooSmall`, logged as a warning, the last copy stays) when the answer has fewer than 500 stations or under half as many as are stored, since stations do not vanish by half between two refreshes; a failed fetch is refused the same way. **Prices are never deleted for being old**: the reader shows the age (`updated_at`) and decides. There is no company in these tables, so no row-level policy; the app role (what core runs as) can read and write the schema (migration 0079 grants it, and a test uses `set role wagonwise_app` to prove it).
 - **Cheapest fuel near a point (2026-10-28):** `POST /fuel/nearby` (`fuelprices/interface/routes.ts`; core, forwarded unchanged by the driver BFF's `fuel-routes.ts`; the `/fuel/` prefix is behind the driver sign-in; contract `@wagonwise/contracts/fuel`). Body `{ centre, radiusM (up to 50 km), fuelType (default B7_STANDARD, the lorry grade), maxAgeDays?, limit (default 20, up to 50) }`; answer `{ fuelType, stations, refreshedAt? }`, **cheapest first, nearer first on a tie**, each with its price in pence per litre, `priceUpdatedAt` (when the retailer reported it: the app must show the age), straight-line `distanceM`, address, brand, amenities and the motorway and supermarket flags. It reads our copy only; no request reaches Fuel Finder. Closed stations are never listed. **Typing slips are left out:** a price under 60% of the national median for that fuel (`MIN_SHARE_OF_MEDIAN`; the lowest real diesel seen was 72% of it) is dropped, because a cheapest-first list would send a driver to the one station whose retailer mistyped. High prices need no guard. **Old prices stay** unless the request sets `maxAgeDays`, since roughly a third of stations report rarely; deciding a default cut-off is an app choice. The median is a second small query (`percentile_cont` over about 8,000 rows) per request.
+- **In the driver app (2026-10-29):** three pieces, all JavaScript (no native change, so they can go over the air). (1) **Map markers** on the home map, a dark slate square with a pump (`route-map.tsx` `fuelStations`, colour in `components/fuel-colour.ts`), the cheapest 50 diesel prices within the view, with a **Fuel** switch in the layers panel; a tap opens `FuelStationDrawer`. (2) **A list**, `app/nearby-fuel.tsx`, from the pump button on the home map: 30 km, 20 stations, **Cheapest or Closest** first (sorted on the phone, `lib/fuel-details.ts` `sortFuel`), the cheapest marked. (3) **Take me there** on both the drawer and every list row, through `useNavigateToPlace` (plans from the phone's position with the driving profile and opens the trip screen, as for parking). **Diesel or Petrol** (2026-10-31): one choice saved on the phone (`state/fuel-choice-store.ts`, default diesel), switched on the list screen and under the Fuel row of the map's layers panel (`components/fuel-choice-switch.tsx`), so the list, the pins and the drawer always show the same fuel. Diesel is `B7_STANDARD`, petrol is `E10` (`fuelTypeFor` in `lib/fuel-details.ts`); no server change, since the route already took any grade. **Only prices reported in the last 7 days are asked for** (`FUEL_MAX_AGE_DAYS`, owner's decision 2026-10-29: older prices are irrelevant), and every price shows **when it was reported** ("Updated 3 hours ago", "Updated yesterday"). Each screen carries the source line and a note that Fuel Finder does not say whether a lorry fits the forecourt (it has no height, width or turning data, so the driver checks the entrance). Distance is straight-line; there are no drive times (parking times its five nearest by road; fuel does not yet). The query repeats every 10 minutes, since the server copy changes hourly. `POST /fuel/nearby 401` is in `.github/release/api-checks.txt`, so an over-the-air update waits for core to be deployed with the route.
 - **One core instance:** Fuel Finder allows one request at a time per client, so two core instances refreshing together would collide. Today there is one; if core is ever scaled the task must run on one instance only.
 - **Checked live (2026-10-27):** a real refresh into a fresh PostGIS stored 8,146 stations and 26,529 prices in about 30 seconds with no problems, a second refresh replaced them cleanly, and "cheapest diesel within 25 km of Hexham" used the spatial index.
 - **Not confirmed:** the data licence and terms of use (only a general Open Government Licence line was found) and the test service's behaviour. Read the portal's terms before the prices appear in a product.
+
+## Road and lane closures (National Highways) (2026-11-01)
+
+`apps/core/src/modules/closures`: closures on the strategic road network (motorways and major A roads, **not** local roads),
+copied from National Highways' Road and Lane Closures feed (v2.0, DATEX II 3.4, `GET https://api.data.nationalhighways.co.uk/roads/v2.0/closures`,
+key in the `Ocp-Apim-Subscription-Key` header). Same shape as fuel prices: a job in core replaces our whole copy
+(`closures.closures`, migration 0083) every ten minutes, and nothing a driver does ever reaches National Highways.
+
+- **The feed:** one ~10 MB XML file rebuilt on every request (about 1.2 s; no ETag or Last-Modified, so it cannot be fetched "only if
+  changed"); limit 10 requests a minute per key. Each record has the road, a direction, a line of lat/lon points, a start and an end
+  (the whole window of the scheme, not which nights inside it), a status (`active`, `planned`, `suspended`), National Highways' own
+  wording and a cause. `infrastructure/datex-closures-parser.ts` finds values by tag name, since the nesting varies from record to record.
+- **What is kept:** `full` closures (`roadOrCarriagewayOrLaneManagementType` is `carriagewayClosures`: a whole carriageway, slip road or
+  link road; always kept) and `lane` closures (lanes or the hard shoulder shut) only when they last 3 days or less
+  (`MAX_LANE_CLOSURE_DAYS`; about half the feed's lane closures run for weeks to years and would bury the rest). Narrowed lanes, speed
+  limits and records with no window or no line are dropped. On 2026-11-01 that was 350 of 500 records (222 full, 128 lane; 20 active).
+  Full closures are mostly overnight (median about 10 hours).
+- **Refresh:** `NationalHighwaysClient` tries the primary key and, if the service refuses it (401/403), the secondary. A failed fetch
+  keeps the last copy; so does an empty answer when 10 or more are stored. Off unless `NATIONAL_HIGHWAYS_PRIMARY_KEY` is set.
+- **API:** `POST /closures/nearby` `{ centre, radiusM (up to 50 km), withinDays (default 7), limit (default 50) }` (driver sign-in; the
+  driver BFF forwards it). Matches by the closure's **line**, not its marker, so a long closure is near anyone along it. In force first,
+  then the soonest to start. Suspended (paused) closures are never sent. Each answer carries when the copy was made.
+- **App:** a hard-hat marker on the home map, red when the whole road is shut and amber when lanes are, under the "Road closures" layer;
+  a tap opens `ClosureDrawer`: what National Highways says, what is shut, when (in force: until when and how long is left; planned: when
+  it starts, ends and how long it lasts, in UK time), and the credit. A window over 48 hours carries a note that the road is not
+  necessarily shut all of it. "In force now" follows National Highways' own status, not the dates.
+- **Licence** (National Highways Transport Data Feeds Licence, based on OGL v2.0): commercial use allowed; the credit "Powered by National
+  Highways' Transport Data Feeds" must be shown (the drawer does); free for now, with at least six months' notice before any charge;
+  scraping is banned, and one request every ten minutes through the official API is the intended use.
+- **Along a planned route (stage 2, 2026-11-02):** `POST /closures/along-route` `{ corridor (the decoded route line, up to 2000 points, as for
+hazards), withinHours (default 48, max 168), limit (default 100) }`. Core only finds **candidates**: closures whose line comes within
+  40 m of the route's line (`ROUTE_CANDIDATE_M`), not ended and starting within the look-ahead, each with its `lines`. The app decides which the
+  route really runs along and when it gets there (`lib/closures-on-route.ts`; the driver can change the departure time, so the geometry is
+  worked out once per route and only the timing again):
+  - **Which carriageway.** The feed's lines are short chained pieces, each drawn in the direction of travel (the compass word in
+    `direction` is not reliable: an "eastBound" slip road is described as northbound). A piece of closure matches the route if some
+    segment of the route is within 25 m of it **and heads the same way, within 45 degrees**. The other carriageway is only about 30 m away, so
+    distance alone cannot tell them apart; the heading does, and a road that crosses the route is turned well past 45 degrees.
+  - **A slip road the route only passes.** A route on the main carriageway runs beside the start of a slip road with the same heading. A
+    closure under 700 m (a slip or link road) counts only if the route runs along 80% of it, i.e. takes it; a longer one (a carriageway) if the
+    route runs along at least 300 m of it, since a route that joins or leaves part-way still drives on the shut road.
+  - **When.** The time to a point is taken in proportion to the distance. A closure counts if it is in force at any time from 30 minutes (and
+    a tenth of the drive so far) before the driver reaches it to the same after they pass it. A window over 48 hours is "may be closed".
+  - Checked on 2026-11-02 against real data: a real OpenStreetMap route (public OSRM) along the M56 eastbound matched the real closure and the
+    westbound route did not; an M3 route passing 7 m from a closed slip road did not match, one that takes the slip road did.
+  - **Screen:** the route overview has a "Road closures" part (only once closures have been fetched, so "None found" is never said about
+    something nobody checked): up to two closures with a headline, "Closed until … · you reach it about …", and a tap for the drawer, hard-hat
+    markers on the route map, and a red note when the route still goes through a whole road that is shut (stage 3 below goes round them first, so the note is for when it
+    could not, or the driver set off later than the plan assumed).
+- **Routing round full closures (stage 3, 2026-11-02):** `planRoute` (`routing/application/plan-route.ts`) goes round a closed road when there is a way. After the first route (and
+  the hazard pass, if any) it asks `ClosureAvoidanceQuery` (routing's own port; the adapter wraps `closures.findAlongRoute`, the same candidate query as `/closures/along-route`)
+  for closures along the route, works out which the route really runs along and which are shut when the driver would get there, and plans again with avoid zones. Going round one
+  can lead through another, so it looks again at the new route, at most twice. **The matching is in core now as well as in the app** (`routing/domain/closure-on-route.ts`, the same
+  rules and constants as `apps/driver-app/src/lib/closures-on-route.ts`; change both together or the screen and the route will disagree). What is avoided: `full` closures only (a lane
+  closure leaves the road open) and not a scheme with a window over 48 hours (the road may be open: that is left to the warning). The time is when the plan is made (leaving now),
+  with the same margins as the screen.
+  - **The avoid zones** (`routing/domain/closure-avoid-zones.ts`) are thin boxes (10 m long, 6 m wide) laid along **the route's own line**, at the places it runs along the closure,
+    every 100 m, and not within 60 m of either end. Not along National Highways' line: that is not exact enough to hit one carriageway when the other is 12 to 30 m away, while the
+    route's line is the router's own road, so a zone on it is on the carriageway the route uses. Valhalla drops a whole road between two junctions that a zone touches, in both
+    directions, so a zone on the other carriageway would shut the wrong one.
+  - **Checked against real Valhalla** (2026-11-02, the local Northumberland tiles; `closure-avoidance.golden-test.ts`, part of `pnpm test:golden`): on the A1 north of Newcastle
+    (carriageways 12 to 16 m apart) zones on the northbound carriageway sent the northbound route round and left the southbound route exactly as it was, with zones from 6 to 16 m
+    wide. On the slip road off the A1 at Morpeth, zones within 20 m of its ends also shut the A1 itself, so the end inset: 40 m was enough, 60 is used.
+  - **It never fails a plan.** If there is no way round (the router finds no route), the plan keeps the route through the closure and the screen's red note says so; a route that still
+    runs along a closure is not said to have avoided it. When it did go round, the plan's `avoidedRestrictions` has "Road closure avoided: <National Highways' wording>", shown under
+    "Restrictions avoided".
+  - **Limits.** Valhalla refuses avoid areas with more than 10 km of edge in all, so closures get at most 100 zones between them (a zone has 32 m of edge, and hazards use some too),
+    and one closure at most 40. The zone is flat, so a road that crosses over a closed motorway on a bridge, right at a zone, is shut too (rare: a zone is 10 m long). A driver who
+    changes the departure time on the route screen is **not** planned again: the route is as made for leaving now, and the screen's own check (which does follow the time) warns if it
+    goes through a closure at the new time. The faster-route offer (`check-faster-route`) refuses an alternative that goes through a shut road. The hazard-triggered reroute
+    (`detect-reroute`) does not look at closures.
 
 ## Hazards from OpenStreetMap
 
@@ -417,6 +509,8 @@ invite: `POST /staff/signups/invite` (platform staff only; up to 50 ids and the 
 per person (composition passes `identity.newInviteCode`/`sendEmail` in as the module's `invites` port), emails the text in
 `signups/domain/invite-email.ts`, then records `invited_at`/`invite_code` (migration 0068). Someone already invited is skipped; a
 failed email leaves them uninvited so it can be retried. The opt-in link is typed on the page and kept in that browser only.
+
+The "out now" email (2026-11-01): once the app is in both stores, the same page has a second section that sends `signups/domain/launch-email.ts` (subject "WagonWise is out now on iPhone and Android") to the ticked testers: `POST /staff/signups/launch-email` (platform staff only; up to 50 ids, an App Store link and a Google Play link, both https only), then records `launch_emailed_at` (migration 0080). It is the first **HTML email** here: the mailer (`ResendMailer`, `identity.sendEmail(to, subject, text, html?)`) sends an optional `html` beside the plain text, which stays as the fallback. The HTML is table-based with inline styles (what mail apps and Outlook draw reliably), in the landing page's navy, blue and green, with the logo from `https://wagon-wise.co.uk/img/icon-192.png` (so that file must stay), a button for each store with its white mark beside it (`sites/landing/img/store-apple.png` and `store-play.png`, PNGs because mail apps do not draw SVG, so they too must stay on the site and need a landing deploy), three feature lines, and a footer saying why they got it, how to come off the list, and the company address. Anything typed (name, links) is escaped. It makes no invite code, someone already sent it is skipped, a failed send leaves them unmarked so it can be retried, and the invite and "out now" emails are independent (anyone can be sent either). The Google Play link is pre-filled from the package name (`com.wagonwise.driverapp`); the App Store link needs Apple's number for the app, so it is pasted (both kept in that browser only). The consent on the landing page is "emailing me about testing the app", so the email says it is the last one about testing.
 
 Search and sharing (2026-10-19): the page has a canonical address, Open Graph and Twitter tags, JSON-LD (organisation, website, software application, FAQ) and a visible FAQ whose text is the same as the FAQ in the JSON-LD (Google expects the two to match, so when one is edited change the other by hand). `robots.txt` and `sitemap.xml` sit next to `index.html`. Add a page to `sitemap.xml` when one is added. The share picture is `img/og-image.jpg`, remade with `sites/make-og-image.ps1`.
 
