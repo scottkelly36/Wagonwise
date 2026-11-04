@@ -21,8 +21,13 @@ Not legal advice. This is the list to take to a solicitor and to use when fillin
 
 ## Decisions for the owner
 
-- **Existing testers saw the old screen.** Re-asking them to accept the new text means clearing `consentedAt`; not done, since the old
-  text was only wrong in being stricter than what happens. SOS and shared places are new to them, so consider it.
+- **Existing drivers are asked again, once** (owner, 2026-11-04). Not by clearing `consentedAt` on the server: the app keeps a cached copy of the
+  driver and never refetches it, so clearing would not reach anyone already signed in, and it would wipe the record of when they first
+  accepted. Instead the app keeps the version of the text each driver accepted on the phone (`CONSENT_VERSION` in
+  `lib/consent-version.ts`, now `2026-11-04`) and shows the screen on the next launch when it is missing or older; accepting records
+  the new date on the server as before. **Change `CONSENT_VERSION` whenever the text changes in a way drivers should be asked about
+  again.** A driver signing in on another phone sees it once there too. **Ship this with the new text, never before it** (it is the
+  same change), or drivers are asked to accept the old text again.
 - **The notice goes live when the landing site is deployed** (not with core or the app).
 
 ## For the solicitor
