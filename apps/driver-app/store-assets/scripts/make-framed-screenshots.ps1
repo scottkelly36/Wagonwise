@@ -22,7 +22,8 @@ $shots = @(
   @('04-parking-card-raw.png',   '05-parking',  "Safe parking`nat a glance"),
   @('05-faster-route-raw.png',   '06-faster',   "A quicker way,`nwhen traffic builds"),
   @('06-report-hazard-raw.png',  '07-report',   "Warn the next driver`nin seconds"),
-  @('08-job-detail-raw.png',     '08-job',      "Jobs from your firm,`non your phone")
+  @('08-job-detail-raw.png',     '08-job',      "Jobs from your firm,`non your phone"),
+  @('09-fuel-nearby-raw.png',    '09-fuel',     "Find the cheapest`ndiesel near you")
 )
 
 function New-RoundedPath([float]$x, [float]$y, [float]$w, [float]$h, [float]$r) {
