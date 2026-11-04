@@ -41,7 +41,7 @@ export function WordsField({
   return (
     <div className="field">
       <label htmlFor={id}>Three words</label>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className="flex gap-8">
         <input
           id={id}
           value={value}

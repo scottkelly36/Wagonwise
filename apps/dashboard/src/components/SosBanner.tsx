@@ -58,7 +58,7 @@ export function SosBanner() {
         or need help, call 999 and give them the three words.
       </span>
       {resolve.error !== null && (
-        <span style={{ color: 'var(--danger)' }}>{staffErrorMessage(resolve.error)}</span>
+        <span className="text-danger">{staffErrorMessage(resolve.error)}</span>
       )}
       {open.map((a) => {
         const href = a.driverContact === undefined ? undefined : contactHref(a.driverContact);

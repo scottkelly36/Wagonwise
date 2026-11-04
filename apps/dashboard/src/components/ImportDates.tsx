@@ -57,14 +57,14 @@ export function ImportDates({ companyId, onClose }: { companyId: string; onClose
   return (
     <div style={{ border: '1px solid var(--border)', padding: 12, marginBottom: 16 }}>
       <strong>Import dates from a spreadsheet</strong>
-      <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+      <p className="text-muted text-13">
         Save your spreadsheet as CSV. The first row names the columns: a <em>Registration</em>{' '}
         column, then a column for each thing you track (for example <em>MOT</em>), with the next due
         date in each cell (like 31/01/2027). Empty cells are left alone. Vehicles are matched by
         registration, so add those on the Vehicle profiles page first.
       </p>
       <input type="file" accept=".csv,text/csv" onChange={(e) => void read(e.target.files?.[0])} />
-      {problem !== undefined && <p style={{ color: 'var(--warning)' }}>{problem}</p>}
+      {problem !== undefined && <p className="text-warning">{problem}</p>}
       {problem === undefined && rows.length > 0 && results === undefined && (
         <p>
           {rows.length} date{rows.length === 1 ? '' : 's'} read.{' '}
@@ -78,7 +78,7 @@ export function ImportDates({ companyId, onClose }: { companyId: string; onClose
           </button>
         </p>
       )}
-      {send.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(send.error)}</p>}
+      {send.isError && <p className="text-danger">{staffErrorMessage(send.error)}</p>}
       {results !== undefined && (
         <div>
           <p>

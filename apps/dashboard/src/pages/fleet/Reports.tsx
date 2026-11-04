@@ -315,16 +315,16 @@ function RevenueTable({ title, lines }: { title: string; lines: ReturnType<typeo
         <thead>
           <tr>
             <th style={{ textAlign: 'left' }}>Name</th>
-            <th style={{ textAlign: 'right' }}>Jobs</th>
-            <th style={{ textAlign: 'right' }}>Revenue</th>
+            <th className="text-right">Jobs</th>
+            <th className="text-right">Revenue</th>
           </tr>
         </thead>
         <tbody>
           {lines.map((line) => (
             <tr key={line.name}>
               <td>{line.name}</td>
-              <td style={{ textAlign: 'right' }}>{line.jobs}</td>
-              <td style={{ textAlign: 'right' }}>{moneyText(line.revenuePence)}</td>
+              <td className="text-right">{line.jobs}</td>
+              <td className="text-right">{moneyText(line.revenuePence)}</td>
             </tr>
           ))}
         </tbody>

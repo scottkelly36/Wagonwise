@@ -152,7 +152,7 @@ export function VehicleProfiles() {
       header: '',
       align: 'right',
       cell: (v) => (
-        <span style={{ display: 'inline-flex', gap: 6 }}>
+        <span className="inline-flex gap-6">
           <button type="button" onClick={() => setMaintenanceId(v.id)}>
             Maintenance
           </button>
@@ -202,10 +202,10 @@ export function VehicleProfiles() {
   return (
     <div>
       <h1>Vehicle profiles</h1>
-      <p style={{ color: 'var(--text-muted)' }}>Your company's own fleet.</p>
+      <p className="text-muted">Your company's own fleet.</p>
 
       {everyCompany && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <label>
             Company:{' '}
             <select
@@ -223,10 +223,10 @@ export function VehicleProfiles() {
         </div>
       )}
 
-      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
 
       {companyId === undefined ? (
-        <p style={{ color: 'var(--text-muted)' }}>
+        <p className="text-muted">
           {everyCompany ? 'Choose a company above.' : 'No company assigned to your account.'}
         </p>
       ) : (

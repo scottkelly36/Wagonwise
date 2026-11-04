@@ -32,12 +32,12 @@ export function ParkingSuggestions({ onDecided }: { onDecided: () => void }) {
   if (waiting.length === 0 && error === null) return null;
 
   return (
-    <section className="card" style={{ marginBottom: 16 }}>
-      <h2 style={{ marginTop: 0 }}>Suggested changes ({waiting.length})</h2>
+    <section className="card mb-16">
+      <h2 className="mt-0">Suggested changes ({waiting.length})</h2>
       <p className="muted">
         Drivers suggested these. Nothing changes on the map until you approve it.
       </p>
-      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
       {waiting.map((s) => (
         <div
           key={s.id}
@@ -49,16 +49,16 @@ export function ParkingSuggestions({ onDecided }: { onDecided: () => void }) {
           }}
         >
           <strong>{s.spot.name ?? s.spot.note ?? 'Unnamed place'}</strong>
-          <span className="muted" style={{ fontSize: 12 }}>
+          <span className="muted text-12">
             {s.spot.location.lat.toFixed(5)}, {s.spot.location.lon.toFixed(5)} · suggested{' '}
             {new Date(s.suggestedAt).toLocaleDateString('en-GB')}
           </span>
           {s.gone ? (
-            <span style={{ color: 'var(--danger)' }}>
+            <span className="text-danger">
               Says this place is closed or gone. Approving deletes it from the map.
             </span>
           ) : (
-            <ul style={{ margin: 0, paddingLeft: 18 }}>
+            <ul className="m-0 pl-18">
               {suggestedChanges(s.spot, s.changes).map((c) => (
                 <li key={c.label}>
                   {c.label}: <span className="muted">{c.from}</span> → <strong>{c.to}</strong>
@@ -66,7 +66,7 @@ export function ParkingSuggestions({ onDecided }: { onDecided: () => void }) {
               ))}
             </ul>
           )}
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex gap-8">
             <button
               className="btn-primary"
               disabled={decide.isPending}

@@ -81,7 +81,7 @@ export function AppUsage() {
     return (
       <div>
         <h1>App usage</h1>
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(usage.error)}</p>
+        <p className="text-danger">{staffErrorMessage(usage.error)}</p>
       </div>
     );
   }
@@ -201,7 +201,7 @@ export function AppUsage() {
         </section>
       </div>
 
-      <h2 style={{ marginTop: 24 }}>Firms</h2>
+      <h2 className="mt-24">Firms</h2>
       <DataTable
         columns={columns}
         rows={u.firmList}
@@ -209,7 +209,7 @@ export function AppUsage() {
         searchText={(f) => f.name}
         emptyText="No firms yet."
       />
-      <p className="muted" style={{ marginTop: 12 }}>
+      <p className="muted mt-12">
         Updated {ago(u.generatedAt, new Date())}. <Link to="/admin/companies">Open a firm</Link> to
         see its detail.
       </p>

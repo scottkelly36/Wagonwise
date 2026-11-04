@@ -100,11 +100,9 @@ export function Parking() {
         <div>
           <strong>{s.name ?? (s.note === undefined ? 'Unnamed' : s.note)}</strong>
           {s.name !== undefined && s.note !== undefined && (
-            <div className="muted" style={{ fontSize: 13 }}>
-              {s.note}
-            </div>
+            <div className="muted text-13">{s.note}</div>
           )}
-          <div className="muted" style={{ fontSize: 12 }}>
+          <div className="muted text-12">
             {s.location.lat.toFixed(5)}, {s.location.lon.toFixed(5)}
           </div>
         </div>
@@ -148,7 +146,7 @@ export function Parking() {
       header: '',
       align: 'right',
       cell: (s) => (
-        <span style={{ display: 'inline-flex', gap: 8 }}>
+        <span className="inline-flex gap-8">
           <button
             className="btn-secondary"
             onClick={() => {
@@ -189,7 +187,7 @@ export function Parking() {
         starting point. Anything here can be edited or deleted.
       </p>
 
-      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
 
       <ParkingSuggestions onDecided={refresh} />
 
@@ -202,9 +200,7 @@ export function Parking() {
         </p>
       )}
 
-      <div
-        style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end', marginBottom: 16 }}
-      >
+      <div className="flex gap-12 wrap items-end mb-16">
         <div className="field">
           <label htmlFor="parking-search">Search</label>
           <input
@@ -262,7 +258,7 @@ export function Parking() {
             submit();
           }}
         >
-          <h2 style={{ margin: 0 }}>
+          <h2 className="m-0">
             {editing.id === undefined ? 'Add a parking spot' : 'Edit this spot'}
           </h2>
           <div className="field">
@@ -295,7 +291,7 @@ export function Parking() {
                   setEditing({ ...editing, form: { ...editing.form, location: e.target.value } })
                 }
               />
-              <span className="muted" style={{ fontSize: 12 }}>
+              <span className="muted text-12">
                 On a map, right-click the place and copy the two numbers.
               </span>
             </div>
@@ -365,8 +361,8 @@ export function Parking() {
               </div>
             ))}
           </div>
-          {problem !== undefined && <p style={{ color: 'var(--danger)', margin: 0 }}>{problem}</p>}
-          <div style={{ display: 'flex', gap: 8 }}>
+          {problem !== undefined && <p className="text-danger m-0">{problem}</p>}
+          <div className="flex gap-8">
             <button className="btn-primary" type="submit" disabled={save.isPending}>
               {save.isPending ? 'Saving…' : 'Save'}
             </button>
@@ -394,7 +390,7 @@ export function Parking() {
           />
         </>
       )}
-      <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
+      <p className="muted mt-16 text-13">
         Places from OpenStreetMap are © OpenStreetMap contributors, available under the{' '}
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
           Open Database Licence

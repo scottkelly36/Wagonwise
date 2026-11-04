@@ -126,9 +126,9 @@ export function Defects() {
       cell: (d) => (
         <div>
           <strong>{d.label}</strong>
-          <div style={{ fontSize: 13 }}>{d.detail}</div>
+          <div className="text-13">{d.detail}</div>
           {d.note !== undefined && (
-            <div style={{ fontSize: 13 }}>
+            <div className="text-13">
               <em>“{d.note}”</em>
             </div>
           )}
@@ -198,13 +198,13 @@ export function Defects() {
   return (
     <div>
       <h1>Defects</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         What your drivers&apos; walk-round checks found. Mark each one seen when you have read it,
         and fixed when it has been dealt with.
       </p>
 
       {everyCompany && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <label htmlFor="defects-company">Company </label>
           <CompanySelect
             id="defects-company"
@@ -219,7 +219,7 @@ export function Defects() {
         <p>Choose a company.</p>
       ) : (
         <>
-          <div style={{ marginBottom: 16 }}>
+          <div className="mb-16">
             <label>
               Show{' '}
               <select value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
@@ -242,18 +242,16 @@ export function Defects() {
               <strong>
                 Book a repair: {booking.vehicleName}, {booking.label}
               </strong>
-              <label style={{ display: 'block', margin: '8px 0' }}>
+              <label className="block my-8">
                 Due by{' '}
                 <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               </label>
-              <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+              <p className="text-muted text-13">
                 This marks the defect seen. The vehicle stays held back, if you hold it back for
                 this, until the repair is marked done with the defect fixed.
               </p>
-              {book.isError && (
-                <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(book.error)}</p>
-              )}
-              <div style={{ display: 'flex', gap: 8 }}>
+              {book.isError && <p className="text-danger">{staffErrorMessage(book.error)}</p>}
+              <div className="flex gap-8">
                 <button type="submit" disabled={dueDate === '' || book.isPending}>
                   {book.isPending ? 'Booking…' : 'Book'}
                 </button>

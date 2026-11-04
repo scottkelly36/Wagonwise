@@ -346,7 +346,7 @@ function InviteForm(props: {
             </label>
           </p>
         )}
-        <div className="field" style={{ marginBottom: 12 }}>
+        <div className="field mb-12">
           <label htmlFor="invite-name">Name</label>
           <input
             id="invite-name"
@@ -357,7 +357,7 @@ function InviteForm(props: {
           />
           <FieldError id="invite-name-error" message={shown('name')} />
         </div>
-        <div className="field" style={{ marginBottom: 12 }}>
+        <div className="field mb-12">
           <label htmlFor="invite-email">Email</label>
           <input
             id="invite-email"
@@ -370,7 +370,7 @@ function InviteForm(props: {
           <FieldError id="invite-email-error" message={shown('email')} />
         </div>
         {kind === 'fleet' && props.isPlatform && (
-          <div className="field" style={{ marginBottom: 12 }}>
+          <div className="field mb-12">
             <label htmlFor="invite-company">Company</label>
             <CompanySelect
               id="invite-company"
@@ -392,13 +392,12 @@ function InviteForm(props: {
                   <button
                     key={preset}
                     type="button"
-                    className="btn-chip"
+                    className="btn-chip mr-6"
                     onClick={() =>
                       setPrivileges(
                         PRIVILEGE_PRESETS[preset].filter((p) => props.myPrivileges.includes(p)),
                       )
                     }
-                    style={{ marginRight: 6 }}
                   >
                     {PRESET_LABELS[preset]}
                   </button>
@@ -419,7 +418,7 @@ function InviteForm(props: {
 
       {invite.error !== null && <p className="error">{staffErrorMessage(invite.error)}</p>}
       {link !== undefined && (
-        <div style={{ marginTop: 12 }}>
+        <div className="mt-12">
           <p>
             {emailedTo !== undefined
               ? `We have emailed an invitation to ${emailedTo}. If it does not arrive, you can send them this link yourself.`

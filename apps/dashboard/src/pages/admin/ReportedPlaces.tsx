@@ -36,9 +36,7 @@ export function ReportedPlaces() {
       cell: (r) => (
         <div>
           <strong>{r.place.name}</strong> <span className="muted">({r.place.category})</span>
-          {r.place.note !== undefined && (
-            <div style={{ whiteSpace: 'pre-wrap' }}>{r.place.note}</div>
-          )}
+          {r.place.note !== undefined && <div className="pre-wrap">{r.place.note}</div>}
           <a href={placeMapLink(r.place.location)} target="_blank" rel="noreferrer">
             Look at it on the map
           </a>
@@ -53,13 +51,11 @@ export function ReportedPlaces() {
         <div>
           <strong>{r.reportCount}</strong>{' '}
           {r.hidden ? (
-            <span style={{ color: 'var(--danger)' }}>hidden from other drivers</span>
+            <span className="text-danger">hidden from other drivers</span>
           ) : (
             <span className="muted">still shown</span>
           )}
-          <div className="muted" style={{ fontSize: 12 }}>
-            {reasonsText(r.reasons)}
-          </div>
+          <div className="muted text-12">{reasonsText(r.reasons)}</div>
         </div>
       ),
     },
@@ -99,7 +95,7 @@ export function ReportedPlaces() {
         to its owner; nothing a driver marked is deleted.
       </p>
 
-      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
 
       {reported.data === undefined ? (
         <Loading />

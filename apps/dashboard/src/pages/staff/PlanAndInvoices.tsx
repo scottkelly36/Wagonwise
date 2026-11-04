@@ -88,17 +88,10 @@ export function PlanAndInvoices() {
     <div>
       <h1>Plan and invoices</h1>
 
-      {plan.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(plan.error)}</p>}
+      {plan.isError && <p className="text-danger">{staffErrorMessage(plan.error)}</p>}
       {p !== undefined && (
-        <section
-          style={{
-            padding: 16,
-            border: '1px solid var(--border)',
-            borderRadius: 8,
-            marginBottom: 24,
-          }}
-        >
-          <h2 style={{ marginTop: 0 }}>Your plan</h2>
+        <section className="mb-24 box">
+          <h2 className="mt-0">Your plan</h2>
           <p style={{ fontSize: 18, margin: '4px 0' }}>
             Covers <strong>{p.capacityToday}</strong> vehicle{p.capacityToday === 1 ? '' : 's'} at{' '}
             {formatPence(p.pricePerVehiclePence)} each:{' '}
@@ -122,10 +115,8 @@ export function PlanAndInvoices() {
       )}
 
       <h2>Invoices</h2>
-      {printError !== undefined && <p style={{ color: 'var(--danger)' }}>{printError}</p>}
-      {invoices.isError && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(invoices.error)}</p>
-      )}
+      {printError !== undefined && <p className="text-danger">{printError}</p>}
+      {invoices.isError && <p className="text-danger">{staffErrorMessage(invoices.error)}</p>}
       {invoices.isPending ? (
         <Loading />
       ) : (

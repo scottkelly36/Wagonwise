@@ -394,7 +394,7 @@ export function Jobs() {
             cell: (j: JobDto) => (
               <div>
                 {j.customer ?? <span className="muted">No customer</span>}
-                <div className="muted" style={{ fontSize: 13 }}>
+                <div className="muted text-13">
                   {j.pricePence === undefined ? 'No price' : formatPence(j.pricePence)}
                 </div>
               </div>
@@ -566,17 +566,16 @@ export function Jobs() {
                             job.pricePence === undefined ? '' : (job.pricePence / 100).toFixed(2),
                         })
                       }
-                      style={{ marginRight: 6 }}
+                      className="mr-6"
                     >
                       Customer and price
                     </button>
                   )}
                   {job.status === 'assigned' && (
                     <button
-                      className="btn-caution"
+                      className="btn-caution mr-6"
                       onClick={() => resend.mutate(job.id)}
                       disabled={resend.isPending}
-                      style={{ marginRight: 6 }}
                     >
                       Send notification again
                     </button>
@@ -622,12 +621,10 @@ export function Jobs() {
   return (
     <div>
       <h1>Jobs</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
-        Create jobs, and assign a driver and vehicle to each.
-      </p>
+      <p className="text-muted">Create jobs, and assign a driver and vehicle to each.</p>
 
       {everyCompany && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <label>
             Company:{' '}
             <select
@@ -646,7 +643,7 @@ export function Jobs() {
       )}
 
       {error !== null && <ErrorNotice error={error} />}
-      {recordError !== undefined && <p style={{ color: 'var(--danger)' }}>{recordError}</p>}
+      {recordError !== undefined && <p className="text-danger">{recordError}</p>}
 
       {pricing !== undefined && (
         <form
@@ -688,10 +685,10 @@ export function Jobs() {
               />
             </div>
           </div>
-          <p className="muted" style={{ fontSize: 13 }}>
+          <p className="muted text-13">
             The price counts as revenue when the job is delivered. Drivers never see it.
           </p>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex gap-8">
             <button type="submit" disabled={pricingInvalid || saveCommercial.isPending}>
               {saveCommercial.isPending ? 'Saving…' : 'Save'}
             </button>
@@ -712,7 +709,7 @@ export function Jobs() {
       )}
 
       {companyId === undefined ? (
-        <p style={{ color: 'var(--text-muted)' }}>
+        <p className="text-muted">
           {everyCompany ? 'Choose a company above.' : 'No company assigned to your account.'}
         </p>
       ) : (
@@ -916,7 +913,7 @@ function ProofPhotoDialog({
         {photo.isPending ? (
           <Loading />
         ) : photo.data === undefined ? (
-          <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(photo.error)}</p>
+          <p className="text-danger">{staffErrorMessage(photo.error)}</p>
         ) : (
           <>
             <img
@@ -924,7 +921,7 @@ function ProofPhotoDialog({
               alt={`Proof of delivery for ${reference}`}
               style={{ display: 'block', maxWidth: '100%', maxHeight: '75vh', marginTop: 12 }}
             />
-            <p style={{ color: 'var(--text-muted)', marginBottom: 0 }}>
+            <p className="text-muted mb-0">
               Taken {new Date(photo.data.capturedAt).toLocaleString('en-GB')}
             </p>
           </>

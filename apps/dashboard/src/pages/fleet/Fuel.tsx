@@ -50,12 +50,12 @@ export function Fuel() {
   return (
     <div>
       <h1>Fuel</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         Bring in your fuel card statement and see what each vehicle spends and what you pay a litre.
         Fuel is matched to a vehicle by its registration, so add registrations on Vehicle profiles.
       </p>
       {everyCompany && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <label htmlFor="fuel-company">Company </label>
           <CompanySelect
             id="fuel-company"
@@ -284,7 +284,7 @@ function ImportStatement({ companyId }: { companyId: string }) {
   });
 
   const choose = (key: keyof FuelMapping, label: string, optional: boolean) => (
-    <label key={key} style={{ display: 'block', marginBottom: 8 }}>
+    <label key={key} className="block mb-8">
       <strong>{label}</strong>
       <div>
         <select
@@ -307,7 +307,7 @@ function ImportStatement({ companyId }: { companyId: string }) {
   return (
     <section className="card">
       <h2>Import a statement</h2>
-      <p className="muted" style={{ fontSize: 13 }}>
+      <p className="muted text-13">
         Save the statement from your fuel card provider as CSV, then choose it here. Tell it which
         column is which, and it remembers for next time. Sending the same statement twice adds
         nothing twice. Use the same basis (with or without VAT) as your other costs.
@@ -327,7 +327,7 @@ function ImportStatement({ companyId }: { companyId: string }) {
         }}
       />
       {headers.length > 0 && (
-        <div style={{ marginTop: 12 }}>
+        <div className="mt-12">
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
             {choose('date', 'Date', false)}
             {choose('time', 'Time (if separate)', true)}
@@ -336,7 +336,7 @@ function ImportStatement({ companyId }: { companyId: string }) {
             {choose('litres', 'Litres', true)}
             {choose('description', 'Product or site', true)}
           </div>
-          {read?.problem !== undefined && <p style={{ color: 'var(--warning)' }}>{read.problem}</p>}
+          {read?.problem !== undefined && <p className="text-warning">{read.problem}</p>}
           {read !== undefined && read.problem === undefined && (
             <p>
               {read.rows.length} purchase{read.rows.length === 1 ? '' : 's'} read
@@ -367,7 +367,7 @@ function ImportStatement({ companyId }: { companyId: string }) {
             {result.duplicates > 0 && `, ${result.duplicates} already there`}.
           </p>
           {result.unmatchedRegistrations.length > 0 && (
-            <p style={{ color: 'var(--warning)' }}>
+            <p className="text-warning">
               No vehicle has the registration {result.unmatchedRegistrations.join(', ')}. Add it on
               Vehicle profiles, then choose Match again below, or match them by hand.
             </p>
@@ -464,9 +464,9 @@ function Unmatched({ companyId, canManage }: { companyId: string; canManage: boo
       : []),
   ];
   return (
-    <section style={{ marginTop: 24 }}>
+    <section className="mt-24">
       <h2>Needs matching ({rows.length})</h2>
-      <p className="muted" style={{ fontSize: 13 }}>
+      <p className="muted text-13">
         These purchases are on your statements but no vehicle has the registration. Add the
         registration on Vehicle profiles and match again, or match each by hand.
       </p>
@@ -513,9 +513,9 @@ function PastImports({ companyId, canManage }: { companyId: string; canManage: b
   const list = imports.data ?? [];
   if (list.length === 0) return null;
   return (
-    <section style={{ marginTop: 24 }}>
+    <section className="mt-24">
       <h2>Past imports</h2>
-      <ul style={{ listStyle: 'none', padding: 0 }}>
+      <ul className="list-none p-0">
         {list.map((i) => (
           <li
             key={i.id}
@@ -529,7 +529,7 @@ function PastImports({ companyId, canManage }: { companyId: string; canManage: b
           >
             <div>
               <strong>{i.fileName}</strong>
-              <div className="muted" style={{ fontSize: 13 }}>
+              <div className="muted text-13">
                 {dateTimeText(i.importedAt)}: {i.rowsImported} purchase
                 {i.rowsImported === 1 ? '' : 's'} added
                 {i.rowsDuplicate > 0 ? `, ${i.rowsDuplicate} already there` : ''}

@@ -44,13 +44,13 @@ export function Costs() {
   return (
     <div>
       <h1>Running costs and pay</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         What your vehicles and drivers cost to run. Enter each cost once and it carries on every
         month until you change or stop it. Fuel comes from the Fuel page. Together these are what
         the cost of a job is worked out from.
       </p>
       {everyCompany && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <label htmlFor="costs-company">Company </label>
           <CompanySelect
             id="costs-company"
@@ -188,7 +188,7 @@ function RunningCosts({ companyId }: { companyId: string }) {
       header: '',
       align: 'right',
       cell: (c) => (
-        <span style={{ display: 'inline-flex', gap: 6 }}>
+        <span className="inline-flex gap-6">
           {c.toMonth === undefined && (
             <>
               <button
@@ -299,7 +299,7 @@ function RunningCosts({ companyId }: { companyId: string }) {
             {add.isPending ? 'Adding…' : 'Add'}
           </button>
         </div>
-        <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+        <p className="muted text-13 m-0">
           A vehicle's costs (finance, insurance, road tax, a service plan) are spread over the jobs
           that vehicle does. An overhead belongs to the firm and is shown on its own, not added to a
           job.
@@ -353,10 +353,8 @@ function RunningCosts({ companyId }: { companyId: string }) {
               />
             </div>
           </div>
-          <p className="muted" style={{ fontSize: 13 }}>
-            Months before this keep the amount they had.
-          </p>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <p className="muted text-13">Months before this keep the amount they had.</p>
+          <div className="flex gap-8">
             <button
               type="submit"
               disabled={
@@ -436,7 +434,7 @@ function DriverPay({ companyId }: { companyId: string }) {
   return (
     <section>
       <h2>What drivers cost an hour</h2>
-      <p className="muted" style={{ fontSize: 13 }}>
+      <p className="muted text-13">
         The hourly cost of each driver to you: pay, plus anything you add on (holiday, employer's
         National Insurance, pension). A rate applies from the day you give until the next one
         starts, so a pay rise does not change the cost of work already done. Drivers never see this.
@@ -500,7 +498,7 @@ function DriverPay({ companyId }: { companyId: string }) {
       ) : list.length === 0 ? (
         <p className="muted">No drivers have joined your company yet.</p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
+        <ul className="list-none p-0">
           {list.map((d) => (
             <li
               key={d.driverId}
@@ -512,7 +510,7 @@ function DriverPay({ companyId }: { companyId: string }) {
               ) : (
                 <ul style={{ listStyle: 'none', padding: 0, margin: '4px 0 0' }}>
                   {d.rates.map((r, i) => (
-                    <li key={r.id} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <li key={r.id} className="flex gap-12 items-center">
                       <span>
                         {formatPence(r.hourlyPence)} an hour from {dayText(r.fromDay)}
                         {i === 0 && <span className="muted"> (current)</span>}

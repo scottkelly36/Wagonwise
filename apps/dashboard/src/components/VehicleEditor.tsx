@@ -60,23 +60,21 @@ export function VehicleEditor({
   });
 
   return (
-    <section
-      style={{ marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
-    >
-      <h2 style={{ marginTop: 0 }}>Edit {vehicle.name}</h2>
+    <section className="mt-24 box">
+      <h2 className="mt-0">Edit {vehicle.name}</h2>
       <form
         onSubmit={(e) => {
           e.preventDefault();
           if (valid) save.mutate();
         }}
-        style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}
+        className="flex gap-12 wrap items-end"
       >
         <label>
-          <span style={{ display: 'block' }}>Vehicle name</span>
+          <span className="block">Vehicle name</span>
           <input value={name} onChange={(e) => setName(e.target.value)} style={{ width: 220 }} />
         </label>
         <label>
-          <span style={{ display: 'block' }}>Registration</span>
+          <span className="block">Registration</span>
           <input
             value={registration}
             maxLength={20}
@@ -87,7 +85,7 @@ export function VehicleEditor({
         </label>
         {DIMENSIONS.map((d) => (
           <label key={d.key}>
-            <span style={{ display: 'block' }}>{d.label}</span>
+            <span className="block">{d.label}</span>
             <input
               inputMode="decimal"
               value={dimensions[d.key]}
@@ -103,7 +101,7 @@ export function VehicleEditor({
           Cancel
         </button>
       </form>
-      {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
+      {save.isError && <p className="text-danger">{staffErrorMessage(save.error)}</p>}
     </section>
   );
 }
