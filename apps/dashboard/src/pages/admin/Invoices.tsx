@@ -100,7 +100,7 @@ export function Invoices() {
   return (
     <div>
       <h1>Invoices</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         Each invoice bills a company for the vehicles its plan covers. Draft the month&apos;s, check
         each one, then issue it. Issued invoices are numbered and can&apos;t be edited; cancel one
         to correct it.
@@ -112,10 +112,10 @@ export function Invoices() {
           setNotice(undefined);
           generate.mutate();
         }}
-        style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 16 }}
+        className="flex gap-8 items-end mb-16"
       >
         <label>
-          <span style={{ display: 'block' }}>Month</span>
+          <span className="block">Month</span>
           <input
             type="month"
             value={month}
@@ -127,13 +127,9 @@ export function Invoices() {
           {generate.isPending ? 'Drafting…' : 'Draft invoices for this month'}
         </button>
       </form>
-      {notice !== undefined && <p style={{ color: '#15803d' }}>{notice}</p>}
-      {generate.isError && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(generate.error)}</p>
-      )}
-      {invoices.isError && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(invoices.error)}</p>
-      )}
+      {notice !== undefined && <p className="text-success">{notice}</p>}
+      {generate.isError && <p className="text-danger">{staffErrorMessage(generate.error)}</p>}
+      {invoices.isError && <p className="text-danger">{staffErrorMessage(invoices.error)}</p>}
 
       {invoices.isPending ? (
         <Loading />
@@ -229,20 +225,18 @@ function InvoicePanel({
   }
 
   return (
-    <section
-      style={{ marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
-    >
-      <h2 style={{ marginTop: 0 }}>
+    <section className="mt-24 box">
+      <h2 className="mt-0">
         {invoice.number ?? 'Draft'}: {invoice.companyName}, {monthLabel(invoice.month)}
       </h2>
-      <p style={{ color: 'var(--text-muted)' }}>{STATUS_TEXT[invoice.status]}</p>
+      <p className="text-muted">{STATUS_TEXT[invoice.status]}</p>
 
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           {invoice.lines.map((line) => (
             <tr key={line.id}>
               <td style={{ padding: '6px 0' }}>{line.description}</td>
-              <td style={{ textAlign: 'right' }}>{formatPence(line.amountPence)}</td>
+              <td className="text-right">{formatPence(line.amountPence)}</td>
               {isDraft && (
                 <td style={{ textAlign: 'right', width: 90 }}>
                   <button
@@ -272,16 +266,10 @@ function InvoicePanel({
             e.preventDefault();
             if (pence !== undefined && description.trim() !== '') addLine.mutate();
           }}
-          style={{
-            display: 'flex',
-            gap: 8,
-            alignItems: 'flex-end',
-            flexWrap: 'wrap',
-            marginTop: 16,
-          }}
+          className="flex gap-8 items-end wrap mt-16"
         >
           <label>
-            <span style={{ display: 'block' }}>Add a line</span>
+            <span className="block">Add a line</span>
             <input
               value={description}
               placeholder="Description"
@@ -290,7 +278,7 @@ function InvoicePanel({
             />
           </label>
           <label>
-            <span style={{ display: 'block' }}>Amount (£)</span>
+            <span className="block">Amount (£)</span>
             <input
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
@@ -314,10 +302,10 @@ function InvoicePanel({
         </form>
       )}
 
-      {error !== undefined && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
-      {printError !== undefined && <p style={{ color: 'var(--danger)' }}>{printError}</p>}
+      {error !== undefined && <p className="text-danger">{staffErrorMessage(error)}</p>}
+      {printError !== undefined && <p className="text-danger">{printError}</p>}
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
+      <div className="flex gap-8 wrap mt-16">
         <button type="button" onClick={print}>
           Print or save as PDF
         </button>

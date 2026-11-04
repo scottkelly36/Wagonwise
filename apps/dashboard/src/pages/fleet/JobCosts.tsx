@@ -50,12 +50,12 @@ export function JobCosts() {
   return (
     <div>
       <h1>Job profit</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         What each job cost and made, by job, vehicle and customer. Prices come from the jobs, fuel
         from the Fuel page, and running costs and driver rates from Running costs and pay.
       </p>
       {everyCompany && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <label htmlFor="jobcosts-company">Company </label>
           <CompanySelect
             id="jobcosts-company"
@@ -71,7 +71,7 @@ export function JobCosts() {
         <p>Choose a company.</p>
       ) : (
         <>
-          <label style={{ display: 'block', marginBottom: 16 }}>
+          <label className="block mb-16">
             Month <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
           </label>
           <Report companyId={companyId} month={month} />
@@ -176,9 +176,7 @@ function ReportBody({ report }: { report: CostReportDto }) {
       header: '',
       cell: (j) =>
         j.notes.length === 0 ? null : (
-          <span className="muted" style={{ fontSize: 12 }}>
-            {j.notes.map((n) => NOTE_TEXT[n]).join(', ')}
-          </span>
+          <span className="muted text-12">{j.notes.map((n) => NOTE_TEXT[n]).join(', ')}</span>
         ),
     },
   ];
@@ -298,7 +296,7 @@ function ReportBody({ report }: { report: CostReportDto }) {
         </p>
       )}
       {warnings.length > 0 && (
-        <ul style={{ color: 'var(--warning)' }}>
+        <ul className="text-warning">
           {warnings.map((w) => (
             <li key={w}>{w}</li>
           ))}
@@ -315,14 +313,14 @@ function ReportBody({ report }: { report: CostReportDto }) {
         }
         emptyText="No jobs were delivered in this month."
       />
-      <h2 style={{ marginTop: 24 }}>By vehicle</h2>
+      <h2 className="mt-24">By vehicle</h2>
       <DataTable
         columns={vehicleColumns}
         rows={report.vehicles}
         rowKey={(v) => v.vehicleId ?? 'none'}
         emptyText="No vehicle did a job or had a cost this month."
       />
-      <h2 style={{ marginTop: 24 }}>By customer</h2>
+      <h2 className="mt-24">By customer</h2>
       <DataTable
         columns={customerColumns}
         rows={report.customers}
@@ -330,7 +328,7 @@ function ReportBody({ report }: { report: CostReportDto }) {
         emptyText="No jobs were delivered in this month."
       />
 
-      <details style={{ marginTop: 24 }}>
+      <details className="mt-24">
         <summary>How this is worked out</summary>
         <ul className="muted" style={{ fontSize: 14 }}>
           <li>

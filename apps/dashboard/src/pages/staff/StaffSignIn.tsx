@@ -108,7 +108,7 @@ export function StaffSignIn() {
             onChange={(e) => setCode(e.target.value)}
             style={fieldStyle}
           />
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+          <label className="flex gap-8 items-center mb-12">
             <input
               type="checkbox"
               checked={remember}
@@ -116,7 +116,7 @@ export function StaffSignIn() {
             />
             Keep me signed in on this computer
           </label>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+          <p className="text-13 text-muted">
             Untick this on a shared computer. Signing out always ends it. Lost your device? Enter
             one of your recovery codes instead.
           </p>
@@ -136,7 +136,7 @@ export function StaffSignIn() {
         </form>
       )}
 
-      {error !== undefined && <p style={{ color: 'var(--danger)' }}>{error}</p>}
+      {error !== undefined && <p className="text-danger">{error}</p>}
 
       <p style={{ marginTop: 32, fontSize: 13 }}>
         <Link to="/sign-in">Driver account sign-in</Link>

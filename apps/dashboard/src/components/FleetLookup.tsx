@@ -54,11 +54,11 @@ export function FleetLookup({ companyId }: { companyId: string }) {
   const changes = (result?.rows ?? []).filter((r) => r.suggestions.length > 0);
 
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div className="mb-16">
       <button type="button" onClick={() => look.mutate()} disabled={look.isPending}>
         {look.isPending ? 'Checking every vehicle…' : 'Check MOT and tax for all vehicles'}
       </button>
-      {look.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(look.error)}</p>}
+      {look.isError && <p className="text-danger">{staffErrorMessage(look.error)}</p>}
       {fill.isSuccess && (
         <p role="status">
           Filled in {fill.data.applied} of {fill.data.asked} dates.
@@ -66,13 +66,11 @@ export function FleetLookup({ companyId }: { companyId: string }) {
             ' The rest could not be applied; open the vehicle to see why.'}
         </p>
       )}
-      {fill.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(fill.error)}</p>}
+      {fill.isError && <p className="text-danger">{staffErrorMessage(fill.error)}</p>}
 
       {result !== undefined && (
-        <div
-          style={{ marginTop: 12, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
-        >
-          <p style={{ marginTop: 0 }}>
+        <div className="mt-12 box">
+          <p className="mt-0">
             Checked {result.rows.length} {result.rows.length === 1 ? 'vehicle' : 'vehicles'}.
             {result.withoutRegistration > 0 &&
               ` ${result.withoutRegistration} have no registration saved, so could not be checked.`}
@@ -126,8 +124,8 @@ export function FleetLookup({ companyId }: { companyId: string }) {
               </table>
               <button
                 type="button"
-                className="btn-confirm"
-                style={{ marginTop: 12 }}
+                className="btn-confirm mt-12"
+
                 disabled={ticked.size === 0 || fill.isPending}
                 onClick={() => fill.mutate()}
               >
@@ -137,7 +135,7 @@ export function FleetLookup({ companyId }: { companyId: string }) {
           )}
 
           {result.rows.some((r) => r.outcome !== 'checked') && (
-            <ul style={{ paddingLeft: 18 }}>
+            <ul className="pl-18">
               {result.rows
                 .filter((r) => r.outcome !== 'checked')
                 .map((r) => (
@@ -150,7 +148,7 @@ export function FleetLookup({ companyId }: { companyId: string }) {
                 ))}
             </ul>
           )}
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 0 }}>
+          <p className="text-muted text-13 mb-0">
             From the government&apos;s vehicle records. Check against the paperwork before you rely
             on a date.
           </p>

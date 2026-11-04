@@ -49,7 +49,7 @@ export function BillingDetails() {
 
   if (details.isPending) return <Loading />;
   if (details.isError) {
-    return <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(details.error)}</p>;
+    return <p className="text-danger">{staffErrorMessage(details.error)}</p>;
   }
   return (
     <BillingForm
@@ -86,17 +86,17 @@ function BillingForm({
   return (
     <div style={{ maxWidth: 560 }}>
       <h1>Billing details</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         These print on every invoice you send. Replace anything in [square brackets]; invoices
         can&apos;t be issued while any are left.
       </p>
 
       {stillPlaceholders.length > 0 ? (
-        <p style={{ color: 'var(--warning)' }}>
+        <p className="text-warning">
           Still to fill in: {stillPlaceholders.map((f) => f.label).join(', ')}.
         </p>
       ) : (
-        <p style={{ color: '#15803d' }}>All set. Invoices can be issued.</p>
+        <p className="text-success">All set. Invoices can be issued.</p>
       )}
 
       <form
@@ -106,11 +106,9 @@ function BillingForm({
         }}
       >
         {FIELDS.map((f) => (
-          <label key={f.name} style={{ display: 'block', marginBottom: 16 }}>
+          <label key={f.name} className="block mb-16">
             <strong>{f.label}</strong>
-            <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: 13 }}>
-              {f.hint}
-            </span>
+            <span className="block text-muted text-13">{f.hint}</span>
             {f.multiline === true ? (
               <textarea
                 value={values[f.name]}
@@ -134,7 +132,7 @@ function BillingForm({
           {save.isPending ? 'Saving…' : 'Save'}
         </button>
         {save.isSuccess && !dirty && <span style={{ marginLeft: 12 }}>Saved.</span>}
-        {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
+        {save.isError && <p className="text-danger">{staffErrorMessage(save.error)}</p>}
       </form>
     </div>
   );

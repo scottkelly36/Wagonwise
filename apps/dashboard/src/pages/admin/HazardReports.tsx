@@ -89,7 +89,7 @@ export function HazardReports() {
     <div>
       <h1>Hazard reports</h1>
 
-      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
 
       {hazards.isPending ? (
         <Loading />
@@ -104,7 +104,7 @@ export function HazardReports() {
           emptyText="No hazard reports."
         />
       )}
-      <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
+      <p className="muted mt-16 text-13">
         Hazards marked OpenStreetMap are low bridges and weight-limited bridges from OpenStreetMap,
         © OpenStreetMap contributors, available under the{' '}
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">

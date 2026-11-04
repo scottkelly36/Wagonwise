@@ -54,10 +54,10 @@ export function VehicleMaintenance({
       }
     >
       {onClose !== undefined && (
-        <h2 style={{ marginTop: 0 }}>Maintenance{name === undefined ? '' : `: ${name}`}</h2>
+        <h2 className="mt-0">Maintenance{name === undefined ? '' : `: ${name}`}</h2>
       )}
       {data.isPending && <Loading />}
-      {data.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(data.error)}</p>}
+      {data.isError && <p className="text-danger">{staffErrorMessage(data.error)}</p>}
       {canManage && data.data?.lookupAvailable === true && rows.length > 0 && (
         <RegistrationLookup vehicleId={vehicleId} onDone={refresh} />
       )}
@@ -82,7 +82,7 @@ export function VehicleMaintenance({
       {data.data !== undefined && data.data.history.length > 0 && (
         <>
           <h3>What has been done</h3>
-          <ul style={{ paddingLeft: 18 }}>
+          <ul className="pl-18">
             {data.data.history.map((h) => (
               <li key={h.id}>
                 <strong>{h.itemName}</strong>, {dayText(h.doneOn)}. Next due {dayText(h.nextDue)}.
@@ -93,7 +93,7 @@ export function VehicleMaintenance({
         </>
       )}
       {onClose !== undefined && (
-        <button type="button" onClick={onClose} style={{ marginTop: 12 }}>
+        <button type="button" onClick={onClose} className="mt-12">
           Close
         </button>
       )}
@@ -128,9 +128,9 @@ function RegistrationLookup({ vehicleId, onDone }: { vehicleId: string; onDone: 
       <button type="button" onClick={() => look.mutate()} disabled={look.isPending}>
         {look.isPending ? 'Checking…' : 'Check MOT and tax by registration'}
       </button>
-      {look.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(look.error)}</p>}
+      {look.isError && <p className="text-danger">{staffErrorMessage(look.error)}</p>}
       {result !== undefined && (
-        <div style={{ marginTop: 8 }}>
+        <div className="mt-8">
           <div>
             <strong>{result.registration}</strong>
           </div>
@@ -147,12 +147,12 @@ function RegistrationLookup({ vehicleId, onDone }: { vehicleId: string; onDone: 
             {result.taxStatus !== undefined && ` (${result.taxStatus})`}
           </div>
           {result.suggestions.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)' }}>
+            <p className="text-muted">
               Nothing to change: the dates you hold match, or no item here is named MOT or tax.
             </p>
           ) : (
             <>
-              <ul style={{ paddingLeft: 18 }}>
+              <ul className="pl-18">
                 {result.suggestions.map((x) => (
                   <li key={x.itemId}>
                     {x.itemName}: set next due to {dayText(x.dueDate)}
@@ -168,11 +168,11 @@ function RegistrationLookup({ vehicleId, onDone }: { vehicleId: string; onDone: 
                 {fill.isPending ? 'Saving…' : 'Fill in these dates'}
               </button>
               {fill.isError && (
-                <span style={{ color: 'var(--danger)' }}> {staffErrorMessage(fill.error)}</span>
+                <span className="text-danger"> {staffErrorMessage(fill.error)}</span>
               )}
             </>
           )}
-          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+          <p className="text-muted text-13">
             From the government's vehicle records (DVSA for the MOT or annual test, DVLA for road
             tax). Check it against the paperwork before you rely on it.
           </p>
@@ -208,15 +208,12 @@ function ItemRow({
             </span>{' '}
             · {dueText(row)}
             {row.lastDone !== undefined && (
-              <span style={{ color: 'var(--text-muted)' }}>
-                {' '}
-                · last done {dayText(row.lastDone)}
-              </span>
+              <span className="text-muted"> · last done {dayText(row.lastDone)}</span>
             )}
           </div>
         </div>
         {canManage && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div className="flex gap-8 items-end wrap">
             <DueDateField
               key={row.dueDate ?? 'none'}
               vehicleId={vehicleId}
@@ -262,10 +259,10 @@ function DueDateField({
         e.preventDefault();
         if (changed) save.mutate();
       }}
-      style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}
+      className="flex gap-6 items-end"
     >
       <label>
-        <span style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)' }}>Next due</span>
+        <span className="block text-13 text-muted">Next due</span>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </label>
       {changed && (
@@ -273,9 +270,7 @@ function DueDateField({
           {save.isPending ? 'Saving…' : 'Save'}
         </button>
       )}
-      {save.isError && (
-        <span style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</span>
-      )}
+      {save.isError && <span className="text-danger">{staffErrorMessage(save.error)}</span>}
     </form>
   );
 }
@@ -309,9 +304,7 @@ function DoneToday({
       >
         {save.isPending ? 'Saving…' : 'Done today'}
       </button>
-      {save.isError && (
-        <span style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</span>
-      )}
+      {save.isError && <span className="text-danger">{staffErrorMessage(save.error)}</span>}
     </>
   );
 }
@@ -346,11 +339,11 @@ function MarkDone({
         e.preventDefault();
         save.mutate();
       }}
-      style={{ marginTop: 8 }}
+      className="mt-8"
     >
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+      <div className="flex gap-8 items-end wrap">
         <label>
-          <span style={{ display: 'block' }}>Done on</span>
+          <span className="block">Done on</span>
           <input
             type="date"
             value={doneOn}
@@ -359,11 +352,11 @@ function MarkDone({
           />
         </label>
         <label>
-          <span style={{ display: 'block' }}>Next due (optional)</span>
+          <span className="block">Next due (optional)</span>
           <input type="date" value={nextDue} onChange={(e) => setNextDue(e.target.value)} />
         </label>
         <label>
-          <span style={{ display: 'block' }}>Note (optional)</span>
+          <span className="block">Note (optional)</span>
           <input
             value={note}
             maxLength={500}
@@ -375,10 +368,10 @@ function MarkDone({
           {save.isPending ? 'Saving…' : 'Record it'}
         </button>
       </div>
-      <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+      <p className="text-muted text-13">
         Leave the next date blank to use the usual interval after the day it was done.
       </p>
-      {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
+      {save.isError && <p className="text-danger">{staffErrorMessage(save.error)}</p>}
     </form>
   );
 }

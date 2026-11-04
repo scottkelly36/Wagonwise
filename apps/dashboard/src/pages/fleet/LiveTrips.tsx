@@ -199,13 +199,13 @@ export function LiveTrips() {
   return (
     <div>
       <h1>Live trips</h1>
-      <p style={{ color: '#6b7280' }}>
+      <p className="text-muted">
         Vehicles on a job right now. A position only updates while the driver has the app open, so
         check “last seen” before relying on a dot.
       </p>
 
       {everyCompany && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <label>
             Company:{' '}
             <select
@@ -229,7 +229,7 @@ export function LiveTrips() {
       {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
 
       {companyId === undefined ? (
-        <p style={{ color: '#6b7280' }}>
+        <p className="text-muted">
           {everyCompany ? 'Choose a company above.' : 'No company assigned to your account.'}
         </p>
       ) : (
@@ -261,7 +261,7 @@ export function LiveTrips() {
             {jobs.isPending ? (
               <Loading />
             ) : rows.length === 0 ? (
-              <p style={{ color: '#6b7280' }}>No vehicles on a job right now.</p>
+              <p className="text-muted">No vehicles on a job right now.</p>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 8 }}>
                 {rows.map((row) => (
@@ -289,7 +289,7 @@ export function LiveTrips() {
                           : STATUS_LABELS[row.job.status]}
                       </div>
                       {row.next && (
-                        <div style={{ color: '#6b7280' }}>
+                        <div className="text-muted">
                           Heading for {row.next.kind}: {row.next.name}
                           {row.distanceM !== undefined && (
                             <> — {formatMiles(row.distanceM)} away, as the crow flies</>

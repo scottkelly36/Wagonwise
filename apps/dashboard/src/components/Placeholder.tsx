@@ -9,7 +9,7 @@ export function Placeholder({ title, note }: Props) {
   return (
     <div>
       <h1>{title}</h1>
-      <p style={{ color: 'var(--text-muted)' }}>{note}</p>
+      <p className="text-muted">{note}</p>
     </div>
   );
 }

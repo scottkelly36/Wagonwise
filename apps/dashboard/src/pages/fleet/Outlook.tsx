@@ -38,12 +38,12 @@ export function Outlook() {
   return (
     <div>
       <h1>Looking ahead</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         How the last few months went, and a guess at the next three if the work carries on as it
         has. Built from the same figures as Job profit.
       </p>
       {everyCompany && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <label htmlFor="outlook-company">Company </label>
           <CompanySelect
             id="outlook-company"
@@ -111,10 +111,10 @@ function View({ companyId }: { companyId: string }) {
 
   const figures = (m: MonthActualDto | MonthForecastDto) => (
     <>
-      <td style={{ textAlign: 'right' }}>{formatPence(m.revenuePence)}</td>
-      <td style={{ textAlign: 'right' }}>{formatPence(m.wagesPence)}</td>
-      <td style={{ textAlign: 'right' }}>{formatPence(m.fuelPence)}</td>
-      <td style={{ textAlign: 'right' }}>{formatPence(m.runningPence + m.overheadsPence)}</td>
+      <td className="text-right">{formatPence(m.revenuePence)}</td>
+      <td className="text-right">{formatPence(m.wagesPence)}</td>
+      <td className="text-right">{formatPence(m.fuelPence)}</td>
+      <td className="text-right">{formatPence(m.runningPence + m.overheadsPence)}</td>
       <td style={{ textAlign: 'right', ...profitStyle(m.profitPence) }}>
         {formatPence(m.profitPence)}
       </td>
@@ -185,7 +185,7 @@ function View({ companyId }: { companyId: string }) {
           </div>
         ))}
       </div>
-      <p className="muted" style={{ fontSize: 13 }}>
+      <p className="muted text-13">
         <span className="home-dot" data-area="money" /> Revenue &nbsp;{' '}
         <span className="home-dot" data-area="admin" /> Cost. Faded bars are the guess.
       </p>
@@ -193,7 +193,7 @@ function View({ companyId }: { companyId: string }) {
       {forecast !== undefined && (
         <section className="card">
           <h2>What if</h2>
-          <p className="muted" style={{ fontSize: 13 }}>
+          <p className="muted text-13">
             Try a change to see its effect on the next three months. Nothing here is saved.
           </p>
           <Slider
@@ -222,16 +222,16 @@ function View({ companyId }: { companyId: string }) {
         </section>
       )}
 
-      <div className="data-table-scroll" style={{ marginTop: 16 }}>
+      <div className="data-table-scroll mt-16">
         <table>
           <thead>
             <tr>
               <th style={{ textAlign: 'left' }}>Month</th>
-              <th style={{ textAlign: 'right' }}>Revenue</th>
-              <th style={{ textAlign: 'right' }}>Wages</th>
-              <th style={{ textAlign: 'right' }}>Fuel</th>
-              <th style={{ textAlign: 'right' }}>Vehicle costs and overheads</th>
-              <th style={{ textAlign: 'right' }}>Profit</th>
+              <th className="text-right">Revenue</th>
+              <th className="text-right">Wages</th>
+              <th className="text-right">Fuel</th>
+              <th className="text-right">Vehicle costs and overheads</th>
+              <th className="text-right">Profit</th>
             </tr>
           </thead>
           <tbody>
@@ -255,7 +255,7 @@ function View({ companyId }: { companyId: string }) {
           </tbody>
         </table>
       </div>
-      <details style={{ marginTop: 24 }}>
+      <details className="mt-24">
         <summary>How the guess is made</summary>
         <ul className="muted" style={{ fontSize: 14 }}>
           <li>

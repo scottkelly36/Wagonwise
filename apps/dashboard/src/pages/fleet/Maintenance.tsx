@@ -50,12 +50,12 @@ export function Maintenance() {
   return (
     <div>
       <h1>Maintenance</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         When MOTs, inspections and services fall due on your vehicles. It reminds you; it never
         stops a vehicle being sent out.
       </p>
       {everyCompany && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <label htmlFor="maintenance-company">Company </label>
           <CompanySelect
             id="maintenance-company"
@@ -71,7 +71,7 @@ export function Maintenance() {
         <p>Choose a company.</p>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <div className="flex gap-8 mb-16">
             <button type="button" disabled={tab === 'due'} onClick={() => setTab('due')}>
               What is due
             </button>
@@ -167,7 +167,7 @@ function Due({ companyId, canManage }: { companyId: string; canManage: boolean }
     <>
       {canManage && <FleetLookup companyId={companyId} />}
       {canManage && (
-        <div style={{ marginBottom: 12 }}>
+        <div className="mb-12">
           {importing ? (
             <ImportDates companyId={companyId} onClose={() => setImporting(false)} />
           ) : (
@@ -177,7 +177,7 @@ function Due({ companyId, canManage }: { companyId: string; canManage: boolean }
           )}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+      <div className="flex gap-8 wrap mb-12">
         {choices.map((c) => (
           <button
             key={c.value}
@@ -308,13 +308,13 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
 
   return (
     <>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         The things that fall due on your vehicles, and how often. The examples are only a starting
         point and aren&apos;t complete: you are responsible for what your own vehicles need and how
         often.
       </p>
       {canManage && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div className="flex gap-8 mb-16">
           <button
             className="btn-primary"
             type="button"
@@ -332,7 +332,7 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
         </div>
       )}
       {(items.isError || archive.isError || addExamples.isError) && (
-        <p style={{ color: 'var(--danger)' }}>
+        <p className="text-danger">
           {staffErrorMessage(items.error ?? archive.error ?? addExamples.error)}
         </p>
       )}
@@ -341,7 +341,7 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
       ) : (items.data ?? []).length === 0 ? (
         <p>Nothing yet.</p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
+        <ul className="list-none p-0">
           {(items.data ?? []).map((i) => (
             <li
               key={i.id}
@@ -355,7 +355,7 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
             >
               <div>
                 <strong>{i.name}</strong>
-                <div style={{ color: 'var(--text-muted)' }}>
+                <div className="text-muted">
                   {intervalText(i)}, warns {i.warnDays} days before.{' '}
                   {i.appliesTo === 'all'
                     ? 'All vehicles.'
@@ -363,7 +363,7 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
                 </div>
               </div>
               {canManage && (
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="flex gap-8">
                   <button type="button" onClick={() => edit(i)}>
                     Edit
                   </button>
@@ -449,7 +449,7 @@ function ItemEditor({
       }}
     >
       <h2>{draft.id === undefined ? 'Add something to keep track of' : 'Edit'}</h2>
-      <label style={{ display: 'block', marginBottom: 12 }}>
+      <label className="block mb-12">
         <strong>Name</strong>
         <input
           value={body.name}
@@ -459,7 +459,7 @@ function ItemEditor({
           style={{ display: 'block', width: '100%', maxWidth: 360 }}
         />
       </label>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+      <div className="flex gap-12 wrap mb-12">
         <label>
           <strong>Repeats every</strong>
           <div>
@@ -497,11 +497,11 @@ function ItemEditor({
           </div>
         </label>
       </div>
-      <fieldset style={{ marginBottom: 12 }}>
+      <fieldset className="mb-12">
         <legend>
           <strong>Which vehicles?</strong>
         </legend>
-        <label style={{ display: 'block' }}>
+        <label className="block">
           <input
             type="radio"
             checked={body.appliesTo === 'all'}
@@ -509,7 +509,7 @@ function ItemEditor({
           />{' '}
           All our vehicles
         </label>
-        <label style={{ display: 'block' }}>
+        <label className="block">
           <input
             type="radio"
             checked={body.appliesTo === 'selected'}
@@ -518,9 +518,9 @@ function ItemEditor({
           Only these:
         </label>
         {body.appliesTo === 'selected' && (
-          <div style={{ marginLeft: 24 }}>
+          <div className="ml-24">
             {vehicles.map((v) => (
-              <label key={v.id} style={{ display: 'block' }}>
+              <label key={v.id} className="block">
                 <input
                   type="checkbox"
                   checked={body.vehicleIds.includes(v.id)}
@@ -540,14 +540,14 @@ function ItemEditor({
         )}
       </fieldset>
       {problems.length > 0 && (
-        <ul style={{ color: 'var(--warning)' }}>
+        <ul className="text-warning">
           {problems.map((p) => (
             <li key={p}>{p}</li>
           ))}
         </ul>
       )}
-      {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
-      <div style={{ display: 'flex', gap: 8 }}>
+      {save.isError && <p className="text-danger">{staffErrorMessage(save.error)}</p>}
+      <div className="flex gap-8">
         <button type="submit" disabled={problems.length > 0 || save.isPending}>
           {save.isPending ? 'Saving…' : 'Save'}
         </button>

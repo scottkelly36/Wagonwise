@@ -70,13 +70,11 @@ export function MyReminders({ companyId }: { companyId: string | undefined }) {
         borderRadius: 8,
       }}
     >
-      <h2 style={{ marginTop: 0 }}>Your reminders</h2>
-      {current.isError && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(current.error)}</p>
-      )}
+      <h2 className="mt-0">Your reminders</h2>
+      {current.isError && <p className="text-danger">{staffErrorMessage(current.error)}</p>}
       {current.data !== undefined &&
         CHOICES.map((choice) => (
-          <label key={choice.value} style={{ display: 'block', marginBottom: 8 }}>
+          <label key={choice.value} className="block mb-8">
             <input
               type="radio"
               name="reminders"
@@ -84,15 +82,14 @@ export function MyReminders({ companyId }: { companyId: string | undefined }) {
               disabled={save.isPending}
               onChange={() => save.mutate({ channel: choice.value })}
             />{' '}
-            <strong>{choice.label}.</strong>{' '}
-            <span style={{ color: 'var(--text-muted)' }}>{choice.detail}</span>
+            <strong>{choice.label}.</strong> <span className="text-muted">{choice.detail}</span>
           </label>
         ))}
 
       {current.data !== undefined && (
         <div className="field" style={{ marginTop: 12, maxWidth: 360 }}>
           <label htmlFor="reminder-mobile">Your mobile, for reminder texts (UK mobiles only)</label>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex gap-8">
             <input
               id="reminder-mobile"
               value={mobile}
@@ -110,7 +107,7 @@ export function MyReminders({ companyId }: { companyId: string | undefined }) {
               {mobile.trim() === '' && savedMobile !== undefined ? 'Remove' : 'Save'}
             </button>
           </div>
-          <small style={{ color: 'var(--text-muted)' }}>
+          <small className="text-muted">
             {texting && savedMobile === undefined
               ? 'Your company sends reminders by text, but you have no mobile saved, so you get the email instead.'
               : texting
@@ -119,7 +116,7 @@ export function MyReminders({ companyId }: { companyId: string | undefined }) {
           </small>
         </div>
       )}
-      {save.isError && <p style={{ color: 'var(--danger)' }}>{staffMessage(save.error)}</p>}
+      {save.isError && <p className="text-danger">{staffMessage(save.error)}</p>}
     </section>
   );
 }

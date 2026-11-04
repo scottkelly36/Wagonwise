@@ -93,18 +93,18 @@ export function Checks() {
   return (
     <div>
       <h1>Walk-round checks</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         Build the check list your drivers answer before taking a vehicle out. Every firm builds its
         own, so ask what suits you, and make different lists for different vehicles. If you
         don&apos;t want checks, leave this empty.
       </p>
-      <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+      <p className="text-muted text-13">
         The example list is only a starting point and isn&apos;t complete. You are responsible for
         what your checks cover.
       </p>
 
       {everyCompany && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <label htmlFor="checks-company">Company </label>
           <CompanySelect
             id="checks-company"
@@ -133,7 +133,7 @@ export function Checks() {
         <>
           <CheckRules companyId={companyId} canChange={canBuild} />
           {canBuild && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <div className="flex gap-8 mb-16">
               <button className="btn-primary" type="button" onClick={() => setDraft(BLANK)}>
                 New blank list
               </button>
@@ -143,7 +143,7 @@ export function Checks() {
             </div>
           )}
           {(templates.isError || archive.isError || starter.isError) && (
-            <p style={{ color: 'var(--danger)' }}>
+            <p className="text-danger">
               {staffErrorMessage(templates.error ?? archive.error ?? starter.error)}
             </p>
           )}
@@ -152,7 +152,7 @@ export function Checks() {
           ) : (templates.data ?? []).length === 0 ? (
             <p>No check lists yet. Your drivers aren&apos;t asked to do any checks.</p>
           ) : (
-            <ul style={{ listStyle: 'none', padding: 0 }}>
+            <ul className="list-none p-0">
               {(templates.data ?? []).map((t) => (
                 <li
                   key={t.id}
@@ -167,10 +167,10 @@ export function Checks() {
                 >
                   <div>
                     <strong>{t.name}</strong>
-                    <div style={{ color: 'var(--text-muted)' }}>{describeList(t)}</div>
+                    <div className="text-muted">{describeList(t)}</div>
                   </div>
                   {canBuild && (
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div className="flex gap-8">
                       <button type="button" onClick={() => edit(t)}>
                         Edit
                       </button>
@@ -255,7 +255,7 @@ function Builder({
     >
       <h2>{initial.id === undefined ? 'New check list' : 'Edit check list'}</h2>
 
-      <label style={{ display: 'block', marginBottom: 16 }}>
+      <label className="block mb-16">
         <strong>Name</strong>
         <input
           value={name}
@@ -266,15 +266,15 @@ function Builder({
         />
       </label>
 
-      <fieldset style={{ marginBottom: 16 }}>
+      <fieldset className="mb-16">
         <legend>
           <strong>Which vehicles is it for?</strong>
         </legend>
-        <label style={{ display: 'block' }}>
+        <label className="block">
           <input type="radio" checked={appliesTo === 'all'} onChange={() => setAppliesTo('all')} />{' '}
           All our vehicles
         </label>
-        <label style={{ display: 'block' }}>
+        <label className="block">
           <input
             type="radio"
             checked={appliesTo === 'selected'}
@@ -283,10 +283,10 @@ function Builder({
           Only these:
         </label>
         {appliesTo === 'selected' && (
-          <div style={{ marginLeft: 24 }}>
+          <div className="ml-24">
             {vehicles.length === 0 && <span>No vehicles set up yet.</span>}
             {vehicles.map((v) => (
-              <label key={v.id} style={{ display: 'block' }}>
+              <label key={v.id} className="block">
                 <input
                   type="checkbox"
                   checked={vehicleIds.includes(v.id)}
@@ -316,7 +316,7 @@ function Builder({
               borderRadius: 8,
             }}
           >
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="flex gap-8 wrap items-center">
               <input
                 aria-label={`Question ${index + 1}`}
                 value={item.label}
@@ -351,7 +351,7 @@ function Builder({
               style={{ width: '100%', marginTop: 8 }}
             />
             <ItemOptions item={item} onChange={(next) => setItem(index, next)} />
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <div className="flex gap-8 mt-8">
               <button
                 type="button"
                 onClick={() => setItems((all) => moveItem(all, index, -1))}
@@ -377,7 +377,7 @@ function Builder({
         ))}
       </ol>
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+      <div className="flex gap-8 items-center mb-16">
         <select
           aria-label="Kind of question to add"
           value={addKind}
@@ -398,15 +398,15 @@ function Builder({
       </div>
 
       {problems.length > 0 && (
-        <ul style={{ color: 'var(--warning)' }}>
+        <ul className="text-warning">
           {problems.map((p) => (
             <li key={p}>{p}</li>
           ))}
         </ul>
       )}
-      {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
+      {save.isError && <p className="text-danger">{staffErrorMessage(save.error)}</p>}
 
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className="flex gap-8">
         <button type="submit" disabled={problems.length > 0 || save.isPending}>
           {save.isPending ? 'Saving…' : 'Save list'}
         </button>

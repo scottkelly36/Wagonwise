@@ -77,20 +77,20 @@ export function Moderation() {
   return (
     <div>
       <h1>Moderation</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         New low bridge, weight, width and no-HGV reports, and reports drivers disagree about. A
         report waiting here still affects routes, unless it says routing is ignoring it; rejecting
         it is what takes it away.
       </p>
 
       {(queue.error ?? decide.error) !== null && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(queue.error ?? decide.error)}</p>
+        <p className="text-danger">{staffErrorMessage(queue.error ?? decide.error)}</p>
       )}
 
       {queue.isPending ? (
         <Loading />
       ) : queue.data?.length === 0 ? (
-        <p style={{ color: 'var(--text-muted)' }}>Nothing waiting for review.</p>
+        <p className="text-muted">Nothing waiting for review.</p>
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
           {queue.data?.map(({ hazard, reasons, trust, heldBackFromRouting }) => (
@@ -104,7 +104,7 @@ export function Moderation() {
                 <span>
                   {hazard.confirmations} confirmed · {hazard.dismissals} dismissed
                 </span>
-                <span style={{ color: 'var(--text-muted)' }}>
+                <span className="text-muted">
                   reported {new Date(hazard.createdAt).toLocaleString('en-GB')} · driver{' '}
                   {hazard.reporterId.slice(0, 8)} ({TRUST_LABELS[trust]})
                 </span>
@@ -138,7 +138,7 @@ export function Moderation() {
                   }
                 />
               ) : (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <div className="flex gap-8 wrap">
                   <button
                     className="btn-confirm"
                     disabled={decide.isPending}
@@ -235,7 +235,7 @@ function EditForm({
   }
 
   return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+    <div className="flex gap-8 wrap items-center">
       <select value={type} onChange={(e) => setType(e.target.value as HazardReportDto['type'])}>
         {Object.entries(TYPE_LABELS).map(([key, label]) => (
           <option key={key} value={key}>

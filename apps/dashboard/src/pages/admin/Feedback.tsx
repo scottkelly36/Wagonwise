@@ -48,10 +48,8 @@ export function Feedback() {
       header: 'Feedback',
       cell: (n) => (
         <div>
-          <div style={{ whiteSpace: 'pre-wrap' }}>{n.message}</div>
-          <div className="muted" style={{ fontSize: 12 }}>
-            {sentFrom(n)}
-          </div>
+          <div className="pre-wrap">{n.message}</div>
+          <div className="muted text-12">{sentFrom(n)}</div>
         </div>
       ),
     },
@@ -91,11 +89,9 @@ export function Feedback() {
         you have dealt with it or replied; reopen it if it comes back.
       </p>
 
-      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
 
-      <div
-        style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end', marginBottom: 16 }}
-      >
+      <div className="flex gap-12 wrap items-end mb-16">
         <div className="field">
           <label htmlFor="feedback-status">Show</label>
           <select
@@ -109,7 +105,7 @@ export function Feedback() {
           </select>
         </div>
         {data !== undefined && (
-          <p style={{ margin: 0 }}>
+          <p className="m-0">
             <strong>{data.counts.open}</strong> open, <strong>{data.counts.resolved}</strong>{' '}
             resolved.
           </p>

@@ -66,28 +66,19 @@ export function InviteCodes() {
   return (
     <div>
       <h1>Invite codes</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         A tester needs one of these the first time they sign in to the driver app.
       </p>
 
       <button
-        className="btn-primary"
+        className="btn-primary mb-24"
         onClick={() => generateCode.mutate()}
         disabled={generateCode.isPending}
-        style={{ marginBottom: 24 }}
       >
         {generateCode.isPending ? 'Generating…' : 'Generate code'}
       </button>
 
-      <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-          marginBottom: 16,
-          flexWrap: 'wrap',
-        }}
-      >
+      <div className="flex gap-8 items-center mb-16 wrap">
         <label>
           Make{' '}
           <input
@@ -110,7 +101,7 @@ export function InviteCodes() {
         </button>
       </div>
       {newCodes !== undefined && (
-        <div style={{ marginBottom: 24 }}>
+        <div className="mb-24">
           <p style={{ margin: '0 0 4px' }}>
             The new codes, one a line. Each works once, so give each tester their own.
           </p>
@@ -125,7 +116,7 @@ export function InviteCodes() {
         </div>
       )}
 
-      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
 
       {inviteCodes.isPending ? (
         <Loading />

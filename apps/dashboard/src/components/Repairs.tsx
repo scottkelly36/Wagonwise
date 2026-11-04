@@ -82,12 +82,10 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
       sortValue: (r) => r.title,
       cell: (r) => (
         <div>
-          {r.severity === 'do_not_drive' && (
-            <strong style={{ color: 'var(--danger)' }}>Do not drive </strong>
-          )}
+          {r.severity === 'do_not_drive' && <strong className="text-danger">Do not drive </strong>}
           {r.title}
           {r.note !== undefined && (
-            <div style={{ fontSize: 13 }}>
+            <div className="text-13">
               <em>“{r.note}”</em>
             </div>
           )}
@@ -100,7 +98,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
       align: 'right',
       cell: (r) =>
         canManage && r.status === 'open' ? (
-          <span style={{ display: 'inline-flex', gap: 6 }}>
+          <span className="inline-flex gap-6">
             <button className="btn-confirm" type="button" onClick={() => setFinishing(r)}>
               Mark done
             </button>
@@ -128,10 +126,10 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
 
   return (
     <>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         Repairs booked for defects your drivers found. Book one from the Defects page.
       </p>
-      <label style={{ display: 'block', marginBottom: 12 }}>
+      <label className="block mb-12">
         Show{' '}
         <select value={filter} onChange={(e) => setFilter(e.target.value as 'open' | 'done')}>
           <option value="open">Still to do</option>
@@ -149,7 +147,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
           <strong>
             Done: {finishing.vehicleName}, {finishing.title}
           </strong>
-          <label style={{ display: 'block', marginTop: 8 }}>
+          <label className="block mt-8">
             Note (optional){' '}
             <input
               value={note}
@@ -159,7 +157,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
               style={{ width: '100%', maxWidth: 360 }}
             />
           </label>
-          <label style={{ display: 'block', margin: '8px 0' }}>
+          <label className="block my-8">
             <input
               type="checkbox"
               checked={markFixed}
@@ -167,10 +165,8 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
             />{' '}
             Mark the defect fixed too (this lets the vehicle go out again)
           </label>
-          {finish.isError && (
-            <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(finish.error)}</p>
-          )}
-          <div style={{ display: 'flex', gap: 8 }}>
+          {finish.isError && <p className="text-danger">{staffErrorMessage(finish.error)}</p>}
+          <div className="flex gap-8">
             <button type="submit" disabled={finish.isPending}>
               {finish.isPending ? 'Saving…' : 'Save'}
             </button>
@@ -181,7 +177,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
         </form>
       )}
       {(repairs.isError || cancel.isError) && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(repairs.error ?? cancel.error)}</p>
+        <p className="text-danger">{staffErrorMessage(repairs.error ?? cancel.error)}</p>
       )}
       {repairs.isPending ? (
         <Loading />

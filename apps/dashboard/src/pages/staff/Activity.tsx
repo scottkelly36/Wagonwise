@@ -110,7 +110,7 @@ export function Activity() {
   return (
     <div>
       <h1>Activity</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         Sign-ins, invites and every change to who can do what. The latest 200 entries.
       </p>
 
@@ -126,9 +126,7 @@ export function Activity() {
         </div>
       )}
 
-      {entries.error !== null && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(entries.error)}</p>
-      )}
+      {entries.error !== null && <p className="text-danger">{staffErrorMessage(entries.error)}</p>}
 
       {entries.isPending ? (
         <Loading />

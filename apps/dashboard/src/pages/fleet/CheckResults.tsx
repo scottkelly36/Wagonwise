@@ -110,12 +110,12 @@ export function CheckResults() {
   return (
     <div>
       <h1>Check results</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         The walk-round checks your drivers have done. Defects they found are on the Defects page.
       </p>
 
       {everyCompany && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <label htmlFor="results-company">Company </label>
           <CompanySelect
             id="results-company"
@@ -130,7 +130,7 @@ export function CheckResults() {
         <p>Choose a company.</p>
       ) : (
         <>
-          <div style={{ marginBottom: 16 }}>
+          <div className="mb-16">
             <label>
               Show{' '}
               <select value={choice} onChange={(e) => setChoice(e.target.value as RangeChoice)}>
@@ -193,9 +193,7 @@ function CheckDetail({
   });
 
   return (
-    <section
-      style={{ marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
-    >
+    <section className="mt-24 box">
       {detail.isPending && <Loading />}
       {detail.isError && <ErrorNotice error={detail.error} />}
       {detail.data !== undefined && (
@@ -210,10 +208,8 @@ function CheckDetail({
           onPhoto={(item) => loadPhoto.mutate(item)}
         />
       )}
-      {loadPhoto.isError && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(loadPhoto.error)}</p>
-      )}
-      <button type="button" onClick={onClose} style={{ marginTop: 12 }}>
+      {loadPhoto.isError && <p className="text-danger">{staffErrorMessage(loadPhoto.error)}</p>}
+      <button type="button" onClick={onClose} className="mt-12">
         Close
       </button>
     </section>
@@ -233,10 +229,10 @@ function Body({
 }) {
   return (
     <>
-      <h2 style={{ marginTop: 0 }}>
+      <h2 className="mt-0">
         {detail.templateName} on {detail.vehicleName}
       </h2>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         Done {whenText(detail.submittedAt)} by {driverName ?? 'an unknown driver'}. List version{' '}
         {detail.templateVersion}. Result:{' '}
         <strong style={{ color: RESULT_COLOURS[detail.result] }}>
@@ -261,7 +257,7 @@ function Body({
                     {answerText(item, answer)}
                   </span>
                   {defect !== undefined && (
-                    <div style={{ fontSize: 13 }}>
+                    <div className="text-13">
                       {defect.detail}. {defect.note !== undefined && <em>“{defect.note}”. </em>}
                       {STATUS_LABELS[defect.status]}.
                     </div>

@@ -102,7 +102,7 @@ export function CongestionReports() {
         stops showing to drivers when that time runs out; it stays here until you clear it.
       </p>
 
-      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
 
       {data === undefined ? (
         <Loading />

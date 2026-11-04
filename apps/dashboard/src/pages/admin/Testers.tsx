@@ -191,12 +191,12 @@ export function Testers() {
   return (
     <div>
       <h1>Testers</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         People who asked, on the landing page, to hear when testing opens. Each ticked the box
         agreeing to be emailed about it; they can also remove themselves from the page.
       </p>
 
-      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
 
       {data === undefined ? (
         <Loading />
@@ -228,9 +228,9 @@ export function Testers() {
                 : 'Download emails for Google Play'}
             </button>
           </p>
-          <section className="card" style={{ marginBottom: 16 }}>
-            <h2 style={{ marginTop: 0 }}>Send the test invite</h2>
-            <p style={{ color: 'var(--text-muted)' }}>
+          <section className="card mb-16">
+            <h2 className="mt-0">Send the test invite</h2>
+            <p className="text-muted">
               Tick the people to invite. Each gets the standard email: how to join the closed test,
               how to install the app, and an invite code made for them alone (it works once). Who
               was sent it, when, and which code, is recorded below. Nobody is ever sent a second
@@ -278,13 +278,13 @@ export function Testers() {
               </button>
             </p>
             {!linkOk && optInLink.trim() !== '' && (
-              <p style={{ color: 'var(--danger)' }}>The link should start with https://</p>
+              <p className="text-danger">The link should start with https://</p>
             )}
             {outcome !== undefined && <p>{outcome}</p>}
           </section>
-          <section className="card" style={{ marginBottom: 16 }}>
-            <h2 style={{ marginTop: 0 }}>Send the "out now" email</h2>
-            <p style={{ color: 'var(--text-muted)' }}>
+          <section className="card mb-16">
+            <h2 className="mt-0">Send the "out now" email</h2>
+            <p className="text-muted">
               For when the app is in the App Store and on Google Play. Tick the people to tell (the
               same ticks as above). Each gets a branded email thanking them for signing up, with a
               button for each store. It makes no invite code. Who was sent it, and when, is recorded
@@ -350,7 +350,7 @@ export function Testers() {
               </button>
             </p>
             {!storeLinksOk && (appStoreLink.trim() !== '' || playStoreLink.trim() !== '') && (
-              <p style={{ color: 'var(--danger)' }}>Both links should start with https://</p>
+              <p className="text-danger">Both links should start with https://</p>
             )}
             {launchOutcome !== undefined && <p>{launchOutcome}</p>}
           </section>

@@ -53,14 +53,12 @@ export function CompanyReminders({ companyId }: { companyId: string }) {
         borderRadius: 8,
       }}
     >
-      <h2 style={{ marginTop: 0 }}>How your company is reminded</h2>
-      {settings.isError && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(settings.error)}</p>
-      )}
+      <h2 className="mt-0">How your company is reminded</h2>
+      {settings.isError && <p className="text-danger">{staffErrorMessage(settings.error)}</p>}
       {data !== undefined && (
         <>
           {CHOICES.map((choice) => (
-            <label key={choice.value} style={{ display: 'block', marginBottom: 8 }}>
+            <label key={choice.value} className="block mb-8">
               <input
                 type="radio"
                 name="company-reminders"
@@ -68,8 +66,7 @@ export function CompanyReminders({ companyId }: { companyId: string }) {
                 disabled={save.isPending}
                 onChange={() => save.mutate(choice.value)}
               />{' '}
-              <strong>{choice.label}.</strong>{' '}
-              <span style={{ color: 'var(--text-muted)' }}>{choice.detail}</span>
+              <strong>{choice.label}.</strong> <span className="text-muted">{choice.detail}</span>
             </label>
           ))}
           {(data.channel === 'text' || data.channel === 'both') && (
@@ -81,7 +78,7 @@ export function CompanyReminders({ companyId }: { companyId: string }) {
           )}
         </>
       )}
-      {save.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error)}</p>}
+      {save.isError && <p className="text-danger">{staffErrorMessage(save.error)}</p>}
     </section>
   );
 }

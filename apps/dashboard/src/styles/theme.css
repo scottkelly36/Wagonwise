@@ -1861,3 +1861,114 @@ main:focus {
   color: var(--text-muted);
   font-size: 15px;
 }
+
+/* Utilities. These replace one-off inline styles, and keep an inline style's precedence (hence !important): an element with
+   one of these looks exactly as it did with the style written on it. Colours are the tokens above. */
+.text-danger {
+  color: var(--danger) !important;
+}
+.text-muted {
+  color: var(--text-muted) !important;
+}
+.text-warning {
+  color: var(--warning) !important;
+}
+.text-success {
+  color: var(--success) !important;
+}
+.block {
+  display: block !important;
+}
+.flex {
+  display: flex !important;
+}
+.inline-flex {
+  display: inline-flex !important;
+}
+.wrap {
+  flex-wrap: wrap !important;
+}
+.items-end {
+  align-items: flex-end !important;
+}
+.gap-6 {
+  gap: 6px !important;
+}
+.gap-8 {
+  gap: 8px !important;
+}
+.text-right {
+  text-align: right !important;
+}
+.text-12 {
+  font-size: 12px !important;
+}
+.text-13 {
+  font-size: 13px !important;
+}
+.list-none {
+  list-style: none !important;
+}
+.m-0 {
+  margin: 0 !important;
+}
+.p-0 {
+  padding: 0 !important;
+}
+.mt-0 {
+  margin-top: 0 !important;
+}
+.mt-8 {
+  margin-top: 8px !important;
+}
+.mt-12 {
+  margin-top: 12px !important;
+}
+.mt-16 {
+  margin-top: 16px !important;
+}
+.mt-24 {
+  margin-top: 24px !important;
+}
+.mb-0 {
+  margin-bottom: 0 !important;
+}
+.mb-8 {
+  margin-bottom: 8px !important;
+}
+.mb-12 {
+  margin-bottom: 12px !important;
+}
+.mb-16 {
+  margin-bottom: 16px !important;
+}
+.mb-24 {
+  margin-bottom: 24px !important;
+}
+.items-center {
+  align-items: center !important;
+}
+.gap-12 {
+  gap: 12px !important;
+}
+.mr-6 {
+  margin-right: 6px !important;
+}
+.ml-24 {
+  margin-left: 24px !important;
+}
+.pl-18 {
+  padding-left: 18px !important;
+}
+.my-8 {
+  margin: 8px 0 !important;
+}
+.pre-wrap {
+  white-space: pre-wrap !important;
+}
+/* A bordered box around a block of a page */
+.box {
+  padding: 16px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+}

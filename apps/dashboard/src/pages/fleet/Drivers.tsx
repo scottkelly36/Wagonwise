@@ -144,10 +144,10 @@ export function Drivers() {
   return (
     <div>
       <h1>Drivers</h1>
-      <p style={{ color: 'var(--text-muted)' }}>Who drives for your company.</p>
+      <p className="text-muted">Who drives for your company.</p>
 
       {everyCompany && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <label>
             Company:{' '}
             <select
@@ -168,7 +168,7 @@ export function Drivers() {
       {error !== null && <ErrorNotice error={error} />}
 
       {companyId === undefined ? (
-        <p style={{ color: 'var(--text-muted)' }}>
+        <p className="text-muted">
           {everyCompany ? 'Choose a company above.' : 'No company assigned to your account.'}
         </p>
       ) : (
@@ -242,9 +242,9 @@ export function Drivers() {
 
           <details className="card add-drivers" open={active.length === 0}>
             <summary>Add drivers</summary>
-            <section style={{ marginBottom: 24 }}>
+            <section className="mb-24">
               <h2>Join code</h2>
-              <p style={{ color: 'var(--text-muted)' }}>
+              <p className="text-muted">
                 Give this to a driver to ask to join. It never admits anyone by itself — every
                 request still needs approval under Pending requests above.
               </p>
@@ -274,11 +274,11 @@ export function Drivers() {
             </section>
 
             {myEmail !== undefined && (
-              <section style={{ marginBottom: 24 }}>
+              <section className="mb-24">
                 <h2>Do you drive too?</h2>
                 {myLink === undefined ? (
                   <>
-                    <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
+                    <p className="text-muted mt-0">
                       Sends an invitation to your own email ({myEmail}) so you can be given jobs
                       like any other driver. Then open the WagonWise driver app, sign in with that
                       email and accept under Settings, My companies. If you have not used the app
@@ -293,16 +293,16 @@ export function Drivers() {
                     </button>
                   </>
                 ) : myLink.status === 'active' ? (
-                  <p style={{ margin: 0 }}>
+                  <p className="m-0">
                     You are set up as a driver here. You will show as "(you)" when assigning jobs.
                   </p>
                 ) : myLink.status === 'invited' ? (
-                  <p style={{ margin: 0 }}>
+                  <p className="m-0">
                     Invitation sent to {myEmail}. Open the driver app, sign in with that email and
                     accept it under Settings, My companies.
                   </p>
                 ) : (
-                  <p style={{ margin: 0 }}>
+                  <p className="m-0">
                     You have asked to join as a driver. Approve your own request under Pending
                     requests above.
                   </p>
@@ -310,7 +310,7 @@ export function Drivers() {
               </section>
             )}
 
-            <section style={{ marginBottom: 24 }}>
+            <section className="mb-24">
               <h2>Invite a driver</h2>
               <form
                 onSubmit={(e) => {
@@ -441,7 +441,7 @@ function DriverLinksSection(props: {
   ];
 
   return (
-    <section style={{ marginBottom: 24 }}>
+    <section className="mb-24">
       <h2>{props.title}</h2>
       <DataTable
         columns={columns}

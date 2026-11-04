@@ -48,13 +48,11 @@ export function Finances() {
   return (
     <div>
       <h1>Finances</h1>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         What it costs to run WagonWise, against what companies are invoiced. Costs carry on every
         month until you change or stop them. Enter amounts without VAT.
       </p>
-      {report.isError && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(report.error)}</p>
-      )}
+      {report.isError && <p className="text-danger">{staffErrorMessage(report.error)}</p>}
       {report.isPending ? (
         <Loading />
       ) : (
@@ -69,7 +67,7 @@ function Report({ data, onMonth }: { data: FinanceReportDto; onMonth: (m: string
   const p = data.projection;
   return (
     <>
-      <label style={{ display: 'block', marginBottom: 16 }}>
+      <label className="block mb-16">
         Month{' '}
         <input
           type="month"
@@ -79,7 +77,7 @@ function Report({ data, onMonth }: { data: FinanceReportDto; onMonth: (m: string
       </label>
 
       {selected !== undefined && (
-        <section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
+        <section className="flex gap-12 wrap mb-24">
           <Figure label="Invoiced" value={selected.invoicedPence} />
           <Figure label="Received" value={selected.receivedPence} />
           <Figure label="Costs" value={selected.costsPence} />
@@ -116,10 +114,10 @@ function Report({ data, onMonth }: { data: FinanceReportDto; onMonth: (m: string
       />
 
       <h2>Looking ahead</h2>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="text-muted">
         On today&apos;s plans and the costs standing this month. Nothing here is guaranteed.
       </p>
-      <section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+      <section className="flex gap-12 wrap mb-8">
         <Figure
           label={`Revenue a month (${p.vehiclesCovered} vehicles)`}
           value={p.monthlyRevenuePence}
@@ -204,7 +202,7 @@ function Figure({
         minWidth: 130,
       }}
     >
-      <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{label}</div>
+      <div className="text-muted text-13">{label}</div>
       <div
         style={{
           fontSize: big === true ? 24 : 18,
@@ -274,9 +272,7 @@ function Costs({ month, costs }: { month: string; costs: CostDto[] }) {
       <p>
         <strong>Total: {formatPence(total)}</strong>
       </p>
-      {remove.isError && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(remove.error)}</p>
-      )}
+      {remove.isError && <p className="text-danger">{staffErrorMessage(remove.error)}</p>}
       {selected !== undefined && (
         <EditCost
           key={selected.id}
@@ -334,14 +330,12 @@ function AddCost({ month, onAdded }: { month: string; onAdded: () => void }) {
         e.preventDefault();
         if (pence !== undefined && description.trim() !== '') add.mutate();
       }}
-      style={{ marginTop: 16, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
+      className="mt-16 box"
     >
       <strong>Add a cost from {monthLabel(month)}</strong>
-      <div
-        style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 8 }}
-      >
+      <div className="flex gap-8 wrap items-end mt-8">
         <label>
-          <span style={{ display: 'block' }}>Type</span>
+          <span className="block">Type</span>
           <select value={category} onChange={(e) => setCategory(e.target.value as Category)}>
             {COST_CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -351,7 +345,7 @@ function AddCost({ month, onAdded }: { month: string; onAdded: () => void }) {
           </select>
         </label>
         <label>
-          <span style={{ display: 'block' }}>What</span>
+          <span className="block">What</span>
           <input
             value={description}
             maxLength={120}
@@ -361,7 +355,7 @@ function AddCost({ month, onAdded }: { month: string; onAdded: () => void }) {
           />
         </label>
         <label>
-          <span style={{ display: 'block' }}>Amount a month (£)</span>
+          <span className="block">Amount a month (£)</span>
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -380,11 +374,11 @@ function AddCost({ month, onAdded }: { month: string; onAdded: () => void }) {
         </button>
       </div>
       {!oneOff && (
-        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+        <p className="text-muted text-13">
           It carries on every month from {monthLabel(month)} until you change or stop it.
         </p>
       )}
-      {add.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(add.error)}</p>}
+      {add.isError && <p className="text-danger">{staffErrorMessage(add.error)}</p>}
     </form>
   );
 }
@@ -424,9 +418,7 @@ function EditCost({
   });
 
   return (
-    <section
-      style={{ marginTop: 16, padding: 16, border: '1px solid var(--border)', borderRadius: 8 }}
-    >
+    <section className="mt-16 box">
       <strong>
         {cost.description}: {whenText(cost)}
       </strong>
@@ -435,10 +427,10 @@ function EditCost({
           e.preventDefault();
           if (pence !== undefined && description.trim() !== '') save.mutate();
         }}
-        style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 8 }}
+        className="flex gap-8 wrap items-end mt-8"
       >
         <label>
-          <span style={{ display: 'block' }}>Type</span>
+          <span className="block">Type</span>
           <select value={category} onChange={(e) => setCategory(e.target.value as Category)}>
             {COST_CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -448,7 +440,7 @@ function EditCost({
           </select>
         </label>
         <label>
-          <span style={{ display: 'block' }}>What</span>
+          <span className="block">What</span>
           <input
             value={description}
             maxLength={120}
@@ -457,7 +449,7 @@ function EditCost({
           />
         </label>
         <label>
-          <span style={{ display: 'block' }}>Amount a month (£)</span>
+          <span className="block">Amount a month (£)</span>
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -471,10 +463,10 @@ function EditCost({
           {save.isPending ? 'Saving…' : `Change from ${monthLabel(month)}`}
         </button>
       </form>
-      <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+      <p className="text-muted text-13">
         The months before {monthLabel(month)} keep what they had, so past profit does not move.
       </p>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="flex gap-8 wrap">
         <button
           className="btn-caution"
           type="button"
@@ -488,7 +480,7 @@ function EditCost({
         </button>
       </div>
       {(save.isError || stop.isError) && (
-        <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(save.error ?? stop.error)}</p>
+        <p className="text-danger">{staffErrorMessage(save.error ?? stop.error)}</p>
       )}
     </section>
   );

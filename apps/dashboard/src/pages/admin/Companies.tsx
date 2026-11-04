@@ -89,7 +89,7 @@ export function Companies() {
         </button>
       </form>
 
-      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
 
       {companies.isPending ? (
         <Loading />

@@ -142,7 +142,7 @@ export function Join() {
                 ['email', 'A code by email'],
               ] as const
             ).map(([value, label]) => (
-              <label key={value} style={{ display: 'block' }}>
+              <label key={value} className="block">
                 <input
                   type="radio"
                   name="method"
@@ -248,7 +248,7 @@ export function Join() {
         </div>
       )}
 
-      {error !== undefined && <p style={{ color: 'var(--danger)' }}>{error}</p>}
+      {error !== undefined && <p className="text-danger">{error}</p>}
     </div>
   );
 }
