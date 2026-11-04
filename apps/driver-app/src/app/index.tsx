@@ -8,6 +8,7 @@ import { needsConsent } from '../lib/consent-version';
 import { useAuthStore } from '../state/auth-store';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { useWalkthroughStore } from '../state/walkthrough-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 /**
@@ -26,6 +27,7 @@ export default function IndexScreen() {
   const resumeQuery = useResumeActiveTrip(
     state.status === 'signedIn' ? state.accessToken : undefined,
   );
+  const walkthrough = useWalkthroughStore((s) => s.status);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -66,7 +68,24 @@ export default function IndexScreen() {
     );
   }
 
-  return <Redirect href={resumeQuery.data ? '/active-trip' : '/home'} />;
+  // A trip in progress comes first: a relaunch (an update applies on one) must not put a tour between a driver and their route.
+  if (resumeQuery.data) {
+    return <Redirect href="/active-trip" />;
+  }
+
+  // The first-run tour, once per phone. Waits for the phone to say whether it was seen, so it is not flashed at someone who has.
+  if (walkthrough === 'restoring') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" color={colors.text} />
+      </SafeAreaView>
+    );
+  }
+  if (walkthrough === 'unseen') {
+    return <Redirect href="/walkthrough" />;
+  }
+
+  return <Redirect href="/home" />;
 }
 
 function createStyles(colors: ThemeColors) {
