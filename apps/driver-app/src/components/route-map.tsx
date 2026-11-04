@@ -404,6 +404,9 @@ export function RouteMap({
         key={`map-${mapAttempt}`}
         style={styles.map}
         mapStyle={config.mapStyleUrl}
+        // MapLibre's own compass is drawn top-right whenever the map is turned (heading-up navigation), under our round buttons. The
+        // logo and attribution stay on: the map data's licence requires them.
+        compass={false}
         onDidFinishLoadingMap={() => dispatchMapLoad('loaded')}
         onDidFailLoadingMap={() => dispatchMapLoad('failed')}
         onPress={handlePress}
