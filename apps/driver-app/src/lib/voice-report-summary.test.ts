@@ -8,7 +8,7 @@ describe('summaryFor', () => {
       type: 'low_bridge',
       measurement: { kind: 'height', value: 3.5, unit: 'm' },
     };
-    expect(summaryFor(parsed)).toBe('Low bridge, about 3.5 metres, here — save it?');
+    expect(summaryFor(parsed)).toBe('Low bridge, about 3.5 metres, here. Save it?');
   });
 
   it('uses a spoken position hint in place of "here" when one was given', () => {
@@ -16,12 +16,12 @@ describe('summaryFor', () => {
       type: 'flooding',
       positionHint: 'just past the roundabout',
     };
-    expect(summaryFor(parsed)).toBe('Flooding, just past the roundabout — save it?');
+    expect(summaryFor(parsed)).toBe('Flooding, just past the roundabout. Save it?');
   });
 
   it('omits the measurement clause entirely when there is no measurement', () => {
     const parsed: ParsedVoiceHazardReportDto = { type: 'roadworks' };
-    expect(summaryFor(parsed)).toBe('Roadworks, here — save it?');
+    expect(summaryFor(parsed)).toBe('Roadworks, here. Save it?');
   });
 
   it('uses tonnes for a weight measurement', () => {
@@ -29,6 +29,6 @@ describe('summaryFor', () => {
       type: 'weight_limit',
       measurement: { kind: 'weight', value: 7.5, unit: 't' },
     };
-    expect(summaryFor(parsed)).toBe('Too heavy for this road, about 7.5 tonnes, here — save it?');
+    expect(summaryFor(parsed)).toBe('Too heavy for this road, about 7.5 tonnes, here. Save it?');
   });
 });

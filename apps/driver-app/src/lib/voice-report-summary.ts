@@ -19,5 +19,5 @@ export function summaryFor(parsed: ParsedVoiceHazardReportDto): string {
     parts.push(`about ${parsed.measurement.value} ${UNIT_WORD[parsed.measurement.unit]}`);
   }
   parts.push(parsed.positionHint ?? 'here');
-  return `${parts.join(', ')} — save it?`;
+  return `${parts.join(', ')}. Save it?`;
 }

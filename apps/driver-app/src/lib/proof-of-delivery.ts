@@ -49,7 +49,7 @@ export function isDeliveryBlockedByProof(
 }
 
 export const PROOF_STATUS_MESSAGES: Record<ProofOfDeliveryStatus, string> = {
-  'waiting-to-upload': 'Photo saved — it will send when you have signal.',
+  'waiting-to-upload': 'Photo saved. It will send when you have signal.',
   received: 'Photo received.',
   required: 'This job needs a photo of the delivery before you can finish it.',
   optional: 'You can add a photo of the delivery.',

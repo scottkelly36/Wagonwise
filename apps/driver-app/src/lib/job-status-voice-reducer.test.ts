@@ -93,7 +93,7 @@ describe('jobStatusVoiceReducer', () => {
 
 describe('confirmationPrompt', () => {
   it('reads the label back as a question', () => {
-    expect(confirmationPrompt('Loaded')).toBe('Loaded — is that right?');
+    expect(confirmationPrompt('Loaded')).toBe('Loaded, is that right?');
   });
 });
 

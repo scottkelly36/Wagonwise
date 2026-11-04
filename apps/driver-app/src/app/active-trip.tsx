@@ -708,12 +708,12 @@ export default function ActiveTripScreen() {
           )}
           {voiceFlow.state.phase === 'queued' && (
             <Text style={styles.overlayFootnote} testID="voice-report-status">
-              Saved — this will be sent automatically once you’re back online.
+              Saved. This will be sent automatically once you’re back online.
             </Text>
           )}
           {voiceFlow.state.phase === 'draft-saved' && (
             <Text style={styles.overlayFootnote} testID="voice-report-status">
-              Not filed — saved as a draft to review when you’re parked.
+              Not filed. Saved as a draft to review when you’re parked.
             </Text>
           )}
           {voiceFlow.state.phase === 'error' && (
@@ -789,7 +789,7 @@ export default function ActiveTripScreen() {
 
         {location.status === 'denied' && (
           <Text style={styles.hint}>
-            Location access is off, so the map won’t follow you — road signs and your own judgement
+            Location access is off, so the map won’t follow you. Road signs and your own judgement
             still apply.
           </Text>
         )}

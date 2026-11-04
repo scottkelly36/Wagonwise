@@ -63,7 +63,7 @@ function DraftRow({ draft, fallbackOrigin }: DraftRowProps) {
       {origin === undefined && (
         <Text style={styles.rowHint}>Turn on location to report this one.</Text>
       )}
-      {fileMutation.isError && <Text style={styles.rowHint}>Couldn’t save that — try again.</Text>}
+      {fileMutation.isError && <Text style={styles.rowHint}>Couldn’t save that. Try again.</Text>}
 
       <View style={styles.actionRow}>
         <TouchableOpacity
