@@ -1,6 +1,8 @@
 import type { MyRemindersDto, ReminderChannel } from '@wagonwise/contracts/maintenance';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { ErrorNotice } from './ErrorNotice';
+import { useNotify } from './feedback-context';
 import * as maintenanceApi from '../api/maintenance';
 import { staffErrorMessage } from '../pages/staff/messages';
 import { useStaffAuthStore } from '../state/staff-auth-store';
@@ -32,6 +34,7 @@ function showMobile(mobile: string): string {
 export function MyReminders({ companyId }: { companyId: string | undefined }) {
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
   const queryClient = useQueryClient();
+  const notify = useNotify();
   const key = ['my-reminders'] as const;
 
   const current = useQuery({
@@ -50,6 +53,7 @@ export function MyReminders({ companyId }: { companyId: string | undefined }) {
     onSuccess: (saved: MyRemindersDto) => {
       queryClient.setQueryData(key, saved);
       setEditing(undefined);
+      notify('Your reminder settings are saved');
     },
   });
 
@@ -71,7 +75,7 @@ export function MyReminders({ companyId }: { companyId: string | undefined }) {
       }}
     >
       <h2 className="mt-0">Your reminders</h2>
-      {current.isError && <p className="text-danger">{staffErrorMessage(current.error)}</p>}
+      {current.isError && <ErrorNotice error={current.error} />}
       {current.data !== undefined &&
         CHOICES.map((choice) => (
           <label key={choice.value} className="block mb-8">

@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useNotify } from '../../components/feedback-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -7,7 +8,6 @@ import { CompanySelect } from '../../components/CompanySelect';
 import { retentionChoices } from '../../lib/retention';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from './messages';
 
 /**
  * Settings: the choices a company makes about its own data. For now, how long delivery photos are kept. The
@@ -74,7 +74,7 @@ export function Settings() {
           </label>
         </div>
       )}
-      {error !== null && error !== undefined && <p className="error">{staffErrorMessage(error)}</p>}
+      {error !== null && error !== undefined && <ErrorNotice error={error} />}
 
       {companyId !== undefined && (
         <section className="card" style={{ maxWidth: 640 }}>

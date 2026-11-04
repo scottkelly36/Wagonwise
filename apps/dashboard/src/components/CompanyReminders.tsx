@@ -1,5 +1,7 @@
 import type { ReminderCompanyChannel } from '@wagonwise/contracts/maintenance';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ErrorNotice } from './ErrorNotice';
+import { useNotify } from './feedback-context';
 import * as maintenanceApi from '../api/maintenance';
 import { staffErrorMessage } from '../pages/staff/messages';
 import { useStaffAuthStore } from '../state/staff-auth-store';
@@ -31,6 +33,7 @@ const CHOICES: { value: ReminderCompanyChannel; label: string; detail: string }[
 export function CompanyReminders({ companyId }: { companyId: string }) {
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
   const queryClient = useQueryClient();
+  const notify = useNotify();
   const key = ['reminder-settings', companyId] as const;
 
   const settings = useQuery({
@@ -40,7 +43,10 @@ export function CompanyReminders({ companyId }: { companyId: string }) {
   const save = useMutation({
     mutationFn: (channel: ReminderCompanyChannel) =>
       withAccessToken((token) => maintenanceApi.setReminderSettings(token, companyId, channel)),
-    onSuccess: (saved) => queryClient.setQueryData(key, saved),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(key, saved);
+      notify('Reminder setting saved');
+    },
   });
 
   const data = settings.data;
@@ -54,7 +60,7 @@ export function CompanyReminders({ companyId }: { companyId: string }) {
       }}
     >
       <h2 className="mt-0">How your company is reminded</h2>
-      {settings.isError && <p className="text-danger">{staffErrorMessage(settings.error)}</p>}
+      {settings.isError && <ErrorNotice error={settings.error} />}
       {data !== undefined && (
         <>
           {CHOICES.map((choice) => (

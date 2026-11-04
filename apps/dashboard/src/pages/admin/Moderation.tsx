@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { HazardReportDto, ModerateHazardRequest } from '@wagonwise/contracts/hazards';
@@ -5,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as hazardsApi from '../../api/hazards';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const QUEUE_KEY = ['hazard-moderation-queue'] as const;
 
@@ -84,7 +84,7 @@ export function Moderation() {
       </p>
 
       {(queue.error ?? decide.error) !== null && (
-        <p className="text-danger">{staffErrorMessage(queue.error ?? decide.error)}</p>
+        <ErrorNotice error={queue.error ?? decide.error} />
       )}
 
       {queue.isPending ? (
@@ -112,13 +112,13 @@ export function Moderation() {
                   View on map
                 </a>
               </div>
-              <ul style={{ margin: '6px 0', color: '#92400e' }}>
+              <ul style={{ margin: '6px 0', color: 'var(--warning)' }}>
                 {reasons.map((reason) => (
                   <li key={reason}>{REASON_LABELS[reason]}</li>
                 ))}
               </ul>
               {heldBackFromRouting && (
-                <p style={{ margin: '6px 0', color: '#b91c1c' }}>
+                <p style={{ margin: '6px 0', color: 'var(--danger)' }}>
                   Routing is ignoring this report until you approve it: the reporter has a poor
                   record, and it has no measurement and no confirmations.
                 </p>

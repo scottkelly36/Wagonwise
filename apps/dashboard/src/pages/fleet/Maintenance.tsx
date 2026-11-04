@@ -332,9 +332,7 @@ function Items({ companyId, canManage }: { companyId: string; canManage: boolean
         </div>
       )}
       {(items.isError || archive.isError || addExamples.isError) && (
-        <p className="text-danger">
-          {staffErrorMessage(items.error ?? archive.error ?? addExamples.error)}
-        </p>
+        <ErrorNotice error={items.error ?? archive.error ?? addExamples.error} />
       )}
       {items.isPending ? (
         <Loading />

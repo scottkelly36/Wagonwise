@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import type {
   CostReportDto,
@@ -15,7 +16,6 @@ import { dateTimeText } from '../../lib/job-report';
 import { formatPence, ukToday } from '../../lib/money';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const NOTE_TEXT: Record<JobCostNote, string> = {
   no_price: 'no price',
@@ -90,7 +90,7 @@ function Report({ companyId, month }: { companyId: string; month: string }) {
     retry: false,
   });
   if (report.isPending) return <Loading />;
-  if (report.isError) return <p className="error">{staffErrorMessage(report.error)}</p>;
+  if (report.isError) return <ErrorNotice error={report.error} />;
   return <ReportBody report={report.data} />;
 }
 

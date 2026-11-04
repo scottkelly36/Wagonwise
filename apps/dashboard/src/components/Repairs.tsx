@@ -1,3 +1,4 @@
+import { ErrorNotice } from './ErrorNotice';
 import { Loading } from './Loading';
 import { useConfirm, useNotify } from './feedback-context';
 import type { RepairDto } from '@wagonwise/contracts/maintenance';
@@ -176,9 +177,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
           </div>
         </form>
       )}
-      {(repairs.isError || cancel.isError) && (
-        <p className="text-danger">{staffErrorMessage(repairs.error ?? cancel.error)}</p>
-      )}
+      {(repairs.isError || cancel.isError) && <ErrorNotice error={repairs.error ?? cancel.error} />}
       {repairs.isPending ? (
         <Loading />
       ) : (

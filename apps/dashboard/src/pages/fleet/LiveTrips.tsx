@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import type { JobDto } from '@wagonwise/contracts/jobs';
 import { useQuery } from '@tanstack/react-query';
@@ -24,10 +25,13 @@ import {
 } from '../../lib/live-map';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const POLL_MS = 10_000;
-const COLOURS: Record<Freshness, string> = { live: '#16a34a', stale: '#d97706', lost: '#6b7280' };
+const COLOURS: Record<Freshness, string> = {
+  live: '#16a34a',
+  stale: '#d97706',
+  lost: 'var(--text-muted)',
+};
 
 const STATUS_LABELS: Record<JobDto['status'], string> = {
   draft: 'Not assigned',
@@ -226,7 +230,7 @@ export function LiveTrips() {
         </div>
       )}
 
-      {error !== null && <p style={{ color: '#dc2626' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
 
       {companyId === undefined ? (
         <p className="text-muted">
@@ -310,14 +314,20 @@ export function LiveTrips() {
                           ),
                         );
                         return (
-                          <div style={{ color: hoursStatusUrgent(shared) ? '#dc2626' : '#6b7280' }}>
+                          <div
+                            style={{
+                              color: hoursStatusUrgent(shared)
+                                ? 'var(--danger)'
+                                : 'var(--text-muted)',
+                            }}
+                          >
                             {hoursStatusText(shared, ageMin)}
                           </div>
                         );
                       })()}
                       <div
                         style={{
-                          color: row.seen ? COLOURS[row.seen.freshness] : '#6b7280',
+                          color: row.seen ? COLOURS[row.seen.freshness] : 'var(--text-muted)',
                           fontWeight: 600,
                         }}
                       >

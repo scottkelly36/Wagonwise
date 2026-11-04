@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type {
@@ -143,7 +144,7 @@ function ByVehicle({ companyId, period }: { companyId: string; period: Period })
   ];
 
   if (fuel.isPending) return <Loading />;
-  if (fuel.isError) return <p className="error">{staffErrorMessage(fuel.error)}</p>;
+  if (fuel.isError) return <ErrorNotice error={fuel.error} />;
   const view = fuel.data;
   const averagePence =
     view.totalLitres > 0

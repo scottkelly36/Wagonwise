@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import { companyIdSchema } from '@wagonwise/contracts/companies';
@@ -13,7 +14,6 @@ import { VehicleMaintenance } from '../../components/VehicleMaintenance';
 import { focusFirstInvalid, hasErrors, type FieldErrors } from '../../lib/forms';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const COMPANIES_KEY = ['companies'] as const;
 const DIMENSION_FIELDS = [
@@ -223,7 +223,7 @@ export function VehicleProfiles() {
         </div>
       )}
 
-      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
 
       {companyId === undefined ? (
         <p className="text-muted">

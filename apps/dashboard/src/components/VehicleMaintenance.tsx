@@ -1,3 +1,4 @@
+import { ErrorNotice } from './ErrorNotice';
 import { Loading } from './Loading';
 import type { DateSuggestionDto, OverviewRowDto } from '@wagonwise/contracts/maintenance';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -57,7 +58,7 @@ export function VehicleMaintenance({
         <h2 className="mt-0">Maintenance{name === undefined ? '' : `: ${name}`}</h2>
       )}
       {data.isPending && <Loading />}
-      {data.isError && <p className="text-danger">{staffErrorMessage(data.error)}</p>}
+      {data.isError && <ErrorNotice error={data.error} />}
       {canManage && data.data?.lookupAvailable === true && rows.length > 0 && (
         <RegistrationLookup vehicleId={vehicleId} onDone={refresh} />
       )}

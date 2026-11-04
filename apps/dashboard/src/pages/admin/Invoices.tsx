@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { InvoiceDto } from '@wagonwise/contracts/billing';
@@ -129,7 +130,7 @@ export function Invoices() {
       </form>
       {notice !== undefined && <p className="text-success">{notice}</p>}
       {generate.isError && <p className="text-danger">{staffErrorMessage(generate.error)}</p>}
-      {invoices.isError && <p className="text-danger">{staffErrorMessage(invoices.error)}</p>}
+      {invoices.isError && <ErrorNotice error={invoices.error} />}
 
       {invoices.isPending ? (
         <Loading />

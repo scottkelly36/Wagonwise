@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ErrorNotice } from '../../components/ErrorNotice';
 import * as parkingApi from '../../api/parking';
 import { suggestedChanges } from '../../lib/parking';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const SUGGESTIONS_KEY = ['parking-suggestions'] as const;
 
@@ -37,7 +37,7 @@ export function ParkingSuggestions({ onDecided }: { onDecided: () => void }) {
       <p className="muted">
         Drivers suggested these. Nothing changes on the map until you approve it.
       </p>
-      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
       {waiting.map((s) => (
         <div
           key={s.id}

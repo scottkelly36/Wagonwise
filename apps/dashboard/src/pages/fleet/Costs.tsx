@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { DriverRatesDto, RunningCostDto } from '@wagonwise/contracts/costing';
@@ -10,7 +11,6 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { formatPence, parsePounds, ukToday } from '../../lib/money';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const monthOf = (day: string): string => day.slice(0, 7);
 
@@ -373,11 +373,9 @@ function RunningCosts({ companyId }: { companyId: string }) {
       )}
 
       {(costs.isError || add.isError || change.isError || stop.isError || remove.isError) && (
-        <p className="error">
-          {staffErrorMessage(
-            costs.error ?? add.error ?? change.error ?? stop.error ?? remove.error,
-          )}
-        </p>
+        <ErrorNotice
+          error={costs.error ?? add.error ?? change.error ?? stop.error ?? remove.error}
+        />
       )}
       {costs.isPending ? (
         <Loading />
@@ -491,7 +489,7 @@ function DriverPay({ companyId }: { companyId: string }) {
         </div>
       </form>
       {(drivers.isError || save.isError || remove.isError) && (
-        <p className="error">{staffErrorMessage(drivers.error ?? save.error ?? remove.error)}</p>
+        <ErrorNotice error={drivers.error ?? save.error ?? remove.error} />
       )}
       {drivers.isPending ? (
         <Loading />

@@ -159,7 +159,7 @@ export function Defects() {
         canHandle || canBook ? (
           <div className="row-actions">
             {bookedFor.has(d.id) && (
-              <span style={{ color: '#047857' }}>
+              <span style={{ color: 'var(--success)' }}>
                 Repair booked for {bookedFor.get(d.id)?.dueDate}
               </span>
             )}

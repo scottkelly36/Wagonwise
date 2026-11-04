@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import type { InviteCodeDto } from '@wagonwise/contracts/identity';
 import { MAX_INVITE_CODES_AT_ONCE } from '@wagonwise/contracts/identity';
@@ -6,7 +7,6 @@ import { useState } from 'react';
 import * as inviteCodesApi from '../../api/invite-codes';
 import { DataTable, type Column } from '../../components/DataTable';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const INVITE_CODES_KEY = ['invite-codes'] as const;
 
@@ -116,7 +116,7 @@ export function InviteCodes() {
         </div>
       )}
 
-      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
 
       {inviteCodes.isPending ? (
         <Loading />
