@@ -79,16 +79,22 @@ function createStyles(colors: ThemeColors) {
     sub: { fontSize: 13, color: colors.textMuted },
     buttons: { flexDirection: 'row', gap: 10 },
     button: {
-      flex: 1,
       minHeight: 48,
       borderRadius: 14,
+      paddingHorizontal: 12,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    switchButton: { backgroundColor: colors.accentGreen },
-    keepButton: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.textDim },
+    // "Keep current route" is the longer label, so it gets twice the width; equal halves wrapped it onto two lines.
+    switchButton: { flex: 1, backgroundColor: colors.accentGreen },
+    keepButton: {
+      flex: 2,
+      backgroundColor: colors.surface,
+      borderWidth: 2,
+      borderColor: colors.textDim,
+    },
     disabled: { opacity: 0.6 },
     switchText: { fontSize: 17, fontWeight: '700', color: colors.textOnAccent },
-    keepText: { fontSize: 15, fontWeight: '700', color: colors.text },
+    keepText: { fontSize: 15, fontWeight: '700', color: colors.text, textAlign: 'center' },
   });
 }
