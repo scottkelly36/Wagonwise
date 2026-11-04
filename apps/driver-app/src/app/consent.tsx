@@ -73,14 +73,12 @@ export default function ConsentScreen() {
         <Text style={styles.heading}>Before you rely on this app</Text>
         <Text style={styles.paragraph}>
           {PRODUCT_NAME} is a planning aid, not a substitute for road signs, official restrictions,
-          or your own judgement. Community-reported hazards can only make a route more cautious —
+          or your own judgement. Community-reported hazards can only make a route more cautious:
           they never override a sign or restriction you can see on the road.
         </Text>
 
         {giveConsent.isError && (
-          <Text style={styles.error}>
-            Couldn’t save that — check your connection and try again.
-          </Text>
+          <Text style={styles.error}>Couldn’t save that. Check your connection and try again.</Text>
         )}
 
         <TouchableOpacity

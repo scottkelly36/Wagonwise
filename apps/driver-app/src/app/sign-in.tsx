@@ -166,7 +166,7 @@ export default function SignInScreen() {
           )}
 
           <Text style={styles.footnote}>
-            This is a planning aid — road signs and your own judgement always come first.
+            This is a planning aid. Road signs and your own judgement always come first.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

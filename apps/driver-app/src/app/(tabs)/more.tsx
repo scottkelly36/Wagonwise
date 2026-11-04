@@ -3,6 +3,9 @@ import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
+  Platform,
+  Share,
   Switch,
   ScrollView,
   StyleSheet,
@@ -15,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDeleteAccount } from '../../api/use-identity';
 import { Icon, type IconName } from '../../components/ui/icon';
 import { identityErrorMessage } from '../../lib/error-messages';
+import { PLAY_STORE_APP_URL, PLAY_STORE_WEB_URL, shareMessage } from '../../lib/store-links';
 import { PRODUCT_NAME } from '../../product';
 import { useAuthStore } from '../../state/auth-store';
 import { useFasterRouteStore } from '../../state/faster-route-store';
@@ -84,6 +88,27 @@ export default function MoreScreen() {
 
   if (state.status !== 'signedIn') {
     return null;
+  }
+
+  function handleSignOut(): void {
+    Alert.alert('Sign out?', 'You will need to sign in again to use the app.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        onPress: () => {
+          void signOut().then(() => router.replace('/sign-in'));
+        },
+      },
+    ]);
+  }
+
+  /** Opens the Play Store app on our listing; the web page when the phone has no Play Store app. */
+  function handleRate(): void {
+    Linking.openURL(PLAY_STORE_APP_URL).catch(() => Linking.openURL(PLAY_STORE_WEB_URL));
+  }
+
+  function handleShare(): void {
+    void Share.share({ message: shareMessage(Platform.OS) });
   }
 
   function handleDeleteAccount(): void {
@@ -201,11 +226,35 @@ export default function MoreScreen() {
         </Text>
 
         <View style={styles.group}>
+          {Platform.OS === 'android' && (
+            <TouchableOpacity
+              style={[styles.row, styles.rowDivider]}
+              onPress={handleRate}
+              accessibilityRole="button"
+              testID="rate-app-button"
+            >
+              <View style={styles.rowIcon}>
+                <Icon name="star-outline" size={26} color={colors.accent} />
+              </View>
+              <Text style={styles.rowLabel}>Rate {PRODUCT_NAME}</Text>
+              <Icon name="chevron-right" size={26} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.row, styles.rowDivider]}
+            onPress={handleShare}
+            accessibilityRole="button"
+            testID="share-app-button"
+          >
+            <View style={styles.rowIcon}>
+              <Icon name="share-variant-outline" size={26} color={colors.accent} />
+            </View>
+            <Text style={styles.rowLabel}>Share {PRODUCT_NAME}</Text>
+            <Icon name="chevron-right" size={26} color={colors.textMuted} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.row}
-            onPress={() => {
-              void signOut().then(() => router.replace('/sign-in'));
-            }}
+            onPress={handleSignOut}
             accessibilityRole="button"
             testID="sign-out-button"
           >

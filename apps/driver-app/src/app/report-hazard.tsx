@@ -100,7 +100,7 @@ export default function ReportHazardScreen() {
         <View style={styles.queuedContent}>
           <Text style={styles.title}>Saved</Text>
           <Text style={[styles.hint, styles.queuedHint]}>
-            You’re offline right now — this will be sent automatically once you’re back online.
+            You’re offline right now. This will be sent automatically once you’re back online.
           </Text>
           <TouchableOpacity
             style={styles.button}
