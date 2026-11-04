@@ -15,6 +15,20 @@ function buildApp(): {
   return { app, coreClient, verifier };
 }
 
+describe('GET /identity/sign-in-options', () => {
+  it('asks core and relays its answer', async () => {
+    const { app, coreClient } = buildApp();
+    const options = { passwordSignIn: true, inviteRequired: false, google: false, apple: false };
+    coreClient.nextResponse = { status: 200, body: options };
+
+    const response = await app.inject({ method: 'GET', url: '/identity/sign-in-options' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(options);
+    expect(coreClient.calls[0]).toMatchObject({ method: 'GET', path: '/identity/sign-in-options' });
+  });
+});
+
 describe('POST /identity/otp/request', () => {
   it('forwards a valid body to core and relays its response', async () => {
     const { app, coreClient } = buildApp();

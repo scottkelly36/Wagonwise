@@ -26,7 +26,7 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 
 ## Next up
 
-0. **Driver sign-in without invite codes** (plan: `docs/driver-sign-in-plan.md`). Server and driver BFF are built behind switches (2026-11-01); the app screens, Google/Apple (a store build) and the owner's Google/Apple set-up are not. Nothing ships until after the store release.
+0. **Driver sign-in without invite codes** (plan: `docs/driver-sign-in-plan.md`). Server, driver BFF and the app's password screens are built behind switches (2026-11-01 and 2026-11-04; JavaScript only, so over the air; not tried on a phone); Google/Apple (a store build) and the owner's Google/Apple set-up are not. Nothing ships until after the store release.
 1. **App stores** (owner). Apple: the WagonWise Ltd developer account was approved 2026-10-28 (Team ID in `eas.json`); next is
    `deployment-guide.md` section 9c, the first TestFlight build (voice, push and SOS on iOS are untested). Google Play: the closed test runs
    with about 25 testers, and 12 or more must stay opted in for 14 days in a row before applying for production access.

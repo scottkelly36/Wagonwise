@@ -104,6 +104,11 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
     return reply.status(core.status).send(core.body);
   });
 
+  app.get('/identity/sign-in-options', async (request, reply) => {
+    const core = await deps.coreClient.request('GET', '/identity/sign-in-options', request.id);
+    return reply.status(core.status).send(core.body);
+  });
+
   app.post('/identity/otp/request', async (request, reply) => {
     const parsed = requestOtpRequestSchema.safeParse(request.body);
     if (!parsed.success) {

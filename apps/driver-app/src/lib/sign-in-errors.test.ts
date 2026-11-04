@@ -1,5 +1,11 @@
 import { ApiError } from '../api/errors';
-import { REQUEST_OTP_MESSAGES, signInErrorMessage } from './sign-in-errors';
+import {
+  PASSWORD_SIGN_IN_MESSAGES,
+  REQUEST_OTP_MESSAGES,
+  SET_PASSWORD_MESSAGES,
+  SIGN_UP_MESSAGES,
+  signInErrorMessage,
+} from './sign-in-errors';
 
 const say = (error: unknown) => signInErrorMessage(error, REQUEST_OTP_MESSAGES);
 
@@ -50,5 +56,39 @@ describe('the message when no account is found', () => {
     );
     expect(message).toContain('signed in before');
     expect(message).toContain('invite code');
+  });
+});
+
+describe('the messages for email and password sign-in', () => {
+  it('gives one sentence for a wrong email or password, and a lockout its own', () => {
+    const wrong = new ApiError('InvalidCredentials', 401);
+    expect(signInErrorMessage(wrong, PASSWORD_SIGN_IN_MESSAGES)).toBe(
+      "That email or password isn't right.",
+    );
+    const locked = new ApiError('TooManyAttempts', 429);
+    expect(signInErrorMessage(locked, PASSWORD_SIGN_IN_MESSAGES)).toMatch(/locked for 15 minutes/);
+  });
+
+  it('tells a driver with a password not to use the code-only way', () => {
+    const error = new ApiError('PasswordRequired', 409);
+    expect(signInErrorMessage(error, REQUEST_OTP_MESSAGES)).toMatch(/has a password/);
+  });
+
+  it('points an existing email to signing in, and asks for the invite code when one is needed', () => {
+    expect(signInErrorMessage(new ApiError('AccountExists', 409), SIGN_UP_MESSAGES)).toMatch(
+      /already an account/,
+    );
+    expect(signInErrorMessage(new ApiError('InviteCodeRequired', 400), SIGN_UP_MESSAGES)).toBe(
+      'Enter your invite code to sign up.',
+    );
+  });
+
+  it('says what is wrong with a password the server turns down', () => {
+    expect(signInErrorMessage(new ApiError('PasswordTooShort', 400), SIGN_UP_MESSAGES)).toMatch(
+      /at least 10/,
+    );
+    expect(
+      signInErrorMessage(new ApiError('PasswordAlreadySet', 409), SET_PASSWORD_MESSAGES),
+    ).toMatch(/Forgot password/);
   });
 });

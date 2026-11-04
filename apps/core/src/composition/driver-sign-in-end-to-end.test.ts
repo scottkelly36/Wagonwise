@@ -106,6 +106,18 @@ describe('driver sign-in end to end (real Postgres)', () => {
     return body<{ driver: { id: string } }>(response).driver.id;
   }
 
+  it('tells the app which ways in are on, from the real switches', async () => {
+    const response = await app.inject({ method: 'GET', url: '/identity/sign-in-options' });
+    expect(response.statusCode).toBe(200);
+    // Password sign-in is on and no code is needed; Google has a client id and Apple has none.
+    expect(response.json()).toEqual({
+      passwordSignIn: true,
+      inviteRequired: false,
+      google: true,
+      apple: false,
+    });
+  });
+
   it('signs up with no invite code, storing a hash and never the password', async () => {
     const id = await signUp('sam@example.com');
     const row = (

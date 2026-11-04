@@ -103,6 +103,7 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
     },
     listInviteCodes: { repo: inviteCodeRepo, staff },
     tokenSigner,
+    signInOptions: { passwordSignIn: false, inviteRequired: true, google: false, apple: false },
   };
 
   const app = Fastify();
@@ -120,6 +121,20 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
   registerIdentityRoutes(app, deps);
   return { app, deps };
 }
+
+describe('GET /identity/sign-in-options', () => {
+  it('says which ways in are on, with no sign-in needed', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({ method: 'GET', url: '/identity/sign-in-options' });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      passwordSignIn: false,
+      inviteRequired: true,
+      google: false,
+      apple: false,
+    });
+  });
+});
 
 describe('POST /identity/otp/request', () => {
   let app: FastifyInstance;

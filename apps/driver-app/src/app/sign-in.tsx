@@ -1,256 +1,65 @@
-import { useMutation } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState } from 'react';
+import { ActivityIndicator } from 'react-native';
 
-import * as identityApi from '../api/identity';
-import { PRODUCT_NAME } from '../product';
-import { useAuthStore } from '../state/auth-store';
-import {
-  REQUEST_OTP_MESSAGES,
-  signInErrorMessage,
-  VERIFY_OTP_MESSAGES,
-} from '../lib/sign-in-errors';
-import { useThemeColors, type ThemeColors } from '../theme/colors';
+import { useSignInOptions } from '../api/use-sign-in-options';
+import { CodeOnlySignIn } from '../components/sign-in/code-only-sign-in';
+import { ForgotPassword } from '../components/sign-in/forgot-password';
+import { AuthScreen, ErrorText, LinkButton } from '../components/sign-in/form-kit';
+import { PasswordSignIn } from '../components/sign-in/password-sign-in';
+import { SignUp } from '../components/sign-in/sign-up';
+import { useThemeColors } from '../theme/colors';
 
-type Step =
-  | { readonly kind: 'identifier' }
-  | { readonly kind: 'code'; readonly identifier: string; readonly inviteCode: string | undefined };
+type Mode = 'signIn' | 'signUp' | 'forgot' | 'code';
 
+/**
+ * Signing in. The server says which ways in it offers (`GET /identity/sign-in-options`): with password sign-in on, an email and
+ * password then an emailed code, a way to create an account and a way to reset the password, with the old code-only way kept for
+ * a driver who has no password yet; with it off, the code-only screen as before.
+ */
 export default function SignInScreen() {
-  const router = useRouter();
-  const signIn = useAuthStore((s) => s.signIn);
-
-  const [step, setStep] = useState<Step>({ kind: 'identifier' });
-  const [identifier, setIdentifier] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
-  const [code, setCode] = useState('');
+  const options = useSignInOptions();
   const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [mode, setMode] = useState<Mode>('signIn');
 
-  const requestOtpMutation = useMutation({
-    mutationFn: () => identityApi.requestOtp(identifier.trim(), inviteCode.trim() || undefined),
-    onSuccess: () => {
-      setStep({
-        kind: 'code',
-        identifier: identifier.trim(),
-        inviteCode: inviteCode.trim() || undefined,
-      });
-      setCode('');
-    },
-  });
+  if (options.isPending) {
+    return (
+      <AuthScreen>
+        <ActivityIndicator color={colors.accent} />
+      </AuthScreen>
+    );
+  }
+  if (options.data === undefined) {
+    return (
+      <AuthScreen>
+        <ErrorText>Couldn&apos;t reach the server. Check your connection.</ErrorText>
+        <LinkButton
+          label="Try again"
+          onPress={() => void options.refetch()}
+          testID="retry-options"
+        />
+      </AuthScreen>
+    );
+  }
 
-  const verifyOtpMutation = useMutation({
-    mutationFn: () => {
-      if (step.kind !== 'code') {
-        return Promise.reject(new Error('not ready to verify a code yet'));
-      }
-      return identityApi.verifyOtp(step.identifier, code.trim(), step.inviteCode);
-    },
-    onSuccess: async (result) => {
-      await signIn(
-        { accessToken: result.accessToken, refreshToken: result.refreshToken },
-        result.driver,
-      );
-      router.replace('/home');
-    },
-  });
-
+  const { passwordSignIn, inviteRequired } = options.data;
+  const goToSignIn = () => setMode('signIn');
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>{PRODUCT_NAME}</Text>
-
-          {step.kind === 'identifier' ? (
-            <>
-              <Text style={styles.label}>Email or mobile number</Text>
-              <TextInput
-                style={styles.input}
-                value={identifier}
-                onChangeText={setIdentifier}
-                placeholder="you@example.com"
-                placeholderTextColor={colors.textDim}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                testID="identifier-input"
-              />
-
-              <Text style={styles.label}>Invite code (first sign-in only)</Text>
-              <TextInput
-                style={styles.input}
-                value={inviteCode}
-                onChangeText={setInviteCode}
-                placeholder="Leave blank if you've signed in before"
-                placeholderTextColor={colors.textDim}
-                autoCapitalize="none"
-                autoCorrect={false}
-                testID="invite-code-input"
-              />
-
-              {requestOtpMutation.isError && (
-                <Text style={styles.error}>
-                  {signInErrorMessage(requestOtpMutation.error, REQUEST_OTP_MESSAGES)}
-                </Text>
-              )}
-
-              <TouchableOpacity
-                style={[styles.button, !identifier.trim() && styles.buttonDisabled]}
-                disabled={!identifier.trim() || requestOtpMutation.isPending}
-                onPress={() => requestOtpMutation.mutate()}
-                testID="request-code-button"
-              >
-                {requestOtpMutation.isPending ? (
-                  <ActivityIndicator color={colors.textOnAccent} />
-                ) : (
-                  <Text style={styles.buttonText}>Send me a code</Text>
-                )}
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <Text style={styles.subtitle}>A code has been sent to {step.identifier}</Text>
-
-              <Text style={styles.label}>Enter the code</Text>
-              <TextInput
-                style={styles.input}
-                value={code}
-                onChangeText={setCode}
-                placeholder="123456"
-                placeholderTextColor={colors.textDim}
-                keyboardType="number-pad"
-                testID="code-input"
-              />
-
-              {verifyOtpMutation.isError && (
-                <Text style={styles.error}>
-                  {signInErrorMessage(verifyOtpMutation.error, VERIFY_OTP_MESSAGES)}
-                </Text>
-              )}
-
-              <TouchableOpacity
-                style={[styles.button, !code.trim() && styles.buttonDisabled]}
-                disabled={!code.trim() || verifyOtpMutation.isPending}
-                onPress={() => verifyOtpMutation.mutate()}
-                testID="verify-code-button"
-              >
-                {verifyOtpMutation.isPending ? (
-                  <ActivityIndicator color={colors.textOnAccent} />
-                ) : (
-                  <Text style={styles.buttonText}>Continue</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.linkButton}
-                onPress={() => setStep({ kind: 'identifier' })}
-                testID="use-different-identifier-button"
-              >
-                <Text style={styles.linkText}>Use a different email or number</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          <Text style={styles.footnote}>
-            This is a planning aid — road signs and your own judgement always come first.
-          </Text>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    <AuthScreen>
+      {!passwordSignIn ? (
+        <CodeOnlySignIn inviteRequired={inviteRequired} />
+      ) : mode === 'signUp' ? (
+        <SignUp inviteRequired={inviteRequired} onBack={goToSignIn} />
+      ) : mode === 'forgot' ? (
+        <ForgotPassword onBack={goToSignIn} />
+      ) : mode === 'code' ? (
+        <CodeOnlySignIn inviteRequired={inviteRequired} onBack={goToSignIn} />
+      ) : (
+        <PasswordSignIn
+          onSignUp={() => setMode('signUp')}
+          onForgot={() => setMode('forgot')}
+          onCodeOnly={() => setMode('code')}
+        />
+      )}
+    </AuthScreen>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    flex: {
-      flex: 1,
-    },
-    content: {
-      flexGrow: 1,
-      justifyContent: 'center',
-      padding: 24,
-      gap: 8,
-    },
-    title: {
-      fontSize: 32,
-      fontWeight: '700',
-      color: colors.text,
-      marginBottom: 24,
-      textAlign: 'center',
-    },
-    subtitle: {
-      fontSize: 18,
-      color: colors.textSecondary,
-      marginBottom: 16,
-    },
-    label: {
-      fontSize: 16,
-      color: colors.textMuted,
-      marginTop: 16,
-    },
-    input: {
-      minHeight: 56,
-      fontSize: 20,
-      color: colors.text,
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      marginTop: 8,
-    },
-    button: {
-      minHeight: 56,
-      backgroundColor: colors.accent,
-      borderRadius: 16,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: 24,
-    },
-    buttonDisabled: {
-      opacity: 0.5,
-    },
-    buttonText: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: colors.textOnAccent,
-    },
-    linkButton: {
-      minHeight: 56,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    linkText: {
-      fontSize: 16,
-      color: colors.textMuted,
-      textDecorationLine: 'underline',
-    },
-    error: {
-      fontSize: 16,
-      color: colors.danger,
-      marginTop: 12,
-    },
-    footnote: {
-      fontSize: 13,
-      color: colors.textDim,
-      textAlign: 'center',
-      marginTop: 32,
-    },
-  });
 }

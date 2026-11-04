@@ -135,7 +135,7 @@ Switches (read only in `config.ts`):
   or leaked password, not a hijacked inbox. An authenticator app as a second factor (as staff have) would
   fix that, and is left as a later extra.
 
-## What is built (2026-11-01: server and driver BFF only, nothing in the app)
+## What is built (2026-11-01: server and driver BFF; 2026-11-04: the password screens in the app)
 
 - `DRIVER_INVITE_REQUIRED`, `DRIVER_PASSWORD_SIGN_IN`, `GOOGLE_OAUTH_CLIENT_IDS`, `APPLE_CLIENT_IDS` in `config.ts`.
 - Core: every route in the table above, forwarded by the driver BFF. A driver
@@ -143,7 +143,8 @@ Switches (read only in `config.ts`):
   and the provider links.
 - Tests: unit, routes, real-Postgres repositories, and `composition/driver-sign-in-end-to-end.test.ts` through
   the real module.
-- **Not built:** anything in the app; revoking the Apple token when an account is deleted; a nonce check on ID
+- **The app (2026-11-04, JavaScript only, so it can go over the air; nothing shows until `DRIVER_PASSWORD_SIGN_IN=true`):** `GET /identity/sign-in-options` tells it which screen to show (an older server that answers 404 gets today's code-only screen; no signal gets a retry). With password sign-in on: `sign-in.tsx` is email and password then the emailed code, with Create an account (email, password with a length check as they type, code; the invite box only while `inviteRequired`), Forgot your password (code, then a new password, signs in) and **Get a code instead** for a driver with no password. In More, a phone-number account gets **Add your email** (`add-email.tsx`) and an email account gets **Password** (`set-password.tsx`, `PasswordAlreadySet` says how to change it). Pieces: `components/sign-in/`, `api/use-sign-in-options.ts`, `lib/sign-in-form.ts`, the messages in `lib/sign-in-errors.ts`. Tests: `screens/sign-in.test.tsx`, `screens/account-sign-in.test.tsx`, the API calls and messages. **Not tried on a phone.**
+- **Not built:** Google and Apple buttons (need `expo-apple-authentication`, a Google module and a store build, and the owner's Google and Apple set-up); removing the invite box for good; revoking the Apple token when an account is deleted; a nonce check on ID
   tokens (a stolen token could be replayed until it expires, about an hour); a per-address rate limit at the driver
   BFF; disposable-email blocking.
 

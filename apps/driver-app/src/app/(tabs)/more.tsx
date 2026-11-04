@@ -13,8 +13,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDeleteAccount } from '../../api/use-identity';
+import { useSignInOptions } from '../../api/use-sign-in-options';
 import { Icon, type IconName } from '../../components/ui/icon';
 import { identityErrorMessage } from '../../lib/error-messages';
+import { needsEmail } from '../../lib/sign-in-form';
 import { PRODUCT_NAME } from '../../product';
 import { useAuthStore } from '../../state/auth-store';
 import { useFasterRouteStore } from '../../state/faster-route-store';
@@ -35,6 +37,19 @@ interface MenuRow {
   readonly href: Href;
   readonly testID: string;
 }
+
+const ADD_EMAIL_ROW: MenuRow = {
+  label: 'Add your email',
+  icon: 'email-outline',
+  href: '/add-email',
+  testID: 'add-email-button',
+};
+const PASSWORD_ROW: MenuRow = {
+  label: 'Password',
+  icon: 'lock-outline',
+  href: '/set-password',
+  testID: 'password-button',
+};
 
 const ROWS: readonly MenuRow[] = [
   { label: 'Your name', icon: 'account-outline', href: '/your-name', testID: 'your-name-button' },
@@ -73,12 +88,23 @@ export default function MoreScreen() {
   const setFasterRoutes = useFasterRouteStore((s) => s.setEnabled);
   const stillThere = useStillThereStore((s) => s.enabled);
   const setStillThere = useStillThereStore((s) => s.setEnabled);
+  const signInOptions = useSignInOptions();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (state.status !== 'signedIn') {
     return null;
   }
+
+  // Password sign-in, when the server has it on: a phone-number account adds an email first, any other adds a password.
+  const rows: readonly MenuRow[] =
+    signInOptions.data?.passwordSignIn === true
+      ? [
+          ...ROWS.slice(0, 1),
+          needsEmail(state.driver.identifier) ? ADD_EMAIL_ROW : PASSWORD_ROW,
+          ...ROWS.slice(1),
+        ]
+      : ROWS;
 
   function handleDeleteAccount(): void {
     Alert.alert(
@@ -110,7 +136,7 @@ export default function MoreScreen() {
         </Text>
 
         <View style={styles.group}>
-          {ROWS.map((row, index) => (
+          {rows.map((row, index) => (
             <TouchableOpacity
               key={row.testID}
               style={[styles.row, index > 0 && styles.rowDivider]}

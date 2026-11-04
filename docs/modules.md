@@ -56,7 +56,7 @@ factor is an emailed code, so **the inbox is the real key** (it also resets the 
 an email. A signed-in driver adds methods to the account they have (`account-links.ts`, under the gated `/identity/account/`):
 `POST /identity/account/link/social` (a Google/Apple login; `AlreadyLinked` if it is on another account) and
 `POST /identity/account/email/request` + `/confirm` (a phone-number account proves an email with a code, and the email replaces the
-phone number as its identifier; the account keeps its id, so its data and company links stay). Nothing in the app uses any of this yet.
+phone number as its identifier; the account keeps its id, so its data and company links stay). **`GET /identity/sign-in-options`** (2026-11-04, core and the driver BFF, no sign-in needed) answers `{ passwordSignIn, inviteRequired, google, apple }` from the switches above (a provider counts only when password sign-in is on and it has a client id), so the app shows only what will work. **The app now uses it** for the password screens (below); Google and Apple are not in the app yet (they need native modules and the owner's Google and Apple set-up).
 
 ## Routing (vehicle profiles)
 
