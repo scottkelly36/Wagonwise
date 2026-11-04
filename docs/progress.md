@@ -30,10 +30,9 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 1. **App stores** (owner). Apple: the WagonWise Ltd developer account was approved 2026-10-28 (Team ID in `eas.json`); next is
    `deployment-guide.md` section 9c, the first TestFlight build (voice, push and SOS on iOS are untested). Google Play: the closed test runs
    with about 25 testers, and 12 or more must stay opted in for 14 days in a row before applying for production access.
-2. **Before the pilot, no code:** privacy notice, DPA and DPIA need the photo retention wording, **SOS** (position, name and
-   contact sent to the company on a button press, kept 30 days after it closes, deleted with the account; WagonWise does not
-   contact the emergency services), **public places**, location sharing, and the processors (TomTom, what3words, DVSA); fill
-   the `[brackets]` and get a solicitor to review; register with the ICO; the restriction audit around Hexham; turn on Resend
+2. **Before the pilot, no code:** the privacy notice and the in-app summary were brought up to date on 2026-11-04 (SOS, shared
+   places, checks, what3words, DVSA; `docs/privacy-review.md`). Still to do: deploy the landing site, update the DPA and DPIA and the
+   Play and Apple store forms from that file, fill the `[brackets]`, get a solicitor to review; register with the ICO; the restriction audit around Hexham; turn on Resend
    failure alerts (the webhook is built); **rotate every production secret that was pasted into a chat** before launch
    (rotating `STAFF_SECRET_KEY` makes staff enrol again).
 3. **Check on real devices** (none of these has been tried on a phone yet): hold-to-send SOS and its cancel, the portal strip and the

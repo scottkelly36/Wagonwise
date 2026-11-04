@@ -38,8 +38,9 @@ export default function ConsentScreen() {
 
         <Text style={styles.heading}>What {PRODUCT_NAME} does with your data</Text>
         <Text style={styles.paragraph}>
-          While you’re on a trip, we store your position short-term so we can warn you about hazards
-          ahead and help with debugging — never longer than 30 days, and only for active trips.
+          While you’re on a trip, we use your position as it arrives to warn you about hazards ahead
+          and notice if you leave your route. We don’t keep it. The routes you plan are kept for 30
+          days.
         </Text>
         <Text style={styles.paragraph}>
           If you drive for a company and accept one of their jobs, that company can see where you
@@ -47,7 +48,14 @@ export default function ConsentScreen() {
           you’re not on a job.
         </Text>
         <Text style={styles.paragraph}>
-          Hazard reports you file are shared with other drivers without your name attached.
+          If you hold the SOS button, the company you drive for is told where you are, with your
+          name and how you sign in, so they can ring you. {PRODUCT_NAME} does not call the emergency
+          services: use Call 999.
+        </Text>
+        <Text style={styles.paragraph}>
+          Hazard reports you file are shared with other drivers without your name attached. A place
+          you mark stays private to you or your company unless you choose Share with all drivers,
+          and then it is shown without your name.
         </Text>
         <Text style={styles.paragraph}>
           Your vehicle profiles and planned routes are stored so you don’t have to re-enter them
@@ -55,8 +63,9 @@ export default function ConsentScreen() {
         </Text>
         <Text style={styles.paragraph}>
           You can delete your account at any time from the More tab. That removes your sign-in,
-          vehicle profiles, routes and feedback. Hazard reports you filed stay, with nothing linking
-          them to you, and a company keeps its own job records.
+          vehicle profiles, routes, feedback and the places you marked for yourself. Hazard reports
+          you filed stay, with nothing linking them to you, and a company keeps its own job and
+          check records. The full privacy notice is at wagon-wise.co.uk/privacy.
         </Text>
 
         <Text style={styles.heading}>Before you rely on this app</Text>
