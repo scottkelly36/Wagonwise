@@ -53,6 +53,7 @@ function fakeStaffAuth(app: FastifyInstance): void {
 
 let app: FastifyInstance;
 let scopes: RecordingDataScopes;
+let companies: InMemoryCompanyRepository;
 let deps: StaffDeps & {
   totp: FakeTotp;
   codeSender: RecordingCodeSender;
@@ -60,9 +61,10 @@ let deps: StaffDeps & {
 };
 
 beforeEach(async () => {
+  companies = new InMemoryCompanyRepository();
   deps = {
     accounts: new InMemoryStaffAccountRepository(),
-    companies: new InMemoryCompanyRepository(),
+    companies,
     invites: new InMemoryStaffInviteRepository(),
     sessions: new InMemoryStaffSessionRepository(),
     challenges: new InMemoryStaffChallengeRepository(),
@@ -202,6 +204,27 @@ describe('staff routes', () => {
     expect(confirmed.statusCode).toBe(200);
     expect(confirmed.json<ConfirmStaffEnrolmentResponse>().recoveryCodes).toHaveLength(10);
     const { staff: boss, accessToken: bossToken } = confirmed.json<ConfirmStaffEnrolmentResponse>();
+
+    // /staff/me names the company for a fleet user (the top bar shows it), and only for them.
+    await companies.save({
+      id: makeId<'CompanyId'>(ACME),
+      name: 'Acme Haulage',
+      createdAt: deps.clock.now(),
+      photoRetentionMonths: 12,
+    });
+    const bossMe = await app.inject({
+      method: 'GET',
+      url: '/staff/me',
+      headers: bearer(bossToken),
+    });
+    expect(bossMe.json()).toMatchObject({ companyId: ACME, companyName: 'Acme Haulage' });
+    const { accessToken: adminAgain } = await signIn('support@wagon-wise.co.uk');
+    const adminMe = await app.inject({
+      method: 'GET',
+      url: '/staff/me',
+      headers: bearer(adminAgain),
+    });
+    expect(adminMe.json()).not.toHaveProperty('companyName');
 
     const list = await app.inject({
       method: 'GET',

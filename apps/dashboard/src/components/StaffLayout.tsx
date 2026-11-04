@@ -1,13 +1,13 @@
 import type { StaffAccountDto } from '@wagonwise/contracts/staff';
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { foldingSections, sectionForPath, toggled } from '../lib/nav';
 import { pageTitle } from '../lib/page-title';
 import { holds, isPlatform } from '../state/access';
 import { useStaffAuthStore } from '../state/staff-auth-store';
 import { FeedbackProvider } from './Feedback';
-import { GuideLink } from './GuideLink';
 import { SosBanner } from './SosBanner';
+import { TopBar } from './TopBar';
 import { WeatherBanner } from './WeatherBanner';
 
 interface NavItem {
@@ -148,10 +148,8 @@ const SECTIONS: readonly NavSection[] = [
 ];
 
 export function StaffLayout() {
-  const navigate = useNavigate();
   const { pathname } = useLocation();
   const session = useStaffAuthStore((s) => s.session);
-  const signOut = useStaffAuthStore((s) => s.signOut);
   const staff = session?.staff;
 
   // On a phone the menu is a drawer. It closes when a page is chosen, and on Escape.
@@ -269,39 +267,10 @@ export function StaffLayout() {
         {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
 
         <div className="main-column">
-          <header className="topbar">
-            <button
-              type="button"
-              className="menu-button"
-              aria-label={navOpen ? 'Close menu' : 'Open menu'}
-              aria-expanded={navOpen}
-              aria-controls="main-nav"
-              onClick={() => setNavOpen((open) => !open)}
-            >
-              <span aria-hidden="true">{navOpen ? '✕' : '☰'}</span>
-            </button>
-            {staff !== undefined && (
-              <>
-                <div className="who">
-                  {staff.name}
-                  <small>{staff.kind === 'platform' ? 'WagonWise staff' : staff.email}</small>
-                </div>
-                <span className="avatar">{staff.name.trim().charAt(0).toUpperCase()}</span>
-                <button
-                  className="btn-light"
-                  onClick={() => {
-                    void signOut().then(() => navigate('/staff/sign-in'));
-                  }}
-                >
-                  Sign out
-                </button>
-              </>
-            )}
-          </header>
+          <TopBar navOpen={navOpen} onToggleNav={() => setNavOpen((o) => !o)} />
           <main id="main-content" className="content" tabIndex={-1}>
             <SosBanner />
             <WeatherBanner />
-            <GuideLink />
             <Outlet />
           </main>
         </div>
