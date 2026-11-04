@@ -197,7 +197,7 @@ export function StaffLayout() {
       <div className="shell">
         <nav id="main-nav" className={navOpen ? 'sidebar open' : 'sidebar'} aria-label="Main">
           <div className="brand">
-            <span className="brand-mark" />
+            <img className="brand-mark" src="/logo.png" alt="" width="30" height="30" />
             WagonWise
           </div>
 
