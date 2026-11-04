@@ -483,7 +483,7 @@ export default function PlanRouteScreen() {
                     <ActivityIndicator color={colors.text} />
                   ) : profiles === undefined || profiles.length === 0 ? (
                     <Text style={styles.hint}>
-                      No saved vehicles yet — try “Enter details” instead.
+                      No saved vehicles yet. Try “Enter details” instead.
                     </Text>
                   ) : (
                     profiles.map((profile) => (

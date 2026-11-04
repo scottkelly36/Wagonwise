@@ -39,7 +39,7 @@ export function AuthScreen({ children }: { children: ReactNode }) {
           <Text style={styles.title}>{PRODUCT_NAME}</Text>
           {children}
           <Text style={styles.footnote}>
-            This is a planning aid — road signs and your own judgement always come first.
+            This is a planning aid. Road signs and your own judgement always come first.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

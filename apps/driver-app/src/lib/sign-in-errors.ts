@@ -16,8 +16,8 @@ export const REQUEST_OTP_MESSAGES: Record<string, string> = {
 export const VERIFY_OTP_MESSAGES: Record<string, string> = {
   ...REQUEST_OTP_MESSAGES,
   OtpNotFound: 'Request a new code.',
-  OtpAlreadyConsumed: "That code's already been used — request a new one.",
-  OtpExpired: "That code's expired — request a new one.",
+  OtpAlreadyConsumed: "That code's already been used. Request a new one.",
+  OtpExpired: "That code's expired. Request a new one.",
   TooManyAttempts: 'Too many attempts. Request a new code.',
 };
 

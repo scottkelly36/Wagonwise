@@ -401,7 +401,7 @@ export default function HomeScreen() {
       >
         {location.status === 'denied' && (
           <Text style={styles.hint}>
-            Location access is off — you can still plan a route, but the map won’t centre on you.
+            Location access is off. You can still plan a route, but the map won’t centre on you.
           </Text>
         )}
 

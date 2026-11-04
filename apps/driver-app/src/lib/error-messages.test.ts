@@ -127,10 +127,10 @@ describe('jobsErrorMessage', () => {
       "That job isn't there any more.",
     );
     expect(jobsErrorMessage(new ApiError('ProofOfDeliveryRequired', 409))).toBe(
-      'Take a photo of the delivery first — this job needs one.',
+      'Take a photo of the delivery first. This job needs one.',
     );
     expect(jobsErrorMessage(new ApiError('InvalidTransition', 409))).toBe(
-      'That job has already moved on — pull to refresh.',
+      'That job has already moved on. Pull to refresh.',
     );
   });
 
