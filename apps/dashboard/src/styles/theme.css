@@ -1726,3 +1726,10 @@ main:focus {
     scroll-behavior: auto !important;
   }
 }
+
+/* The one line under the Overview greeting */
+.home-summary {
+  margin: -6px 0 16px;
+  color: var(--text-muted);
+  font-size: 15px;
+}

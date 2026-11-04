@@ -9,6 +9,7 @@ import * as maintenanceApi from '../../api/maintenance';
 import { HomeNote, HomePanel, HomeRows, HomeTiles } from '../../components/HomeParts';
 import { driverNamesById } from '../../lib/driver-name';
 import { complianceRows, localDay, lowOnHours, managerTiles, onTheRoad } from '../../lib/home';
+import { byUrgency, managerSummary, todaysJobs } from '../../lib/home-summary';
 import { holds } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
@@ -118,6 +119,12 @@ export function ManagerHome({ companyId }: { companyId: string }) {
     now,
   });
   const lowHours = lowOnHours(hours.data ?? [], (id) => driverName(id));
+  const dayJobs = todaysJobs(jobs.data ?? [], now);
+  const summary = managerSummary({
+    tiles,
+    late: road.filter((r) => r.late).length,
+    lowHours: lowHours.length,
+  });
 
   const { rows, checksShare } = complianceRows({
     vehicles: vehicles.data,
@@ -134,8 +141,37 @@ export function ManagerHome({ companyId }: { companyId: string }) {
         {greeting(now)}
         {me === undefined ? '' : `, ${me.name.split(' ')[0] ?? me.name}`}
       </h1>
-      <HomeTiles tiles={tiles} loading={jobs.isPending} />
+      <p className="home-summary" aria-live="polite">
+        {jobs.isPending ? 'Checking the fleet…' : summary}
+      </p>
+      <HomeTiles tiles={byUrgency(tiles)} loading={jobs.isPending} />
       <div className="home-panels">
+        <HomePanel title="Today's jobs" area="ops" to="/fleet/jobs" linkLabel="Open jobs">
+          {jobs.isPending ? (
+            <HomeNote>Loading…</HomeNote>
+          ) : dayJobs.total === 0 ? (
+            <HomeNote>No jobs are planned for today.</HomeNote>
+          ) : (
+            <div>
+              {dayJobs.rows.map((row) => (
+                <div key={row.jobId} className="home-row">
+                  <span>
+                    <strong>{row.reference}</strong>
+                    {row.route === '' ? '' : `, ${row.route}`}
+                  </span>
+                  <span className={row.tone === 'quiet' ? 'muted' : `tone-${row.tone}`}>
+                    {row.status}
+                  </span>
+                </div>
+              ))}
+              <HomeNote>
+                {dayJobs.delivered} of {dayJobs.total} delivered
+                {dayJobs.more > 0 ? `, ${dayJobs.more} more not shown` : ''}
+              </HomeNote>
+            </div>
+          )}
+        </HomePanel>
+
         <HomePanel
           title="On the road now"
           area="ops"
@@ -176,6 +212,10 @@ export function ManagerHome({ companyId }: { companyId: string }) {
             linkLabel="Open defects"
           >
             <HomeRows rows={rows} />
+            {checksShare !== undefined &&
+              rows.every((r) => r.tone === 'quiet' || r.tone === 'good') && (
+                <HomeNote>Everything is checked and clear.</HomeNote>
+              )}
             {checksShare !== undefined && (
               <div className="home-bar" aria-hidden="true">
                 <i style={{ width: `${Math.round(checksShare * 100)}%` }} />
