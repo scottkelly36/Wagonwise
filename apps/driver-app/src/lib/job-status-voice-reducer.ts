@@ -34,7 +34,7 @@ export type JobStatusVoiceEvent =
 export const INITIAL_JOB_STATUS_VOICE_STATE: JobStatusVoiceState = { phase: 'idle' };
 
 export function confirmationPrompt(label: string): string {
-  return `${label} — is that right?`;
+  return `${label}, is that right?`;
 }
 
 /** What the app says once the flow ends — the driver's eyes are on the road, not the screen. */

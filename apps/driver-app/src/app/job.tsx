@@ -48,7 +48,7 @@ const STOP_KIND_LABELS = { pickup: 'Pickup', delivery: 'Delivery' } as const;
 const VOICE_LABEL: Record<string, string> = {
   idle: 'Report by voice',
   'capturing-report': 'Listening… tap to cancel',
-  'not-understood': "Didn't catch that — tap to try again",
+  'not-understood': "Didn't catch that. Tap to try again",
   confirming: 'Confirm out loud…',
   'capturing-confirmation': 'Listening for yes or no… tap to cancel',
   advancing: 'Saving…',
@@ -232,7 +232,7 @@ export default function JobScreen() {
         )}
         {voice.state.phase === 'confirming' && (
           <Text style={styles.voiceFootnote} testID="job-voice-prompt">
-            “{voice.state.step.label} — is that right?”
+            “{voice.state.step.label}, is that right?”
           </Text>
         )}
       </ScrollView>

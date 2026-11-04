@@ -106,30 +106,70 @@ user-interaction notes shown.
 
 ## Listing text (draft)
 
-**App name:** WagonWise (from `PRODUCT_NAME` in `apps/driver-app/src/product.js`).
+Revised 2026-11-04 after the closed testers' ASO report (it scored the first draft 51 out of 100: the title and short description
+had no "HGV sat nav", and the description was one block of 1,039 characters). Play indexes the title, short description and full
+description, so the words drivers search for ("HGV sat nav") are in all three, used once or twice each and not repeated for the
+sake of it. Play's limits: title 30, short description 80, full description 4,000.
 
-**Short description (80 characters):**
-HGV navigation that avoids low bridges, with hazard and parking reports from drivers.
+**App name (22 of 30 characters):** WagonWise: HGV Sat Nav
 
-**Full description:**
+(The app's own name on the phone stays WagonWise, from `PRODUCT_NAME` in `apps/driver-app/src/product.js`; only the Play listing
+title changes. Changing it needs no new build.)
 
-> WagonWise is navigation made for HGV drivers.
+**Short description (68 of 80 characters):**
+HGV sat nav with low bridge warnings, hazard alerts and safe parking
+
+**Full description (2313 of 4,000 characters; sections in capitals and bullets, because Play shows no formatting):**
+
+> WagonWise is an HGV sat nav that plans routes for your lorry, not a car. Save your vehicle's height, width, length and weight once, and get directions that keep clear of low bridges and roads you cannot use, with warnings for hazards ahead.
 >
-> Plan routes that fit your vehicle's height, width, length and weight, and get warned about hazards ahead: low bridges,
-> width and weight restrictions, and traffic reported by other drivers.
+> ROUTES FOR YOUR ACTUAL VEHICLE
 >
-> - Routes for your actual vehicle. Save your HGV's dimensions once.
-> - Hazards ahead, spoken so you can keep your eyes on the road. Report a hazard or traffic by voice.
-> - Safe parking: lay-bys, services and spots other drivers have marked, with toilets, showers and food shown at a glance.
-> - A faster route offered when traffic builds, so you can switch or keep going. It never changes your route by itself.
-> - A driving-hours clock and break planning (a guide only: your tachograph is the legal record).
-> - If you drive for a company, accept its jobs, share your position with it while on the road, and take proof-of-delivery
->   photos.
+> - Save your vehicle's dimensions in a profile, and keep a profile for each vehicle you drive.
+> - Compare the fastest and shortest routes with distance and time, and a fuel cost estimate if you set your consumption.
+> - Choose when you leave and see your arrival time.
+> - A faster route is offered when traffic builds. You choose whether to switch or keep going. It never changes your route by itself.
 >
-> Free for drivers. WagonWise is a guide: always follow road signs and the law.
+> HAZARDS AHEAD
+>
+> - Low bridges, width and weight restrictions, and hazards reported by other drivers, spoken aloud so you can keep your eyes on the road.
+> - Report a hazard or traffic with a tap or by voice. Reports are shared with other drivers without your name.
+> - Road and lane closures on motorways and major A roads, and Met Office weather warnings, shown on the map and on your route.
+>
+> SAFE PARKING AND FUEL
+>
+> - Lay-bys, services and spots other drivers have marked, with toilets, showers and food shown at a glance.
+> - Nearby diesel and petrol prices, cheapest or closest first, each showing when it was last reported.
+> - Mark your own places, such as yards and drop-off points, and keep them private or share them with other drivers.
+>
+> DRIVING HOURS AND BREAKS
+>
+> - A driving-hours clock and break planning that points you to parking when a break is due. It is a guide only: your tachograph is the legal record.
+>
+> IF YOU DRIVE FOR A COMPANY
+>
+> - Accept jobs from your company, follow the stops, and take proof-of-delivery photos.
+> - Do your walk-round vehicle checks in the app.
+> - Your company sees where you are only while you are on one of its jobs.
+> - An SOS button tells your company where you are so they can ring you. It does not call the emergency services: use Call 999 for that.
+>
+> BUILT FOR THE ROAD
+>
+> - Large buttons and a dark theme for use in the cab.
+> - Free for drivers. No adverts.
+>
+> WagonWise is a planning aid. Always follow road signs and the law. Community reports can only make a route more cautious and never override a sign or restriction you can see.
+>
+> Questions or feedback? Use Feedback in the app, or email support@wagon-wise.co.uk.
 
-(Cover the claims against what the pilot has actually tested. Remove anything not live on the day you submit. The accent and
-cab-noise accuracy of voice is still unproven, so do not promise it.)
+Before pasting, take out anything not live on the day you submit. Everything above is built; these depend on a deploy or an
+over-the-air update reaching the testers' phones: road closures, fuel prices and SOS. The accent and cab-noise accuracy of voice is still unproven, so the text does not promise it.
+The ASO report asks for 3,000 characters or more; this is shorter on purpose, because adding testimonials or claims the app does
+not back up would cost more than the points. Add real detail only if a feature is missing from the list.
+
+Other store-side levers from the report, none needing a build: an in-app rating prompt after a good moment (not built; the More
+tab has a Rate WagonWise row), Play's free store listing experiments for the first three screenshots, and a small update every six
+to eight weeks.
 
 ## Graphics Play needs
 

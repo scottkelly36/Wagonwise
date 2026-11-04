@@ -29,7 +29,10 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 0. **Driver sign-in without invite codes** (plan: `docs/driver-sign-in-plan.md`). Server and driver BFF are built behind switches (2026-11-01); the app screens, Google/Apple (a store build) and the owner's Google/Apple set-up are not. Nothing ships until after the store release.
 1. **App stores** (owner). Apple: the WagonWise Ltd developer account was approved 2026-10-28 (Team ID in `eas.json`); next is
    `deployment-guide.md` section 9c, the first TestFlight build (voice, push and SOS on iOS are untested). Google Play: the closed test runs
-   with about 25 testers, and 12 or more must stay opted in for 14 days in a row before applying for production access.
+   with about 25 testers, and 12 or more must stay opted in for 14 days in a row before applying for production access. The
+   testers' reports came back 2026-11-04 (no crashes): sign-out check, Rate and Share rows and plainer wording are done;
+   a new store listing is in `play-store-listing.md`; the **first-run walkthrough** is the one suggestion left. Answer the
+   production-access form from what was really done, not the provider's template.
 2. **Before the pilot, no code:** the privacy notice and the in-app summary were brought up to date on 2026-11-04 (SOS, shared
    places, checks, what3words, DVSA; `docs/privacy-review.md`). Still to do: deploy the landing site, update the DPA and DPIA and the
    Play and Apple store forms from that file, fill the `[brackets]`, get a solicitor to review; register with the ICO; the restriction audit around Hexham; turn on Resend

@@ -41,7 +41,7 @@ export default function JoinCompanyScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <ScreenHeader title="Join a company" />
           <Text style={styles.hint}>
-            Ask them for their join code. Entering it only sends a request — they still have to
+            Ask them for their join code. Entering it only sends a request. They still have to
             approve it.
           </Text>
 
