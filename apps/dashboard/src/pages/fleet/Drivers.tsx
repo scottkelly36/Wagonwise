@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { DriverLinkDto } from '@wagonwise/contracts/fleet';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +11,6 @@ import { driverDisplayName, driverSubtext } from '../../lib/driver-name';
 import { identifierError } from '../../lib/forms';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const COMPANIES_KEY = ['companies'] as const;
 
@@ -54,12 +54,14 @@ export function Drivers() {
   const [identifier, setIdentifier] = useState('');
   const [showIdentifierError, setShowIdentifierError] = useState(false);
   const driverError = identifierError(identifier);
+  const notify = useNotify();
   const invite = useMutation({
     mutationFn: (who: string) =>
       withAccessToken((token) =>
         fleetApi.inviteDriver(token, companyId as string, { identifier: who.trim() }),
       ),
     onSuccess: () => {
+      notify('Invitation sent');
       setIdentifier('');
       refreshLinks();
     },
@@ -67,14 +69,19 @@ export function Drivers() {
 
   const approve = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => fleetApi.approveDriverLink(token, id)),
-    onSuccess: refreshLinks,
+    onSuccess: () => {
+      refreshLinks();
+      notify('Driver approved');
+    },
   });
   const decline = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => fleetApi.declineDriverLink(token, id)),
-    onSuccess: refreshLinks,
+    onSuccess: () => {
+      refreshLinks();
+      notify('Request declined');
+    },
   });
   const ask = useConfirm();
-  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => fleetApi.removeDriverLink(token, id)),
     onSuccess: refreshLinks,
@@ -83,7 +90,10 @@ export function Drivers() {
   const rename = useMutation({
     mutationFn: (input: { id: string; label: string }) =>
       withAccessToken((token) => fleetApi.setDriverLinkLabel(token, input.id, input.label)),
-    onSuccess: refreshLinks,
+    onSuccess: () => {
+      refreshLinks();
+      notify('Driver name saved');
+    },
   });
 
   const regenerateCode = useMutation({
@@ -155,7 +165,7 @@ export function Drivers() {
         </div>
       )}
 
-      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
 
       {companyId === undefined ? (
         <p style={{ color: 'var(--text-muted)' }}>

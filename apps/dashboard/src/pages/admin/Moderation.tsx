@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { HazardReportDto, ModerateHazardRequest } from '@wagonwise/contracts/hazards';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -87,7 +88,7 @@ export function Moderation() {
       )}
 
       {queue.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : queue.data?.length === 0 ? (
         <p style={{ color: 'var(--text-muted)' }}>Nothing waiting for review.</p>
       ) : (

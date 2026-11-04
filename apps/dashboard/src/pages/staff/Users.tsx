@@ -1,3 +1,5 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import { companyIdSchema } from '@wagonwise/contracts/companies';
 import type { Privilege, StaffAccountDto } from '@wagonwise/contracts/staff';
@@ -50,14 +52,17 @@ export function Users() {
 
   const refreshList = () => void queryClient.invalidateQueries({ queryKey: ['staff-members'] });
 
+  const notify = useNotify();
   const setPrivileges = useMutation({
     mutationFn: (input: { staffId: string; privileges: readonly Privilege[] }) =>
       withAccessToken((token) => staffApi.setPrivileges(token, input.staffId, input.privileges)),
-    onSuccess: refreshList,
+    onSuccess: () => {
+      refreshList();
+      notify('Access changed');
+    },
   });
 
   const ask = useConfirm();
-  const notify = useNotify();
   const remove = useMutation({
     mutationFn: (staffId: string) =>
       withAccessToken((token) => staffApi.removeMember(token, staffId)),
@@ -170,10 +175,10 @@ export function Users() {
         </div>
       )}
 
-      {error !== null && <p className="error">{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
 
       {members.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <DataTable
           columns={columns}

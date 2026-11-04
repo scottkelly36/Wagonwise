@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import type { PlanSummaryDto } from '@wagonwise/contracts/billing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -82,7 +83,7 @@ export function Plans() {
 
       {plans.isError && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(plans.error)}</p>}
       {plans.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <>
           <p>

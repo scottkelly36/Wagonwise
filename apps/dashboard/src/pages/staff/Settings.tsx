@@ -1,3 +1,5 @@
+import { Loading } from '../../components/Loading';
+import { useNotify } from '../../components/feedback-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as companiesApi from '../../api/companies';
@@ -34,6 +36,7 @@ export function Settings() {
   const current = settings.data?.photoRetentionMonths;
   const shown = chosen ?? current;
 
+  const notify = useNotify();
   const save = useMutation({
     mutationFn: (months: number) =>
       withAccessToken((token) =>
@@ -42,6 +45,7 @@ export function Settings() {
         }),
       ),
     onSuccess: () => {
+      notify('Retention period saved');
       setChosen(undefined);
       void queryClient.invalidateQueries({ queryKey: key });
     },
@@ -82,7 +86,7 @@ export function Settings() {
             choice; WagonWise deletes on your instruction.
           </p>
           {settings.isPending ? (
-            <p>Loading…</p>
+            <Loading />
           ) : (
             <>
               <label htmlFor="photo-retention">Keep photos for</label>{' '}

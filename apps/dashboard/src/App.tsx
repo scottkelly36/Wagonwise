@@ -1,3 +1,4 @@
+import { Loading } from './components/Loading';
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { RequireStaff } from './components/RequireStaff';
@@ -61,7 +62,7 @@ export function App() {
             <Route
               path="/fleet/live-trips"
               element={
-                <Suspense fallback={<p>Loading…</p>}>
+                <Suspense fallback={<Loading />}>
                   <LiveTrips />
                 </Suspense>
               }

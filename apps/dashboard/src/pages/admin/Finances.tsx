@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import { COST_CATEGORIES, type CostDto, type FinanceReportDto } from '@wagonwise/contracts/billing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -55,7 +56,7 @@ export function Finances() {
         <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(report.error)}</p>
       )}
       {report.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         report.data !== undefined && <Report data={report.data} onMonth={setMonth} />
       )}

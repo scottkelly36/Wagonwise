@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import type { JobDto } from '@wagonwise/contracts/jobs';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -258,7 +259,7 @@ export function LiveTrips() {
 
           <div className="live-list">
             {jobs.isPending ? (
-              <p>Loading…</p>
+              <Loading />
             ) : rows.length === 0 ? (
               <p style={{ color: '#6b7280' }}>No vehicles on a job right now.</p>
             ) : (

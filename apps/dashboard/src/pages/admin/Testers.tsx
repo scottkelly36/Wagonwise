@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { TesterDto } from '@wagonwise/contracts/signups';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -198,7 +199,7 @@ export function Testers() {
       {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
 
       {data === undefined ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <>
           <p>

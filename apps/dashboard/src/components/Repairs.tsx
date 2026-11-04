@@ -1,3 +1,4 @@
+import { Loading } from './Loading';
 import { useConfirm, useNotify } from './feedback-context';
 import type { RepairDto } from '@wagonwise/contracts/maintenance';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -35,6 +36,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
     void queryClient.invalidateQueries({ queryKey: ['repairs'] });
     void queryClient.invalidateQueries({ queryKey: ['check-defects'] });
   };
+  const notify = useNotify();
   const finish = useMutation({
     mutationFn: (r: RepairDto) =>
       withAccessToken((token) =>
@@ -44,6 +46,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
         }),
       ),
     onSuccess: () => {
+      notify('Repair marked done');
       setFinishing(undefined);
       setNote('');
       setMarkFixed(true);
@@ -51,7 +54,6 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
     },
   });
   const ask = useConfirm();
-  const notify = useNotify();
   const cancel = useMutation({
     mutationFn: (id: string) => withAccessToken((token) => maintenanceApi.cancelRepair(token, id)),
     onSuccess: refresh,
@@ -182,7 +184,7 @@ export function Repairs({ companyId, canManage }: { companyId: string; canManage
         <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(repairs.error ?? cancel.error)}</p>
       )}
       {repairs.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <DataTable
           columns={columns}

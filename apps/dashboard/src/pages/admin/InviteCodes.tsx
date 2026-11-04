@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import type { InviteCodeDto } from '@wagonwise/contracts/identity';
 import { MAX_INVITE_CODES_AT_ONCE } from '@wagonwise/contracts/identity';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -127,7 +128,7 @@ export function InviteCodes() {
       {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
 
       {inviteCodes.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <DataTable
           columns={COLUMNS}

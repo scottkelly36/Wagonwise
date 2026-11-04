@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import {
   checkTemplateIdSchema,
@@ -147,7 +148,7 @@ export function Checks() {
             </p>
           )}
           {templates.isPending ? (
-            <p>Loading…</p>
+            <Loading />
           ) : (templates.data ?? []).length === 0 ? (
             <p>No check lists yet. Your drivers aren&apos;t asked to do any checks.</p>
           ) : (
@@ -225,6 +226,7 @@ function Builder({
   const problems = problemsWith({ name, appliesTo, vehicleIds, items });
   const body = { name, appliesTo, vehicleIds: appliesTo === 'all' ? [] : vehicleIds, items };
 
+  const notify = useNotify();
   const save = useMutation({
     mutationFn: () =>
       withAccessToken((token) =>
@@ -235,7 +237,10 @@ function Builder({
             })
           : checksApi.updateCheckTemplate(token, initial.id, body),
       ),
-    onSuccess: onDone,
+    onSuccess: () => {
+      onDone();
+      notify('Check saved');
+    },
   });
 
   const setItem = (index: number, item: CheckItem) =>

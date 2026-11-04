@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import type { MonthActualDto, MonthForecastDto } from '@wagonwise/contracts/costing';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -102,7 +103,7 @@ function View({ companyId }: { companyId: string }) {
   });
   const [what, setWhat] = useState<WhatIf>(NO_CHANGE);
 
-  if (outlook.isPending) return <p>Loading…</p>;
+  if (outlook.isPending) return <Loading />;
   if (outlook.isError) return <p className="error">{staffErrorMessage(outlook.error)}</p>;
   const data = outlook.data;
   const forecast = forecastWith(data, what);

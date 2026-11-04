@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import type { FEEDBACK_STATUSES, StaffFeedbackNoteDto } from '@wagonwise/contracts/feedback';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -116,7 +117,7 @@ export function Feedback() {
       </div>
 
       {data === undefined ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <DataTable
           columns={columns}

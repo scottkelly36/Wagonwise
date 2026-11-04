@@ -1,3 +1,5 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import { companyIdSchema } from '@wagonwise/contracts/companies';
 import type { JobDto, ProofOfDeliveryResponse } from '@wagonwise/contracts/jobs';
@@ -87,10 +89,14 @@ export function Jobs() {
     refetchInterval: 30_000,
   });
   const noticeByJob = new Map((notices.data ?? []).map((n) => [n.jobId as string, n]));
+  const notify = useNotify();
   const resend = useMutation({
     mutationFn: (jobId: string) =>
       withAccessToken((token) => jobsApi.resendJobNotice(token, jobId)),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['job-notices'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['job-notices'] });
+      notify('Notification sent');
+    },
   });
 
   const drivers = useQuery({
@@ -200,6 +206,7 @@ export function Jobs() {
       return job;
     },
     onSuccess: () => {
+      notify('Job created');
       // Keep the shape of the job just made (a firm that never has a collection should not have to remove it
       // every time), with the stops emptied.
       setForm(EMPTY_FORM);
@@ -254,11 +261,13 @@ export function Jobs() {
       }
       return withAccessToken((token) => jobsApi.assignJob(token, jobId, picked));
     },
-    onSuccess: refreshJobs,
+    onSuccess: () => {
+      refreshJobs();
+      notify('Driver and vehicle assigned');
+    },
   });
 
   const ask = useConfirm();
-  const notify = useNotify();
   const cancel = useMutation({
     mutationFn: (jobId: string) => withAccessToken((token) => jobsApi.cancelJob(token, jobId)),
     onSuccess: refreshJobs,
@@ -292,6 +301,7 @@ export function Jobs() {
         }),
       ),
     onSuccess: () => {
+      notify('Customer and price saved');
       setPricing(undefined);
       refreshJobs();
     },
@@ -635,7 +645,7 @@ export function Jobs() {
         </div>
       )}
 
-      {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
       {recordError !== undefined && <p style={{ color: 'var(--danger)' }}>{recordError}</p>}
 
       {pricing !== undefined && (
@@ -824,7 +834,7 @@ export function Jobs() {
               )}
             </div>
             {jobs.isPending ? (
-              <p>Loading…</p>
+              <Loading />
             ) : (
               <DataTable
                 columns={jobColumns}
@@ -904,7 +914,7 @@ function ProofPhotoDialog({
           </button>
         </div>
         {photo.isPending ? (
-          <p>Loading…</p>
+          <Loading />
         ) : photo.data === undefined ? (
           <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(photo.error)}</p>
         ) : (

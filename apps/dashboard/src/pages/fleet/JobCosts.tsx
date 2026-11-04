@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import type {
   CostReportDto,
   CustomerCostDto,
@@ -88,7 +89,7 @@ function Report({ companyId, month }: { companyId: string; month: string }) {
     enabled: /^\d{4}-(0[1-9]|1[0-2])$/.test(month),
     retry: false,
   });
-  if (report.isPending) return <p>Loading…</p>;
+  if (report.isPending) return <Loading />;
   if (report.isError) return <p className="error">{staffErrorMessage(report.error)}</p>;
   return <ReportBody report={report.data} />;
 }

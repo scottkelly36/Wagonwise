@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type {
   FuelSummaryLineDto,
@@ -141,7 +142,7 @@ function ByVehicle({ companyId, period }: { companyId: string; period: Period })
     },
   ];
 
-  if (fuel.isPending) return <p>Loading…</p>;
+  if (fuel.isPending) return <Loading />;
   if (fuel.isError) return <p className="error">{staffErrorMessage(fuel.error)}</p>;
   const view = fuel.data;
   const averagePence =

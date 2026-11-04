@@ -1,3 +1,4 @@
+import { Loading } from '../../components/Loading';
 import { companyIdSchema, type CompanyDto } from '@wagonwise/contracts/companies';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -91,7 +92,7 @@ export function Companies() {
       {error !== null && <p style={{ color: 'var(--danger)' }}>{staffErrorMessage(error)}</p>}
 
       {companies.isPending ? (
-        <p>Loading…</p>
+        <Loading />
       ) : (
         <DataTable
           columns={COLUMNS}
