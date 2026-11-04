@@ -210,7 +210,7 @@ td {
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  background: linear-gradient(135deg, var(--blue-500), var(--blue-700));
+  flex: none;
 }
 
 .nav-section {
