@@ -4,6 +4,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity } fro
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useGiveConsent } from '../api/use-identity';
+import { CONSENT_VERSION } from '../lib/consent-version';
 import { PRODUCT_NAME } from '../product';
 import { useAuthStore } from '../state/auth-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
@@ -23,7 +24,8 @@ export default function ConsentScreen() {
   function handleAccept(): void {
     giveConsent.mutate(undefined, {
       onSuccess: async (driver) => {
-        await setDriver(driver);
+        // The server records when; which version of the text is kept on the phone, so a later change can ask again.
+        await setDriver({ ...driver, consentVersion: CONSENT_VERSION });
         // Re-enters index.tsx's own gate, which now sees consentedAt set and moves on to the
         // resume-active-trip check before landing on /home — not duplicated here.
         router.replace('/');

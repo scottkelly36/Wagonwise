@@ -4,6 +4,7 @@ import { ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useResumeActiveTrip } from '../api/use-active-trip';
+import { needsConsent } from '../lib/consent-version';
 import { useAuthStore } from '../state/auth-store';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
@@ -50,7 +51,7 @@ export default function IndexScreen() {
   // Design doc §9's privacy notice/consent screen (M8) — before anything else, including the
   // resume-trip check below, since neither is meaningful until a driver has actually agreed to
   // how their data is used.
-  if (state.driver.consentedAt === undefined) {
+  if (needsConsent(state.driver)) {
     return <Redirect href="/consent" />;
   }
 

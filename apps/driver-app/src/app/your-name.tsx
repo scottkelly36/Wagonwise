@@ -47,6 +47,7 @@ export default function YourNameScreen() {
           createdAt: driver.createdAt,
           ...(updated.name === undefined ? {} : { name: updated.name }),
           ...(driver.consentedAt === undefined ? {} : { consentedAt: driver.consentedAt }),
+          ...(driver.consentVersion === undefined ? {} : { consentVersion: driver.consentVersion }),
         };
         void setDriver(next);
         router.back();
