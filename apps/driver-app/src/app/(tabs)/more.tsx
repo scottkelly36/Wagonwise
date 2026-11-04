@@ -61,6 +61,12 @@ const ROWS: readonly MenuRow[] = [
     testID: 'shift-button',
   },
   { label: 'Feedback', icon: 'message-text-outline', href: '/feedback', testID: 'feedback-button' },
+  {
+    label: 'How it works',
+    icon: 'help-circle-outline',
+    href: '/walkthrough',
+    testID: 'how-it-works-button',
+  },
 ];
 
 /** Everything that doesn't need to be on the map or in a tab of its own: vehicles, companies,

@@ -586,6 +586,8 @@ hazard queue, M5.9 feedback) — Expo + Expo Router, targeting both iOS and Andr
 Xcode/Android Studio project is checked in;
 Expo generates those on demand (`expo prebuild`, or transparently when EAS Build runs).
 
+**Launch gate** (`app/index.tsx`), in order: sign in, the privacy screen (`needsConsent`), a trip in progress (resumed), the first-run walkthrough (`state/walkthrough-store.ts`, once per phone; reopened from More, "How it works"), then the map.
+
 ```bash
 pnpm --filter @wagonwise/driver-app dev   # starts the Metro bundler
 ```
