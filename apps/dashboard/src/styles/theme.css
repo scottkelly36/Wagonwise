@@ -417,7 +417,6 @@ button.nav-toggle:hover:not(:disabled) {
 /* The menu button is only for phones */
 .menu-button {
   display: none;
-  margin-right: auto;
   width: 44px;
   height: 44px;
   padding: 0;
@@ -479,8 +478,14 @@ button.nav-toggle:hover:not(:disabled) {
     gap: 10px;
   }
 
-  .topbar .who {
+  .topbar .who,
+  .topbar-button-text,
+  .topbar-account .nav-chevron {
     display: none;
+  }
+
+  .topbar-company {
+    font-size: 15px;
   }
 
   .content {
@@ -1446,12 +1451,128 @@ textarea {
   opacity: 0.6;
 }
 
-/* Staff guide */
-.guide-here {
-  margin: 0 0 12px;
-  text-align: right;
-  font-size: 14px;
+/* Top bar: company name, alerts bell, guide, account menu */
+.topbar-company {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+.topbar-button,
+.topbar-account {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+button.topbar-button:hover:not(:disabled),
+a.topbar-button:hover,
+button.topbar-account:hover:not(:disabled),
+button.topbar-button[aria-expanded='true'],
+button.topbar-account[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+.topbar-account {
+  padding: 0 8px;
+}
+.topbar-account .who {
+  text-align: left;
+}
+.bell-count {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 10px;
+  background: var(--warning);
+  border: 2px solid #fff;
+  box-sizing: border-box;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}
+.bell-count-bad {
+  background: var(--danger);
+}
+.popmenu {
+  position: relative;
+}
+.popmenu-panel {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  min-width: 240px;
+  max-width: min(360px, calc(100vw - 24px));
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(11, 18, 34, 0.22);
+  padding: 6px;
+  text-align: left;
+}
+.popmenu-panel:focus {
+  outline: none;
+}
+.popmenu-header {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+}
+.popmenu-header small {
+  color: var(--text-muted);
+}
+.popmenu-item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 0;
+  border-left: 4px solid transparent;
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.popmenu-item:hover:not(:disabled),
+.popmenu-item:focus-visible {
+  background: var(--bg);
+  color: var(--text);
+}
+.popmenu-item small {
+  color: var(--text-muted);
+}
+.popmenu-alert[data-tone='warn'] {
+  border-left-color: var(--warning);
+}
+.popmenu-alert[data-tone='bad'] {
+  border-left-color: var(--danger);
+}
+
+/* Staff guide */
 .guide {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
@@ -1688,8 +1809,15 @@ textarea {
   outline-offset: 2px;
 }
 
-.sidebar :focus-visible {
+.sidebar :focus-visible,
+.topbar :focus-visible {
   outline-color: #fff;
+  outline-offset: -2px;
+}
+
+/* The menu panels are white, so inside them the outline goes back to blue */
+.popmenu-panel :focus-visible {
+  outline-color: var(--blue-700);
   outline-offset: -2px;
 }
 
