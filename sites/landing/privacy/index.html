@@ -130,7 +130,7 @@
       <header>
         <a class="brand" href="/">WagonWise</a>
         <h1>Privacy notice</h1>
-        <p class="updated">Last updated 14 October 2026</p>
+        <p class="updated">Last updated 4 November 2026</p>
       </header>
 
       <section id="who">
@@ -146,13 +146,14 @@
         <ul>
           <li>
             <strong>We are the controller</strong> (we decide how your data is used) for the driver
-            app itself: your sign-in, your vehicle profiles and routes, hazard reports, and
-            feedback.
+            app itself: your sign-in, your vehicle profiles and routes, hazard reports, places you
+            mark, and feedback.
           </li>
           <li>
             <strong>We are the processor</strong> (we handle data on a company's instructions) for
-            the job information a company puts into the portal, and where a driver is while doing
-            one of that company's jobs. That company is the controller.
+            the job information a company puts into the portal, where a driver is while doing one of
+            that company's jobs, the walk-round checks a driver completes for it, and the SOS alerts
+            sent to it. That company is the controller.
           </li>
         </ul>
       </section>
@@ -232,9 +233,43 @@
                 </td>
               </tr>
               <tr>
+                <td>
+                  An SOS alert, only if you hold the SOS button: your name, how you sign in (your
+                  email or number), your vehicle and job, your position and the three words for it,
+                  and the time
+                </td>
+                <td>
+                  To tell the company you drive for where you are, by email and a red alert in its
+                  portal, so someone can ring you. We do not contact the emergency services: the app
+                  has a Call 999 button for that. If you drive for no company, nothing is stored or
+                  sent.
+                </td>
+                <td>
+                  Deleted 30 days after the alert is closed (dealt with, or cancelled by you). An
+                  open alert stays until the company deals with it. Deleted too if you delete your
+                  account.
+                </td>
+              </tr>
+              <tr>
                 <td>Hazard, traffic and parking reports you make (where, what, a short note)</td>
                 <td>To warn other drivers. They see the report, never your name.</td>
                 <td>Hazards expire or are removed; parking spots stay until removed</td>
+              </tr>
+              <tr>
+                <td>
+                  Places you mark (a name, the spot, a note), for you, your company, or everyone
+                </td>
+                <td>
+                  So you, or the company you chose, can find them again. If you choose Share with
+                  all drivers, every WagonWise driver sees the place on their map, never your name.
+                  Other drivers can report a shared place; three different drivers' reports hide it
+                  from everyone else until we look.
+                </td>
+                <td>
+                  Until you remove it, or make a shared place private again. Places you marked for
+                  yourself are deleted if you delete your account. A place marked for a company
+                  stays the company's.
+                </td>
               </tr>
               <tr>
                 <td>
@@ -270,8 +305,8 @@
                   app is open, for what is near it
                 </td>
                 <td>
-                  To show hazards, traffic reports and parking on the map, and weather warnings (the
-                  weather position is rounded to about 10 km first)
+                  To show hazards, traffic reports, parking and fuel stations on the map, and
+                  weather warnings (the weather position is rounded to about 10 km first)
                 </td>
                 <td>Used as it arrives and not stored</td>
               </tr>
@@ -297,6 +332,20 @@
                 </td>
               </tr>
               <tr>
+                <td>
+                  A walk-round check you complete (the vehicle, your answers, any defects and
+                  photos, and the time)
+                </td>
+                <td>
+                  So the company has a record that the check was done, and can deal with a defect
+                </td>
+                <td>
+                  The company decides: it chooses how long checks are kept, from 1 to 120 months (12
+                  months unless it changes that), and keeps a check with an unresolved defect until
+                  it is dealt with. The company keeps its check records if you delete your account.
+                </td>
+              </tr>
+              <tr>
                 <td>Feedback you send us</td>
                 <td>To improve the app</td>
                 <td>While your account is open</td>
@@ -309,10 +358,16 @@
               <tr>
                 <td>
                   For company staff: name, work email, password (stored scrambled), authenticator
-                  setup (stored encrypted) and a record of what you did in the portal
+                  setup (stored encrypted), a record of what you did in the portal, and your mobile
+                  number if you ask for reminders by text
                 </td>
-                <td>To let you in securely and keep a log of changes</td>
-                <td>While the account is open; the log is kept for the company's records</td>
+                <td>
+                  To let you in securely, keep a log of changes, and send the reminders you choose
+                </td>
+                <td>
+                  While the account is open; the log is kept for the company's records. You can
+                  remove your mobile number at any time.
+                </td>
               </tr>
             </tbody>
           </table>
@@ -330,8 +385,8 @@
           <li>
             While the app is open, it sends your position (or the middle of the part of the map you
             are looking at, if you have moved the map away from you) to our servers so it can show
-            hazards, traffic reports and parking there, and weather warnings for your area (rounded
-            to about 10 km). We use it as it arrives and do not store it.
+            hazards, traffic reports, parking and fuel stations there, and weather warnings for your
+            area (rounded to about 10 km). We use it as it arrives and do not store it.
           </li>
           <li>
             While you are on a trip, it also sends your position so we can warn you about hazards
@@ -342,6 +397,12 @@
             Your position is kept, and shown to a company, only while you are on one of that
             company's jobs that is on the road. Those positions are deleted after 30 days. The
             company cannot see where you are at any other time.
+          </li>
+          <li>
+            If you hold the SOS button, your position at that moment goes to the company you drive
+            for, with your name and how you sign in, so someone can ring you. It is sent once, when
+            you press it, and the app does not keep sending it. The three words for your position
+            come from what3words, which is sent the position and nothing about you.
           </li>
           <li>
             When you file a hazard, traffic or parking report, the place of the report is saved with
@@ -369,6 +430,10 @@
           <li>
             <strong>For location and hazard reports:</strong> you agree when you first open the app,
             and you can say no or delete your account.
+          </li>
+          <li>
+            <strong>For SOS:</strong> you ask for it, by holding the button. We pass your details to
+            the company you drive for so it can help you.
           </li>
           <li>
             <strong>To keep the service safe and working</strong> (logs, fixing faults): our
@@ -411,14 +476,33 @@
                 </td>
               </tr>
               <tr>
+                <td>what3words</td>
+                <td>Turns a position into three words, and three words into a position</td>
+                <td>
+                  A position (when you hold SOS), or the three words you type on Where to? or a
+                  company types on a job. Never your name or account.
+                </td>
+              </tr>
+              <tr>
+                <td>DVSA</td>
+                <td>Looks up a vehicle's MOT history when a company asks in the portal</td>
+                <td>The vehicle's registration number only</td>
+              </tr>
+              <tr>
                 <td>Anthropic</td>
                 <td>Sorts the text of a spoken report into a hazard report</td>
                 <td>The text of the report only, with no name or account details</td>
               </tr>
               <tr>
                 <td>Resend and ClickSend</td>
-                <td>Send sign-in codes by email and text message</td>
-                <td>Your email address or phone number, and the code</td>
+                <td>
+                  Send sign-in codes and maintenance reminders by email and text message, and SOS
+                  alerts to a company by email
+                </td>
+                <td>
+                  The email address or phone number, and what the message says (for an SOS, what the
+                  SOS row in section 2 lists)
+                </td>
               </tr>
               <tr>
                 <td>Expo</td>
@@ -439,6 +523,11 @@
             </tbody>
           </table>
         </div>
+        <p>
+          We also read open data: weather warnings from the Met Office, road closures from National
+          Highways, fuel prices from GOV.UK and road data from OpenStreetMap. We fetch it for
+          everyone, so none of your data is sent to them.
+        </p>
         <p>We do not sell your data, and we do not use it for advertising.</p>
         <p>
           Some of these services may handle data outside the UK. Where they do, we use an approved
