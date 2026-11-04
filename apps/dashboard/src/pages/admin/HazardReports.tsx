@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { HazardReportDto } from '@wagonwise/contracts/hazards';
@@ -5,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as hazardsApi from '../../api/hazards';
 import { DataTable, IconButton, type Column } from '../../components/DataTable';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const HAZARDS_KEY = ['hazards'] as const;
 
@@ -89,7 +89,7 @@ export function HazardReports() {
     <div>
       <h1>Hazard reports</h1>
 
-      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
 
       {hazards.isPending ? (
         <Loading />

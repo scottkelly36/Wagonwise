@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import type { JobReportRowDto } from '@wagonwise/contracts/jobs';
 import { useQuery } from '@tanstack/react-query';
@@ -21,7 +22,6 @@ import {
 import { formatDuration } from '../../lib/live-map';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const PRESETS = Object.keys(PRESET_LABELS) as ReportPreset[];
 
@@ -232,7 +232,7 @@ export function Reports() {
         <p className="muted">Choose a start and an end date (the end can be the same day).</p>
       )}
       {everyCompany && companyId === undefined && <p className="muted">Choose a company.</p>}
-      {report.error !== null && <p className="error">{staffErrorMessage(report.error)}</p>}
+      {report.error !== null && <ErrorNotice error={report.error} />}
       {report.isPending && companyId !== undefined && range !== undefined && <Loading />}
 
       {summary !== undefined && (

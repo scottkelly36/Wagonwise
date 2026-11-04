@@ -1,12 +1,12 @@
 import type { ActivityDto, UsageFirmDto } from '@wagonwise/contracts/usage';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { ErrorNotice } from '../../components/ErrorNotice';
 import * as usageApi from '../../api/usage';
 import { DataTable, type Column } from '../../components/DataTable';
 import { HomeNote, HomePanel, HomeRows } from '../../components/HomeParts';
 import { ago, barHeights, shortDay } from '../../lib/usage';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const MINUTE = 60_000;
 
@@ -81,7 +81,7 @@ export function AppUsage() {
     return (
       <div>
         <h1>App usage</h1>
-        <p className="text-danger">{staffErrorMessage(usage.error)}</p>
+        <ErrorNotice error={usage.error} />
       </div>
     );
   }

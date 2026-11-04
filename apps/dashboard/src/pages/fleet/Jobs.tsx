@@ -952,13 +952,13 @@ function RoutePreview({ jobId, vehicleId }: { jobId: string; vehicleId: string }
   }
   if (preview.data.legs.length === 0) {
     return (
-      <small style={{ ...style, color: '#374151' }}>
+      <small style={{ ...style, color: 'var(--text-muted)' }}>
         No pickup, so the route is planned from where the driver is when they set off.
       </small>
     );
   }
   return (
-    <small style={{ ...style, color: '#374151' }}>
+    <small style={{ ...style, color: 'var(--text-muted)' }}>
       {formatMiles(preview.data.distanceKm * 1000)}, about{' '}
       {formatDuration(preview.data.durationMin)} for this vehicle (estimate)
     </small>

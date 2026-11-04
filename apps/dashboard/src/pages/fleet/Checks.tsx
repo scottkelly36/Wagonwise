@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import {
@@ -143,9 +144,7 @@ export function Checks() {
             </div>
           )}
           {(templates.isError || archive.isError || starter.isError) && (
-            <p className="text-danger">
-              {staffErrorMessage(templates.error ?? archive.error ?? starter.error)}
-            </p>
+            <ErrorNotice error={templates.error ?? archive.error ?? starter.error} />
           )}
           {templates.isPending ? (
             <Loading />

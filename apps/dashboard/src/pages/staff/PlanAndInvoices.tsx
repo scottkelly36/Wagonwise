@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import type { InvoiceDto } from '@wagonwise/contracts/billing';
 import { useQuery } from '@tanstack/react-query';
@@ -7,7 +8,6 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { invoiceHtml, monthLabel } from '../../lib/invoice-print';
 import { formatPence } from '../../lib/money';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from './messages';
 
 const STATUS_TEXT: Record<InvoiceDto['status'], string> = {
   draft: 'Draft',
@@ -88,7 +88,7 @@ export function PlanAndInvoices() {
     <div>
       <h1>Plan and invoices</h1>
 
-      {plan.isError && <p className="text-danger">{staffErrorMessage(plan.error)}</p>}
+      {plan.isError && <ErrorNotice error={plan.error} />}
       {p !== undefined && (
         <section className="mb-24 box">
           <h2 className="mt-0">Your plan</h2>
@@ -116,7 +116,7 @@ export function PlanAndInvoices() {
 
       <h2>Invoices</h2>
       {printError !== undefined && <p className="text-danger">{printError}</p>}
-      {invoices.isError && <p className="text-danger">{staffErrorMessage(invoices.error)}</p>}
+      {invoices.isError && <ErrorNotice error={invoices.error} />}
       {invoices.isPending ? (
         <Loading />
       ) : (

@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import type { MonthActualDto, MonthForecastDto } from '@wagonwise/contracts/costing';
 import { useQuery } from '@tanstack/react-query';
@@ -8,7 +9,6 @@ import { chartMonths, forecastWith, isChanged, NO_CHANGE, type WhatIf } from '..
 import { formatPence, ukToday } from '../../lib/money';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const monthName = (month: string): string =>
   new Date(`${month}-01T00:00:00.000Z`).toLocaleDateString('en-GB', {
@@ -104,7 +104,7 @@ function View({ companyId }: { companyId: string }) {
   const [what, setWhat] = useState<WhatIf>(NO_CHANGE);
 
   if (outlook.isPending) return <Loading />;
-  if (outlook.isError) return <p className="error">{staffErrorMessage(outlook.error)}</p>;
+  if (outlook.isError) return <ErrorNotice error={outlook.error} />;
   const data = outlook.data;
   const forecast = forecastWith(data, what);
   const chart = chartMonths(data.history, forecast?.months ?? []);

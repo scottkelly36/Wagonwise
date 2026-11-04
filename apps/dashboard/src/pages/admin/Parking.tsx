@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import {
@@ -23,7 +24,6 @@ import {
   type SpotForm,
 } from '../../lib/parking';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 import { ParkingSuggestions } from './ParkingSuggestions';
 
 const PARKING_KEY = ['parking-spots'] as const;
@@ -187,7 +187,7 @@ export function Parking() {
         starting point. Anything here can be edited or deleted.
       </p>
 
-      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
 
       <ParkingSuggestions onDecided={refresh} />
 

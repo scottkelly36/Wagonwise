@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { StaffCongestionReportDto } from '@wagonwise/contracts/congestion';
@@ -6,7 +7,6 @@ import * as congestionApi from '../../api/congestion';
 import { DataTable, IconButton, type Column } from '../../components/DataTable';
 import { mapLink, timeLeftText, waitText } from '../../lib/congestion';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const CONGESTION_KEY = ['congestion-reports'] as const;
 
@@ -102,7 +102,7 @@ export function CongestionReports() {
         stops showing to drivers when that time runs out; it stays here until you clear it.
       </p>
 
-      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
 
       {data === undefined ? (
         <Loading />

@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import type { FEEDBACK_STATUSES, StaffFeedbackNoteDto } from '@wagonwise/contracts/feedback';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -6,7 +7,6 @@ import * as feedbackApi from '../../api/feedback';
 import { DataTable, type Column } from '../../components/DataTable';
 import { feedbackSearchText, isResolved, sentFrom } from '../../lib/feedback';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const FEEDBACK_KEY = ['feedback'] as const;
 type Status = (typeof FEEDBACK_STATUSES)[number];
@@ -89,7 +89,7 @@ export function Feedback() {
         you have dealt with it or replied; reopen it if it comes back.
       </p>
 
-      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
 
       <div className="flex gap-12 wrap items-end mb-16">
         <div className="field">

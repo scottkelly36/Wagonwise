@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import { COST_CATEGORIES, type CostDto, type FinanceReportDto } from '@wagonwise/contracts/billing';
@@ -52,7 +53,7 @@ export function Finances() {
         What it costs to run WagonWise, against what companies are invoiced. Costs carry on every
         month until you change or stop them. Enter amounts without VAT.
       </p>
-      {report.isError && <p className="text-danger">{staffErrorMessage(report.error)}</p>}
+      {report.isError && <ErrorNotice error={report.error} />}
       {report.isPending ? (
         <Loading />
       ) : (

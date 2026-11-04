@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { BILLING_FIELD_MAX, type BillingDetailsDto } from '@wagonwise/contracts/billing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -49,7 +50,7 @@ export function BillingDetails() {
 
   if (details.isPending) return <Loading />;
   if (details.isError) {
-    return <p className="text-danger">{staffErrorMessage(details.error)}</p>;
+    return <ErrorNotice error={details.error} />;
   }
   return (
     <BillingForm

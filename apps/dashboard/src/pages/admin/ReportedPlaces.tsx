@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import type { ReportedPlaceDto } from '@wagonwise/contracts/places';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -5,7 +6,6 @@ import * as placesApi from '../../api/places';
 import { DataTable, type Column } from '../../components/DataTable';
 import { placeMapLink, reasonsText, reportedPlaceSearchText } from '../../lib/reported-places';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const REPORTED_KEY = ['reported-places'] as const;
 
@@ -95,7 +95,7 @@ export function ReportedPlaces() {
         to its owner; nothing a driver marked is deleted.
       </p>
 
-      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
 
       {reported.data === undefined ? (
         <Loading />

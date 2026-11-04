@@ -1,6 +1,7 @@
 import type { CheckSettingsDto } from '@wagonwise/contracts/checks';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { ErrorNotice } from './ErrorNotice';
 import * as checksApi from '../api/checks';
 import * as hoursApi from '../api/hours';
 import { retentionChoices } from '../lib/retention';
@@ -59,7 +60,7 @@ export function CheckRules({ companyId, canChange }: { companyId: string; canCha
       }}
     >
       <h2 className="mt-0">Rules for sending a vehicle out</h2>
-      {settings.isError && <p className="text-danger">{staffErrorMessage(settings.error)}</p>}
+      {settings.isError && <ErrorNotice error={settings.error} />}
       {current !== undefined && (
         <>
           <label className="block mb-8">
@@ -125,7 +126,7 @@ export function CheckRules({ companyId, canChange }: { companyId: string; canCha
             staff. Turning this off removes every status straight away.
           </p>
           {(hours.isError || saveHours.isError) && (
-            <p className="text-danger">{staffErrorMessage(hours.error ?? saveHours.error)}</p>
+            <ErrorNotice error={hours.error ?? saveHours.error} />
           )}
         </>
       )}

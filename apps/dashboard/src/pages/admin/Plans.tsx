@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import type { PlanSummaryDto } from '@wagonwise/contracts/billing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -81,7 +82,7 @@ export function Plans() {
         it asks. A new company starts with none.
       </p>
 
-      {plans.isError && <p className="text-danger">{staffErrorMessage(plans.error)}</p>}
+      {plans.isError && <ErrorNotice error={plans.error} />}
       {plans.isPending ? (
         <Loading />
       ) : (

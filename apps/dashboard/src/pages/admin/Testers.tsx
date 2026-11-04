@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { TesterDto } from '@wagonwise/contracts/signups';
@@ -15,7 +16,6 @@ import {
   testersCsv,
 } from '../../lib/testers';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from '../staff/messages';
 
 const TESTERS_KEY = ['testers'] as const;
 const OPT_IN_LINK_KEY = 'wagonwise.testerOptInLink';
@@ -196,7 +196,7 @@ export function Testers() {
         agreeing to be emailed about it; they can also remove themselves from the page.
       </p>
 
-      {error !== null && <p className="text-danger">{staffErrorMessage(error)}</p>}
+      {error !== null && <ErrorNotice error={error} />}
 
       {data === undefined ? (
         <Loading />

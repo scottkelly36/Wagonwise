@@ -1,3 +1,4 @@
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import type { Privilege, StaffAuditEntryDto } from '@wagonwise/contracts/staff';
 import { useQuery } from '@tanstack/react-query';
@@ -6,7 +7,6 @@ import * as staffApi from '../../api/staff';
 import { CompanySelect } from '../../components/CompanySelect';
 import { DataTable, type Column } from '../../components/DataTable';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
-import { staffErrorMessage } from './messages';
 import { PRIVILEGE_LABELS } from './privileges';
 
 function privilegeList(value: string | readonly string[] | undefined): string {
@@ -126,7 +126,7 @@ export function Activity() {
         </div>
       )}
 
-      {entries.error !== null && <p className="text-danger">{staffErrorMessage(entries.error)}</p>}
+      {entries.error !== null && <ErrorNotice error={entries.error} />}
 
       {entries.isPending ? (
         <Loading />
