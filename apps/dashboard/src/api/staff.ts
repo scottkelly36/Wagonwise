@@ -5,6 +5,7 @@ import {
   listStaffAuditResponseSchema,
   listStaffResponseSchema,
   staffAccountSchema,
+  staffMeSchema,
   staffRefreshTokenResponseSchema,
   staffSignInResponseSchema,
   staffTokensResponseSchema,
@@ -16,6 +17,7 @@ import {
   type Privilege,
   type StaffAuditEntryDto,
   type StaffAccountDto,
+  type StaffMeDto,
   type StaffRefreshTokenResponse,
   type StaffSignInResponse,
   type StaffTokensResponse,
@@ -76,10 +78,10 @@ export async function confirmEnrolment(
 
 // ---- Signed in -------------------------------------------------------------------------
 
-export async function me(accessToken: string): Promise<StaffAccountDto> {
+export async function me(accessToken: string): Promise<StaffMeDto> {
   const { status, json } = await call('GET', '/staff/me', undefined, accessToken);
   throwUnlessSuccess(status, json, [200]);
-  return staffAccountSchema.parse(json);
+  return staffMeSchema.parse(json);
 }
 
 export async function createInvite(

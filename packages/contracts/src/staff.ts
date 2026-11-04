@@ -99,6 +99,13 @@ export const staffAccountSchema = z
   });
 export type StaffAccountDto = z.infer<typeof staffAccountSchema>;
 
+/** What `GET /staff/me` returns: the account, plus the name of the company a fleet user belongs to (for the top bar). */
+export const staffMeSchema = z.intersection(
+  staffAccountSchema,
+  z.object({ companyName: z.string().optional() }),
+);
+export type StaffMeDto = z.infer<typeof staffMeSchema>;
+
 export const listStaffResponseSchema = z.object({
   staff: z.array(staffAccountSchema),
 });

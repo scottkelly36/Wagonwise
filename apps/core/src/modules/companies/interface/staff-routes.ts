@@ -218,9 +218,14 @@ export function registerStaffRoutes(
   // ---- Signed in ----------------------------------------------------------------------
 
   app.get('/staff/me', async (request, reply) => {
-    const outcome = await asActor(request, ({ staff }) =>
-      Promise.resolve(ok(200, staffDto(staff))),
-    );
+    const outcome = await asActor(request, async ({ staff }) => {
+      const company =
+        staff.kind === 'fleet' ? await deps.companies.findById(staff.companyId) : null;
+      return ok(200, {
+        ...staffDto(staff),
+        ...(company === null ? {} : { companyName: company.name }),
+      });
+    });
     return send(request, reply, outcome);
   });
 
