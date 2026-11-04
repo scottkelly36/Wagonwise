@@ -16,6 +16,9 @@ export interface DriverInfo {
   /** Design doc §9's privacy notice/consent screen (M8) — absent until the driver accepts it;
    *  `index.tsx`'s gate uses this to decide whether to show it. */
   readonly consentedAt?: string;
+  /** The version of the privacy summary the driver accepted on this phone (`lib/consent-version.ts`); absent until they do. Kept only
+   *  on the phone: the server records when they accepted, not which text. */
+  readonly consentVersion?: string;
 }
 
 export type AuthState =
