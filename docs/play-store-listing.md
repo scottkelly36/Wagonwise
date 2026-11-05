@@ -210,9 +210,9 @@ needs at least two. Each gets a short headline when framed (suggested wording be
 Optional extras if there are slots left or Play asks for more: vehicle profiles (the dimensions form), saved places, and the
 weather warning badge.
 
-**Taken 2026-11-04** (`apps/driver-app/store-assets/`, how to redo them is in its README): the framed set in `framed/` is nine screens in
+**Taken and retaken 2026-11-04** (the retake is from `main` after the Keep-button and compass fixes; `apps/driver-app/store-assets/`, how to redo them is in its README): the framed set in `framed/` is nine screens in
 this order: home map (with fuel pins), trip, route options, hazards on the route, parking card, faster-route offer, report a hazard,
-a company job, and nearby fuel prices (new). Play takes eight, so leave one out; the first three show in search. They are not the
+a company job, and nearby fuel prices (new). Play takes eight, so **leave out `08-job.png`** (the company job); the first three show in search. They are not the
 table's eight: break planning and the route-options Fastest/Shortest pair were not shot (the route has one answer, "Fastest &
 Shortest"), and the voice screen is the report-a-hazard sheet.
 
