@@ -1,6 +1,24 @@
 import { findNearbyFuelRequestSchema } from '@wagonwise/contracts/fuel';
 import type { FastifyInstance } from 'fastify';
 import { findCheapestFuel, type FindCheapestFuelDeps } from '../application/find-cheapest-fuel.js';
+import type { FuelStation } from '../domain/fuel.js';
+
+/** A station as the contract spells it: the same fields whether or not it has a price. */
+function stationFields(station: FuelStation) {
+  return {
+    id: station.id,
+    name: station.name,
+    ...(station.brand === undefined ? {} : { brand: station.brand }),
+    ...(station.addressLine === undefined ? {} : { addressLine: station.addressLine }),
+    ...(station.city === undefined ? {} : { city: station.city }),
+    ...(station.postcode === undefined ? {} : { postcode: station.postcode }),
+    ...(station.phone === undefined ? {} : { phone: station.phone }),
+    location: station.position,
+    isMotorway: station.isMotorway,
+    isSupermarket: station.isSupermarket,
+    amenities: station.amenities,
+  };
+}
 
 /**
  * The cheapest stations around a point for one fuel, for the driver app. POST because the point rides in the body, as for parking
@@ -18,19 +36,13 @@ export function registerFuelRoutes(app: FastifyInstance, deps: FindCheapestFuelD
     return reply.status(200).send({
       fuelType,
       stations: found.stations.map((s) => ({
-        id: s.station.id,
-        name: s.station.name,
-        ...(s.station.brand === undefined ? {} : { brand: s.station.brand }),
-        ...(s.station.addressLine === undefined ? {} : { addressLine: s.station.addressLine }),
-        ...(s.station.city === undefined ? {} : { city: s.station.city }),
-        ...(s.station.postcode === undefined ? {} : { postcode: s.station.postcode }),
-        ...(s.station.phone === undefined ? {} : { phone: s.station.phone }),
-        location: s.station.position,
-        isMotorway: s.station.isMotorway,
-        isSupermarket: s.station.isSupermarket,
-        amenities: s.station.amenities,
+        ...stationFields(s.station),
         pencePerLitre: s.pencePerLitre,
         priceUpdatedAt: s.updatedAt.toISOString(),
+        distanceM: Math.round(s.distanceM),
+      })),
+      withoutPrice: found.withoutPrice.map((s) => ({
+        ...stationFields(s.station),
         distanceM: Math.round(s.distanceM),
       })),
       ...(found.refreshedAt === undefined ? {} : { refreshedAt: found.refreshedAt.toISOString() }),

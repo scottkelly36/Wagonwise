@@ -21,6 +21,7 @@ import { registerFuelRoutes } from './interface/routes.js';
 export type { UntypedDb } from './infrastructure/db.js';
 export type { RefreshError, RefreshSummary } from './application/refresh-fuel-prices.js';
 export type {
+  DroppedPrices,
   FuelPosition,
   FuelPrice,
   FuelSnapshot,

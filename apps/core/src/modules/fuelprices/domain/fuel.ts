@@ -84,6 +84,8 @@ export interface NearbyFuelQuery {
   /** Prices last reported before this moment are left out; undefined keeps every age. */
   readonly updatedSince: Date | undefined;
   readonly limit: number;
+  /** At most this many open stations in range with no usable price for the fuel (see {@link NearbyFuel.withoutPrice}). */
+  readonly withoutPriceLimit: number;
 }
 
 /** One station's price for the fuel asked about, with how far away it is in a straight line. */
@@ -94,8 +96,23 @@ export interface NearbyFuelStation {
   readonly distanceM: number;
 }
 
+/** A nearby open station that has no usable price for the fuel asked about, with how far away it is in a straight line. */
+export interface NearbyUnpricedStation {
+  readonly station: FuelStation;
+  readonly distanceM: number;
+}
+
+/** The most unpriced stations listed beside the priced ones (the contract's `MAX_UNPRICED_FUEL_STATIONS`). */
+export const MAX_UNPRICED_STATIONS = 10;
+
 export interface NearbyFuel {
   readonly stations: readonly NearbyFuelStation[];
+  /**
+   * Open stations in range, nearest first, with no price for the fuel that passed the same tests as the priced ones: none was
+   * reported, the one reported is older than `updatedSince`, or it is below `minPencePerLitre` (a typing slip). A driver is told
+   * the station is there even though there is no number to show.
+   */
+  readonly withoutPrice: readonly NearbyUnpricedStation[];
   /** When our copy of Fuel Finder was last replaced; undefined before the first refresh. */
   readonly refreshedAt: Date | undefined;
 }
@@ -106,3 +123,24 @@ export interface NearbyFuel {
  * a driver to the one station whose retailer slipped. High prices need no guard; they sort to the bottom.
  */
 export const MIN_SHARE_OF_MEDIAN = 0.6;
+
+/**
+ * What the clean-up left out of the prices Fuel Finder sent, and why, for one fetch. A retailer's price vanishing from the app is
+ * either missing at their end or dropped here; these counts tell the two apart.
+ */
+export interface DroppedPrices {
+  /** Price entries read, kept or not. */
+  readonly seen: number;
+  /** Entries kept as prices. */
+  readonly kept: number;
+  /** The fuel grade is not one of ours (or has no name). */
+  readonly unknownGrade: number;
+  /** The amount is missing or outside 50 to 500 pence a litre (typed in pounds, or with a digit too many). */
+  readonly implausiblePrice: number;
+  /** The date the price was reported is missing or cannot be read. */
+  readonly noDate: number;
+  /** The unknown grade names met, commonest first, at most {@link MAX_UNKNOWN_GRADES_LISTED}. */
+  readonly unknownGrades: readonly { readonly grade: string; readonly count: number }[];
+}
+
+export const MAX_UNKNOWN_GRADES_LISTED = 10;

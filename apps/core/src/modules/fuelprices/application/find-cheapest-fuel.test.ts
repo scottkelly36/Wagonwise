@@ -147,6 +147,67 @@ describe('findCheapestFuel', () => {
 
   it('answers with nothing before the first refresh', async () => {
     const found = await findCheapestFuel({ repo: new InMemoryFuelRepository(), clock }, input());
-    expect(found).toEqual({ stations: [], refreshedAt: undefined });
+    expect(found).toEqual({ stations: [], withoutPrice: [], refreshedAt: undefined });
+  });
+});
+
+const unpricedIds = async (repo: InMemoryFuelRepository, i: FindCheapestFuelInput) =>
+  (await findCheapestFuel({ repo, clock }, i)).withoutPrice.map((s) => s.station.id);
+
+describe('findCheapestFuel: stations with no usable price for the fuel', () => {
+  it('lists a station that reports only the other fuel, as an Esso with petrol and no diesel', async () => {
+    const repo = repoWith(
+      [station('both'), station('petrol-only')],
+      [price('both', 199), price('both', 189, 'E10'), price('petrol-only', 185, 'E10')],
+    );
+    expect(await ids(repo, input())).toEqual(['both']);
+    expect(await unpricedIds(repo, input())).toEqual(['petrol-only']);
+    expect(await ids(repo, input({ fuelType: 'E10' }))).toEqual(['petrol-only', 'both']);
+    expect(await unpricedIds(repo, input({ fuelType: 'E10' }))).toEqual([]);
+  });
+
+  it('lists a station whose price is older than maxAgeDays, and drops it from the list when there is no limit on age', async () => {
+    const repo = repoWith(
+      [station('fresh'), station('stale')],
+      [
+        price('fresh', 200, 'B7_STANDARD', '2026-10-27T06:00:00.000Z'),
+        price('stale', 190, 'B7_STANDARD', '2026-09-01T06:00:00.000Z'),
+      ],
+    );
+    expect(await unpricedIds(repo, input({ maxAgeDays: 30 }))).toEqual(['stale']);
+    expect(await unpricedIds(repo, input())).toEqual([]);
+  });
+
+  it('lists a station whose only price looks like a typing slip', async () => {
+    const others = Array.from({ length: 9 }, (_, i) => station(`o${i}`));
+    const repo = repoWith(
+      [station('slip'), ...others],
+      [price('slip', 14.29), ...others.map((s, i) => price(s.id, 195 + i))],
+    );
+    expect(await unpricedIds(repo, input())).toEqual(['slip']);
+  });
+
+  it('never lists a station that is also in the priced list, a closed one, or one out of range', async () => {
+    const repo = repoWith(
+      [
+        station('priced'),
+        station('closed', { closed: true }),
+        station('far', { position: { lat: 55.5, lon: -2.1 } }),
+        station('none'),
+      ],
+      [price('priced', 200)],
+    );
+    expect(await ids(repo, input())).toEqual(['priced']);
+    expect(await unpricedIds(repo, input())).toEqual(['none']);
+  });
+
+  it('lists them nearest first, at most ten', async () => {
+    const many = Array.from({ length: 12 }, (_, i) =>
+      station(`s${String(i).padStart(2, '0')}`, {
+        position: { lat: 54.97 + i * 0.001, lon: -2.1 },
+      }),
+    );
+    const repo = repoWith(many, []);
+    expect(await unpricedIds(repo, input())).toEqual(many.slice(0, 10).map((s) => s.id));
   });
 });

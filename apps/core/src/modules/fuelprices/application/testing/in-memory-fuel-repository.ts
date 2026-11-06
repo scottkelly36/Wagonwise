@@ -5,6 +5,7 @@ import type {
   NearbyFuel,
   NearbyFuelQuery,
   NearbyFuelStation,
+  NearbyUnpricedStation,
 } from '../../domain/fuel.js';
 import type { FuelRepository, StoredFuelCounts } from '../fuel-repository.js';
 
@@ -52,6 +53,7 @@ export class InMemoryFuelRepository implements FuelRepository {
 
   findNearby(query: NearbyFuelQuery): Promise<NearbyFuel> {
     const found: NearbyFuelStation[] = [];
+    const unpriced: NearbyUnpricedStation[] = [];
     for (const station of this.snapshot.stations) {
       if (station.closed) continue;
       const distanceM = metresBetween(station.position, query.centre);
@@ -59,11 +61,14 @@ export class InMemoryFuelRepository implements FuelRepository {
       const price = this.snapshot.prices.find(
         (p) => p.stationId === station.id && p.fuelType === query.fuelType,
       );
-      if (price === undefined) continue;
-      if (query.minPencePerLitre !== undefined && price.pencePerLitre < query.minPencePerLitre) {
+      const usable =
+        price !== undefined &&
+        (query.minPencePerLitre === undefined || price.pencePerLitre >= query.minPencePerLitre) &&
+        (query.updatedSince === undefined || price.updatedAt >= query.updatedSince);
+      if (!usable) {
+        unpriced.push({ station, distanceM });
         continue;
       }
-      if (query.updatedSince !== undefined && price.updatedAt < query.updatedSince) continue;
       found.push({
         station,
         pencePerLitre: price.pencePerLitre,
@@ -77,8 +82,10 @@ export class InMemoryFuelRepository implements FuelRepository {
         a.distanceM - b.distanceM ||
         a.station.id.localeCompare(b.station.id),
     );
+    unpriced.sort((a, b) => a.distanceM - b.distanceM || a.station.id.localeCompare(b.station.id));
     return Promise.resolve({
       stations: found.slice(0, query.limit),
+      withoutPrice: unpriced.slice(0, query.withoutPriceLimit),
       refreshedAt: this.refreshedAt,
     });
   }

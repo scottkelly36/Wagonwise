@@ -19,7 +19,8 @@ export interface FuelRepository {
   nationalMedian(fuelType: FuelType): Promise<number | undefined>;
   /**
    * Open stations within the radius that have a price for the fuel (at least `minPencePerLitre`, reported since `updatedSince`),
-   * cheapest first, nearer first among equals, at most `limit`.
+   * cheapest first, nearer first among equals, at most `limit`; and, as `withoutPrice`, the nearest open stations in range that have
+   * no such price (at most `withoutPriceLimit`).
    */
   findNearby(query: NearbyFuelQuery): Promise<NearbyFuel>;
 }

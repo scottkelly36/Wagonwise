@@ -100,6 +100,34 @@ describe('POST /fuel/nearby', () => {
           distanceM: 0,
         },
       ],
+      withoutPrice: [],
+    });
+  });
+
+  it('lists a nearby station with no usable price for the fuel, with its details but no price', async () => {
+    const app = buildApp();
+    // Petrol: neither station has an E10 price, so both come back unpriced, nearest first.
+    const response = await app.inject({
+      method: 'POST',
+      url: '/fuel/nearby',
+      payload: { centre, radiusM: 10_000, fuelType: 'E10' },
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{ stations: unknown[]; withoutPrice: Record<string, unknown>[] }>();
+    expect(body.stations).toEqual([]);
+    expect(body.withoutPrice.map((s) => s['id'])).toEqual(['a', 'b']);
+    expect(body.withoutPrice[0]).toEqual({
+      id: 'a',
+      name: 'Tesco Hexham',
+      brand: 'TESCO',
+      addressLine: 'Station Road',
+      city: 'Hexham',
+      postcode: 'NE46 1AA',
+      location: centre,
+      isMotorway: false,
+      isSupermarket: true,
+      amenities: ['customer_toilets'],
+      distanceM: 0,
     });
   });
 

@@ -1,5 +1,10 @@
 import type { Result } from '../../../shared/result.js';
-import type { FuelPrice, FuelSourceUnavailable, FuelStation } from '../domain/fuel.js';
+import type {
+  DroppedPrices,
+  FuelPrice,
+  FuelSourceUnavailable,
+  FuelStation,
+} from '../domain/fuel.js';
 
 /**
  * The government's Fuel Finder, as this module needs it: every station, and every price, each in one go. The two lists are fetched
@@ -10,4 +15,6 @@ export interface FuelSource {
   readonly enabled: boolean;
   fetchStations(): Promise<Result<readonly FuelStation[], FuelSourceUnavailable>>;
   fetchPrices(): Promise<Result<readonly FuelPrice[], FuelSourceUnavailable>>;
+  /** What the last successful `fetchPrices` left out and why; undefined before one, or for a source that does not count. */
+  lastDroppedPrices?(): DroppedPrices | undefined;
 }

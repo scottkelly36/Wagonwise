@@ -15,7 +15,9 @@ import {
   FUEL_ACCESS_NOTE,
   FUEL_CREDIT,
   fuelName,
+  isStalePrice,
   priceText,
+  STALE_PRICE_NOTE,
   stationTitle,
   updatedText,
 } from '../lib/fuel-details';
@@ -85,6 +87,11 @@ export function FuelStationDrawer({
               <Text style={styles.updated} testID="fuel-updated">
                 {updatedText(station.priceUpdatedAt, new Date())}
               </Text>
+              {isStalePrice(station.priceUpdatedAt, new Date()) && (
+                <Text style={styles.stale} testID="fuel-stale">
+                  {STALE_PRICE_NOTE}
+                </Text>
+              )}
               {address !== undefined && <Text style={styles.detail}>{address}</Text>}
               <Text style={styles.detail}>
                 {shortDistance(station.distanceM)} away
@@ -164,6 +171,7 @@ function createStyles(colors: ThemeColors) {
     price: { fontSize: 40, fontWeight: '800', color: colors.text, marginTop: 12 },
     perLitre: { fontSize: 18, fontWeight: '600', color: colors.textMuted },
     updated: { fontSize: 16, fontWeight: '600', color: colors.textSecondary },
+    stale: { fontSize: 15, fontWeight: '700', color: colors.warning },
     detail: { fontSize: 17, color: colors.textSecondary, marginTop: 8 },
     meta: { fontSize: 14, color: colors.textDim, marginTop: 8 },
     navigateButton: {

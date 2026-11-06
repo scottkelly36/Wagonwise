@@ -4,6 +4,8 @@ import {
   isFuelType,
   isPlausiblePencePerLitre,
   isPlausibleUkPosition,
+  MAX_UNKNOWN_GRADES_LISTED,
+  type DroppedPrices,
   type FuelPrice,
   type FuelSourceUnavailable,
   type FuelStation,
@@ -78,11 +80,55 @@ export function stationFromRecord(raw: unknown): FuelStation | undefined {
   };
 }
 
+/** Counts what a fetch of prices kept and what it left out, and why. One per fetch; see {@link DroppedPrices}. */
+export class PriceTally {
+  #seen = 0;
+  #kept = 0;
+  #unknownGrade = 0;
+  #implausiblePrice = 0;
+  #noDate = 0;
+  readonly #grades = new Map<string, number>();
+
+  kept(): void {
+    this.#seen += 1;
+    this.#kept += 1;
+  }
+  unknownGrade(grade: string | undefined): void {
+    this.#seen += 1;
+    this.#unknownGrade += 1;
+    const name = grade ?? '(none)';
+    this.#grades.set(name, (this.#grades.get(name) ?? 0) + 1);
+  }
+  implausiblePrice(): void {
+    this.#seen += 1;
+    this.#implausiblePrice += 1;
+  }
+  noDate(): void {
+    this.#seen += 1;
+    this.#noDate += 1;
+  }
+
+  summary(): DroppedPrices {
+    return {
+      seen: this.#seen,
+      kept: this.#kept,
+      unknownGrade: this.#unknownGrade,
+      implausiblePrice: this.#implausiblePrice,
+      noDate: this.#noDate,
+      unknownGrades: [...this.#grades.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, MAX_UNKNOWN_GRADES_LISTED)
+        .map(([grade, count]) => ({ grade, count })),
+    };
+  }
+}
+
 /**
  * The prices from one station's entry in `/pfs/fuel-prices`. A price is left out when its fuel is not one we know, its amount is
- * not a believable pump price, or it has no readable date; the rest of the station's prices still count.
+ * not a believable pump price, or it has no readable date; the rest of the station's prices still count. Each entry is counted in
+ * `tally` once, under the first reason it failed, so a missing price can be told apart: not sent, or dropped here.
  */
-export function pricesFromRecord(raw: unknown): FuelPrice[] {
+export function pricesFromRecord(raw: unknown, tally?: PriceTally): FuelPrice[] {
   const record = recordOf(raw);
   const stationId = textOf(record?.['node_id']);
   const entries = record?.['fuel_prices'];
@@ -94,9 +140,19 @@ export function pricesFromRecord(raw: unknown): FuelPrice[] {
     const pencePerLitre = numberOf(item?.['price']);
     const updated = textOf(item?.['price_last_updated']);
     const updatedAt = updated === undefined ? undefined : new Date(updated);
-    if (fuelType === undefined || !isFuelType(fuelType)) continue;
-    if (pencePerLitre === undefined || !isPlausiblePencePerLitre(pencePerLitre)) continue;
-    if (updatedAt === undefined || Number.isNaN(updatedAt.getTime())) continue;
+    if (fuelType === undefined || !isFuelType(fuelType)) {
+      tally?.unknownGrade(fuelType);
+      continue;
+    }
+    if (pencePerLitre === undefined || !isPlausiblePencePerLitre(pencePerLitre)) {
+      tally?.implausiblePrice();
+      continue;
+    }
+    if (updatedAt === undefined || Number.isNaN(updatedAt.getTime())) {
+      tally?.noDate();
+      continue;
+    }
+    tally?.kept();
     prices.push({ stationId, fuelType, pencePerLitre, updatedAt });
   }
   return prices;
@@ -120,6 +176,7 @@ export class FuelFinderClient implements FuelSource {
   readonly enabled = true;
   #token: { value: string; expiresAt: number } | undefined;
   #lastRequestAt = 0;
+  #lastDropped: DroppedPrices | undefined;
 
   constructor(
     private readonly credentials: FuelFinderCredentials,
@@ -137,8 +194,15 @@ export class FuelFinderClient implements FuelSource {
     });
   }
 
-  fetchPrices(): Promise<Result<readonly FuelPrice[], FuelSourceUnavailable>> {
-    return this.#fetchAll('pfs/fuel-prices', pricesFromRecord);
+  async fetchPrices(): Promise<Result<readonly FuelPrice[], FuelSourceUnavailable>> {
+    const tally = new PriceTally();
+    const result = await this.#fetchAll('pfs/fuel-prices', (raw) => pricesFromRecord(raw, tally));
+    if (result.ok) this.#lastDropped = tally.summary();
+    return result;
+  }
+
+  lastDroppedPrices(): DroppedPrices | undefined {
+    return this.#lastDropped;
   }
 
   /** Batches from 1 until the service says there are no more (a 404 or an empty batch). */
