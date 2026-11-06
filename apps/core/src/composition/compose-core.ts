@@ -781,7 +781,12 @@ export function composeCore(
         const refreshed = await fuelPrices.refresh();
         if (refreshed.ok) {
           app.log.info(
-            { stations: refreshed.value.stations, prices: refreshed.value.prices },
+            {
+              stations: refreshed.value.stations,
+              prices: refreshed.value.prices,
+              // What the clean-up left out and why: tells a price Fuel Finder never sent from one dropped here.
+              dropped: refreshed.value.dropped,
+            },
             'refreshed fuel prices',
           );
         } else {

@@ -3,8 +3,11 @@ import type { FuelStationDto } from '@wagonwise/contracts/fuel';
 import {
   addressText,
   FUEL_MAX_AGE_DAYS,
+  FUEL_STALE_AFTER_DAYS,
   fuelName,
   fuelTypeFor,
+  isStalePrice,
+  noPriceText,
   priceText,
   sortFuel,
   stationTitle,
@@ -109,8 +112,39 @@ describe('fuelTypeFor and fuelName', () => {
   });
 });
 
-describe('FUEL_MAX_AGE_DAYS', () => {
-  it('is a week', () => {
-    expect(FUEL_MAX_AGE_DAYS).toBe(7);
+describe('FUEL_MAX_AGE_DAYS and FUEL_STALE_AFTER_DAYS', () => {
+  it('asks for prices up to a month old, and marks those over a week as possibly out of date', () => {
+    expect(FUEL_MAX_AGE_DAYS).toBe(30);
+    expect(FUEL_STALE_AFTER_DAYS).toBe(7);
+    expect(FUEL_STALE_AFTER_DAYS).toBeLessThan(FUEL_MAX_AGE_DAYS);
+  });
+});
+
+describe('isStalePrice', () => {
+  it('is false up to a week old and true after', () => {
+    expect(isStalePrice(ago(HOUR), NOW)).toBe(false);
+    expect(isStalePrice(ago(7 * DAY), NOW)).toBe(false);
+    expect(isStalePrice(ago(7 * DAY + MIN), NOW)).toBe(true);
+    expect(isStalePrice(ago(29 * DAY), NOW)).toBe(true);
+  });
+});
+
+describe('noPriceText', () => {
+  it('names the fuel in lower case', () => {
+    expect(noPriceText('Diesel')).toBe('No recent diesel price reported');
+    expect(noPriceText('Petrol')).toBe('No recent petrol price reported');
+  });
+});
+
+describe('addressText and stationTitle for a station with no price', () => {
+  it('work on a station without a price', () => {
+    const { pencePerLitre, priceUpdatedAt, ...unpriced } = station({
+      brand: 'ESSO',
+      city: 'Hexham',
+    });
+    void pencePerLitre;
+    void priceUpdatedAt;
+    expect(stationTitle(unpriced)).toBe('ESSO');
+    expect(addressText(unpriced)).toBe('Hexham');
   });
 });

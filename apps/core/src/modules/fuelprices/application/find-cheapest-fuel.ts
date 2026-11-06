@@ -1,5 +1,6 @@
 import type { Clock } from '../../../shared/ports/clock.js';
 import {
+  MAX_UNPRICED_STATIONS,
   MIN_SHARE_OF_MEDIAN,
   type FuelPosition,
   type FuelType,
@@ -26,7 +27,8 @@ export interface FindCheapestFuelInput {
 /**
  * The stations around a point, cheapest first for one fuel. Closed stations are never listed, and a price far below the national
  * median is left out as a typing slip. Old prices stay unless asked to go: Fuel Finder retailers report rarely, so the caller shows
- * each price's age rather than hiding a third of the country.
+ * each price's age rather than hiding a third of the country. Open stations in range with no usable price for the fuel (none
+ * reported, too old for `maxAgeDays`, or a slip) come back too, nearest first, so a driver can see the station is there.
  */
 export async function findCheapestFuel(
   deps: FindCheapestFuelDeps,
@@ -43,5 +45,6 @@ export async function findCheapestFuel(
         ? undefined
         : new Date(deps.clock.now().getTime() - input.maxAgeDays * MS_PER_DAY),
     limit: input.limit,
+    withoutPriceLimit: MAX_UNPRICED_STATIONS,
   });
 }

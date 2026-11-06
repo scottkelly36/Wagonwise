@@ -6,6 +6,7 @@ import type {
   NearbyFuel,
   NearbyFuelQuery,
   NearbyFuelStation,
+  NearbyUnpricedStation,
 } from '../domain/fuel.js';
 import type { UntypedDb } from './db.js';
 
@@ -28,23 +29,33 @@ interface NearbyRow {
   readonly distance_m: number;
 }
 
+/** The columns of a station, with or without a price beside them. */
+type StationRow = Omit<NearbyRow, 'pence' | 'updated_at'>;
+
+const toStation = (row: StationRow) => ({
+  id: row.id,
+  name: row.name,
+  brand: row.brand ?? undefined,
+  addressLine: row.address_line ?? undefined,
+  city: row.city ?? undefined,
+  postcode: row.postcode ?? undefined,
+  phone: row.phone ?? undefined,
+  position: { lat: row.lat, lon: row.lon },
+  isMotorway: row.is_motorway,
+  isSupermarket: row.is_supermarket,
+  closed: row.closed,
+  amenities: row.amenities,
+});
+
 const toNearby = (row: NearbyRow): NearbyFuelStation => ({
-  station: {
-    id: row.id,
-    name: row.name,
-    brand: row.brand ?? undefined,
-    addressLine: row.address_line ?? undefined,
-    city: row.city ?? undefined,
-    postcode: row.postcode ?? undefined,
-    phone: row.phone ?? undefined,
-    position: { lat: row.lat, lon: row.lon },
-    isMotorway: row.is_motorway,
-    isSupermarket: row.is_supermarket,
-    closed: row.closed,
-    amenities: row.amenities,
-  },
+  station: toStation(row),
   pencePerLitre: row.pence,
   updatedAt: row.updated_at,
+  distanceM: row.distance_m,
+});
+
+const toUnpriced = (row: StationRow): NearbyUnpricedStation => ({
+  station: toStation(row),
   distanceM: row.distance_m,
 });
 
@@ -171,11 +182,32 @@ export class PostgresFuelRepository implements FuelRepository {
       order by p.pence_per_litre, distance_m, s.id
       limit ${query.limit}
     `.execute(this.db);
+    // Open stations in range with no price that would have passed the tests above: none stored for this fuel, one too old, or one
+    // that looks like a typing slip. The same two filters decide what counts as a usable price, so the two lists never overlap.
+    const unpriced = await sql<StationRow>`
+      select s.id, s.name, s.brand, s.address_line, s.city, s.postcode, s.phone,
+             ST_Y(s.location::geometry) as lat, ST_X(s.location::geometry) as lon,
+             s.is_motorway, s.is_supermarket, s.closed, s.amenities,
+             ST_Distance(s.location, ${centre}) as distance_m
+      from fuelprices.stations s
+      where not s.closed
+        and ST_DWithin(s.location, ${centre}, ${query.radiusM})
+        and not exists (
+          select 1 from fuelprices.prices p
+          where p.station_id = s.id
+            and p.fuel_type = ${query.fuelType}
+            ${notTooCheap}
+            ${notTooOld}
+        )
+      order by distance_m, s.id
+      limit ${query.withoutPriceLimit}
+    `.execute(this.db);
     const refreshed = await sql<{ refreshed_at: Date }>`
       select refreshed_at from fuelprices.refreshes
     `.execute(this.db);
     return {
       stations: rows.map(toNearby),
+      withoutPrice: unpriced.rows.map(toUnpriced),
       refreshedAt: refreshed.rows[0]?.refreshed_at ?? undefined,
     };
   }

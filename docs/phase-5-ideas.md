@@ -266,6 +266,39 @@ Start with the three most asked-for, build them small, and put each in the guide
 - **Next step (no code):** ask two or three haulage brokers whether they would pay a fixed yearly fee for a sponsor slot, how
   much, how many firms or vehicles they would want to see first, and whether they would also pay per policy placed.
 
+### 10. More AI in the product: small decision models, and data analysis in the portal (the owner, 2026-11-06)
+
+- **The aim:** the owner expects more AI use later, in particular **data analysis for companies in the portal**. This is a place to
+  keep what was learned and the rules, not a plan to build now.
+- **Where AI is used today:** one place. `AnthropicHazardParser` (`modules/hazards`) turns a driver's spoken report into a
+  structured hazard through Claude, with a forced tool call, one retry and a fall-back to "other"; the driver confirms before
+  anything is filed. Routing, speed limits, hazard warnings and the faster-route offer are deterministic rules and stay that way.
+- **Jev, a small "decision model" (looked at 2026-11-06; desk research only, nothing run):** TypeSafe AI's hosted model returns a
+  typed choice, score or probability for questions you define, not text. Reported at about 100 ms (sources say 70 to 500 ms) and
+  about $0.042 per million input tokens with output free; early access, waitlisted directly, reachable through OpenRouter, Vercel
+  AI Gateway and Cloudflare; weights not published; benchmarks self-reported. **"Routing" in its articles means picking which AI
+  model answers a prompt, not road routing**: it cannot plan a route and is not for choosing roads.
+- **Possible uses, all advisory:** pick the hazard type from a voice transcript with a probability (the current Claude call could be
+  replaced, faster, though at a few hundred reports a month the saving is tiny); rank reported places on the moderation screen; flag
+  serious walk-round defects for the office (never clear one); decide which signals deserve a card on the task board (Phase 4 M13).
+- **Not for:** route choice, hazard warnings or the faster-route offer; anything that must work offline in the app (it is hosted).
+- **Spike, if wanted (half a day):** about 50 realistic driver transcripts with the right hazard type, run through the current
+  Claude parser and through Jev via OpenRouter; compare accuracy, speed, cost and what each does when unsure. Needs an OpenRouter
+  key (entered through the secure form, not in chat) and `openrouter.ai` allowed on the session's network.
+- **Data analysis for companies (the larger idea):** a firm asks questions of its own fleet data in the portal ("which vehicles
+  cost most per mile last quarter?", "why was March's job profit down?") and gets a plain-English answer or a short monthly brief.
+  Suggested order: 1) a model **picks which existing report and settings** answer the question (a decision model fits); 2) a model
+  **writes a plain-English summary of figures the portal has already computed** (job profit, outlook, maintenance, fuel); 3) only
+  later, free-form questions through a tightly restricted query tool.
+- **Rules for any of it:** the numbers are always computed by code or SQL, never by the model, and the answer shows which report
+  and period it came from; advisory wording, never "compliant" or "safe"; one company's data only, through its data scope, with
+  nothing from another firm in the prompt; no driver names, positions or contact details sent to a model provider unless the
+  provider is on the processors list with a data processing agreement (today Anthropic, TomTom, what3words, DVSA) and the privacy
+  notice and DPIA say so; a per-company usage cap so the cost per vehicle stays well under the £10 launch price; a fall-back to the
+  plain report when the model is down; staff-only and permission-matched (cost and profit need `manage_billing`).
+- **Questions to settle first:** which model provider and price per question; whether analysis is part of the per-vehicle price or a
+  higher tier; and whether firms would trust and pay for it (ask in the listening calls).
+
 ## Themes
 
 ### A. Run it as a business
