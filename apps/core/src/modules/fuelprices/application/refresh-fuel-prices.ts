@@ -1,6 +1,6 @@
 import type { Clock } from '../../../shared/ports/clock.js';
 import { err, ok, type Result } from '../../../shared/result.js';
-import type { FuelSourceUnavailable, SnapshotTooSmall } from '../domain/fuel.js';
+import type { DroppedPrices, FuelSourceUnavailable, SnapshotTooSmall } from '../domain/fuel.js';
 import type { FuelRepository } from './fuel-repository.js';
 import type { FuelSource } from './fuel-source.js';
 import { loadFuelSnapshot } from './load-snapshot.js';
@@ -14,6 +14,8 @@ export interface RefreshSummary {
   readonly stations: number;
   readonly prices: number;
   readonly refreshedAt: Date;
+  /** What the clean-up left out of the prices, by reason; undefined when the source does not count. */
+  readonly dropped: DroppedPrices | undefined;
 }
 
 export type RefreshError = FuelSourceUnavailable | SnapshotTooSmall;
@@ -39,5 +41,10 @@ export async function refreshFuelPrices(deps: {
 
   const refreshedAt = deps.clock.now();
   await deps.repo.replaceAll(snapshot.value, refreshedAt);
-  return ok({ stations: received, prices: snapshot.value.prices.length, refreshedAt });
+  return ok({
+    stations: received,
+    prices: snapshot.value.prices.length,
+    refreshedAt,
+    dropped: deps.source.lastDroppedPrices?.(),
+  });
 }

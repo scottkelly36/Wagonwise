@@ -243,6 +243,7 @@ describe('PostgresFuelRepository', () => {
       minPencePerLitre: undefined,
       updatedSince: undefined,
       limit: 20,
+      withoutPriceLimit: 10,
       ...overrides,
     });
 
@@ -308,6 +309,34 @@ describe('PostgresFuelRepository', () => {
       expect(found.stations.map((s) => s.station.id)).toEqual(['cheap-near', 'dear']);
     });
 
+    it('lists open stations in range with no usable price for the fuel, nearest first, apart from the priced ones', async () => {
+      // With no floor and no cut-off, only 'bare' (it sells HVO and no diesel) lacks a diesel price. 'closed' and 'too-far' are out.
+      const open = await repo().findNearby(ask());
+      expect(open.withoutPrice.map((s) => s.station.id)).toEqual(['bare']);
+      expect(open.withoutPrice[0]?.station).toEqual(
+        station('bare', { brand: undefined, phone: undefined, amenities: [] }),
+      );
+      expect(open.withoutPrice[0]?.distanceM).toBe(0);
+
+      // With the floor and the cut-off: 'slip' (60p) and 'cheap-far' (reported on 1 October) lose their price too.
+      const strict = await repo().findNearby(
+        ask({ minPencePerLitre: 100, updatedSince: new Date('2026-10-20T00:00:00.000Z') }),
+      );
+      expect(strict.stations.map((s) => s.station.id)).toEqual(['cheap-near', 'dear']);
+      expect(strict.withoutPrice.map((s) => s.station.id)).toEqual(['bare', 'slip', 'cheap-far']);
+    });
+
+    it('stops the unpriced list at its own limit', async () => {
+      const strict = await repo().findNearby(
+        ask({
+          minPencePerLitre: 100,
+          updatedSince: new Date('2026-10-20T00:00:00.000Z'),
+          withoutPriceLimit: 2,
+        }),
+      );
+      expect(strict.withoutPrice.map((s) => s.station.id)).toEqual(['bare', 'slip']);
+    });
+
     it('stops at the limit', async () => {
       const found = await repo().findNearby(ask({ minPencePerLitre: 100, limit: 1 }));
       expect(found.stations.map((s) => s.station.id)).toEqual(['cheap-near']);
@@ -322,7 +351,11 @@ describe('PostgresFuelRepository', () => {
     it('answers with nothing, and no date, before the first refresh', async () => {
       await pool.query('delete from fuelprices.stations');
       await pool.query('delete from fuelprices.refreshes');
-      expect(await repo().findNearby(ask())).toEqual({ stations: [], refreshedAt: undefined });
+      expect(await repo().findNearby(ask())).toEqual({
+        stations: [],
+        withoutPrice: [],
+        refreshedAt: undefined,
+      });
       expect(await repo().nationalMedian('B7_STANDARD')).toBeUndefined();
     });
   });

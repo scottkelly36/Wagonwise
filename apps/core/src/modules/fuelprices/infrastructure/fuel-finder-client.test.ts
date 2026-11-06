@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FuelFinderClient,
   NoFuelSource,
+  PriceTally,
   pricesFromRecord,
   stationFromRecord,
 } from './fuel-finder-client.js';
@@ -164,6 +165,22 @@ describe('FuelFinderClient', () => {
       },
     ]);
     expect(calls[1]?.url).toBe(`${BASE}/pfs/fuel-prices?batch-number=1`);
+  });
+
+  it('keeps what the last fetch of prices dropped, and nothing before one', async () => {
+    const { client } = setup(
+      batches([rawPrices('a', [diesel(), { ...diesel(), fuel_type: 'LPG' }, diesel(1.989)])]),
+    );
+    expect(client.lastDroppedPrices()).toBeUndefined();
+    await client.fetchPrices();
+    expect(client.lastDroppedPrices()).toEqual({
+      seen: 3,
+      kept: 1,
+      unknownGrade: 1,
+      implausiblePrice: 1,
+      noDate: 0,
+      unknownGrades: [{ grade: 'LPG', count: 1 }],
+    });
   });
 
   it('signs in once and reuses the token, then signs in again after it has run out', async () => {
@@ -349,6 +366,38 @@ describe('pricesFromRecord', () => {
       ]),
     );
     expect(prices.map((p) => p.pencePerLitre)).toEqual([197.9]);
+  });
+
+  it('counts each entry once, under the first reason it was left out, and names the grades it did not know', () => {
+    const tally = new PriceTally();
+    pricesFromRecord(
+      rawPrices('a', [
+        diesel(),
+        { ...diesel(), fuel_type: 'LPG' },
+        { ...diesel(), fuel_type: 'lpg' },
+        { ...diesel(), fuel_type: 'B7' },
+        { ...diesel(), fuel_type: undefined },
+        diesel(1.989),
+        { ...diesel(1.989), fuel_type: 'LPG' },
+        { ...diesel(), price_last_updated: 'yesterday' },
+        { ...diesel(), price_last_updated: undefined },
+        { ...diesel(1.5), price_last_updated: undefined },
+      ]),
+      tally,
+    );
+    expect(tally.summary()).toEqual({
+      seen: 10,
+      kept: 1,
+      unknownGrade: 5,
+      implausiblePrice: 2,
+      noDate: 2,
+      // Lower case is read as its grade, so only LPG (twice, and once more beside a pounds price), B7 and no name are unknown.
+      unknownGrades: [
+        { grade: 'LPG', count: 3 },
+        { grade: '(none)', count: 1 },
+        { grade: 'B7', count: 1 },
+      ],
+    });
   });
 
   it('gives nothing for a station with no prices or a malformed entry', () => {

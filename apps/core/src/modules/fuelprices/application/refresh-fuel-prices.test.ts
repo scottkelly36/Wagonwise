@@ -44,6 +44,33 @@ function source(
 }
 
 describe('refreshFuelPrices', () => {
+  it('passes on what the source says it dropped from the prices, when it counts', async () => {
+    const dropped = {
+      seen: 5,
+      kept: 3,
+      unknownGrade: 1,
+      implausiblePrice: 1,
+      noDate: 0,
+      unknownGrades: [{ grade: 'LPG', count: 1 }],
+    };
+    const counting: FuelSource = {
+      ...source(ok(stations(MIN_STATIONS)), ok([priceFor('s0')])),
+      lastDroppedPrices: () => dropped,
+    };
+    const result = await refreshFuelPrices({
+      source: counting,
+      repo: new InMemoryFuelRepository(),
+      clock,
+    });
+    expect(result.ok && result.value.dropped).toEqual(dropped);
+    const plain = await refreshFuelPrices({
+      source: source(ok(stations(MIN_STATIONS))),
+      repo: new InMemoryFuelRepository(),
+      clock,
+    });
+    expect(plain.ok && plain.value.dropped).toBeUndefined();
+  });
+
   it('stores the snapshot and says when and how much', async () => {
     const repo = new InMemoryFuelRepository();
     const all = stations(MIN_STATIONS);

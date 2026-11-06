@@ -10,7 +10,7 @@ const NEARBY_FUEL_POLL_MS = 10 * 60_000;
 
 /**
  * The cheapest stations around a point for the driver's fuel (diesel or petrol, `useFuelChoiceStore`) from prices reported within
- * the last week. Disabled until there is a point. `keepPrevious` keeps the last answer while a new map view loads, so the markers
+ * `FUEL_MAX_AGE_DAYS`, plus the nearby stations with no usable price (`withoutPrice`). Disabled until there is a point. `keepPrevious` keeps the last answer while a new map view loads, so the markers
  * do not blink as it is panned.
  */
 export function useNearbyFuel(

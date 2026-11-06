@@ -1,4 +1,4 @@
-import type { FuelStationDto } from '@wagonwise/contracts/fuel';
+import type { FuelStationDto, UnpricedFuelStationDto } from '@wagonwise/contracts/fuel';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -23,9 +23,13 @@ import { jobNavigationErrorMessage } from '../lib/error-messages';
 import {
   FUEL_ACCESS_NOTE,
   FUEL_CREDIT,
+  FUEL_MAX_AGE_DAYS,
   fuelName,
+  isStalePrice,
+  noPriceText,
   priceText,
   sortFuel,
+  STALE_PRICE_NOTE,
   stationTitle,
   updatedText,
   type FuelOrder,
@@ -46,9 +50,10 @@ const ORDERS: readonly { readonly key: FuelOrder; readonly label: string }[] = [
 ];
 
 /**
- * Nearby fuel: the diesel or petrol prices around the driver, cheapest or closest first, each with how long ago the station reported it.
- * Tapping a station plans the route and opens the trip screen, as nearby parking does. Only prices from the last week are asked
- * for (`FUEL_MAX_AGE_DAYS`).
+ * Nearby fuel: the diesel or petrol prices around the driver, cheapest or closest first, each with how long ago the station reported it
+ * (marked as possibly out of date when it is over a week). Below them, nearby stations with no usable price for the fuel are listed
+ * with no number, so a station that sells both but reports one is not missing. Tapping a station plans the route and opens the trip
+ * screen, as nearby parking does. Only prices from the last month are asked for (`FUEL_MAX_AGE_DAYS`).
  */
 export default function NearbyFuelScreen() {
   const location = useCurrentLocation();
@@ -61,6 +66,7 @@ export default function NearbyFuelScreen() {
   const navigate = useNavigateToPlace(profileId);
 
   const rows = useMemo(() => sortFuel(fuel.data?.stations ?? [], order), [fuel.data, order]);
+  const unpriced = fuel.data?.withoutPrice ?? [];
   const cheapestId = useMemo(
     () => sortFuel(fuel.data?.stations ?? [], 'cheapest')[0]?.id,
     [fuel.data],
@@ -71,7 +77,10 @@ export default function NearbyFuelScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.header}>
-        <ScreenHeader title="Nearby fuel" subtitle={`${fuelLabel} prices from the last week`} />
+        <ScreenHeader
+          title="Nearby fuel"
+          subtitle={`${fuelLabel} prices from the last ${FUEL_MAX_AGE_DAYS} days`}
+        />
       </View>
       <ScrollView
         contentContainerStyle={styles.content}
@@ -115,9 +124,20 @@ export default function NearbyFuelScreen() {
           </Text>
         )}
 
-        {!loading && location.point !== undefined && !fuel.isError && rows.length === 0 && (
-          <Text style={styles.message} testID="nearby-fuel-empty">
-            No recent {fuelLabel.toLowerCase()} prices near you. Try again later.
+        {!loading &&
+          location.point !== undefined &&
+          !fuel.isError &&
+          rows.length === 0 &&
+          unpriced.length === 0 && (
+            <Text style={styles.message} testID="nearby-fuel-empty">
+              No recent {fuelLabel.toLowerCase()} prices near you. Try again later.
+            </Text>
+          )}
+
+        {!loading && !fuel.isError && rows.length === 0 && unpriced.length > 0 && (
+          <Text style={styles.message} testID="nearby-fuel-none-priced">
+            No {fuelLabel.toLowerCase()} prices reported near you in the last {FUEL_MAX_AGE_DAYS}{' '}
+            days. These stations are nearby and may still sell it.
           </Text>
         )}
 
@@ -135,13 +155,30 @@ export default function NearbyFuelScreen() {
           />
         ))}
 
-        {rows.length > 0 && (
+        {unpriced.length > 0 && rows.length > 0 && (
+          <Text style={styles.sectionTitle} testID="nearby-fuel-unpriced-heading">
+            No recent {fuelLabel.toLowerCase()} price reported
+          </Text>
+        )}
+        {unpriced.map((station) => (
+          <UnpricedRow
+            key={station.id}
+            station={station}
+            fuelLabel={fuelLabel}
+            styles={styles}
+            colors={colors}
+            disabled={navigate.isPending || profileId === undefined}
+            onPress={() => navigate.mutate(station.location)}
+          />
+        ))}
+
+        {(rows.length > 0 || unpriced.length > 0) && (
           <>
             <Text style={styles.note}>{FUEL_ACCESS_NOTE}</Text>
             <Text style={styles.note}>{FUEL_CREDIT}</Text>
           </>
         )}
-        {profileId === undefined && rows.length > 0 && (
+        {profileId === undefined && (rows.length > 0 || unpriced.length > 0) && (
           <Text style={styles.message}>
             Add a vehicle profile (More, then Vehicle profiles) to get directions.
           </Text>
@@ -202,6 +239,53 @@ function FuelRow({
           {fuelLabel}
           {'  ·  '}
           {updatedText(station.priceUpdatedAt, now)}
+          {isStalePrice(station.priceUpdatedAt, now) && (
+            <Text style={styles.stale} testID={`fuel-stale-${station.id}`}>
+              {`  ·  ${STALE_PRICE_NOTE}`}
+            </Text>
+          )}
+        </Text>
+      </View>
+      <Icon name="chevron-right" size={26} color={colors.textMuted} />
+    </TouchableOpacity>
+  );
+}
+
+/** A nearby station the answer has no usable price for: its name, how far it is and why there is no number, and the way to it. */
+function UnpricedRow({
+  station,
+  fuelLabel,
+  styles,
+  colors,
+  disabled,
+  onPress,
+}: {
+  station: UnpricedFuelStationDto;
+  fuelLabel: string;
+  styles: ReturnType<typeof createStyles>;
+  colors: ThemeColors;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.row}
+      disabled={disabled}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${stationTitle(station)}, ${noPriceText(fuelLabel).toLowerCase()}, ${shortDistance(station.distanceM)} away. Take me there`}
+      testID={`fuel-unpriced-${station.id}`}
+    >
+      <View style={styles.badge}>
+        <Icon name="gas-station" size={28} color={colors.textMuted} />
+      </View>
+      <View style={styles.rowText}>
+        <View style={styles.priceRow}>
+          <Text style={styles.noPrice}>{noPriceText(fuelLabel)}</Text>
+          <Text style={styles.distance}>{shortDistance(station.distanceM)}</Text>
+        </View>
+        <Text style={styles.title} numberOfLines={1}>
+          {stationTitle(station)}
         </Text>
       </View>
       <Icon name="chevron-right" size={26} color={colors.textMuted} />
@@ -251,6 +335,9 @@ function createStyles(colors: ThemeColors) {
     cheapest: { fontSize: 14, fontWeight: '700', color: colors.accentGreen },
     title: { fontSize: 16, fontWeight: '600', color: colors.textSecondary, marginTop: 2 },
     updated: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
+    stale: { fontSize: 14, fontWeight: '700', color: colors.warning },
+    noPrice: { flex: 1, fontSize: 16, fontWeight: '700', color: colors.textSecondary },
+    sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.textSecondary, marginTop: 8 },
     message: { fontSize: 16, color: colors.textMuted, textAlign: 'center', marginTop: 16 },
     note: { fontSize: 13, color: colors.textDim, textAlign: 'center' },
     error: { fontSize: 16, color: colors.danger, textAlign: 'center' },

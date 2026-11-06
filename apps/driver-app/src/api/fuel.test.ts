@@ -44,12 +44,34 @@ describe('findNearbyFuel', () => {
       limit: 20,
     });
 
-    expect(result).toEqual(answer);
+    // An answer from a server that predates `withoutPrice` still parses, with an empty list.
+    expect(result).toEqual({ ...answer, withoutPrice: [] });
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toMatch(/\/fuel\/nearby$/);
     expect(init.method).toBe('POST');
     expect((init.headers as Record<string, string>).authorization).toBe('Bearer token-1');
     expect(JSON.parse(init.body as string)).toMatchObject({ radiusM: 20_000, maxAgeDays: 7 });
+  });
+
+  it('reads the nearby stations that have no usable price', async () => {
+    const withoutPrice = [
+      {
+        id: 'esso',
+        name: 'Esso Hexham',
+        brand: 'ESSO',
+        location: { lat: 54.96, lon: -2.09 },
+        isMotorway: false,
+        isSupermarket: false,
+        amenities: [],
+        distanceM: 700,
+      },
+    ];
+    globalThis.fetch = jest.fn().mockResolvedValue(jsonResponse(200, { ...answer, withoutPrice }));
+    const result = await findNearbyFuel('token-1', {
+      centre: { lat: 54.97, lon: -2.1 },
+      radiusM: 20_000,
+    });
+    expect(result.withoutPrice).toEqual(withoutPrice);
   });
 
   it('throws an ApiError on a failure status', async () => {
