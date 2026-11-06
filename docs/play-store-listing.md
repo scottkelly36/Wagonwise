@@ -38,20 +38,85 @@ Text for the form (fill the brackets):
 > WagonWise needs sign-in. There is no password: you sign in with a one-time code sent to an email address, and a one-time
 > invite code is needed the first time.
 >
-> 1. Install the app and open it. Read the privacy screen and tap "I understand".
-> 2. On the sign-in screen, enter the email address **[reviewer email]**.
-> 3. Enter the invite code **[invite code]**.
-> 4. A six-digit code is sent to that address. Open **[webmail address]** and sign in with **[reviewer email]** and the password
->    **[password]** to read it, then type the code into the app.
-> 5. On the map you can: search for a place and plan a route (the app asks for location while it is open, and the camera and
+> 1. Install the app and open it. On the sign-in screen, enter the email address **[reviewer email]**.
+> 2. Enter the invite code **[invite code]** and tap "Send me a code".
+> 3. A six-digit code is sent to that address. Open **[webmail address]** and sign in with **[reviewer email]** and the password
+>    **[password]** to read it, then type the code into the app and tap Continue.
+> 4. A privacy screen ("Before you start") appears: read it and tap "I understand".
+> 5. A short four-screen tour appears: tap Skip (top right), or Next to read it. It shows once per phone and is under More > How it works.
+> 6. On the map you can: search for a place and plan a route (the app asks for location while it is open, and the camera and
 >    microphone only if you use proof photos or voice reports); open More > Vehicle profiles to see a sample vehicle; tap the
 >    hazard button to see how a report is made.
-> 6. To delete the account: More > Delete account. There is also a page at https://wagon-wise.co.uk/delete-account/.
+> 7. To delete the account: More > Delete account. There is also a page at https://wagon-wise.co.uk/delete-account/.
 >
 > The account is for review only and holds no real data. If anything fails, contact support@wagon-wise.co.uk.
 
+**Order matters:** the app asks for the privacy screen after sign-in and before the tour (the earlier draft had them the wrong way round). If the password sign-in (PR 315) is ever released, this text changes: "There is no password" stops being true and the invite-code step goes.
+
 Checks before you submit: make a fresh invite code (each works once), sign in yourself on a clean phone with exactly these steps,
 and make sure the mailbox receives the code within a minute.
+
+## Production access form: draft answers (for when the closed test reaches 14 days)
+
+Written 2026-11-06 from what was actually done. The closed-test provider (Testers Community) sent suggested answers; **do not paste them as
+written**. They say feedback came from "surveys, direct communication, and focused group discussions" (it came as three written reports),
+that engagement "led to significant improvements ... a more user-friendly interface and better navigation" (the changes were six specific
+suggestions, listed below), and that you "reached out to professional drivers" (only true if you did: see question 1). Google can check
+and a false answer is a worse risk than a plain one. Square brackets are yours to fill or delete.
+
+**Before you apply:** the answers say the walkthrough, Rate and Share rows, sign-out check and plainer wording are in the app. They are
+merged to main but reach phones only when the `release` label is put on a PR (over the air to 1.2.1). Do that first so the answers are true
+for anyone who installs the app. Do **not** merge PR 315 (password sign-in).
+
+1. **How did you recruit users for your closed test?**
+
+   > We used a paid testing provider (Testers Community) for 25 testers who stayed opted in for 16 days. [If true: We also invited
+   > [number] people we know, through our own invitation emails.]
+
+2. **How easy was it to recruit testers?** _[Your choice. If you say Easy, it should be true of the provider; "Neutral" is fine.]_
+
+3. **Describe the engagement you received from testers.**
+
+   > The testers installed the app, used it over the 14 days and sent a written report on what they found: no crashes or bugs, and six
+   > suggestions to improve the app. [Add anything your own testers told you.]
+
+4. **Summarise the feedback and how you collected it.**
+
+   > Feedback came as written reports from the testing provider. They found no crashes or bugs. They suggested: improving the store
+   > listing text so people can find the app (search keywords); removing em dashes from the text in the app; a short introduction for
+   > new users; a Rate button; a Share button; and a confirmation before signing out.
+
+5. **Who is the intended audience?**
+
+   > Professional HGV drivers in the UK, and the small haulage firms that employ them. The app plans routes that fit the vehicle
+   > (height, weight, width, length), warns about low bridges and other reported hazards, and shows safe parking, fuel stations and
+   > driving hours.
+
+6. **How does the app provide value?**
+
+   > It gives an HGV driver routes that suit their own vehicle instead of a car route, spoken warnings about hazards other drivers have
+   > reported, parking and fuel on the route, and a driving-hours timer. A company can also send jobs to its drivers.
+
+7. **Installs expected in the first year?** _[Your estimate. WagonWise is a UK-only product sold to small hauliers, so the lowest range
+   that is honest is better than 10k to 100k.]_
+
+8. **What changes did you make based on the closed test?**
+
+   > We made all six changes the testers suggested: a rewritten store listing with the search keywords in the title and descriptions;
+   > em dashes removed from the 21 lines drivers see or hear; a four-screen introduction for new users (skippable, and reopened from
+   > More); Rate and Share buttons on the More tab; a confirmation before signing out; and plainer wording in places. We also retook all
+   > the store screenshots and fixed two display problems we found ourselves (a stray map control and a button whose text wrapped).
+
+9. **How did you decide the app is ready for production?**
+
+   > The closed test ran for 14 days with [25] testers and reported no crashes or bugs. We acted on the testers' suggestions, the
+   > automated tests and checks on the app pass, our privacy notice and data safety answers are written, and the reviewer instructions
+   > have been tested. [Add a line only if it is true: for example that you or a driver have used it on a real journey.]
+
+10. **What did you do differently this time?** _(This one is asked only if you have applied before; skip if not.)_
+
+**Truth checks before sending:** is the number of testers and days what Play Console shows? Was anything said about "own testers" (question 1)
+true? Does your phone, with the `release` label shipped, show the walkthrough and the Rate row (Android only) after a fresh install?
 
 ## Data safety (draft)
 
