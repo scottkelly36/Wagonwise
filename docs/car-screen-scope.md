@@ -58,6 +58,7 @@ Nothing has to be requested from Google first, but the app is reviewed on Google
    permission and `watchPositionAsync` in `use-live-location.ts`, with the screen kept awake on the trip screen). A car screen is used with the phone
    locked in a pocket or on a mount, so navigation needs **background location** (Android foreground service; iOS location background mode)
    and the JavaScript to start without any phone screen. This is the biggest technical risk and the part to prove first.
+   **Proved on Android, 2026-11-08 (see "Spike 1" below): it works with a foreground service, but only event-driven code keeps running; timers stop.**
 2. **It touches the privacy promise.** The notice and the sales text say a driver's position is shared with a firm only on one of its jobs **and the app
    is open**. Background operation changes that. It also needs Google Play's background-location declaration and Apple's background-mode
    disclosure, an update to `privacy-review.md`, the data-safety form and the privacy labels, and a wording change in the app's consent screen. Do not ship before that.
@@ -139,14 +140,39 @@ nothing on the trip screen needs typing while moving.
 **For our own checks, whichever platform:** the test-drive mode (`NF-7`) is also the way to test without driving: a recorded route played
 back at a speed, with hazards, a faster route and a break coming up, so alerts, previews and background behaviour can be seen on the DHU or the simulator.
 
+## Spike 1: background tracking on Android (done 2026-11-08)
+
+**Question:** can the app keep getting positions, and keep running its JavaScript, with the phone's screen off?
+**How:** a throwaway test screen (branch `spike-android-auto`, local, never for main) on the Play Store emulator. It fed the emulator a moving GPS
+position (about 19 m a second along the A69) while the app moved through four states, and counted what arrived. The two ways were today's
+(`watchPositionAsync`, foreground only) and background tracking (`startLocationUpdatesAsync` with a task, behind a foreground service, with the
+background-location permission). Each position and a two-second heartbeat timer were logged.
+
+- **Today's approach, foreground only:** in front, 13 positions and 7 heartbeats; on the home screen, **0 and 0**; screen off, **0 and 0**. **Nothing
+  runs once the app leaves the screen, JavaScript included.** A car screen with the phone in a pocket would get nothing.
+- **Background tracking with a foreground service:** in front 15 positions; on the home screen 14; **screen off 21** (in 20 seconds); screen on with the app
+  behind 8. **Positions keep arriving in every state, and the JavaScript that handles them runs.**
+- **But the heartbeat timer did not tick in the background** (7, then 0, 0, 1). The task's JavaScript runs when a position arrives; `setInterval` and
+  `setTimeout` do not run while the app is behind. So **anything in the app that is driven by a timer pauses** (polling the server for hazards or traffic on
+  a timer, a timed ETA refresh, the hours clock, sending the position to the company on an interval). Anything driven by a position update keeps working
+  (turn announcements, the next turn, arrival). A car-screen design has to be event-driven, or use a headless task service for timed work.
+- **Not tested:** spoken directions with the screen off (the phone's text-to-speech, and the navigation audio channel), network calls from the background,
+  how long it survives (Android's battery limits on a real phone, and each maker's own), and iOS (its background location mode and a CarPlay scene).
+- **What it needs:** the permissions `ACCESS_BACKGROUND_LOCATION`, `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_LOCATION` (the `expo-location` plugin's
+  `isAndroidBackgroundLocationEnabled` and `isAndroidForegroundServiceEnabled`), `expo-task-manager`, an ongoing notification while tracking, and Google
+  Play's background-location declaration. The installed app has none of these today (checked in its manifest).
+- Google's location service also asks the driver to turn on **Location Accuracy** the first time (a dialog); the app should expect and explain it.
+
 ## Order
 
 0. **Ask Apple for the navigation entitlement** (draft below). **Done: the owner submitted the request on 2026-11-08**, with the six navigation screenshots
    from `store-assets/raw` (Android captures: there are none from an iPhone yet). Apple gives no timescale; nothing to do until it answers. If it asks for
    more, or says no, the answer goes here.
-1. **Set up Android testing (owner's go-ahead for the downloads):** the DHU and a Play Store virtual device, or the owner's Android phone over USB.
-2. **A spike on Android Auto, on a throwaway branch.** Answers, in this order: can the app keep navigating with the phone screen off (background location and
-   JavaScript without a phone screen); can the MapLibre map be drawn on the car surface at navigation speed; how the trip state reaches the car service;
+1. **Set up Android testing.** **Done 2026-11-08** (owner's go-ahead): the Android command-line tools (checked against Google's published SHA-256) and the Desktop
+   Head Unit 2.0 are installed in the SDK, and a Play Store virtual device, `Pixel_6_Play`, exists (it has Android Auto and the Play Store on it already). Still
+   to do by hand on it: Android Auto's terms and developer mode, which only the owner can accept (see below).
+2. **A spike on Android Auto, on a throwaway branch.** Answers, in this order: ~~can the app keep navigating with the phone screen off~~ **(yes, with a foreground
+   service; timers stop: Spike 1)**; can the MapLibre map be drawn on the car surface at navigation speed; how the trip state reaches the car service;
    can Expo carry it. _Done when:_ a go, go-with-changes or stop decision and the effort, written here. A custom build, not over the air.
 3. **Build Android Auto** if the spike says go: test-drive mode, navigation intents, templates for the features above, Play review.
 4. **CarPlay** once Apple has granted the entitlement **and a Mac is available**: the same features through CarPlay's templates.
