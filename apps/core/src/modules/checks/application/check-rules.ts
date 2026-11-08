@@ -8,7 +8,7 @@ import {
 } from '../domain/check-template.js';
 import {
   isValidRetention,
-  monthsAgo,
+  retentionCutoffs,
   startVerdict,
   type CheckSettings,
   type StartVerdict,
@@ -85,8 +85,9 @@ export async function updateCheckSettings(
 
 /**
  * Deletes each company's checks older than that company's retention (a firm with nothing set has 12 months). The check
- * goes with its photos and defects. A check with a defect still open or only seen is kept until the office marks it
- * fixed, so an unresolved fault is never lost to the clock. Returns how many checks were deleted, for the log.
+ * goes with its photos and defects. **A check that found a defect is kept at least 15 months, whatever the firm sets**, the
+ * legal minimum for defect reports (`DEFECT_RECORD_MONTHS`), and one with a defect still open or only seen is kept until the
+ * office marks it fixed, so an unresolved fault is never lost to the clock. Returns how many checks were deleted, for the log.
  */
 export async function pruneOldChecks(
   deps: Pick<CheckRulesDeps, 'settings' | 'clock'> & {
@@ -98,7 +99,7 @@ export async function pruneOldChecks(
   let removed = 0;
   for (const companyId of companyIds) {
     const { retentionMonths } = await deps.settings.get(companyId);
-    removed += await deps.checks.deleteOlderThan(companyId, monthsAgo(now, retentionMonths));
+    removed += await deps.checks.deleteOlderThan(companyId, retentionCutoffs(now, retentionMonths));
   }
   return removed;
 }

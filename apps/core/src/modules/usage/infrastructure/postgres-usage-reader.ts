@@ -62,6 +62,33 @@ export class PostgresUsageReader implements UsageReader {
              (select count(*) from routing.active_trips where ended_at is null)::int as running,
              (select count(*) from signups.testers)::int as testers`.execute(db);
 
+    // How far drivers have got: different drivers at each stage, joined to the accounts that still exist. Trips older than the
+    // route retention period are deleted by housekeeping, so the trip figures cover that period.
+    const funnel = await sql<{
+      accounts: number;
+      signed_in: number;
+      has_vehicle: number;
+      planned: number;
+      trip: number;
+      trip_two_days: number;
+    }>`
+      with trip_days as (
+        select t.driver_id, count(distinct (t.started_at at time zone 'Europe/London')::date) as days
+        from routing.active_trips t
+        join identity.drivers d on d.id = t.driver_id
+        group by t.driver_id
+      )
+      select
+        (select count(*) from identity.drivers)::int as accounts,
+        (select count(*) from identity.drivers d
+           where exists (select 1 from identity.sessions s where s.driver_id = d.id and s.last_used_at is not null))::int as signed_in,
+        (select count(*) from identity.drivers d
+           where exists (select 1 from routing.vehicle_profiles v where v.driver_id = d.id))::int as has_vehicle,
+        (select count(*) from identity.drivers d
+           where exists (select 1 from routing.route_plans p where p.driver_id = d.id))::int as planned,
+        (select count(*) from trip_days)::int as trip,
+        (select count(*) from trip_days where days >= 2)::int as trip_two_days`.execute(db);
+
     const tripsPerDay = await sql<{ day: string; count: number }>`
       select to_char(d.day, 'YYYY-MM-DD') as day, count(t.id)::int as count
       from generate_series(${today}::date - 13, ${today}::date, interval '1 day') as d(day)
@@ -121,11 +148,20 @@ export class PostgresUsageReader implements UsageReader {
 
     const week = (rows: WeekRow[]) => rows.map((r) => ({ weekStart: r.week, count: r.count }));
     const c = counts.rows[0];
+    const f = funnel.rows[0];
     return {
       generatedAt: now,
       drivers: toActivity(drivers.rows[0]),
       staff: toActivity(staff.rows[0]),
       devices: c?.devices ?? 0,
+      funnel: {
+        accounts: f?.accounts ?? 0,
+        signedIn: f?.signed_in ?? 0,
+        hasVehicle: f?.has_vehicle ?? 0,
+        plannedRoute: f?.planned ?? 0,
+        startedTrip: f?.trip ?? 0,
+        startedTripOnTwoDays: f?.trip_two_days ?? 0,
+      },
       tripsRunningNow: c?.running ?? 0,
       tripsPerDay: tripsPerDay.rows,
       jobsCreatedPerWeek: week(created.rows),

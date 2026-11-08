@@ -20,6 +20,16 @@ export function barHeights(counts: readonly number[]): number[] {
   return counts.map((c) => (max === 0 ? 0 : Math.round((c / max) * 100)));
 }
 
+/** "92%" of the whole, rounded; "0%" when there is no whole. */
+export function percentOf(part: number, whole: number): string {
+  return whole <= 0 ? '0%' : `${Math.round((part / whole) * 100)}%`;
+}
+
+/** "110 (92%)": a count with its share of the accounts, for the funnel. */
+export function withShare(part: number, whole: number): string {
+  return `${part} (${percentOf(part, whole)})`;
+}
+
 /** "9 Oct" for a `YYYY-MM-DD` day. */
 export function shortDay(day: string): string {
   return new Date(`${day}T00:00:00.000Z`).toLocaleDateString('en-GB', {
