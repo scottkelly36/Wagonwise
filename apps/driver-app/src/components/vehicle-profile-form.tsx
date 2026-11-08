@@ -8,7 +8,10 @@ import {
   View,
 } from 'react-native';
 
-import { formatHeightWithFeetInches } from '../lib/units';
+import { FeetInchesInputs } from './feet-inches-inputs';
+import { SegmentedControl } from './ui/segmented-control';
+import { formatHeightWithFeetInches, type LengthUnit } from '../lib/units';
+import { useLengthUnitStore } from '../state/length-unit-store';
 import {
   dimensionWarnings,
   parseVehicleProfileForm,
@@ -28,6 +31,11 @@ interface Props {
   readonly onSubmit: (input: ParsedVehicleProfile) => void;
 }
 
+const UNIT_OPTIONS: readonly { key: LengthUnit; label: string }[] = [
+  { key: 'metres', label: 'Metres' },
+  { key: 'feet', label: 'Feet and inches' },
+];
+
 export function VehicleProfileForm({
   initialValues,
   submitLabel,
@@ -37,6 +45,8 @@ export function VehicleProfileForm({
 }: Props) {
   const [values, setValues] = useState(initialValues);
   const [validationError, setValidationError] = useState<string | undefined>(undefined);
+  const unit = useLengthUnitStore((s) => s.unit);
+  const setUnit = useLengthUnitStore((s) => s.setUnit);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -60,6 +70,62 @@ export function VehicleProfileForm({
   const warnings = dimensionWarnings(values);
   const displayedError = validationError ?? errorMessage;
 
+  /** One of height, width or length: a single box in metres, or a feet box and an inches box. Either way the form keeps the
+   *  value in metres, which is what is checked and sent. */
+  function renderSize(
+    field: 'heightM' | 'widthM' | 'lengthM',
+    name: string,
+    metresPlaceholder: string,
+    [feetPlaceholder, inchesPlaceholder]: readonly [string, string],
+    testName: string,
+  ) {
+    const warning = warnings[field];
+    const metres = Number(values[field]);
+    return (
+      <>
+        <Text style={styles.label}>
+          {name} ({unit === 'feet' ? 'feet and inches' : 'metres'})
+        </Text>
+        {unit === 'feet' ? (
+          // Remounted when the unit changes, so the boxes are filled afresh from the value in metres.
+          <FeetInchesInputs
+            key={`${field}-${unit}`}
+            metres={values[field]}
+            onChangeMetres={setField(field)}
+            feetPlaceholder={feetPlaceholder}
+            inchesPlaceholder={inchesPlaceholder}
+            inputStyle={styles.input}
+            testIDPrefix={`profile-${testName}`}
+          />
+        ) : (
+          <TextInput
+            style={styles.input}
+            value={values[field]}
+            onChangeText={setField(field)}
+            placeholder={metresPlaceholder}
+            placeholderTextColor={colors.textDim}
+            keyboardType="decimal-pad"
+            testID={`profile-${testName}-input`}
+          />
+        )}
+        {warning !== undefined && (
+          <Text style={styles.warning} testID={`profile-${testName}-warning`}>
+            {warning}
+          </Text>
+        )}
+        {unit === 'feet'
+          ? Number.isFinite(metres) &&
+            metres > 0 && (
+              <Text style={styles.hint} testID={`profile-${testName}-metres`}>
+                {metres.toFixed(2)} m
+              </Text>
+            )
+          : field === 'heightM' &&
+            heightPreview !== '' && <Text style={styles.hint}>{heightPreview}</Text>}
+      </>
+    );
+  }
+
   return (
     <View style={styles.form}>
       <Text style={styles.label}>Name</Text>
@@ -72,54 +138,17 @@ export function VehicleProfileForm({
         testID="profile-name-input"
       />
 
-      <Text style={styles.label}>Height (metres)</Text>
-      <TextInput
-        style={styles.input}
-        value={values.heightM}
-        onChangeText={setField('heightM')}
-        placeholder="4.2"
-        placeholderTextColor={colors.textDim}
-        keyboardType="decimal-pad"
-        testID="profile-height-input"
+      <Text style={styles.label}>Measure height, width and length in</Text>
+      <SegmentedControl
+        options={UNIT_OPTIONS}
+        value={unit}
+        onChange={(next) => void setUnit(next)}
+        testIDPrefix="profile-unit"
       />
-      {warnings.heightM !== undefined && (
-        <Text style={styles.warning} testID="profile-height-warning">
-          {warnings.heightM}
-        </Text>
-      )}
-      {heightPreview !== '' && <Text style={styles.hint}>{heightPreview}</Text>}
 
-      <Text style={styles.label}>Width (metres)</Text>
-      <TextInput
-        style={styles.input}
-        value={values.widthM}
-        onChangeText={setField('widthM')}
-        placeholder="2.6"
-        placeholderTextColor={colors.textDim}
-        keyboardType="decimal-pad"
-        testID="profile-width-input"
-      />
-      {warnings.widthM !== undefined && (
-        <Text style={styles.warning} testID="profile-width-warning">
-          {warnings.widthM}
-        </Text>
-      )}
-
-      <Text style={styles.label}>Length (metres)</Text>
-      <TextInput
-        style={styles.input}
-        value={values.lengthM}
-        onChangeText={setField('lengthM')}
-        placeholder="16.5"
-        placeholderTextColor={colors.textDim}
-        keyboardType="decimal-pad"
-        testID="profile-length-input"
-      />
-      {warnings.lengthM !== undefined && (
-        <Text style={styles.warning} testID="profile-length-warning">
-          {warnings.lengthM}
-        </Text>
-      )}
+      {renderSize('heightM', 'Height', '4.2', ['13', '9'], 'height')}
+      {renderSize('widthM', 'Width', '2.6', ['8', '6'], 'width')}
+      {renderSize('lengthM', 'Length', '16.5', ['54', '2'], 'length')}
 
       <Text style={styles.label}>Gross weight (tonnes)</Text>
       <TextInput

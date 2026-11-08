@@ -23,6 +23,9 @@ import { WordsSearchField } from '../components/words-search-field';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap, type MapPoint, type RouteOptionLine } from '../components/route-map';
 import { formatDuration } from '../lib/format-duration';
+import type { LengthUnit } from '../lib/units';
+import { useLengthUnitStore } from '../state/length-unit-store';
+import { FeetInchesInputs } from '../components/feet-inches-inputs';
 import { decodePolyline6 } from '../lib/polyline';
 import { config } from '../config';
 import { useCurrentLocation } from '../hooks/use-current-location';
@@ -86,6 +89,21 @@ const DIMENSION_FIELDS: {
   { key: 'axleWeightT', label: 'Axle weight (tonnes, optional)', placeholder: '10' },
 ];
 
+const LENGTH_UNIT_OPTIONS: readonly { key: LengthUnit; label: string }[] = [
+  { key: 'metres', label: 'Metres' },
+  { key: 'feet', label: 'Feet and inches' },
+];
+const FEET_PLACEHOLDERS: Partial<Record<string, string>> = {
+  heightM: '13',
+  widthM: '8',
+  lengthM: '54',
+};
+const INCHES_PLACEHOLDERS: Partial<Record<string, string>> = {
+  heightM: '9',
+  widthM: '6',
+  lengthM: '2',
+};
+
 // Same radius as home.tsx's "near me" query — a straight line between origin and destination
 // isn't the real route yet (that only exists once planning succeeds), but it's a reasonable
 // stand-in for "roughly this direction of travel" until then (design decision, 2026-09-24: fixes
@@ -133,6 +151,8 @@ export default function PlanRouteScreen() {
   const [vehicleMode, setVehicleMode] = useState<VehicleMode>('profile');
   const [profileId, setProfileId] = useState<string | undefined>(undefined);
   const [dimensionValues, setDimensionValues] = useState(EMPTY_VEHICLE_PROFILE_FORM);
+  const lengthUnit = useLengthUnitStore((s) => s.unit);
+  const setLengthUnit = useLengthUnitStore((s) => s.setUnit);
   const [manualError, setManualError] = useState<string | undefined>(undefined);
   const [origin, setOrigin] = useState<MapPoint | undefined>(undefined);
   const [destination, setDestination] = useState<MapPoint | undefined>(undefined);
@@ -514,20 +534,49 @@ export default function PlanRouteScreen() {
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
                 >
-                  {DIMENSION_FIELDS.map((field) => (
-                    <View key={field.key}>
-                      <Text style={styles.label}>{field.label}</Text>
-                      <TextInput
-                        style={styles.input}
-                        value={dimensionValues[field.key]}
-                        onChangeText={setDimensionField(field.key)}
-                        placeholder={field.placeholder}
-                        placeholderTextColor={colors.textDim}
-                        keyboardType="decimal-pad"
-                        testID={`manual-${field.key}-input`}
-                      />
-                    </View>
-                  ))}
+                  <SegmentedControl
+                    options={LENGTH_UNIT_OPTIONS}
+                    value={lengthUnit}
+                    onChange={(next) => void setLengthUnit(next)}
+                    testIDPrefix="manual-unit"
+                    compact
+                  />
+                  {DIMENSION_FIELDS.map((field) => {
+                    const isSize =
+                      field.key === 'heightM' || field.key === 'widthM' || field.key === 'lengthM';
+                    const inFeet = isSize && lengthUnit === 'feet';
+                    return (
+                      <View key={field.key}>
+                        <Text style={styles.label}>
+                          {inFeet
+                            ? field.label.replace('(metres)', '(feet and inches)')
+                            : field.label}
+                        </Text>
+                        {inFeet ? (
+                          // Remounted when the unit changes, so the boxes are filled afresh from the value in metres.
+                          <FeetInchesInputs
+                            key={`${field.key}-${lengthUnit}`}
+                            metres={dimensionValues[field.key]}
+                            onChangeMetres={setDimensionField(field.key)}
+                            feetPlaceholder={FEET_PLACEHOLDERS[field.key] ?? ''}
+                            inchesPlaceholder={INCHES_PLACEHOLDERS[field.key] ?? ''}
+                            inputStyle={styles.input}
+                            testIDPrefix={`manual-${field.key}`}
+                          />
+                        ) : (
+                          <TextInput
+                            style={styles.input}
+                            value={dimensionValues[field.key]}
+                            onChangeText={setDimensionField(field.key)}
+                            placeholder={field.placeholder}
+                            placeholderTextColor={colors.textDim}
+                            keyboardType="decimal-pad"
+                            testID={`manual-${field.key}-input`}
+                          />
+                        )}
+                      </View>
+                    );
+                  })}
                 </ScrollView>
               )}
 
