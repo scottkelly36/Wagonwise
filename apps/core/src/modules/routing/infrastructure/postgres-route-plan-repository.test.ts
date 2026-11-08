@@ -61,6 +61,19 @@ describe('PostgresRoutePlanRepository', () => {
     expect(await repo().findById(p.id)).toEqual(p);
   });
 
+  it('keeps the warning on a route chosen past a weight limit, and leaves an ordinary route unmarked', async () => {
+    const marked = plan({
+      id: makeId<'RoutePlanId'>('c0de0007-0000-4000-8000-000000000001'),
+      breaksWeightLimit: true,
+    });
+    const ordinary = plan({ id: makeId<'RoutePlanId'>('c0de0007-0000-4000-8000-000000000002') });
+    await repo().save(marked);
+    await repo().save(ordinary);
+
+    expect((await repo().findById(marked.id))?.breaksWeightLimit).toBe(true);
+    expect((await repo().findById(ordinary.id))?.breaksWeightLimit).toBeUndefined();
+  });
+
   it('round-trips turn-by-turn steps, including a roundabout exit (P2-M10)', async () => {
     const p = plan({
       id: makeId<'RoutePlanId'>('c0de0001-0000-4000-8000-000000000001'),

@@ -185,6 +185,7 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       destination: parsed.data.destination,
       strategy: parsed.data.strategy,
       originHeadingDeg: parsed.data.originHeadingDeg,
+      acceptWeightLimit: parsed.data.acceptWeightLimit,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });

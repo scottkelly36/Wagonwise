@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState, type ReactElement } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -29,6 +30,12 @@ import { useCurrentLocation } from '../hooks/use-current-location';
 import type { GeocodingResult } from '../lib/geocoding';
 import { formatDateTime } from '../lib/format-date';
 import { routingErrorMessage } from '../lib/error-messages';
+import {
+  WEIGHT_LIMIT_BANNER,
+  WEIGHT_LIMIT_CONFIRM_BODY,
+  WEIGHT_LIMIT_CONFIRM_TITLE,
+  WEIGHT_LIMIT_SHORT,
+} from '../lib/weight-limit-warning';
 import {
   mapTapTarget,
   targetAfterTap,
@@ -332,9 +339,16 @@ export default function PlanRouteScreen() {
     origin: MapPoint,
     destination: MapPoint,
     strategy?: PlanRouteRequest['strategy'],
+    acceptWeightLimit?: boolean,
   ): void {
     createRoutePlan.mutate(
-      { profileId, origin, destination, strategy },
+      {
+        profileId,
+        origin,
+        destination,
+        strategy,
+        ...(acceptWeightLimit === true ? { acceptWeightLimit: true } : {}),
+      },
       {
         onSuccess: (plan) => {
           setCurrentRoutePlan(plan);
@@ -386,7 +400,21 @@ export default function PlanRouteScreen() {
     ) {
       return;
     }
-    planWith(comparedProfileId, effectiveOrigin, destination, strategyFor(option));
+    const profileId = comparedProfileId;
+    const origin = effectiveOrigin;
+    const to = destination;
+    if (option.breaksWeightLimit === true) {
+      // The driver has to choose this on purpose: it is only offered when no route keeps to the vehicle's weight limits.
+      Alert.alert(WEIGHT_LIMIT_CONFIRM_TITLE, WEIGHT_LIMIT_CONFIRM_BODY, [
+        { text: 'Go back', style: 'cancel' },
+        {
+          text: 'Go anyway',
+          onPress: () => planWith(profileId, origin, to, strategyFor(option), true),
+        },
+      ]);
+      return;
+    }
+    planWith(profileId, origin, to, strategyFor(option));
   }
 
   const pendingCompare = createVehicleProfile.isPending || previewRouteOptions.isPending;
@@ -639,6 +667,11 @@ export default function PlanRouteScreen() {
           ) : (
             <View style={styles.optionsList}>
               <Text style={styles.label}>Choose a route</Text>
+              {routeOptions.some((option) => option.breaksWeightLimit === true) && (
+                <Text style={styles.weightWarning} testID="weight-limit-banner">
+                  {WEIGHT_LIMIT_BANNER}
+                </Text>
+              )}
               {routeOptions.map((option, index) => (
                 <TouchableOpacity
                   key={`${option.geometry}-${index}`}
@@ -672,6 +705,9 @@ export default function PlanRouteScreen() {
                         ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
                         : ''}
                     </Text>
+                    {option.breaksWeightLimit === true && (
+                      <Text style={styles.optionWarning}>{WEIGHT_LIMIT_SHORT}</Text>
+                    )}
                   </View>
                   <Icon name="chevron-right" size={26} color={colors.textMuted} />
                 </TouchableOpacity>
@@ -852,6 +888,16 @@ function createStyles(colors: ThemeColors) {
     optionDetail: {
       fontSize: 15,
       color: colors.textMuted,
+      marginTop: 2,
+    },
+    weightWarning: {
+      fontSize: 15,
+      color: colors.warning,
+    },
+    optionWarning: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.warning,
       marginTop: 2,
     },
     editLink: {

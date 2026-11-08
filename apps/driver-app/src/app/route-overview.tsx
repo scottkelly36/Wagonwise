@@ -21,6 +21,7 @@ import { RouteMap } from '../components/route-map';
 import { closuresAtArrival, placeClosuresOnRoute } from '../lib/closures-on-route';
 import { planForShift } from '../lib/break-plan';
 import { breakExplanation } from '../lib/break-explanation';
+import { WEIGHT_LIMIT_CONFIRM_BODY, WEIGHT_LIMIT_SHORT } from '../lib/weight-limit-warning';
 import { computeEta } from '../lib/eta';
 import { routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
@@ -279,6 +280,17 @@ export default function RouteOverviewScreen() {
                 <Text style={styles.etaChangeLink}>Done</Text>
               </TouchableOpacity>
             )}
+          </View>
+        )}
+
+        {plan.breaksWeightLimit === true && (
+          <View style={styles.section} testID="weight-limit-notice">
+            <View style={styles.itemRow}>
+              <Icon name="alert-outline" size={22} color={colors.warning} />
+              <Text style={styles.sectionItem}>
+                {WEIGHT_LIMIT_SHORT}. {WEIGHT_LIMIT_CONFIRM_BODY}
+              </Text>
+            </View>
           </View>
         )}
 

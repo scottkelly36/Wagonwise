@@ -15,14 +15,19 @@ import { describeAvoidedOverride, toReportedObstruction } from '../domain/restri
 import { estimateFuelCostGBP } from '../domain/route-option.js';
 import type { Maneuver } from '../domain/maneuver.js';
 import type { RoutePlan } from '../domain/route-plan.js';
-import type { DriverId, VehicleProfileId } from '../domain/vehicle-profile.js';
+import {
+  withoutWeightLimits,
+  type DriverId,
+  type Dimensions,
+  type VehicleProfileId,
+} from '../domain/vehicle-profile.js';
 import { closuresToAvoidAlong } from './avoid-closures.js';
 import type { VehicleProfileNotFound } from './errors.js';
 import type { ClosureAvoidanceQuery } from './ports/closure-avoidance.js';
 import type { HazardAvoidanceQuery } from './ports/hazard-avoidance.js';
 import type { HazardsOnRouteQuery } from './ports/hazards-on-route.js';
 import type { RestrictionOverrideRepository } from './ports/restriction-override-repository.js';
-import type { NoRouteFound, RoutingEngine } from './ports/routing-engine.js';
+import type { NoRouteFound, RouteResult, RoutingEngine } from './ports/routing-engine.js';
 import type { RoutePlanRepository } from './ports/route-plan-repository.js';
 import type { VehicleProfileRepository } from './ports/vehicle-profile-repository.js';
 
@@ -58,6 +63,9 @@ export interface PlanRouteInput {
   /** The direction the driver is already travelling, so a re-plan from the middle of a drive does not
    *  start by sending them back the way they came. */
   readonly originHeadingDeg?: number | undefined;
+  /** The driver has seen that no route exists for the vehicle's weight and chose a route past a weight limit anyway. Without
+   *  it a route for the real weight is the only kind made, so a re-plan or a job's route never does this by itself. */
+  readonly acceptWeightLimit?: boolean | undefined;
 }
 
 export type PlanRouteError = VehicleProfileNotFound | NoRouteFound;
@@ -98,44 +106,49 @@ export async function planRoute(
     return err({ tag: 'VehicleProfileNotFound' });
   }
 
-  let firstPassGeometry: string;
-  let firstPassDistanceKm: number;
-  let firstPassDurationMin: number;
-  let firstPassManeuvers: readonly Maneuver[];
-  if (input.strategy === 'shortest') {
-    const alternatives = await deps.routingEngine.routeAlternatives({
+  // The route for the vehicle's real size comes first. Only if there is none, and the driver has chosen to go anyway (they were
+  // shown the warning in the preview), is one found that ignores weight limits; every later pass then uses those same
+  // dimensions, so a re-plan cannot quietly go back to a route that does not exist. Height and width are never relaxed.
+  const firstPassFor = async (
+    dimensions: Dimensions,
+  ): Promise<Result<RouteResult, NoRouteFound>> => {
+    if (input.strategy === 'shortest') {
+      const alternatives = await deps.routingEngine.routeAlternatives({
+        origin: input.origin,
+        originHeadingDeg: input.originHeadingDeg,
+        destination: input.destination,
+        dimensions,
+        avoid: [],
+      });
+      if (!alternatives.ok) {
+        return alternatives;
+      }
+      return ok(alternatives.value.reduce((min, r) => (r.distanceKm < min.distanceKm ? r : min)));
+    }
+    return deps.routingEngine.route({
       origin: input.origin,
       originHeadingDeg: input.originHeadingDeg,
       destination: input.destination,
-      dimensions: profile.dimensions,
+      dimensions,
       avoid: [],
     });
-    if (!alternatives.ok) {
-      return alternatives;
-    }
-    const shortest = alternatives.value.reduce((min, r) =>
-      r.distanceKm < min.distanceKm ? r : min,
-    );
-    firstPassGeometry = shortest.geometry;
-    firstPassDistanceKm = shortest.distanceKm;
-    firstPassDurationMin = shortest.durationMin;
-    firstPassManeuvers = shortest.maneuvers;
-  } else {
-    const firstPass = await deps.routingEngine.route({
-      origin: input.origin,
-      originHeadingDeg: input.originHeadingDeg,
-      destination: input.destination,
-      dimensions: profile.dimensions,
-      avoid: [],
-    });
-    if (!firstPass.ok) {
-      return firstPass;
-    }
-    firstPassGeometry = firstPass.value.geometry;
-    firstPassDistanceKm = firstPass.value.distanceKm;
-    firstPassDurationMin = firstPass.value.durationMin;
-    firstPassManeuvers = firstPass.value.maneuvers;
+  };
+
+  let routingDimensions = profile.dimensions;
+  let breaksWeightLimit = false;
+  let firstPass = await firstPassFor(routingDimensions);
+  if (!firstPass.ok && input.acceptWeightLimit === true) {
+    routingDimensions = withoutWeightLimits(profile.dimensions);
+    firstPass = await firstPassFor(routingDimensions);
+    breaksWeightLimit = firstPass.ok;
   }
+  if (!firstPass.ok) {
+    return firstPass;
+  }
+  const firstPassGeometry = firstPass.value.geometry;
+  const firstPassDistanceKm = firstPass.value.distanceKm;
+  const firstPassDurationMin = firstPass.value.durationMin;
+  const firstPassManeuvers = firstPass.value.maneuvers;
 
   const hazardCandidates = await deps.hazardAvoidanceQuery.activeNear(firstPassGeometry);
   const overrides = await deps.restrictionOverrideRepo.findNearbyLine(
@@ -159,7 +172,7 @@ export async function planRoute(
       origin: input.origin,
       originHeadingDeg: input.originHeadingDeg,
       destination: input.destination,
-      dimensions: profile.dimensions,
+      dimensions: routingDimensions,
       avoid: hazardZones,
     });
     if (!secondPass.ok) {
@@ -186,7 +199,7 @@ export async function planRoute(
       origin: input.origin,
       originHeadingDeg: input.originHeadingDeg,
       destination: input.destination,
-      dimensions: profile.dimensions,
+      dimensions: routingDimensions,
       avoid: [...hazardZones, ...closureZones, ...found.zones],
     });
     if (!around.ok) break;
@@ -228,6 +241,7 @@ export async function planRoute(
       profile.fuelConsumptionL100km,
       deps.fuelPricePerLitreGBP,
     ),
+    ...(breaksWeightLimit ? { breaksWeightLimit: true } : {}),
   };
   await deps.routePlanRepo.save(plan);
   return ok(plan);

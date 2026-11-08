@@ -105,4 +105,54 @@ describe('previewRouteOptions', () => {
     const result = await previewRouteOptions(deps, { driverId, profileId, origin, destination });
     expect(result).toEqual({ ok: false, error: { tag: 'NoRouteFound' } });
   });
+
+  describe('when no route exists for the vehicle’s weight', () => {
+    const noRoute = { ok: false, error: { tag: 'NoRouteFound' } } as const;
+    const found = {
+      ok: true,
+      value: [{ geometry: 'light-route', distanceKm: 8, durationMin: 12, maneuvers: [] }],
+    } as const;
+
+    it('offers a route that ignores weight limits, marked so the driver is warned', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      engine.alternativesResults = [noRoute, found];
+
+      const result = await previewRouteOptions(deps, { driverId, profileId, origin, destination });
+
+      expect(result.ok && result.value.map((o) => o.geometry)).toEqual(['light-route']);
+      expect(result.ok && result.value.every((o) => o.breaksWeightLimit === true)).toBe(true);
+      expect(engine.alternativesRequests).toHaveLength(2);
+      expect(engine.alternativesRequests[0]?.dimensions).toEqual(dimensions);
+      expect(engine.alternativesRequests[1]?.dimensions).toEqual({
+        ...dimensions,
+        grossWeightT: 3.5,
+        axleWeightT: undefined,
+      });
+    });
+
+    it('never relaxes height, width or length, so a route blocked by those stays "no route"', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      engine.alternativesResults = [noRoute, noRoute];
+
+      const result = await previewRouteOptions(deps, { driverId, profileId, origin, destination });
+
+      expect(result).toEqual({ ok: false, error: { tag: 'NoRouteFound' } });
+      const second = engine.alternativesRequests[1]?.dimensions;
+      expect(second?.heightM).toBe(dimensions.heightM);
+      expect(second?.widthM).toBe(dimensions.widthM);
+      expect(second?.lengthM).toBe(dimensions.lengthM);
+    });
+
+    it('asks only once, and does not mark anything, when a route for the real weight exists', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+
+      const result = await previewRouteOptions(deps, { driverId, profileId, origin, destination });
+
+      expect(engine.alternativesRequests).toHaveLength(1);
+      expect(result.ok && result.value.some((o) => o.breaksWeightLimit !== undefined)).toBe(false);
+    });
+  });
 });
