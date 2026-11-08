@@ -156,6 +156,9 @@ const envSchema = z.object({
   // account owner's own address) is the default in resend-otp-sender.ts — only needed here to
   // override once a real sending domain is verified with Resend.
   RESEND_FROM_EMAIL: z.string().min(1).optional(),
+  // Optional: where a reply to any email we send goes (the `Reply-To` header). The sender is a no-reply address, so set this to the
+  // support inbox (support@wagon-wise.co.uk): otherwise a reply to the tester emails ("just reply to this email") is read by nobody.
+  RESEND_REPLY_TO: z.string().min(1).optional(),
   // How often the in-process outbox poller checks for pending events (decision 5, M1). 2s is
   // fast enough that a Phase 1 tester never notices the delay, without hammering the database
   // between polls.
@@ -239,6 +242,7 @@ export interface Config {
   readonly clickSendApiKey: string | undefined;
   readonly resendApiKey: string | undefined;
   readonly resendFromEmail: string | undefined;
+  readonly resendReplyTo: string | undefined;
   readonly outboxPollIntervalMs: number;
   readonly weatherPollIntervalMs: number;
   readonly hazardExpiryIntervalMs: number;
@@ -355,6 +359,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     clickSendApiKey: values.CLICKSEND_API_KEY,
     resendApiKey: values.RESEND_API_KEY,
     resendFromEmail: values.RESEND_FROM_EMAIL,
+    resendReplyTo: values.RESEND_REPLY_TO,
     outboxPollIntervalMs: values.OUTBOX_POLL_INTERVAL_MS,
     weatherPollIntervalMs: values.WEATHER_POLL_INTERVAL_MS,
     hazardExpiryIntervalMs: values.HAZARD_EXPIRY_INTERVAL_MS,

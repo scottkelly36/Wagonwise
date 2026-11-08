@@ -46,6 +46,23 @@ describe('ResendMailer', () => {
     });
   });
 
+  it('sends a Reply-To header when one is set, so a reply to a no-reply sender still arrives', async () => {
+    const mailer = new ResendMailer(
+      're_test_key',
+      'WagonWise <noreply@example.com>',
+      baseUrl,
+      'support@example.com',
+    );
+    await mailer.send({ to: 'a@example.com', subject: 'Hi', text: 'plain' });
+    expect(await received).toEqual({
+      from: 'WagonWise <noreply@example.com>',
+      to: 'a@example.com',
+      subject: 'Hi',
+      text: 'plain',
+      reply_to: 'support@example.com',
+    });
+  });
+
   it('sends no html field for a plain-text email, as before', async () => {
     const mailer = new ResendMailer('re_test_key', 'WagonWise <test@example.com>', baseUrl);
     await mailer.send({ to: 'a@example.com', subject: 'Hi', text: 'plain' });

@@ -393,6 +393,14 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ RESEND_FROM_EMAIL: '' })).toThrow(ConfigError);
   });
 
+  it('defaults RESEND_REPLY_TO to undefined, accepts one, and rejects an empty one', () => {
+    expect(loadConfig({}).resendReplyTo).toBeUndefined();
+    expect(loadConfig({ RESEND_REPLY_TO: 'support@wagon-wise.co.uk' }).resendReplyTo).toBe(
+      'support@wagon-wise.co.uk',
+    );
+    expect(() => loadConfig({ RESEND_REPLY_TO: '' })).toThrow(ConfigError);
+  });
+
   it('defaults the housekeeping settings and rejects a retention under one day', () => {
     const config = loadConfig({});
     expect(config.hazardExpiryIntervalMs).toBe(300_000);

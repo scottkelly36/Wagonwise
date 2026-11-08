@@ -80,7 +80,7 @@ export function launchEmailText(input: LaunchEmailInput): string {
     '',
     'WagonWise is a planning aid. It does not replace your own judgement, road signs or the law.',
     '',
-    'If anything is wrong, confusing or missing, just reply to this email and tell me. It is read by a person and it makes the app better.',
+    `If anything is wrong, confusing or missing, just reply to this email, or write to ${SUPPORT_EMAIL}, and tell me. It is read by a person and it makes the app better.`,
     '',
     'Thank you for helping,',
     'WagonWise',
@@ -186,7 +186,7 @@ ${button('App Store', 'Download on the', input.appStoreLink, NAVY, APPLE_ICON_UR
               <td bgcolor="#ffffff" style="background:#ffffff;padding:0 28px 32px 28px;">
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
                   <td bgcolor="${BLUE_SOFT}" style="background:${BLUE_SOFT};border-radius:14px;padding:16px 18px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:23px;color:${TEXT};">
-                    <strong>Tell me what you think.</strong> If anything is wrong, confusing or missing, just reply to this email. It is read by a person, and it makes the app better for every driver.
+                    <strong>Tell me what you think.</strong> If anything is wrong, confusing or missing, just reply to this email or write to ${SUPPORT_EMAIL}. It is read by a person, and it makes the app better for every driver.
                   </td>
                 </tr></table>
                 <p style="margin:22px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:26px;color:${TEXT};">Thank you for helping,<br /><strong>WagonWise</strong></p>

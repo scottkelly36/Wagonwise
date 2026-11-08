@@ -54,6 +54,14 @@ describe('launch email', () => {
     expect(html).toContain('&lt;script&gt;');
   });
 
+  it('says where to write, by name, beside "reply to this email", since the sender is a no-reply address', () => {
+    const text = launchEmailText(input);
+    expect(text).toMatch(/just reply to this email, or write to support@wagon-wise\.co\.uk/);
+    expect(launchEmailHtml(input)).toMatch(
+      /just reply to this email or write to support@wagon-wise\.co\.uk/,
+    );
+  });
+
   it('tells the person why they got it, how to come off the list, and who sent it', () => {
     for (const body of [launchEmailText(input), launchEmailHtml(input)]) {
       expect(body).toContain('because you asked');

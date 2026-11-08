@@ -81,6 +81,9 @@ testing emails to your own email address`) and sign-in answers "something went w
    not proxied), wait for **Verified**, then set `RESEND_FROM_EMAIL` on core to
    `WagonWise <noreply@wagon-wise.co.uk>`. Core logs the reason on a failed send (`Resend API
 returned 403 …`): search core's runtime logs for the request id. Only core talks to Resend.
+   **Replies (2026-11-08):** that sender is a no-reply address, but the tester emails say "just
+   reply to this email". Set `RESEND_REPLY_TO` on core to `support@wagon-wise.co.uk` so a reply
+   (the `Reply-To` header on every email core sends) reaches the support inbox.
    A fast 500 from `/identity/otp/request` means core tried and Resend refused; a 200 with no
    email means the key is missing and the log-only sender ran. Staff sign-in (portal) sends no
    code: it is email + password + authenticator app. Staff **invitations** are emailed as a link
@@ -188,7 +191,8 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
    - `core`: `internal_ports: [3001]`, no public route. Env: `DATABASE_URL`,
      `IDENTITY_PRIVATE_KEY`, `INTERNAL_KEYS`, `VALHALLA_URL` (the droplet's private IP),
      `ANTHROPIC_API_KEY`, `CLICKSEND_USERNAME`, `CLICKSEND_API_KEY`, `RESEND_API_KEY`,
-     `RESEND_FROM_EMAIL` (an address on the verified domain, see §3 item 1), `DASHBOARD_URL`
+     `RESEND_FROM_EMAIL` (an address on the verified domain, see §3 item 1), `RESEND_REPLY_TO`
+     (`support@wagon-wise.co.uk`, where replies go), `DASHBOARD_URL`
      (`https://dashboard.wagon-wise.co.uk`, no trailing path; lets staff invitations be emailed),
      `METOFFICE_API_KEY` (Met Office weather warnings from Weather DataHub; optional, unset means
      no warnings; core only, never the BFFs or apps),

@@ -26,7 +26,7 @@ export function inviteEmail(input: {
     'A few things worth knowing:',
     '- WagonWise is a planning aid. It does not replace your own judgement, road signs or the law.',
     '- Please keep it installed for the next two weeks or so, and use it on real trips when you can. Google needs that of testers before the app can go public, and your use makes it better.',
-    '- If anything is wrong, confusing or missing, just reply to this email and tell me.',
+    '- If anything is wrong, confusing or missing, just reply to this email, or write to support@wagon-wise.co.uk, and tell me.',
     '',
     'Your email address is used only to invite you and to sign you in. The app shows its privacy notice the first time you open it.',
     '',
