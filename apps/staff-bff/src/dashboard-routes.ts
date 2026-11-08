@@ -109,6 +109,7 @@ import {
   placesCompanyParamsSchema,
   updatePlaceRequestSchema,
 } from '@wagonwise/contracts/places';
+import { auditPackQuerySchema, auditVehicleParamsSchema } from '@wagonwise/contracts/audit';
 import {
   addEntryRequestSchema,
   createProspectRequestSchema,
@@ -491,6 +492,13 @@ const FORWARDS: readonly Forward[] = [
     body: sendLaunchEmailsRequestSchema,
   },
   { method: 'DELETE', path: '/staff/signups/:id', params: testerIdParamsSchema },
+  // A vehicle's audit pack: checks, defects, repairs and maintenance for a period (core decides who may read it).
+  {
+    method: 'GET',
+    path: '/staff/audit/vehicles/:vehicleId',
+    params: auditVehicleParamsSchema,
+    query: auditPackQuerySchema,
+  },
   // WagonWise's own sales notebook: the firms being approached and a log of each contact (WagonWise staff only; core decides).
   { method: 'GET', path: '/staff/sales', params: noParams },
   {

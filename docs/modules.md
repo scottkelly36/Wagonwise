@@ -549,6 +549,18 @@ only passes them on): `GET` the whole list with every entry, `POST` and `PUT` an
 - Tests: `application/sales.test.ts` (in-memory), `composition/sales-end-to-end.test.ts` (real Postgres and RLS), and
   `dashboard/src/lib/sales.test.ts`.
 
+## Audit pack (2026-11-08)
+
+`apps/core/src/modules/audit` (no table of its own): one vehicle's walk-round checks, defects, repairs and maintenance for a period, in one report. `GET /staff/audit/vehicles/:vehicleId?from=&to=` (UK days, both optional: the last twelve months; refused if backwards or longer than 800 days). Dashboard page **Audit pack** under Compliance (`/fleet/audit-pack`): choose a vehicle and a period, read it on screen, **Print or save as PDF** (a new tab built like the invoice, `lib/audit-pack.ts`) or **Download as a spreadsheet** (the timeline, one line per event).
+
+- **Who:** WagonWise staff, and company staff who may read check results (`manage_fleet`, `dispatch` or `view_reports`, the same rule as the Check results page). A company sees its own vehicles only: another company's vehicle is "not found", the same answer as one that does not exist.
+- **Read-model adapter** (`PostgresAuditReader`, AGENTS.md rule 7, as `usage` does): reads `checks.checks`, `checks.defects`, `maintenance.repairs`, `maintenance.schedules` and `maintenance.history` with SQL in the caller's data scope (so Row-Level Security still applies) and returns the module's own types. Dates leave as text (`to_char`) so a day is the same day wherever the server runs; a timestamp is placed in a UK day with `Europe/London`. The vehicle, the driver names and the staff and company names come in as ports filled in `compose-core.ts` (fleet, identity, companies).
+- **Names:** the read runs in the caller's scope; the staff and company names are looked up **after** it, because `companies` opens its own data scope and scopes do not nest. A driver is shown the way the portal shows them (name, else the sign-in); a person who has since left the company is "Someone no longer on the account", never a blank or a guess.
+- **What is in it** (`domain/audit-pack.ts`, pure): the checks in the period; the defects found in it **and any older one still not fixed** (listed, but counted as "not fixed", not as "found in this period"); each defect with its repair; every maintenance item with where its date stands today; what was done in the period; and everything again as one **timeline**, oldest first.
+- **What it cannot show yet:** a defect keeps only its **latest** change of status, and a corrected due date shows only its current value. Both are printed on every copy (`REPORT_NOTES`). Closing those two gaps is slice 2 (a small history table for each).
+- **What it is not:** the notes on every copy say it shows the records as entered and is not a statement that the vehicle or operator meets any legal requirement. Do not describe it to a firm as compliance. How long records must be kept is **to be checked against GOV.UK** before it is said to a firm; a check is deleted after the firm's own retention (12 months unless changed), so a pack cannot show what has gone.
+- Tests: `application/audit-pack.test.ts` (permissions, scopes, range, names, timeline), `composition/audit-end-to-end.test.ts` (real Postgres and RLS), `dashboard/src/lib/audit-pack.test.ts` (print page, spreadsheet, escaping).
+
 ## Parking spots (portal)
 
 `apps/core/src/modules/parking`: besides drivers' reports, WagonWise staff manage spots at `/admin/parking` (core routes under

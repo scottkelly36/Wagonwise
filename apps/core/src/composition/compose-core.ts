@@ -6,6 +6,7 @@ import type { Config } from '../config.js';
 import { createChecksModule, type UntypedDb as ChecksUntypedDb } from '../modules/checks/api.js';
 import { createUsageModule, type UntypedDb as UsageUntypedDb } from '../modules/usage/api.js';
 import { createEmailAlertsModule } from '../modules/emailalerts/api.js';
+import { createAuditModule, type UntypedDb as AuditUntypedDb } from '../modules/audit/api.js';
 import { createSalesModule, type UntypedDb as SalesUntypedDb } from '../modules/sales/api.js';
 import { createSignupsModule, type UntypedDb as SignupsUntypedDb } from '../modules/signups/api.js';
 import { createCostingModule, type UntypedDb as CostingUntypedDb } from '../modules/costing/api.js';
@@ -252,6 +253,7 @@ export function composeCore(
   const costingDb: CostingUntypedDb = identityDb;
   const signupsDb: SignupsUntypedDb = identityDb;
   const salesDb: SalesUntypedDb = identityDb;
+  const auditDb: AuditUntypedDb = identityDb;
   const usageDb: UsageUntypedDb = identityDb;
   const fleetDb: FleetUntypedDb = identityDb;
   const jobsDb: JobsUntypedDb = identityDb;
@@ -496,6 +498,23 @@ export function composeCore(
     invites: {
       newInviteCode: () => identity.newInviteCode(),
       sendEmail: (to, subject, text, html) => identity.sendEmail(to, subject, text, html),
+    },
+  });
+  // A vehicle's checks, defects, repairs and maintenance for a period in one report (read-only; reads those contexts' tables).
+  const audit = createAuditModule({
+    db: auditDb,
+    clock,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+    vehicles: { find: (vehicleId) => fleet.getVehicleSummary(vehicleId) },
+    people: {
+      // The portal's own convention for a driver: their name, or the sign-in the office already sees.
+      driverLabel: async (driverId) =>
+        (await identity.getDriverName(driverId)) ?? (await identity.getDriverIdentifier(driverId)),
+      companyName: async (companyId) =>
+        (await companies.getCompanyNames([companyId])).get(companyId) ?? null,
+      staffNames: async (companyId) =>
+        new Map((await companies.listFleetContacts(companyId)).map((p) => [p.staffId, p.name])),
     },
   });
   // WagonWise's own sales notebook (firms being approached, a log of each contact): WagonWise staff only.
@@ -935,6 +954,7 @@ export function composeCore(
   costing.registerRoutes(app);
   signups.registerRoutes(app);
   sales.registerRoutes(app);
+  audit.registerRoutes(app);
   emailAlerts.registerRoutes(app);
   usage.registerRoutes(app);
   weather.registerRoutes(app);

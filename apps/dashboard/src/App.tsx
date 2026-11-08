@@ -31,6 +31,7 @@ import { InviteCodes } from './pages/admin/InviteCodes';
 import { Feedback } from './pages/admin/Feedback';
 import { Testers } from './pages/admin/Testers';
 import { Sales } from './pages/admin/Sales';
+import { AuditPack } from './pages/fleet/AuditPack';
 import { Parking } from './pages/admin/Parking';
 import { ReportedPlaces } from './pages/admin/ReportedPlaces';
 import { AppUsage } from './pages/admin/AppUsage';
@@ -77,6 +78,7 @@ export function App() {
             <Route path="/fleet/maintenance" element={<Maintenance />} />
             <Route path="/fleet/check-results" element={<CheckResults />} />
             <Route path="/fleet/defects" element={<Defects />} />
+            <Route path="/fleet/audit-pack" element={<AuditPack />} />
             <Route path="/fleet/reports" element={<Reports />} />
             <Route path="/fleet/drivers" element={<Drivers />} />
             <Route path="/fleet/vehicle-profiles" element={<VehicleProfiles />} />

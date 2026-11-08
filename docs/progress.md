@@ -24,6 +24,8 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
   company when marking; SOS (hold a button, the company is told where you are); batch invite codes; iOS preparation.
 - **Phase 4:** idea list only (`ideas.md`), apart from the **Sales page** in the admin portal (2026-11-08): the owner's notebook of the
   firms being approached, a log of each contact, what is due today, and the week against the targets. It sends nothing (`modules.md`).
+  Also the **Audit pack** (Compliance, 2026-11-08): a vehicle's checks, defects, repairs and maintenance in one printable report. Slice 2
+  (a history of each defect's status and of corrected due dates) is next.
 
 ## Next up
 
