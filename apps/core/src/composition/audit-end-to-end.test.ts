@@ -1,5 +1,6 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import Fastify, { type FastifyInstance } from 'fastify';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Kysely, PostgresDialect, sql } from 'kysely';
 import { Pool } from 'pg';
@@ -42,11 +43,13 @@ interface Pack {
     status: string;
     foundBy: string;
     lastChangeBy?: string;
+    history: { status: string; at: string; by?: string }[];
     repair?: { title: string; status: string; doneOn?: string; finishedBy?: string };
   }[];
   maintenance: {
     items: { name: string; dueDate: string; lastDone?: string; state: string }[];
     done: { item: string; doneOn: string; nextDue: string; by?: string }[];
+    changes: { item: string; from?: string; to: string; at: string; by?: string }[];
   };
   timeline: { at: string; kind: string; title: string; who?: string }[];
 }
@@ -229,6 +232,22 @@ describe('audit pack end to end (real RLS, real scopes)', () => {
       [VEHICLE_A, COMPANY_A, OFFICE],
     );
 
+    // The brake light was seen by the office, then fixed. The wiper defect has no steps recorded.
+    await ownerPool.query(
+      `insert into checks.defect_events (id, defect_id, company_id, status, at, by) values
+         ('b0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001', $1, 'acknowledged', '2026-11-03T09:00:00Z', $2),
+         ('b0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000001', $1, 'fixed', '2026-11-04T10:00:00Z', $2)`,
+      [COMPANY_A, OFFICE],
+    );
+    // The MOT date was first entered before the period (so it is not in it), then corrected inside it.
+    await ownerPool.query(
+      `insert into maintenance.date_changes
+         (id, company_id, vehicle_id, item_type_id, item_name, from_due, to_due, changed_by, changed_at) values
+         ('b1000000-0000-4000-8000-000000000001', $1, $2, 'f0000000-0000-4000-8000-000000000001', 'MOT', null, '2026-09-01', $3, '2026-08-01T09:00:00Z'),
+         ('b1000000-0000-4000-8000-000000000002', $1, $2, 'f0000000-0000-4000-8000-000000000001', 'MOT', '2026-09-01', '2026-10-01', $3, '2026-10-05T09:00:00Z')`,
+      [COMPANY_A, VEHICLE_A, OFFICE],
+    );
+
     const audit = createAuditModule({
       db,
       clock: new FakeClock('2026-11-08T12:00:00.000Z'),
@@ -341,7 +360,30 @@ describe('audit pack end to end (real RLS, real scopes)', () => {
       defectsNotFixed: 1,
       maintenanceDone: 1,
       maintenanceOverdue: 1,
+      dueDatesChanged: 1,
     });
+  });
+
+  it('shows every step of a defect, and the due dates that were corrected in the period', async () => {
+    const pack = (await get(VEHICLE_A, A_REPORTS)).json<Pack>();
+    expect(pack.defects.find((d) => d.item === 'Brake light')?.history).toEqual([
+      { status: 'acknowledged', at: '2026-11-03T09:00:00.000Z', by: 'Pat Office' },
+      { status: 'fixed', at: '2026-11-04T10:00:00.000Z', by: 'Pat Office' },
+    ]);
+    expect(pack.defects.find((d) => d.item === 'Wiper blade')?.history).toEqual([]);
+    // Only the correction made inside the period: the first entry, in August, is outside it.
+    expect(pack.maintenance.changes).toEqual([
+      {
+        item: 'MOT',
+        from: '2026-09-01',
+        to: '2026-10-01',
+        at: '2026-10-05T09:00:00.000Z',
+        by: 'Pat Office',
+      },
+    ]);
+    expect(pack.timeline.filter((e) => e.kind === 'due_date_changed').map((e) => e.title)).toEqual([
+      'MOT due date changed from 1 Sep 2026 to 1 Oct 2026',
+    ]);
   });
 
   it('leaves out an old defect that is fixed, and keeps an old one that is not', async () => {
@@ -356,12 +398,14 @@ describe('audit pack end to end (real RLS, real scopes)', () => {
     expect([...times].sort((a, b) => a - b)).toEqual(times);
     expect(timeline.map((e) => e.kind)).toEqual([
       'defect_found',
+      'due_date_changed',
       'maintenance_done',
       'check',
       'check',
       'defect_found',
       'repair_booked',
-      'defect_changed',
+      'defect_changed', // seen by the office, 3 November
+      'defect_changed', // fixed, 4 November
       'repair_finished',
     ]);
   });
@@ -395,5 +439,31 @@ describe('audit pack end to end (real RLS, real scopes)', () => {
     const pack = (await get(VEHICLE_A, ADMIN, '')).json<Pack>();
     expect(pack.range).toEqual({ from: '2025-11-09', to: '2026-11-08' });
     expect(pack.checks.length).toBeGreaterThan(0);
+  });
+
+  it('gives a defect handled before the history was kept one starting step, from its latest change (the migration’s own backfill)', async () => {
+    // The statement is read out of the migration itself, so this cannot pass against a copy that has drifted from it.
+    const migration = readFileSync(`${migrationsDir}/0085_audit_history.sql`, 'utf8');
+    const backfill = /insert into checks\.defect_events[\s\S]*?status_changed_at is not null;/.exec(
+      migration,
+    )?.[0];
+    expect(backfill).toBeDefined();
+    const client = await ownerPool.connect();
+    try {
+      await client.query('begin');
+      await client.query('delete from checks.defect_events');
+      await client.query(backfill as string);
+      const { rows } = await client.query<{ defect_id: string; status: string; by: string | null }>(
+        'select defect_id, status, by from checks.defect_events order by defect_id',
+      );
+      // The brake light (fixed on 4 November) and the old mirror (fixed on 31 August) have a latest change. The wiper was never changed.
+      expect(rows).toEqual([
+        { defect_id: 'd0000000-0000-4000-8000-000000000001', status: 'fixed', by: OFFICE },
+        { defect_id: 'd0000000-0000-4000-8000-000000000003', status: 'fixed', by: OFFICE },
+      ]);
+    } finally {
+      await client.query('rollback');
+      client.release();
+    }
   });
 });

@@ -1,5 +1,6 @@
 import type {
   CompanyId,
+  DateChange,
   HistoryEntry,
   ItemTypeId,
   Schedule,
@@ -11,6 +12,8 @@ import type { ScheduleRepository } from '../ports/schedule-repository.js';
 export class InMemoryScheduleRepository implements ScheduleRepository {
   readonly #schedules = new Map<string, { companyId: CompanyId; schedule: Schedule }>();
   readonly #history: { companyId: CompanyId; entry: HistoryEntry }[] = [];
+  /** What was recorded, in order, so a test can see it. */
+  readonly dateChanges: { companyId: CompanyId; change: DateChange }[] = [];
   private static key(vehicleId: VehicleId, itemTypeId: ItemTypeId): string {
     return `${vehicleId}/${itemTypeId}`;
   }
@@ -43,6 +46,11 @@ export class InMemoryScheduleRepository implements ScheduleRepository {
 
   addHistory(companyId: CompanyId, entry: HistoryEntry): Promise<void> {
     this.#history.push({ companyId, entry });
+    return Promise.resolve();
+  }
+
+  addDateChange(companyId: CompanyId, change: DateChange): Promise<void> {
+    this.dateChanges.push({ companyId, change });
     return Promise.resolve();
   }
 

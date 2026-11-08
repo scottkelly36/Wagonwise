@@ -2,9 +2,11 @@ import type { AuditPackDto } from '@wagonwise/contracts/audit';
 import { describe, expect, it } from 'vitest';
 
 import {
+  statusSteps,
   auditCsv,
   auditCsvFileName,
   auditPackHtml,
+  dateTimeText,
   dayText,
   presetRange,
   rangeProblem,
@@ -24,6 +26,7 @@ const PACK: AuditPackDto = {
     defectsNotFixed: 1,
     maintenanceDone: 1,
     maintenanceOverdue: 1,
+    dueDatesChanged: 1,
   },
   checks: [
     {
@@ -48,6 +51,10 @@ const PACK: AuditPackDto = {
       status: 'fixed',
       lastChangeAt: '2026-11-04T10:00:00.000Z',
       lastChangeBy: 'Pat Office',
+      history: [
+        { status: 'acknowledged', at: '2026-11-03T09:00:00.000Z', by: 'Pat Office' },
+        { status: 'fixed', at: '2026-11-04T10:00:00.000Z', by: 'Pat Office' },
+      ],
       repair: {
         title: 'Replace brake light',
         dueDate: '2026-11-04',
@@ -68,6 +75,15 @@ const PACK: AuditPackDto = {
         by: 'Pat Office',
         note: 'Passed',
         recordedAt: '2026-11-01T15:00:00.000Z',
+      },
+    ],
+    changes: [
+      {
+        item: 'MOT',
+        from: '2026-09-01',
+        to: '2026-10-01',
+        at: '2026-10-05T09:00:00.000Z',
+        by: 'Pat Office',
       },
     ],
   },
@@ -159,6 +175,7 @@ describe('summaryLines', () => {
       'Walk-round checks: 2 (1 all clear, 0 fix soon, 1 do not drive).',
       'Defects found in this period: 1. 1 defect is not marked fixed (older ones included).',
       'Maintenance recorded as done: 1. 1 item is overdue today.',
+      'Due dates entered or corrected by hand in this period: 1.',
     ]);
     expect(
       summaryLines({
@@ -169,6 +186,7 @@ describe('summaryLines', () => {
       expect.any(String),
       'Defects found in this period: 1. 3 defects are not marked fixed (older ones included).',
       'Maintenance recorded as done: 1. 0 items are overdue today.',
+      'Due dates entered or corrected by hand in this period: 1.',
     ]);
   });
 });
@@ -190,6 +208,7 @@ describe('the printed page', () => {
       'Defects and repairs',
       'Maintenance dates today',
       'Maintenance done in this period',
+      'Due dates entered or corrected',
       'Everything in order',
     ]) {
       expect(html).toContain(`<h2>${heading}</h2>`);
@@ -205,7 +224,31 @@ describe('the printed page', () => {
     expect(html).toContain(
       'not a statement that the vehicle or the operator meets any legal requirement',
     );
-    expect(html).toContain('only the most recent change of status is recorded');
+    expect(html).toContain(
+      'A change made before this history was kept may show only the latest one, or none',
+    );
+  });
+
+  it('prints every step of a defect with who took it, and the due dates that were corrected', () => {
+    expect(html).toContain('Seen by the office: 3 Nov 2026, 09:00, Pat Office');
+    expect(html).toContain('Fixed: 4 Nov 2026, 10:00, Pat Office');
+    // Date before, new date and who, in that order.
+    expect(html).toMatch(/1 Sep 2026<\/td>\s*<td>1 Oct 2026<\/td>\s*<td>Pat Office<\/td>/);
+  });
+
+  it('says when no due date was entered or corrected, and shows a first entry as having no date before', () => {
+    const none = auditPackHtml({ ...PACK, maintenance: { ...PACK.maintenance, changes: [] } });
+    expect(none).toContain('No due date was entered or corrected by hand in this period.');
+    const first = auditPackHtml({
+      ...PACK,
+      maintenance: {
+        ...PACK.maintenance,
+        changes: [
+          { item: 'MOT', to: '2026-10-01', at: '2026-10-05T09:00:00.000Z', by: 'Pat Office' },
+        ],
+      },
+    });
+    expect(first).toContain('No date before');
   });
 
   it('says so when a section has nothing in it, rather than leaving a blank table', () => {
@@ -213,7 +256,7 @@ describe('the printed page', () => {
       ...PACK,
       checks: [],
       defects: [],
-      maintenance: { items: [], done: [] },
+      maintenance: { items: [], done: [], changes: [] },
       timeline: [],
     });
     expect(empty).toContain('No checks were recorded in this period.');
@@ -242,5 +285,38 @@ describe('dayText', () => {
   it('writes a day the UK way, whatever the zone of the machine', () => {
     expect(dayText('2026-11-03')).toBe('3 Nov 2026');
     expect(dayText('2026-01-01')).toBe('1 Jan 2026');
+  });
+
+  it('writes September as Sep, not Sept, whatever the browser would', () => {
+    expect(dayText('2026-09-03')).toBe('3 Sep 2026');
+  });
+});
+
+describe('dateTimeText', () => {
+  it('writes a moment in UK time, in summer and in winter, with midnight as 00', () => {
+    expect(dateTimeText('2026-11-03T06:30:00.000Z')).toBe('3 Nov 2026, 06:30');
+    // 23:30 UTC on 3 September is half past midnight on the 4th in British Summer Time.
+    expect(dateTimeText('2026-09-03T23:30:00.000Z')).toBe('4 Sep 2026, 00:30');
+    expect(dateTimeText('2026-01-05T00:05:00.000Z')).toBe('5 Jan 2026, 00:05');
+  });
+});
+
+describe('statusSteps', () => {
+  const defect = PACK.defects[0]!;
+
+  it('gives every step, oldest first', () => {
+    expect(statusSteps(defect).map((s) => [s.status, s.by])).toEqual([
+      ['acknowledged', 'Pat Office'],
+      ['fixed', 'Pat Office'],
+    ]);
+  });
+
+  it('falls back to the one change on record when there are no steps, and to nothing when there is none', () => {
+    expect(statusSteps({ ...defect, history: [] })).toEqual([
+      { status: 'fixed', at: '2026-11-04T10:00:00.000Z', by: 'Pat Office' },
+    ]);
+    const untouched = { ...defect, history: [], status: 'open' as const };
+    delete (untouched as { lastChangeAt?: string }).lastChangeAt;
+    expect(statusSteps(untouched)).toEqual([]);
   });
 });

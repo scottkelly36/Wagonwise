@@ -128,7 +128,21 @@ export async function setDueDate(
     dueDate: due.value,
     lastDone: before?.lastDone,
   };
-  await deps.schedules.upsert(found.value.companyId, schedule, staffId, deps.clock.now());
+  const now = deps.clock.now();
+  await deps.schedules.upsert(found.value.companyId, schedule, staffId, now);
+  // The old date is about to be forgotten, so keep it, but only when the date really changed: saving the same one is no news.
+  if (before?.dueDate !== due.value) {
+    await deps.schedules.addDateChange(found.value.companyId, {
+      id: deps.ids.newId(),
+      vehicleId,
+      itemTypeId,
+      itemName: found.value.item.name,
+      fromDue: before?.dueDate,
+      toDue: due.value,
+      changedBy: staffId,
+      changedAt: now,
+    });
+  }
   return ok(schedule);
 }
 

@@ -46,26 +46,34 @@ export function rangeProblem(from: string, to: string): string | undefined {
   return undefined;
 }
 
-/** `2026-11-03` as "3 Nov 2026". */
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * `2026-11-03` as "3 Nov 2026". The months are written out here, not taken from the browser's locale data (some write September
+ * as "Sept"), so the page, the printed copy and the server's timeline wording always match.
+ */
 export function dayText(day: string): string {
-  return new Date(`${day}T12:00:00.000Z`).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
+  const [year, month, date] = day.split('-').map(Number);
+  return `${date} ${MONTHS[(month ?? 1) - 1]} ${year}`;
 }
+
+const UK_PARTS = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'numeric',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZone: 'Europe/London',
+});
 
 /** A moment as "3 Nov 2026, 06:30" in UK time. */
 export function dateTimeText(iso: string): string {
-  return new Date(iso).toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Europe/London',
-  });
+  const parts = Object.fromEntries(
+    UK_PARTS.formatToParts(new Date(iso)).map((p) => [p.type, p.value]),
+  ) as Record<string, string>;
+  const day = `${parts.year}-${(parts.month ?? '1').padStart(2, '0')}-${(parts.day ?? '1').padStart(2, '0')}`;
+  return `${dayText(day)}, ${parts.hour}:${parts.minute}`;
 }
 
 export const RESULT_LABELS = {
@@ -93,7 +101,33 @@ export const EVENT_LABELS: Record<AuditEventDto['kind'], string> = {
   repair_booked: 'Repair booked',
   repair_finished: 'Repair finished',
   maintenance_done: 'Maintenance done',
+  due_date_changed: 'Due date changed',
 };
+
+type Defect = AuditPackDto['defects'][number];
+
+/**
+ * Every step of a defect's status, oldest first. A defect with no steps on record (changed before the history was kept) shows the
+ * one change it does have, so a handled defect is never shown with no trace of who handled it.
+ */
+export function statusSteps(d: Defect): { status: Defect['status']; at: string; by?: string }[] {
+  if (d.history.length > 0) {
+    return d.history.map((h) => ({
+      status: h.status,
+      at: h.at,
+      ...(h.by === undefined ? {} : { by: h.by }),
+    }));
+  }
+  return d.lastChangeAt === undefined
+    ? []
+    : [
+        {
+          status: d.status,
+          at: d.lastChangeAt,
+          ...(d.lastChangeBy === undefined ? {} : { by: d.lastChangeBy }),
+        },
+      ];
+}
 
 /** A maintenance entry carries only a day (placed at midday), so showing a time for it would be false precision. */
 const eventWhen = (e: AuditEventDto): string =>
@@ -131,13 +165,14 @@ export function summaryLines(pack: AuditPackDto): string[] {
     `Walk-round checks: ${s.checks} (${s.clear} all clear, ${s.advisory} fix soon, ${s.doNotDrive} do not drive).`,
     `Defects found in this period: ${s.defectsFound}. ${plural(s.defectsNotFixed, 'defect is', 'defects are')} not marked fixed (older ones included).`,
     `Maintenance recorded as done: ${s.maintenanceDone}. ${plural(s.maintenanceOverdue, 'item is', 'items are')} overdue today.`,
+    `Due dates entered or corrected by hand in this period: ${s.dueDatesChanged}.`,
   ];
 }
 
 /** What the report is, and what it is not. The same words are printed on every copy. */
 export const REPORT_NOTES = [
   'Prepared from the records held in WagonWise. Drivers answer the walk-round checks on their phones, and the company’s staff enter repairs and maintenance dates. This report shows them as entered. It is not a statement that the vehicle or the operator meets any legal requirement.',
-  'For each defect, only the most recent change of status is recorded. A maintenance date that was corrected shows only its current value.',
+  'Each change of a defect’s status, and each due date entered or corrected by hand, is recorded with who made it and when. A change made before this history was kept may show only the latest one, or none. Recording maintenance as done is shown under “done”, with the next date it set.',
   'A person who has since left the company appears as “Someone no longer on the account”.',
 ] as const;
 
@@ -178,13 +213,14 @@ export function auditPackHtml(pack: AuditPackDto): string {
         <td>${escapeHtml(dateTimeText(d.foundAt))}<br><span class="muted">${cell(d.foundBy)}</span></td>
         <td>${cell(d.item)}<br><span class="muted">${cell([d.detail, d.note].filter((t) => t !== undefined && t !== '').join(' · '))}</span></td>
         <td>${SEVERITY_LABELS[d.severity]}</td>
-        <td>${DEFECT_STATUS_LABELS[d.status]}${
-          d.lastChangeAt === undefined
-            ? ''
-            : `<br><span class="muted">${escapeHtml(dateTimeText(d.lastChangeAt))}${
-                d.lastChangeBy === undefined ? '' : `, ${cell(d.lastChangeBy)}`
-              }</span>`
-        }</td>
+        <td>${DEFECT_STATUS_LABELS[d.status]}${statusSteps(d)
+          .map(
+            (step) =>
+              `<br><span class="muted">${DEFECT_STATUS_LABELS[step.status]}: ${escapeHtml(dateTimeText(step.at))}${
+                step.by === undefined ? '' : `, ${cell(step.by)}`
+              }</span>`,
+          )
+          .join('')}</td>
         <td>${cell(repairText)}</td>
       </tr>`;
     })
@@ -209,6 +245,18 @@ export function auditPackHtml(pack: AuditPackDto): string {
         <td>${escapeHtml(dayText(d.nextDue))}</td>
         <td>${cell(d.by)}</td>
         <td>${cell(d.note)}</td>
+      </tr>`,
+    )
+    .join('');
+
+  const changes = pack.maintenance.changes
+    .map(
+      (c) => `<tr>
+        <td>${escapeHtml(dateTimeText(c.at))}</td>
+        <td>${cell(c.item)}</td>
+        <td>${c.from === undefined ? '<span class="muted">No date before</span>' : escapeHtml(dayText(c.from))}</td>
+        <td>${escapeHtml(dayText(c.to))}</td>
+        <td>${cell(c.by)}</td>
       </tr>`,
     )
     .join('');
@@ -279,6 +327,12 @@ export function auditPackHtml(pack: AuditPackDto): string {
 <table>
   <thead><tr><th>Item</th><th>Done on</th><th>Next due</th><th>Recorded by</th><th>Note</th></tr></thead>
   <tbody>${done || empty('Nothing was recorded as done in this period.', 5)}</tbody>
+</table>
+
+<h2>Due dates entered or corrected</h2>
+<table>
+  <thead><tr><th>When</th><th>Item</th><th>Date before</th><th>New date</th><th>By</th></tr></thead>
+  <tbody>${changes || empty('No due date was entered or corrected by hand in this period.', 5)}</tbody>
 </table>
 
 <h2>Everything in order</h2>

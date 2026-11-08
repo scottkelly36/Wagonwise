@@ -114,6 +114,7 @@ describe('runMigrations', () => {
       '0082_federated_identities.sql',
       '0083_closures.sql',
       '0084_sales.sql',
+      '0085_audit_history.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -306,6 +307,7 @@ describe('runMigrations', () => {
       '0082_federated_identities.sql',
       '0083_closures.sql',
       '0084_sales.sql',
+      '0085_audit_history.sql',
     ]);
   });
 });

@@ -289,6 +289,48 @@ describe('dates on a vehicle', () => {
     ]);
   });
 
+  it('keeps a record when a due date is entered and then corrected, with the old date, who and when', async () => {
+    const { deps, schedules, clock } = setup();
+    await withMot(deps);
+    await setDueDate(deps, booker, staffId, van, motId, '2026-10-01');
+    clock.advance(24 * 60 * 60 * 1000);
+    await setDueDate(deps, booker, staffId, van, motId, '2026-12-01');
+    expect(
+      schedules.dateChanges.map(({ companyId, change }) => [
+        companyId,
+        change.vehicleId,
+        change.itemName,
+        change.fromDue,
+        change.toDue,
+        change.changedBy,
+        change.changedAt.toISOString(),
+      ]),
+    ).toEqual([
+      [acme, van, 'MOT', undefined, '2026-10-01', staffId, '2026-10-09T09:00:00.000Z'],
+      [acme, van, 'MOT', '2026-10-01', '2026-12-01', staffId, '2026-10-10T09:00:00.000Z'],
+    ]);
+  });
+
+  it('keeps no record when the same date is saved again, or when work is recorded as done', async () => {
+    const { deps, schedules } = setup();
+    await withMot(deps);
+    await setDueDate(deps, booker, staffId, van, motId, '2026-10-01');
+    await setDueDate(deps, booker, staffId, van, motId, '2026-10-01');
+    expect(schedules.dateChanges).toHaveLength(1);
+    // Recording the work is in the history, with the next date it set; it is not a hand-made correction.
+    await markDone(deps, booker, staffId, van, motId, { doneOn: '2026-10-08' });
+    expect(schedules.dateChanges).toHaveLength(1);
+  });
+
+  it('keeps no record of a change that was refused', async () => {
+    const { deps, schedules } = setup();
+    await withMot(deps);
+    await setDueDate(deps, nobody, staffId, van, motId, '2026-10-01');
+    await setDueDate(deps, booker, staffId, van, motId, 'not a date');
+    await setDueDate(deps, outsider, staffId, van, motId, '2026-10-01');
+    expect(schedules.dateChanges).toEqual([]);
+  });
+
   it('shows one vehicle’s items with the history, newest first, to those who may see it', async () => {
     const { deps } = setup();
     await withMot(deps);
