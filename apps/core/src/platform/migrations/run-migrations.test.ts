@@ -113,6 +113,7 @@ describe('runMigrations', () => {
       '0081_driver_passwords.sql',
       '0082_federated_identities.sql',
       '0083_closures.sql',
+      '0084_sales.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -304,6 +305,7 @@ describe('runMigrations', () => {
       '0081_driver_passwords.sql',
       '0082_federated_identities.sql',
       '0083_closures.sql',
+      '0084_sales.sql',
     ]);
   });
 });

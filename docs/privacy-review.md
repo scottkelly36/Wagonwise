@@ -47,6 +47,21 @@ Add: SOS alerts and check records as data WagonWise handles for the company; wha
 point that only a registration number goes); the 30-day deletion of closed SOS alerts; check retention set by the company; the
 staff mobile number for text reminders. A DPIA should now cover SOS (location plus identity, sent by email) and shared places.
 
+## Sales notebook (added 2026-11-08)
+
+WagonWise now keeps its own list of the firms it is approaching (`sales.prospects` and `sales.entries`; platform staff only, in the
+admin portal). It holds business contact details copied from public sources (a firm's name, town, phone number, mailbox, the person
+to ask for) and the owner's own notes of each call or message. Some of the firms are sole traders or partnerships, so their details
+are personal data. It is not drivers' data and never touches the app.
+
+- **A firm that asks not to be contacted is kept for good** (its name and the fact of the request), so it is never contacted again by
+  mistake. It cannot be deleted from the page; its phone number and mailbox can be removed. Any other firm and its log can be deleted.
+- **Add to the DPIA and the records of processing:** a prospects list, held by WagonWise for its own sales, from public directories
+  and company websites, kept while a firm is a prospect.
+- **Questions for the solicitor:** do the people on this list need to be told where their details came from, and where (the cold
+  message's opt-out line is the first contact)? Is "kept for good" enough for the opt-out record? How long should a firm that never
+  replied stay on the list?
+
 ## Store forms (match the notice)
 
 - **Google Play Data safety:** precise location (collected, shared with the company on a job and on SOS, not for ads), email and

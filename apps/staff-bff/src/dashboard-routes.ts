@@ -109,6 +109,14 @@ import {
   placesCompanyParamsSchema,
   updatePlaceRequestSchema,
 } from '@wagonwise/contracts/places';
+import {
+  addEntryRequestSchema,
+  createProspectRequestSchema,
+  entryIdParamsSchema,
+  importRequestSchema,
+  prospectIdParamsSchema,
+  updateProspectRequestSchema,
+} from '@wagonwise/contracts/sales';
 import { listSosQuerySchema, sosIdParamsSchema } from '@wagonwise/contracts/sos';
 import { wordsToLocationRequestSchema } from '@wagonwise/contracts/what3words';
 import { createInviteCodesRequestSchema } from '@wagonwise/contracts/identity';
@@ -483,6 +491,29 @@ const FORWARDS: readonly Forward[] = [
     body: sendLaunchEmailsRequestSchema,
   },
   { method: 'DELETE', path: '/staff/signups/:id', params: testerIdParamsSchema },
+  // WagonWise's own sales notebook: the firms being approached and a log of each contact (WagonWise staff only; core decides).
+  { method: 'GET', path: '/staff/sales', params: noParams },
+  {
+    method: 'POST',
+    path: '/staff/sales/prospects',
+    params: noParams,
+    body: createProspectRequestSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/sales/prospects/:id',
+    params: prospectIdParamsSchema,
+    body: updateProspectRequestSchema,
+  },
+  { method: 'DELETE', path: '/staff/sales/prospects/:id', params: prospectIdParamsSchema },
+  {
+    method: 'POST',
+    path: '/staff/sales/prospects/:id/entries',
+    params: prospectIdParamsSchema,
+    body: addEntryRequestSchema,
+  },
+  { method: 'DELETE', path: '/staff/sales/entries/:id', params: entryIdParamsSchema },
+  { method: 'POST', path: '/staff/sales/import', params: noParams, body: importRequestSchema },
   // Driver hours sharing: the firm's switch, and the statuses of drivers who agreed to share. Core decides who may.
   {
     method: 'GET',
