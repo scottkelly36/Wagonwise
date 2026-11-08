@@ -20,6 +20,7 @@ export const AUDIT_EVENT_KINDS = [
   'repair_booked',
   'repair_finished',
   'maintenance_done',
+  'due_date_changed',
 ] as const;
 
 /** One walk-round check, as the driver filed it. `who` is a name or sign-in the office already sees. */
@@ -44,6 +45,13 @@ export const auditRepairSchema = z.object({
   finishedBy: z.string().optional(),
 });
 
+/** One change of a defect's status and who made it. */
+export const auditDefectStepSchema = z.object({
+  status: z.enum(AUDIT_DEFECT_STATUSES),
+  at: z.iso.datetime(),
+  by: z.string().optional(),
+});
+
 export const auditDefectSchema = z.object({
   id: z.string(),
   foundAt: z.iso.datetime(),
@@ -56,6 +64,8 @@ export const auditDefectSchema = z.object({
   /** The most recent change of status, and who made it. */
   lastChangeAt: z.iso.datetime().optional(),
   lastChangeBy: z.string().optional(),
+  /** Every change of status, oldest first. */
+  history: z.array(auditDefectStepSchema),
   repair: auditRepairSchema.optional(),
 });
 
@@ -73,6 +83,15 @@ export const auditDoneSchema = z.object({
   note: z.string().optional(),
   by: z.string().optional(),
   recordedAt: z.iso.datetime(),
+});
+
+/** A due date entered or corrected by hand. `from` is absent the first time a date was entered. */
+export const auditDateChangeSchema = z.object({
+  item: z.string(),
+  from: z.iso.date().optional(),
+  to: z.iso.date(),
+  at: z.iso.datetime(),
+  by: z.string().optional(),
 });
 
 export const auditEventSchema = z.object({
@@ -102,12 +121,15 @@ export const auditPackSchema = z.object({
     defectsNotFixed: z.number().int(),
     maintenanceDone: z.number().int(),
     maintenanceOverdue: z.number().int(),
+    dueDatesChanged: z.number().int(),
   }),
   checks: z.array(auditCheckSchema),
   defects: z.array(auditDefectSchema),
   maintenance: z.object({
     items: z.array(auditItemSchema),
     done: z.array(auditDoneSchema),
+    /** Every time a due date was entered or corrected by hand in the period, oldest first. */
+    changes: z.array(auditDateChangeSchema),
   }),
   /** Everything above in one list, oldest first. */
   timeline: z.array(auditEventSchema),

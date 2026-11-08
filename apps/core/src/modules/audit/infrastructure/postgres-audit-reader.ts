@@ -64,6 +64,21 @@ interface DoneRow {
   readonly recorded_at: Date;
 }
 
+interface DefectEventRow {
+  readonly defect_id: string;
+  readonly status: DefectStatus;
+  readonly at: Date;
+  readonly by: string | null;
+}
+
+interface DueChangeRow {
+  readonly item_name: string;
+  readonly from_due: string | null;
+  readonly to_due: string;
+  readonly changed_by: string | null;
+  readonly changed_at: Date;
+}
+
 /**
  * Reads one vehicle's walk-round checks, defects, repairs and maintenance, for the audit pack. A read-model adapter (AGENTS.md
  * rule 7): it reads the other contexts' tables with SQL and hands back this module's own types. Row-Level Security applies as
@@ -101,6 +116,16 @@ export class PostgresAuditReader implements AuditReader {
     `.execute(this.db);
 
     const defectIds = defects.rows.map((d) => d.id);
+    // Every step of those defects, not only the ones in the range: a defect found earlier may be handled now.
+    const defectEvents =
+      defectIds.length === 0
+        ? { rows: [] as DefectEventRow[] }
+        : await sql<DefectEventRow>`
+            select defect_id, status, at, by
+            from checks.defect_events
+            where defect_id in (${sql.join(defectIds)})
+            order by at, id
+          `.execute(this.db);
     const repairs =
       defectIds.length === 0
         ? { rows: [] as RepairRow[] }
@@ -129,6 +154,15 @@ export class PostgresAuditReader implements AuditReader {
       order by done_on, recorded_at, id
     `.execute(this.db);
 
+    const dueChanges = await sql<DueChangeRow>`
+      select item_name, to_char(from_due, 'YYYY-MM-DD') as from_due, to_char(to_due, 'YYYY-MM-DD') as to_due,
+             changed_by, changed_at
+      from maintenance.date_changes
+      where vehicle_id = ${vehicleId}
+        and (changed_at at time zone 'Europe/London')::date between ${range.from}::date and ${range.to}::date
+      order by changed_at, id
+    `.execute(this.db);
+
     return {
       checks: checks.rows.map((r) => ({
         id: r.id,
@@ -152,6 +186,12 @@ export class PostgresAuditReader implements AuditReader {
         createdAt: r.created_at,
         statusChangedAt: r.status_changed_at ?? undefined,
         statusChangedBy: r.status_changed_by ?? undefined,
+      })),
+      defectEvents: defectEvents.rows.map((r) => ({
+        defectId: r.defect_id,
+        status: r.status,
+        at: r.at,
+        by: r.by ?? undefined,
       })),
       repairs: repairs.rows.map((r) => ({
         defectId: r.defect_id,
@@ -178,6 +218,13 @@ export class PostgresAuditReader implements AuditReader {
         note: r.note ?? undefined,
         doneBy: r.done_by ?? undefined,
         recordedAt: r.recorded_at,
+      })),
+      dueChanges: dueChanges.rows.map((r) => ({
+        itemName: r.item_name,
+        fromDue: r.from_due ?? undefined,
+        toDue: r.to_due,
+        changedAt: r.changed_at,
+        changedBy: r.changed_by ?? undefined,
       })),
     };
   }

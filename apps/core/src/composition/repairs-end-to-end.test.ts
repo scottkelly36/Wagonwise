@@ -273,6 +273,22 @@ describe('repairs end to end (real RLS, real scopes)', () => {
     );
     expect(rows[0]?.status_changed_by).toBe(BOOKER);
 
+    // Every step is kept, not only the latest: seen when the repair was booked, then fixed when it was finished.
+    const steps = await ownerPool.query<{ status: string; by: string }>(
+      'select status, by from checks.defect_events where defect_id = $1 order by at, status',
+      [D_STOP],
+    );
+    expect(steps.rows).toEqual([
+      { status: 'acknowledged', by: BOOKER },
+      { status: 'fixed', by: BOOKER },
+    ]);
+    // The other defect has not been touched yet, so nothing is recorded for it.
+    const untouched = await ownerPool.query(
+      'select 1 from checks.defect_events where defect_id = $1',
+      [D_SOON],
+    );
+    expect(untouched.rowCount).toBe(0);
+
     const again = await app.inject({
       method: 'POST',
       url: `/staff/maintenance/repairs/${id}/done`,

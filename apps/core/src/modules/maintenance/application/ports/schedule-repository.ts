@@ -1,5 +1,6 @@
 import type {
   CompanyId,
+  DateChange,
   HistoryEntry,
   ItemTypeId,
   Schedule,
@@ -14,6 +15,8 @@ export interface ScheduleRepository {
   /** Sets when the item is next due (and when it was last done) on the vehicle, replacing what was there. */
   upsert(companyId: CompanyId, schedule: Schedule, by: StaffId, at: Date): Promise<void>;
   addHistory(companyId: CompanyId, entry: HistoryEntry): Promise<void>;
+  /** Keeps a record that a due date was entered or corrected, for the audit pack. */
+  addDateChange(companyId: CompanyId, change: DateChange): Promise<void>;
   /** Newest first. */
   listHistory(vehicleId: VehicleId): Promise<HistoryEntry[]>;
 }

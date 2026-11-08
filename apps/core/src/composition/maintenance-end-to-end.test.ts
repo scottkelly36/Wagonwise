@@ -220,6 +220,18 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
       ...as(BOOKER),
     });
     expect(set.statusCode).toBe(200);
+    // Entering the first date leaves a record of it (there was no date before), with who.
+    const entered = await ownerPool.query<{
+      item_name: string;
+      from_due: string | null;
+      to_due: string;
+      changed_by: string;
+    }>(
+      "select item_name, to_char(from_due, 'YYYY-MM-DD') as from_due, to_char(to_due, 'YYYY-MM-DD') as to_due, changed_by from maintenance.date_changes",
+    );
+    expect(entered.rows).toEqual([
+      { item_name: 'MOT', from_due: null, to_due: '2026-10-01', changed_by: BOOKER },
+    ]);
     const late = (await overview(BOOKER)).json<{
       rows: { vehicleName: string; status: string; daysUntil: number }[];
     }>();
@@ -236,6 +248,11 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
       ...as(BOOKER),
     });
     expect(done.json()).toEqual({ dueDate: '2027-10-08', lastDone: '2026-10-08' });
+    // Recording the work moves the date on, but it is in the history; it is not a hand-made change.
+    const afterDone = await ownerPool.query(
+      'select count(*)::int as n from maintenance.date_changes',
+    );
+    expect(afterDone.rows[0]).toEqual({ n: 1 });
 
     const vehicle = await app.inject({
       method: 'GET',
@@ -320,6 +337,11 @@ describe('maintenance end to end (real RLS, real scopes)', () => {
       'select count(*)::int as n from maintenance.schedules',
     );
     expect(schedules[0]).toEqual({ n: 1 });
+    // Nothing was imported, so nothing is recorded as changed.
+    const changes = await ownerPool.query(
+      'select count(*)::int as n from maintenance.date_changes',
+    );
+    expect(changes.rows[0]).toEqual({ n: 1 });
   });
 
   it('looks a vehicle up by registration for whoever keeps maintenance, and saves nothing', async () => {

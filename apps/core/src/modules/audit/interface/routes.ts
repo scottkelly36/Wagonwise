@@ -47,6 +47,7 @@ function packDto(
       status: d.status,
       ...opt('lastChangeAt', d.lastChangeAt === undefined ? undefined : iso(d.lastChangeAt)),
       ...opt('lastChangeBy', d.lastChangeBy),
+      history: d.history.map((h) => ({ status: h.status, at: iso(h.at), ...opt('by', h.by) })),
       ...(d.repair === undefined
         ? {}
         : {
@@ -75,6 +76,13 @@ function packDto(
         ...opt('note', d.note),
         ...opt('by', d.by),
         recordedAt: iso(d.recordedAt),
+      })),
+      changes: p.maintenance.changes.map((c) => ({
+        item: c.item,
+        ...opt('from', c.from),
+        to: c.to,
+        at: iso(c.at),
+        ...opt('by', c.by),
       })),
     },
     timeline: p.timeline.map((e) => ({

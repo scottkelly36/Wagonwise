@@ -161,6 +161,20 @@ export interface Schedule {
   readonly lastDone: DayString | undefined;
 }
 
+/** One time a due date was entered or corrected by hand: the first date, a correction, an import. Not recording the work itself. */
+export interface DateChange {
+  readonly id: string;
+  readonly vehicleId: VehicleId;
+  readonly itemTypeId: ItemTypeId;
+  /** The item's name as it was then (it may be renamed later). */
+  readonly itemName: string;
+  /** `undefined` the first time a date was entered. */
+  readonly fromDue: DayString | undefined;
+  readonly toDue: DayString;
+  readonly changedBy: StaffId | undefined;
+  readonly changedAt: Date;
+}
+
 /** One time an item was done on a vehicle, kept as it was said then (the item's name may change later). */
 export interface HistoryEntry {
   readonly id: string;

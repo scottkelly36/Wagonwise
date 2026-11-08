@@ -199,10 +199,18 @@ export class PostgresOfficeCheckRepository implements OfficeCheckRepository {
     return rows.length > 0;
   }
 
+  /**
+   * Changes the status, and leaves a row in `checks.defect_events` saying who and when (migration 0085), so the audit pack can
+   * show every step and not just the latest. Both statements run in the request's one data-scope transaction.
+   */
   async setDefectStatus(id: DefectId, status: DefectStatus, by: StaffId, at: Date): Promise<void> {
     await sql`
       update checks.defects set status = ${status}, status_changed_at = ${at}, status_changed_by = ${by}
       where id = ${id}
+    `.execute(this.db);
+    await sql`
+      insert into checks.defect_events (id, defect_id, company_id, status, at, by)
+      select gen_random_uuid(), id, company_id, ${status}, ${at}, ${by} from checks.defects where id = ${id}
     `.execute(this.db);
   }
 }

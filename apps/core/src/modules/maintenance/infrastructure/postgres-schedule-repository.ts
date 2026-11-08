@@ -3,6 +3,7 @@ import { makeId } from '../../../shared/brand.js';
 import type { ScheduleRepository } from '../application/ports/schedule-repository.js';
 import type {
   CompanyId,
+  DateChange,
   HistoryEntry,
   ItemTypeId,
   Schedule,
@@ -101,6 +102,15 @@ export class PostgresScheduleRepository implements ScheduleRepository {
       values (${entry.id}, ${entry.vehicleId}, ${entry.itemTypeId}, ${companyId}, ${entry.itemName},
               ${entry.doneOn}::date, ${entry.nextDue}::date, ${entry.note ?? null}, ${entry.doneBy ?? null},
               ${entry.recordedAt})
+    `.execute(this.db);
+  }
+
+  async addDateChange(companyId: CompanyId, change: DateChange): Promise<void> {
+    await sql`
+      insert into maintenance.date_changes
+        (id, company_id, vehicle_id, item_type_id, item_name, from_due, to_due, changed_by, changed_at)
+      values (${change.id}, ${companyId}, ${change.vehicleId}, ${change.itemTypeId}, ${change.itemName},
+              ${change.fromDue ?? null}::date, ${change.toDue}::date, ${change.changedBy ?? null}, ${change.changedAt})
     `.execute(this.db);
   }
 

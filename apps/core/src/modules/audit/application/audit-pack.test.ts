@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { RecordingDataScopes } from '../../../shared/testing/recording-data-scopes.js';
-import { itemState, resolveRange, type RawAuditData } from '../domain/audit-pack.js';
+import { dayText, itemState, resolveRange, type RawAuditData } from '../domain/audit-pack.js';
 import {
   getVehicleAuditPack,
   type AuditDeps,
@@ -85,6 +85,37 @@ const RAW: RawAuditData = {
       createdBy: OFFICE,
       completedAt: new Date('2026-11-04T10:00:00.000Z'),
       completedBy: OFFICE,
+    },
+  ],
+  // The brake light was seen by the office, then fixed. The wiper defect has no history rows: only its latest change is on record.
+  defectEvents: [
+    {
+      defectId: 'd1',
+      status: 'acknowledged',
+      at: new Date('2026-11-03T09:00:00.000Z'),
+      by: OFFICE,
+    },
+    {
+      defectId: 'd1',
+      status: 'fixed',
+      at: new Date('2026-11-04T10:00:00.000Z'),
+      by: 'someone-who-left',
+    },
+  ],
+  dueChanges: [
+    {
+      itemName: 'MOT',
+      fromDue: undefined,
+      toDue: '2026-10-01',
+      changedAt: new Date('2026-10-05T09:00:00.000Z'),
+      changedBy: OFFICE,
+    },
+    {
+      itemName: 'MOT',
+      fromDue: '2026-10-01',
+      toDue: '2026-12-01',
+      changedAt: new Date('2026-10-20T14:30:00.000Z'),
+      changedBy: OFFICE,
     },
   ],
   items: [
@@ -225,6 +256,14 @@ describe('the range', () => {
   });
 });
 
+describe('dayText', () => {
+  it('writes a day the way the portal does, with September as Sep whatever the machine’s locale data says', () => {
+    expect(dayText('2026-11-03')).toBe('3 Nov 2026');
+    expect(dayText('2026-09-01')).toBe('1 Sep 2026');
+    expect(dayText('2027-01-10')).toBe('10 Jan 2027');
+  });
+});
+
 describe('itemState', () => {
   it('is overdue after the date, due soon inside the warning period, and fine before it', () => {
     expect(itemState({ dueDate: '2026-11-07', warnDays: 28 }, '2026-11-08')).toBe('overdue');
@@ -264,6 +303,7 @@ describe('the pack', () => {
       defectsNotFixed: 1,
       maintenanceDone: 1,
       maintenanceOverdue: 1,
+      dueDatesChanged: 2,
     });
   });
 
@@ -318,12 +358,15 @@ describe('the pack', () => {
     expect(p.timeline.map((e) => e.kind)).toEqual([
       'defect_found', // the old wiper defect, 1 September
       'defect_changed',
+      'due_date_changed', // 5 October, first entered
+      'due_date_changed', // 20 October, corrected
       'maintenance_done', // 1 November
       'check', // 2 November
       'check', // 3 November
       'defect_found',
       'repair_booked',
-      'defect_changed', // 4 November 10:00, the same moment the repair finished
+      'defect_changed', // 3 November 09:00, seen by the office
+      'defect_changed', // 4 November 10:00, fixed, the same moment the repair finished
       'repair_finished',
     ]);
     const times = p.timeline.map((e) => e.at.getTime());
@@ -353,5 +396,68 @@ describe('the pack', () => {
     expect(p.timeline.find((e) => e.kind === 'repair_finished')).toMatchObject({
       detail: 'Done on 4 Nov 2026 · New bulb fitted',
     });
+  });
+
+  it('shows every step of a defect, in order, and who took it', async () => {
+    const { pack: p } = await pack();
+    const brake = p.defects.find((d) => d.id === 'd1');
+    expect(brake?.history.map((h) => [h.status, h.by])).toEqual([
+      ['acknowledged', 'Pat Office'],
+      ['fixed', 'Someone no longer on the account'],
+    ]);
+    const steps = p.timeline.filter(
+      (e) => e.kind === 'defect_changed' && e.title.includes('brake light'),
+    );
+    expect(steps.map((e) => e.title)).toEqual([
+      'Defect marked seen by the office: Nearside brake light',
+      'Defect marked fixed: Nearside brake light',
+    ]);
+  });
+
+  it('falls back to the latest change for a defect with no history rows, and says nothing more than it knows', async () => {
+    const { pack: p } = await pack();
+    const wiper = p.defects.find((d) => d.id === 'd-old');
+    expect(wiper?.history).toEqual([]);
+    const steps = p.timeline.filter(
+      (e) => e.kind === 'defect_changed' && e.title.includes('Wiper'),
+    );
+    expect(steps).toHaveLength(1);
+    expect(steps[0]).toMatchObject({
+      title: 'Defect marked seen by the office: Wiper blade',
+      who: 'Pat Office',
+    });
+  });
+
+  it('shows a due date entered and then corrected, with the old and the new date', async () => {
+    const { pack: p } = await pack();
+    expect(p.maintenance.changes).toEqual([
+      expect.objectContaining({ item: 'MOT', from: undefined, to: '2026-10-01', by: 'Pat Office' }),
+      expect.objectContaining({
+        item: 'MOT',
+        from: '2026-10-01',
+        to: '2026-12-01',
+        by: 'Pat Office',
+      }),
+    ]);
+    expect(p.timeline.filter((e) => e.kind === 'due_date_changed').map((e) => e.title)).toEqual([
+      'MOT due date set to 1 Oct 2026',
+      'MOT due date changed from 1 Oct 2026 to 1 Dec 2026',
+    ]);
+  });
+
+  it('has no changes and no history when nothing was recorded', async () => {
+    const { deps } = setup({
+      raw: { ...RAW, defectEvents: [], dueChanges: [] },
+    });
+    const result = await getVehicleAuditPack(deps, ADMIN, VEHICLE, {
+      from: '2026-10-01',
+      to: '2026-11-08',
+    });
+    if (!result.ok) throw new Error('no pack');
+    expect(result.value.pack.summary.dueDatesChanged).toBe(0);
+    expect(result.value.pack.maintenance.changes).toEqual([]);
+    expect(result.value.pack.defects.every((d) => d.history.length === 0)).toBe(true);
+    // The latest change is still shown for the defects that have one.
+    expect(result.value.pack.timeline.filter((e) => e.kind === 'defect_changed')).toHaveLength(2);
   });
 });
