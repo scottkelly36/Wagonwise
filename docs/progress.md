@@ -32,9 +32,13 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 0. **Sales page: load the firms** (owner; the page is live since 2026-11-08). Open Admin, Sales, Import from a spreadsheet, and choose
    `E:/projects/wagonwise-sales/prospects-import.csv` (39 firms from the prospects workbook, plus Griffins from the sales log). Log each
    contact there from then on. Fleet sizes are estimates; each firm's notes say how sure.
-1. **Android Auto and CarPlay** (drivers have asked; moved up 2026-11-08; scope and findings in `docs/car-screen-scope.md`). **Owner, now:**
-   ask Apple for the CarPlay navigation entitlement (the wait is unknown and the draft is in that file). Then a spike on Android Auto to
-   settle how the map is drawn on the car screen and whether Expo can carry it. Not started; a native change (1.3.0, with the Play quality fixes).
+1. **Android Auto and CarPlay** (drivers have asked; moved up 2026-11-08; scope and findings in `docs/car-screen-scope.md`). **Status:**
+   the CarPlay navigation entitlement request **went to Apple on 2026-11-08** (no timescale; nothing to do until they answer), and four decisions
+   are still open at the end of that file (Android testing downloads, a Mac, the first version's feature list, background location). Then a spike on Android Auto:
+   can the app navigate with the phone screen off, can the MapLibre map be drawn on the car, can Expo carry it. The scope has every feature
+   sorted into onto-both, needs-a-decision and stays-on-the-phone, and how to test each platform (Android: Google's Desktop Head Unit on Windows;
+   CarPlay: Apple's simulator, **which needs a Mac**). Not started; a native change (1.3.0, with the Play quality fixes). **Background location changes the
+   privacy promise** (today position is shared only while the app is open).
 2. **Driver sign-in without invite codes** (plan: `docs/driver-sign-in-plan.md`). Server, driver BFF and the app's password screens are built behind switches (2026-11-01 and 2026-11-04; JavaScript only, so over the air; not tried on a phone); Google/Apple (a store build) and the owner's Google/Apple set-up are not. Nothing ships until after the store release.
 3. **App stores** (owner). Apple: the WagonWise Ltd developer account was approved 2026-10-28 (Team ID in `eas.json`); next is
    `deployment-guide.md` section 9c, the first TestFlight build (voice, push and SOS on iOS are untested). Google Play: the closed test runs
