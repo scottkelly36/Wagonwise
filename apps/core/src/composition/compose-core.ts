@@ -210,6 +210,7 @@ export function composeCore(
     clickSendApiKey: config.clickSendApiKey,
     resendApiKey: config.resendApiKey,
     resendFromEmail: config.resendFromEmail,
+    resendReplyTo: config.resendReplyTo,
     otpSender: overrides.otpSender,
     inviteRequired: config.driverInviteRequired,
     passwordSignIn: config.driverPasswordSignIn,

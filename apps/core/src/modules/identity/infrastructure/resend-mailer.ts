@@ -26,6 +26,8 @@ export class ResendMailer {
     private readonly apiKey: string,
     private readonly from: string = DEFAULT_FROM,
     private readonly apiUrl: string = DEFAULT_RESEND_URL,
+    /** Where a reply goes, as the `Reply-To` header. The `from` address is a no-reply one, so without this a reply goes nowhere. */
+    private readonly replyTo?: string,
   ) {}
 
   async send(email: PlainEmail): Promise<void> {
@@ -40,6 +42,7 @@ export class ResendMailer {
         to: email.to,
         subject: email.subject,
         text: email.text,
+        ...(this.replyTo === undefined ? {} : { reply_to: this.replyTo }),
         ...(email.html === undefined ? {} : { html: email.html }),
       }),
     });

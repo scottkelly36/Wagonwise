@@ -82,6 +82,9 @@ export interface IdentityModuleDeps {
    *  while email still falls back to console, or vice versa. */
   readonly resendApiKey?: string | undefined;
   readonly resendFromEmail?: string | undefined;
+  /** Where replies to any email we send go (Resend's `reply_to`), since `resendFromEmail` is usually a no-reply address. Unset means
+   *  a reply goes to the sender address. */
+  readonly resendReplyTo?: string | undefined;
   /** Defaults to a `ChannelRoutingOtpSender` built from the four fields above — override (e.g.
    *  with a fake) for tests or a local run that shouldn't reach ClickSend's/Resend's real
    *  endpoints. */
@@ -161,7 +164,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
       : new ConsoleOtpSender();
   const mailer =
     deps.resendApiKey !== undefined
-      ? new ResendMailer(deps.resendApiKey, deps.resendFromEmail)
+      ? new ResendMailer(deps.resendApiKey, deps.resendFromEmail, undefined, deps.resendReplyTo)
       : undefined;
   const otpSender = deps.otpSender ?? new ChannelRoutingOtpSender(smsSender, emailSender);
   const otpCodeGenerator = new CryptoOtpCodeGenerator();
