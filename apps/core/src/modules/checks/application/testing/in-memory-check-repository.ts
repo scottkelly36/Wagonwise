@@ -1,5 +1,6 @@
 import type { CheckTemplateId, CompanyId, VehicleId } from '../../domain/check-template.js';
 import type { Check, CheckId } from '../../domain/check.js';
+import type { RetentionCutoffs } from '../../domain/settings.js';
 import type { CheckPhoto, CheckRepository } from '../ports/check-repository.js';
 
 export class InMemoryCheckRepository implements CheckRepository {
@@ -27,11 +28,11 @@ export class InMemoryCheckRepository implements CheckRepository {
   }
 
   /** Records the cutoff asked for, for tests; this fake keeps no defect statuses, so the real rule is tested on Postgres. */
-  readonly deleteCalls: { companyId: CompanyId; cutoff: Date }[] = [];
+  readonly deleteCalls: { companyId: CompanyId; cutoffs: RetentionCutoffs }[] = [];
   deleteResult = 0;
 
-  deleteOlderThan(companyId: CompanyId, cutoff: Date): Promise<number> {
-    this.deleteCalls.push({ companyId, cutoff });
+  deleteOlderThan(companyId: CompanyId, cutoffs: RetentionCutoffs): Promise<number> {
+    this.deleteCalls.push({ companyId, cutoffs });
     return Promise.resolve(this.deleteResult);
   }
 
