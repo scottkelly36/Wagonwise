@@ -108,6 +108,37 @@ describe('usage end to end (real RLS, real scopes)', () => {
       `insert into routing.active_trips (id, route_plan_id, driver_id, started_at) values ($1,$2,$3,$4)`,
       [id(70), id(71), id(1), hoursAgo(1)],
     );
+    // How far drivers got: driver 1 chose a vehicle, planned a route and drove on two different days (an earlier trip ended);
+    // driver 2 chose a vehicle and drove once; driver 3 only has an account.
+    for (const n of [1, 2]) {
+      await q(
+        `insert into routing.vehicle_profiles (id, driver_id, name, height_m, width_m, length_m, gross_weight_t)
+         values ($1,$2,'Artic',4,2.5,16,44)`,
+        [id(90 + n), id(n)],
+      );
+    }
+    await q(
+      `insert into routing.route_plans (id, driver_id, profile_id, origin_lat, origin_lon, destination_lat, destination_lon,
+         geometry, distance_km, duration_min, created_at)
+       values ($1,$2,$3,54.97,-2.1,55.0,-1.9,'x',10,20,$4)`,
+      [id(71), id(1), id(91), hoursAgo(1)],
+    );
+    await q(
+      `insert into routing.active_trips (id, route_plan_id, driver_id, started_at, ended_at) values
+         ($1,$2,$3,$4,$5), ($6,$7,$8,$9,$10)`,
+      [
+        id(72),
+        id(73),
+        id(1),
+        hoursAgo(30),
+        hoursAgo(29),
+        id(74),
+        id(75),
+        id(2),
+        hoursAgo(50),
+        hoursAgo(49),
+      ],
+    );
     await q(
       `insert into checks.checks (id, company_id, template_id, template_version, template_name, vehicle_id, vehicle_name,
          driver_id, check_day, items, answers, result, submitted_at)
@@ -167,6 +198,18 @@ describe('usage end to end (real RLS, real scopes)', () => {
     expect(body.devices).toEqual({ total: 1 });
     expect(body.tripsRunningNow).toBe(1);
     expect(body.testers).toEqual({ total: 0 });
+  });
+
+  it('counts how far drivers got, as different drivers, with those who came back', async () => {
+    const body = await report();
+    expect(body.funnel).toEqual({
+      accounts: 3,
+      signedIn: 2,
+      hasVehicle: 2,
+      plannedRoute: 1,
+      startedTrip: 2,
+      startedTripOnTwoDays: 1,
+    });
   });
 
   it('shows each firm with its drivers, vehicles, staff, jobs and when it was last used', async () => {

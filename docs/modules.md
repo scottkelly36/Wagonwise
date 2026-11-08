@@ -519,7 +519,10 @@ Search and sharing (2026-10-19): the page has a canonical address, Open Graph an
 `apps/core/src/modules/usage`: read-only. `GET /staff/usage` (platform staff only, checked in the route and the use case) runs in
 the platform scope and reads counts across identity, companies, fleet, jobs, checks, routing and signups through
 `PostgresUsageReader` (the read-model adapter, AGENTS.md rule 7). Dashboard page `/admin/usage`. Real-RLS test:
-`composition/usage-end-to-end.test.ts`.
+`composition/usage-end-to-end.test.ts`. **Funnel (2026-11-08):** the report has a `funnel` of different drivers at each stage (account,
+signed in, chose a vehicle, planned a route, started a trip, started trips on two or more UK days), read from tables that
+already exist, so the app sends nothing extra. Trips are deleted after `ROUTE_RETENTION_DAYS` (30), so the trip stages cover
+that period. Counts only, and test accounts are included.
 
 ## Sales notebook (admin, 2026-11-08)
 

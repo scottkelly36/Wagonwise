@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ago, barHeights, shortDay } from './usage';
+import { ago, barHeights, percentOf, shortDay, withShare } from './usage';
 
 const now = new Date('2026-10-09T12:00:00.000Z');
 
@@ -26,5 +26,15 @@ describe('barHeights', () => {
 describe('shortDay', () => {
   it('writes the day and month', () => {
     expect(shortDay('2026-10-09')).toBe('9 Oct');
+  });
+});
+
+describe('percentOf and withShare', () => {
+  it('gives a rounded share of the whole, and 0% when there is nothing to divide by', () => {
+    expect(percentOf(110, 119)).toBe('92%');
+    expect(percentOf(1, 3)).toBe('33%');
+    expect(percentOf(0, 0)).toBe('0%');
+    expect(percentOf(5, 0)).toBe('0%');
+    expect(withShare(41, 119)).toBe('41 (34%)');
   });
 });

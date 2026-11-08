@@ -18,6 +18,16 @@ export interface Activity {
   readonly active30d: number;
 }
 
+/** How far drivers have got, as counts of different drivers. */
+export interface UsageFunnel {
+  readonly accounts: number;
+  readonly signedIn: number;
+  readonly hasVehicle: number;
+  readonly plannedRoute: number;
+  readonly startedTrip: number;
+  readonly startedTripOnTwoDays: number;
+}
+
 export interface UsageFirm {
   readonly id: string;
   readonly name: string;
@@ -33,6 +43,7 @@ export interface UsageReport {
   readonly drivers: Activity;
   readonly staff: Activity;
   readonly devices: number;
+  readonly funnel: UsageFunnel;
   readonly tripsRunningNow: number;
   readonly tripsPerDay: readonly { day: string; count: number }[];
   readonly jobsCreatedPerWeek: readonly { weekStart: string; count: number }[];
