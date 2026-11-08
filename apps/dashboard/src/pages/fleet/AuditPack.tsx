@@ -23,6 +23,7 @@ import {
   REPORT_NOTES,
   RESULT_LABELS,
   SEVERITY_LABELS,
+  statusSteps,
   summaryLines,
   type DayRange,
   type RangePreset,
@@ -59,6 +60,7 @@ type Defect = AuditPackDto['defects'][number];
 type Item = AuditPackDto['maintenance']['items'][number];
 type Done = AuditPackDto['maintenance']['done'][number];
 type Event = AuditPackDto['timeline'][number];
+type Change = AuditPackDto['maintenance']['changes'][number];
 
 const checkColumns: Column<Check>[] = [
   {
@@ -117,12 +119,12 @@ const defectColumns: Column<Defect>[] = [
     cell: (d) => (
       <>
         {DEFECT_STATUS_LABELS[d.status]}
-        {d.lastChangeAt === undefined ? null : (
-          <span className="text-muted text-13 block">
-            {dateTimeText(d.lastChangeAt)}
-            {d.lastChangeBy === undefined ? '' : `, ${d.lastChangeBy}`}
+        {statusSteps(d).map((step) => (
+          <span key={`${step.status}-${step.at}`} className="text-muted text-13 block">
+            {DEFECT_STATUS_LABELS[step.status]}: {dateTimeText(step.at)}
+            {step.by === undefined ? '' : `, ${step.by}`}
           </span>
-        )}
+        ))}
       </>
     ),
   },
@@ -159,6 +161,19 @@ const itemColumns: Column<Item>[] = [
     header: 'Where it stands',
     cell: (i) => <Badge tone={STATE_TONES[i.state]}>{ITEM_STATE_LABELS[i.state]}</Badge>,
   },
+];
+
+const changeColumns: Column<Change>[] = [
+  { key: 'when', header: 'When', sortValue: (c) => c.at, cell: (c) => dateTimeText(c.at) },
+  { key: 'item', header: 'Item', sortValue: (c) => c.item, cell: (c) => c.item },
+  {
+    key: 'from',
+    header: 'Date before',
+    cell: (c) =>
+      c.from === undefined ? <span className="text-muted">No date before</span> : dayText(c.from),
+  },
+  { key: 'to', header: 'New date', cell: (c) => dayText(c.to) },
+  { key: 'by', header: 'By', cell: (c) => c.by ?? '' },
 ];
 
 const doneColumns: Column<Done>[] = [
@@ -410,6 +425,15 @@ export function AuditPack() {
             pageSize={500}
             maxHeight={360}
             emptyText="Nothing was recorded as done in this period."
+          />
+          <h3>Due dates entered or corrected</h3>
+          <DataTable
+            columns={changeColumns}
+            rows={data.maintenance.changes}
+            rowKey={(c) => `${c.item}-${c.at}`}
+            pageSize={500}
+            maxHeight={360}
+            emptyText="No due date was entered or corrected by hand in this period."
           />
           <h3>Everything in order</h3>
           <DataTable

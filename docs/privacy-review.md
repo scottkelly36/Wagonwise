@@ -62,6 +62,15 @@ are personal data. It is not drivers' data and never touches the app.
   message's opt-out line is the first contact)? Is "kept for good" enough for the opt-out record? How long should a firm that never
   replied stay on the list?
 
+## Audit pack history (added 2026-11-08)
+
+The audit pack (Compliance) shows who changed a defect's status and who entered or corrected a maintenance date. The history is kept in
+`checks.defect_events` and `maintenance.date_changes` as the staff account's id and a time, never a name; the name is looked up when a pack is
+made, so a person who has left shows as "Someone no longer on the account". Staff are the company's own employees acting for the company.
+A check's defect history is deleted with the check, by the company's retention (12 months unless it chooses otherwise). The date changes are
+**not** deleted by any retention rule today. Question for the solicitor: how long should they be kept? The pack can be handed to an inspector
+or another third party by the company; the notice does not need to change for that, but the company should know the names are in it.
+
 ## Store forms (match the notice)
 
 - **Google Play Data safety:** precise location (collected, shared with the company on a job and on SOS, not for ads), email and

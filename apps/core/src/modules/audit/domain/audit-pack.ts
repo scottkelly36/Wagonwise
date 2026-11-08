@@ -11,7 +11,8 @@ export type EventKind =
   | 'defect_changed'
   | 'repair_booked'
   | 'repair_finished'
-  | 'maintenance_done';
+  | 'maintenance_done'
+  | 'due_date_changed';
 
 export type InvalidRange = TaggedError<'InvalidRange'>;
 
@@ -72,12 +73,32 @@ export interface RawDone {
   readonly recordedAt: Date;
 }
 
+/** One change of a defect's status, with who made it. A defect handled before the history was kept has at most one. */
+export interface RawDefectEvent {
+  readonly defectId: string;
+  readonly status: DefectStatus;
+  readonly at: Date;
+  readonly by: string | undefined;
+}
+
+/** One time a due date was entered or corrected by hand. */
+export interface RawDueChange {
+  readonly itemName: string;
+  /** `undefined` the first time a date was entered. */
+  readonly fromDue: string | undefined;
+  readonly toDue: string;
+  readonly changedAt: Date;
+  readonly changedBy: string | undefined;
+}
+
 export interface RawAuditData {
   readonly checks: readonly RawCheck[];
   readonly defects: readonly RawDefect[];
+  readonly defectEvents: readonly RawDefectEvent[];
   readonly repairs: readonly RawRepair[];
   readonly items: readonly RawItem[];
   readonly done: readonly RawDone[];
+  readonly dueChanges: readonly RawDueChange[];
 }
 
 /** How a person's id is shown: a driver by name (or the sign-in the office already sees), staff by their name. */
@@ -106,6 +127,7 @@ export interface AuditPack {
     readonly defectsNotFixed: number;
     readonly maintenanceDone: number;
     readonly maintenanceOverdue: number;
+    readonly dueDatesChanged: number;
   };
   readonly checks: readonly {
     readonly id: string;
@@ -128,6 +150,12 @@ export interface AuditPack {
     readonly status: DefectStatus;
     readonly lastChangeAt: Date | undefined;
     readonly lastChangeBy: string | undefined;
+    /** Every change of status, oldest first. */
+    readonly history: readonly {
+      readonly status: DefectStatus;
+      readonly at: Date;
+      readonly by: string | undefined;
+    }[];
     readonly repair:
       | {
           readonly title: string;
@@ -154,6 +182,14 @@ export interface AuditPack {
       readonly note: string | undefined;
       readonly by: string | undefined;
       readonly recordedAt: Date;
+    }[];
+    /** Every time a due date was entered or corrected by hand in the period, oldest first. */
+    readonly changes: readonly {
+      readonly item: string;
+      readonly from: string | undefined;
+      readonly to: string;
+      readonly at: Date;
+      readonly by: string | undefined;
     }[];
   };
   readonly timeline: readonly AuditEvent[];
@@ -211,14 +247,16 @@ const STATUS_TEXT: Record<DefectStatus, string> = {
   fixed: 'fixed',
 };
 
-/** `2026-11-03` as "3 Nov 2026", the way the portal writes a day. */
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * `2026-11-03` as "3 Nov 2026", the way the portal writes a day. The month names are written out here, not taken from the
+ * machine's locale data: some versions write September as "Sept" and some as "Sep", and the same report must read the same
+ * wherever it is made.
+ */
 export function dayText(day: string): string {
-  return new Date(`${day}T12:00:00.000Z`).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
+  const [year, month, date] = day.split('-').map(Number);
+  return `${date} ${MONTHS[(month ?? 1) - 1]} ${year}`;
 }
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
@@ -238,6 +276,10 @@ export function buildAuditPack(
 ): AuditPack {
   const today = ukDay(now);
   const repairByDefect = new Map(raw.repairs.map((r) => [r.defectId, r]));
+  const eventsByDefect = new Map<string, RawDefectEvent[]>();
+  for (const e of raw.defectEvents) {
+    eventsByDefect.set(e.defectId, [...(eventsByDefect.get(e.defectId) ?? []), e]);
+  }
 
   const checks = [...raw.checks]
     .sort((a, b) => a.submittedAt.getTime() - b.submittedAt.getTime())
@@ -267,6 +309,9 @@ export function buildAuditPack(
         status: d.status,
         lastChangeAt: d.statusChangedAt,
         lastChangeBy: names.staff(d.statusChangedBy),
+        history: [...(eventsByDefect.get(d.id) ?? [])]
+          .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .map((e) => ({ status: e.status, at: e.at, by: names.staff(e.by) })),
         repair:
           repair === undefined
             ? undefined
@@ -304,6 +349,16 @@ export function buildAuditPack(
       recordedAt: d.recordedAt,
     }));
 
+  const changes = [...raw.dueChanges]
+    .sort((a, b) => a.changedAt.getTime() - b.changedAt.getTime())
+    .map((c) => ({
+      item: c.itemName,
+      from: c.fromDue,
+      to: c.toDue,
+      at: c.changedAt,
+      by: names.staff(c.changedBy),
+    }));
+
   const events: AuditEvent[] = [];
   for (const c of checks) {
     events.push({
@@ -324,7 +379,19 @@ export function buildAuditPack(
         undefined,
       who: d.foundBy,
     });
-    if (d.lastChangeAt !== undefined) {
+    if (d.history.length > 0) {
+      // Every step, as it was made.
+      for (const step of d.history) {
+        events.push({
+          at: step.at,
+          kind: 'defect_changed',
+          title: `Defect marked ${STATUS_TEXT[step.status]}: ${d.item}`,
+          detail: undefined,
+          who: step.by,
+        });
+      }
+    } else if (d.lastChangeAt !== undefined) {
+      // Nothing in the history (a change from before it was kept that is not in it): the latest change is all there is.
       events.push({
         at: d.lastChangeAt,
         kind: 'defect_changed',
@@ -368,6 +435,18 @@ export function buildAuditPack(
       who: d.by,
     });
   }
+  for (const c of changes) {
+    events.push({
+      at: c.at,
+      kind: 'due_date_changed',
+      title:
+        c.from === undefined
+          ? `${c.item} due date set to ${dayText(c.to)}`
+          : `${c.item} due date changed from ${dayText(c.from)} to ${dayText(c.to)}`,
+      detail: undefined,
+      who: c.by,
+    });
+  }
   events.sort((a, b) => a.at.getTime() - b.at.getTime());
 
   return {
@@ -386,10 +465,11 @@ export function buildAuditPack(
       defectsNotFixed: defects.filter((d) => d.status !== 'fixed').length,
       maintenanceDone: done.length,
       maintenanceOverdue: items.filter((i) => i.state === 'overdue').length,
+      dueDatesChanged: changes.length,
     },
     checks,
     defects,
-    maintenance: { items, done },
+    maintenance: { items, done, changes },
     timeline: events,
   };
 }
