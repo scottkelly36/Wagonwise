@@ -10,7 +10,7 @@ import { useStaffAuthStore } from '../../state/staff-auth-store';
 
 const MINUTE = 60_000;
 
-/** A row of bars, one per day or week, with the first and last labelled. */
+/** A row of bars, one per day or week, each with its number above it and the first and last labelled. */
 function Bars({
   label,
   points,
@@ -25,8 +25,8 @@ function Bars({
     <div style={{ marginTop: 10 }}>
       <div
         role="img"
-        aria-label={label}
-        style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 64 }}
+        aria-label={`${label}: ${points.map((p) => `${format(p.key)} ${p.count}`).join(', ')}`}
+        style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 82 }}
       >
         {points.map((p, i) => (
           <div
@@ -34,13 +34,29 @@ function Bars({
             title={`${format(p.key)}: ${p.count}`}
             style={{
               flex: 1,
-              minHeight: 2,
-              height: `${Math.max(heights[i] ?? 0, 3)}%`,
-              background: 'var(--blue-600)',
-              opacity: p.count === 0 ? 0.25 : 1,
-              borderRadius: 2,
+              minWidth: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
             }}
-          />
+          >
+            <span
+              className={p.count === 0 ? 'muted' : undefined}
+              style={{ fontSize: 11, lineHeight: '14px', fontVariantNumeric: 'tabular-nums' }}
+            >
+              {p.count}
+            </span>
+            <div
+              style={{
+                width: '100%',
+                height: Math.max(Math.round((heights[i] ?? 0) * 0.64), 2),
+                background: 'var(--blue-600)',
+                opacity: p.count === 0 ? 0.25 : 1,
+                borderRadius: 2,
+              }}
+            />
+          </div>
         ))}
       </div>
       <div
@@ -159,6 +175,11 @@ export function AppUsage() {
                 tone: 'quiet',
               },
               { label: 'Phones set up for alerts', value: String(u.devices.total), tone: 'quiet' },
+              {
+                label: 'Trips started today',
+                value: String(u.tripsPerDay[u.tripsPerDay.length - 1]?.count ?? 0),
+                tone: 'quiet',
+              },
               { label: 'Trips running now', value: String(u.tripsRunningNow), tone: 'quiet' },
               { label: 'People waiting to test', value: String(u.testers.total), tone: 'quiet' },
             ]}
