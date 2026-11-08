@@ -22,6 +22,12 @@ describe('routingErrorMessage', () => {
     );
   });
 
+  it('says why there is no route, instead of "Something went wrong"', () => {
+    const message = routingErrorMessage(new ApiError('NoRouteFound', 422));
+    expect(message).toContain('No route found for this vehicle');
+    expect(message).toContain('weight, height or width limit');
+  });
+
   it('falls back to a generic message for an unrecognised tag', () => {
     expect(routingErrorMessage(new ApiError('SomeNewTag', 500))).toBe(
       'Something went wrong. Try again.',
