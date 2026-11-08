@@ -7,6 +7,8 @@ const ROUTING_MESSAGES: Record<string, string> = {
   RoutePlanNotFound: "That route isn't there any more. Plan it again.",
   TripAlreadyActive: 'You already have a trip in progress.',
   ActiveTripNotFound: "That trip isn't there any more.",
+  NoRouteFound:
+    "No route found for this vehicle. The road to or at the destination may have a weight, height or width limit it can't pass. Try a point on a nearby main road, or check the vehicle's measurements.",
 };
 
 export function routingErrorMessage(error: unknown): string {
