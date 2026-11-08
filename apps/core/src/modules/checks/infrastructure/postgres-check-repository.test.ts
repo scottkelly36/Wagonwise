@@ -13,7 +13,11 @@ const acme = makeId<'CompanyId'>('11111111-1111-4111-8111-111111111111');
 const beta = makeId<'CompanyId'>('22222222-2222-4222-8222-222222222222');
 const lorry = makeId<'FleetVehicleId'>('eeeeeeee-0000-4000-8000-000000000001');
 const staff = makeId<'StaffId'>('50000000-0000-4000-8000-000000000001');
-const CUTOFF = new Date('2026-01-01T00:00:00.000Z');
+// A check with nothing wrong goes before the first date; one that found a defect only before the second, which is earlier (it is kept longer).
+const CUTOFFS = {
+  clearBefore: new Date('2026-01-01T00:00:00.000Z'),
+  withDefectsBefore: new Date('2025-10-01T00:00:00.000Z'),
+};
 
 let n = 0;
 const uuid = (prefix: string): string =>
@@ -90,7 +94,7 @@ describe('PostgresCheckRepository.deleteOlderThan', () => {
       [old.check.id, acme],
     );
 
-    const removed = await repo().deleteOlderThan(acme, CUTOFF);
+    const removed = await repo().deleteOlderThan(acme, CUTOFFS);
     expect(removed).toBeGreaterThanOrEqual(1);
     expect(await exists(old.check.id)).toBe(false);
     expect(await rowsIn('check_photos', old.check.id)).toBe(0);
@@ -103,25 +107,47 @@ describe('PostgresCheckRepository.deleteOlderThan', () => {
     await repo().save(withDefect.check, withDefect.defectIds);
     const office = new PostgresOfficeCheckRepository(db);
 
-    await repo().deleteOlderThan(acme, CUTOFF);
+    await repo().deleteOlderThan(acme, CUTOFFS);
     expect(await exists(withDefect.check.id)).toBe(true);
 
     await office.setDefectStatus(defectId, 'acknowledged', staff, new Date());
-    await repo().deleteOlderThan(acme, CUTOFF);
+    await repo().deleteOlderThan(acme, CUTOFFS);
     expect(await exists(withDefect.check.id)).toBe(true);
 
     await office.setDefectStatus(defectId, 'fixed', staff, new Date());
-    await repo().deleteOlderThan(acme, CUTOFF);
+    await repo().deleteOlderThan(acme, CUTOFFS);
     expect(await exists(withDefect.check.id)).toBe(false);
     expect(await rowsIn('defects', withDefect.check.id)).toBe(0);
+  });
+
+  it('keeps a check that found a defect longer than one that found nothing: the legal minimum for defect reports', async () => {
+    const office = new PostgresOfficeCheckRepository(db);
+    // Both submitted in November 2025: after the defect date (October), before the clear date (January).
+    const between = { submittedAt: new Date('2025-11-15T08:00:00.000Z'), checkDay: '2025-11-15' };
+    const clear = check(between);
+    const fixedDefect = check(between, true);
+    // And one that found a defect, fixed, from before even the defect date.
+    const tooOld = check(
+      { submittedAt: new Date('2025-08-01T08:00:00.000Z'), checkDay: '2025-08-01' },
+      true,
+    );
+    for (const c of [clear, fixedDefect, tooOld]) await repo().save(c.check, c.defectIds);
+    await office.setDefectStatus(fixedDefect.defectIds[0] as string, 'fixed', staff, new Date());
+    await office.setDefectStatus(tooOld.defectIds[0] as string, 'fixed', staff, new Date());
+
+    await repo().deleteOlderThan(acme, CUTOFFS);
+    expect(await exists(clear.check.id)).toBe(false);
+    expect(await exists(fixedDefect.check.id)).toBe(true);
+    expect(await rowsIn('defects', fixedDefect.check.id)).toBe(1);
+    expect(await exists(tooOld.check.id)).toBe(false);
   });
 
   it('only touches the company it was asked about', async () => {
     const theirs = check({ companyId: beta });
     await repo().save(theirs.check, theirs.defectIds);
-    await repo().deleteOlderThan(acme, CUTOFF);
+    await repo().deleteOlderThan(acme, CUTOFFS);
     expect(await exists(theirs.check.id)).toBe(true);
-    await repo().deleteOlderThan(beta, CUTOFF);
+    await repo().deleteOlderThan(beta, CUTOFFS);
     expect(await exists(theirs.check.id)).toBe(false);
   });
 });

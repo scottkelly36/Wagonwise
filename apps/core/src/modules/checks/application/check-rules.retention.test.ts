@@ -78,9 +78,34 @@ describe('pruneOldChecks', () => {
     const removed = await pruneOldChecks({ settings, checks, clock }, [acme, beta]);
     expect(removed).toBe(4);
     expect(checks.deleteCalls).toEqual([
-      { companyId: acme, cutoff: new Date('2025-10-09T09:00:00.000Z') },
-      { companyId: beta, cutoff: new Date('2026-07-09T09:00:00.000Z') },
+      {
+        companyId: acme,
+        cutoffs: {
+          clearBefore: new Date('2025-10-09T09:00:00.000Z'),
+          withDefectsBefore: new Date('2025-07-09T09:00:00.000Z'),
+        },
+      },
+      {
+        companyId: beta,
+        cutoffs: {
+          clearBefore: new Date('2026-07-09T09:00:00.000Z'),
+          withDefectsBefore: new Date('2025-07-09T09:00:00.000Z'),
+        },
+      },
     ]);
+  });
+
+  it('never lets a short retention shorten how long a check that found a defect is kept: 15 months at the least', async () => {
+    const { settings, checks, clock } = setup();
+    await settings.save(beta, { ...DEFAULT_SETTINGS, retentionMonths: 1 }, staffId);
+    await settings.save(acme, { ...DEFAULT_SETTINGS, retentionMonths: 36 }, staffId);
+    await pruneOldChecks({ settings, checks, clock }, [acme, beta]);
+    const byCompany = Object.fromEntries(checks.deleteCalls.map((c) => [c.companyId, c.cutoffs]));
+    // One month: a check that found nothing goes after a month, a defect check after 15.
+    expect(byCompany[beta]?.clearBefore.toISOString()).toBe('2026-09-09T09:00:00.000Z');
+    expect(byCompany[beta]?.withDefectsBefore.toISOString()).toBe('2025-07-09T09:00:00.000Z');
+    // Three years: the firm's choice wins for both.
+    expect(byCompany[acme]?.withDefectsBefore.toISOString()).toBe('2023-10-09T09:00:00.000Z');
   });
 
   it('does nothing for no companies', async () => {

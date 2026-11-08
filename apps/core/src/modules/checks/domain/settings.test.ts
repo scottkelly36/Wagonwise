@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SETTINGS,
+  DEFECT_RECORD_MONTHS,
   isValidRetention,
   monthsAgo,
+  retentionCutoffs,
   startVerdict,
   type CheckSettings,
 } from './settings.js';
@@ -51,6 +53,27 @@ describe('retention', () => {
   it('accepts whole months from 1 to 120 and nothing else', () => {
     for (const ok of [1, 12, 120]) expect(isValidRetention(ok)).toBe(true);
     for (const bad of [0, -1, 121, 1.5, Number.NaN]) expect(isValidRetention(bad)).toBe(false);
+  });
+
+  it('keeps a check that found a defect at least 15 months, the legal minimum for defect reports, whatever the firm sets', () => {
+    expect(DEFECT_RECORD_MONTHS).toBe(15);
+    const now = new Date('2026-10-09T09:00:00.000Z');
+    // The default, and a short choice: nothing found goes at the firm's date, a defect check waits for 15 months.
+    for (const months of [12, 3, 1]) {
+      const cutoffs = retentionCutoffs(now, months);
+      expect(cutoffs.clearBefore).toEqual(monthsAgo(now, months));
+      expect(cutoffs.withDefectsBefore.toISOString()).toBe('2025-07-09T09:00:00.000Z');
+    }
+  });
+
+  it('lets a firm that chooses longer than 15 months keep a defect check as long as it chose', () => {
+    const now = new Date('2026-10-09T09:00:00.000Z');
+    const cutoffs = retentionCutoffs(now, 24);
+    expect(cutoffs.clearBefore.toISOString()).toBe('2024-10-09T09:00:00.000Z');
+    expect(cutoffs.withDefectsBefore.toISOString()).toBe('2024-10-09T09:00:00.000Z');
+    expect(retentionCutoffs(now, 15).withDefectsBefore.toISOString()).toBe(
+      '2025-07-09T09:00:00.000Z',
+    );
   });
 
   it('counts back whole calendar months in UTC', () => {

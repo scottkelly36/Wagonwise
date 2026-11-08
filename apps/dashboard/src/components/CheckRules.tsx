@@ -98,9 +98,15 @@ export function CheckRules({ companyId, canChange }: { companyId: string; canCha
             </select>
           </label>
           <p className="text-muted text-13">
-            After this, a check is deleted with its photos each day. You are in charge of these
-            records, and WagonWise deletes them on your say. A check with a defect not yet fixed is
-            kept until the defect is marked fixed.
+            After this, a check that found nothing wrong is deleted with its photos each day. You
+            are in charge of these records, and WagonWise deletes them on your say. DVSA recommends
+            keeping reports with nothing wrong for at least 3 months.
+          </p>
+          <p className="text-muted text-13">
+            <strong>A check that found a defect is always kept for at least 15 months,</strong> even
+            if you choose less: DVSA&apos;s guide to maintaining roadworthiness says drivers&apos;
+            defect reports, with the repair details, must be kept for at least 15 months. A check
+            with a defect not yet fixed is kept until the defect is marked fixed.
           </p>
           <p className="text-muted text-13">
             The two rules are off until you turn them on. A dispatcher moving a job is never held up
