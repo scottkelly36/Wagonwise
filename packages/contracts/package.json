@@ -64,6 +64,11 @@
       "import": "./dist/signups.js",
       "default": "./dist/signups.js"
     },
+    "./audit": {
+      "types": "./dist/audit.d.ts",
+      "import": "./dist/audit.js",
+      "default": "./dist/audit.js"
+    },
     "./sales": {
       "types": "./dist/sales.d.ts",
       "import": "./dist/sales.js",

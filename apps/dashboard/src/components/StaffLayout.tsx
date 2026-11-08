@@ -82,6 +82,7 @@ const SECTIONS: readonly NavSection[] = [
       { to: '/fleet/checks', label: 'Walk-round checks', shows: (s) => holds(s, 'manage_fleet') },
       { to: '/fleet/check-results', label: 'Check results', shows: seesChecks },
       { to: '/fleet/defects', label: 'Defects', shows: seesChecks },
+      { to: '/fleet/audit-pack', label: 'Audit pack', shows: seesChecks },
       {
         to: '/fleet/maintenance',
         label: 'Maintenance',
