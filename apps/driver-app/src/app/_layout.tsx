@@ -5,6 +5,7 @@ import { OfflineManager } from '@maplibre/maplibre-react-native';
 import { useEffect } from 'react';
 
 import { queryClient } from '../api/query-client';
+import { SignOutRedirect } from '../components/sign-out-redirect';
 import { UpdateBanner } from '../components/update-banner';
 import { useUpdateNoticeStore } from '../state/update-notice-store';
 import { useHazardQueueFlush } from '../hooks/use-hazard-queue-flush';
@@ -79,6 +80,7 @@ export default function RootLayout() {
           (docs/progress.md's field-testing backlog, 2026-09-25). */}
       <ThemeProvider value={mode === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack screenOptions={{ headerShown: false }} />
+        <SignOutRedirect />
         <UpdateBanner />
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       </ThemeProvider>
