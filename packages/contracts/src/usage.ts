@@ -15,6 +15,22 @@ export type ActivityDto = z.infer<typeof activitySchema>;
 export const dayCountSchema = z.object({ day: z.string(), count });
 export const weekCountSchema = z.object({ weekStart: z.string(), count });
 
+/**
+ * How far drivers have got, as counts of different drivers (nobody is named). Each stage is a count of drivers who have done
+ * that, so the figures can be compared with the number of accounts. Trips older than the route retention period (30 days) are
+ * deleted, so the trip figures cover that period.
+ */
+export const funnelSchema = z.object({
+  accounts: count,
+  signedIn: count,
+  hasVehicle: count,
+  plannedRoute: count,
+  startedTrip: count,
+  /** Started trips on two or more different UK days: the drivers who came back. */
+  startedTripOnTwoDays: count,
+});
+export type FunnelDto = z.infer<typeof funnelSchema>;
+
 export const usageFirmSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -36,6 +52,7 @@ export const usageReportSchema = z.object({
   staff: activitySchema,
   firms: z.object({ total: count, activeThisWeek: count }),
   devices: z.object({ total: count }),
+  funnel: funnelSchema,
   tripsRunningNow: count,
   /** The last 14 UK days, oldest first, days with none included. */
   tripsPerDay: z.array(dayCountSchema),

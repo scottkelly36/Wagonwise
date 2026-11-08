@@ -5,7 +5,7 @@ import { ErrorNotice } from '../../components/ErrorNotice';
 import * as usageApi from '../../api/usage';
 import { DataTable, type Column } from '../../components/DataTable';
 import { HomeNote, HomePanel, HomeRows } from '../../components/HomeParts';
-import { ago, barHeights, shortDay } from '../../lib/usage';
+import { ago, barHeights, shortDay, withShare } from '../../lib/usage';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
 const MINUTE = 60_000;
@@ -188,6 +188,42 @@ export function AppUsage() {
       </div>
 
       <div className="home-panels" style={{ marginTop: 14 }}>
+        <section className="home-panel">
+          <h2>Where drivers get to</h2>
+          <HomeRows
+            rows={[
+              { label: 'Made an account', value: String(u.funnel.accounts), tone: 'quiet' },
+              {
+                label: 'Signed in',
+                value: withShare(u.funnel.signedIn, u.funnel.accounts),
+                tone: 'quiet',
+              },
+              {
+                label: 'Chose a vehicle',
+                value: withShare(u.funnel.hasVehicle, u.funnel.accounts),
+                tone: 'quiet',
+              },
+              {
+                label: 'Planned a route',
+                value: withShare(u.funnel.plannedRoute, u.funnel.accounts),
+                tone: 'quiet',
+              },
+              {
+                label: 'Started a trip',
+                value: withShare(u.funnel.startedTrip, u.funnel.accounts),
+                tone: 'quiet',
+              },
+              {
+                label: 'Drove on two different days',
+                value: withShare(u.funnel.startedTripOnTwoDays, u.funnel.accounts),
+                tone: 'quiet',
+              },
+            ]}
+          />
+          <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+            Different drivers, not trips. Test accounts count. Trips are kept for 30 days.
+          </p>
+        </section>
         <section className="home-panel">
           <h2>Trips started, last 14 days</h2>
           <Bars
