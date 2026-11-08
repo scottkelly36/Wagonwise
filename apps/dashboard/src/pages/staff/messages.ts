@@ -93,6 +93,12 @@ const MESSAGES: Record<string, string> = {
   InvalidMeasurement: 'A measurement has to be a number above zero.',
   NoRouteForVehicle:
     'No route found for that vehicle between the stops. It may be too tall, wide or heavy for the roads.',
+  OptedOut:
+    'That firm asked not to be contacted. It stays on the list as a reminder, so it cannot be logged against, moved back or deleted.',
+  AlreadyListed: 'A firm with that name is already on the list.',
+  InvalidProspect: 'Check the firm: it needs a name, and the next step date has to be a real date.',
+  InvalidEntry:
+    'Check the entry: pick how and what came of it, and use a real date for the next step.',
 };
 
 const TRY_AGAIN = 'Something went wrong on our side. Please try again in a moment.';

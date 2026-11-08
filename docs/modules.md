@@ -521,6 +521,34 @@ the platform scope and reads counts across identity, companies, fleet, jobs, che
 `PostgresUsageReader` (the read-model adapter, AGENTS.md rule 7). Dashboard page `/admin/usage`. Real-RLS test:
 `composition/usage-end-to-end.test.ts`.
 
+## Sales notebook (admin, 2026-11-08)
+
+`apps/core/src/modules/sales` (migration 0084): WagonWise's own list of the haulage firms being approached and a log of each
+contact, for platform staff only. Tables `sales.prospects` and `sales.entries`, both readable only in the platform scope (the
+same Row-Level Security as `signups.testers`); the dashboard page is `/admin/sales`, under Customers. **It records and sends
+nothing:** no email, no message, no call. Routes (all `/staff/sales...`, core checks platform staff in the use case, the BFF
+only passes them on): `GET` the whole list with every entry, `POST` and `PUT` and `DELETE /prospects`, `POST /prospects/:id/entries`,
+`DELETE /entries/:id`, `POST /import`.
+
+- **Stage** (`sales/domain/sales.ts`): not contacted, contacted, replied, conversation, demo, pilot, paying, then the two that end
+  it, not interested and do not contact. A logged contact moves the stage by its result (`stageAfterEntry`): the pipeline only goes
+  forward, a "no" or an opt-out always applies, and a firm that said no and then replies is back in. The owner can also set the stage.
+- **Do not contact is for good.** A firm in that stage refuses a new entry, a move back, and deletion (`OptedOut`, 409); its other
+  details can still be edited, so a phone number can be removed and the record kept as the reminder. The page asks first.
+- **A log entry** has a date, how (phone, email, Facebook, in person), what came of it, **the one problem led with** (a short list,
+  so the page can show which pitch gets replies) and a note. The firm's next step and its date are saved with the entry and replace
+  the old ones. Names are unique in any case, so an import run twice adds nothing the second time.
+- **The page's rules live in `dashboard/src/lib/sales.ts`** (pure, tested): the week's counts against the targets (each counts
+  firms, not entries; a firm is "contacted" in the week of its first entry); **Do today** (a next step whose day has come, then
+  one follow-up seven days after a first message with no reply, never a second); the contact hint on each firm (limited company:
+  may email its mailbox, with who you are and an opt-out; sole trader or partnership: phone only; not checked: check Companies
+  House first; about 100 lorries or more: wait for the finished product unless introduced); the pitch summary.
+- **Import** reads a CSV in the browser (`readFirmsCsv`; columns found by heading, only Name needed; a "Contact details (public)"
+  column is split into phone and mailbox) and sends up to 200 rows at a time. The server reads each cell leniently and never
+  guesses the kind of business: only "Ltd" or "Limited" makes it a limited company. The firms are the owner's, not in the repo.
+- Tests: `application/sales.test.ts` (in-memory), `composition/sales-end-to-end.test.ts` (real Postgres and RLS), and
+  `dashboard/src/lib/sales.test.ts`.
+
 ## Parking spots (portal)
 
 `apps/core/src/modules/parking`: besides drivers' reports, WagonWise staff manage spots at `/admin/parking` (core routes under

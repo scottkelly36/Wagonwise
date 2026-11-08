@@ -22,26 +22,30 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 - **Built since, from field testing** (details in `history/log.md`): speed limits, cameras and traffic on the trip screen; hazards
   only when on the route and ahead, and not when on a road that crosses it; public places with a review screen, and Just me or My
   company when marking; SOS (hold a button, the company is told where you are); batch invite codes; iOS preparation.
-- **Phase 4:** idea list only (`ideas.md`).
+- **Phase 4:** idea list only (`ideas.md`), apart from the **Sales page** in the admin portal (2026-11-08): the owner's notebook of the
+  firms being approached, a log of each contact, what is due today, and the week against the targets. It sends nothing (`modules.md`).
 
 ## Next up
 
-0. **Driver sign-in without invite codes** (plan: `docs/driver-sign-in-plan.md`). Server, driver BFF and the app's password screens are built behind switches (2026-11-01 and 2026-11-04; JavaScript only, so over the air; not tried on a phone); Google/Apple (a store build) and the owner's Google/Apple set-up are not. Nothing ships until after the store release.
-1. **App stores** (owner). Apple: the WagonWise Ltd developer account was approved 2026-10-28 (Team ID in `eas.json`); next is
+0. **Sales page: load the firms once it is live** (owner). After the pull request is merged and core and the portal have deployed,
+   open Admin, Sales, Import from a spreadsheet, and choose `E:/projects/wagonwise-sales/prospects-import.csv` (39 firms from the
+   prospects workbook, plus Griffins from the sales log). Log each contact there from then on. Fleet sizes are estimates; each firm's notes say how sure.
+1. **Driver sign-in without invite codes** (plan: `docs/driver-sign-in-plan.md`). Server, driver BFF and the app's password screens are built behind switches (2026-11-01 and 2026-11-04; JavaScript only, so over the air; not tried on a phone); Google/Apple (a store build) and the owner's Google/Apple set-up are not. Nothing ships until after the store release.
+2. **App stores** (owner). Apple: the WagonWise Ltd developer account was approved 2026-10-28 (Team ID in `eas.json`); next is
    `deployment-guide.md` section 9c, the first TestFlight build (voice, push and SOS on iOS are untested). Google Play: the closed test runs
    with about 25 testers, and 12 or more must stay opted in for 14 days in a row before applying for production access. The
    testers' reports came back 2026-11-04 (no crashes): sign-out check, Rate and Share rows and plainer wording are done;
    a new store listing is in `play-store-listing.md`; the **first-run walkthrough** is the one suggestion left. Answer the
    production-access form from what was really done, not the provider's template.
-2. **Before the pilot, no code:** the privacy notice and the in-app summary were brought up to date on 2026-11-04 (SOS, shared
+3. **Before the pilot, no code:** the privacy notice and the in-app summary were brought up to date on 2026-11-04 (SOS, shared
    places, checks, what3words, DVSA; `docs/privacy-review.md`). Still to do: deploy the landing site, update the DPA and DPIA and the
    Play and Apple store forms from that file, fill the `[brackets]`, get a solicitor to review; register with the ICO; the restriction audit around Hexham; turn on Resend
    failure alerts (the webhook is built); **rotate every production secret that was pasted into a chat** before launch
    (rotating `STAFF_SECRET_KEY` makes staff enrol again).
-3. **Check on real devices** (none of these has been tried on a phone yet): hold-to-send SOS and its cancel, the portal strip and the
+4. **Check on real devices** (none of these has been tried on a phone yet): hold-to-send SOS and its cancel, the portal strip and the
    email; 3 words on Where to?; Share with all drivers, Make private, Report, and the Reported places page; the A69 bridge and
    crossing-road fix; push notifications; voice with accents and cab noise.
-4. **Small code left:** (what3words is on _Where to?_, SOS and the portal job form; _From_ by three words in the driver app is **not planned unless a driver asks**, owner 2026-10-26); road tax by registration is **parked** (DVLA is not taking new applications for its Vehicle Enquiry Service key and the API is in beta, as the owner found on 2026-10-26; tax dates stay a typed or imported date, and the code is ready if a key ever arrives) (MOT comes from DVSA,
+5. **Small code left:** (what3words is on _Where to?_, SOS and the portal job form; _From_ by three words in the driver app is **not planned unless a driver asks**, owner 2026-10-26); road tax by registration is **parked** (DVLA is not taking new applications for its Vehicle Enquiry Service key and the API is in beta, as the owner found on 2026-10-26; tax dates stay a typed or imported date, and the code is ready if a key ever arrives) (MOT comes from DVSA,
    which is on); a tachograph source for driver hours (waits on what the pilot's lorries have). Unscheduled ideas in
    `ideas.md` (for example email and password sign-in for drivers) are not in this list.
 

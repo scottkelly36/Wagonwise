@@ -6,6 +6,7 @@ import type { Config } from '../config.js';
 import { createChecksModule, type UntypedDb as ChecksUntypedDb } from '../modules/checks/api.js';
 import { createUsageModule, type UntypedDb as UsageUntypedDb } from '../modules/usage/api.js';
 import { createEmailAlertsModule } from '../modules/emailalerts/api.js';
+import { createSalesModule, type UntypedDb as SalesUntypedDb } from '../modules/sales/api.js';
 import { createSignupsModule, type UntypedDb as SignupsUntypedDb } from '../modules/signups/api.js';
 import { createCostingModule, type UntypedDb as CostingUntypedDb } from '../modules/costing/api.js';
 import { createHoursModule, type UntypedDb as HoursUntypedDb } from '../modules/hours/api.js';
@@ -250,6 +251,7 @@ export function composeCore(
   const hoursDb: HoursUntypedDb = identityDb;
   const costingDb: CostingUntypedDb = identityDb;
   const signupsDb: SignupsUntypedDb = identityDb;
+  const salesDb: SalesUntypedDb = identityDb;
   const usageDb: UsageUntypedDb = identityDb;
   const fleetDb: FleetUntypedDb = identityDb;
   const jobsDb: JobsUntypedDb = identityDb;
@@ -495,6 +497,14 @@ export function composeCore(
       newInviteCode: () => identity.newInviteCode(),
       sendEmail: (to, subject, text, html) => identity.sendEmail(to, subject, text, html),
     },
+  });
+  // WagonWise's own sales notebook (firms being approached, a log of each contact): WagonWise staff only.
+  const sales = createSalesModule({
+    db: salesDb,
+    ids,
+    clock,
+    dataScopes,
+    callers: { getCaller: staffCaller },
   });
   // Told by the driver BFF when Resend reports an email that did not get through: logged, and the owner is emailed (if an
   // alert address is set) through the same sender that carries sign-in codes.
@@ -924,6 +934,7 @@ export function composeCore(
   hours.registerRoutes(app);
   costing.registerRoutes(app);
   signups.registerRoutes(app);
+  sales.registerRoutes(app);
   emailAlerts.registerRoutes(app);
   usage.registerRoutes(app);
   weather.registerRoutes(app);
