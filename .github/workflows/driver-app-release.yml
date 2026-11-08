@@ -40,6 +40,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  actions: read # the decide step looks up the pull request's CI run (`gh run list`)
 
 # One release at a time, and never cancel one halfway through a build or an upload.
 concurrency:
