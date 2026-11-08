@@ -115,6 +115,7 @@ describe('runMigrations', () => {
       '0083_closures.sql',
       '0084_sales.sql',
       '0085_audit_history.sql',
+      '0086_route_plan_weight_limit.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -308,6 +309,7 @@ describe('runMigrations', () => {
       '0083_closures.sql',
       '0084_sales.sql',
       '0085_audit_history.sql',
+      '0086_route_plan_weight_limit.sql',
     ]);
   });
 });

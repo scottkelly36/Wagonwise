@@ -20,6 +20,17 @@ export interface Dimensions {
   readonly axleWeightT?: number | undefined;
 }
 
+/** The weight the routing engine is given to find a route that ignores weight limits. Weight is only ever used to
+ *  check signed limits (a `maxweight` on a road), so a light figure lets the route use them. It is never shown or
+ *  stored; a route found this way is always marked as breaking a weight limit. */
+const WEIGHT_LIMITS_IGNORED_T = 3.5;
+
+/** The same vehicle as far as height, width and length go, but light enough that no weight limit stops the route. Only for
+ *  the second try, after a route for the real weight was not found, and never without telling the driver. */
+export function withoutWeightLimits(d: Dimensions): Dimensions {
+  return { ...d, grossWeightT: WEIGHT_LIMITS_IGNORED_T, axleWeightT: undefined };
+}
+
 export interface VehicleProfile {
   readonly id: VehicleProfileId;
   readonly driverId: DriverId;

@@ -16,6 +16,9 @@ export interface RouteOption {
    *  labels rather than being arbitrarily assigned just one, so the driver isn't shown two
    *  identical-looking cards for what's really a single route. */
   readonly labels: readonly RouteOptionLabel[];
+  /** True when no route exists for the vehicle's real weight and this one was found by ignoring weight limits: it goes
+   *  past a signed weight limit somewhere. Absent (not false) for an ordinary route. */
+  readonly breaksWeightLimit?: boolean | undefined;
 }
 
 interface Candidate {

@@ -41,4 +41,7 @@ export interface RoutePlan {
    *  100) × fuelPricePerLitreGBP`. Undefined whenever the profile this plan was made from has no
    *  `fuelConsumptionL100km` set — never a guessed or default consumption figure. */
   readonly estimatedFuelCostGBP?: number | undefined;
+  /** True when no route existed for the vehicle's real weight, and the driver chose to go anyway: the route goes past a signed
+   *  weight limit somewhere (it may allow access for deliveries; the engine cannot tell). Absent for an ordinary route. */
+  readonly breaksWeightLimit?: boolean | undefined;
 }

@@ -138,6 +138,14 @@ extract each time so it also tests against Geofabrik's current data.
 - **On the map:** each camera has a round purple marker (police badge for a mobile one), drawn by `route-map.tsx` from `lib/camera-markers.ts`, which joins the map-data cameras along the route with the camera hazards drivers marked (a map-data camera within 40 m of a fixed driver-marked one is dropped) and keeps camera hazards out of the hazard markers.
 - **App:** `use-route-cameras.ts` asks once per route; `cameraOffsets` places each camera along the route once; `nextCameraAhead` picks the next one within 500 m of the driver's progress (nothing once off the route). `CameraWarningCard` shows it above the speed sign, bottom-left, and `use-camera-voice-warning.ts` says "Speed camera ahead" once per camera (muted with the rest of the guidance).
 
+### A route past a weight limit (2026-11-08)
+
+When no route exists for a vehicle's real weight, the preview (`previewRouteOptions`) tries once more with the weight limit ignored (`withoutWeightLimits`: 3.5 t, no axle weight; height, width and length are never relaxed) and marks every option `breaksWeightLimit`. Nothing changes when a normal route exists. The app shows a banner and a "Goes past a weight limit" line on each card, and a tap asks "Go anyway?" before anything is planned.
+
+- **Only on purpose:** `POST /routing/route-plans` makes such a route only when the request carries `acceptWeightLimit: true`, the strict route is tried first, and the plan keeps `breaks_weight_limit` (migration 0086; the route overview shows the warning). A job's route, a re-plan or a mid-trip reroute never sets it, so they still say "no route" rather than quietly go past a limit.
+- **What it cannot tell:** whether a signed limit allows access (many say "except for access"); Valhalla only reports that no route exists. It does not say which limit or where. Naming the road would need OpenStreetMap tags core does not hold.
+- **Why:** a driver (vehicle "Tank") could not plan to Lloyd Maunder Road, Willand; OpenStreetMap has `maxweight=17` there, a lighter weight routed and a heavier one did not.
+
 ## Hazards
 
 `hazards` (M3) — driver-reported obstructions (low bridges, weight/width limits, roadworks,
