@@ -13,7 +13,6 @@ import {
 } from '../domain/geo.js';
 import { describeAvoidedOverride, toReportedObstruction } from '../domain/restriction-override.js';
 import { estimateFuelCostGBP } from '../domain/route-option.js';
-import type { Maneuver } from '../domain/maneuver.js';
 import type { RoutePlan } from '../domain/route-plan.js';
 import {
   withoutWeightLimits,
