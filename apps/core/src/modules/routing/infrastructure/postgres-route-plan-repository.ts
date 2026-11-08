@@ -23,6 +23,7 @@ interface RoutePlanRow {
   readonly maneuvers: Maneuver[];
   readonly created_at: Date;
   readonly estimated_fuel_cost_gbp: number | null;
+  readonly breaks_weight_limit: boolean;
 }
 
 function toDomain(row: RoutePlanRow): RoutePlan {
@@ -39,6 +40,7 @@ function toDomain(row: RoutePlanRow): RoutePlan {
     maneuvers: row.maneuvers,
     hazardsOnRoute: row.hazards_on_route,
     createdAt: row.created_at,
+    ...(row.breaks_weight_limit ? { breaksWeightLimit: true } : {}),
     ...(row.estimated_fuel_cost_gbp === null
       ? {}
       : { estimatedFuelCostGBP: row.estimated_fuel_cost_gbp }),
@@ -48,7 +50,7 @@ function toDomain(row: RoutePlanRow): RoutePlan {
 const SELECT_COLUMNS = `
   id, driver_id, profile_id, origin_lat, origin_lon, destination_lat, destination_lon,
   geometry, distance_km, duration_min, avoided_restrictions, hazards_on_route, created_at,
-  estimated_fuel_cost_gbp, maneuvers
+  estimated_fuel_cost_gbp, maneuvers, breaks_weight_limit
 `;
 
 /** Raw `sql` tagged-template queries, not Kysely's typed query builder — same reasoning as
@@ -74,13 +76,14 @@ export class PostgresRoutePlanRepository implements RoutePlanRepository {
       insert into routing.route_plans
         (id, driver_id, profile_id, origin_lat, origin_lon, destination_lat, destination_lon,
          geometry, geometry_geog, distance_km, duration_min, avoided_restrictions,
-         hazards_on_route, created_at, estimated_fuel_cost_gbp, maneuvers)
+         hazards_on_route, created_at, estimated_fuel_cost_gbp, maneuvers, breaks_weight_limit)
       values (
         ${plan.id}, ${plan.driverId}, ${plan.profileId},
         ${plan.origin.lat}, ${plan.origin.lon}, ${plan.destination.lat}, ${plan.destination.lon},
         ${plan.geometry}, ${geog}, ${plan.distanceKm}, ${plan.durationMin},
         ${JSON.stringify(plan.avoidedRestrictions)}, ${JSON.stringify(plan.hazardsOnRoute)},
-        ${plan.createdAt}, ${plan.estimatedFuelCostGBP ?? null}, ${JSON.stringify(plan.maneuvers)}::jsonb
+        ${plan.createdAt}, ${plan.estimatedFuelCostGBP ?? null}, ${JSON.stringify(plan.maneuvers)}::jsonb,
+        ${plan.breaksWeightLimit === true}
       )
     `.execute(this.db);
   }
@@ -97,7 +100,7 @@ export class PostgresRoutePlanRepository implements RoutePlanRepository {
       select rp.id, rp.driver_id, rp.profile_id, rp.origin_lat, rp.origin_lon,
              rp.destination_lat, rp.destination_lon, rp.geometry, rp.distance_km,
              rp.duration_min, rp.avoided_restrictions, rp.hazards_on_route, rp.created_at,
-             rp.estimated_fuel_cost_gbp, rp.maneuvers
+             rp.estimated_fuel_cost_gbp, rp.maneuvers, rp.breaks_weight_limit
       from routing.route_plans rp
       where rp.created_at >= ${since}
         and rp.geometry_geog is not null

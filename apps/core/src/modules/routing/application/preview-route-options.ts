@@ -1,7 +1,11 @@
 import { err, ok, type Result } from '../../../shared/result.js';
 import { buildRouteOptions, type RouteOption } from '../domain/route-option.js';
 import type { GeoPoint } from '../domain/geo.js';
-import type { DriverId, VehicleProfileId } from '../domain/vehicle-profile.js';
+import {
+  withoutWeightLimits,
+  type DriverId,
+  type VehicleProfileId,
+} from '../domain/vehicle-profile.js';
 import type { VehicleProfileNotFound } from './errors.js';
 import type { NoRouteFound, RoutingEngine } from './ports/routing-engine.js';
 import type { VehicleProfileRepository } from './ports/vehicle-profile-repository.js';
@@ -38,17 +42,38 @@ export async function previewRouteOptions(
     return err({ tag: 'VehicleProfileNotFound' });
   }
 
-  const alternatives = await deps.routingEngine.routeAlternatives({
+  const request = {
     origin: input.origin,
     destination: input.destination,
     dimensions: profile.dimensions,
     avoid: [],
-  });
-  if (!alternatives.ok) {
-    return alternatives;
+  };
+  const alternatives = await deps.routingEngine.routeAlternatives(request);
+  if (alternatives.ok) {
+    return ok(
+      buildRouteOptions(
+        alternatives.value,
+        profile.fuelConsumptionL100km,
+        deps.fuelPricePerLitreGBP,
+      ),
+    );
   }
 
+  // Only when there is no route for the real weight: look for one that ignores weight limits, and mark it so the driver is
+  // warned and has to choose it. A signed limit may still allow access for a delivery; the engine cannot tell. Height and
+  // width are never relaxed, so a route that fails for those stays "no route".
+  const ignoringWeight = await deps.routingEngine.routeAlternatives({
+    ...request,
+    dimensions: withoutWeightLimits(profile.dimensions),
+  });
+  if (!ignoringWeight.ok) {
+    return alternatives;
+  }
   return ok(
-    buildRouteOptions(alternatives.value, profile.fuelConsumptionL100km, deps.fuelPricePerLitreGBP),
+    buildRouteOptions(
+      ignoringWeight.value,
+      profile.fuelConsumptionL100km,
+      deps.fuelPricePerLitreGBP,
+    ).map((option) => ({ ...option, breaksWeightLimit: true })),
   );
 }

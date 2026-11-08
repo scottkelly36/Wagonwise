@@ -379,4 +379,105 @@ describe('planRoute', () => {
     expect(engine.alternativesRequests).toEqual([]);
     expect(engine.requests).toEqual([{ origin, destination, dimensions, avoid: [] }]);
   });
+
+  describe('a route past a weight limit', () => {
+    const noRoute = { ok: false, error: { tag: 'NoRouteFound' } } as const;
+    const light = {
+      ok: true,
+      value: { geometry: 'light-route', distanceKm: 8, durationMin: 12, maneuvers: [] },
+    } as const;
+
+    it('is never made unless the driver chose it', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      engine.results = [noRoute];
+
+      const result = await planRoute(deps, { driverId, profileId, origin, destination });
+
+      expect(result).toEqual({ ok: false, error: { tag: 'NoRouteFound' } });
+      expect(engine.requests).toHaveLength(1);
+    });
+
+    it('is made, marked and saved when the driver chose it and no route keeps to the weight', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      engine.results = [noRoute, light];
+
+      const result = await planRoute(deps, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        acceptWeightLimit: true,
+      });
+
+      expect(result.ok && result.value.breaksWeightLimit).toBe(true);
+      expect(result.ok && result.value.geometry).toBe('light-route');
+      expect(engine.requests[0]?.dimensions).toEqual(dimensions);
+      expect(engine.requests[1]?.dimensions.grossWeightT).toBe(3.5);
+      const stored = await deps.routePlanRepo.findById(
+        makeId<'RoutePlanId'>('00000000-0000-4000-8000-000000000001'),
+      );
+      expect(stored?.breaksWeightLimit).toBe(true);
+    });
+
+    it('is not used when a route for the real weight exists, even if the driver chose it', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+
+      const result = await planRoute(deps, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        acceptWeightLimit: true,
+      });
+
+      expect(result.ok && result.value.breaksWeightLimit).toBeUndefined();
+      expect(engine.requests).toHaveLength(1);
+    });
+
+    it('stays "no route" when height or width is the problem, whatever the driver chose', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      engine.results = [noRoute, noRoute];
+
+      const result = await planRoute(deps, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        acceptWeightLimit: true,
+      });
+
+      expect(result).toEqual({ ok: false, error: { tag: 'NoRouteFound' } });
+    });
+
+    it('keeps the same relaxed dimensions when a later pass re-plans around a hazard', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      engine.results = [noRoute, light, light];
+      (deps.hazardAvoidanceQuery as FakeHazardAvoidanceQuery).obstructions = [
+        {
+          id: 'hazard-1',
+          kind: 'height',
+          limit: 3.5,
+          zone: { points: [{ lat: 54.97, lon: -2.1 }] },
+        } satisfies ReportedObstruction,
+      ];
+
+      const result = await planRoute(deps, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        acceptWeightLimit: true,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(engine.requests).toHaveLength(3);
+      expect(engine.requests[2]?.dimensions.grossWeightT).toBe(3.5);
+      expect(engine.requests[2]?.avoid.length).toBeGreaterThan(0);
+    });
+  });
 });

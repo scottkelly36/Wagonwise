@@ -3,6 +3,7 @@ import { makeId } from '../../../shared/brand.js';
 import type { CheckPhoto, CheckRepository } from '../application/ports/check-repository.js';
 import type { CheckItem, CheckTemplateId, CompanyId, VehicleId } from '../domain/check-template.js';
 import type { Answer, Check, CheckId, CheckResult, Defect } from '../domain/check.js';
+import type { RetentionCutoffs } from '../domain/settings.js';
 import type { UntypedDb } from './db.js';
 
 interface CheckRow {
@@ -110,12 +111,18 @@ export class PostgresCheckRepository implements CheckRepository {
     }
   }
 
-  async deleteOlderThan(companyId: CompanyId, cutoff: Date): Promise<number> {
-    // The photos and defects go with the check (on delete cascade). A check that still has a defect open or only
-    // seen stays: an unresolved fault must not be lost to the clock.
+  async deleteOlderThan(companyId: CompanyId, cutoffs: RetentionCutoffs): Promise<number> {
+    // The photos and defects go with the check (on delete cascade). A check that found a defect has its own, later date (the
+    // legal minimum for defect reports), and one that still has a defect open or only seen stays: an unresolved fault must
+    // not be lost to the clock.
     const { rows } = await sql<{ id: string }>`
       delete from checks.checks c
-      where c.company_id = ${companyId} and c.submitted_at < ${cutoff}
+      where c.company_id = ${companyId}
+        and c.submitted_at < case
+          when exists (select 1 from checks.defects d where d.check_id = c.id)
+            then ${cutoffs.withDefectsBefore}::timestamptz
+          else ${cutoffs.clearBefore}::timestamptz
+        end
         and not exists (
           select 1 from checks.defects d where d.check_id = c.id and d.status <> 'fixed'
         )

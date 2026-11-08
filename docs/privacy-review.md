@@ -9,7 +9,7 @@ Not legal advice. This is the list to take to a solicitor and to use when fillin
   in, vehicle, job, position, three words, time), to whom (the company the driver drives for, by email and a portal alert), how long
   (30 days after it closes; deleted with the account), and that WagonWise does not contact the emergency services.
 - **Places a driver marks,** including Share with all drivers and the three-reports rule.
-- **Walk-round checks:** a row, with the company's retention (1 to 120 months, 12 by default).
+- **Walk-round checks:** a row, with the company's retention (1 to 120 months, 12 by default). **A check that found a defect is always kept at least 15 months** (the legal minimum for drivers' defect reports in DVSA's guide, 2026-11-08), so the notice says so; a check with nothing wrong goes at the company's choice.
 - **Staff mobile number** (for text reminders) in the staff row.
 - **Fuel stations** added to what the driver's position is used for.
 - **Services:** what3words and DVSA added to the table; Resend and ClickSend now also cover SOS emails and maintenance reminders. A
@@ -67,7 +67,7 @@ are personal data. It is not drivers' data and never touches the app.
 The audit pack (Compliance) shows who changed a defect's status and who entered or corrected a maintenance date. The history is kept in
 `checks.defect_events` and `maintenance.date_changes` as the staff account's id and a time, never a name; the name is looked up when a pack is
 made, so a person who has left shows as "Someone no longer on the account". Staff are the company's own employees acting for the company.
-A check's defect history is deleted with the check, by the company's retention (12 months unless it chooses otherwise). The date changes are
+A check's defect history is deleted with the check: a check that found a defect after the longer of the company's retention and 15 months. The date changes are
 **not** deleted by any retention rule today. Question for the solicitor: how long should they be kept? The pack can be handed to an inspector
 or another third party by the company; the notice does not need to change for that, but the company should know the names are in it.
 

@@ -1,5 +1,6 @@
 import type { CheckTemplateId, CompanyId, VehicleId } from '../../domain/check-template.js';
 import type { Check, CheckId } from '../../domain/check.js';
+import type { RetentionCutoffs } from '../../domain/settings.js';
 
 export interface CheckPhoto {
   readonly contentType: string;
@@ -16,8 +17,9 @@ export interface CheckRepository {
   /** A retake replaces the earlier photo for the same question. */
   savePhoto(check: Check, itemId: string, photo: CheckPhoto, at: Date): Promise<void>;
   /**
-   * Deletes the company's checks submitted before `cutoff`, with their photos and defects, except those that still have
-   * a defect open or seen. Returns how many were deleted.
+   * Deletes the company's checks, with their photos and defects: a check that found nothing once it was submitted before
+   * `clearBefore`, and a check that found a defect once it was submitted before `withDefectsBefore`. Never one that still has a
+   * defect open or seen. Returns how many were deleted.
    */
-  deleteOlderThan(companyId: CompanyId, cutoff: Date): Promise<number>;
+  deleteOlderThan(companyId: CompanyId, cutoffs: RetentionCutoffs): Promise<number>;
 }

@@ -85,6 +85,9 @@ export const planRouteRequestSchema = z.object({
   /** Which way the vehicle is heading, degrees clockwise from north, when it is already moving. The
    *  route then starts in that direction rather than asking for a U-turn (re-planning mid-drive). */
   originHeadingDeg: z.number().min(0).max(360).optional(),
+  /** The driver has been told no route exists for the vehicle's weight and chose one past a weight limit anyway (shown by
+   *  `breaksWeightLimit` on a previewed option). Without it only a route for the real weight is made. */
+  acceptWeightLimit: z.boolean().optional(),
 });
 export type PlanRouteRequest = z.infer<typeof planRouteRequestSchema>;
 
@@ -105,6 +108,8 @@ export const routeOptionSchema = z.object({
   durationMin: z.number(),
   estimatedFuelCostGBP: z.number().optional(),
   labels: z.array(z.enum(['fastest', 'shortest'])).min(1),
+  /** Present and true when no route exists for the vehicle's weight and this one goes past a weight limit. */
+  breaksWeightLimit: z.boolean().optional(),
 });
 export type RouteOptionDto = z.infer<typeof routeOptionSchema>;
 
@@ -175,6 +180,8 @@ export const routePlanSchema = z.object({
   hazardsOnRoute: z.array(z.string()),
   createdAt: z.iso.datetime(),
   estimatedFuelCostGBP: z.number().optional(),
+  /** Present and true when the driver chose a route past a weight limit because none existed for the vehicle's weight. */
+  breaksWeightLimit: z.boolean().optional(),
 });
 export type RoutePlanDto = z.infer<typeof routePlanSchema>;
 
