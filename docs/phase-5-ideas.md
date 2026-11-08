@@ -348,7 +348,8 @@ The two open tracks from the driver hours work (`phase-3-scope.md`, "Driver hour
 ### E. The driver app, further
 
 - **iOS** (blocked on the Apple account and company registration, `progress.md`, M5.10).
-- **Android Auto and Apple CarPlay,** so the app is on the cab screen rather than a phone on a mount.
+- **Android Auto and Apple CarPlay,** so the app is on the cab screen rather than a phone on a mount. **Moved up on 2026-11-08** (drivers
+  asked): scope and findings in `car-screen-scope.md`, order in `progress.md`.
 - **Offline maps** for the gaps in signal.
 - **Other languages** (many drivers read Polish or Romanian better than English). Spoken directions in more languages.
 - **Automatic light and dark by sunrise and sunset** (open, `ideas.md`).
@@ -374,7 +375,7 @@ Rough order, to argue with:
 ## Questions for the owner
 
 1. Which of the big firms on the list says yes first, and what do they ask for before signing?
-2. Is Android Auto and CarPlay a must for big fleets, or a nice extra?
+2. Is Android Auto and CarPlay a must for big fleets, or a nice extra? (Drivers have asked for it; see `car-screen-scope.md`.)
 3. Do any customers drive outside Great Britain?
 4. How should a large fleet be billed (invoice, Direct Debit, annual contract)?
 5. Is the aim of Phase 5 to grow the number of firms or to go deeper with the first few? The order above changes if it is the first.
