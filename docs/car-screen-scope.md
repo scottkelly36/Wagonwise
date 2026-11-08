@@ -141,7 +141,9 @@ back at a speed, with hazards, a faster route and a break coming up, so alerts, 
 
 ## Order
 
-0. **Owner, now, no code: ask Apple for the navigation entitlement** (draft below). It is the one step with an unknown wait.
+0. **Ask Apple for the navigation entitlement** (draft below). **Done: the owner submitted the request on 2026-11-08**, with the six navigation screenshots
+   from `store-assets/raw` (Android captures: there are none from an iPhone yet). Apple gives no timescale; nothing to do until it answers. If it asks for
+   more, or says no, the answer goes here.
 1. **Set up Android testing (owner's go-ahead for the downloads):** the DHU and a Play Store virtual device, or the owner's Android phone over USB.
 2. **A spike on Android Auto, on a throwaway branch.** Answers, in this order: can the app keep navigating with the phone screen off (background location and
    JavaScript without a phone screen); can the MapLibre map be drawn on the car surface at navigation speed; how the trip state reaches the car service;
@@ -175,7 +177,7 @@ The form is behind Apple sign-in and was not read, so this is what it is likely 
 
 ## Decisions for the owner
 
-1. **Submit the Apple request now.**
+1. ~~Submit the Apple request.~~ Done 2026-11-08; waiting for Apple.
 2. **Go-ahead to download the Android testing tools** (the DHU, command-line tools, a Play Store virtual device image), and which to use: your Android phone over USB, or a virtual device (needs a Google sign-in for the Play Store).
 3. **A Mac** for CarPlay: borrow, buy or rent. Needed before the CarPlay build is testable. Add to the waiting list for EAS Simulator meanwhile?
 4. **The first version of the car screen:** the "goes onto both" list above, with voice hazard reporting, SOS, profile choice and job acceptance decided separately. Agreed?

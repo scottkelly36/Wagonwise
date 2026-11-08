@@ -32,9 +32,9 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 0. **Sales page: load the firms** (owner; the page is live since 2026-11-08). Open Admin, Sales, Import from a spreadsheet, and choose
    `E:/projects/wagonwise-sales/prospects-import.csv` (39 firms from the prospects workbook, plus Griffins from the sales log). Log each
    contact there from then on. Fleet sizes are estimates; each firm's notes say how sure.
-1. **Android Auto and CarPlay** (drivers have asked; moved up 2026-11-08; scope and findings in `docs/car-screen-scope.md`). **Owner, now:**
-   ask Apple for the CarPlay navigation entitlement (the wait is unknown and the draft is in that file), and say yes or no to the five decisions
-   at the end of it (Android testing downloads, a Mac, the first version's feature list, background location). Then a spike on Android Auto:
+1. **Android Auto and CarPlay** (drivers have asked; moved up 2026-11-08; scope and findings in `docs/car-screen-scope.md`). **Status:**
+   the CarPlay navigation entitlement request **went to Apple on 2026-11-08** (no timescale; nothing to do until they answer), and four decisions
+   are still open at the end of that file (Android testing downloads, a Mac, the first version's feature list, background location). Then a spike on Android Auto:
    can the app navigate with the phone screen off, can the MapLibre map be drawn on the car, can Expo carry it. The scope has every feature
    sorted into onto-both, needs-a-decision and stays-on-the-phone, and how to test each platform (Android: Google's Desktop Head Unit on Windows;
    CarPlay: Apple's simulator, **which needs a Mac**). Not started; a native change (1.3.0, with the Play quality fixes). **Background location changes the
