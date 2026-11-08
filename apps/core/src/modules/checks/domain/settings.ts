@@ -2,6 +2,13 @@ export const MIN_RETENTION_MONTHS = 1;
 export const MAX_RETENTION_MONTHS = 120;
 export const DEFAULT_RETENTION_MONTHS = 12;
 
+/**
+ * The least time a check that found a defect is kept, whatever the firm sets. DVSA's Guide to maintaining roadworthiness
+ * (key point 5 and section 3.1) says drivers' defect reports, with the repair details, "must be kept for at least 15 months",
+ * and where it says "must" it is a direct legal requirement. It only recommends 3 months for reports with nothing wrong.
+ */
+export const DEFECT_RECORD_MONTHS = 15;
+
 /** A firm's own rules about sending a vehicle out, and how long it keeps its records. */
 export interface CheckSettings {
   /** A driver cannot accept a job on a vehicle until its check lists for the day are done. */
@@ -22,6 +29,24 @@ export function isValidRetention(months: number): boolean {
   return (
     Number.isInteger(months) && months >= MIN_RETENTION_MONTHS && months <= MAX_RETENTION_MONTHS
   );
+}
+
+/** The dates before which a check may be deleted: one for a check that found nothing, one for a check that found a defect. */
+export interface RetentionCutoffs {
+  readonly clearBefore: Date;
+  readonly withDefectsBefore: Date;
+}
+
+/**
+ * What the firm's retention means for each kind of check. A check with nothing wrong goes at the firm's own choice. A check that
+ * found a defect is kept for the firm's choice or `DEFECT_RECORD_MONTHS`, whichever is longer, so a firm that picks a short
+ * period can never lose a defect report before the legal minimum.
+ */
+export function retentionCutoffs(now: Date, retentionMonths: number): RetentionCutoffs {
+  return {
+    clearBefore: monthsAgo(now, retentionMonths),
+    withDefectsBefore: monthsAgo(now, Math.max(retentionMonths, DEFECT_RECORD_MONTHS)),
+  };
 }
 
 /** `months` calendar months before `now` (UTC). */
