@@ -169,6 +169,19 @@ export type PasswordResetConfirmRequest = z.infer<typeof passwordResetConfirmReq
 export const setPasswordRequestSchema = z.object({ password: z.string().max(1024) });
 export type SetPasswordRequest = z.infer<typeof setPasswordRequestSchema>;
 
+/**
+ * `GET /identity/sign-in-options`: which ways in the server has switched on, so the app shows only those. `passwordSignIn` is
+ * `DRIVER_PASSWORD_SIGN_IN` (sign-up, password and code, forgot password); `inviteRequired` is `DRIVER_INVITE_REQUIRED`; `google` and
+ * `apple` are true when that provider has a client id set (and password sign-in is on).
+ */
+export const signInOptionsSchema = z.object({
+  passwordSignIn: z.boolean(),
+  inviteRequired: z.boolean(),
+  google: z.boolean(),
+  apple: z.boolean(),
+});
+export type SignInOptions = z.infer<typeof signInOptionsSchema>;
+
 // ---- Google and Apple sign-in ------------------------------------------------------------------------------------
 
 export const SOCIAL_PROVIDERS = ['google', 'apple'] as const;

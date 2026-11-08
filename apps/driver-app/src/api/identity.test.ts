@@ -6,6 +6,16 @@ import {
   requestOtp,
   verifyOtp,
   refreshAccessToken,
+  getSignInOptions,
+  requestSignup,
+  confirmSignup,
+  passwordSignIn,
+  passwordVerify,
+  requestPasswordReset,
+  confirmPasswordReset,
+  setPassword,
+  requestAddEmail,
+  confirmAddEmail,
 } from './identity';
 import { ApiError } from './errors';
 
@@ -276,5 +286,146 @@ describe('refreshAccessToken, one at a time per token', () => {
 
     await expect(refreshAccessToken('flaky')).rejects.toBeInstanceOf(TypeError);
     await expect(refreshAccessToken('flaky')).resolves.toEqual(tokens);
+  });
+});
+
+describe('email and password sign-in calls', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  const signedIn = {
+    accessToken: 'a',
+    refreshToken: 'r',
+    driver: {
+      id: '11111111-1111-4111-8111-111111111111',
+      identifier: 'driver@example.com',
+      createdAt: '2026-11-01T09:00:00.000Z',
+      isAdmin: false,
+      scopes: [],
+    },
+  };
+
+  function call(fetchMock: jest.Mock): { url: string; init: RequestInit; body: unknown } {
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    return {
+      url,
+      init,
+      body: init.body === undefined ? undefined : JSON.parse(init.body as string),
+    };
+  }
+
+  const authorization = (init: RequestInit): string | undefined =>
+    (init.headers as Record<string, string>).authorization;
+
+  it('asks which ways in are on, with a GET and no body', async () => {
+    const options = { passwordSignIn: true, inviteRequired: false, google: false, apple: false };
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, options));
+    globalThis.fetch = fetchMock;
+
+    await expect(getSignInOptions()).resolves.toEqual(options);
+
+    const sent = call(fetchMock);
+    expect(sent.url).toMatch(/\/identity\/sign-in-options$/);
+    expect(sent.init.method).toBe('GET');
+    expect(sent.init.body).toBeUndefined();
+  });
+
+  it('rejects an answer in the wrong shape', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue(jsonResponse(200, { passwordSignIn: 'yes' }));
+    await expect(getSignInOptions()).rejects.toThrow();
+  });
+
+  it('posts the sign-up steps, the password going only with the code', async () => {
+    const request = jest.fn().mockResolvedValue(jsonResponse(200, {}));
+    globalThis.fetch = request;
+    await requestSignup('new@example.com');
+    expect(call(request).url).toMatch(/\/identity\/signup\/request$/);
+    expect(call(request).body).toEqual({ email: 'new@example.com' });
+
+    const confirm = jest.fn().mockResolvedValue(jsonResponse(200, signedIn));
+    globalThis.fetch = confirm;
+    await confirmSignup({ email: 'new@example.com', password: 'three long words', code: '123456' });
+    expect(call(confirm).url).toMatch(/\/identity\/signup\/confirm$/);
+    expect(call(confirm).body).toEqual({
+      email: 'new@example.com',
+      password: 'three long words',
+      code: '123456',
+    });
+  });
+
+  it('signs in in two steps: the password, then the code', async () => {
+    const first = jest.fn().mockResolvedValue(jsonResponse(200, {}));
+    globalThis.fetch = first;
+    await passwordSignIn('driver@example.com', 'three long words');
+    expect(call(first).url).toMatch(/\/identity\/password\/sign-in$/);
+    expect(call(first).body).toEqual({
+      identifier: 'driver@example.com',
+      password: 'three long words',
+    });
+
+    const second = jest.fn().mockResolvedValue(jsonResponse(200, signedIn));
+    globalThis.fetch = second;
+    await expect(passwordVerify('driver@example.com', '123456')).resolves.toMatchObject({
+      accessToken: 'a',
+    });
+    expect(call(second).url).toMatch(/\/identity\/password\/verify$/);
+  });
+
+  it('carries the one error for a wrong email or password', async () => {
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(401, { tag: 'InvalidCredentials', requestId: 'r' }));
+    await expect(passwordSignIn('driver@example.com', 'nope')).rejects.toMatchObject({
+      tag: 'InvalidCredentials',
+      status: 401,
+    });
+  });
+
+  it('resets a password in two steps', async () => {
+    const first = jest.fn().mockResolvedValue(jsonResponse(200, {}));
+    globalThis.fetch = first;
+    await requestPasswordReset('driver@example.com');
+    expect(call(first).url).toMatch(/\/identity\/password\/reset\/request$/);
+
+    const second = jest.fn().mockResolvedValue(jsonResponse(200, signedIn));
+    globalThis.fetch = second;
+    await confirmPasswordReset({
+      email: 'driver@example.com',
+      code: '123456',
+      newPassword: 'a brand new one',
+    });
+    expect(call(second).url).toMatch(/\/identity\/password\/reset\/confirm$/);
+    expect(call(second).body).toEqual({
+      email: 'driver@example.com',
+      code: '123456',
+      newPassword: 'a brand new one',
+    });
+  });
+
+  it('adds a password with a PUT and the access token, expecting 204', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(noBodyResponse(204));
+    globalThis.fetch = fetchMock;
+    await setPassword('tok', 'three long words');
+    const sent = call(fetchMock);
+    expect(sent.url).toMatch(/\/identity\/account\/password$/);
+    expect(sent.init.method).toBe('PUT');
+    expect(authorization(sent.init)).toBe('Bearer tok');
+    expect(sent.body).toEqual({ password: 'three long words' });
+  });
+
+  it('adds an email in two signed-in steps and returns the updated driver', async () => {
+    const first = jest.fn().mockResolvedValue(jsonResponse(200, {}));
+    globalThis.fetch = first;
+    await requestAddEmail('tok', 'new@example.com');
+    expect(call(first).url).toMatch(/\/identity\/account\/email\/request$/);
+    expect(authorization(call(first).init)).toBe('Bearer tok');
+
+    const second = jest.fn().mockResolvedValue(jsonResponse(200, signedIn.driver));
+    globalThis.fetch = second;
+    await expect(confirmAddEmail('tok', 'new@example.com', '123456')).resolves.toMatchObject({
+      identifier: 'driver@example.com',
+    });
+    expect(call(second).body).toEqual({ email: 'new@example.com', code: '123456' });
   });
 });

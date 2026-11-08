@@ -27,3 +27,28 @@ export function useDeleteAccount() {
     mutationFn: () => identityApi.deleteAccount(accessToken),
   });
 }
+
+/** A driver with no password adds one (signed in already). */
+export function useSetPassword() {
+  const accessToken = useAccessToken();
+  return useMutation({
+    mutationFn: (password: string) => identityApi.setPassword(accessToken, password),
+  });
+}
+
+/** Adding an email to a phone-number account, step 1: emails a code to it. */
+export function useRequestAddEmail() {
+  const accessToken = useAccessToken();
+  return useMutation({
+    mutationFn: (email: string) => identityApi.requestAddEmail(accessToken, email),
+  });
+}
+
+/** Step 2: the code. The email becomes the sign-in; the updated driver comes back. */
+export function useConfirmAddEmail() {
+  const accessToken = useAccessToken();
+  return useMutation({
+    mutationFn: (input: { readonly email: string; readonly code: string }) =>
+      identityApi.confirmAddEmail(accessToken, input.email, input.code),
+  });
+}

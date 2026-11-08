@@ -6,6 +6,7 @@ import {
   revokeSessionParamsSchema,
   setDriverNameRequestSchema,
   verifyOtpRequestSchema,
+  type SignInOptions,
 } from '@wagonwise/contracts/identity';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
@@ -44,6 +45,8 @@ export interface IdentityRouteDeps {
   readonly createInviteCode: CreateInviteCodeDeps;
   readonly listInviteCodes: ListInviteCodesDeps;
   readonly tokenSigner: TokenSigner;
+  /** What the app may offer: answered by `GET /identity/sign-in-options`. */
+  readonly signInOptions: SignInOptions;
   /** Set when `DRIVER_PASSWORD_SIGN_IN` is on: the email-and-password routes are registered. */
   readonly passwordAccounts?: PasswordAccountDeps | undefined;
   /** Set with `passwordAccounts`: Google and Apple sign-in. */
@@ -123,6 +126,11 @@ export function registerIdentityRoutes(app: FastifyInstance, deps: IdentityRoute
   if (deps.passwordAccounts) registerPasswordRoutes(app, deps.passwordAccounts);
   if (deps.socialSignIn) registerSocialRoutes(app, deps.socialSignIn);
   if (deps.accountLinks) registerAccountLinkRoutes(app, deps.accountLinks);
+
+  // Nothing secret: which ways in are on, so the app can show the right screens before anyone has signed in.
+  app.get('/identity/sign-in-options', async (_request, reply) =>
+    reply.status(200).send(deps.signInOptions),
+  );
 
   app.post('/identity/otp/request', async (request, reply) => {
     const parsed = requestOtpRequestSchema.safeParse(request.body);

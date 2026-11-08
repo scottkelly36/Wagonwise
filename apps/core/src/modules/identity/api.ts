@@ -217,6 +217,12 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
   };
 
   const routeDeps: IdentityRouteDeps = {
+    signInOptions: {
+      passwordSignIn: deps.passwordSignIn,
+      inviteRequired: deps.inviteRequired,
+      google: deps.passwordSignIn && deps.googleClientIds.length > 0,
+      apple: deps.passwordSignIn && deps.appleClientIds.length > 0,
+    },
     passwordAccounts: deps.passwordSignIn ? passwordAccounts : undefined,
     socialSignIn: deps.passwordSignIn ? socialSignIn : undefined,
     accountLinks: deps.passwordSignIn ? accountLinks : undefined,

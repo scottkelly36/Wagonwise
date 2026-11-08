@@ -15,6 +15,9 @@ jest.mock('expo-secure-store', () => ({
   setItemAsync: jest.fn(),
   deleteItemAsync: jest.fn(),
 }));
+jest.mock('../api/use-sign-in-options', () => ({
+  useSignInOptions: () => ({ data: { passwordSignIn: false } }),
+}));
 jest.mock('../api/use-identity', () => ({
   useDeleteAccount: () => ({ mutate: jest.fn(), isPending: false, isError: false }),
 }));
