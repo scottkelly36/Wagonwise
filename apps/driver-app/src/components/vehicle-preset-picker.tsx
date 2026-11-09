@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { formatHeightWithFeetInches } from '../lib/units';
+import { metresToFeetInches } from '../lib/units';
 import { VEHICLE_PRESETS, type VehiclePreset } from '../lib/vehicle-presets';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 
@@ -10,10 +10,19 @@ interface Props {
   readonly onPick: (preset: VehiclePreset) => void;
 }
 
-/** The figures a preset will fill in, in one line, with the height also in feet and inches as UK bridge signs show it. */
-export function presetSummary(preset: VehiclePreset): string {
+/**
+ * The figures a preset will fill in, on two short lines so none wraps on a phone: the height (also in feet and inches, as UK
+ * bridge signs show it) and the weight first, since those matter most, then the width and length.
+ */
+export function presetFigures(preset: VehiclePreset): {
+  readonly main: string;
+  readonly size: string;
+} {
   const d = preset.dimensions;
-  return `${formatHeightWithFeetInches(d.heightM)} high · ${d.widthM} m wide · ${d.lengthM} m long · ${d.grossWeightT} t`;
+  return {
+    main: `${d.heightM} m (${metresToFeetInches(d.heightM)}) high · ${d.grossWeightT} t`,
+    size: `${d.widthM} m wide · ${d.lengthM} m long`,
+  };
 }
 
 /**
@@ -32,6 +41,7 @@ export function VehiclePresetPicker({ selectedId, onPick }: Props) {
       </Text>
       {VEHICLE_PRESETS.map((preset) => {
         const selected = preset.id === selectedId;
+        const figures = presetFigures(preset);
         return (
           <TouchableOpacity
             key={preset.id}
@@ -39,12 +49,13 @@ export function VehiclePresetPicker({ selectedId, onPick }: Props) {
             onPress={() => onPick(preset)}
             accessibilityRole="button"
             accessibilityState={{ selected }}
-            accessibilityLabel={`${preset.name}. ${presetSummary(preset)}`}
+            accessibilityLabel={`${preset.name}. ${figures.main}. ${figures.size}`}
             testID={`vehicle-preset-${preset.id}`}
           >
             <Text style={styles.name}>{preset.name}</Text>
             <Text style={styles.description}>{preset.description}</Text>
-            <Text style={styles.figures}>{presetSummary(preset)}</Text>
+            <Text style={styles.figuresMain}>{figures.main}</Text>
+            <Text style={styles.figures}>{figures.size}</Text>
           </TouchableOpacity>
         );
       })}
@@ -74,6 +85,7 @@ function createStyles(colors: ThemeColors) {
     rowSelected: { borderColor: colors.accent },
     name: { fontSize: 18, fontWeight: '700', color: colors.text },
     description: { fontSize: 14, color: colors.textMuted },
-    figures: { fontSize: 14, color: colors.textDim },
+    figuresMain: { fontSize: 15, fontWeight: '600', color: colors.text },
+    figures: { fontSize: 14, color: colors.textMuted },
   });
 }

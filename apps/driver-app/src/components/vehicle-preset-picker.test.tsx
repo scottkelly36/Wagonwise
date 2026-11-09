@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { VEHICLE_PRESETS } from '../lib/vehicle-presets';
-import { VehiclePresetPicker, presetSummary } from './vehicle-preset-picker';
+import { VehiclePresetPicker, presetFigures } from './vehicle-preset-picker';
 
 // The first render in a file loads the React Native modules, which can pass Jest's 5 s default on a busy runner.
 jest.setTimeout(30_000);
@@ -12,11 +12,14 @@ describe('VehiclePresetPicker', () => {
     for (const preset of VEHICLE_PRESETS) {
       expect(screen.getByTestId(`vehicle-preset-${preset.id}`)).toBeTruthy();
       expect(screen.getByText(preset.name)).toBeTruthy();
-      expect(screen.getByText(presetSummary(preset))).toBeTruthy();
+      const figures = presetFigures(preset);
+      expect(screen.getByText(figures.main)).toBeTruthy();
+      expect(screen.getByText(figures.size)).toBeTruthy();
     }
-    expect(presetSummary(VEHICLE_PRESETS[VEHICLE_PRESETS.length - 1]!)).toBe(
-      `4.2m (13'9") high · 2.55 m wide · 16.5 m long · 44 t`,
-    );
+    expect(presetFigures(VEHICLE_PRESETS[VEHICLE_PRESETS.length - 1]!)).toEqual({
+      main: `4.2 m (13'9") high · 44 t`,
+      size: '2.55 m wide · 16.5 m long',
+    });
   });
 
   it('tells the driver to check the height', async () => {
