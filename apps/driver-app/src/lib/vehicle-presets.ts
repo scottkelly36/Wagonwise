@@ -15,9 +15,14 @@ import type { VehicleProfileFormValues } from './vehicle-profile-form';
  * Widths follow the UK maximum of 2.55 m (a small lorry is a little narrower). Fuel economy is left out on purpose: a
  * guessed figure would put a wrong cost on every route.
  */
+/** Which side-on line drawing shows the preset (`components/vehicle-drawing.tsx`). */
+export type VehicleDrawingKind =
+  'small-rigid' | 'rigid-2-axle' | 'rigid-3-axle' | 'rigid-4-axle' | 'artic';
+
 export interface VehiclePreset {
   readonly id: string;
   readonly name: string;
+  readonly drawing: VehicleDrawingKind;
   /** One line under the name: what the vehicle is. */
   readonly description: string;
   readonly dimensions: DimensionsDto;
@@ -27,30 +32,35 @@ export const VEHICLE_PRESETS: readonly VehiclePreset[] = [
   {
     id: 'rigid-7-5',
     name: '7.5 tonne lorry',
+    drawing: 'small-rigid',
     description: 'Two axles, box or curtainside',
     dimensions: { heightM: 3.7, widthM: 2.5, lengthM: 8, grossWeightT: 7.5 },
   },
   {
     id: 'rigid-18',
     name: '18 tonne rigid',
+    drawing: 'rigid-2-axle',
     description: 'Two axles, box or curtainside',
     dimensions: { heightM: 4, widthM: 2.55, lengthM: 10, grossWeightT: 18 },
   },
   {
     id: 'rigid-26',
     name: '26 tonne rigid',
+    drawing: 'rigid-3-axle',
     description: 'Three axles, box or curtainside',
     dimensions: { heightM: 4, widthM: 2.55, lengthM: 11, grossWeightT: 26 },
   },
   {
     id: 'rigid-32',
     name: '32 tonne rigid',
-    description: 'Four axles (an eight-wheeler), tipper or box',
+    drawing: 'rigid-4-axle',
+    description: 'Four axles, an eight-wheeler',
     dimensions: { heightM: 4, widthM: 2.55, lengthM: 10.5, grossWeightT: 32 },
   },
   {
     id: 'artic-44',
     name: 'Artic, 44 tonnes',
+    drawing: 'artic',
     description: 'Tractor unit and standard trailer',
     dimensions: { heightM: 4.2, widthM: 2.55, lengthM: 16.5, grossWeightT: 44 },
   },

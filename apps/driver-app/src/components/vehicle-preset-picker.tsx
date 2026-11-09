@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { metresToFeetInches } from '../lib/units';
 import { VEHICLE_PRESETS, type VehiclePreset } from '../lib/vehicle-presets';
+import { VehicleDrawing } from './vehicle-drawing';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 
 interface Props {
@@ -52,10 +53,13 @@ export function VehiclePresetPicker({ selectedId, onPick }: Props) {
             accessibilityLabel={`${preset.name}. ${figures.main}. ${figures.size}`}
             testID={`vehicle-preset-${preset.id}`}
           >
-            <Text style={styles.name}>{preset.name}</Text>
-            <Text style={styles.description}>{preset.description}</Text>
-            <Text style={styles.figuresMain}>{figures.main}</Text>
-            <Text style={styles.figures}>{figures.size}</Text>
+            <View style={styles.text}>
+              <Text style={styles.name}>{preset.name}</Text>
+              <Text style={styles.description}>{preset.description}</Text>
+              <Text style={styles.figuresMain}>{figures.main}</Text>
+              <Text style={styles.figures}>{figures.size}</Text>
+            </View>
+            <VehicleDrawing kind={preset.drawing} />
           </TouchableOpacity>
         );
       })}
@@ -80,8 +84,11 @@ function createStyles(colors: ThemeColors) {
       borderColor: 'transparent',
       paddingHorizontal: 16,
       paddingVertical: 12,
-      gap: 2,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
     },
+    text: { flex: 1, gap: 2 },
     rowSelected: { borderColor: colors.accent },
     name: { fontSize: 18, fontWeight: '700', color: colors.text },
     description: { fontSize: 14, color: colors.textMuted },
