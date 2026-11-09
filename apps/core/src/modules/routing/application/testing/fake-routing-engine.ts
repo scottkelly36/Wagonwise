@@ -1,4 +1,5 @@
 import { ok, type Result } from '../../../../shared/result.js';
+import type { ElevationPoint } from '../../domain/hill-profile.js';
 import type {
   NoRouteFound,
   RouteRequest,
@@ -39,5 +40,14 @@ export class FakeRoutingEngine implements RoutingEngine {
   routeAlternatives(req: RouteRequest): Promise<Result<readonly RouteResult[], NoRouteFound>> {
     this.alternativesRequests.push(req);
     return Promise.resolve(this.alternativesResults.shift() ?? this.alternativesResult);
+  }
+
+  /** Heights by route geometry. A geometry with no entry has no height data, as when the engine has none (the default). */
+  profiles = new Map<string, readonly ElevationPoint[]>();
+  readonly profileRequests: string[] = [];
+
+  elevationProfile(geometry: string): Promise<readonly ElevationPoint[] | undefined> {
+    this.profileRequests.push(geometry);
+    return Promise.resolve(this.profiles.get(geometry));
   }
 }

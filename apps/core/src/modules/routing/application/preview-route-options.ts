@@ -1,5 +1,5 @@
 import { err, ok, type Result } from '../../../shared/result.js';
-import { buildRouteOptions, type RouteOption } from '../domain/route-option.js';
+import { buildRouteOptions, summariseHills, type RouteOption } from '../domain/route-option.js';
 import type { GeoPoint } from '../domain/geo.js';
 import {
   withoutWeightLimits,
@@ -7,7 +7,13 @@ import {
   type VehicleProfileId,
 } from '../domain/vehicle-profile.js';
 import type { VehicleProfileNotFound } from './errors.js';
-import type { NoRouteFound, RoutingEngine } from './ports/routing-engine.js';
+import { findGentlestRoute } from './gentle-route.js';
+import type {
+  NoRouteFound,
+  RouteRequest,
+  RouteResult,
+  RoutingEngine,
+} from './ports/routing-engine.js';
 import type { VehicleProfileRepository } from './ports/vehicle-profile-repository.js';
 
 export interface PreviewRouteOptionsDeps {
@@ -21,6 +27,9 @@ export interface PreviewRouteOptionsInput {
   readonly profileId: VehicleProfileId;
   readonly origin: GeoPoint;
   readonly destination: GeoPoint;
+  /** The vehicle is loaded: check the hills on each route, look for a gentler one, and mark it `gentle`. Without heights from the engine this
+   *  changes nothing (no option carries `hills`). */
+  readonly loaded?: boolean | undefined;
 }
 
 export type PreviewRouteOptionsError = VehicleProfileNotFound | NoRouteFound;
@@ -52,7 +61,7 @@ export async function previewRouteOptions(
   if (alternatives.ok) {
     return ok(
       buildRouteOptions(
-        alternatives.value,
+        await withHills(deps.routingEngine, request, alternatives.value, input.loaded),
         profile.fuelConsumptionL100km,
         deps.fuelPricePerLitreGBP,
       ),
@@ -71,9 +80,34 @@ export async function previewRouteOptions(
   }
   return ok(
     buildRouteOptions(
-      ignoringWeight.value,
+      await withHills(
+        deps.routingEngine,
+        { ...request, dimensions: withoutWeightLimits(profile.dimensions) },
+        ignoringWeight.value,
+        input.loaded,
+      ),
       profile.fuelConsumptionL100km,
       deps.fuelPricePerLitreGBP,
     ).map((option) => ({ ...option, breaksWeightLimit: true })),
   );
+}
+
+/**
+ * The routes with how hilly each is, when the vehicle is loaded and the engine has heights, and the least steep marked `gentle`: the
+ * engine's routes plus any found by avoiding the steep stretches of the best. Otherwise the routes just as they are.
+ */
+async function withHills(
+  engine: RoutingEngine,
+  request: RouteRequest,
+  routes: readonly RouteResult[],
+  loaded: boolean | undefined,
+) {
+  if (loaded !== true) return routes;
+  const search = await findGentlestRoute(engine, request, routes);
+  if (search === undefined) return routes;
+  return search.candidates.map((c) => ({
+    ...c.route,
+    hills: summariseHills(c.stats),
+    gentle: c === search.gentlest,
+  }));
 }

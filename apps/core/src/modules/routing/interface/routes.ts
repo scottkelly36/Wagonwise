@@ -208,6 +208,7 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       profileId: makeId<'VehicleProfileId'>(parsed.data.profileId),
       origin: parsed.data.origin,
       destination: parsed.data.destination,
+      loaded: parsed.data.loaded,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });

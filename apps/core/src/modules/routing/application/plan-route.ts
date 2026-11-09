@@ -21,6 +21,7 @@ import {
   type VehicleProfileId,
 } from '../domain/vehicle-profile.js';
 import { closuresToAvoidAlong } from './avoid-closures.js';
+import { findGentlestRoute } from './gentle-route.js';
 import type { VehicleProfileNotFound } from './errors.js';
 import type { ClosureAvoidanceQuery } from './ports/closure-avoidance.js';
 import type { HazardAvoidanceQuery } from './ports/hazard-avoidance.js';
@@ -58,7 +59,7 @@ export interface PlanRouteInput {
    *  blocking hazard then forces a second pass, that pass always asks for a single, already-
    *  avoiding route — the "shortest" preference doesn't carry through a re-plan, an accepted
    *  edge case (safety-avoidance wins over a distance preference). */
-  readonly strategy?: 'fastest' | 'shortest' | undefined;
+  readonly strategy?: 'fastest' | 'shortest' | 'gentle' | undefined;
   /** The direction the driver is already travelling, so a re-plan from the middle of a drive does not
    *  start by sending them back the way they came. */
   readonly originHeadingDeg?: number | undefined;
@@ -111,6 +112,25 @@ export async function planRoute(
   const firstPassFor = async (
     dimensions: Dimensions,
   ): Promise<Result<RouteResult, NoRouteFound>> => {
+    if (input.strategy === 'gentle') {
+      const request = {
+        origin: input.origin,
+        originHeadingDeg: input.originHeadingDeg,
+        destination: input.destination,
+        dimensions,
+        avoid: [],
+      };
+      const alternatives = await deps.routingEngine.routeAlternatives(request);
+      if (!alternatives.ok) {
+        return alternatives;
+      }
+      const search = await findGentlestRoute(deps.routingEngine, request, alternatives.value);
+      if (search === undefined) {
+        return ok(alternatives.value[0]!);
+      }
+      hillZones = search.gentlest.hillZones;
+      return ok(search.gentlest.route);
+    }
     if (input.strategy === 'shortest') {
       const alternatives = await deps.routingEngine.routeAlternatives({
         origin: input.origin,
@@ -133,6 +153,10 @@ export async function planRoute(
     });
   };
 
+  // `gentle` (the driver chose the route that is easier on a loaded vehicle): the route is the least steep that findGentlestRoute finds, and
+  // the avoid zones that found it stay on in every later pass, or a hazard or a closed road would send the lorry back up the hill. With no
+  // height data the engine's own route is used, as for any other strategy.
+  let hillZones: readonly GeoPolygon[] = [];
   let routingDimensions = profile.dimensions;
   let breaksWeightLimit = false;
   let firstPass = await firstPassFor(routingDimensions);
@@ -172,7 +196,7 @@ export async function planRoute(
       originHeadingDeg: input.originHeadingDeg,
       destination: input.destination,
       dimensions: routingDimensions,
-      avoid: hazardZones,
+      avoid: [...hillZones, ...hazardZones],
     });
     if (!secondPass.ok) {
       return secondPass;
@@ -189,7 +213,7 @@ export async function planRoute(
   for (let replan = 0; ; replan++) {
     const found = await closuresToAvoidAlong(deps.closureAvoidanceQuery, routed, departAt, {
       skip: new Set(zonedClosures.keys()),
-      maxZones: MAX_CLOSURE_ZONES - closureZones.length,
+      maxZones: MAX_CLOSURE_ZONES - closureZones.length - hillZones.length,
     });
     stillShut = new Set(found.onRoute.map((c) => c.closure.id));
     if (found.zones.length === 0 || replan >= MAX_CLOSURE_REPLANS) break;
@@ -199,7 +223,7 @@ export async function planRoute(
       originHeadingDeg: input.originHeadingDeg,
       destination: input.destination,
       dimensions: routingDimensions,
-      avoid: [...hazardZones, ...closureZones, ...found.zones],
+      avoid: [...hillZones, ...hazardZones, ...closureZones, ...found.zones],
     });
     if (!around.ok) break;
     routed = around.value;

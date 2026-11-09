@@ -1,5 +1,6 @@
 import { err, ok, type Result } from '../../../shared/result.js';
 import { decodePolyline, type GeoPoint, type GeoPolygon } from '../domain/geo.js';
+import type { ElevationPoint } from '../domain/hill-profile.js';
 import type { Maneuver, ManeuverKind } from '../domain/maneuver.js';
 import type { Dimensions } from '../domain/vehicle-profile.js';
 import type {
@@ -100,6 +101,16 @@ export const FALLBACK_TIME_FACTOR = 1.17;
  *  step's `length` matches `summary.length`. Distances are spoken by the app (yards and miles,
  *  as on UK road signs), not taken from the engine, which says "feet". */
 const DIRECTIONS_OPTIONS = { units: 'kilometers', language: 'en-GB' } as const;
+
+/** Heights are asked for about this often along a route. Finer is only noise: the data is in 90 m cells. */
+const HEIGHT_RESAMPLE_M = 100;
+
+/** A route's line is thinned to about this many points before heights are asked for, so a route across Britain stays under the
+ *  service's limit on the length of a shape (`service_limits.height.max_shape`, 100,000 by default). */
+const MAX_HEIGHT_SHAPE_POINTS = 20_000;
+
+/** The height service is an extra: it never holds up a route for longer than this. */
+const HEIGHT_TIMEOUT_MS = 20_000;
 
 /** How many alternates to ask Valhalla for on top of its primary route (M9) — two is enough to
  *  give a driver a genuine second option without inflating Valhalla's own routing cost much. */
@@ -285,6 +296,45 @@ export class ValhallaRoutingEngine implements RoutingEngine {
       return result;
     }
     return ok(await this.toRouteResult(result.value.trip, req.dimensions));
+  }
+
+  /**
+   * Valhalla's `/height` on the route's own line, resampled every {@link HEIGHT_RESAMPLE_M}. It reads the elevation files in the folder
+   * `valhalla.json` names, independently of the road tiles, so it works once those are in place and answers an error before. Any failure
+   * is `undefined` ("no heights"), never a thrown error: hills must not stop a route.
+   */
+  async elevationProfile(geometry: string): Promise<readonly ElevationPoint[] | undefined> {
+    const all = decodePolyline(geometry);
+    if (all.length < 2) return undefined;
+    const step = Math.ceil(all.length / MAX_HEIGHT_SHAPE_POINTS);
+    const shape = all.filter((_, i) => i % step === 0 || i === all.length - 1);
+    try {
+      const response = await fetch(`${this.baseUrl}/height`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          shape: shape.map((p) => ({ lat: p.lat, lon: p.lon })),
+          range: true,
+          resample_distance: HEIGHT_RESAMPLE_M,
+        }),
+        signal: AbortSignal.timeout(HEIGHT_TIMEOUT_MS),
+      });
+      if (!response.ok) return undefined;
+      const body = (await response.json()) as { range_height?: unknown };
+      if (!Array.isArray(body.range_height)) return undefined;
+      const points: ElevationPoint[] = [];
+      for (const pair of body.range_height as unknown[]) {
+        // A pair is [distance, height]; a cell with no data has a null or missing height and is left out.
+        if (!Array.isArray(pair)) continue;
+        const [distanceM, heightM] = pair as unknown[];
+        if (typeof distanceM === 'number' && typeof heightM === 'number') {
+          points.push({ distanceM, heightM });
+        }
+      }
+      return points.length >= 2 ? points : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   async routeAlternatives(

@@ -1,6 +1,29 @@
 import type { GeoLine } from './geo.js';
+import type { HillStats } from './hill-profile.js';
 
-export type RouteOptionLabel = 'fastest' | 'shortest';
+/** `gentle` is the route with the least steep road among those found, asked for when the vehicle is loaded. */
+export type RouteOptionLabel = 'fastest' | 'shortest' | 'gentle';
+
+/** How hilly a route is, in figures a driver can weigh against its time: what the hill check found, rounded. */
+export interface HillSummary {
+  readonly climbM: number;
+  readonly highestPointM: number;
+  /** The steepest grade over 500 m, climbing or descending, in percent to one decimal place. */
+  readonly steepestPct: number;
+  /** The length of road at or above the steep grade, in km to one decimal place, and how many separate stretches it is in. */
+  readonly steepKm: number;
+  readonly steepStretches: number;
+}
+
+export function summariseHills(stats: HillStats): HillSummary {
+  return {
+    climbM: Math.round(stats.climbM),
+    highestPointM: Math.round(stats.highestPointM),
+    steepestPct: Math.round(stats.steepestPct * 10) / 10,
+    steepKm: Math.round(stats.steepKm * 10) / 10,
+    steepStretches: stats.stretches.length,
+  };
+}
 
 /** One of the alternatives Valhalla's `alternates` request returns, labelled and costed —
  *  unpersisted (M9, docs/progress.md: only the alternative a driver actually picks becomes a
@@ -19,12 +42,17 @@ export interface RouteOption {
   /** True when no route exists for the vehicle's real weight and this one was found by ignoring weight limits: it goes
    *  past a signed weight limit somewhere. Absent (not false) for an ordinary route. */
   readonly breaksWeightLimit?: boolean | undefined;
+  /** Present only when the hills were checked (the vehicle is loaded and the engine has heights). */
+  readonly hills?: HillSummary | undefined;
 }
 
 interface Candidate {
   readonly geometry: GeoLine;
   readonly distanceKm: number;
   readonly durationMin: number;
+  readonly hills?: HillSummary | undefined;
+  /** The one found to be the least steep that is not unreasonably long (see `findGentlestRoute`). At most one candidate has it. */
+  readonly gentle?: boolean | undefined;
 }
 
 /** `distanceKm × (fuelConsumptionL100km / 100) × pricePerLitreGBP` — deliberately rough (M9's own
@@ -62,6 +90,7 @@ export function buildRouteOptions(
     const labels: RouteOptionLabel[] = [];
     if (c.geometry === fastest.geometry) labels.push('fastest');
     if (c.geometry === shortest.geometry) labels.push('shortest');
+    if (c.gentle === true) labels.push('gentle');
     if (labels.length === 0) continue;
     if (!seen.has(c.geometry)) {
       order.push(c.geometry);
@@ -90,6 +119,7 @@ export function buildRouteOptions(
         pricePerLitreGBP,
       ),
       labels: seen.get(geometry) ?? [],
+      ...(candidate.hills === undefined ? {} : { hills: candidate.hills }),
     };
   });
 }
