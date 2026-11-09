@@ -38,7 +38,8 @@ export function VehiclePresetPicker({ selectedId, onPick }: Props) {
       <Text style={styles.title}>Pick the nearest match</Text>
       <Text style={styles.body}>
         These are typical sizes, not your exact vehicle. Check the height most of all: it decides
-        which low bridges you are sent under. Change anything that is different below.
+        which low bridges you are sent under. To change a figure, switch to Metres or Feet and
+        inches above.
       </Text>
       {VEHICLE_PRESETS.map((preset) => {
         const selected = preset.id === selectedId;
@@ -64,8 +65,8 @@ export function VehiclePresetPicker({ selectedId, onPick }: Props) {
         );
       })}
       <Text style={styles.body}>
-        A tall or double-deck trailer, or a wide or long load? Pick the nearest and change the size,
-        or type your own below.
+        A tall or double-deck trailer, or a wide or long load? Pick the nearest, then switch to
+        Metres or Feet and inches to change the size.
       </Text>
     </View>
   );
