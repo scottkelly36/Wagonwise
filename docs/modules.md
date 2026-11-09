@@ -532,7 +532,11 @@ the platform scope and reads counts across identity, companies, fleet, jobs, che
 `composition/usage-end-to-end.test.ts`. **Funnel (2026-11-08):** the report has a `funnel` of different drivers at each stage (account,
 signed in, chose a vehicle, planned a route, started a trip, started trips on two or more UK days), read from tables that
 already exist, so the app sends nothing extra. Trips are deleted after `ROUTE_RETENTION_DAYS` (30), so the trip stages cover
-that period. Counts only, and test accounts are included.
+that period. Counts only, and test accounts are included. **New drivers by day (2026-11-09):** `newDriversByDay` is, for each of the last
+14 UK days, how many drivers joined (`identity.drivers.created_at`) and how many of them have chosen a vehicle, planned a route and
+started a trip so far. It exists because the running totals in `funnel` move slowly: a day's new drivers are all on one version of the
+app, so comparing days before and after a change shows whether it helped. The page leaves out the empty days before the first
+driver joined.
 
 ## Sales notebook (admin, 2026-11-08)
 

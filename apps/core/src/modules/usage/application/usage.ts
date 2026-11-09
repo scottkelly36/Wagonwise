@@ -28,6 +28,15 @@ export interface UsageFunnel {
   readonly startedTripOnTwoDays: number;
 }
 
+/** The drivers who joined on one UK day, and how many have got as far as each stage so far. */
+export interface CohortDay {
+  readonly day: string;
+  readonly joined: number;
+  readonly hasVehicle: number;
+  readonly plannedRoute: number;
+  readonly startedTrip: number;
+}
+
 export interface UsageFirm {
   readonly id: string;
   readonly name: string;
@@ -44,6 +53,7 @@ export interface UsageReport {
   readonly staff: Activity;
   readonly devices: number;
   readonly funnel: UsageFunnel;
+  readonly newDriversByDay: readonly CohortDay[];
   readonly tripsRunningNow: number;
   readonly tripsPerDay: readonly { day: string; count: number }[];
   readonly jobsCreatedPerWeek: readonly { weekStart: string; count: number }[];

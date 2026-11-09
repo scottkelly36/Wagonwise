@@ -25,6 +25,17 @@ export function percentOf(part: number, whole: number): string {
   return whole <= 0 ? '0%' : `${Math.round((part / whole) * 100)}%`;
 }
 
+/** The days from the first one with a new driver onwards: the empty days before anyone joined say nothing. Oldest first in and out. */
+export function fromFirstJoin<T extends { readonly joined: number }>(days: readonly T[]): T[] {
+  const first = days.findIndex((d) => d.joined > 0);
+  return first < 0 ? [] : days.slice(first);
+}
+
+/** A cohort's share at a stage: "61%", or a dash when nobody joined that day (nothing to take a share of). */
+export function cohortShare(part: number, joined: number): string {
+  return joined <= 0 ? '–' : percentOf(part, joined);
+}
+
 /** "110 (92%)": a count with its share of the accounts, for the funnel. */
 export function withShare(part: number, whole: number): string {
   return `${part} (${percentOf(part, whole)})`;

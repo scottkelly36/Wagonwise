@@ -89,6 +89,27 @@ export class PostgresUsageReader implements UsageReader {
         (select count(*) from trip_days)::int as trip,
         (select count(*) from trip_days where days >= 2)::int as trip_two_days`.execute(db);
 
+    // The drivers who joined on each of the last 14 UK days, and how far each day's drivers have got so far.
+    const cohorts = await sql<{
+      day: string;
+      joined: number;
+      has_vehicle: number;
+      planned: number;
+      trip: number;
+    }>`
+      select to_char(d.day, 'YYYY-MM-DD') as day,
+             count(dr.id)::int as joined,
+             (count(dr.id) filter (where exists (
+                select 1 from routing.vehicle_profiles v where v.driver_id = dr.id)))::int as has_vehicle,
+             (count(dr.id) filter (where exists (
+                select 1 from routing.route_plans p where p.driver_id = dr.id)))::int as planned,
+             (count(dr.id) filter (where exists (
+                select 1 from routing.active_trips t where t.driver_id = dr.id)))::int as trip
+      from generate_series(${today}::date - 13, ${today}::date, interval '1 day') as d(day)
+      left join identity.drivers dr
+        on (dr.created_at at time zone 'Europe/London')::date = d.day::date
+      group by d.day order by d.day`.execute(db);
+
     const tripsPerDay = await sql<{ day: string; count: number }>`
       select to_char(d.day, 'YYYY-MM-DD') as day, count(t.id)::int as count
       from generate_series(${today}::date - 13, ${today}::date, interval '1 day') as d(day)
@@ -162,6 +183,13 @@ export class PostgresUsageReader implements UsageReader {
         startedTrip: f?.trip ?? 0,
         startedTripOnTwoDays: f?.trip_two_days ?? 0,
       },
+      newDriversByDay: cohorts.rows.map((row) => ({
+        day: row.day,
+        joined: row.joined,
+        hasVehicle: row.has_vehicle,
+        plannedRoute: row.planned,
+        startedTrip: row.trip,
+      })),
       tripsRunningNow: c?.running ?? 0,
       tripsPerDay: tripsPerDay.rows,
       jobsCreatedPerWeek: week(created.rows),
