@@ -61,8 +61,8 @@ for a charge costs almost nothing** (no extra routing), so the charge line is sh
    `use_tolls` low, and with thin avoid-zones on a small zone when it can be skirted; keep the cheapest of the candidates. Large zones (London) cannot be
    avoided, so they are shown, not dodged.
 5. **What the driver sees.** A line on each card ("Includes the Dartford Crossing, about £x, pay online by midnight tomorrow"), and a **Cheapest** card when
-   there is one. The existing **Load type** switch is untouched (it is about hills). Whether there should also be an "Avoid tolls" switch is an open
-   decision below.
+   there is one. The existing **Load type** switch is untouched (it is about hills). **There is no "Avoid tolls" switch** (owner, 2026-11-09): a cheaper
+   route is offered as a card and the driver chooses, as with Fewer hills.
 6. **Not only the preview.** The same check applies to re-plans, a job's next stop and the faster-route check (it should not offer a quicker route that
    adds a toll without saying so). Server-sent reroute alerts have the same gap as hills: the setting is on the phone.
 7. **The job cost.** Charges the driver pays go into what a job made. First version: a charge line the firm or driver can see and edit on the job; later,
@@ -81,11 +81,17 @@ discount or an exemption), or price a toll that depends on time of day (the M6 T
    London, and a Humber crossing, with a few kept as golden routes.
 5. **The job cost** and a review reminder for the data (a dated checklist, since rates and zones change).
 
+## Decided (owner, 2026-11-09)
+
+- **No switch: the cheaper route is offered as a card**, never behind a setting.
+- **Look into the ULEZ and clean-air sources before any work starts.** Nothing in stages 2 and 3 begins until the zone rules, boundaries and
+  rates for the zones that matter have been read from the operators' own pages (TfL, lowemissionzones.scot and the four Scottish councils, the Tyneside
+  zone, GOV.UK) and written down here with the date. That includes settling whether the ULEZ itself touches HGVs.
+
 ## Open decisions (owner)
 
-- **Start with stage 1?** It is cheap and answers whether drivers want more, before the data work in stages 2 and 3.
-- **An "Avoid tolls" switch** (like Load type) or only the Cheapest card? A switch is quicker for a driver who never wants a toll; the card never hides a
-  choice.
+- **Start with stage 1?** It is cheap and answers whether drivers want more, before the data work in stages 2 and 3. It does not depend on the zone
+  sources, so it can go first.
 - **Who keeps the data right.** Rates and zones change a few times a year. A scheduled review and a "last checked" date on each figure is the plan; the
   owner decides whether that is acceptable or whether a paid data source is worth it later.
 - **Whether to ask for the Euro class at all in the first version**, or only show the zone ("a low emission zone is on this route; Euro VI lorries are
