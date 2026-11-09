@@ -33,7 +33,7 @@ interface ValhallaManeuver {
 }
 
 interface ValhallaTrip {
-  readonly summary: { readonly time: number; readonly length: number };
+  readonly summary: { readonly time: number; readonly length: number; readonly has_toll?: boolean };
   readonly legs: readonly {
     readonly shape: string;
     readonly maneuvers?: readonly ValhallaManeuver[];
@@ -174,12 +174,17 @@ function toRouteResult(trip: ValhallaTrip): RouteResult {
     distanceKm: trip.summary.length,
     durationMin: trip.summary.time / 60,
     maneuvers: (leg.maneuvers ?? []).map(toManeuver),
+    ...(typeof trip.summary.has_toll === 'boolean' ? { hasToll: trip.summary.has_toll } : {}),
   };
 }
 
 /** Valhalla's truck costing options for a vehicle. `topSpeedKph` is for timing only: see
  *  `TOP_SPEED_KPH`. */
-function truckCosting(dimensions: Dimensions, topSpeedKph?: number): Record<string, unknown> {
+function truckCosting(
+  dimensions: Dimensions,
+  topSpeedKph?: number,
+  avoidTolls?: boolean,
+): Record<string, unknown> {
   return {
     costing: 'truck',
     costing_options: {
@@ -190,6 +195,8 @@ function truckCosting(dimensions: Dimensions, topSpeedKph?: number): Record<stri
         weight: dimensions.grossWeightT,
         ...(dimensions.axleWeightT === undefined ? {} : { axle_load: dimensions.axleWeightT }),
         ...(topSpeedKph === undefined ? {} : { top_speed: topSpeedKph }),
+        // 0 is the most reluctant Valhalla goes: it still uses a toll when there is no other way.
+        ...(avoidTolls === true ? { use_tolls: 0 } : {}),
       },
     },
   };
@@ -220,7 +227,7 @@ export class ValhallaRoutingEngine implements RoutingEngine {
             },
         toValhallaLocation(req.destination),
       ],
-      ...truckCosting(req.dimensions),
+      ...truckCosting(req.dimensions, undefined, req.avoidTolls),
       ...(req.avoid.length === 0 ? {} : { exclude_polygons: req.avoid.map(toValhallaPolygon) }),
       ...(alternates === undefined ? {} : { alternates }),
       directions_options: DIRECTIONS_OPTIONS,

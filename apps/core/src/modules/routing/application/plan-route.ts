@@ -59,7 +59,7 @@ export interface PlanRouteInput {
    *  blocking hazard then forces a second pass, that pass always asks for a single, already-
    *  avoiding route — the "shortest" preference doesn't carry through a re-plan, an accepted
    *  edge case (safety-avoidance wins over a distance preference). */
-  readonly strategy?: 'fastest' | 'shortest' | 'gentle' | undefined;
+  readonly strategy?: 'fastest' | 'shortest' | 'gentle' | 'toll-free' | undefined;
   /** The direction the driver is already travelling, so a re-plan from the middle of a drive does not
    *  start by sending them back the way they came. */
   readonly originHeadingDeg?: number | undefined;
@@ -131,6 +131,17 @@ export async function planRoute(
       hillZones = search.gentlest.hillZones;
       return ok(search.gentlest.route);
     }
+    if (input.strategy === 'toll-free') {
+      // The engine is asked to avoid tolls, and every later pass is too, so a hazard or a closed road does not send the lorry back over the toll.
+      return deps.routingEngine.route({
+        origin: input.origin,
+        originHeadingDeg: input.originHeadingDeg,
+        destination: input.destination,
+        dimensions,
+        avoid: [],
+        avoidTolls: true,
+      });
+    }
     if (input.strategy === 'shortest') {
       const alternatives = await deps.routingEngine.routeAlternatives({
         origin: input.origin,
@@ -157,6 +168,7 @@ export async function planRoute(
   // the avoid zones that found it stay on in every later pass, or a hazard or a closed road would send the lorry back up the hill. With no
   // height data the engine's own route is used, as for any other strategy.
   let hillZones: readonly GeoPolygon[] = [];
+  const tollPreference = input.strategy === 'toll-free' ? { avoidTolls: true } : {};
   let routingDimensions = profile.dimensions;
   let breaksWeightLimit = false;
   let firstPass = await firstPassFor(routingDimensions);
@@ -197,6 +209,7 @@ export async function planRoute(
       destination: input.destination,
       dimensions: routingDimensions,
       avoid: [...hillZones, ...hazardZones],
+      ...tollPreference,
     });
     if (!secondPass.ok) {
       return secondPass;
@@ -224,6 +237,7 @@ export async function planRoute(
       destination: input.destination,
       dimensions: routingDimensions,
       avoid: [...hillZones, ...hazardZones, ...closureZones, ...found.zones],
+      ...tollPreference,
     });
     if (!around.ok) break;
     routed = around.value;

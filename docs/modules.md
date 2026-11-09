@@ -758,7 +758,7 @@ MapLibre's own free, keyless demo style (`src/lib/map-style.ts`) so the screen r
 with zero setup; get a real key at [cloud.maptiler.com](https://cloud.maptiler.com) before relying
 on it beyond local dev. Copy `apps/driver-app/.env.example` to `.env` to set it.
 
-**Loaded / Empty (2026-11-09):** (shown to drivers from 2026-11-10 as **Load type: Normal / Hill-sensitive**, because the real question is whether the load minds steep roads, not whether the lorry is full; the code still says loaded/empty) a **Load** switch above the Plan route button (`state/load-store.ts`, kept on the phone, Empty by default). Loaded sends
+**Loaded / Empty (2026-11-09):** (shown to drivers from 2026-11-09 as **Load type: Normal / Hill-sensitive**, because the real question is whether the load minds steep roads, not whether the lorry is full; the code still says loaded/empty) a **Load** switch above the Plan route button (`state/load-store.ts`, kept on the phone, Empty by default). Loaded sends
 `loaded: true` with the route-options preview; when the server has height data each route card gains a hills line ("2.3 km of steep hill · highest point
 328 m", `lib/route-option-text.ts`) and the gentlest route is labelled "Fewer hills" (planned with `strategy: 'gentle'`). With no height data the cards are as
 for Empty and a line says the hill check is not available yet. Core's side and the evidence: `docs/loaded-routing-scope.md`. The setting is also used when a route is made
@@ -766,6 +766,15 @@ from where the lorry is now: **Re-plan from here**, the next stop of a job and a
 and the **faster-route check** sends `loaded: true`, so core does not offer a quicker route that has more than 0.5 km more steep road than what is left of the
 current one (`check-faster-route.ts`). **Not covered:** the reroute alert core sends by itself when a hazard is reported ahead (`detect-reroute.ts`) plans the new route
 without knowing the vehicle is loaded, because the Load setting lives only on the phone; fixing that needs the setting stored with the trip (a migration).
+
+**Tolls on Plan route (2026-11-09, stage 1 of charges routing).** Valhalla says whether a route has a toll (`summary.has_toll`, read into
+`RouteResult.hasToll`, from OpenStreetMap tagging, so a hint and not a price). When the app sends `tolls: true` with the preview (this version always does; an
+older app does not, because it cannot read a new label), each card whose route has one says **Includes a toll** (`tollLine`), and when any route has one core asks the
+engine again with `avoidTolls` (Valhalla `use_tolls: 0`, a preference, not a ban) and adds the result as a **Toll free** card, or labels an existing card
+"Toll free" when it is the same road (`application/toll-free-route.ts`, `withTolls` in `preview-route-options.ts`). Nothing is offered when the route that avoids
+tolls still has one. Choosing it plans with `strategy: 'toll-free'`, and a hazard or closure re-plan keeps avoiding tolls. **Not covered yet:** which toll or what it costs
+(no price, no "Cheapest" card: stage 2 onwards, `docs/charges-routing-scope.md`), clean-air zones, and re-plans, job stops and the faster-route check, which do not carry the
+choice, so a re-plan from the middle of the drive may take the toll again.
 
 **Not verified on a real map render** — beyond the disclosed gap every M5 task has had so far (no
 Android SDK, no macOS on this machine), MapLibre specifically needs its own native module built

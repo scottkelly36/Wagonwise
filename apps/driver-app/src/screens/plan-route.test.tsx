@@ -165,6 +165,34 @@ describe('the Load switch on Plan route', () => {
     expect(screen.queryByTestId('hills-unavailable')).toBeNull();
   });
 
+  it('says which routes have a toll, and shows the toll-free route as its own card', async () => {
+    await open();
+    await chooseDestination();
+    await fireEvent.press(await screen.findByTestId('plan-route-button'));
+    // This version tells the server it can show tolls, so an older app is never sent a label it cannot read.
+    expect(mockPreview.mock.calls[0][0]).toMatchObject({ tolls: true });
+
+    const [, handlers] = mockPreview.mock.calls[0] as [
+      unknown,
+      { onSuccess: (o: unknown) => void },
+    ];
+    handlers.onSuccess([
+      {
+        geometry: 'a',
+        distanceKm: 120,
+        durationMin: 90,
+        labels: ['fastest', 'shortest'],
+        hasToll: true,
+      },
+      { geometry: 'b', distanceKm: 150, durationMin: 105, labels: ['toll-free'], hasToll: false },
+    ]);
+
+    expect(await screen.findByTestId('route-option-1')).toBeTruthy();
+    expect(screen.getByText('Toll free')).toBeTruthy();
+    expect(screen.getByTestId('route-option-0-toll').props.children).toBe('Includes a toll');
+    expect(screen.queryByTestId('route-option-1-toll')).toBeNull();
+  });
+
   it('says so when the server could not check the hills', async () => {
     useLoadStore.setState({ loaded: true });
     await open();

@@ -38,4 +38,37 @@ describe('buildRouteOptions', () => {
     const options = buildRouteOptions([fast, short], undefined, 1.6);
     expect(options.every((o) => o.estimatedFuelCostGBP === undefined)).toBe(true);
   });
+
+  describe('tolls', () => {
+    it('says which routes have a toll, and nothing about a route the engine did not say about', () => {
+      const options = buildRouteOptions([{ ...fast, hasToll: true }, short], 30, 1.6);
+      expect(options[0]).toMatchObject({ labels: ['fastest'], hasToll: true });
+      expect(options[1]).not.toHaveProperty('hasToll');
+    });
+
+    it('adds a toll-free route found by a search as its own card, and it is not the fastest or the shortest however quick it is', () => {
+      const tollFree = {
+        geometry: 'toll-free-line',
+        distanceKm: 70,
+        durationMin: 80,
+        hasToll: false,
+        tollFree: true,
+        fromSearch: true,
+      };
+      const options = buildRouteOptions([{ ...fast, hasToll: true }, short, tollFree], 30, 1.6);
+      expect(options.map((o) => o.labels)).toEqual([['fastest'], ['shortest'], ['toll-free']]);
+    });
+
+    it('adds the toll-free label to a route the engine already offered, keeping its own label', () => {
+      const options = buildRouteOptions(
+        [
+          { ...fast, hasToll: true },
+          { ...short, hasToll: false, tollFree: true },
+        ],
+        30,
+        1.6,
+      );
+      expect(options.map((o) => o.labels)).toEqual([['fastest'], ['shortest', 'toll-free']]);
+    });
+  });
 });

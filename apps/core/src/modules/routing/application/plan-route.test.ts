@@ -437,6 +437,50 @@ describe('planRoute', () => {
     });
   });
 
+  describe("the route that avoids tolls ('toll-free')", () => {
+    it('asks the engine to avoid tolls on the first pass', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+
+      const result = await planRoute(deps, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        strategy: 'toll-free',
+      });
+
+      expect(result.ok).toBe(true);
+      expect(engine.requests[0]).toMatchObject({ avoidTolls: true, dimensions });
+    });
+
+    it('keeps avoiding tolls when a hazard sends the route round again', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      const query = deps.hazardAvoidanceQuery as FakeHazardAvoidanceQuery;
+      query.obstructions = [
+        {
+          id: 'hazard-1',
+          kind: 'height',
+          limit: 3.5,
+          zone: { points: [{ lat: 54.97, lon: -2.1 }] },
+        },
+      ];
+
+      await planRoute(deps, { driverId, profileId, origin, destination, strategy: 'toll-free' });
+
+      expect(engine.requests).toHaveLength(2);
+      expect(engine.requests.every((r) => r.avoidTolls === true)).toBe(true);
+    });
+
+    it('does not ask to avoid tolls for any other strategy', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      await planRoute(deps, { driverId, profileId, origin, destination });
+      expect(engine.requests[0]).not.toHaveProperty('avoidTolls');
+    });
+  });
+
   describe('a route past a weight limit', () => {
     const noRoute = { ok: false, error: { tag: 'NoRouteFound' } } as const;
     const light = {

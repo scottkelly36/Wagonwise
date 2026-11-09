@@ -106,6 +106,97 @@ describe('previewRouteOptions', () => {
     expect(result).toEqual({ ok: false, error: { tag: 'NoRouteFound' } });
   });
 
+  describe('tolls', () => {
+    const withToll = (geometry: string, hasToll: boolean, km: number, min: number) => ({
+      geometry,
+      distanceKm: km,
+      durationMin: min,
+      maneuvers: [],
+      hasToll,
+    });
+
+    it('says which routes have a toll, and offers a toll-free one as its own card when the app asks', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      engine.alternativesResult = {
+        ok: true,
+        value: [
+          withToll('fast-geometry', true, 120, 90),
+          withToll('short-geometry', true, 80, 110),
+        ],
+      };
+      engine.result = { ok: true, value: withToll('free-geometry', false, 140, 100) };
+
+      const result = await previewRouteOptions(deps, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        tolls: true,
+      });
+
+      expect(result.ok && result.value.map((o) => [o.geometry, o.labels, o.hasToll])).toEqual([
+        ['fast-geometry', ['fastest'], true],
+        ['short-geometry', ['shortest'], true],
+        ['free-geometry', ['toll-free'], false],
+      ]);
+      expect(engine.requests[0]).toMatchObject({ avoidTolls: true });
+    });
+
+    it('marks the engine’s own route when it is already the toll-free one, rather than adding a card', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      engine.alternativesResult = {
+        ok: true,
+        value: [
+          withToll('fast-geometry', true, 120, 90),
+          withToll('short-geometry', false, 80, 110),
+        ],
+      };
+      engine.result = { ok: true, value: withToll('short-geometry', false, 80, 110) };
+
+      const result = await previewRouteOptions(deps, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        tolls: true,
+      });
+
+      expect(result.ok && result.value.map((o) => o.labels)).toEqual([
+        ['fastest'],
+        ['shortest', 'toll-free'],
+      ]);
+    });
+
+    it('leaves the options as they were when the app did not ask: an older app cannot read the new label', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      engine.alternativesResult = {
+        ok: true,
+        value: [withToll('fast-geometry', true, 120, 90)],
+      };
+
+      const result = await previewRouteOptions(deps, { driverId, profileId, origin, destination });
+
+      expect(result.ok && result.value.map((o) => o.labels)).toEqual([['fastest', 'shortest']]);
+      expect(engine.requests).toEqual([]);
+    });
+
+    it('does not look for a toll-free route when none of the routes has a toll', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      engine.alternativesResult = {
+        ok: true,
+        value: [withToll('fast-geometry', false, 120, 90)],
+      };
+
+      await previewRouteOptions(deps, { driverId, profileId, origin, destination, tolls: true });
+
+      expect(engine.requests).toEqual([]);
+    });
+  });
+
   describe('when no route exists for the vehicle’s weight', () => {
     const noRoute = { ok: false, error: { tag: 'NoRouteFound' } } as const;
     const found = {

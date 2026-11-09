@@ -29,6 +29,7 @@ import {
   hillsWereChecked,
   routeOptionTitle,
   strategyForOption,
+  tollLine,
 } from '../lib/route-option-text';
 import { formatRouteDistance, type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
@@ -469,6 +470,8 @@ export default function PlanRouteScreen() {
           origin: effectiveOrigin,
           destination,
           ...(askedLoaded ? { loaded: true } : {}),
+          // This version can show a toll and the toll-free option; an older one cannot read the new label, so only it is told to.
+          tolls: true,
         },
         {
           onSuccess: (options) => {
@@ -854,7 +857,9 @@ export default function PlanRouteScreen() {
                           ? 'lightning-bolt'
                           : option.labels.includes('gentle')
                             ? 'terrain'
-                            : 'ruler'
+                            : option.labels.includes('shortest')
+                              ? 'ruler'
+                              : 'cash-remove'
                       }
                       size={26}
                       color={colors.accent}
@@ -872,6 +877,11 @@ export default function PlanRouteScreen() {
                     {hillsLine(option, distanceUnit) !== undefined && (
                       <Text style={styles.optionDetail} testID={`route-option-${index}-hills`}>
                         {hillsLine(option, distanceUnit)}
+                      </Text>
+                    )}
+                    {tollLine(option) !== undefined && (
+                      <Text style={styles.optionDetail} testID={`route-option-${index}-toll`}>
+                        {tollLine(option)}
                       </Text>
                     )}
                     {option.breaksWeightLimit === true && (
