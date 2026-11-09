@@ -20,6 +20,7 @@ import { useGuidanceStore } from '../state/guidance-store';
 import { useFasterRouteStore } from '../state/faster-route-store';
 import { useFuelChoiceStore } from '../state/fuel-choice-store';
 import { useLengthUnitStore } from '../state/length-unit-store';
+import { useLoadStore } from '../state/load-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useStillThereStore } from '../state/still-there-store';
 import { useHoursStartStore } from '../state/hours-start-store';
@@ -38,6 +39,7 @@ export default function RootLayout() {
   const restoreFuelChoice = useFuelChoiceStore((s) => s.restore);
   const restoreLengthUnit = useLengthUnitStore((s) => s.restore);
   const restoreMeasureUnits = useMeasureUnitsStore((s) => s.restore);
+  const restoreLoad = useLoadStore((s) => s.restore);
   const restoreStillThere = useStillThereStore((s) => s.restore);
   const restoreUpdateNotice = useUpdateNoticeStore((s) => s.restore);
   const restoreWalkthrough = useWalkthroughStore((s) => s.restore);
@@ -52,6 +54,7 @@ export default function RootLayout() {
     void restoreFuelChoice();
     void restoreLengthUnit();
     void restoreMeasureUnits();
+    void restoreLoad();
     void restoreStillThere();
     void restoreUpdateNotice();
     void restoreWalkthrough();
@@ -68,6 +71,7 @@ export default function RootLayout() {
     restoreFuelChoice,
     restoreLengthUnit,
     restoreMeasureUnits,
+    restoreLoad,
     restoreStillThere,
     restoreUpdateNotice,
     restoreWalkthrough,

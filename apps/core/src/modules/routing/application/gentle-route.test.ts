@@ -146,6 +146,21 @@ describe('previewRouteOptions for a loaded vehicle', () => {
     expect(gentle!.hills).toMatchObject({ steepKm: 0, steepStretches: 0 });
   });
 
+  it("leaves out routes the search tried that are neither the engine's own nor the gentlest", async () => {
+    const { deps, routingEngine } = await setup();
+    const middle = { ...flat, geometry: encodePolyline(line(54.97)), durationMin: 7 };
+    routingEngine.profiles.set(middle.geometry, heights(7, 1000, 3000));
+    // The first search round finds a route as steep as the quickest and still above the limit, the second the gentle one.
+    routingEngine.results = [
+      { ok: true, value: middle },
+      { ok: true, value: flat },
+    ];
+    const result = await previewRouteOptions(deps, { ...input, loaded: true });
+    if (!result.ok) throw new Error('expected options');
+    expect(result.value.map((o) => o.geometry)).not.toContain(middle.geometry);
+    expect(result.value.map((o) => o.geometry)).toContain(flatGeometry);
+  });
+
   it('gives the one route both labels when it is the quickest and the gentlest', async () => {
     const { deps, routingEngine } = await setup();
     routingEngine.alternativesResult = { ok: true, value: [flat] };
