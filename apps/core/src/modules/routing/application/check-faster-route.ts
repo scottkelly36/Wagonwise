@@ -31,6 +31,7 @@ import { toReportedObstruction } from '../domain/restriction-override.js';
 import { estimateFuelCostGBP } from '../domain/route-option.js';
 import type { RoutePlan, RoutePlanId } from '../domain/route-plan.js';
 import type { Dimensions, DriverId } from '../domain/vehicle-profile.js';
+import { hillStats, type ElevationPoint } from '../domain/hill-profile.js';
 import { closuresToAvoidAlong } from './avoid-closures.js';
 import type { ActiveTripNotFound } from './errors.js';
 import type { ActiveTripRepository } from './ports/active-trip-repository.js';
@@ -70,7 +71,12 @@ export interface CheckFasterRouteInput {
   readonly headingDeg?: number | undefined;
   /** Keys of offers the driver has already kept their route over; never offered again on this trip. */
   readonly keptKeys: readonly string[];
+  /** The vehicle is loaded: a route that adds steep hills to what is left of the current one is not offered as the faster one. */
+  readonly loaded?: boolean | undefined;
 }
+
+/** A faster route may have this much more steep road than what is left of the current one before a loaded vehicle is not offered it. */
+const STEEP_KM_TOLERANCE = 0.5;
 
 export interface FasterRouteOffer {
   /** A saved plan from the driver's position, which the app shows and switches to like a reroute. */
@@ -179,6 +185,17 @@ export async function checkFasterRoute(
     if (around.ok) candidates.push(around.value);
   }
 
+  // For a loaded vehicle, a quicker route is only worth offering if it does not climb more than the one the driver is on. The hill check needs
+  // the engine's height data; without it nothing about the offer changes.
+  let currentSteepKm: number | undefined;
+  if (input.loaded === true) {
+    const heights = await deps.routingEngine.elevationProfile(plan.geometry);
+    if (heights !== undefined) {
+      const travelledM = pathLengthM(planned.slice(0, nearest.index + 1));
+      currentSteepKm = hillStats(ahead(heights, travelledM)).steepKm;
+    }
+  }
+
   const kept = new Set(input.keptKeys);
   let best:
     { route: RouteResult; minutes: number; currentMinutes: number; key: string } | undefined;
@@ -193,6 +210,16 @@ export async function checkFasterRoute(
       maxZones: 0,
     });
     if (shut.onRoute.length > 0) continue;
+
+    if (currentSteepKm !== undefined) {
+      const heights = await deps.routingEngine.elevationProfile(route.geometry);
+      if (
+        heights !== undefined &&
+        hillStats(heights).steepKm > currentSteepKm + STEEP_KM_TOLERANCE
+      ) {
+        continue;
+      }
+    }
 
     const timed = await measure(deps, decodePolyline(route.geometry), route.durationMin);
     // Compare like with like: a provider delay counts only when both routes have enough readings.
@@ -259,4 +286,9 @@ async function blockingNear(
   return [...hazards, ...overrides.map(toReportedObstruction)].filter((o) =>
     applies(o, dimensions),
   );
+}
+
+/** The heights from `distanceM` along the route onwards: what is left of it. */
+function ahead(heights: readonly ElevationPoint[], distanceM: number): readonly ElevationPoint[] {
+  return heights.filter((p) => p.distanceM >= distanceM);
 }

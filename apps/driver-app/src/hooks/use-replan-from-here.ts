@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import * as routingApi from '../api/routing';
 import type { MapPoint } from '../components/route-map';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
+import { loadedStrategy } from '../lib/loaded-strategy';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useAccessToken } from './use-access-token';
 
@@ -35,6 +36,7 @@ export function useReplanFromHere() {
         origin: here,
         destination: plan.destination,
         ...(headingDeg === undefined ? {} : { originHeadingDeg: headingDeg }),
+        ...loadedStrategy(),
       });
       if (trips.trip !== undefined) await routingApi.endTrip(accessToken, trips.trip.id);
       const newTrip = await routingApi.startTrip(accessToken, newPlan.id);

@@ -266,4 +266,48 @@ describe('checkFasterRoute', () => {
     b.engine.result = { ok: false, error: { tag: 'NoRouteFound' } };
     expect(await offerOf(b.deps, b.input)).toBeNull();
   });
+
+  describe('for a loaded vehicle', () => {
+    /** Heights every 100 m along 5 km: flat, except a steep climb of `gradePct` between 1 km and 3 km. */
+    const heights = (gradePct: number) => {
+      const out = [];
+      let h = 100;
+      for (let m = 0; m <= 5000; m += 100) {
+        if (m > 1000 && m <= 3000) h += gradePct;
+        out.push({ distanceM: m, heightM: h });
+      }
+      return out;
+    };
+
+    it('does not offer a quicker route that adds steep hills', async () => {
+      const b = await build({ congestion: waitOnCurrentRoute(20) });
+      b.engine.profiles.set(plan.geometry, heights(0));
+      b.engine.profiles.set(altRoute.geometry, heights(8));
+      expect(await offerOf(b.deps, { ...b.input, loaded: true })).toBeNull();
+    });
+
+    it('still offers a quicker route that is no hillier', async () => {
+      const b = await build({ congestion: waitOnCurrentRoute(20) });
+      b.engine.profiles.set(plan.geometry, heights(8));
+      b.engine.profiles.set(altRoute.geometry, heights(8));
+      expect(await offerOf(b.deps, { ...b.input, loaded: true })).toMatchObject({
+        savingMinutes: 15,
+      });
+    });
+
+    it('does not look at hills for an empty vehicle', async () => {
+      const b = await build({ congestion: waitOnCurrentRoute(20) });
+      b.engine.profiles.set(plan.geometry, heights(0));
+      b.engine.profiles.set(altRoute.geometry, heights(8));
+      expect(await offerOf(b.deps, b.input)).toMatchObject({ savingMinutes: 15 });
+      expect(b.engine.profileRequests).toEqual([]);
+    });
+
+    it('offers as before when the engine has no height data', async () => {
+      const b = await build({ congestion: waitOnCurrentRoute(20) });
+      expect(await offerOf(b.deps, { ...b.input, loaded: true })).toMatchObject({
+        savingMinutes: 15,
+      });
+    });
+  });
 });

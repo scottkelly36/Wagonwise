@@ -356,6 +356,7 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       position: body.data.position,
       headingDeg: body.data.headingDeg,
       keptKeys: body.data.keptKeys,
+      loaded: body.data.loaded,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
