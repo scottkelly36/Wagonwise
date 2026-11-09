@@ -8,6 +8,7 @@ import { useDrivingProfileId } from '../hooks/use-parking-drive-times';
 import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
 import { placesNear } from '../lib/places';
 import { shortDistance } from '../lib/uk-distance';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle } from '../theme/tokens';
 import { MarkPlaceSheet } from './mark-place-sheet';
@@ -26,6 +27,7 @@ interface Props {
  * postcode often lands somewhere other than its gate, and the next driver should not have to find it again.
  */
 export function JobPlacesCard({ stop }: Props) {
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const mine = useMyPlaces();
@@ -65,7 +67,7 @@ export function JobPlacesCard({ stop }: Props) {
                 </Text>
               )}
             </View>
-            <Text style={styles.distance}>{shortDistance(distanceM)}</Text>
+            <Text style={styles.distance}>{shortDistance(distanceM, distanceUnit)}</Text>
           </TouchableOpacity>
         ))
       )}

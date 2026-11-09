@@ -35,6 +35,7 @@ import {
   type FuelOrder,
 } from '../lib/fuel-details';
 import { shortDistance } from '../lib/uk-distance';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useFuelChoiceStore } from '../state/fuel-choice-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle } from '../theme/tokens';
@@ -211,13 +212,14 @@ function FuelRow({
   disabled: boolean;
   onPress: () => void;
 }) {
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   return (
     <TouchableOpacity
       style={styles.row}
       disabled={disabled}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${stationTitle(station)}, ${fuelLabel.toLowerCase()} ${priceText(station.pencePerLitre)} a litre, ${shortDistance(station.distanceM)} away. Take me there`}
+      accessibilityLabel={`${stationTitle(station)}, ${fuelLabel.toLowerCase()} ${priceText(station.pencePerLitre)} a litre, ${shortDistance(station.distanceM, distanceUnit)} away. Take me there`}
       testID={`fuel-row-${station.id}`}
     >
       <View style={styles.badge}>
@@ -229,7 +231,7 @@ function FuelRow({
             {priceText(station.pencePerLitre)}
             <Text style={styles.perLitre}> a litre</Text>
           </Text>
-          <Text style={styles.distance}>{shortDistance(station.distanceM)}</Text>
+          <Text style={styles.distance}>{shortDistance(station.distanceM, distanceUnit)}</Text>
         </View>
         <Text style={styles.title} numberOfLines={1}>
           {stationTitle(station)}
@@ -267,13 +269,14 @@ function UnpricedRow({
   disabled: boolean;
   onPress: () => void;
 }) {
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   return (
     <TouchableOpacity
       style={styles.row}
       disabled={disabled}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${stationTitle(station)}, ${noPriceText(fuelLabel).toLowerCase()}, ${shortDistance(station.distanceM)} away. Take me there`}
+      accessibilityLabel={`${stationTitle(station)}, ${noPriceText(fuelLabel).toLowerCase()}, ${shortDistance(station.distanceM, distanceUnit)} away. Take me there`}
       testID={`fuel-unpriced-${station.id}`}
     >
       <View style={styles.badge}>
@@ -282,7 +285,7 @@ function UnpricedRow({
       <View style={styles.rowText}>
         <View style={styles.priceRow}>
           <Text style={styles.noPrice}>{noPriceText(fuelLabel)}</Text>
-          <Text style={styles.distance}>{shortDistance(station.distanceM)}</Text>
+          <Text style={styles.distance}>{shortDistance(station.distanceM, distanceUnit)}</Text>
         </View>
         <Text style={styles.title} numberOfLines={1}>
           {stationTitle(station)}

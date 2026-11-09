@@ -9,6 +9,7 @@ import { useDrivingProfileId } from '../hooks/use-parking-drive-times';
 import { distanceMetres } from '../lib/geo-distance';
 import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
 import { shortDistance } from '../lib/uk-distance';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle } from '../theme/tokens';
 import { PlaceSheet } from './place-sheet';
@@ -19,6 +20,7 @@ import { Icon } from './ui/icon';
  * yard entrance), nearest first when the position is known. Marking one is done from the map buttons.
  */
 export function PlacesSection() {
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const mine = useMyPlaces();
@@ -81,7 +83,7 @@ export function PlacesSection() {
             )}
           </View>
           {distanceM !== undefined && (
-            <Text style={styles.distance}>{shortDistance(distanceM)}</Text>
+            <Text style={styles.distance}>{shortDistance(distanceM, distanceUnit)}</Text>
           )}
         </TouchableOpacity>
       ))}

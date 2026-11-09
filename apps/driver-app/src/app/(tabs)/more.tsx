@@ -219,7 +219,7 @@ export default function MoreScreen() {
 
         <Text style={styles.sectionLabel}>Units</Text>
         <View style={styles.unitsGroup}>
-          <Text style={styles.unitsLabel}>Route distances</Text>
+          <Text style={styles.unitsLabel}>Distances</Text>
           <SegmentedControl
             options={DISTANCE_UNIT_OPTIONS}
             value={distanceUnit}
@@ -235,8 +235,9 @@ export default function MoreScreen() {
           />
         </View>
         <Text style={styles.settingNote}>
-          Turn instructions and speed limits stay in yards, miles and mph, like the road signs.
-          Miles per gallon means the UK gallon.
+          Distances are everywhere: routes, turn instructions (spoken too), parking, fuel stops and
+          warnings. Kilometres means metres and kilometres, Miles means yards and miles. Speed
+          limits stay in mph, like the road signs, and miles per gallon means the UK gallon.
         </Text>
 
         <Text style={styles.sectionLabel}>Driving</Text>

@@ -2,6 +2,7 @@ import type { ManeuverDto } from '@wagonwise/contracts/routing';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { RoutePoint } from '../lib/route-progress';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import {
   evaluateGuidance,
   OFF_ROUTE_M,
@@ -63,6 +64,7 @@ export function useTurnGuidance(
       position,
       lastTraveledMetres: lastTraveled.current,
       announced: announced.current,
+      distanceUnit: useMeasureUnitsStore.getState().distance,
     });
     lastTraveled.current = g.traveledMetres;
     offRouteFixes.current = g.offRouteMetres > OFF_ROUTE_M ? offRouteFixes.current + 1 : 0;

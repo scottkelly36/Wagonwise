@@ -22,6 +22,7 @@ import {
   updatedText,
 } from '../lib/fuel-details';
 import { shortDistance } from '../lib/uk-distance';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useFuelChoiceStore } from '../state/fuel-choice-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
@@ -47,6 +48,7 @@ export function FuelStationDrawer({
   navigateDisabled = false,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const choice = useFuelChoiceStore((s) => s.choice);
@@ -94,7 +96,7 @@ export function FuelStationDrawer({
               )}
               {address !== undefined && <Text style={styles.detail}>{address}</Text>}
               <Text style={styles.detail}>
-                {shortDistance(station.distanceM)} away
+                {shortDistance(station.distanceM, distanceUnit)} away
                 {station.isMotorway ? ' · Motorway services' : ''}
                 {station.isSupermarket ? ' · Supermarket' : ''}
               </Text>
