@@ -99,10 +99,10 @@ beforeEach(() => {
 });
 
 describe('the Load switch on Plan route', () => {
-  it('is Empty to begin with, and says what Loaded does when chosen', async () => {
+  it('is Normal to begin with, and says what Hill-sensitive does when chosen', async () => {
     await open();
     expect(await screen.findByTestId('load-switch')).toBeTruthy();
-    expect(screen.getByText('Plans the quickest route.')).toBeTruthy();
+    expect(screen.getByText('Plans the usual way, with no hill check.')).toBeTruthy();
 
     await fireEvent.press(screen.getByTestId('load-loaded-button'));
     expect(useLoadStore.getState().loaded).toBe(true);

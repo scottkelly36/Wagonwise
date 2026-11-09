@@ -758,7 +758,7 @@ MapLibre's own free, keyless demo style (`src/lib/map-style.ts`) so the screen r
 with zero setup; get a real key at [cloud.maptiler.com](https://cloud.maptiler.com) before relying
 on it beyond local dev. Copy `apps/driver-app/.env.example` to `.env` to set it.
 
-**Loaded / Empty (2026-11-09):** a **Load** switch above the Plan route button (`state/load-store.ts`, kept on the phone, Empty by default). Loaded sends
+**Loaded / Empty (2026-11-09):** (shown to drivers from 2026-11-10 as **Load type: Normal / Hill-sensitive**, because the real question is whether the load minds steep roads, not whether the lorry is full; the code still says loaded/empty) a **Load** switch above the Plan route button (`state/load-store.ts`, kept on the phone, Empty by default). Loaded sends
 `loaded: true` with the route-options preview; when the server has height data each route card gains a hills line ("2.3 km of steep hill · highest point
 328 m", `lib/route-option-text.ts`) and the gentlest route is labelled "Fewer hills" (planned with `strategy: 'gentle'`). With no height data the cards are as
 for Empty and a line says the hill check is not available yet. Core's side and the evidence: `docs/loaded-routing-scope.md`. The setting is also used when a route is made
