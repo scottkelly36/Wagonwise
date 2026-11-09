@@ -14,6 +14,7 @@ import {
   PasswordField,
   PrimaryButton,
 } from './form-kit';
+import { useEmailReview } from './use-email-review';
 import { useFinishSignIn } from './use-finish-sign-in';
 
 /**
@@ -32,6 +33,7 @@ export function SignUp({
   const [password, setPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [sentTo, setSentTo] = useState<string | undefined>(undefined);
+  const emailReview = useEmailReview(email, setEmail);
 
   const invite = inviteRequired ? inviteCode.trim() || undefined : undefined;
   const problem = password === '' ? undefined : passwordProblem(password, email);
@@ -84,6 +86,7 @@ export function SignUp({
         textContentType="username"
         testID="identifier-input"
       />
+      {emailReview.prompt}
       <PasswordField
         isNew
         label="Choose a password"
@@ -114,7 +117,7 @@ export function SignUp({
         label="Send me a code"
         disabled={!ready}
         busy={request.isPending}
-        onPress={() => request.mutate()}
+        onPress={() => emailReview.review(() => request.mutate())}
         testID="request-code-button"
       />
       <LinkButton label="I already have an account" onPress={onBack} testID="back-to-sign-in" />

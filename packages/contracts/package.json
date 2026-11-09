@@ -59,6 +59,11 @@
       "import": "./dist/email-events.js",
       "default": "./dist/email-events.js"
     },
+    "./email-check": {
+      "types": "./dist/email-check.d.ts",
+      "import": "./dist/email-check.js",
+      "default": "./dist/email-check.js"
+    },
     "./signups": {
       "types": "./dist/signups.d.ts",
       "import": "./dist/signups.js",

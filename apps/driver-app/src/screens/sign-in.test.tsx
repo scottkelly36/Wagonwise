@@ -193,6 +193,51 @@ describe('creating an account', () => {
     expect(await screen.findByText(/already an account for that email/)).toBeTruthy();
   });
 
+  async function fillSignUp(email: string) {
+    await openSignUp();
+    await fireEvent.changeText(screen.getByTestId('identifier-input'), email);
+    await fireEvent.changeText(screen.getByTestId('password-input'), 'three long words');
+  }
+
+  it('asks "did you mean" about an email that looks mistyped, and sends the corrected one', async () => {
+    api.requestSignup.mockResolvedValue(undefined);
+    await fillSignUp('new@gmial.com');
+    await fireEvent.press(screen.getByTestId('request-code-button'));
+    expect(screen.getByText('Did you mean new@gmail.com?')).toBeTruthy();
+    expect(api.requestSignup).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByTestId('email-use-suggestion'));
+    expect(screen.getByTestId('identifier-input').props.value).toBe('new@gmail.com');
+    expect(screen.queryByTestId('email-use-suggestion')).toBeNull();
+    await fireEvent.press(screen.getByTestId('request-code-button'));
+    expect(api.requestSignup).toHaveBeenCalledWith('new@gmail.com', undefined);
+  });
+
+  it('sends what was typed when the driver says it is right', async () => {
+    api.requestSignup.mockResolvedValue(undefined);
+    await fillSignUp('new@gmial.com');
+    await fireEvent.press(screen.getByTestId('request-code-button'));
+    await fireEvent.press(screen.getByTestId('email-keep-mine'));
+    expect(api.requestSignup).toHaveBeenCalledWith('new@gmial.com', undefined);
+  });
+
+  it('will not send a code to an ending that does not exist, and offers the likely fix', async () => {
+    await fillSignUp('new@gmail.comg');
+    await fireEvent.press(screen.getByTestId('request-code-button'));
+    expect(screen.getByTestId('email-impossible')).toBeTruthy();
+    expect(screen.queryByTestId('email-keep-mine')).toBeNull();
+    expect(api.requestSignup).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByTestId('email-use-suggestion'));
+    expect(screen.getByTestId('identifier-input').props.value).toBe('new@gmail.com');
+  });
+
+  it('drops the question when the email is changed', async () => {
+    await fillSignUp('new@gmial.com');
+    await fireEvent.press(screen.getByTestId('request-code-button'));
+    await fireEvent.changeText(screen.getByTestId('identifier-input'), 'new@gmial.co');
+    expect(screen.queryByTestId('email-use-suggestion')).toBeNull();
+  });
+
   it('asks for the invite code only while the server requires one', async () => {
     await open({ ...PASSWORD_ON, inviteRequired: true });
     await fireEvent.press(await screen.findByTestId('sign-up-button'));

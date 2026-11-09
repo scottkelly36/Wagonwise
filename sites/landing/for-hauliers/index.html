@@ -1114,6 +1114,7 @@
               required
               maxlength="254"
             />
+            <div id="email-fix" class="msg bad" role="alert" hidden></div>
             <label for="name">Name <span class="hint">(optional)</span></label>
             <input id="name" name="name" type="text" autocomplete="name" maxlength="80" />
             <label for="role">I am</label>
@@ -1203,6 +1204,8 @@
       </div>
     </footer>
 
+    <script src="/email-check.js"></script>
+    <script src="/email-fix.js"></script>
     <script>
       const $ = (id) => document.getElementById(id);
 
@@ -1279,6 +1282,7 @@
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
           return show(result, 'That email does not look right. Please check it.', false);
         }
+        if (!reviewEmail($('signup'), $('email'), $('email-fix'))) return;
         if (!$('consent').checked) {
           return show(result, 'Please tick the box so we know you are happy to be emailed.', false);
         }

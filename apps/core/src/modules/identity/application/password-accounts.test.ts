@@ -86,6 +86,15 @@ describe('signing up', () => {
     expect(credential?.passwordHash).toBe(`hashed:${PASSWORD}`);
   });
 
+  it('refuses an email whose ending does not exist, and sends it nothing', async () => {
+    const { deps, sender } = build();
+    expect(await requestSignupCode(deps, { email: 'sam@gmail.comg' })).toEqual({
+      ok: false,
+      error: { tag: 'InvalidIdentifier', reason: 'not_email_or_phone' },
+    });
+    expect(sender.sent).toEqual([]);
+  });
+
   it('refuses a phone number, an address that already has an account, and a weak password', async () => {
     const { deps, sender } = build();
     expect(await requestSignupCode(deps, { email: '07700900123' })).toEqual({

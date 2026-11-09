@@ -25,6 +25,7 @@ import {
   type PasswordTooShort,
 } from '../domain/password.js';
 import { createDriver } from './create-driver.js';
+import { deliverableEmail } from './email-ending.js';
 import type {
   AccountExists,
   CodeNotSent,
@@ -128,7 +129,9 @@ export async function requestSignupCode(
   deps: PasswordAccountDeps,
   input: { readonly email: string; readonly inviteCode?: string | undefined },
 ): Promise<Result<void, RequestSignupCodeError>> {
-  const email = emailIdentifier(input.email);
+  const typed = emailIdentifier(input.email);
+  if (!typed.ok) return typed;
+  const email = deliverableEmail(typed.value);
   if (!email.ok) return email;
   if (await deps.driverRepo.findByIdentifier(email.value)) return err({ tag: 'AccountExists' });
   const invite = await inviteIsUsable(deps, input.inviteCode);

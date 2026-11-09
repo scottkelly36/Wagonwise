@@ -1,3 +1,5 @@
+import { checkEmail } from '@wagonwise/contracts/email-check';
+
 import { makeId } from '../../../shared/brand.js';
 import { INVITE_SUBJECT, inviteEmail } from '../domain/invite-email.js';
 import { LAUNCH_SUBJECT, launchEmailHtml, launchEmailText } from '../domain/launch-email.js';
@@ -67,6 +69,10 @@ export async function signUp(
 ): Promise<Result<void, InvalidSignup | TooManySignups>> {
   const checked = validateSignup(input);
   if (!checked.ok) return checked;
+  // An ending that does not exist (sam@gmail.comg) can only bounce: the page asks about likelier slips, this is the one that stands.
+  if (checkEmail(checked.value.email).kind === 'impossible') {
+    return err({ tag: 'InvalidSignup', reason: 'email' });
+  }
   const now = deps.clock.now();
   if ((await deps.testers.countSince(startOfDay(now))) >= DAILY_CAP) {
     return err({ tag: 'TooManySignups' });

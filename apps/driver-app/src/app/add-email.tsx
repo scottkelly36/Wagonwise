@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useConfirmAddEmail, useRequestAddEmail } from '../api/use-identity';
 import { CodeStep } from '../components/sign-in/code-step';
 import { ErrorText, Field, Hint, PrimaryButton } from '../components/sign-in/form-kit';
+import { useEmailReview } from '../components/sign-in/use-email-review';
 import { ScreenHeader } from '../components/ui/screen-header';
 import { ADD_EMAIL_MESSAGES, signInErrorMessage } from '../lib/sign-in-errors';
 import { looksLikeEmail } from '../lib/sign-in-form';
@@ -26,6 +27,7 @@ export default function AddEmailScreen() {
   const colors = useThemeColors();
   const [email, setEmail] = useState('');
   const [sentTo, setSentTo] = useState<string | undefined>(undefined);
+  const emailReview = useEmailReview(email, setEmail);
 
   if (state.status !== 'signedIn') return null;
   const driver = state.driver;
@@ -91,6 +93,7 @@ export default function AddEmailScreen() {
                 keyboardType="email-address"
                 testID="identifier-input"
               />
+              {emailReview.prompt}
               {request.isError && (
                 <ErrorText testID="add-email-error">
                   {signInErrorMessage(request.error, ADD_EMAIL_MESSAGES)}
@@ -101,7 +104,9 @@ export default function AddEmailScreen() {
                 disabled={!looksLikeEmail(email)}
                 busy={request.isPending}
                 onPress={() =>
-                  request.mutate(email.trim(), { onSuccess: () => setSentTo(email.trim()) })
+                  emailReview.review(() =>
+                    request.mutate(email.trim(), { onSuccess: () => setSentTo(email.trim()) }),
+                  )
                 }
                 testID="request-code-button"
               />

@@ -9,6 +9,7 @@ import {
 } from '../../lib/sign-in-errors';
 import { CodeStep } from './code-step';
 import { ErrorText, Field, Heading, Hint, LinkButton, PrimaryButton } from './form-kit';
+import { useEmailReview } from './use-email-review';
 import { useFinishSignIn } from './use-finish-sign-in';
 
 type Step =
@@ -31,6 +32,7 @@ export function CodeOnlySignIn({
   const [step, setStep] = useState<Step>({ kind: 'identifier' });
   const [identifier, setIdentifier] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const emailReview = useEmailReview(identifier, setIdentifier);
 
   const invite = inviteRequired ? inviteCode.trim() || undefined : undefined;
 
@@ -82,6 +84,7 @@ export function CodeOnlySignIn({
         keyboardType="email-address"
         testID="identifier-input"
       />
+      {emailReview.prompt}
 
       {inviteRequired && (
         <Field
@@ -103,7 +106,11 @@ export function CodeOnlySignIn({
         label="Send me a code"
         disabled={!identifier.trim()}
         busy={requestOtp.isPending}
-        onPress={() => requestOtp.mutate()}
+        onPress={() =>
+          identifier.includes('@')
+            ? emailReview.review(() => requestOtp.mutate())
+            : requestOtp.mutate()
+        }
         testID="request-code-button"
       />
       {onBack !== undefined && <LinkButton label="Back to sign in" onPress={onBack} />}
