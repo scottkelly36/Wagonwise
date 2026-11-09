@@ -363,84 +363,8 @@ came back clear.
 
 ## 7. What's actually deployed, and four real bugs found getting there
 
-**Provisioned (2026-09-25):**
-
-- Managed PostgreSQL `db-pgsql-lon1-09118`, PostgreSQL 17, PostGIS 3.6 enabled, all 11
-  migrations applied.
-- Droplet `wagonwise-valhalla-lon1` (2 GiB), Docker + the same `valhalla` service definition
-  as `infra/docker/compose.yml`. **Expanded 2026-09-26** from Northumberland alone to
-  Northumberland + Tyne and Wear + Cumbria — Valhalla's `docker-valhalla` image builds tiles
-  from every `.osm.pbf` in `/custom_files` together (its own tooling discourages this over
-  merging into one file first via `osmium merge`, but three adjacent-county extracts stitched
-  correctly at every tested boundary: Tyne and Wear↔Northumberland, Cumbria↔Northumberland, and
-  a route crossing both borders at once — worth revisiting with a real merge if a future route
-  near a boundary looks wrong). Tiles built and healthy. Port 8002 is bound to the droplet's
-  **private** IP only (`10.131.30.167:8002` in the compose file, not `0.0.0.0`) — publishing on
-  `0.0.0.0` and relying on `ufw` to block the public IP does **not** work, because Docker writes
-  its own iptables rules that bypass `ufw` entirely for published ports. Verified both ways:
-  public IP times out, private IP responds.
-- App Platform app `wagonwise-backend` (ID `dcbd23e5-6de6-44b8-90b8-32e162e99016`), created via
-  `doctl apps create --spec infra/digitalocean/app-spec.yaml` (`doctl`, not the web console —
-  the visual builder couldn't be made to use a Dockerfile instead of Buildpack detection, and
-  this DO account's UI has no "edit as YAML" option to work around it). Live at
-  `https://wagonwise-backend-o2baa.ondigitalocean.app`.
-
-**Four real bugs found only by actually deploying, not by local testing:**
-
-1. **`DeployContainerHealthChecksFailed` on both components.** DO's default health check
-   probes `/`; neither `core` nor `driver-bff` has a route there, only `/health`. Fixed with
-   `health_check: { http_path: /health, port: <3001|3002> }` in the app spec. Worth adding to
-   both apps' Dockerfiles/specs as a standing convention if a third service ever joins this
-   deployment.
-2. **`core` and `driver-bff` both listen on `127.0.0.1` by default** (`config.ts`'s `HOST`
-   default) — fine for local dev, but App Platform's health-check probe connects to the
-   container's real network IP, not loopback, so it got `connection refused` even though the
-   process was genuinely running and healthy. Fixed by setting `HOST=0.0.0.0` as an env var on
-   both components. This is the same class of issue flagged earlier for LAN device testing
-   (`README.md`'s physical-device table) — worth remembering as a recurring gotcha, not a
-   one-off.
-3. **`core` couldn't reach the Valhalla droplet's private IP at all — every
-   `POST /routing/route-plans` timed out after 10s with a 500** (`fetch failed: Connect Timeout
-Error`, `10.131.30.167:8002`), even though Valhalla itself was healthy and reachable from the
-   droplet's own private IP, and the droplet's `ufw` rule allowed the whole `10.131.0.0/16`
-   range. Root cause: the App Platform app was never connected to a VPC — App Platform apps
-   only get a route into a datacenter's VPC when the spec says so explicitly; otherwise their
-   outbound traffic comes from a separate `100.64.0.0/10` CGNAT range with no path to the
-   droplet's `10.131.0.0/16` network, regardless of firewall rules. Fixed by adding a top-level
-   `vpc.id` (the `default-lon1` VPC UUID, the same VPC the Valhalla droplet is on) to the app
-   spec and reapplying via `doctl apps update --spec`. Verified for real, not just by status
-   code: watched `core`'s live logs while retrying "Plan route" in the app and confirmed
-   `POST /routing/route-plans` went from a 10.5s timeout/500 to a 292ms **201**.
-4. **`doctl apps update --spec infra/digitalocean/app-spec.yaml` wiped `core`'s working
-   `DATABASE_URL` and briefly took `core` down (2026-09-26), while adding the `migrate` job.**
-   `DATABASE_URL` had been set as an **App-Level Environment Variable** — shared across every
-   component, in its own section in the app's Settings, separate from any component's own env
-   panel (which is also why it never showed up when looking under `core` specifically while
-   troubleshooting this). This repo's checked-in `app-spec.yaml` has no top-level `envs:`
-   section at all, by design (no secrets committed, per the file's own header comment) — but
-   `doctl apps update --spec` treats the submitted file as the **complete, authoritative** spec,
-   not a diff to merge. Applying it wiped the app-level `DATABASE_URL` entirely. `core`'s
-   _already-running_ container kept working (it had the value loaded in memory from before), so
-   there was no actual outage — but the next deploy's fresh `core` container crash-looped on
-   `ECONNREFUSED 127.0.0.1:5432` (Kysely/`pg` falling back to `config.ts`'s local-dev default)
-   until the deploy failed and DO kept the old container serving instead. Per-component secrets
-   (`driver-bff`'s `CORE_INTERNAL_KEY`, confirmed by testing that internal-auth between a fresh
-   `driver-bff` and the old `core` still matched) survived the same `doctl apps update` call —
-   only the app-level ones were lost. **Never run `doctl apps update --spec
-infra/digitalocean/app-spec.yaml` directly** — it will re-wipe any App-Level environment
-   variables that aren't in that file (which is all of them, on purpose). Fetch the live spec
-   first (`doctl apps spec get <app-id>`), diff it to find what the checked-in file is missing,
-   and apply a merged version instead — or make the change through the console's own spec
-   editor, which merges rather than replaces. Once secrets are lost, they need regenerating
-   (`IDENTITY_PRIVATE_KEY`/`INTERNAL_KEYS` are just random values with no external dependency —
-   losing them only forces every signed-in driver to re-authenticate) or recovering from
-   wherever else they might be cached (`apps/core/.env`, in this case, had working copies of
-   `CLICKSEND_USERNAME`/`CLICKSEND_API_KEY`/`RESEND_API_KEY` from earlier local testing).
-
-**Verified end to end**, not just "deployed and hoped": `GET /health` on the public URL, then a
-real `POST /identity/otp/request` (driver-app request shape, a temporary test invite code
-inserted directly via SQL and removed after) round-tripped `driver-bff` → `core` over the
-private VPC → Postgres → a real ClickSend SMS, delivered to a real phone.
+Moved to `docs/history/deployment-first-deploy.md` (2026-11-09): what was provisioned on 2026-09-25, how it was verified end to end, and the four bugs found on the
+first deploy. Worth reading if a deploy fails in a way the steps above do not explain; one of its notes (re-recording the golden routes after a routing change) is still relevant.
 
 ## 8. Valhalla: lift the trace limits (after the 2026-10-03 routing change)
 
@@ -596,7 +520,7 @@ job, and is now done as described above. The steps are kept for the next rebuild
 4. **Lift the trace limits** (section 8): for national journeys `max_distance` and `max_shape` matter a lot.
 5. **Run the golden-route checks** (`pnpm test:golden`, or the nightly workflow) and add golden routes beyond
    the north-east: the Scottish Highlands, mid-Wales, the South West, London, and a long cross-country
-   one (Penzance to Wick). Re-record the golden values after the switch (section 7's note applies).
+   one (Penzance to Wick). Re-record the golden values after the switch (the note in `docs/history/deployment-first-deploy.md` applies).
 6. **Rebuild on a schedule** (about monthly): roads change. The same script, the same copy and swap.
 
 **Not about Valhalla, but needed for long routes (done in code, 2026-10-07):** a route across Britain has tens
@@ -608,3 +532,75 @@ route to 1,500 points before asking about hazards and parking, because the API a
 **Still to check on the first national build:** how the route-options preview and parking drive times behave
 on long routes (each is a separate routing request), MapTiler plan limits (tiles and address search) at national
 usage, and OpenStreetMap's height and weight tags on the routes customers actually drive.
+
+## 11. Valhalla: height data for the Loaded hill check (written 2026-11-09, not yet done on the live server)
+
+The Loaded option on Plan route (`docs/loaded-routing-scope.md`) measures hills with Valhalla's `/height` service. That service reads height files from the
+folder `valhalla.json` names under `additional_data.elevation` (`/custom_files/elevation_data` in the container), **independently of the road tiles**: no tile
+rebuild, no new droplet. Until the files are there, `/height` answers an error, core treats that as "no heights", and the app says the hill check is not
+available yet. Nothing else is affected.
+
+**Size, checked 2026-11-09:** Great Britain (latitudes 49 to 60 N, longitudes 9 W to 1 E) is 132 one-degree tiles of NASA SRTM data from the public AWS
+terrain tiles: 345 MB to download and **about 3.4 GB unpacked** (each tile is a 3601 by 3601 grid, about 26 MB; the 160 GB disk has room). The download is checked
+on one tile (N55W003): Carter Bar reads 404 m from it, against about 418 m on the map. Do it on the serving droplet, `wagonwise-valhalla-lon1`.
+
+All commands below run **on the serving droplet** (`ssh root@<serving droplet public IP>`, the address on its DigitalOcean page), in `/opt/valhalla`.
+
+1. **Check the config names the folder, and the height limits.**
+
+   ```bash
+   cd /opt/valhalla
+   grep -n '"elevation"' custom_files/valhalla.json
+   grep -n -A3 '"height"' custom_files/valhalla.json
+   df -h /opt
+   ```
+
+   The first should show `"elevation": "/custom_files/elevation_data"`. If it shows an empty string or nothing, set it to that value under
+   `"additional_data"` (take a copy of the file first: `cp custom_files/valhalla.json custom_files/valhalla.json.before-elevation`). The second may show nothing
+   (the defaults apply, which are enough: a route is thinned to 20,000 points before it is sent). `df` should show at least 5 GB free.
+
+2. **Download the tiles.** Each is named for its south-west corner (`N54W002` is 54 to 55 N, 2 W to 1 W) and sits in a folder named for its latitude.
+
+   ```bash
+   mkdir -p custom_files/elevation_data && cd custom_files/elevation_data
+   for lat in $(seq 49 60); do
+     mkdir -p "N$lat"
+     for lon in $(seq -9 1); do
+       if [ "$lon" -lt 0 ]; then ew=W; a=$((-lon)); else ew=E; a=$lon; fi
+       name=$(printf "N%02d%s%03d" "$lat" "$ew" "$a")
+       curl -fsS --retry 5 --retry-delay 2 --retry-all-errors -o "N$lat/$name.hgt.gz" "https://elevation-tiles-prod.s3.amazonaws.com/skadi/N$lat/$name.hgt.gz" && gunzip -f "N$lat/$name.hgt.gz"
+     done
+   done
+   find . -name '*.hgt' | wc -l
+   du -sh .
+   cd /opt/valhalla
+   ```
+
+   It takes a few minutes. The count should be **132** and the size about 3.4 GB. A line starting `curl:` means a tile failed: run the loop again (tiles already unpacked are
+   downloaded again, which does no harm).
+
+3. **Restart Valhalla** so it opens the files, and wait for it to answer.
+
+   ```bash
+   docker compose restart valhalla
+   until curl -fs http://localhost:8002/status >/dev/null; do sleep 2; done; echo up
+   ```
+
+   If the service has another name in this folder's compose file, `docker compose ps` shows it. Loading the road tiles takes under 15 seconds (section 10).
+
+4. **Check heights.** The first point is the top of the A68 at Carter Bar; the second is a few km along the road.
+
+   ```bash
+   curl -s http://localhost:8002/height -H 'content-type: application/json' \
+     -d '{"range":true,"resample_distance":100,"shape":[{"lat":55.3526,"lon":-2.4778},{"lat":55.3300,"lon":-2.5000}]}'
+   ```
+
+   Good: a `range_height` list of `[distance, height]` pairs, the first height near 400 (404 from the data, 418 on the map). Bad: an error mentioning elevation (the folder or the config is wrong:
+   repeat step 1), or heights of 0 or `null` (tiles missing: repeat step 2).
+
+5. **Try it in the app.** Once the server side and the app switch are released (PRs #347 and #349), open Plan route, choose **Loaded**, and plan Washington to
+   Grangemouth with a heavy artic. The route cards should show "of steep hill · highest point" lines. A loaded search makes several routing requests, so it takes a few
+   seconds.
+
+**Roll back:** `rm -rf custom_files/elevation_data` and `docker compose restart valhalla`. The app goes back to "the hill check is not available yet". Keep this folder
+when swapping in new road tiles (section 10): it is not part of them.
