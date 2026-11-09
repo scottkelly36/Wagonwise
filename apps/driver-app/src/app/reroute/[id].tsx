@@ -10,6 +10,8 @@ import { formatDuration } from '../../lib/format-duration';
 import { decodePolyline6 } from '../../lib/polyline';
 import { useCurrentActiveTripStore } from '../../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../../state/current-route-plan-store';
+import { useMeasureUnitsStore } from '../../state/measure-units-store';
+import { formatRouteDistance } from '../../lib/units';
 import { Icon } from '../../components/ui/icon';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
 import { cardStyle, radius } from '../../theme/tokens';
@@ -34,6 +36,7 @@ export default function RerouteScreen() {
   const trip = useCurrentActiveTripStore((s) => s.trip);
   const { data: newPlan, isLoading, isError, error } = useRoutePlan(id);
   const insets = useSafeAreaInsets();
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -90,10 +93,11 @@ export default function RerouteScreen() {
 
         {newPlan && (
           <Text style={styles.comparison}>
-            Current: {currentPlan.distanceKm.toFixed(1)} km ·{' '}
+            Current: {formatRouteDistance(currentPlan.distanceKm, distanceUnit)} ·{' '}
             {formatDuration(currentPlan.durationMin)}
             {'\n'}
-            New: {newPlan.distanceKm.toFixed(1)} km · {formatDuration(newPlan.durationMin)}
+            New: {formatRouteDistance(newPlan.distanceKm, distanceUnit)} ·{' '}
+            {formatDuration(newPlan.durationMin)}
           </Text>
         )}
 

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { EMPTY_VEHICLE_PROFILE_FORM } from '../lib/vehicle-profile-form';
 import { useLengthUnitStore } from '../state/length-unit-store';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { VehicleProfileForm } from './vehicle-profile-form';
 
 jest.mock('expo-secure-store', () => ({
@@ -14,6 +15,7 @@ jest.setTimeout(30_000);
 
 beforeEach(() => {
   useLengthUnitStore.setState({ unit: 'metres' });
+  useMeasureUnitsStore.setState({ distance: 'km', fuel: 'l100km' });
 });
 
 async function type(testID: string, text: string) {
@@ -124,5 +126,73 @@ describe('VehicleProfileForm, in feet and inches', () => {
       lengthM: 16.5,
       grossWeightT: 32,
     });
+  });
+});
+
+describe('VehicleProfileForm, fuel economy in miles per gallon', () => {
+  const baseValues = {
+    ...EMPTY_VEHICLE_PROFILE_FORM,
+    name: 'Big wagon',
+    heightM: '4.2',
+    widthM: '2.6',
+    lengthM: '16.5',
+    grossWeightT: '32',
+  };
+
+  it('turns the miles per gallon a driver types into the litres per 100 km that are sent', async () => {
+    useMeasureUnitsStore.setState({ fuel: 'mpg' });
+    const onSubmit = jest.fn();
+    await render(
+      <VehicleProfileForm
+        initialValues={baseValues}
+        submitLabel="Save"
+        pending={false}
+        errorMessage={undefined}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    await type('profile-fuel-consumption-mpg-input', '10');
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+
+    expect(onSubmit.mock.calls[0][0].fuelConsumptionL100km).toBe(28.2481);
+  });
+
+  it('fills the box from a saved value, and sends it unchanged if the driver leaves it alone', async () => {
+    useMeasureUnitsStore.setState({ fuel: 'mpg' });
+    const onSubmit = jest.fn();
+    await render(
+      <VehicleProfileForm
+        initialValues={{ ...baseValues, fuelConsumptionL100km: '30' }}
+        submitLabel="Save"
+        pending={false}
+        errorMessage={undefined}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(screen.getByTestId('profile-fuel-consumption-mpg-input').props.value).toBe('9.4');
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+    expect(onSubmit.mock.calls[0][0].fuelConsumptionL100km).toBe(30);
+  });
+
+  it('says the fuel consumption is not valid for rubbish typed in miles per gallon', async () => {
+    useMeasureUnitsStore.setState({ fuel: 'mpg' });
+    const onSubmit = jest.fn();
+    await render(
+      <VehicleProfileForm
+        initialValues={baseValues}
+        submitLabel="Save"
+        pending={false}
+        errorMessage={undefined}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    await type('profile-fuel-consumption-mpg-input', 'abc');
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Fuel consumption must be a positive number.')).toBeTruthy();
   });
 });

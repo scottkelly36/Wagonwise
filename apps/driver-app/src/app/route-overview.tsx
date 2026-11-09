@@ -34,7 +34,9 @@ import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useShiftStore } from '../state/shift-store';
+import { formatRouteDistance } from '../lib/units';
 import { Icon } from '../components/ui/icon';
 import { RoundButton } from '../components/ui/round-button';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
@@ -62,6 +64,7 @@ export default function RouteOverviewScreen() {
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const [selectedClosureId, setSelectedClosureId] = useState<string | undefined>(undefined);
   const insets = useSafeAreaInsets();
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -228,7 +231,7 @@ export default function RouteOverviewScreen() {
 
       <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
         <Text style={styles.distance}>
-          {plan.distanceKm.toFixed(1)} km · {formatDuration(plan.durationMin)}
+          {formatRouteDistance(plan.distanceKm, distanceUnit)} · {formatDuration(plan.durationMin)}
           {plan.estimatedFuelCostGBP !== undefined
             ? ` · est. £${plan.estimatedFuelCostGBP.toFixed(2)} fuel`
             : ''}

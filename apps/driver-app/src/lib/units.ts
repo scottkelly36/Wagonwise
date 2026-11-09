@@ -52,3 +52,47 @@ export function formatHeightWithFeetInches(heightM: number | undefined): string 
   }
   return `${heightM}m (${metresToFeetInches(heightM)})`;
 }
+
+/** How a driver reads the length of a route: kilometres until they choose miles. */
+export type DistanceUnit = 'km' | 'miles';
+
+/** How a driver reads and types a vehicle's fuel economy: litres per 100 km until they choose miles per gallon. */
+export type FuelUnit = 'l100km' | 'mpg';
+
+const KM_PER_MILE = 1.609344;
+const LITRES_PER_IMPERIAL_GALLON = 4.54609;
+/** Miles per gallon times litres per 100 km is always this: 100 L/100km is 2.8248 mpg, 10 L/100km is 28.248 mpg. */
+const MPG_TIMES_L100KM = (100 * LITRES_PER_IMPERIAL_GALLON) / KM_PER_MILE;
+
+/** A route's length, e.g. 29.702 -> "29.7 km", or "18.5 mi" in miles. */
+export function formatRouteDistance(km: number, unit: DistanceUnit): string {
+  return unit === 'miles' ? `${(km / KM_PER_MILE).toFixed(1)} mi` : `${km.toFixed(1)} km`;
+}
+
+/** Miles per gallon typed as text, to litres per 100 km as text for the form's own parsing. The gallon is the imperial (UK) gallon, which
+ *  is what UK pumps and drivers mean, not the US one. Empty stays empty; anything that is not a positive number gives "NaN" so the
+ *  form says the fuel consumption is not valid. Not rounded beyond four decimal places. */
+export function mpgToL100km(mpg: string): string {
+  if (mpg.trim() === '') return '';
+  const value = Number(mpg.trim());
+  if (!Number.isFinite(value) || value <= 0) return 'NaN';
+  return String(Number((MPG_TIMES_L100KM / value).toFixed(4)));
+}
+
+/** Litres per 100 km as text to miles per gallon as text, to one decimal place, for filling the box. A value that is empty or not a
+ *  positive number gives an empty box. */
+export function l100kmToMpg(l100km: string): string {
+  const value = Number(l100km.trim());
+  if (l100km.trim() === '' || !Number.isFinite(value) || value <= 0) return '';
+  return String(Number((MPG_TIMES_L100KM / value).toFixed(1)));
+}
+
+export const DISTANCE_UNIT_OPTIONS: readonly { key: DistanceUnit; label: string }[] = [
+  { key: 'km', label: 'Kilometres' },
+  { key: 'miles', label: 'Miles' },
+];
+
+export const FUEL_UNIT_OPTIONS: readonly { key: FuelUnit; label: string }[] = [
+  { key: 'l100km', label: 'L/100 km' },
+  { key: 'mpg', label: 'Miles per gallon' },
+];

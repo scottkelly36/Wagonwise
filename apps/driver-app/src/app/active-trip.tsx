@@ -90,6 +90,8 @@ import { cameraOffsets, nextCameraAhead } from '../lib/camera-ahead';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useStillThereStore } from '../state/still-there-store';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
+import { formatRouteDistance } from '../lib/units';
 import { useGuidanceStore } from '../state/guidance-store';
 import { Icon, type IconName } from '../components/ui/icon';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
@@ -240,6 +242,7 @@ export default function ActiveTripScreen() {
   // marker update on the map each time.
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const insets = useSafeAreaInsets();
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -608,7 +611,8 @@ export default function ActiveTripScreen() {
                 {breakPlan?.kind === 'break' ? ' with break' : ''}
               </Text>
               <Text style={styles.etaDistance}>
-                {remainingKm?.toFixed(1)} km left
+                {remainingKm === undefined ? '' : formatRouteDistance(remainingKm, distanceUnit)}{' '}
+                left
                 {trafficNote(trafficMin) === undefined ? '' : ` · ${trafficNote(trafficMin)}`}
               </Text>
             </View>
