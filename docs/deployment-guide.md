@@ -608,3 +608,75 @@ route to 1,500 points before asking about hazards and parking, because the API a
 **Still to check on the first national build:** how the route-options preview and parking drive times behave
 on long routes (each is a separate routing request), MapTiler plan limits (tiles and address search) at national
 usage, and OpenStreetMap's height and weight tags on the routes customers actually drive.
+
+## 11. Valhalla: height data for the Loaded hill check (written 2026-11-09, not yet done on the live server)
+
+The Loaded option on Plan route (`docs/loaded-routing-scope.md`) measures hills with Valhalla's `/height` service. That service reads height files from the
+folder `valhalla.json` names under `additional_data.elevation` (`/custom_files/elevation_data` in the container), **independently of the road tiles**: no tile
+rebuild, no new droplet. Until the files are there, `/height` answers an error, core treats that as "no heights", and the app says the hill check is not
+available yet. Nothing else is affected.
+
+**Size, checked 2026-11-09:** Great Britain (latitudes 49 to 60 N, longitudes 9 W to 1 E) is 132 one-degree tiles of NASA SRTM data from the public AWS
+terrain tiles: 345 MB to download and **about 3.4 GB unpacked** (each tile is a 3601 by 3601 grid, about 26 MB; the 160 GB disk has room). The download is checked
+on one tile (N55W003): Carter Bar reads 404 m from it, against about 418 m on the map. Do it on the serving droplet, `wagonwise-valhalla-lon1`.
+
+All commands below run **on the serving droplet** (`ssh root@<serving droplet public IP>`, the address on its DigitalOcean page), in `/opt/valhalla`.
+
+1. **Check the config names the folder, and the height limits.**
+
+   ```bash
+   cd /opt/valhalla
+   grep -n '"elevation"' custom_files/valhalla.json
+   grep -n -A3 '"height"' custom_files/valhalla.json
+   df -h /opt
+   ```
+
+   The first should show `"elevation": "/custom_files/elevation_data"`. If it shows an empty string or nothing, set it to that value under
+   `"additional_data"` (take a copy of the file first: `cp custom_files/valhalla.json custom_files/valhalla.json.before-elevation`). The second may show nothing
+   (the defaults apply, which are enough: a route is thinned to 20,000 points before it is sent). `df` should show at least 5 GB free.
+
+2. **Download the tiles.** Each is named for its south-west corner (`N54W002` is 54 to 55 N, 2 W to 1 W) and sits in a folder named for its latitude.
+
+   ```bash
+   mkdir -p custom_files/elevation_data && cd custom_files/elevation_data
+   for lat in $(seq 49 60); do
+     mkdir -p "N$lat"
+     for lon in $(seq -9 1); do
+       if [ "$lon" -lt 0 ]; then ew=W; a=$((-lon)); else ew=E; a=$lon; fi
+       name=$(printf "N%02d%s%03d" "$lat" "$ew" "$a")
+       curl -fsS --retry 5 --retry-delay 2 --retry-all-errors -o "N$lat/$name.hgt.gz" "https://elevation-tiles-prod.s3.amazonaws.com/skadi/N$lat/$name.hgt.gz" && gunzip -f "N$lat/$name.hgt.gz"
+     done
+   done
+   find . -name '*.hgt' | wc -l
+   du -sh .
+   cd /opt/valhalla
+   ```
+
+   It takes a few minutes. The count should be **132** and the size about 3.4 GB. A line starting `curl:` means a tile failed: run the loop again (tiles already unpacked are
+   downloaded again, which does no harm).
+
+3. **Restart Valhalla** so it opens the files, and wait for it to answer.
+
+   ```bash
+   docker compose restart valhalla
+   until curl -fs http://localhost:8002/status >/dev/null; do sleep 2; done; echo up
+   ```
+
+   If the service has another name in this folder's compose file, `docker compose ps` shows it. Loading the road tiles takes under 15 seconds (section 10).
+
+4. **Check heights.** The first point is the top of the A68 at Carter Bar; the second is a few km along the road.
+
+   ```bash
+   curl -s http://localhost:8002/height -H 'content-type: application/json' \
+     -d '{"range":true,"resample_distance":100,"shape":[{"lat":55.3526,"lon":-2.4778},{"lat":55.3300,"lon":-2.5000}]}'
+   ```
+
+   Good: a `range_height` list of `[distance, height]` pairs, the first height near 400 (404 from the data, 418 on the map). Bad: an error mentioning elevation (the folder or the config is wrong:
+   repeat step 1), or heights of 0 or `null` (tiles missing: repeat step 2).
+
+5. **Try it in the app.** Once the server side and the app switch are released (PRs #347 and #349), open Plan route, choose **Loaded**, and plan Washington to
+   Grangemouth with a heavy artic. The route cards should show "of steep hill · highest point" lines. A loaded search makes several routing requests, so it takes a few
+   seconds.
+
+**Roll back:** `rm -rf custom_files/elevation_data` and `docker compose restart valhalla`. The app goes back to "the hill check is not available yet". Keep this folder
+when swapping in new road tiles (section 10): it is not part of them.
