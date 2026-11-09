@@ -116,4 +116,5 @@ Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those li
   `phase-2-early-build.md`: Phase 2 as built early
 - `history/saved-places.md`: saved places, public places, Just me or My company, the review screen
 - `phase-3-scope.md`: Phase 3 scope, modules and what is built; `ideas.md`: field-testing ideas backlog
+- `history/deployment-first-deploy.md`: the first deployment (2026-09-25) and the four bugs found getting there
 - `history/log.md`: the dated change log, newest first; `history/log-archive.md`: entries to 2026-10-15
