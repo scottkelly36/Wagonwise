@@ -35,7 +35,7 @@ const TOLERABLE_STEEP_KM = 1.5;
 /** What a kilometre of steep road is worth to a loaded lorry, in minutes: it is slow up it, and slow and careful down it. Routes are
  *  compared on their time plus this for each steep kilometre, so a route is only called gentler when what it saves in hills is worth the
  *  extra driving. The second number to tune on real routes, after the grade that counts as steep. */
-const STEEP_KM_COST_MIN = 8;
+export const STEEP_KM_COST_MIN = 8;
 
 /** A gentler route is only offered as "the gentlest" if it takes no more than this times as long as the quickest, plus a margin of
  *  this many minutes for a short trip. A driver can still see the quickest; this stops a loop round half of Britain being called gentle. */

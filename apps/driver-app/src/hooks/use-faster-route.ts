@@ -9,6 +9,7 @@ import { CHECK_INTERVAL_MS, FIRST_CHECK_DELAY_MS, OFFER_VISIBLE_MS } from '../li
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useFasterRouteStore } from '../state/faster-route-store';
+import { useLoadStore } from '../state/load-store';
 import { useAccessToken } from './use-access-token';
 
 export type FasterRouteOffer = NonNullable<FasterRouteCheckResponse['offer']>;
@@ -54,6 +55,7 @@ export function useFasterRoute(
           position: here,
           ...(heading === undefined ? {} : { headingDeg: heading }),
           keptKeys: [...(useFasterRouteStore.getState().keptByTrip[tripId] ?? [])],
+          ...(useLoadStore.getState().loaded ? { loaded: true } : {}),
         });
         if (cancelled || found === null) return;
         setHeld({ tripId, offer: found });

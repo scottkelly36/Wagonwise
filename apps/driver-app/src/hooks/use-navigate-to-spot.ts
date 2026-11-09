@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import * as routingApi from '../api/routing';
 import { LocationUnavailableError } from '../lib/error-messages';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
+import { loadedStrategy } from '../lib/loaded-strategy';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useAccessToken } from './use-access-token';
 import { fetchCurrentLocation } from './use-current-location';
@@ -35,6 +36,7 @@ export function useNavigateToPlace(profileId: VehicleProfileId | undefined) {
         profileId,
         origin: here.point,
         destination,
+        ...loadedStrategy(),
       });
       plans.setPlan(plan);
       trips.setTrip(await routingApi.startTrip(accessToken, plan.id));

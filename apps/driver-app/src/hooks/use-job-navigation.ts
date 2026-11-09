@@ -8,6 +8,7 @@ import { CURRENT_JOB_KEY } from '../api/use-jobs';
 import { LocationUnavailableError } from '../lib/error-messages';
 import { navigationTarget } from '../lib/job-navigation';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
+import { loadedStrategy } from '../lib/loaded-strategy';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { fetchCurrentLocation } from './use-current-location';
 import { useAccessToken } from './use-access-token';
@@ -60,6 +61,7 @@ export function useJobNavigation() {
         profileId,
         origin: here.point,
         destination: target.stop.location,
+        ...loadedStrategy(),
       });
       plans.setPlan(plan);
       trips.setTrip(await routingApi.startTrip(accessToken, plan.id));

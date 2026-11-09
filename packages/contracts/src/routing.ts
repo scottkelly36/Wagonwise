@@ -307,6 +307,8 @@ export const fasterRouteCheckRequestSchema = z.object({
   position: geoPointSchema,
   headingDeg: z.number().min(0).max(360).optional(),
   keptKeys: z.array(z.string().max(32)).max(20).default([]),
+  /** The vehicle is loaded: a route that adds steep hills is not offered as the faster one. Only has an effect when the server has height data. */
+  loaded: z.boolean().optional(),
 });
 export type FasterRouteCheckRequest = z.infer<typeof fasterRouteCheckRequestSchema>;
 

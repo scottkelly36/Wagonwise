@@ -761,8 +761,11 @@ on it beyond local dev. Copy `apps/driver-app/.env.example` to `.env` to set it.
 **Loaded / Empty (2026-11-09):** a **Load** switch above the Plan route button (`state/load-store.ts`, kept on the phone, Empty by default). Loaded sends
 `loaded: true` with the route-options preview; when the server has height data each route card gains a hills line ("2.3 km of steep hill · highest point
 328 m", `lib/route-option-text.ts`) and the gentlest route is labelled "Fewer hills" (planned with `strategy: 'gentle'`). With no height data the cards are as
-for Empty and a line says the hill check is not available yet. Core's side and the evidence: `docs/loaded-routing-scope.md`. Reroutes and the faster-route
-check do not use the setting yet.
+for Empty and a line says the hill check is not available yet. Core's side and the evidence: `docs/loaded-routing-scope.md`. The setting is also used when a route is made
+from where the lorry is now: **Re-plan from here**, the next stop of a job and a parking spot all plan with `strategy: 'gentle'` when Loaded (`lib/loaded-strategy.ts`),
+and the **faster-route check** sends `loaded: true`, so core does not offer a quicker route that has more than 0.5 km more steep road than what is left of the
+current one (`check-faster-route.ts`). **Not covered:** the reroute alert core sends by itself when a hazard is reported ahead (`detect-reroute.ts`) plans the new route
+without knowing the vehicle is loaded, because the Load setting lives only on the phone; fixing that needs the setting stored with the trip (a migration).
 
 **Not verified on a real map render** — beyond the disclosed gap every M5 task has had so far (no
 Android SDK, no macOS on this machine), MapLibre specifically needs its own native module built

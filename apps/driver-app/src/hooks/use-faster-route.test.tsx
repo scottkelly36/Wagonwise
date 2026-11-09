@@ -8,6 +8,7 @@ import { CHECK_INTERVAL_MS, FIRST_CHECK_DELAY_MS, OFFER_VISIBLE_MS } from '../li
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useFasterRouteStore } from '../state/faster-route-store';
+import { useLoadStore } from '../state/load-store';
 import { useFasterRoute, type FasterRouteOffer } from './use-faster-route';
 
 jest.mock('../api/routing');
@@ -47,6 +48,7 @@ beforeEach(() => {
   });
   jest.resetAllMocks();
   useFasterRouteStore.setState({ enabled: true, keptByTrip: {} });
+  useLoadStore.setState({ loaded: false });
   useCurrentActiveTripStore.setState({ trip: undefined });
   useCurrentRoutePlanStore.setState({ plan: undefined });
 });
@@ -68,6 +70,17 @@ it('asks after the first delay, with the position, and shows the offer', async (
     keptKeys: [],
   });
   expect(result.current.offer).toEqual(offer);
+});
+
+it('tells the server the vehicle is loaded, only when it is', async () => {
+  api.checkFasterRoute.mockResolvedValue(null);
+  useLoadStore.setState({ loaded: true });
+  await renderHook(() => useFasterRoute('trip-1', here, undefined), { wrapper });
+  await advance(FIRST_CHECK_DELAY_MS);
+  expect(api.checkFasterRoute.mock.calls[0]?.[2]).toMatchObject({ loaded: true });
+  useLoadStore.setState({ loaded: false });
+  await advance(CHECK_INTERVAL_MS);
+  expect(api.checkFasterRoute.mock.calls[1]?.[2]).not.toHaveProperty('loaded');
 });
 
 it('shows nothing when there is nothing to offer, and asks again later', async () => {

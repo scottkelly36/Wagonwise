@@ -58,8 +58,9 @@ is not on any route it has tried, or be exact about a gradient (heights are coar
 2. **Server data (owner step, on the droplet).** Download SRTM tiles for Great Britain into the `elevation` folder (about 130 one-degree tiles; Valhalla's
    `valhalla_build_elevation --from_bbox=-9,49,2,61` fetches them) and make sure the `height` service limits in `valhalla.json` allow a long route. Disk and
    memory to be checked first (`deployment-guide.md`, section 10).
-3. **Driver app.** The Loaded / Empty switch on Plan route and the hill lines on the option cards; the same setting used on reroute and the faster-route
-   check. Over the air.
+3. **Driver app.** The Loaded / Empty switch on Plan route and the hill lines on the option cards; the same setting used when a route is made from the lorry's position
+   (re-plan, a job's next stop, a parking spot) and in the faster-route check (built 2026-11-09). **Still to do:** the reroute alert core sends itself when a hazard is
+   reported ahead (`detect-reroute.ts`) does not know the vehicle is loaded, because the setting is on the phone only; it needs the setting stored with the trip.
 4. **Tune on real routes** with the owner's drivers: Washington to Grangemouth, Hexham to Hebburn, the Pennine crossings, Cumbria and the Welsh hills. Keep a
    few as golden routes (`test:golden`) so a later change cannot send a loaded lorry over Carter Bar again.
 5. **Later, if it is not good enough:** a hill cost inside the engine (a fork of Valhalla's truck costing) and elevation built into the tiles. Only worth it if
