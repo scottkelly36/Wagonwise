@@ -28,6 +28,8 @@ import { formatRouteDistance, type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { FeetInchesInputs } from '../components/feet-inches-inputs';
+import { VehiclePresetChips } from '../components/vehicle-preset-chips';
+import { presetFigures } from '../components/vehicle-preset-picker';
 import { decodePolyline6 } from '../lib/polyline';
 import { config } from '../config';
 import { useCurrentLocation } from '../hooks/use-current-location';
@@ -47,6 +49,12 @@ import {
   type PointEnd,
   type ToMode,
 } from '../lib/route-points';
+import {
+  enteredVehicleName,
+  presetFormValues,
+  presetMatching,
+  type VehiclePreset,
+} from '../lib/vehicle-presets';
 import {
   EMPTY_VEHICLE_PROFILE_FORM,
   parseVehicleProfileForm,
@@ -97,9 +105,10 @@ const DIMENSION_FIELDS: {
   { key: 'axleWeightT', label: 'Axle weight (tonnes, optional)', placeholder: '10' },
 ];
 
-const LENGTH_UNIT_OPTIONS: readonly { key: LengthUnit; label: string }[] = [
+const SIZE_OPTIONS: readonly { key: 'presets' | LengthUnit; label: string }[] = [
+  { key: 'presets', label: 'Presets' },
   { key: 'metres', label: 'Metres' },
-  { key: 'feet', label: 'Feet and inches' },
+  { key: 'feet', label: 'Feet & inches' },
 ];
 const FEET_PLACEHOLDERS: Partial<Record<string, string>> = {
   heightM: '13',
@@ -162,6 +171,8 @@ export default function PlanRouteScreen() {
   const lengthUnit = useLengthUnitStore((s) => s.unit);
   const setLengthUnit = useLengthUnitStore((s) => s.setUnit);
   const [manualError, setManualError] = useState<string | undefined>(undefined);
+  // Enter details gives the size by picking a preset or by typing it; a new driver starts on the presets.
+  const [manualMode, setManualMode] = useState<'presets' | 'type'>('presets');
   const [origin, setOrigin] = useState<MapPoint | undefined>(undefined);
   const [destination, setDestination] = useState<MapPoint | undefined>(undefined);
   const [fromMode, setFromMode] = useState<FromMode>('here');
@@ -241,6 +252,25 @@ export default function PlanRouteScreen() {
                 ? 'Now type the three words and tap Find.'
                 : 'Now tap the map where you are going.'
             : undefined;
+
+  /** The preset whose figures are in the boxes right now, if any: it is shown as chosen only while the figures still match. */
+  const presetInBoxes = presetMatching(dimensionValues);
+
+  function handleSizeChoice(next: 'presets' | LengthUnit): void {
+    setManualError(undefined);
+    if (next === 'presets') {
+      setManualMode('presets');
+      return;
+    }
+    setManualMode('type');
+    void setLengthUnit(next);
+  }
+
+  function handlePickPreset(preset: VehiclePreset): void {
+    setManualError(undefined);
+    setRouteOptions(undefined);
+    setDimensionValues(presetFormValues(preset));
+  }
 
   function setDimensionField(field: keyof Omit<VehicleProfileFormValues, 'name'>) {
     return (text: string) => {
@@ -388,9 +418,14 @@ export default function PlanRouteScreen() {
       onProfileId(selectedProfile.id);
       return;
     }
+    if (manualMode === 'presets' && dimensionValues.heightM.trim() === '') {
+      setManualError('Pick the nearest size, or switch to Metres to type your own.');
+      return;
+    }
     const result = parseVehicleProfileForm({
       ...dimensionValues,
-      name: `Vehicle ${formatDateTime(new Date().toISOString())}`,
+      // A vehicle entered here is named automatically; one still on a preset's figures says which.
+      name: enteredVehicleName(dimensionValues, formatDateTime(new Date().toISOString())),
     });
     if (!result.ok) {
       setManualError(result.message);
@@ -521,7 +556,9 @@ export default function PlanRouteScreen() {
                     onPress={() => handleSelectVehicleMode('manual')}
                     testID="first-vehicle-manual-link"
                   >
-                    <Text style={styles.firstUseLink}>Or enter the details just for this trip</Text>
+                    <Text style={styles.firstUseLink}>
+                      Or pick a size or enter the details just for this trip
+                    </Text>
                   </TouchableOpacity>
                 </View>
               ) : vehicleMode === 'profile' ? (
@@ -566,48 +603,69 @@ export default function PlanRouteScreen() {
                   showsVerticalScrollIndicator={false}
                 >
                   <SegmentedControl
-                    options={LENGTH_UNIT_OPTIONS}
-                    value={lengthUnit}
-                    onChange={(next) => void setLengthUnit(next)}
+                    options={SIZE_OPTIONS}
+                    value={manualMode === 'presets' ? 'presets' : lengthUnit}
+                    onChange={handleSizeChoice}
                     testIDPrefix="manual-unit"
                     compact
                   />
-                  {DIMENSION_FIELDS.map((field) => {
-                    const isSize =
-                      field.key === 'heightM' || field.key === 'widthM' || field.key === 'lengthM';
-                    const inFeet = isSize && lengthUnit === 'feet';
-                    return (
-                      <View key={field.key}>
-                        <Text style={styles.label}>
-                          {inFeet
-                            ? field.label.replace('(metres)', '(feet and inches)')
-                            : field.label}
+                  {manualMode === 'presets' ? (
+                    <>
+                      <VehiclePresetChips
+                        selectedId={presetInBoxes?.id}
+                        onPick={handlePickPreset}
+                      />
+                      {presetInBoxes !== undefined ? (
+                        <Text style={styles.presetNote} testID="manual-preset-note">
+                          {`${presetFigures(presetInBoxes).main} · ${presetFigures(presetInBoxes).size}. Typical sizes: check the height matches yours.`}
                         </Text>
-                        {inFeet ? (
-                          // Remounted when the unit changes, so the boxes are filled afresh from the value in metres.
-                          <FeetInchesInputs
-                            key={`${field.key}-${lengthUnit}`}
-                            metres={dimensionValues[field.key]}
-                            onChangeMetres={setDimensionField(field.key)}
-                            feetPlaceholder={FEET_PLACEHOLDERS[field.key] ?? ''}
-                            inchesPlaceholder={INCHES_PLACEHOLDERS[field.key] ?? ''}
-                            inputStyle={styles.input}
-                            testIDPrefix={`manual-${field.key}`}
-                          />
-                        ) : (
-                          <TextInput
-                            style={styles.input}
-                            value={dimensionValues[field.key]}
-                            onChangeText={setDimensionField(field.key)}
-                            placeholder={field.placeholder}
-                            placeholderTextColor={colors.textDim}
-                            keyboardType="decimal-pad"
-                            testID={`manual-${field.key}-input`}
-                          />
-                        )}
-                      </View>
-                    );
-                  })}
+                      ) : dimensionValues.heightM.trim() !== '' ? (
+                        <Text style={styles.presetNote} testID="manual-own-sizes-note">
+                          Using your own sizes. Switch to Metres or Feet and inches to see or change
+                          them.
+                        </Text>
+                      ) : null}
+                    </>
+                  ) : (
+                    DIMENSION_FIELDS.map((field) => {
+                      const isSize =
+                        field.key === 'heightM' ||
+                        field.key === 'widthM' ||
+                        field.key === 'lengthM';
+                      const inFeet = isSize && lengthUnit === 'feet';
+                      return (
+                        <View key={field.key}>
+                          <Text style={styles.label}>
+                            {inFeet
+                              ? field.label.replace('(metres)', '(feet and inches)')
+                              : field.label}
+                          </Text>
+                          {inFeet ? (
+                            // Remounted when the unit changes, so the boxes are filled afresh from the value in metres.
+                            <FeetInchesInputs
+                              key={`${field.key}-${lengthUnit}`}
+                              metres={dimensionValues[field.key]}
+                              onChangeMetres={setDimensionField(field.key)}
+                              feetPlaceholder={FEET_PLACEHOLDERS[field.key] ?? ''}
+                              inchesPlaceholder={INCHES_PLACEHOLDERS[field.key] ?? ''}
+                              inputStyle={styles.input}
+                              testIDPrefix={`manual-${field.key}`}
+                            />
+                          ) : (
+                            <TextInput
+                              style={styles.input}
+                              value={dimensionValues[field.key]}
+                              onChangeText={setDimensionField(field.key)}
+                              placeholder={field.placeholder}
+                              placeholderTextColor={colors.textDim}
+                              keyboardType="decimal-pad"
+                              testID={`manual-${field.key}-input`}
+                            />
+                          )}
+                        </View>
+                      );
+                    })
+                  )}
                 </ScrollView>
               )}
 
@@ -864,6 +922,7 @@ function createStyles(colors: ThemeColors) {
     manualForm: {
       maxHeight: 220,
     },
+    presetNote: { fontSize: 13, color: colors.textMuted, marginTop: 6 },
     label: {
       fontSize: 14,
       color: colors.textMuted,

@@ -9,9 +9,16 @@ import {
 } from 'react-native';
 
 import { FeetInchesInputs } from './feet-inches-inputs';
+import { VehiclePresetPicker } from './vehicle-preset-picker';
 import { MpgInput } from './mpg-input';
 import { SegmentedControl } from './ui/segmented-control';
 import { FUEL_UNIT_OPTIONS, formatHeightWithFeetInches, type LengthUnit } from '../lib/units';
+import {
+  VEHICLE_PRESETS,
+  presetFormValues,
+  presetMatching,
+  type VehiclePreset,
+} from '../lib/vehicle-presets';
 import { useLengthUnitStore } from '../state/length-unit-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
 import {
@@ -31,11 +38,19 @@ interface Props {
    *  shouldn't still see a stale "couldn't reach the server" message from a previous attempt. */
   readonly errorMessage: string | undefined;
   readonly onSubmit: (input: ParsedVehicleProfile) => void;
+  /** Which way the size is given when the form opens: typed (the default) or picked from the presets. */
+  readonly initialMode?: SizeMode;
+  /** Called after a preset is picked, so a screen can take the driver down to the button. */
+  readonly onPresetPicked?: () => void;
 }
 
-const UNIT_OPTIONS: readonly { key: LengthUnit; label: string }[] = [
+/** How the size is given: picked from the typical sizes, or typed in metres or in feet and inches. */
+type SizeMode = 'presets' | 'type';
+
+const SIZE_OPTIONS: readonly { key: 'presets' | LengthUnit; label: string }[] = [
+  { key: 'presets', label: 'Presets' },
   { key: 'metres', label: 'Metres' },
-  { key: 'feet', label: 'Feet and inches' },
+  { key: 'feet', label: 'Feet & inches' },
 ];
 
 export function VehicleProfileForm({
@@ -44,8 +59,11 @@ export function VehicleProfileForm({
   pending,
   errorMessage,
   onSubmit,
+  initialMode = 'type',
+  onPresetPicked,
 }: Props) {
   const [values, setValues] = useState(initialValues);
+  const [mode, setMode] = useState<SizeMode>(initialMode);
   const [validationError, setValidationError] = useState<string | undefined>(undefined);
   const unit = useLengthUnitStore((s) => s.unit);
   const setUnit = useLengthUnitStore((s) => s.setUnit);
@@ -61,7 +79,40 @@ export function VehicleProfileForm({
     };
   }
 
+  /** A preset fills the sizes and weight and names the vehicle, unless the driver has already given it a name of their own. */
+  function pickPreset(preset: VehiclePreset): void {
+    setValidationError(undefined);
+    setValues((current) => {
+      const filled = presetFormValues(preset);
+      const keepName =
+        current.name.trim() !== '' && !VEHICLE_PRESETS.some((p) => p.name === current.name);
+      return {
+        ...filled,
+        name: keepName ? current.name : filled.name,
+        fuelConsumptionL100km: current.fuelConsumptionL100km,
+      };
+    });
+    onPresetPicked?.();
+  }
+
+  function handleSizeChoice(next: 'presets' | LengthUnit): void {
+    setValidationError(undefined);
+    if (next === 'presets') {
+      setMode('presets');
+      return;
+    }
+    setMode('type');
+    void setUnit(next);
+  }
+
+  const chosenPreset = presetMatching(values);
+  const sizesGiven = values.heightM.trim() !== '' || values.widthM.trim() !== '';
+
   function handleSubmit() {
+    if (mode === 'presets' && !sizesGiven) {
+      setValidationError('Pick the nearest match, or switch to Metres to type your own.');
+      return;
+    }
     const result = parseVehicleProfileForm(values);
     if (!result.ok) {
       setValidationError(result.message);
@@ -142,79 +193,97 @@ export function VehicleProfileForm({
         testID="profile-name-input"
       />
 
-      <Text style={styles.label}>Measure height, width and length in</Text>
+      <Text style={styles.label}>Vehicle size</Text>
       <SegmentedControl
-        options={UNIT_OPTIONS}
-        value={unit}
-        onChange={(next) => void setUnit(next)}
+        options={SIZE_OPTIONS}
+        value={mode === 'presets' ? 'presets' : unit}
+        onChange={handleSizeChoice}
         testIDPrefix="profile-unit"
       />
 
-      {renderSize('heightM', 'Height', '4.2', ['13', '9'], 'height')}
-      {renderSize('widthM', 'Width', '2.6', ['8', '6'], 'width')}
-      {renderSize('lengthM', 'Length', '16.5', ['54', '2'], 'length')}
-
-      <Text style={styles.label}>Gross weight (tonnes)</Text>
-      <TextInput
-        style={styles.input}
-        value={values.grossWeightT}
-        onChangeText={setField('grossWeightT')}
-        placeholder="32"
-        placeholderTextColor={colors.textDim}
-        keyboardType="decimal-pad"
-        testID="profile-weight-input"
-      />
-      {warnings.grossWeightT !== undefined && (
-        <Text style={styles.warning} testID="profile-weight-warning">
-          {warnings.grossWeightT}
-        </Text>
-      )}
-
-      <Text style={styles.label}>Axle weight (tonnes, optional)</Text>
-      <TextInput
-        style={styles.input}
-        value={values.axleWeightT}
-        onChangeText={setField('axleWeightT')}
-        placeholder="10"
-        placeholderTextColor={colors.textDim}
-        keyboardType="decimal-pad"
-        testID="profile-axle-weight-input"
-      />
-      {warnings.axleWeightT !== undefined && (
-        <Text style={styles.warning} testID="profile-axle-weight-warning">
-          {warnings.axleWeightT}
-        </Text>
-      )}
-
-      <Text style={styles.label}>Fuel economy (optional)</Text>
-      <SegmentedControl
-        options={FUEL_UNIT_OPTIONS}
-        value={fuelUnit}
-        onChange={(next) => void setFuelUnit(next)}
-        testIDPrefix="profile-fuel-unit"
-      />
-      {fuelUnit === 'mpg' ? (
-        // Remounted when the unit changes, so the box is filled afresh from the value in litres per 100 km.
-        <MpgInput
-          key={fuelUnit}
-          l100km={values.fuelConsumptionL100km}
-          onChangeL100km={setField('fuelConsumptionL100km')}
-          placeholder="9.4"
-          inputStyle={styles.input}
-          testID="profile-fuel-consumption-mpg-input"
-        />
+      {mode === 'presets' ? (
+        <>
+          <VehiclePresetPicker selectedId={chosenPreset?.id} onPick={pickPreset} />
+          {sizesGiven && chosenPreset === undefined && (
+            <Text style={styles.hint} testID="profile-own-sizes-note">
+              Using your own sizes. Switch to Metres or Feet and inches to see or change them.
+            </Text>
+          )}
+          <Text style={styles.hint}>
+            For an axle weight or fuel economy, switch to Metres or Feet and inches.
+          </Text>
+        </>
       ) : (
-        <TextInput
-          style={styles.input}
-          value={values.fuelConsumptionL100km}
-          onChangeText={setField('fuelConsumptionL100km')}
-          placeholder="30"
-          placeholderTextColor={colors.textDim}
-          keyboardType="decimal-pad"
-          testID="profile-fuel-consumption-input"
-        />
+        <>
+          {renderSize('heightM', 'Height', '4.2', ['13', '9'], 'height')}
+          {renderSize('widthM', 'Width', '2.6', ['8', '6'], 'width')}
+          {renderSize('lengthM', 'Length', '16.5', ['54', '2'], 'length')}
+
+          <Text style={styles.label}>Gross weight (tonnes)</Text>
+          <TextInput
+            style={styles.input}
+            value={values.grossWeightT}
+            onChangeText={setField('grossWeightT')}
+            placeholder="32"
+            placeholderTextColor={colors.textDim}
+            keyboardType="decimal-pad"
+            testID="profile-weight-input"
+          />
+          {warnings.grossWeightT !== undefined && (
+            <Text style={styles.warning} testID="profile-weight-warning">
+              {warnings.grossWeightT}
+            </Text>
+          )}
+
+          <Text style={styles.label}>Axle weight (tonnes, optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={values.axleWeightT}
+            onChangeText={setField('axleWeightT')}
+            placeholder="10"
+            placeholderTextColor={colors.textDim}
+            keyboardType="decimal-pad"
+            testID="profile-axle-weight-input"
+          />
+          {warnings.axleWeightT !== undefined && (
+            <Text style={styles.warning} testID="profile-axle-weight-warning">
+              {warnings.axleWeightT}
+            </Text>
+          )}
+
+          <Text style={styles.label}>Fuel economy (optional)</Text>
+          <SegmentedControl
+            options={FUEL_UNIT_OPTIONS}
+            value={fuelUnit}
+            onChange={(next) => void setFuelUnit(next)}
+            testIDPrefix="profile-fuel-unit"
+          />
+          {fuelUnit === 'mpg' ? (
+            // Remounted when the unit changes, so the box is filled afresh from the value in litres per 100 km.
+            <MpgInput
+              key={fuelUnit}
+              l100km={values.fuelConsumptionL100km}
+              onChangeL100km={setField('fuelConsumptionL100km')}
+              placeholder="9.4"
+              inputStyle={styles.input}
+              testID="profile-fuel-consumption-mpg-input"
+            />
+          ) : (
+            <TextInput
+              style={styles.input}
+              value={values.fuelConsumptionL100km}
+              onChangeText={setField('fuelConsumptionL100km')}
+              placeholder="30"
+              placeholderTextColor={colors.textDim}
+              keyboardType="decimal-pad"
+              testID="profile-fuel-consumption-input"
+            />
+          )}
+          <Text style={styles.hint}>
+            Used only for a rough fuel-cost estimate on route options.
+          </Text>
+        </>
       )}
-      <Text style={styles.hint}>Used only for a rough fuel-cost estimate on route options.</Text>
 
       {displayedError !== undefined && <Text style={styles.error}>{displayedError}</Text>}
 
