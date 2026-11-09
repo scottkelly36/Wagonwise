@@ -4,6 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { MANEUVER_ICONS } from '../lib/maneuver-icons';
 import type { UpcomingTurn } from '../lib/turn-guidance';
 import { shortDistance } from '../lib/uk-distance';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle } from '../theme/tokens';
 import { Icon } from './ui/icon';
@@ -32,6 +33,7 @@ export function TurnBanner({
   onToggleMute,
   onReplan,
 }: Props) {
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   if (!next && !offRoute) return null;
@@ -79,7 +81,7 @@ export function TurnBanner({
     <View style={styles.card} testID="turn-banner">
       <Icon name={MANEUVER_ICONS[next.maneuver.kind]} size={34} color={colors.accent} />
       <View style={styles.body}>
-        <Text style={styles.distance}>{shortDistance(next.distanceM)}</Text>
+        <Text style={styles.distance}>{shortDistance(next.distanceM, distanceUnit)}</Text>
         <Text style={styles.title} numberOfLines={2}>
           {street ?? next.maneuver.text}
         </Text>

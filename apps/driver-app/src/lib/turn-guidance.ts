@@ -7,6 +7,7 @@ import {
   type RoutePoint,
 } from './route-progress';
 import { spokenDistance } from './uk-distance';
+import type { DistanceUnit } from './units';
 
 /**
  * Turn-by-turn guidance (P2-M10): from a route, its turn list and where the driver is, which turn
@@ -80,6 +81,8 @@ export interface GuidanceInput {
   /** How far along the route the driver was last time, to search around. */
   readonly lastTraveledMetres: number | undefined;
   readonly announced: ReadonlySet<string>;
+  /** What a distance is said in: yards and miles, or metres and kilometres. */
+  readonly distanceUnit: DistanceUnit;
 }
 
 /** Where each turn begins along the route, from the geometry. Compute once per route. */
@@ -108,7 +111,8 @@ function usableTiers(kind: ManeuverDto['kind'], availableM: number): number[] {
 }
 
 export function evaluateGuidance(input: GuidanceInput): Guidance {
-  const { routeLine, maneuvers, offsets, position, lastTraveledMetres, announced } = input;
+  const { routeLine, maneuvers, offsets, position, lastTraveledMetres, announced, distanceUnit } =
+    input;
 
   let progress =
     lastTraveledMetres === undefined
@@ -142,6 +146,6 @@ export function evaluateGuidance(input: GuidanceInput): Guidance {
   const nowTier = due <= ARRIVE_M;
   const text = nowTier
     ? maneuver.speech
-    : `In ${spokenDistance(distance)}, ${lowerFirst(maneuver.speech)}`;
+    : `In ${spokenDistance(distance, distanceUnit)}, ${lowerFirst(maneuver.speech)}`;
   return { ...base, next, utterance: { key, text, urgent: nowTier } };
 }

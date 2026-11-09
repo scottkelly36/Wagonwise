@@ -23,6 +23,7 @@ import { formatDuration } from '../lib/format-duration';
 import { nearestParkingSpots } from '../lib/nearest-parking';
 import { parkingOnly } from '../lib/parking-details';
 import { shortDistance } from '../lib/uk-distance';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle } from '../theme/tokens';
 
@@ -39,6 +40,7 @@ const KM_TO_M = 1000;
 export default function NearbyParkingScreen() {
   const router = useRouter();
   const location = useCurrentLocation();
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const spots = useNearbySafeParkingSpots(location.point ? [location.point] : [], SEARCH_RADIUS_M);
@@ -140,7 +142,7 @@ export default function NearbyParkingScreen() {
                   {time ? formatDuration(Math.max(1, time.minutes)) : '…'}
                   <Text style={styles.distance}>
                     {'  ·  '}
-                    {shortDistance(time ? time.km * KM_TO_M : distanceM)}
+                    {shortDistance(time ? time.km * KM_TO_M : distanceM, distanceUnit)}
                     {time ? '' : ' away'}
                   </Text>
                 </Text>

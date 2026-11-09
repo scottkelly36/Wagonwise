@@ -23,6 +23,7 @@ import {
 } from '../lib/closure-details';
 import { updatedText } from '../lib/fuel-details';
 import { shortDistance } from '../lib/uk-distance';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
 import { closureColour } from './closure-colour';
@@ -44,6 +45,7 @@ interface Props {
  */
 export function ClosureDrawer({ closure, onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const now = new Date();
@@ -113,7 +115,7 @@ export function ClosureDrawer({ closure, onClose }: Props) {
                   cause,
                   closure.distanceM === undefined
                     ? undefined
-                    : `${shortDistance(closure.distanceM)} away`,
+                    : `${shortDistance(closure.distanceM, distanceUnit)} away`,
                 ]
                   .filter((part): part is string => part !== undefined)
                   .join(' · ')}

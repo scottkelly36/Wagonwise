@@ -30,6 +30,7 @@ function drive(): { spoken: Utterance[]; lastNext: number | undefined } {
         position: { lat: lat1 + (lat2 - lat1) * t, lon: lon1 + (lon2 - lon1) * t },
         lastTraveledMetres: last,
         announced,
+        distanceUnit: 'miles',
       });
       last = g.traveledMetres;
       lastNext = g.next?.index;
@@ -83,6 +84,7 @@ describe('turn guidance on a real route', () => {
       position: { lat: routeLine[0][1], lon: routeLine[0][0] },
       lastTraveledMetres: undefined,
       announced: new Set(),
+      distanceUnit: 'miles',
     });
     expect(first.next).toBeDefined();
     if (first.utterance && !first.utterance.urgent) expect(first.utterance.text).toMatch(/^In /);
@@ -100,6 +102,7 @@ describe('off route', () => {
       position: { lat: lat + 0.01, lon }, // about 1.1 km north
       lastTraveledMetres: undefined,
       announced: new Set(),
+      distanceUnit: 'miles',
     });
     expect(g.offRouteMetres).toBeGreaterThan(OFF_ROUTE_M);
   });
@@ -113,6 +116,7 @@ describe('off route', () => {
       position: { lat, lon },
       lastTraveledMetres: undefined,
       announced: new Set(),
+      distanceUnit: 'miles',
     });
     expect(g.offRouteMetres).toBeLessThan(5);
   });

@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { cameraWarningText, type CameraAhead } from '../lib/camera-ahead';
 import { OSM_CREDIT } from '../lib/parking-details';
 import { shortDistance } from '../lib/uk-distance';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle } from '../theme/tokens';
 import { Icon } from './ui/icon';
@@ -13,10 +14,11 @@ import { Icon } from './ui/icon';
  * map data is not complete and mobile cameras are not in it, so the driver still watches the signs.
  */
 export function CameraWarningCard({ ahead }: { readonly ahead: CameraAhead }) {
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const text = cameraWarningText(ahead.camera);
-  const distance = shortDistance(ahead.distanceM);
+  const distance = shortDistance(ahead.distanceM, distanceUnit);
   const detail =
     ahead.camera.maxspeedMph === undefined
       ? distance
