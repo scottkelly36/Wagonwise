@@ -40,4 +40,10 @@ describe('VehiclePresetPicker', () => {
       selected: false,
     });
   });
+
+  it('puts the cards in one row that scrolls sideways, so five sizes take one card of height', async () => {
+    await render(<VehiclePresetPicker selectedId={undefined} onPick={jest.fn()} />);
+    expect(screen.getByTestId('vehicle-preset-cards').props.horizontal).toBe(true);
+    expect(screen.getByText(/Swipe sideways/)).toBeTruthy();
+  });
 });
