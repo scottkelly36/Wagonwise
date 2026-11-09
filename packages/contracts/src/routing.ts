@@ -81,7 +81,8 @@ export const planRouteRequestSchema = z.object({
   profileId: vehicleProfileIdSchema,
   origin: geoPointSchema,
   destination: geoPointSchema,
-  strategy: z.enum(['fastest', 'shortest']).optional(),
+  /** `gentle` is the route the preview marked as easier on a loaded vehicle (fewest steep hills). */
+  strategy: z.enum(['fastest', 'shortest', 'gentle']).optional(),
   /** Which way the vehicle is heading, degrees clockwise from north, when it is already moving. The
    *  route then starts in that direction rather than asking for a U-turn (re-planning mid-drive). */
   originHeadingDeg: z.number().min(0).max(360).optional(),
@@ -97,8 +98,20 @@ export const previewRouteOptionsRequestSchema = z.object({
   profileId: vehicleProfileIdSchema,
   origin: geoPointSchema,
   destination: geoPointSchema,
+  /** The vehicle is loaded: check the hills on each route and mark the gentlest. Without it the options are as before. */
+  loaded: z.boolean().optional(),
 });
 export type PreviewRouteOptionsRequest = z.infer<typeof previewRouteOptionsRequestSchema>;
+
+/** How hilly a route is: what the hill check found. Steep is a grade of 6% or more over 500 m, climbing or descending. */
+export const hillSummarySchema = z.object({
+  climbM: z.number(),
+  highestPointM: z.number(),
+  steepestPct: z.number(),
+  steepKm: z.number(),
+  steepStretches: z.number().int(),
+});
+export type HillSummaryDto = z.infer<typeof hillSummarySchema>;
 
 /** `labels` is non-empty — a route that's both the fastest and the shortest of the candidates
  *  carries both labels rather than being split into two identical-looking cards. */
@@ -107,7 +120,9 @@ export const routeOptionSchema = z.object({
   distanceKm: z.number(),
   durationMin: z.number(),
   estimatedFuelCostGBP: z.number().optional(),
-  labels: z.array(z.enum(['fastest', 'shortest'])).min(1),
+  labels: z.array(z.enum(['fastest', 'shortest', 'gentle'])).min(1),
+  /** Present only when `loaded` was asked for and the server has height data. */
+  hills: hillSummarySchema.optional(),
   /** Present and true when no route exists for the vehicle's weight and this one goes past a weight limit. */
   breaksWeightLimit: z.boolean().optional(),
 });

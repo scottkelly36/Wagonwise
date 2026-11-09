@@ -1,6 +1,7 @@
 import type { Result, TaggedError } from '../../../../shared/result.js';
 import type { GeoLine, GeoPoint, GeoPolygon } from '../../domain/geo.js';
 import type { Maneuver } from '../../domain/maneuver.js';
+import type { ElevationPoint } from '../../domain/hill-profile.js';
 import type { Dimensions } from '../../domain/vehicle-profile.js';
 
 export interface RouteRequest {
@@ -41,4 +42,7 @@ export interface RoutingEngine {
    *  hazard-avoidance re-plan pass (which always wants exactly one, already-avoiding result) keeps
    *  using `route()` unchanged. */
   routeAlternatives(req: RouteRequest): Promise<Result<readonly RouteResult[], NoRouteFound>>;
+  /** The height of the road along a route, about every 100 m, for working out how hilly it is. `undefined` when the engine has no height
+   *  data (not set up, or the service is down): an expected state, not an error, since hills are an extra that must never stop a route. */
+  elevationProfile(geometry: GeoLine): Promise<readonly ElevationPoint[] | undefined>;
 }

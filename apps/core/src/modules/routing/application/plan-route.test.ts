@@ -11,6 +11,7 @@ import { FakeHazardAvoidanceQuery } from './testing/fake-hazard-avoidance-query.
 import { FakeHazardsOnRouteQuery } from './testing/fake-hazards-on-route-query.js';
 import { FakeRestrictionOverrideRepository } from './testing/fake-restriction-override-repository.js';
 import { FakeRoutingEngine } from './testing/fake-routing-engine.js';
+import { encodePolyline } from './testing/encode-polyline.js';
 import { planRoute, type PlanRouteDeps } from './plan-route.js';
 
 const driverId = makeId<'DriverId'>('driver-1');
@@ -378,6 +379,62 @@ describe('planRoute', () => {
     await planRoute(deps, { driverId, profileId, origin, destination });
     expect(engine.alternativesRequests).toEqual([]);
     expect(engine.requests).toEqual([{ origin, destination, dimensions, avoid: [] }]);
+  });
+
+  describe("the route that is easier on a loaded vehicle ('gentle')", () => {
+    const road = (lat: number) =>
+      encodePolyline(
+        Array.from({ length: 46 }, (_, i) => ({ lat, lon: -1.5 + (i * 100) / 64_000 })),
+      );
+    const heights = (grade: number) =>
+      Array.from({ length: 46 }, (_, i) => ({
+        distanceM: i * 100,
+        heightM: 100 + (i > 10 && i <= 30 ? (i - 10) * grade : i > 30 ? 20 * grade : 0),
+      }));
+    const steep = { geometry: road(54.9), distanceKm: 4.5, durationMin: 6, maneuvers: [] };
+    const gentler = { geometry: road(54.95), distanceKm: 6, durationMin: 8, maneuvers: [] };
+
+    it('plans the gentler route the hill check finds, with the same dimensions', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      engine.alternativesResult = { ok: true, value: [steep] };
+      engine.results = [{ ok: true, value: gentler }];
+      engine.profiles.set(steep.geometry, heights(8));
+      engine.profiles.set(gentler.geometry, heights(0));
+
+      const result = await planRoute(deps, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        strategy: 'gentle',
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.geometry).toBe(gentler.geometry);
+      expect(engine.requests[0]!.avoid.length).toBeGreaterThan(0);
+      expect(engine.requests[0]!.dimensions).toEqual(dimensions);
+    });
+
+    it('uses the engine route when there are no heights', async () => {
+      const deps = await buildDeps();
+      const engine = deps.routingEngine as FakeRoutingEngine;
+      engine.alternativesResult = { ok: true, value: [steep] };
+
+      const result = await planRoute(deps, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        strategy: 'gentle',
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.geometry).toBe(steep.geometry);
+      expect(engine.requests).toEqual([]);
+    });
   });
 
   describe('a route past a weight limit', () => {

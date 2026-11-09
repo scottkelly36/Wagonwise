@@ -34,7 +34,10 @@ const MAX_ZONES_PER_CLOSURE = 40;
 const METRES_PER_DEGREE_LAT = 111_320;
 
 /** Where the route is `metres` along it, and which way it is heading there. */
-function atOffset(route: IndexedRoute, metres: number): { point: GeoPoint; headingDeg: number } {
+export function atOffset(
+  route: IndexedRoute,
+  metres: number,
+): { point: GeoPoint; headingDeg: number } {
   const { offsets, points } = route;
   let lo = 1;
   let hi = offsets.length - 1;
@@ -106,6 +109,31 @@ function spacedOffsets(matchedM: readonly number[]): number[] {
  * The areas to avoid so a new route does not drive the shut carriageway the old one did: thin zones along the route's own line, at the
  * places where it runs along each closure. No more than `maxZones` in all; closures nearest the start come first.
  */
+/** The metres along a stretch of the route to test for zones: dense enough that {@link ZONE_SPACING_M} decides the spacing. */
+const STRETCH_STEP_M = 50;
+
+/**
+ * The areas to avoid so a new route does not take the stretch of road the old one did between `fromM` and `toM` along it: the same thin
+ * zones as for a closure, laid on the route's own line (a steep hill, not a shut road, but to the router it is the same: a road to keep off).
+ * Not within {@link ZONE_END_INSET_M} of either end, and no more than `maxZones`.
+ */
+export function avoidZonesAlongStretch(
+  route: IndexedRoute,
+  fromM: number,
+  toM: number,
+  maxZones: number,
+): GeoPolygon[] {
+  const matchedM: number[] = [];
+  for (let m = fromM; m <= toM; m += STRETCH_STEP_M) matchedM.push(m);
+  const zones: GeoPolygon[] = [];
+  for (const metres of spacedOffsets(matchedM)) {
+    if (zones.length >= maxZones) break;
+    const { point, headingDeg } = atOffset(route, metres);
+    zones.push(thinRectangle(point, headingDeg));
+  }
+  return zones;
+}
+
 export function avoidZonesFor(
   route: IndexedRoute,
   closures: readonly PlacedClosure[],
