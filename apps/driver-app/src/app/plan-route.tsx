@@ -506,7 +506,8 @@ export default function PlanRouteScreen() {
                   </View>
                   <Text style={styles.firstUseBody}>
                     Its height, width, length and weight decide which roads and bridges are safe.
-                    Add it once and it is remembered for every trip.
+                    Pick the nearest size or type your own. Add it once and it is remembered for
+                    every trip.
                   </Text>
                   <TouchableOpacity
                     style={styles.firstUseButton}
