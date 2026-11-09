@@ -5,6 +5,7 @@ import {
   hillsWereChecked,
   routeOptionTitle,
   strategyForOption,
+  tollLine,
 } from './route-option-text';
 
 const base = { geometry: 'g', distanceKm: 100, durationMin: 90 };
@@ -32,6 +33,26 @@ describe('strategyForOption', () => {
 
   it('asks for the shortest otherwise', () => {
     expect(strategyForOption({ ...base, labels: ['shortest'] })).toBe('shortest');
+  });
+
+  it('asks for the toll-free route by name, but the engine’s own shortest when that is also toll free', () => {
+    expect(strategyForOption({ ...base, labels: ['toll-free'] })).toBe('toll-free');
+    expect(strategyForOption({ ...base, labels: ['shortest', 'toll-free'] })).toBe('shortest');
+  });
+});
+
+describe('tollLine', () => {
+  it('says so when the route has a toll, and nothing otherwise', () => {
+    expect(tollLine({ ...base, labels: ['fastest'], hasToll: true })).toBe('Includes a toll');
+    expect(tollLine({ ...base, labels: ['fastest'], hasToll: false })).toBeUndefined();
+    expect(tollLine({ ...base, labels: ['fastest'] })).toBeUndefined();
+  });
+
+  it('names the toll-free card', () => {
+    expect(routeOptionTitle({ ...base, labels: ['toll-free'] })).toBe('Toll free');
+    expect(routeOptionTitle({ ...base, labels: ['shortest', 'toll-free'] })).toBe(
+      'Shortest & Toll free',
+    );
   });
 });
 

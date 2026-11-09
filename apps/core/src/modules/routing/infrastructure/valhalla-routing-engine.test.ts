@@ -104,6 +104,53 @@ describe('ValhallaRoutingEngine', () => {
     expect(received.body.exclude_polygons).toBeUndefined();
   });
 
+  describe('tolls', () => {
+    it('reads whether the route has a toll from Valhalla’s summary, and says nothing when it does not say', async () => {
+      const engine = new ValhallaRoutingEngine(baseUrl);
+      const resultPromise = engine.route({ origin, destination, dimensions, avoid: [] });
+      (await nextRequest).respond(
+        {
+          trip: {
+            summary: { time: 475, length: 8, has_toll: true },
+            legs: [{ shape: 'encoded-shape' }],
+          },
+        },
+        200,
+      );
+      const result = await resultPromise;
+      expect(result.ok && result.value.hasToll).toBe(true);
+    });
+
+    it('asks Valhalla to avoid tolls (use_tolls 0) only when told to', async () => {
+      const engine = new ValhallaRoutingEngine(baseUrl);
+      const resultPromise = engine.route({
+        origin,
+        destination,
+        dimensions,
+        avoid: [],
+        avoidTolls: true,
+      });
+      const received = await nextRequest;
+      received.respond(successBody, 200);
+      await resultPromise;
+
+      expect(received.body).toMatchObject({
+        costing_options: { truck: { use_tolls: 0, height: 4.2 } },
+      });
+    });
+
+    it('does not mention tolls to Valhalla by default', async () => {
+      const engine = new ValhallaRoutingEngine(baseUrl);
+      const resultPromise = engine.route({ origin, destination, dimensions, avoid: [] });
+      const received = await nextRequest;
+      received.respond(successBody, 200);
+      await resultPromise;
+
+      const costing = received.body.costing_options as { truck: Record<string, unknown> };
+      expect(costing.truck).not.toHaveProperty('use_tolls');
+    });
+  });
+
   describe('choosing the road versus timing it (2026-10-03)', () => {
     // A real polyline6 of two known points, so the engine can decode it for the re-timing request.
     // The encoder is test-only and separate from the shipped decoder, so a bug shared by both

@@ -8,6 +8,7 @@ const LABEL_TEXT: Readonly<Record<Label, string>> = {
   fastest: 'Fastest',
   shortest: 'Shortest',
   gentle: 'Fewer hills',
+  'toll-free': 'Toll free',
 };
 
 /** The heading of a route card: its labels, "Fastest & Fewer hills" when one route is both. */
@@ -18,11 +19,20 @@ export function routeOptionTitle(option: RouteOptionDto): string {
 /**
  * The strategy `planRoute` needs to make the route a driver picked. The route that is easier on hills is asked for by name (it is found
  * by a search, not by the engine's own choice); a route that is both fastest and fewest hills is the engine's own, so it is asked for the
- * ordinary way.
+ * ordinary way. The route that avoids tolls is also found by a search, so it is asked for by name; a route that is both the shortest and toll
+ * free is the engine's own shortest.
  */
-export function strategyForOption(option: RouteOptionDto): 'fastest' | 'shortest' | 'gentle' {
+export function strategyForOption(
+  option: RouteOptionDto,
+): 'fastest' | 'shortest' | 'gentle' | 'toll-free' {
   if (option.labels.includes('fastest')) return 'fastest';
-  return option.labels.includes('gentle') ? 'gentle' : 'shortest';
+  if (option.labels.includes('gentle')) return 'gentle';
+  return option.labels.includes('shortest') ? 'shortest' : 'toll-free';
+}
+
+/** Said on a card whose route has a toll, so a driver sees it before choosing. Undefined when the route has none, or the server did not say. */
+export function tollLine(option: RouteOptionDto): string | undefined {
+  return option.hasToll === true ? 'Includes a toll' : undefined;
 }
 
 /** What the hill check found, in a line a driver can weigh against the time, or undefined when hills were not checked. */

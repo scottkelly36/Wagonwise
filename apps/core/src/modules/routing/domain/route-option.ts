@@ -1,8 +1,9 @@
 import type { GeoLine } from './geo.js';
 import type { HillStats } from './hill-profile.js';
 
-/** `gentle` is the route with the least steep road among those found, asked for when the vehicle is loaded. */
-export type RouteOptionLabel = 'fastest' | 'shortest' | 'gentle';
+/** `gentle` is the route with the least steep road among those found, asked for when the vehicle is loaded. `toll-free` is a route found by asking the
+ *  engine to avoid tolls, offered when another option has one. */
+export type RouteOptionLabel = 'fastest' | 'shortest' | 'gentle' | 'toll-free';
 
 /** How hilly a route is, in figures a driver can weigh against its time: what the hill check found, rounded. */
 export interface HillSummary {
@@ -44,6 +45,8 @@ export interface RouteOption {
   readonly breaksWeightLimit?: boolean | undefined;
   /** Present only when the hills were checked (the vehicle is loaded and the engine has heights). */
   readonly hills?: HillSummary | undefined;
+  /** The route has a toll, as far as the map data says. Present only when the engine said either way. */
+  readonly hasToll?: boolean | undefined;
 }
 
 interface Candidate {
@@ -53,6 +56,11 @@ interface Candidate {
   readonly hills?: HillSummary | undefined;
   /** The one found to be the least steep that is not unreasonably long (see `findGentlestRoute`). At most one candidate has it. */
   readonly gentle?: boolean | undefined;
+  readonly hasToll?: boolean | undefined;
+  /** The route has no toll because the engine was asked to avoid them (see `findTollFreeRoute`): it gets the `toll-free` label. At most one candidate has it. */
+  readonly tollFree?: boolean | undefined;
+  /** Found by a search of ours, not one of the engine's own alternatives, so it is neither "fastest" nor "shortest" however short it is. */
+  readonly fromSearch?: boolean | undefined;
 }
 
 /** `distanceKm × (fuelConsumptionL100km / 100) × pricePerLitreGBP` — deliberately rough (M9's own
@@ -81,16 +89,20 @@ export function buildRouteOptions(
   fuelConsumptionL100km: number | undefined,
   pricePerLitreGBP: number,
 ): readonly RouteOption[] {
-  const fastest = candidates.reduce((min, c) => (c.durationMin < min.durationMin ? c : min));
-  const shortest = candidates.reduce((min, c) => (c.distanceKm < min.distanceKm ? c : min));
+  // A route found by a search of ours (the toll-free one) is not what "fastest" or "shortest" means: planning with those strategies would not make it again.
+  const engineRoutes = candidates.filter((c) => c.fromSearch !== true);
+  const compared = engineRoutes.length > 0 ? engineRoutes : candidates;
+  const fastest = compared.reduce((min, c) => (c.durationMin < min.durationMin ? c : min));
+  const shortest = compared.reduce((min, c) => (c.distanceKm < min.distanceKm ? c : min));
 
   const seen = new Map<string, RouteOptionLabel[]>();
   const order: string[] = [];
   for (const c of candidates) {
     const labels: RouteOptionLabel[] = [];
-    if (c.geometry === fastest.geometry) labels.push('fastest');
-    if (c.geometry === shortest.geometry) labels.push('shortest');
+    if (c.fromSearch !== true && c.geometry === fastest.geometry) labels.push('fastest');
+    if (c.fromSearch !== true && c.geometry === shortest.geometry) labels.push('shortest');
     if (c.gentle === true) labels.push('gentle');
+    if (c.tollFree === true) labels.push('toll-free');
     if (labels.length === 0) continue;
     if (!seen.has(c.geometry)) {
       order.push(c.geometry);
@@ -120,6 +132,7 @@ export function buildRouteOptions(
       ),
       labels: seen.get(geometry) ?? [],
       ...(candidate.hills === undefined ? {} : { hills: candidate.hills }),
+      ...(candidate.hasToll === undefined ? {} : { hasToll: candidate.hasToll }),
     };
   });
 }

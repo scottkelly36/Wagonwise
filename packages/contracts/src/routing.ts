@@ -81,8 +81,8 @@ export const planRouteRequestSchema = z.object({
   profileId: vehicleProfileIdSchema,
   origin: geoPointSchema,
   destination: geoPointSchema,
-  /** `gentle` is the route the preview marked as easier on a loaded vehicle (fewest steep hills). */
-  strategy: z.enum(['fastest', 'shortest', 'gentle']).optional(),
+  /** `gentle` is the route the preview marked as easier on a loaded vehicle (fewest steep hills); `toll-free` the one marked as avoiding tolls. */
+  strategy: z.enum(['fastest', 'shortest', 'gentle', 'toll-free']).optional(),
   /** Which way the vehicle is heading, degrees clockwise from north, when it is already moving. The
    *  route then starts in that direction rather than asking for a U-turn (re-planning mid-drive). */
   originHeadingDeg: z.number().min(0).max(360).optional(),
@@ -100,6 +100,9 @@ export const previewRouteOptionsRequestSchema = z.object({
   destination: geoPointSchema,
   /** The vehicle is loaded: check the hills on each route and mark the gentlest. Without it the options are as before. */
   loaded: z.boolean().optional(),
+  /** The app can show tolls: routes say whether they have one, and when one does a `toll-free` option is looked for. An older app does not send this and
+   *  gets the options as before, since it could not read the new label. */
+  tolls: z.boolean().optional(),
 });
 export type PreviewRouteOptionsRequest = z.infer<typeof previewRouteOptionsRequestSchema>;
 
@@ -120,7 +123,9 @@ export const routeOptionSchema = z.object({
   distanceKm: z.number(),
   durationMin: z.number(),
   estimatedFuelCostGBP: z.number().optional(),
-  labels: z.array(z.enum(['fastest', 'shortest', 'gentle'])).min(1),
+  labels: z.array(z.enum(['fastest', 'shortest', 'gentle', 'toll-free'])).min(1),
+  /** The route has a toll, as far as the map data says. Present only when the engine said either way. */
+  hasToll: z.boolean().optional(),
   /** Present only when `loaded` was asked for and the server has height data. */
   hills: hillSummarySchema.optional(),
   /** Present and true when no route exists for the vehicle's weight and this one goes past a weight limit. */

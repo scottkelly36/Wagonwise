@@ -14,6 +14,8 @@ export interface RouteRequest {
   /** Areas the vehicle must not be routed through — how community hazards feed into routing
    *  (design doc §4/§5). Empty when nothing nearby applies to this vehicle. */
   readonly avoid: readonly GeoPolygon[];
+  /** Prefer roads without a toll. A preference, not a ban: a journey that needs a toll still gets a route, and `RouteResult.hasToll` says so. */
+  readonly avoidTolls?: boolean | undefined;
 }
 
 export interface RouteResult {
@@ -22,6 +24,9 @@ export interface RouteResult {
   readonly durationMin: number;
   /** Turn-by-turn steps along `geometry` (P2-M10). Empty if the engine gave none. */
   readonly maneuvers: readonly Maneuver[];
+  /** The route uses a toll road, bridge or tunnel, as the engine knows it from the map data. Absent when the engine does not say. It says that there is a
+   *  toll, not which one or what it costs. */
+  readonly hasToll?: boolean | undefined;
 }
 
 /** The vehicle genuinely cannot get there — every path is blocked by its own dimensions, the
