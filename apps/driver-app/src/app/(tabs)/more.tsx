@@ -141,7 +141,7 @@ export default function MoreScreen() {
   }
 
   function handleShare(): void {
-    void Share.share({ message: shareMessage(Platform.OS) });
+    void Share.share({ message: shareMessage() });
   }
 
   function handleDeleteAccount(): void {
