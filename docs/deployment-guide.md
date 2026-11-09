@@ -583,19 +583,21 @@ All commands below run **on the serving droplet** (`ssh root@<serving droplet pu
 
    ```bash
    docker compose restart valhalla
-   until curl -fs http://localhost:8002/status >/dev/null; do sleep 2; done; echo up
+   until curl -fs http://10.131.30.167:8002/status >/dev/null; do sleep 2; done; echo up
    ```
+
+   Valhalla listens on the droplet's **private** address only, so `localhost` does not answer (`Failed to connect`, or an empty reply with `curl -s`).
 
    If the service has another name in this folder's compose file, `docker compose ps` shows it. Loading the road tiles takes under 15 seconds (section 10).
 
 4. **Check heights.** The first point is the top of the A68 at Carter Bar; the second is a few km along the road.
 
    ```bash
-   curl -s http://localhost:8002/height -H 'content-type: application/json' \
+   curl -s http://10.131.30.167:8002/height -H 'content-type: application/json' \
      -d '{"range":true,"resample_distance":100,"shape":[{"lat":55.3526,"lon":-2.4778},{"lat":55.3300,"lon":-2.5000}]}'
    ```
 
-   Good: a `range_height` list of `[distance, height]` pairs, the first height near 400 (404 from the data, 418 on the map). Bad: an error mentioning elevation (the folder or the config is wrong:
+   Good: a `range_height` list of `[distance, height]` pairs, the first height near 400 (405 seen on the live droplet, 2026-11-09). Bad: an error mentioning elevation (the folder or the config is wrong:
    repeat step 1), or heights of 0 or `null` (tiles missing: repeat step 2).
 
 5. **Try it in the app.** Once the server side and the app switch are released (PRs #347 and #349), open Plan route, choose **Loaded**, and plan Washington to
