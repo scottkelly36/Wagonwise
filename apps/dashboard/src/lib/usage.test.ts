@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { ago, barHeights, percentOf, shortDay, withShare } from './usage';
+import {
+  ago,
+  barHeights,
+  cohortShare,
+  fromFirstJoin,
+  percentOf,
+  shortDay,
+  withShare,
+} from './usage';
 
 const now = new Date('2026-10-09T12:00:00.000Z');
 
@@ -36,5 +44,30 @@ describe('percentOf and withShare', () => {
     expect(percentOf(0, 0)).toBe('0%');
     expect(percentOf(5, 0)).toBe('0%');
     expect(withShare(41, 119)).toBe('41 (34%)');
+  });
+});
+
+describe('cohortShare', () => {
+  it("is the share of the day's new drivers, or a dash on a day nobody joined", () => {
+    expect(cohortShare(3, 5)).toBe('60%');
+    expect(cohortShare(0, 4)).toBe('0%');
+    expect(cohortShare(0, 0)).toBe('–');
+  });
+});
+
+describe('fromFirstJoin', () => {
+  const day = (joined: number) => ({ joined });
+
+  it('drops the empty days before the first new driver, and keeps empty days after it', () => {
+    expect(fromFirstJoin([day(0), day(0), day(5), day(0), day(2)])).toEqual([
+      day(5),
+      day(0),
+      day(2),
+    ]);
+  });
+
+  it('is empty when nobody joined at all', () => {
+    expect(fromFirstJoin([day(0), day(0)])).toEqual([]);
+    expect(fromFirstJoin([])).toEqual([]);
   });
 });

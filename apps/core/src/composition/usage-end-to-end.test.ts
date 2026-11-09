@@ -59,9 +59,11 @@ describe('usage end to end (real RLS, real scopes)', () => {
     );
     // Three drivers: seen 2 hours ago, 3 days ago, and never.
     for (const n of [1, 2, 3]) {
-      await q(`insert into identity.drivers (id, identifier) values ($1, $2)`, [
+      // Driver 1 joined today; drivers 2 and 3 joined yesterday (UK days).
+      await q(`insert into identity.drivers (id, identifier, created_at) values ($1, $2, $3)`, [
         id(n),
         `+4477000000${n}`,
+        hoursAgo(n === 1 ? 5 : 30),
       ]);
     }
     const session = (n: number, driver: number, last: string) =>
@@ -210,6 +212,34 @@ describe('usage end to end (real RLS, real scopes)', () => {
       startedTrip: 2,
       startedTripOnTwoDays: 1,
     });
+  });
+
+  it('counts how far each day of new drivers has got, a day at a time', async () => {
+    const body = await report();
+    expect(body.newDriversByDay).toHaveLength(14);
+    expect(body.newDriversByDay.at(-1)).toEqual({
+      day: '2026-10-09',
+      joined: 1,
+      hasVehicle: 1,
+      plannedRoute: 1,
+      startedTrip: 1,
+    });
+    expect(body.newDriversByDay.at(-2)).toEqual({
+      day: '2026-10-08',
+      joined: 2,
+      hasVehicle: 1,
+      plannedRoute: 0,
+      startedTrip: 1,
+    });
+    // Days nobody joined are there, with zeros.
+    expect(body.newDriversByDay.at(-3)).toEqual({
+      day: '2026-10-07',
+      joined: 0,
+      hasVehicle: 0,
+      plannedRoute: 0,
+      startedTrip: 0,
+    });
+    expect(body.newDriversByDay.reduce((sum, d) => sum + d.joined, 0)).toBe(body.drivers.total);
   });
 
   it('shows each firm with its drivers, vehicles, staff, jobs and when it was last used', async () => {

@@ -5,7 +5,7 @@ import { ErrorNotice } from '../../components/ErrorNotice';
 import * as usageApi from '../../api/usage';
 import { DataTable, type Column } from '../../components/DataTable';
 import { HomeNote, HomePanel, HomeRows } from '../../components/HomeParts';
-import { ago, barHeights, shortDay, withShare } from '../../lib/usage';
+import { ago, barHeights, cohortShare, fromFirstJoin, shortDay, withShare } from '../../lib/usage';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
 const MINUTE = 60_000;
@@ -71,6 +71,43 @@ function Bars({
   );
 }
 
+/** One line of the new-drivers table: a day, how many joined, and the share who chose a vehicle, planned a route and started a trip. */
+function CohortRow({
+  cells,
+  header = false,
+  title,
+}: {
+  cells: readonly string[];
+  header?: boolean;
+  title?: string;
+}) {
+  return (
+    <div
+      role="row"
+      title={title}
+      style={{
+        display: 'flex',
+        gap: 8,
+        padding: '5px 0',
+        borderTop: header ? undefined : '1px solid var(--line, rgba(128,128,128,0.2))',
+        fontSize: header ? 12 : 14,
+        fontVariantNumeric: 'tabular-nums',
+        opacity: header ? 0.7 : 1,
+      }}
+    >
+      {cells.map((cell, i) => (
+        <span
+          key={`${i}-${cell}`}
+          role={header ? 'columnheader' : 'cell'}
+          style={{ flex: i === 0 ? '0 0 92px' : 1, textAlign: i === 0 ? 'left' : 'right' }}
+        >
+          {cell}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 const activityRows = (a: ActivityDto) =>
   [
     { label: 'Accounts', value: String(a.total), tone: 'quiet' as const },
@@ -111,6 +148,7 @@ export function AppUsage() {
   }
 
   const u = usage.data;
+  const newDrivers = fromFirstJoin(u.newDriversByDay);
   const now = new Date(u.generatedAt);
   const columns: Column<UsageFirmDto>[] = [
     { key: 'name', header: 'Firm', sortValue: (f) => f.name, cell: (f) => f.name },
@@ -222,6 +260,41 @@ export function AppUsage() {
           />
           <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
             Different drivers, not trips. Test accounts count. Trips are kept for 30 days.
+          </p>
+        </section>
+        <section className="home-panel">
+          <h2>New drivers, by the day they joined</h2>
+          <div
+            style={{ marginTop: 8 }}
+            role="table"
+            aria-label="New drivers by the day they joined"
+          >
+            <CohortRow cells={['Joined', 'Drivers', 'Vehicle', 'Route', 'Trip']} header />
+            {newDrivers.length === 0 && (
+              <p className="muted" style={{ margin: '8px 0 0' }}>
+                No new drivers in the last 14 days.
+              </p>
+            )}
+            {newDrivers
+              .slice()
+              .reverse()
+              .map((d, i) => (
+                <CohortRow
+                  key={d.day}
+                  title={`${d.joined} joined. Chose a vehicle: ${d.hasVehicle}. Planned a route: ${d.plannedRoute}. Started a trip: ${d.startedTrip}.`}
+                  cells={[
+                    i === 0 ? `${shortDay(d.day)} (today)` : shortDay(d.day),
+                    String(d.joined),
+                    cohortShare(d.hasVehicle, d.joined),
+                    cohortShare(d.plannedRoute, d.joined),
+                    cohortShare(d.startedTrip, d.joined),
+                  ]}
+                />
+              ))}
+          </div>
+          <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+            The share of each day&apos;s new drivers who have got that far so far. Compare days
+            after a change to the app with the days before it. A day with few drivers swings a lot.
           </p>
         </section>
         <section className="home-panel">
