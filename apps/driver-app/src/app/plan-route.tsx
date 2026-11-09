@@ -24,8 +24,9 @@ import { WordsSearchField } from '../components/words-search-field';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap, type MapPoint, type RouteOptionLine } from '../components/route-map';
 import { formatDuration } from '../lib/format-duration';
-import type { LengthUnit } from '../lib/units';
+import { formatRouteDistance, type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { FeetInchesInputs } from '../components/feet-inches-inputs';
 import { decodePolyline6 } from '../lib/polyline';
 import { config } from '../config';
@@ -169,6 +170,7 @@ export default function PlanRouteScreen() {
   const [tapTarget, setTapTarget] = useState<PointEnd>('destination');
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const insets = useSafeAreaInsets();
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -749,7 +751,8 @@ export default function PlanRouteScreen() {
                         .join(' & ')}
                     </Text>
                     <Text style={styles.optionDetail}>
-                      {option.distanceKm.toFixed(1)} km · {formatDuration(option.durationMin)}
+                      {formatRouteDistance(option.distanceKm, distanceUnit)} ·{' '}
+                      {formatDuration(option.durationMin)}
                       {option.estimatedFuelCostGBP !== undefined
                         ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
                         : ''}

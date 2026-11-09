@@ -18,12 +18,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDeleteAccount } from '../../api/use-identity';
 import { useSignInOptions } from '../../api/use-sign-in-options';
 import { Icon, type IconName } from '../../components/ui/icon';
+import { SegmentedControl } from '../../components/ui/segmented-control';
 import { identityErrorMessage } from '../../lib/error-messages';
 import { needsEmail } from '../../lib/sign-in-form';
+import { DISTANCE_UNIT_OPTIONS, FUEL_UNIT_OPTIONS } from '../../lib/units';
 import { PLAY_STORE_APP_URL, PLAY_STORE_WEB_URL, shareMessage } from '../../lib/store-links';
 import { PRODUCT_NAME } from '../../product';
 import { useAuthStore } from '../../state/auth-store';
 import { useFasterRouteStore } from '../../state/faster-route-store';
+import { useMeasureUnitsStore } from '../../state/measure-units-store';
 import { useStillThereStore } from '../../state/still-there-store';
 import { useThemeStore, type ThemeMode } from '../../state/theme-store';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
@@ -98,6 +101,10 @@ export default function MoreScreen() {
   const setFasterRoutes = useFasterRouteStore((s) => s.setEnabled);
   const stillThere = useStillThereStore((s) => s.enabled);
   const setStillThere = useStillThereStore((s) => s.setEnabled);
+  const distanceUnit = useMeasureUnitsStore((s) => s.distance);
+  const setDistanceUnit = useMeasureUnitsStore((s) => s.setDistance);
+  const fuelUnit = useMeasureUnitsStore((s) => s.fuel);
+  const setFuelUnit = useMeasureUnitsStore((s) => s.setFuel);
   const signInOptions = useSignInOptions();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -209,6 +216,28 @@ export default function MoreScreen() {
             );
           })}
         </View>
+
+        <Text style={styles.sectionLabel}>Units</Text>
+        <View style={styles.unitsGroup}>
+          <Text style={styles.unitsLabel}>Route distances</Text>
+          <SegmentedControl
+            options={DISTANCE_UNIT_OPTIONS}
+            value={distanceUnit}
+            onChange={(next) => void setDistanceUnit(next)}
+            testIDPrefix="distance-unit"
+          />
+          <Text style={styles.unitsLabel}>Fuel economy</Text>
+          <SegmentedControl
+            options={FUEL_UNIT_OPTIONS}
+            value={fuelUnit}
+            onChange={(next) => void setFuelUnit(next)}
+            testIDPrefix="fuel-unit"
+          />
+        </View>
+        <Text style={styles.settingNote}>
+          Turn instructions and speed limits stay in yards, miles and mph, like the road signs.
+          Miles per gallon means the UK gallon.
+        </Text>
 
         <Text style={styles.sectionLabel}>Driving</Text>
         <View style={styles.group}>
@@ -346,6 +375,8 @@ function createStyles(colors: ThemeColors) {
       marginBottom: -6,
     },
     settingNote: { fontSize: 13, color: colors.textMuted, marginLeft: 4, marginTop: -6 },
+    unitsGroup: { ...cardStyle(colors), padding: 14, gap: 10 },
+    unitsLabel: { fontSize: 16, fontWeight: '600', color: colors.text },
     themeRow: { flexDirection: 'row', gap: 12 },
     themeButton: {
       ...cardStyle(colors),

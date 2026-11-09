@@ -9,9 +9,11 @@ import {
 } from 'react-native';
 
 import { FeetInchesInputs } from './feet-inches-inputs';
+import { MpgInput } from './mpg-input';
 import { SegmentedControl } from './ui/segmented-control';
-import { formatHeightWithFeetInches, type LengthUnit } from '../lib/units';
+import { FUEL_UNIT_OPTIONS, formatHeightWithFeetInches, type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
+import { useMeasureUnitsStore } from '../state/measure-units-store';
 import {
   dimensionWarnings,
   parseVehicleProfileForm,
@@ -47,6 +49,8 @@ export function VehicleProfileForm({
   const [validationError, setValidationError] = useState<string | undefined>(undefined);
   const unit = useLengthUnitStore((s) => s.unit);
   const setUnit = useLengthUnitStore((s) => s.setUnit);
+  const fuelUnit = useMeasureUnitsStore((s) => s.fuel);
+  const setFuelUnit = useMeasureUnitsStore((s) => s.setFuel);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -182,16 +186,34 @@ export function VehicleProfileForm({
         </Text>
       )}
 
-      <Text style={styles.label}>Fuel consumption (L/100km, optional)</Text>
-      <TextInput
-        style={styles.input}
-        value={values.fuelConsumptionL100km}
-        onChangeText={setField('fuelConsumptionL100km')}
-        placeholder="30"
-        placeholderTextColor={colors.textDim}
-        keyboardType="decimal-pad"
-        testID="profile-fuel-consumption-input"
+      <Text style={styles.label}>Fuel economy (optional)</Text>
+      <SegmentedControl
+        options={FUEL_UNIT_OPTIONS}
+        value={fuelUnit}
+        onChange={(next) => void setFuelUnit(next)}
+        testIDPrefix="profile-fuel-unit"
       />
+      {fuelUnit === 'mpg' ? (
+        // Remounted when the unit changes, so the box is filled afresh from the value in litres per 100 km.
+        <MpgInput
+          key={fuelUnit}
+          l100km={values.fuelConsumptionL100km}
+          onChangeL100km={setField('fuelConsumptionL100km')}
+          placeholder="9.4"
+          inputStyle={styles.input}
+          testID="profile-fuel-consumption-mpg-input"
+        />
+      ) : (
+        <TextInput
+          style={styles.input}
+          value={values.fuelConsumptionL100km}
+          onChangeText={setField('fuelConsumptionL100km')}
+          placeholder="30"
+          placeholderTextColor={colors.textDim}
+          keyboardType="decimal-pad"
+          testID="profile-fuel-consumption-input"
+        />
+      )}
       <Text style={styles.hint}>Used only for a rough fuel-cost estimate on route options.</Text>
 
       {displayedError !== undefined && <Text style={styles.error}>{displayedError}</Text>}

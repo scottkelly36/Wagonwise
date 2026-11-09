@@ -1,8 +1,11 @@
 import {
   feetInchesToMetres,
   formatHeightWithFeetInches,
+  formatRouteDistance,
+  l100kmToMpg,
   metresToFeetInches,
   metresToFeetInchesBoxes,
+  mpgToL100km,
 } from './units';
 
 describe('feetInchesToMetres', () => {
@@ -77,5 +80,40 @@ describe('formatHeightWithFeetInches', () => {
     expect(formatHeightWithFeetInches(0)).toBe('');
     expect(formatHeightWithFeetInches(-1)).toBe('');
     expect(formatHeightWithFeetInches(Number.NaN)).toBe('');
+  });
+});
+
+describe('formatRouteDistance', () => {
+  it('shows kilometres to a tenth, or miles to a tenth', () => {
+    expect(formatRouteDistance(29.702, 'km')).toBe('29.7 km');
+    expect(formatRouteDistance(29.702, 'miles')).toBe('18.5 mi');
+    expect(formatRouteDistance(1.609344, 'miles')).toBe('1.0 mi');
+  });
+});
+
+describe('mpgToL100km', () => {
+  it('converts imperial miles per gallon to litres per 100 km as text', () => {
+    expect(mpgToL100km('10')).toBe('28.2481');
+    expect(mpgToL100km('28.2481')).toBe('10');
+  });
+
+  it('gives an empty answer for nothing, and an invalid one for rubbish, zero or a negative', () => {
+    expect(mpgToL100km('')).toBe('');
+    expect(mpgToL100km('abc')).toBe('NaN');
+    expect(mpgToL100km('0')).toBe('NaN');
+    expect(mpgToL100km('-9')).toBe('NaN');
+  });
+});
+
+describe('l100kmToMpg', () => {
+  it('fills the box with miles per gallon to a tenth', () => {
+    expect(l100kmToMpg('30')).toBe('9.4');
+    expect(l100kmToMpg('10')).toBe('28.2');
+  });
+
+  it('gives an empty box for nothing or something that is not a positive number', () => {
+    expect(l100kmToMpg('')).toBe('');
+    expect(l100kmToMpg('NaN')).toBe('');
+    expect(l100kmToMpg('0')).toBe('');
   });
 });
