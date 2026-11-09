@@ -105,9 +105,13 @@ async function withHills(
   if (loaded !== true) return routes;
   const search = await findGentlestRoute(engine, request, routes);
   if (search === undefined) return routes;
-  return search.candidates.map((c) => ({
-    ...c.route,
-    hills: summariseHills(c.stats),
-    gentle: c === search.gentlest,
-  }));
+  // The engine's own routes, and the gentlest if a search found it (it is made again by `strategy: 'gentle'`). The other routes the search
+  // tried are left out: a route called "shortest" that planning could not make again would be a different route when planned.
+  return search.candidates
+    .filter((c) => c.hillZones.length === 0 || c === search.gentlest)
+    .map((c) => ({
+      ...c.route,
+      hills: summariseHills(c.stats),
+      gentle: c === search.gentlest,
+    }));
 }

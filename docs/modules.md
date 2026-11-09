@@ -754,6 +754,12 @@ MapLibre's own free, keyless demo style (`src/lib/map-style.ts`) so the screen r
 with zero setup; get a real key at [cloud.maptiler.com](https://cloud.maptiler.com) before relying
 on it beyond local dev. Copy `apps/driver-app/.env.example` to `.env` to set it.
 
+**Loaded / Empty (2026-11-09):** a **Load** switch above the Plan route button (`state/load-store.ts`, kept on the phone, Empty by default). Loaded sends
+`loaded: true` with the route-options preview; when the server has height data each route card gains a hills line ("2.3 km of steep hill · highest point
+328 m", `lib/route-option-text.ts`) and the gentlest route is labelled "Fewer hills" (planned with `strategy: 'gentle'`). With no height data the cards are as
+for Empty and a line says the hill check is not available yet. Core's side and the evidence: `docs/loaded-routing-scope.md`. Reroutes and the faster-route
+check do not use the setting yet.
+
 **Not verified on a real map render** — beyond the disclosed gap every M5 task has had so far (no
 Android SDK, no macOS on this machine), MapLibre specifically needs its own native module built
 (`expo prebuild`/EAS Build), which this machine can't do either. Verified so far: `expo export`

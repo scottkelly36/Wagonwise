@@ -24,8 +24,15 @@ import { WordsSearchField } from '../components/words-search-field';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteMap, type MapPoint, type RouteOptionLine } from '../components/route-map';
 import { formatDuration } from '../lib/format-duration';
+import {
+  hillsLine,
+  hillsWereChecked,
+  routeOptionTitle,
+  strategyForOption,
+} from '../lib/route-option-text';
 import { formatRouteDistance, type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
+import { useLoadStore } from '../state/load-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { FeetInchesInputs } from '../components/feet-inches-inputs';
 import { VehiclePresetChips } from '../components/vehicle-preset-chips';
@@ -75,6 +82,17 @@ import { cardStyle, radius } from '../theme/tokens';
 type VehicleMode = 'profile' | 'manual';
 // How each end of the route is set. From starts on the driver's own position, so they only change it to
 // start somewhere else; To has no default.
+
+const LOAD_OPTIONS = [
+  { key: 'empty', label: 'Empty' },
+  { key: 'loaded', label: 'Loaded' },
+] as const;
+
+const LOAD_NOTE_EMPTY = 'Plans the quickest route.';
+const LOAD_NOTE_LOADED =
+  'Checks the hills on each route, and offers one with fewer when there is one. It takes a little longer.';
+const HILLS_UNAVAILABLE =
+  'The hill check is not available yet, so these routes are not checked for hills.';
 
 const VEHICLE_MODE_OPTIONS = [
   { key: 'profile', label: 'My vehicles' },
@@ -182,6 +200,10 @@ export default function PlanRouteScreen() {
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const insets = useSafeAreaInsets();
   const distanceUnit = useMeasureUnitsStore((s) => s.distance);
+  const loaded = useLoadStore((s) => s.loaded);
+  const setLoaded = useLoadStore((s) => s.setLoaded);
+  // Whether the routes now shown were looked for as for a loaded vehicle, so a switch changed after comparing does not mislabel them.
+  const [comparedLoaded, setComparedLoaded] = useState(false);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -379,11 +401,9 @@ export default function PlanRouteScreen() {
     setVehicleMode(mode);
   }
 
-  /** The strategy `planRoute` needs to reproduce whichever option the driver picked — a route
-   *  that's both fastest and shortest (identical geometry) is requested the cheap way, same as
-   *  today's behaviour before M9 existed. */
-  function strategyFor(option: RouteOptionDto): PlanRouteRequest['strategy'] {
-    return option.labels.includes('fastest') ? 'fastest' : 'shortest';
+  function handleSelectLoad(next: 'empty' | 'loaded'): void {
+    setRouteOptions(undefined);
+    void setLoaded(next === 'loaded');
   }
 
   function planWith(
@@ -442,9 +462,20 @@ export default function PlanRouteScreen() {
     setRouteOptions(undefined);
     resolveProfileId((resolvedProfileId) => {
       setComparedProfileId(resolvedProfileId);
+      const askedLoaded = loaded;
       previewRouteOptions.mutate(
-        { profileId: resolvedProfileId, origin: effectiveOrigin, destination },
-        { onSuccess: setRouteOptions },
+        {
+          profileId: resolvedProfileId,
+          origin: effectiveOrigin,
+          destination,
+          ...(askedLoaded ? { loaded: true } : {}),
+        },
+        {
+          onSuccess: (options) => {
+            setComparedLoaded(askedLoaded);
+            setRouteOptions(options);
+          },
+        },
       );
     });
   }
@@ -466,12 +497,12 @@ export default function PlanRouteScreen() {
         { text: 'Go back', style: 'cancel' },
         {
           text: 'Go anyway',
-          onPress: () => planWith(profileId, origin, to, strategyFor(option), true),
+          onPress: () => planWith(profileId, origin, to, strategyForOption(option), true),
         },
       ]);
       return;
     }
-    planWith(profileId, origin, to, strategyFor(option));
+    planWith(profileId, origin, to, strategyForOption(option));
   }
 
   const pendingCompare = createVehicleProfile.isPending || previewRouteOptions.isPending;
@@ -758,6 +789,21 @@ export default function PlanRouteScreen() {
             </Text>
           )}
 
+          {routeOptions === undefined && (
+            <View testID="load-switch">
+              <Text style={styles.label}>Load</Text>
+              <SegmentedControl
+                options={LOAD_OPTIONS}
+                value={loaded ? 'loaded' : 'empty'}
+                onChange={handleSelectLoad}
+                testIDPrefix="load"
+              />
+              <Text style={styles.presetNote} testID="load-note">
+                {loaded ? LOAD_NOTE_LOADED : LOAD_NOTE_EMPTY}
+              </Text>
+            </View>
+          )}
+
           {routeOptions === undefined ? (
             <TouchableOpacity
               style={[styles.button, !canPlan && styles.buttonDisabled]}
@@ -777,6 +823,11 @@ export default function PlanRouteScreen() {
           ) : (
             <View style={styles.optionsList}>
               <Text style={styles.label}>Choose a route</Text>
+              {comparedLoaded && !hillsWereChecked(routeOptions) && (
+                <Text style={styles.presetNote} testID="hills-unavailable">
+                  {HILLS_UNAVAILABLE}
+                </Text>
+              )}
               {routeOptions.some((option) => option.breaksWeightLimit === true) && (
                 <Text style={styles.weightWarning} testID="weight-limit-banner">
                   {WEIGHT_LIMIT_BANNER}
@@ -798,17 +849,19 @@ export default function PlanRouteScreen() {
                 >
                   <View style={styles.optionIcon}>
                     <Icon
-                      name={option.labels.includes('fastest') ? 'lightning-bolt' : 'ruler'}
+                      name={
+                        option.labels.includes('fastest')
+                          ? 'lightning-bolt'
+                          : option.labels.includes('gentle')
+                            ? 'terrain'
+                            : 'ruler'
+                      }
                       size={26}
                       color={colors.accent}
                     />
                   </View>
                   <View style={styles.optionText}>
-                    <Text style={styles.optionLabel}>
-                      {option.labels
-                        .map((l) => (l === 'fastest' ? 'Fastest' : 'Shortest'))
-                        .join(' & ')}
-                    </Text>
+                    <Text style={styles.optionLabel}>{routeOptionTitle(option)}</Text>
                     <Text style={styles.optionDetail}>
                       {formatRouteDistance(option.distanceKm, distanceUnit)} ·{' '}
                       {formatDuration(option.durationMin)}
@@ -816,6 +869,11 @@ export default function PlanRouteScreen() {
                         ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
                         : ''}
                     </Text>
+                    {hillsLine(option, distanceUnit) !== undefined && (
+                      <Text style={styles.optionDetail} testID={`route-option-${index}-hills`}>
+                        {hillsLine(option, distanceUnit)}
+                      </Text>
+                    )}
                     {option.breaksWeightLimit === true && (
                       <Text style={styles.optionWarning}>{WEIGHT_LIMIT_SHORT}</Text>
                     )}
