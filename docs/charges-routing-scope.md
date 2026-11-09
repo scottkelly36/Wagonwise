@@ -2,8 +2,8 @@
 
 Scoped 2026-11-09 from the owner's question while shipping the hill-sensitive option ("do we need to account for tolls and ULEZ at some point?"), and
 a family haulier's wish for the usual choices on the route screen: shortest, fastest, easiest, economy. It follows the hills work
-(`docs/loaded-routing-scope.md`): the driver is shown what each route does and chooses; a route is never switched silently. **Not started: no code
-has been written.** The idea was already listed under "Routing that goes further" in `docs/phase-5-ideas.md`; this moves it up and gives it a design.
+(`docs/loaded-routing-scope.md`): the driver is shown what each route does and chooses; a route is never switched silently. **Stage 1 is built (2026-11-09,
+PR 356); the rest is not started.** The idea was already listed under "Routing that goes further" in `docs/phase-5-ideas.md`; this moves it up and gives it a design.
 
 ## What exists today (checked 2026-11-09)
 
@@ -75,6 +75,10 @@ discount or an exemption), or price a toll that depends on time of day (the M6 T
 
 1. **Show that a toll is on the route (small, no data table).** Read `summary.has_toll` from Valhalla and show "This route has a toll" on the card, and
    try `use_tolls` to offer a toll-free alternative. Quick to build and tells us whether drivers care. Needs the field added to the contract (additive).
+   **Built 2026-11-09 (PR 356), as the owner asked:** a card whose route has a toll says "Includes a toll", and a separate **Toll free** card is offered when
+   any route has a toll and the engine finds a way round (nothing is offered when the way round still has one). The app asks with `tolls: true` so an older
+   app never sees the new label. Not carried into re-plans, job stops or the faster-route check yet. **Cheapest** replaces the Toll free card once prices exist
+   (stage 4).
 2. **The charges table and prices.** Tolls first (crossings from operators' own pages), then the route check and the price line.
 3. **Zones and the Euro class.** The vehicle field and migration, the zone polygons, the "may be charged" wording. Scotland and Tyneside first.
 4. **Cheapest.** Cost scoring and the label, the faster-route check, re-plans. Test on real routes: Hexham to Dundee and Edinburgh, Newcastle to
