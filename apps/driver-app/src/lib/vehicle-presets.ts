@@ -79,3 +79,34 @@ export function presetFormValues(preset: VehiclePreset): VehicleProfileFormValue
     fuelConsumptionL100km: '',
   };
 }
+
+/**
+ * The preset whose figures the form currently holds exactly, if any: the same height, width, length and gross weight, and no
+ * axle weight. Used to show which preset is chosen without remembering the tap, so a driver who then changes a figure is no
+ * longer shown as on a preset.
+ */
+export function presetMatching(
+  values: Pick<
+    VehicleProfileFormValues,
+    'heightM' | 'widthM' | 'lengthM' | 'grossWeightT' | 'axleWeightT'
+  >,
+): VehiclePreset | undefined {
+  const same = (text: string, wanted: number): boolean =>
+    text.trim() !== '' && Number(text.trim()) === wanted;
+  return VEHICLE_PRESETS.find(
+    ({ dimensions: d }) =>
+      same(values.heightM, d.heightM) &&
+      same(values.widthM, d.widthM) &&
+      same(values.lengthM, d.lengthM) &&
+      same(values.grossWeightT, d.grossWeightT) &&
+      values.axleWeightT.trim() === (d.axleWeightT === undefined ? '' : String(d.axleWeightT)),
+  );
+}
+
+/** The name a vehicle entered on the route planner is saved under: the preset's name while the figures are still the preset's, else "Vehicle", then when it was made. */
+export function enteredVehicleName(
+  values: Parameters<typeof presetMatching>[0],
+  madeAt: string,
+): string {
+  return `${presetMatching(values)?.name ?? 'Vehicle'} ${madeAt}`;
+}

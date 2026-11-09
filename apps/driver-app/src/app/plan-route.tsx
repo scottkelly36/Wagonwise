@@ -28,6 +28,7 @@ import { formatRouteDistance, type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { FeetInchesInputs } from '../components/feet-inches-inputs';
+import { VehiclePresetChips } from '../components/vehicle-preset-chips';
 import { decodePolyline6 } from '../lib/polyline';
 import { config } from '../config';
 import { useCurrentLocation } from '../hooks/use-current-location';
@@ -47,6 +48,12 @@ import {
   type PointEnd,
   type ToMode,
 } from '../lib/route-points';
+import {
+  enteredVehicleName,
+  presetFormValues,
+  presetMatching,
+  type VehiclePreset,
+} from '../lib/vehicle-presets';
 import {
   EMPTY_VEHICLE_PROFILE_FORM,
   parseVehicleProfileForm,
@@ -242,6 +249,15 @@ export default function PlanRouteScreen() {
                 : 'Now tap the map where you are going.'
             : undefined;
 
+  /** The preset whose figures are in the boxes right now, if any: it is shown as chosen only while the figures still match. */
+  const presetInBoxes = presetMatching(dimensionValues);
+
+  function handlePickPreset(preset: VehiclePreset): void {
+    setManualError(undefined);
+    setRouteOptions(undefined);
+    setDimensionValues(presetFormValues(preset));
+  }
+
   function setDimensionField(field: keyof Omit<VehicleProfileFormValues, 'name'>) {
     return (text: string) => {
       setManualError(undefined);
@@ -390,7 +406,8 @@ export default function PlanRouteScreen() {
     }
     const result = parseVehicleProfileForm({
       ...dimensionValues,
-      name: `Vehicle ${formatDateTime(new Date().toISOString())}`,
+      // A vehicle entered here is named automatically; one still on a preset's figures says which.
+      name: enteredVehicleName(dimensionValues, formatDateTime(new Date().toISOString())),
     });
     if (!result.ok) {
       setManualError(result.message);
@@ -521,7 +538,9 @@ export default function PlanRouteScreen() {
                     onPress={() => handleSelectVehicleMode('manual')}
                     testID="first-vehicle-manual-link"
                   >
-                    <Text style={styles.firstUseLink}>Or enter the details just for this trip</Text>
+                    <Text style={styles.firstUseLink}>
+                      Or pick a size or enter the details just for this trip
+                    </Text>
                   </TouchableOpacity>
                 </View>
               ) : vehicleMode === 'profile' ? (
@@ -565,6 +584,12 @@ export default function PlanRouteScreen() {
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
                 >
+                  <VehiclePresetChips selectedId={presetInBoxes?.id} onPick={handlePickPreset} />
+                  {presetInBoxes !== undefined && (
+                    <Text style={styles.presetNote} testID="manual-preset-note">
+                      Typical sizes for this kind of lorry. Check the height matches yours.
+                    </Text>
+                  )}
                   <SegmentedControl
                     options={LENGTH_UNIT_OPTIONS}
                     value={lengthUnit}
@@ -864,6 +889,7 @@ function createStyles(colors: ThemeColors) {
     manualForm: {
       maxHeight: 220,
     },
+    presetNote: { fontSize: 13, color: colors.textMuted, marginTop: 6 },
     label: {
       fontSize: 14,
       color: colors.textMuted,

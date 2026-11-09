@@ -1,7 +1,12 @@
 import { dimensionsSchema } from '@wagonwise/contracts/routing';
 
 import { dimensionWarnings, parseVehicleProfileForm } from './vehicle-profile-form';
-import { VEHICLE_PRESETS, presetFormValues } from './vehicle-presets';
+import {
+  VEHICLE_PRESETS,
+  enteredVehicleName,
+  presetFormValues,
+  presetMatching,
+} from './vehicle-presets';
 
 describe('vehicle presets', () => {
   it('has a few presets, each with its own id and name', () => {
@@ -42,5 +47,51 @@ describe('vehicle presets', () => {
   it('gets heavier and taller or longer as the class gets bigger', () => {
     const weights = VEHICLE_PRESETS.map((p) => p.dimensions.grossWeightT);
     expect([...weights].sort((a, b) => a - b)).toEqual(weights);
+  });
+});
+
+describe('presetMatching', () => {
+  const artic = VEHICLE_PRESETS.find((p) => p.id === 'artic-44')!;
+
+  it('finds the preset whose figures are in the boxes', () => {
+    for (const preset of VEHICLE_PRESETS) {
+      expect(presetMatching(presetFormValues(preset))?.id).toBe(preset.id);
+    }
+  });
+
+  it('no longer matches once a figure is changed, so a changed vehicle is not shown as a preset', () => {
+    const values = presetFormValues(artic);
+    expect(presetMatching({ ...values, heightM: '4.5' })).toBeUndefined();
+    expect(presetMatching({ ...values, grossWeightT: '40' })).toBeUndefined();
+    expect(presetMatching({ ...values, axleWeightT: '10' })).toBeUndefined();
+  });
+
+  it('does not match empty or half-filled boxes', () => {
+    expect(
+      presetMatching({ heightM: '', widthM: '', lengthM: '', grossWeightT: '', axleWeightT: '' }),
+    ).toBeUndefined();
+    expect(presetMatching({ ...presetFormValues(artic), widthM: '' })).toBeUndefined();
+  });
+
+  it('matches a figure typed with different spelling of the same number', () => {
+    expect(
+      presetMatching({ ...presetFormValues(artic), heightM: '4.20', grossWeightT: ' 44 ' })?.id,
+    ).toBe('artic-44');
+  });
+});
+
+describe('enteredVehicleName', () => {
+  const artic = VEHICLE_PRESETS.find((p) => p.id === 'artic-44')!;
+
+  it("names a vehicle still on a preset's figures after the preset, with when it was made", () => {
+    expect(enteredVehicleName(presetFormValues(artic), '9 Nov, 11:30')).toBe(
+      'Artic, 44 tonnes 9 Nov, 11:30',
+    );
+  });
+
+  it('calls any other vehicle "Vehicle", as before', () => {
+    expect(enteredVehicleName({ ...presetFormValues(artic), heightM: '4.4' }, '9 Nov, 11:30')).toBe(
+      'Vehicle 9 Nov, 11:30',
+    );
   });
 });
