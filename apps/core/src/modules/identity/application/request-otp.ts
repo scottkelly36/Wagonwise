@@ -9,6 +9,7 @@ import type {
   InviteCodeRequired,
   PasswordRequired,
 } from './errors.js';
+import { deliverableEmail } from './email-ending.js';
 import { issueOtp, OTP_TTL_MS as ISSUED_OTP_TTL_MS } from './issue-otp.js';
 import type { CredentialRepository } from './ports/credential-repository.js';
 import type { DriverRepository } from './ports/driver-repository.js';
@@ -55,6 +56,10 @@ export async function requestOtp(
   const forms = identifierForms(input.identifier);
   if (!forms.ok) {
     return forms;
+  }
+  if (forms.value[0].includes('@')) {
+    const deliverable = deliverableEmail(forms.value[0]);
+    if (!deliverable.ok) return deliverable;
   }
   // An account made before UK numbers were made consistent may be stored as 07… when the driver types +44…, or the other way
   // round: find it either way, and use the form it is stored under for the code, so sign-in finds the same code.

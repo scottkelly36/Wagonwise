@@ -143,6 +143,7 @@ describe('signUp', () => {
     for (const [input, reason] of [
       [{ ...good, consent: false }, 'consent'],
       [{ ...good, email: 'not-an-email' }, 'email'],
+      [{ ...good, email: 'sam@gmail.comg' }, 'email'],
       [{ ...good, role: 'astronaut' }, 'role'],
       [{ ...good, fleetSize: '1000' }, 'fleet_size'],
       [{ ...good, name: 'x'.repeat(81) }, 'name'],

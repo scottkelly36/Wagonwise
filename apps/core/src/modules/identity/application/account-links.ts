@@ -16,6 +16,7 @@ import type {
   DriverNotFound,
   EmailAlreadySet,
 } from './errors.js';
+import { deliverableEmail } from './email-ending.js';
 import { issueOtp } from './issue-otp.js';
 import type { DriverRepository } from './ports/driver-repository.js';
 import type { FederatedIdentityRepository } from './ports/federated-identity-repository.js';
@@ -99,7 +100,9 @@ async function checkEmailCanBeAdded(
   const driver = await deps.driverRepo.findById(driverId);
   if (!driver) return err({ tag: 'DriverNotFound' });
   if (emailIdentifier(driver.identifier).ok) return err({ tag: 'EmailAlreadySet' });
-  const email = emailIdentifier(rawEmail);
+  const typed = emailIdentifier(rawEmail);
+  if (!typed.ok) return typed;
+  const email = deliverableEmail(typed.value);
   if (!email.ok) return email;
   if (await deps.driverRepo.findByIdentifier(email.value)) return err({ tag: 'AccountExists' });
   return ok({ driver, email: email.value });

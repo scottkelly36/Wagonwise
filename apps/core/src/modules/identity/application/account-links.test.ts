@@ -129,6 +129,15 @@ describe('adding an email to a phone-number account', () => {
     expect(await deps.driverRepo.findByIdentifier(PHONE)).toBeNull();
   });
 
+  it('refuses an email whose ending does not exist, and sends it nothing', async () => {
+    const { deps, otpSender } = build();
+    const phone = await driver(deps, 'driver-1', PHONE);
+    expect(
+      await requestEmailAddition(deps, { driverId: phone.id, email: 'sam@gmail.comg' }),
+    ).toEqual({ ok: false, error: { tag: 'InvalidIdentifier', reason: 'not_email_or_phone' } });
+    expect(otpSender.sent).toEqual([]);
+  });
+
   it('refuses a wrong code and changes nothing', async () => {
     const { deps } = build();
     const phone = await driver(deps, 'driver-1', PHONE);

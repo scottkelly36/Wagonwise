@@ -37,6 +37,15 @@ describe('requestOtp', () => {
     expect((deps.otpSender as FakeOtpSender).sent).toEqual([]);
   });
 
+  it('turns away an email whose ending does not exist, since the code could never arrive', async () => {
+    const deps = buildDeps();
+    expect(await requestOtp(deps, { identifier: 'sam@gmail.comg' })).toEqual({
+      ok: false,
+      error: { tag: 'InvalidIdentifier', reason: 'not_email_or_phone' },
+    });
+    expect((deps.otpSender as FakeOtpSender).sent).toEqual([]);
+  });
+
   it('requires an invite code for an identifier with no existing driver', async () => {
     const deps = buildDeps();
     const result = await requestOtp(deps, { identifier: 'new@example.com' });
