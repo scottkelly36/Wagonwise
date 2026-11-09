@@ -84,13 +84,13 @@ type VehicleMode = 'profile' | 'manual';
 // start somewhere else; To has no default.
 
 const LOAD_OPTIONS = [
-  { key: 'empty', label: 'Empty' },
-  { key: 'loaded', label: 'Loaded' },
+  { key: 'empty', label: 'Normal' },
+  { key: 'loaded', label: 'Hill-sensitive' },
 ] as const;
 
-const LOAD_NOTE_EMPTY = 'Plans the quickest route.';
+const LOAD_NOTE_EMPTY = 'Plans the usual way, with no hill check.';
 const LOAD_NOTE_LOADED =
-  'Checks the hills on each route, and offers one with fewer when there is one. It takes a little longer.';
+  'For a load that does not like steep roads. Checks the hills on each route, and offers one with fewer when there is one. It takes a little longer.';
 const HILLS_UNAVAILABLE =
   'The hill check is not available yet, so these routes are not checked for hills.';
 
@@ -791,7 +791,7 @@ export default function PlanRouteScreen() {
 
           {routeOptions === undefined && (
             <View testID="load-switch">
-              <Text style={styles.label}>Load</Text>
+              <Text style={styles.label}>Load type</Text>
               <SegmentedControl
                 options={LOAD_OPTIONS}
                 value={loaded ? 'loaded' : 'empty'}
