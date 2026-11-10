@@ -2,13 +2,16 @@ import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
 import type { DomainEvent } from '../../../shared/domain-event.js';
 import type {
+  DeliverySignature,
   JobRepository,
   ProofOfDeliveryPhoto,
+  StoredDeliverySignature,
   StoredProofOfDelivery,
 } from '../application/ports/job-repository.js';
 import {
   ACTIVE_STATUSES,
   hasProof,
+  hasSignatureFor,
   type CompanyId,
   type DriverId,
   type GeoPoint,
@@ -34,6 +37,7 @@ interface JobRow {
   readonly due_by: Date | null;
   readonly timeline: unknown;
   readonly requires_proof_of_delivery: boolean;
+  readonly requires_signature: boolean;
   readonly current_stop: number;
   readonly customer: string | null;
   readonly price_pence: string | number | null;
@@ -51,7 +55,7 @@ interface StopRow {
 
 const JOB_SELECT_COLUMNS = `
   id, company_id, reference, status, driver_id, vehicle_id, route_plan_id, planned_start, due_by,
-  timeline, requires_proof_of_delivery, current_stop, customer, price_pence
+  timeline, requires_proof_of_delivery, requires_signature, current_stop, customer, price_pence
 `;
 
 const STOP_SELECT_COLUMNS = `
@@ -93,7 +97,12 @@ function stopFromRow(row: StopRow): JobStop {
   };
 }
 
-function jobFromRows(job: JobRow, stops: readonly StopRow[], proofStops: readonly number[]): Job {
+function jobFromRows(
+  job: JobRow,
+  stops: readonly StopRow[],
+  proofStops: readonly number[],
+  signatureStops: readonly number[],
+): Job {
   const base = {
     id: makeId<'JobId'>(job.id),
     companyId: makeId<'CompanyId'>(job.company_id),
@@ -103,8 +112,11 @@ function jobFromRows(job: JobRow, stops: readonly StopRow[], proofStops: readonl
     timeline: timelineFrom(job.timeline),
     requiresProofOfDelivery: job.requires_proof_of_delivery,
     currentStop: job.current_stop,
+    requiresSignature: job.requires_signature,
     proofStops,
     hasProofOfDelivery: false,
+    signatureStops,
+    hasSignature: false,
     ...(job.driver_id === null ? {} : { driverId: makeId<'DriverId'>(job.driver_id) }),
     ...(job.vehicle_id === null ? {} : { vehicleId: makeId<'FleetVehicleId'>(job.vehicle_id) }),
     ...(job.route_plan_id === null
@@ -115,7 +127,7 @@ function jobFromRows(job: JobRow, stops: readonly StopRow[], proofStops: readonl
     ...(job.customer === null ? {} : { customer: job.customer }),
     ...(job.price_pence === null ? {} : { pricePence: Number(job.price_pence) }),
   };
-  return { ...base, hasProofOfDelivery: hasProof(base) };
+  return { ...base, hasProofOfDelivery: hasProof(base), hasSignature: hasSignatureFor(base) };
 }
 
 /** Raw `sql` tagged-template queries, not Kysely's typed query builder — same reasoning as every
@@ -167,7 +179,7 @@ export class PostgresJobRepository implements JobRepository {
   async #withStops(jobRows: readonly JobRow[]): Promise<Job[]> {
     if (jobRows.length === 0) return [];
     const ids = jobRows.map((j) => j.id);
-    const [{ rows: stopRows }, { rows: podRows }] = await Promise.all([
+    const [{ rows: stopRows }, { rows: podRows }, { rows: signatureRows }] = await Promise.all([
       sql<StopRow & { job_id: string }>`
         select job_id, ${sql.raw(STOP_SELECT_COLUMNS)} from jobs.job_stops
         where job_id in (${sql.join(ids)}) order by job_id, sequence
@@ -175,12 +187,16 @@ export class PostgresJobRepository implements JobRepository {
       sql<{ job_id: string; stop_sequence: number }>`
         select job_id, stop_sequence from jobs.proof_of_delivery where job_id in (${sql.join(ids)})
       `.execute(this.db),
+      sql<{ job_id: string; stop_sequence: number }>`
+        select job_id, stop_sequence from jobs.delivery_signatures where job_id in (${sql.join(ids)})
+      `.execute(this.db),
     ]);
     return jobRows.map((jobRow) =>
       jobFromRows(
         jobRow,
         stopRows.filter((s) => s.job_id === jobRow.id),
         podRows.filter((p) => p.job_id === jobRow.id).map((p) => p.stop_sequence),
+        signatureRows.filter((p) => p.job_id === jobRow.id).map((p) => p.stop_sequence),
       ),
     );
   }
@@ -199,12 +215,14 @@ export class PostgresJobRepository implements JobRepository {
     await sql`
       insert into jobs.jobs
         (id, company_id, reference, status, driver_id, vehicle_id, route_plan_id, planned_start,
-         due_by, created_at, timeline, requires_proof_of_delivery, current_stop, customer, price_pence)
+         due_by, created_at, timeline, requires_proof_of_delivery, requires_signature, current_stop, customer,
+         price_pence)
       values (
         ${job.id}, ${job.companyId}, ${job.reference}, ${job.status},
         ${job.driverId ?? null}, ${job.vehicleId ?? null}, ${job.routePlanId ?? null},
         ${job.plannedStart ?? null}, ${job.dueBy ?? null}, now(),
-        ${JSON.stringify(job.timeline)}::jsonb, ${job.requiresProofOfDelivery}, ${job.currentStop},
+        ${JSON.stringify(job.timeline)}::jsonb, ${job.requiresProofOfDelivery}, ${job.requiresSignature},
+        ${job.currentStop},
         ${job.customer ?? null}, ${job.pricePence ?? null}
       )
       on conflict (id) do update set
@@ -217,6 +235,7 @@ export class PostgresJobRepository implements JobRepository {
         due_by = excluded.due_by,
         timeline = excluded.timeline,
         requires_proof_of_delivery = excluded.requires_proof_of_delivery,
+        requires_signature = excluded.requires_signature,
         current_stop = excluded.current_stop,
         customer = excluded.customer,
         price_pence = excluded.price_pence
@@ -272,5 +291,45 @@ export class PostgresJobRepository implements JobRepository {
     return row === undefined
       ? null
       : { contentType: row.content_type, data: row.data, capturedAt: row.captured_at };
+  }
+
+  async saveSignature(jobId: JobId, stop: number, signature: DeliverySignature): Promise<void> {
+    await sql`
+      insert into jobs.delivery_signatures (job_id, stop_sequence, strokes, signer_name, captured_at)
+      values (${jobId}, ${stop}, ${JSON.stringify(signature.strokes)}::jsonb, ${signature.signerName ?? null}, now())
+      on conflict (job_id, stop_sequence) do update set
+        strokes = excluded.strokes,
+        signer_name = excluded.signer_name,
+        captured_at = excluded.captured_at
+    `.execute(this.db);
+  }
+
+  async findSignature(jobId: JobId, stop?: number): Promise<StoredDeliverySignature | null> {
+    const { rows } = await sql<{
+      strokes: DeliverySignature['strokes'];
+      signer_name: string | null;
+      captured_at: Date;
+    }>`
+      select strokes, signer_name, captured_at from jobs.delivery_signatures
+      where job_id = ${jobId} and (${stop ?? null}::integer is null or stop_sequence = ${stop ?? null})
+      order by stop_sequence desc limit 1
+    `.execute(this.db);
+    const row = rows[0];
+    return row === undefined
+      ? null
+      : {
+          strokes: row.strokes,
+          ...(row.signer_name === null ? {} : { signerName: row.signer_name }),
+          capturedAt: row.captured_at,
+        };
+  }
+
+  async deleteSignaturesOlderThan(companyId: CompanyId, cutoff: Date): Promise<number> {
+    const { rows } = await sql<{ job_id: string }>`
+      delete from jobs.delivery_signatures s using jobs.jobs j
+      where s.job_id = j.id and j.company_id = ${companyId} and s.captured_at < ${cutoff}
+      returning s.job_id
+    `.execute(this.db);
+    return rows.length;
   }
 }

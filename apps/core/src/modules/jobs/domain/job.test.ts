@@ -6,6 +6,7 @@ import {
   cancelJob,
   failJob,
   hasProof,
+  hasSignatureFor,
   nextStatus,
   nextStopFor,
   proofStopFor,
@@ -34,6 +35,9 @@ function job(status: JobStatus = 'draft', stops: readonly JobStop[] = [pickup, d
     hasProofOfDelivery: false,
     currentStop: 0,
     proofStops: [],
+    requiresSignature: false,
+    signatureStops: [],
+    hasSignature: false,
   };
 }
 
@@ -218,6 +222,16 @@ describe('a job with several stops', () => {
     expect(done.ok && done.value.currentStop).toBe(2);
     expect(done.ok && done.value.timeline.at(-1)?.stopIndex).toBe(1);
     expect(done.ok && nextStopFor(done.value)).toBe(depot);
+  });
+
+  it('says whether the signature for the delivery in hand is taken, like the photo', () => {
+    const base = { ...job('at_delivery', [farm, mart, depot]), currentStop: 1 };
+    expect(hasSignatureFor({ ...base, signatureStops: [] })).toBe(false);
+    expect(hasSignatureFor({ ...base, signatureStops: [2] })).toBe(false);
+    expect(hasSignatureFor({ ...base, signatureStops: [1] })).toBe(true);
+    const delivered = { ...base, status: 'delivered' as const, currentStop: 3 };
+    expect(hasSignatureFor({ ...delivered, signatureStops: [1] })).toBe(false);
+    expect(hasSignatureFor({ ...delivered, signatureStops: [1, 2] })).toBe(true);
   });
 
   it('wants a photo for each delivery, and says whether the one in hand is there', () => {

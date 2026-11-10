@@ -30,6 +30,9 @@ function draft(id = 'job-1'): Job {
     hasProofOfDelivery: false,
     currentStop: 0,
     proofStops: [],
+    requiresSignature: false,
+    signatureStops: [],
+    hasSignature: false,
   };
 }
 

@@ -1,6 +1,7 @@
 import {
   advanceJobStatus,
   attachProofOfDelivery,
+  attachSignature,
   getCurrentJob,
   getNavigationProfile,
   reportJobPosition,
@@ -29,6 +30,9 @@ const job = {
   hasProofOfDelivery: false,
   currentStop: 0,
   proofStops: [],
+  requiresSignature: false,
+  hasSignature: false,
+  signatureStops: [],
 };
 
 afterEach(() => {
@@ -114,6 +118,40 @@ describe('attachProofOfDelivery', () => {
       tag: 'JobNotFound',
       status: 404,
     });
+  });
+});
+
+describe('attachSignature', () => {
+  const signature = {
+    signerName: 'A. Receiver',
+    strokes: [
+      [
+        [10, 20],
+        [300, 200],
+      ] as [number, number][],
+    ],
+  };
+
+  it('posts the strokes as JSON with the bearer token and accepts the 204', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(204, undefined));
+    globalThis.fetch = fetchMock;
+    await expect(attachSignature('token-1', job.id, signature)).resolves.toBeUndefined();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(new RegExp(`/jobs/${job.id}/signature$`));
+    expect(init.method).toBe('POST');
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer token-1');
+    expect(JSON.parse(init.body as string)).toEqual(signature);
+  });
+
+  it('throws an ApiError when the job is not there, and refuses a body the contract would refuse', async () => {
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(404, { tag: 'JobNotFound', requestId: 'r1' }));
+    await expect(attachSignature('token-1', job.id, signature)).rejects.toMatchObject({
+      tag: 'JobNotFound',
+      status: 404,
+    });
+    await expect(attachSignature('token-1', job.id, { strokes: [] })).rejects.toThrow();
   });
 });
 

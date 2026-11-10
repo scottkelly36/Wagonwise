@@ -3,7 +3,10 @@ import { makeId } from '../../../shared/brand.js';
 import type { JobRepository } from './ports/job-repository.js';
 
 export interface PruneProofPhotosDeps {
-  readonly repo: Pick<JobRepository, 'deleteProofOfDeliveryOlderThan'>;
+  readonly repo: Pick<
+    JobRepository,
+    'deleteProofOfDeliveryOlderThan' | 'deleteSignaturesOlderThan'
+  >;
   readonly clock: Clock;
 }
 
@@ -16,8 +19,8 @@ export function monthsAgo(now: Date, months: number): Date {
 
 /**
  * Deletes each company's proof-of-delivery photos older than that company's retention (the company chooses, because
- * it is the controller of its delivery records). The job and its record stay; only the photo goes. Returns how many
- * photos were deleted, so the caller can log it. A company with no setting is left alone.
+ * it is the controller of its delivery records). The job and its record stay; only the photo and the signature go. Returns how many
+ * photos and signatures were deleted, so the caller can log it. A company with no setting is left alone.
  */
 export async function pruneProofPhotos(
   deps: PruneProofPhotosDeps,
@@ -26,10 +29,11 @@ export async function pruneProofPhotos(
   const now = deps.clock.now();
   let removed = 0;
   for (const [companyId, months] of input.retentionMonthsByCompany) {
-    removed += await deps.repo.deleteProofOfDeliveryOlderThan(
-      makeId<'CompanyId'>(companyId),
-      monthsAgo(now, months),
-    );
+    const company = makeId<'CompanyId'>(companyId);
+    const cutoff = monthsAgo(now, months);
+    removed += await deps.repo.deleteProofOfDeliveryOlderThan(company, cutoff);
+    // A signature is part of the delivery record and is kept exactly as long as the photo.
+    removed += await deps.repo.deleteSignaturesOlderThan(company, cutoff);
   }
   return removed;
 }

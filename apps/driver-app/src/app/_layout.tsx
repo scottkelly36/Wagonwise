@@ -11,6 +11,7 @@ import { useUpdateNoticeStore } from '../state/update-notice-store';
 import { useHazardQueueFlush } from '../hooks/use-hazard-queue-flush';
 import { useCheckQueueFlush } from '../hooks/use-check-queue-flush';
 import { useProofOfDeliveryQueueFlush } from '../hooks/use-proof-of-delivery-queue-flush';
+import { useSignatureQueueFlush } from '../hooks/use-signature-queue-flush';
 import { useOpportunisticRefresh } from '../hooks/use-opportunistic-refresh';
 import { useRegisterPushToken } from '../hooks/use-register-push-token';
 import { useShareHours } from '../hooks/use-share-hours';
@@ -80,6 +81,7 @@ export default function RootLayout() {
   useOpportunisticRefresh();
   useHazardQueueFlush();
   useProofOfDeliveryQueueFlush();
+  useSignatureQueueFlush();
   useCheckQueueFlush();
   useShareHours();
   useRegisterPushToken();

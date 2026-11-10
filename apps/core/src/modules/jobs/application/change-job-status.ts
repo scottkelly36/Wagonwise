@@ -19,6 +19,7 @@ import type {
   Forbidden,
   JobNotFound,
   ProofOfDeliveryRequired,
+  SignatureRequired,
   VehicleNotFit,
 } from './errors.js';
 import type { JobStartGate } from './ports/directories.js';
@@ -76,7 +77,14 @@ export async function advanceJobStatus(
   deps: ChangeJobStatusDeps,
   input: AdvanceJobStatusInput,
 ): Promise<
-  Result<Job, ChangeJobStatusError | ProofOfDeliveryRequired | CheckRequired | VehicleNotFit>
+  Result<
+    Job,
+    | ChangeJobStatusError
+    | ProofOfDeliveryRequired
+    | SignatureRequired
+    | CheckRequired
+    | VehicleNotFit
+  >
 > {
   const loaded = await loadForAction(deps, input.actor, input.jobId);
   if (!loaded.ok) return loaded;
@@ -93,13 +101,20 @@ export async function advanceJobStatus(
     if (verdict === 'check_required') return err({ tag: 'CheckRequired' });
     if (verdict === 'vehicle_not_fit') return err({ tag: 'VehicleNotFit' });
   }
-  // Finishing a delivery stop (the last one, or one of several) needs its photo when the job requires proof.
+  // Finishing a delivery stop (the last one, or one of several) needs its photo, and its signature, when the job requires them.
   if (
     loaded.value.status === 'at_delivery' &&
     loaded.value.requiresProofOfDelivery &&
     !loaded.value.hasProofOfDelivery
   ) {
     return err({ tag: 'ProofOfDeliveryRequired' });
+  }
+  if (
+    loaded.value.status === 'at_delivery' &&
+    loaded.value.requiresSignature &&
+    !loaded.value.hasSignature
+  ) {
+    return err({ tag: 'SignatureRequired' });
   }
   const next = advanceStatus(loaded.value, input.to, deps.clock.now(), input.position);
   if (!next.ok) return next;

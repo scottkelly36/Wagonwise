@@ -39,6 +39,9 @@ describe('PostgresJobNoticeRepository', () => {
     hasProofOfDelivery: false,
     currentStop: 0,
     proofStops: [],
+    requiresSignature: false,
+    signatureStops: [],
+    hasSignature: false,
     stops: [{ kind: 'delivery', name: 'Port', location: { lat: 54.97, lon: -1.6 } }],
     ...(withDriver
       ? {

@@ -21,6 +21,9 @@ function job(id: string, companyId: typeof ACME): Job {
     hasProofOfDelivery: false,
     currentStop: 1,
     proofStops: [],
+    requiresSignature: false,
+    signatureStops: [],
+    hasSignature: false,
   };
 }
 
@@ -76,6 +79,28 @@ describe('pruneProofPhotos', () => {
     const kept = await repo.findById(makeId<'JobId'>('acme-old'));
     expect(kept?.status).toBe('delivered');
     expect(kept?.proofStops).toEqual([]);
+  });
+
+  it('deletes signatures on the same schedule as photos', async () => {
+    const repo = new InMemoryJobRepository();
+    const clock = new FakeClock('2026-10-08T12:00:00.000Z');
+    await repo.save(job('acme-old', ACME));
+    await repo.save(job('acme-new', ACME));
+    const taken = { strokes: [[[1, 1] as [number, number]]] };
+    await repo.saveSignature(makeId<'JobId'>('acme-old'), 0, taken);
+    await repo.saveSignature(makeId<'JobId'>('acme-new'), 0, taken);
+    const old = repo.signatures.get(makeId<'JobId'>('acme-old'))!;
+    old.set(0, { ...old.get(0)!, capturedAt: monthsAgo(clock.now(), 8) });
+
+    const removed = await pruneProofPhotos(
+      { repo, clock },
+      { retentionMonthsByCompany: new Map([[ACME, 6]]) },
+    );
+
+    expect(removed).toBe(1);
+    expect(await repo.findSignature(makeId<'JobId'>('acme-old'))).toBeNull();
+    expect(await repo.findSignature(makeId<'JobId'>('acme-new'))).not.toBeNull();
+    expect((await repo.findById(makeId<'JobId'>('acme-old')))?.signatureStops).toEqual([]);
   });
 
   it('leaves a company with no setting alone', async () => {

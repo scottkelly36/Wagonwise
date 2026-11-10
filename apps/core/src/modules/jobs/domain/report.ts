@@ -29,6 +29,8 @@ export interface JobReportRow {
   readonly onTime?: boolean | undefined;
   readonly requiresProofOfDelivery: boolean;
   readonly hasProofOfDelivery: boolean;
+  readonly requiresSignature: boolean;
+  readonly hasSignature: boolean;
   readonly customer?: string | undefined;
   readonly pricePence?: number | undefined;
 }
@@ -67,6 +69,8 @@ export function jobReportRow(job: Job): JobReportRow {
         : undefined,
     requiresProofOfDelivery: job.requiresProofOfDelivery,
     hasProofOfDelivery: job.hasProofOfDelivery,
+    requiresSignature: job.requiresSignature,
+    hasSignature: job.hasSignature,
     customer: job.customer,
     pricePence: job.pricePence,
   };
@@ -87,6 +91,9 @@ export interface JobReportSummary {
   /** Jobs that needed a proof-of-delivery photo, and how many of those have one. */
   readonly proofRequired: number;
   readonly proofReceived: number;
+  /** The same for the receiver's signature. */
+  readonly signatureRequired: number;
+  readonly signatureReceived: number;
   /** Revenue: the price of the jobs delivered in the period, in pence. Jobs with no price add nothing. */
   readonly revenuePence: number;
   /** Jobs delivered in the period that have no price, so the revenue is not the whole story. */
@@ -110,6 +117,7 @@ export function summariseJobReport(
     .map((r) => r.minutesAcceptedToDelivered)
     .filter((m): m is number => m !== undefined);
   const needingProof = rows.filter((r) => r.requiresProofOfDelivery && r.status === 'delivered');
+  const needingSignature = rows.filter((r) => r.requiresSignature && r.status === 'delivered');
   return {
     total: rows.length,
     delivered: delivered.length,
@@ -124,6 +132,8 @@ export function summariseJobReport(
         : durations.reduce((sum, m) => sum + m, 0) / durations.length,
     proofRequired: needingProof.length,
     proofReceived: needingProof.filter((r) => r.hasProofOfDelivery).length,
+    signatureRequired: needingSignature.length,
+    signatureReceived: needingSignature.filter((r) => r.hasSignature).length,
     revenuePence: earned.reduce((sum, r) => sum + (r.pricePence ?? 0), 0),
     deliveredWithoutPrice: earned.filter((r) => r.pricePence === undefined).length,
   };

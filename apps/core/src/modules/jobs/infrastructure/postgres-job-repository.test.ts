@@ -40,6 +40,9 @@ describe('PostgresJobRepository', () => {
       hasProofOfDelivery: false,
       currentStop: 0,
       proofStops: [],
+      requiresSignature: false,
+      signatureStops: [],
+      hasSignature: false,
       stops: [
         { kind: 'pickup', name: 'Hexham depot', location: { lat: 54.97, lon: -2.1 } },
         {
@@ -106,6 +109,50 @@ describe('PostgresJobRepository', () => {
     };
     await repo().save(updated);
     expect(await repo().findById(j.id)).toEqual(updated);
+  });
+
+  it('round-trips requiresSignature, and reflects saveSignature via hasSignature', async () => {
+    const j = job({
+      id: makeId<'JobId'>('bbbbbbbb-0000-4000-8000-bbbbbbbbbbbb'),
+      requiresSignature: true,
+    });
+    await repo().save(j);
+    expect((await repo().findById(j.id))?.hasSignature).toBe(false);
+
+    await repo().saveSignature(j.id, 1, {
+      strokes: [
+        [
+          [1, 2],
+          [3, 4],
+        ],
+      ],
+      signerName: 'A. Receiver',
+    });
+    const signed = await repo().findById(j.id);
+    expect(signed?.requiresSignature).toBe(true);
+    expect(signed?.hasSignature).toBe(true);
+    expect(signed?.signatureStops).toEqual([1]);
+
+    // Taking it again replaces, and the strokes and name come back as stored.
+    await repo().saveSignature(j.id, 1, { strokes: [[[9, 9]]] });
+    const found = await repo().findSignature(j.id);
+    expect(found?.strokes).toEqual([[[9, 9]]]);
+    expect(found?.signerName).toBeUndefined();
+    expect(await repo().findSignature(j.id, 0)).toBeNull();
+  });
+
+  it('deletes only the signatures older than the cutoff, for one company', async () => {
+    const j = job({
+      id: makeId<'JobId'>('cccccccc-0000-4000-8000-cccccccccccc'),
+      companyId: makeId<'CompanyId'>('33333333-3333-4333-8333-333333333333'),
+    });
+    await repo().save(j);
+    await repo().saveSignature(j.id, 1, { strokes: [[[1, 1]]] });
+    const company = j.companyId;
+    expect(await repo().deleteSignaturesOlderThan(company, new Date('2000-01-01'))).toBe(0);
+    expect(await repo().deleteSignaturesOlderThan(company, new Date(Date.now() + 60_000))).toBe(1);
+    expect(await repo().findSignature(j.id)).toBeNull();
+    expect((await repo().findById(j.id))?.hasSignature).toBe(false);
   });
 
   it('round-trips requiresProofOfDelivery, and reflects saveProofOfDelivery via hasProofOfDelivery', async () => {

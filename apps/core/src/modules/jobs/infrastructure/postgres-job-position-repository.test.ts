@@ -41,6 +41,9 @@ describe('PostgresJobPositionRepository', () => {
       hasProofOfDelivery: false,
       currentStop: 0,
       proofStops: [],
+      requiresSignature: false,
+      signatureStops: [],
+      hasSignature: false,
       stops: [
         { kind: 'pickup', name: 'A', location: { lat: 54.97, lon: -2.1 } },
         { kind: 'delivery', name: 'B', location: { lat: 54.97, lon: -1.6 } },

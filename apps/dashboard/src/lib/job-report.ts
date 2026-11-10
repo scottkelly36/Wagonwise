@@ -117,6 +117,8 @@ const COLUMNS: readonly {
     value: (r) => (r.requiresProofOfDelivery ? 'Yes' : 'No'),
   },
   { header: 'Proof of delivery received', value: (r) => (r.hasProofOfDelivery ? 'Yes' : 'No') },
+  { header: 'Signature required', value: (r) => (r.requiresSignature ? 'Yes' : 'No') },
+  { header: 'Signature received', value: (r) => (r.hasSignature ? 'Yes' : 'No') },
 ];
 
 /** A job's status as a person reads it: "at pickup", not "at_pickup". */

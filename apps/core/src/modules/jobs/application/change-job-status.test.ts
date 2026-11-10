@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
-import type { Job, JobStatus } from '../domain/job.js';
+import type { Job, JobStatus, JobStop } from '../domain/job.js';
 import type { JobActor } from './authorization.js';
 import {
   advanceJobStatus,
@@ -20,7 +20,12 @@ const DRIVER: JobActor = { kind: 'driver', driverId: driver };
 
 async function setup(
   status: JobStatus,
-  pod: { requiresProofOfDelivery?: boolean; hasProofOfDelivery?: boolean } = {},
+  pod: {
+    requiresProofOfDelivery?: boolean;
+    hasProofOfDelivery?: boolean;
+    requiresSignature?: boolean;
+    hasSignature?: boolean;
+  } = {},
 ) {
   const repo = new InMemoryJobRepository();
   const job: Job = {
@@ -35,6 +40,9 @@ async function setup(
     hasProofOfDelivery: pod.hasProofOfDelivery ?? false,
     currentStop: 0,
     proofStops: [],
+    requiresSignature: pod.requiresSignature ?? false,
+    signatureStops: [],
+    hasSignature: pod.hasSignature ?? false,
   };
   await repo.save(job);
   const deps: ChangeJobStatusDeps = {
@@ -134,6 +142,51 @@ describe('advanceJobStatus', () => {
       hasProofOfDelivery: true,
     });
     expect((await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'delivered' })).ok).toBe(true);
+  });
+
+  it('refuses to reach delivered without a signature when the job requires one, and lets it through with one', async () => {
+    const { deps } = await setup('at_delivery', { requiresSignature: true });
+    expect(await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'delivered' })).toEqual({
+      ok: false,
+      error: { tag: 'SignatureRequired' },
+    });
+    const signed = await setup('at_delivery', { requiresSignature: true, hasSignature: true });
+    expect(
+      (await advanceJobStatus(signed.deps, { actor: DRIVER, jobId, to: 'delivered' })).ok,
+    ).toBe(true);
+  });
+
+  it('wants both the photo and the signature when the job requires both', async () => {
+    const photoOnly = await setup('at_delivery', {
+      requiresProofOfDelivery: true,
+      hasProofOfDelivery: true,
+      requiresSignature: true,
+    });
+    expect(
+      await advanceJobStatus(photoOnly.deps, { actor: DRIVER, jobId, to: 'delivered' }),
+    ).toEqual({
+      ok: false,
+      error: { tag: 'SignatureRequired' },
+    });
+  });
+
+  it('wants a signature at each delivery of a multi-drop job', async () => {
+    const { repo, deps } = await setup('at_delivery', { requiresSignature: true });
+    const drop = (name: string): JobStop => ({
+      kind: 'delivery',
+      name,
+      location: { lat: 55, lon: -2 },
+    });
+    await repo.save({
+      ...(await repo.findById(jobId))!,
+      stops: [drop('A'), drop('B')],
+      currentStop: 0,
+    });
+    expect((await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'loaded' })).ok).toBe(false);
+    await repo.saveSignature(jobId, 0, { strokes: [[[1, 1]]] });
+    const moved = await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'loaded' });
+    expect(moved.ok && moved.value).toMatchObject({ status: 'loaded', currentStop: 1 });
+    expect(moved.ok && moved.value.hasSignature).toBe(false);
   });
 
   it("doesn't require proof when the job doesn't ask for it", async () => {

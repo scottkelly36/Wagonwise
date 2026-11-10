@@ -2,7 +2,7 @@ import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import { companyIdSchema } from '@wagonwise/contracts/companies';
-import type { JobDto, ProofOfDeliveryResponse } from '@wagonwise/contracts/jobs';
+import type { JobDto, ProofOfDeliveryResponse, SignatureResponse } from '@wagonwise/contracts/jobs';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import * as companiesApi from '../../api/companies';
@@ -14,6 +14,7 @@ import { StopEditor } from '../../components/StopEditor';
 import {
   deliveryRecordHtml,
   type RecordPhoto,
+  type RecordSignature,
   type RecordVariant,
 } from '../../lib/delivery-record';
 import { DataTable, type Column } from '../../components/DataTable';
@@ -34,6 +35,7 @@ import {
   type StopDraft,
 } from '../../lib/job-stops';
 import { noticeText } from '../../lib/job-notice';
+import { signaturePath } from '../../lib/signature-svg';
 import { jobStatusText } from '../../lib/job-text';
 import { formatPence, parsePounds } from '../../lib/money';
 import { staffErrorMessage } from '../staff/messages';
@@ -46,6 +48,7 @@ const EMPTY_FORM = {
   customer: '',
   price: '',
   requiresProofOfDelivery: false,
+  requiresSignature: false,
 };
 
 /** Dispatch's "create a job, assign a driver and vehicle" slice (P2-M4, design doc §5 steps
@@ -180,6 +183,7 @@ export function Jobs() {
           reference: form.reference,
           stops: resolved.map((r) => r.stop),
           requiresProofOfDelivery: form.requiresProofOfDelivery,
+          requiresSignature: form.requiresSignature,
           ...(form.customer.trim() === '' ? {} : { customer: form.customer.trim() }),
           ...(price === undefined ? {} : { pricePence: price }),
         }),
@@ -248,6 +252,20 @@ export function Jobs() {
     enabled: viewing !== undefined,
     retry: false,
     // A retake replaces the photo, so don't show a stale one from an earlier look.
+    staleTime: 0,
+  });
+  const [viewingSignature, setViewingSignature] = useState<
+    { id: string; reference: string; stop: number; stopName: string } | undefined
+  >();
+  const signature = useQuery({
+    queryKey: ['signature', viewingSignature?.id, viewingSignature?.stop],
+    queryFn: () =>
+      withAccessToken((token) =>
+        jobsApi.getSignature(token, viewingSignature?.id as string, viewingSignature?.stop),
+      ),
+    enabled: viewingSignature !== undefined,
+    retry: false,
+    // Signing again replaces it, so don't show a stale one from an earlier look.
     staleTime: 0,
   });
   const [assigning, setAssigning] = useState<
@@ -352,10 +370,22 @@ export function Jobs() {
           capturedAt: photo.capturedAt,
         });
       }
+      const signatures = new Map<number, RecordSignature>();
+      for (const stopIndex of job.signatureStops) {
+        const taken = await withAccessToken((token) =>
+          jobsApi.getSignature(token, job.id, stopIndex),
+        );
+        signatures.set(stopIndex, {
+          strokes: taken.strokes,
+          signerName: taken.signerName,
+          capturedAt: taken.capturedAt,
+        });
+      }
       const html = deliveryRecordHtml({
         job,
         variant,
         photos,
+        signatures,
         generatedAt: new Date(),
         driverLabel: driverNamesById(drivers.data ?? []).get(job.driverId ?? ''),
         vehicleName: vehicles.data?.find((v) => v.id === job.vehicleId)?.name,
@@ -457,6 +487,44 @@ export function Jobs() {
           // photo deleted at the end of the company's retention period.
           'Photo removed (retention period)'
         ) : job.requiresProofOfDelivery ? (
+          'Required — not yet received'
+        ) : (
+          '—'
+        ),
+    },
+    {
+      key: 'signature',
+      header: 'Signature',
+      cell: (job) =>
+        job.signatureStops.length > 0 ? (
+          <>
+            {job.signatureStops.map((stopIndex) => {
+              const stopName = job.stops[stopIndex]?.name ?? 'delivery';
+              return (
+                <div key={stopIndex}>
+                  {job.stops.length > 2 ? `${stopName}: ` : 'Received '}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setViewingSignature({
+                        id: job.id,
+                        reference: job.reference,
+                        stop: stopIndex,
+                        stopName,
+                      })
+                    }
+                  >
+                    View signature
+                  </button>
+                </div>
+              );
+            })}
+          </>
+        ) : job.requiresSignature && job.status === 'delivered' ? (
+          // Core will not deliver a job that needs a signature without it, so a delivered one with none had it
+          // deleted at the end of the company's retention period.
+          'Signature removed (retention period)'
+        ) : job.requiresSignature ? (
           'Required — not yet received'
         ) : (
           '—'
@@ -708,6 +776,15 @@ export function Jobs() {
         />
       )}
 
+      {viewingSignature !== undefined && (
+        <SignatureDialog
+          reference={viewingSignature.reference}
+          stopName={viewingSignature.stopName}
+          signature={signature}
+          onClose={() => setViewingSignature(undefined)}
+        />
+      )}
+
       {companyId === undefined ? (
         <p className="text-muted">
           {everyCompany ? 'Choose a company above.' : 'No company assigned to your account.'}
@@ -802,6 +879,16 @@ export function Jobs() {
                       }
                     />
                     Require proof of delivery
+                  </label>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={form.requiresSignature}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, requiresSignature: e.target.checked }))
+                      }
+                    />
+                    Require receiver’s signature
                   </label>
                   <button type="submit" disabled={createJob.isPending}>
                     {createJob.isPending ? 'Creating…' : 'Create job'}
@@ -923,6 +1010,104 @@ function ProofPhotoDialog({
             />
             <p className="text-muted mb-0">
               Taken {new Date(photo.data.capturedAt).toLocaleString('en-GB')}
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The receiver's signature, drawn from the lines the driver's app kept, over the page. Fetched when opened. The strokes
+ *  are validated whole numbers inside a fixed box, so the path cannot carry anything but a line. */
+function SignatureDialog({
+  reference,
+  stopName,
+  signature,
+  onClose,
+}: {
+  reference: string;
+  stopName: string;
+  signature: UseQueryResult<SignatureResponse>;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent): void {
+      if (event.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Signature for ${reference}`}
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        zIndex: 1000,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          color: '#111827',
+          borderRadius: 8,
+          padding: 16,
+          maxWidth: '90vw',
+          maxHeight: '90vh',
+          overflow: 'auto',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+          <strong>
+            Signature — {reference}, {stopName}
+          </strong>
+          <button type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        {signature.isPending ? (
+          <Loading />
+        ) : signature.data === undefined ? (
+          <p className="text-danger">{staffErrorMessage(signature.error)}</p>
+        ) : (
+          <>
+            <svg
+              viewBox="0 0 1000 500"
+              role="img"
+              aria-label={`Signature for ${reference}`}
+              style={{
+                display: 'block',
+                width: 'min(560px, 80vw)',
+                marginTop: 12,
+                border: '1px solid #e5e7eb',
+                background: '#fff',
+              }}
+            >
+              <path
+                d={signaturePath(signature.data.strokes)}
+                fill="none"
+                stroke="#111"
+                strokeWidth={5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <p className="text-muted mb-0">
+              {signature.data.signerName === undefined
+                ? 'No name given. '
+                : `Signed by ${signature.data.signerName}. `}
+              Taken {new Date(signature.data.capturedAt).toLocaleString('en-GB')}
             </p>
           </>
         )}

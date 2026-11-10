@@ -3,11 +3,13 @@ import {
   advanceJobStatusRequestSchema,
   assignJobRequestSchema,
   attachProofOfDeliveryRequestSchema,
+  attachSignatureRequestSchema,
   createJobRequestSchema,
   currentJobResponseSchema,
   failJobRequestSchema,
   jobSchema,
   proofOfDeliveryResponseSchema,
+  signatureResponseSchema,
 } from './jobs.js';
 
 const pickup = {
@@ -167,5 +169,69 @@ describe('proof-of-delivery content types', () => {
       proofOfDeliveryResponseSchema.safeParse({ contentType: 'text/html', dataBase64, capturedAt })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('the delivery signature', () => {
+  const line = [
+    [10, 20],
+    [300, 200],
+  ];
+
+  it('accepts strokes inside the box, trims the name, and leaves it optional', () => {
+    expect(attachSignatureRequestSchema.parse({ strokes: [line] })).toEqual({ strokes: [line] });
+    expect(
+      attachSignatureRequestSchema.parse({ strokes: [line], signerName: '  A. Receiver ' }),
+    ).toMatchObject({ signerName: 'A. Receiver' });
+  });
+
+  it('refuses nothing drawn, points outside the box, fractions, and a name over 80 characters', () => {
+    const bad = (body: object) => attachSignatureRequestSchema.safeParse(body).success;
+    expect(bad({ strokes: [] })).toBe(false);
+    expect(bad({ strokes: [[]] })).toBe(false);
+    expect(bad({ strokes: [[[1001, 5]]] })).toBe(false);
+    expect(bad({ strokes: [[[5, 501]]] })).toBe(false);
+    expect(bad({ strokes: [[[-1, 5]]] })).toBe(false);
+    expect(bad({ strokes: [[[1.5, 5]]] })).toBe(false);
+    expect(bad({ strokes: [line], signerName: 'x'.repeat(81) })).toBe(false);
+  });
+
+  it('caps the strokes, the points in one stroke and the points in all', () => {
+    const point = [5, 5];
+    const stroke = (n: number) => Array.from({ length: n }, () => point);
+    const bad = (strokes: unknown) => attachSignatureRequestSchema.safeParse({ strokes }).success;
+    expect(bad(Array.from({ length: 60 }, () => stroke(2)))).toBe(true);
+    expect(bad(Array.from({ length: 61 }, () => stroke(2)))).toBe(false);
+    expect(bad([stroke(400)])).toBe(true);
+    expect(bad([stroke(401)])).toBe(false);
+    expect(bad(Array.from({ length: 6 }, () => stroke(400)))).toBe(false);
+    expect(bad(Array.from({ length: 5 }, () => stroke(400)))).toBe(true);
+  });
+
+  it('is described to the portal with when it was taken', () => {
+    expect(
+      signatureResponseSchema.parse({ strokes: [line], capturedAt: '2026-10-08T08:36:00.000Z' }),
+    ).toMatchObject({ strokes: [line] });
+    expect(() =>
+      signatureResponseSchema.parse({ strokes: [line], capturedAt: 'yesterday' }),
+    ).toThrow();
+  });
+
+  it('defaults the new job fields for a server that predates signatures', () => {
+    const parsed = jobSchema.parse({
+      id: '11111111-1111-4111-8111-111111111111',
+      companyId: '22222222-2222-4222-8222-222222222222',
+      reference: 'JOB-1',
+      stops: [pickup, delivery],
+      status: 'draft',
+      timeline: [{ status: 'draft', at: '2026-10-08T08:00:00.000Z' }],
+      requiresProofOfDelivery: false,
+      hasProofOfDelivery: false,
+    });
+    expect(parsed).toMatchObject({
+      requiresSignature: false,
+      hasSignature: false,
+      signatureStops: [],
+    });
   });
 });

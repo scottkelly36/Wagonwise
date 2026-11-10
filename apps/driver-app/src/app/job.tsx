@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -18,6 +18,13 @@ import { OpenSettingsButton } from '../components/open-settings-button';
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
 import { useJobStatusVoice } from '../hooks/use-job-status-voice';
 import { useProofOfDeliveryCapture } from '../hooks/use-proof-of-delivery';
+import { useSignatureCapture } from '../hooks/use-signature';
+import { SignaturePad } from '../components/signature-pad';
+import {
+  SIGNATURE_STATUS_MESSAGES,
+  isDeliveryBlockedBySignature,
+  signatureStatus,
+} from '../lib/signature';
 import { jobNavigationErrorMessage, jobsErrorMessage } from '../lib/error-messages';
 import {
   isTripToTarget,
@@ -78,6 +85,8 @@ export default function JobScreen() {
   // nothing (and the button that would start it isn't rendered) until there's a real job.
   const voice = useJobStatusVoice(job.data ?? undefined);
   const proof = useProofOfDeliveryCapture(job.data?.id ?? '');
+  const signature = useSignatureCapture(job.data?.id ?? '');
+  const [signing, setSigning] = useState(false);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -100,6 +109,7 @@ export default function JobScreen() {
   // The photo is taken at the drop, so the section only exists once the driver has arrived.
   const showProof = current.status === 'at_delivery';
   const proofStatus = proofOfDeliveryStatus(current, proof.queuedLocally);
+  const signStatus = signatureStatus(current, signature.queuedLocally);
   // Core refuses "Delivered" without the photo on the server, so don't offer a button (or a spoken
   // "delivered") that is certain to fail — the photo section says why.
   const target = navigationTarget(current);
@@ -113,7 +123,7 @@ export default function JobScreen() {
   const blockedByProof =
     actions?.primary.kind === 'advance' &&
     current.status === 'at_delivery' &&
-    isDeliveryBlockedByProof(current);
+    (isDeliveryBlockedByProof(current) || isDeliveryBlockedBySignature(current));
   const working = advance.isPending || navigation.isPending;
 
   function handleAction(action: JobAction): void {
@@ -210,6 +220,27 @@ export default function JobScreen() {
           </View>
         )}
 
+        {showProof && (
+          <View style={styles.proof} testID="job-signature-section">
+            <Text style={styles.proofTitle}>Receiver’s signature</Text>
+            <Text style={styles.proofMessage} testID="job-signature-message">
+              {SIGNATURE_STATUS_MESSAGES[signStatus]}
+            </Text>
+            {signature.error !== undefined && <Text style={styles.error}>{signature.error}</Text>}
+            <TouchableOpacity
+              style={styles.proofButton}
+              onPress={() => setSigning(true)}
+              testID="job-signature-button"
+            >
+              <Text style={styles.proofButtonText}>
+                {signStatus === 'optional' || signStatus === 'required'
+                  ? 'Get signature'
+                  : 'Sign again'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {advance.isError && <Text style={styles.error}>{jobsErrorMessage(advance.error)}</Text>}
         {navigation.isError && (
           <Text style={styles.error} testID="job-navigation-error">
@@ -236,6 +267,15 @@ export default function JobScreen() {
           </Text>
         )}
       </ScrollView>
+
+      <SignaturePad
+        visible={signing}
+        onCancel={() => setSigning(false)}
+        onSave={(request) => {
+          setSigning(false);
+          void signature.save(request);
+        }}
+      />
 
       {actions && (
         <View style={styles.footer}>

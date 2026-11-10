@@ -27,6 +27,7 @@ import {
   getProofOfDelivery,
   type GetProofOfDeliveryDeps,
 } from '../application/get-proof-of-delivery.js';
+import { getSignature, type GetSignatureDeps } from '../application/get-signature.js';
 import { previewJobRoute, type PreviewJobRouteDeps } from '../application/preview-job-route.js';
 import { reportJobs, type ReportJobsDeps } from '../application/report-jobs.js';
 import { listJobEtas, type ListJobEtasDeps } from '../application/list-job-etas.js';
@@ -45,6 +46,7 @@ export interface JobsRouteDeps {
   readonly listJobs: ListJobsDeps;
   readonly getJob: GetJobDeps;
   readonly getProofOfDelivery: GetProofOfDeliveryDeps;
+  readonly getSignature: GetSignatureDeps;
   readonly listPositions: ListJobPositionsDeps;
   readonly listEtas: ListJobEtasDeps;
   readonly notices: NoticeDeps & { readonly repo: GetJobDeps['repo'] };
@@ -140,6 +142,9 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
         ...(body.data.requiresProofOfDelivery === undefined
           ? {}
           : { requiresProofOfDelivery: body.data.requiresProofOfDelivery }),
+        ...(body.data.requiresSignature === undefined
+          ? {}
+          : { requiresSignature: body.data.requiresSignature }),
         ...(body.data.customer === undefined ? {} : { customer: body.data.customer }),
         ...(body.data.pricePence === undefined ? {} : { pricePence: body.data.pricePence }),
       });
@@ -259,6 +264,32 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
             body: {
               contentType: result.value.contentType,
               dataBase64: result.value.data.toString('base64'),
+              capturedAt: result.value.capturedAt.toISOString(),
+            },
+          }
+        : failure(result.error);
+    }),
+  );
+
+  app.get('/staff/jobs/:id/signature', (request, reply) =>
+    asStaff(request, reply, async (caller) => {
+      const params = jobIdParamsSchema.safeParse(request.params);
+      if (!params.success) return INVALID;
+      const query = proofOfDeliveryQuerySchema.safeParse(request.query);
+      if (!query.success) return INVALID;
+      const result = await getSignature(deps.getSignature, {
+        caller,
+        jobId: makeId<'JobId'>(params.data.id),
+        stop: query.data.stop,
+      });
+      return result.ok
+        ? {
+            status: 200,
+            body: {
+              strokes: result.value.strokes,
+              ...(result.value.signerName === undefined
+                ? {}
+                : { signerName: result.value.signerName }),
               capturedAt: result.value.capturedAt.toISOString(),
             },
           }

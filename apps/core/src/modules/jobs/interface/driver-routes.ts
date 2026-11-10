@@ -1,6 +1,7 @@
 import {
   advanceJobStatusRequestSchema,
   attachProofOfDeliveryRequestSchema,
+  attachSignatureRequestSchema,
   failJobRequestSchema,
   jobIdParamsSchema,
   reportJobPositionRequestSchema,
@@ -12,6 +13,7 @@ import {
   attachProofOfDelivery,
   type AttachProofOfDeliveryDeps,
 } from '../application/attach-proof-of-delivery.js';
+import { attachSignature, type AttachSignatureDeps } from '../application/attach-signature.js';
 import {
   advanceJobStatus,
   failJob,
@@ -36,6 +38,7 @@ export interface JobsDriverRouteDeps {
   readonly currentJob: CurrentJobDeps;
   readonly changeStatus: ChangeJobStatusDeps;
   readonly attachProofOfDelivery: AttachProofOfDeliveryDeps;
+  readonly attachSignature: AttachSignatureDeps;
   readonly recordPosition: RecordJobPositionDeps;
   readonly navigationProfile: GetNavigationProfileDeps;
   readonly identities: DriverIdentityDirectory;
@@ -136,6 +139,25 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
         photo: {
           contentType: body.data.contentType,
           data: Buffer.from(body.data.dataBase64, 'base64'),
+        },
+      });
+      return result.ok ? { status: 204 } : failure(result.error);
+    }),
+  );
+
+  app.post('/jobs/:id/signature', (request, reply) =>
+    asDriver(request, reply, async (actor) => {
+      const params = jobIdParamsSchema.safeParse(request.params);
+      const body = attachSignatureRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return INVALID;
+      const result = await attachSignature(deps.attachSignature, {
+        actor,
+        jobId: makeId<'JobId'>(params.data.id),
+        signature: {
+          strokes: body.data.strokes,
+          ...(body.data.signerName === undefined || body.data.signerName === ''
+            ? {}
+            : { signerName: body.data.signerName }),
         },
       });
       return result.ok ? { status: 204 } : failure(result.error);

@@ -110,7 +110,7 @@ describe('toCsv', () => {
   it('writes the row readably: status as words, local times, whole minutes, Yes and No', () => {
     const line = toCsv([row]).split('\r\n')[1];
     expect(line).toBe(
-      'WW-1,At pickup,"Depot, Hexham",Port,pat@example.com,Big Wagon,,,2026-10-05 07:00,,,,2026-10-05 12:30,,270,No,Yes,No',
+      'WW-1,At pickup,"Depot, Hexham",Port,pat@example.com,Big Wagon,,,2026-10-05 07:00,,,,2026-10-05 12:30,,270,No,Yes,No,No,No',
     );
   });
 

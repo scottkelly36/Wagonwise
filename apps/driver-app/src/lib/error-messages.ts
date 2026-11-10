@@ -71,6 +71,7 @@ const JOBS_MESSAGES: Record<string, string> = {
   JobNotFound: "That job isn't there any more.",
   InvalidTransition: 'That job has already moved on. Pull to refresh.',
   ProofOfDeliveryRequired: 'Take a photo of the delivery first. This job needs one.',
+  SignatureRequired: 'Get the receiver’s signature first. This job needs one.',
   CheckRequired: 'Do your daily check first. Tap Daily check due.',
   VehicleNotFit: 'This vehicle has a defect marked do not drive. Tell your office.',
 };

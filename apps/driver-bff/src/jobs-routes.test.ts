@@ -94,6 +94,47 @@ describe('jobs routes', () => {
     });
   });
 
+  it('forwards a delivery signature, relaying core’s 204 and its refusals', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 204, body: undefined };
+    const payload = {
+      signerName: 'A. Receiver',
+      strokes: [
+        [
+          [10, 20],
+          [300, 200],
+        ],
+      ],
+    };
+    const response = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/signature`,
+      payload,
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(204);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: `/jobs/${JOB_ID}/signature`,
+      body: payload,
+      authorization: `Bearer ${VALID_TOKEN}`,
+    });
+  });
+
+  it('400s a bad signature body without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const post = (payload: object) =>
+      app.inject({
+        method: 'POST',
+        url: `/jobs/${JOB_ID}/signature`,
+        payload,
+        headers: AUTH_HEADER,
+      });
+    expect((await post({ strokes: [] })).statusCode).toBe(400);
+    expect((await post({ strokes: [[[5000, 5]]] })).statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+
   it('forwards a position report, relaying core’s 204 and its NotTracking refusal', async () => {
     const { app, coreClient } = buildApp();
     const payload = { location: { lat: 54.9, lon: -2.1 } };

@@ -757,6 +757,12 @@ const FORWARDS: readonly Forward[] = [
     query: proofOfDeliveryQuerySchema,
   },
   {
+    method: 'GET',
+    path: '/staff/jobs/:id/signature',
+    params: jobIdParamsSchema,
+    query: proofOfDeliveryQuerySchema,
+  },
+  {
     method: 'POST',
     path: '/staff/jobs/:id/assign',
     params: jobIdParamsSchema,

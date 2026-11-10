@@ -112,6 +112,11 @@ const columns: readonly Column<JobReportRowDto>[] = [
     header: 'Proof photo',
     cell: (r) => (r.requiresProofOfDelivery ? (r.hasProofOfDelivery ? 'Received' : 'Missing') : ''),
   },
+  {
+    key: 'signature',
+    header: 'Signature',
+    cell: (r) => (r.requiresSignature ? (r.hasSignature ? 'Received' : 'Missing') : ''),
+  },
 ];
 
 /**
@@ -274,6 +279,13 @@ export function Reports() {
             <Stat
               label="Proof photos"
               value={`${summary.proofReceived} of ${summary.proofRequired}`}
+              note="where one was required"
+            />
+          )}
+          {summary.signatureRequired > 0 && (
+            <Stat
+              label="Signatures"
+              value={`${summary.signatureReceived} of ${summary.signatureRequired}`}
               note="where one was required"
             />
           )}

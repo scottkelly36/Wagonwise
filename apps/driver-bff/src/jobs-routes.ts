@@ -1,6 +1,7 @@
 import {
   advanceJobStatusRequestSchema,
   attachProofOfDeliveryRequestSchema,
+  attachSignatureRequestSchema,
   failJobRequestSchema,
   jobIdParamsSchema,
   reportJobPositionRequestSchema,
@@ -69,6 +70,15 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
       `/jobs/${params.data.id}/proof-of-delivery`,
       parsed.data,
     );
+  });
+
+  app.post('/jobs/:id/signature', (request, reply) => {
+    const params = jobIdParamsSchema.safeParse(request.params);
+    const parsed = attachSignatureRequestSchema.safeParse(request.body);
+    if (!params.success || !parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    return forward(request, reply, 'POST', `/jobs/${params.data.id}/signature`, parsed.data);
   });
 
   // The routing profile for the company vehicle this job is assigned to, for the app's "Start".

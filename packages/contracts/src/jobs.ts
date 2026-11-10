@@ -48,11 +48,18 @@ export const jobSchema = z.object({
   // P2-M5.5: the dispatcher's own call at creation, and whether one's actually been attached.
   requiresProofOfDelivery: z.boolean(),
   hasProofOfDelivery: z.boolean(),
+  /** The same for a receiver's signature, set like the photo: the dispatcher's call at creation, and whether one has been
+   *  taken for what the driver is delivering now (every delivery once delivered). Default false for a server that predates
+   *  signatures. */
+  requiresSignature: z.boolean().default(false),
+  hasSignature: z.boolean().default(false),
   /** The stop the driver is heading for or at (0-based into stops); stops.length once delivered. Defaults to 0 for
    *  a server that predates multi-stop jobs. */
   currentStop: z.number().int().min(0).default(0),
   /** The delivery stops (by position) that have a proof photo. */
   proofStops: z.array(z.number().int().min(0)).default([]),
+  /** The delivery stops (by position) that have a signature. */
+  signatureStops: z.array(z.number().int().min(0)).default([]),
   /** Who the job is for, and what it earns in whole pence. Only for staff who can dispatch or read reports; never sent
    *  to a driver. */
   customer: z.string().optional(),
@@ -76,6 +83,7 @@ export const createJobRequestSchema = z.object({
   plannedStart: z.iso.datetime().optional(),
   dueBy: z.iso.datetime().optional(),
   requiresProofOfDelivery: z.boolean().optional(),
+  requiresSignature: z.boolean().optional(),
   customer: z.string().max(120).optional(),
   /** In whole pence. */
   pricePence: z.number().int().min(0).max(100_000_000).optional(),
@@ -130,6 +138,8 @@ export const jobReportRowSchema = z.object({
   onTime: z.boolean().optional(),
   requiresProofOfDelivery: z.boolean(),
   hasProofOfDelivery: z.boolean(),
+  requiresSignature: z.boolean().default(false),
+  hasSignature: z.boolean().default(false),
   customer: z.string().optional(),
   pricePence: z.number().int().min(0).optional(),
 });
@@ -146,6 +156,8 @@ export const jobReportSummarySchema = z.object({
   averageMinutes: z.number().optional(),
   proofRequired: z.number(),
   proofReceived: z.number(),
+  signatureRequired: z.number().default(0),
+  signatureReceived: z.number().default(0),
   /** The price of the jobs delivered in the period, in pence, and how many of them have no price. */
   revenuePence: z.number().int().default(0),
   deliveredWithoutPrice: z.number().int().default(0),
@@ -224,6 +236,51 @@ export const proofOfDeliveryResponseSchema = z.object({
   capturedAt: z.iso.datetime(),
 });
 export type ProofOfDeliveryResponse = z.infer<typeof proofOfDeliveryResponseSchema>;
+
+/**
+ * A receiver's signature, kept as the lines they drew, not as a picture: the app has no image library that can turn a drawing
+ * into a file, and lines are small and draw cleanly at any size. Each stroke is a list of points in a box 1000 wide and 500
+ * high (whole numbers, left to right and top to bottom). The limits stop a huge body being sent: at most 60 strokes, 400 points
+ * in one, and 2000 in all.
+ */
+export const SIGNATURE_WIDTH = 1000;
+export const SIGNATURE_HEIGHT = 500;
+export const SIGNATURE_MAX_STROKES = 60;
+export const SIGNATURE_MAX_POINTS_PER_STROKE = 400;
+export const SIGNATURE_MAX_POINTS = 2000;
+
+export const signaturePointSchema = z.tuple([
+  z.number().int().min(0).max(SIGNATURE_WIDTH),
+  z.number().int().min(0).max(SIGNATURE_HEIGHT),
+]);
+export const signatureStrokeSchema = z
+  .array(signaturePointSchema)
+  .min(1)
+  .max(SIGNATURE_MAX_POINTS_PER_STROKE);
+export const signatureStrokesSchema = z
+  .array(signatureStrokeSchema)
+  .min(1)
+  .max(SIGNATURE_MAX_STROKES)
+  .refine((strokes) => strokes.reduce((n, s) => n + s.length, 0) <= SIGNATURE_MAX_POINTS, {
+    message: 'Too many points in the signature',
+  });
+export type SignatureStrokes = z.infer<typeof signatureStrokesSchema>;
+
+/** `POST /jobs/:id/signature`: the receiver's signature for the delivery the driver is at, and the name they gave. Taking one
+ *  again replaces it, like the photo. */
+export const attachSignatureRequestSchema = z.object({
+  signerName: z.string().trim().max(80).optional(),
+  strokes: signatureStrokesSchema,
+});
+export type AttachSignatureRequest = z.infer<typeof attachSignatureRequestSchema>;
+
+/** `GET /staff/jobs/:id/signature?stop=`: the signature a dispatcher looks at (the latest when no stop is given). */
+export const signatureResponseSchema = z.object({
+  signerName: z.string().optional(),
+  strokes: signatureStrokesSchema,
+  capturedAt: z.iso.datetime(),
+});
+export type SignatureResponse = z.infer<typeof signatureResponseSchema>;
 
 /** `POST /jobs/:id/position` (P2-M6.1): where the driver is right now. The server stamps the time. */
 export const reportJobPositionRequestSchema = z.object({

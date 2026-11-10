@@ -1,6 +1,7 @@
 import type { DomainEvent } from '../../../../shared/domain-event.js';
 import {
   hasProof,
+  hasSignatureFor,
   isActive,
   type CompanyId,
   type DriverId,
@@ -9,8 +10,10 @@ import {
   type VehicleId,
 } from '../../domain/job.js';
 import type {
+  DeliverySignature,
   JobRepository,
   ProofOfDeliveryPhoto,
+  StoredDeliverySignature,
   StoredProofOfDelivery,
 } from '../ports/job-repository.js';
 
@@ -20,6 +23,9 @@ export class InMemoryJobRepository implements JobRepository {
   readonly events: DomainEvent[] = [];
   /** Every photo saved, by job id then delivery stop, for tests to assert on. */
   readonly proofOfDelivery = new Map<JobId, Map<number, StoredProofOfDelivery>>();
+
+  /** Every signature saved, by job id then delivery stop, for tests to assert on. */
+  readonly signatures = new Map<JobId, Map<number, StoredDeliverySignature>>();
 
   findById(id: JobId): Promise<Job | null> {
     return Promise.resolve(this.#byId.get(id) ?? null);
@@ -79,6 +85,44 @@ export class InMemoryJobRepository implements JobRepository {
       }
     }
     return Promise.resolve(removed);
+  }
+
+  saveSignature(jobId: JobId, stop: number, signature: DeliverySignature): Promise<void> {
+    const taken = this.signatures.get(jobId) ?? new Map<number, StoredDeliverySignature>();
+    taken.set(stop, { ...signature, capturedAt: new Date() });
+    this.signatures.set(jobId, taken);
+    this.#refreshSignatures(jobId);
+    return Promise.resolve();
+  }
+
+  findSignature(jobId: JobId, stop?: number): Promise<StoredDeliverySignature | null> {
+    const taken = this.signatures.get(jobId);
+    if (taken === undefined || taken.size === 0) return Promise.resolve(null);
+    if (stop !== undefined) return Promise.resolve(taken.get(stop) ?? null);
+    return Promise.resolve(taken.get(Math.max(...taken.keys())) ?? null);
+  }
+
+  deleteSignaturesOlderThan(companyId: CompanyId, cutoff: Date): Promise<number> {
+    let removed = 0;
+    for (const [jobId, taken] of this.signatures) {
+      if (this.#byId.get(jobId)?.companyId !== companyId) continue;
+      for (const [stop, signature] of taken) {
+        if (signature.capturedAt < cutoff) {
+          taken.delete(stop);
+          removed += 1;
+        }
+      }
+      this.#refreshSignatures(jobId);
+    }
+    return Promise.resolve(removed);
+  }
+
+  #refreshSignatures(jobId: JobId): void {
+    const job = this.#byId.get(jobId);
+    if (job === undefined) return;
+    const signatureStops = [...(this.signatures.get(jobId)?.keys() ?? [])].sort();
+    const updated = { ...job, signatureStops };
+    this.#byId.set(jobId, { ...updated, hasSignature: hasSignatureFor(updated) });
   }
 
   findProofOfDelivery(jobId: JobId, stop?: number): Promise<StoredProofOfDelivery | null> {

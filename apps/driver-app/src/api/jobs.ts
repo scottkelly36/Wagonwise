@@ -1,12 +1,14 @@
 import {
   advanceJobStatusRequestSchema,
   attachProofOfDeliveryRequestSchema,
+  attachSignatureRequestSchema,
   currentJobResponseSchema,
   jobSchema,
   navigationProfileResponseSchema,
   reportJobPositionRequestSchema,
   type AdvanceJobStatusRequest,
   type AttachProofOfDeliveryRequest,
+  type AttachSignatureRequest,
   type JobDto,
   type NavigationProfileResponse,
 } from '@wagonwise/contracts/jobs';
@@ -67,6 +69,21 @@ export async function attachProofOfDelivery(
 ): Promise<void> {
   const body = attachProofOfDeliveryRequestSchema.parse(input);
   const { status, json } = await requestJson('POST', `/jobs/${jobId}/proof-of-delivery`, {
+    body,
+    authorization: bearer(accessToken),
+  });
+  throwUnlessSuccess(status, json, [204]);
+}
+
+/** Uploads the receiver's signature (`POST /jobs/:id/signature`, 204). Taking it again replaces the earlier one on the
+ *  server, so calling this twice for one job is harmless, which lets the offline queue retry. */
+export async function attachSignature(
+  accessToken: string,
+  jobId: string,
+  input: AttachSignatureRequest,
+): Promise<void> {
+  const body = attachSignatureRequestSchema.parse(input);
+  const { status, json } = await requestJson('POST', `/jobs/${jobId}/signature`, {
     body,
     authorization: bearer(accessToken),
   });

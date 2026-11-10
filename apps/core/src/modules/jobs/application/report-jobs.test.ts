@@ -26,6 +26,9 @@ function job(id: string, createdIso: string, overrides: Partial<Job> = {}): Job 
     hasProofOfDelivery: false,
     currentStop: 0,
     proofStops: [],
+    requiresSignature: false,
+    signatureStops: [],
+    hasSignature: false,
     ...overrides,
   };
 }

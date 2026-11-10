@@ -11,6 +11,8 @@ import type {
   NotTracking,
   ProofOfDeliveryNotFound,
   ProofOfDeliveryRequired,
+  SignatureNotFound,
+  SignatureRequired,
   VehicleNotInCompany,
 } from '../application/errors.js';
 import type { NothingToSend } from '../application/job-notices.js';
@@ -41,6 +43,8 @@ export type JobsError =
   | VehicleNotFit
   | ProofOfDeliveryNotFound
   | ProofOfDeliveryRequired
+  | SignatureNotFound
+  | SignatureRequired
   | NothingToSend;
 
 /** Tag -> HTTP status, in exactly one table (AGENTS.md rule 13), mirroring every other module's
@@ -58,6 +62,7 @@ export function statusFor(error: JobsError): number {
       return 403;
     case 'JobNotFound':
     case 'ProofOfDeliveryNotFound':
+    case 'SignatureNotFound':
       return 404;
     case 'InvalidTransition':
     case 'DriverBusy':
@@ -69,6 +74,7 @@ export function statusFor(error: JobsError): number {
     case 'VehicleUnavailable':
     case 'NotTracking':
     case 'ProofOfDeliveryRequired':
+    case 'SignatureRequired':
     case 'NothingToSend':
       return 409;
   }

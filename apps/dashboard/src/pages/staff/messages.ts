@@ -85,6 +85,7 @@ const MESSAGES: Record<string, string> = {
   InvalidDay: 'Pick a valid date.',
   CompanyNotFound: 'That company could not be found.',
   ProofOfDeliveryNotFound: 'No photo has been received for that job yet.',
+  SignatureNotFound: 'No signature has been received for that job yet.',
   HazardReportNotFound: 'That hazard report is not there any more.',
   NoRegistration: 'This vehicle has no registration on file. Add it on the Vehicles page first.',
   LookupNotFound: 'That registration is not on the DVLA record. Check it is typed correctly.',

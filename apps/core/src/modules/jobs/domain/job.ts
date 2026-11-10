@@ -73,6 +73,8 @@ export interface Job {
   readonly plannedStart?: Date | undefined;
   readonly dueBy?: Date | undefined;
   readonly requiresProofOfDelivery: boolean;
+  /** The same call for a receiver's signature: set at creation, enforced at the `delivered` step beside the photo. */
+  readonly requiresSignature: boolean;
   /** Who the job is for, as the firm writes it. Staff only: never sent to a driver. */
   readonly customer?: string | undefined;
   /** What the firm will be paid for it, in whole pence. Staff only: never sent to a driver. */
@@ -85,6 +87,10 @@ export interface Job {
   /** Whether proof is attached for what the driver is delivering now (every delivery once the job is
    *  delivered). Kept in step by `moved` and by the repository; see `hasProof`. */
   readonly hasProofOfDelivery: boolean;
+  /** The delivery stops (by position) that have a signature. */
+  readonly signatureStops: readonly number[];
+  /** Whether a signature is taken for what the driver is delivering now (every delivery once delivered). */
+  readonly hasSignature: boolean;
 }
 
 export type InvalidReference = TaggedError<'InvalidReference'>;
@@ -207,16 +213,31 @@ export function proofStopFor(job: Pick<Job, 'stops' | 'currentStop'>): number | 
   return deliveries.find((i) => i >= job.currentStop) ?? deliveries.at(-1);
 }
 
+/** Whether `taken` (stops with a photo, or with a signature) covers what the driver is delivering now, or every delivery once delivered. */
+function coversDelivery(
+  job: Pick<Job, 'stops' | 'currentStop' | 'status'>,
+  taken: readonly number[],
+): boolean {
+  if (job.status === 'delivered') {
+    const deliveries = job.stops.flatMap((s, i) => (s.kind === 'delivery' ? [i] : []));
+    return deliveries.length > 0 && deliveries.every((i) => taken.includes(i));
+  }
+  const stop = proofStopFor(job);
+  return stop !== undefined && taken.includes(stop);
+}
+
 /** Whether proof is attached for what the driver is delivering now, or for every delivery once delivered. */
 export function hasProof(
   job: Pick<Job, 'stops' | 'currentStop' | 'status' | 'proofStops'>,
 ): boolean {
-  if (job.status === 'delivered') {
-    const deliveries = job.stops.flatMap((s, i) => (s.kind === 'delivery' ? [i] : []));
-    return deliveries.length > 0 && deliveries.every((i) => job.proofStops.includes(i));
-  }
-  const stop = proofStopFor(job);
-  return stop !== undefined && job.proofStops.includes(stop);
+  return coversDelivery(job, job.proofStops);
+}
+
+/** Whether a signature is taken for what the driver is delivering now, or for every delivery once delivered. */
+export function hasSignatureFor(
+  job: Pick<Job, 'stops' | 'currentStop' | 'status' | 'signatureStops'>,
+): boolean {
+  return coversDelivery(job, job.signatureStops);
 }
 
 export interface InvalidTransition extends TaggedError<'InvalidTransition'> {
@@ -245,7 +266,7 @@ function moved(
       },
     ],
   };
-  return { ...next, hasProofOfDelivery: hasProof(next) };
+  return { ...next, hasProofOfDelivery: hasProof(next), hasSignature: hasSignatureFor(next) };
 }
 
 /** Dispatch: only a `draft` job can be assigned, and it goes straight to `assigned`. */

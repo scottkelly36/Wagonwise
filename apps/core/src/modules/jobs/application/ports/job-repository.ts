@@ -14,6 +14,17 @@ export interface StoredProofOfDelivery extends ProofOfDeliveryPhoto {
   readonly capturedAt: Date;
 }
 
+/** A receiver's signature as the driver's app drew it: the strokes, and the name they gave if any. */
+export interface DeliverySignature {
+  readonly strokes: readonly (readonly (readonly [number, number])[])[];
+  readonly signerName?: string | undefined;
+}
+
+/** A stored signature as read back, with when it was taken. */
+export interface StoredDeliverySignature extends DeliverySignature {
+  readonly capturedAt: Date;
+}
+
 export interface JobRepository {
   findById(id: JobId): Promise<Job | null>;
   /** The job a driver is currently on, if any (assigned up to at_delivery). */
@@ -31,4 +42,10 @@ export interface JobRepository {
   findProofOfDelivery(jobId: JobId, stop?: number): Promise<StoredProofOfDelivery | null>;
   /** Deletes a company's proof photos taken before `cutoff`; returns how many went. */
   deleteProofOfDeliveryOlderThan(companyId: CompanyId, cutoff: Date): Promise<number>;
+  /** Replaces any existing signature for this delivery stop: taking it again replaces, not appends. */
+  saveSignature(jobId: JobId, stop: number, signature: DeliverySignature): Promise<void>;
+  /** The signature for a delivery stop, or the latest when no stop is given; `null` if none was taken. */
+  findSignature(jobId: JobId, stop?: number): Promise<StoredDeliverySignature | null>;
+  /** Deletes a company's signatures taken before `cutoff` (the same retention as photos); returns how many went. */
+  deleteSignaturesOlderThan(companyId: CompanyId, cutoff: Date): Promise<number>;
 }
