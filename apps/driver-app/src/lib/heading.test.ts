@@ -1,4 +1,65 @@
-import { facingDegrees, headingChangedEnough } from './heading';
+import {
+  facingDegrees,
+  facingFrom,
+  headingChangedEnough,
+  isMoving,
+  smoothDegrees,
+} from './heading';
+
+describe('isMoving', () => {
+  it('starts moving at 1.5 m/s but only stops again below 0.8 m/s', () => {
+    expect(isMoving(false, 1.2)).toBe(false);
+    expect(isMoving(false, 1.5)).toBe(true);
+    expect(isMoving(true, 1.0)).toBe(true);
+    expect(isMoving(true, 0.79)).toBe(false);
+  });
+
+  it('keeps the last answer when the speed is missing', () => {
+    expect(isMoving(true, null)).toBe(true);
+    expect(isMoving(false, undefined)).toBe(false);
+  });
+});
+
+describe('facingFrom', () => {
+  it('says whether the direction is the GPS course or the compass', () => {
+    expect(facingFrom({ gpsHeadingDeg: 90, speedMps: 12, compassDeg: 270 })).toEqual({
+      degrees: 90,
+      source: 'gps',
+    });
+    expect(facingFrom({ gpsHeadingDeg: 90, speedMps: 0, compassDeg: 270 })).toEqual({
+      degrees: 270,
+      source: 'compass',
+    });
+  });
+
+  it('takes the moving flag over the speed, so a crawl keeps its GPS course', () => {
+    const crawling = { gpsHeadingDeg: 90, speedMps: 1.0, compassDeg: 270 };
+    expect(facingFrom(crawling)?.source).toBe('compass');
+    expect(facingFrom({ ...crawling, moving: true })?.source).toBe('gps');
+  });
+});
+
+describe('smoothDegrees', () => {
+  it('takes the first reading as it is', () => {
+    expect(smoothDegrees(undefined, 200)).toBe(200);
+    expect(smoothDegrees(null, 370)).toBe(10);
+  });
+
+  it('moves only part of the way towards a new reading', () => {
+    expect(smoothDegrees(100, 200, 0.1)).toBeCloseTo(110);
+  });
+
+  it('goes the short way round north', () => {
+    expect(smoothDegrees(350, 10, 0.5)).toBeCloseTo(0);
+    expect(smoothDegrees(10, 350, 0.5)).toBeCloseTo(0);
+  });
+
+  it('settles a shaking compass near where it is really pointing', () => {
+    let smoothed = smoothDegrees(undefined, 90);
+    for (let i = 0; i < 60; i += 1) smoothed = smoothDegrees(smoothed, i % 2 === 0 ? 70 : 110);
+    expect(Math.abs(smoothed - 90)).toBeLessThan(5);
+  });
+});
 
 describe('facingDegrees', () => {
   it('uses the GPS course while moving', () => {
