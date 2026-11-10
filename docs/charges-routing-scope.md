@@ -131,6 +131,26 @@ that loaded. What is **not** confirmed is said so.
   zone's own page gave no amount. Launched 30 January 2023.
 - **Dundee, Edinburgh, Newcastle: the owner's runs.** Edinburgh and Dundee are Scottish LEZ zones (above); Newcastle is the Tyneside zone.
 
+**Zone boundaries: where they could come from, and under what licence (2026-11-10).** Only metadata pages were read; **no boundary file has been downloaded**.
+
+- **Scotland, all four zones: usable.** The national dataset
+  [Low Emission Zones - Scotland](https://spatialdata.gov.scot/geonetwork/srv/api/records/b00ce0b9-1c21-4c68-bc23-6d419b11ffac) is under the **Open Government
+  Licence v3**, with Aberdeen, Dundee, Edinburgh and Glasgow in it, published by the Improvement Service (Spatial Hub Scotland). Caveats: its reference date is
+  **31 October 2022** (before enforcement began, so a boundary may have changed), it is updated "as needed", it does not say who supplied each city's
+  boundary, and it states **no positional accuracy**. Before it is used, compare each polygon with the council's own map and the Aberdeen, Edinburgh,
+  Dundee and Glasgow scheme documents. Glasgow also publishes its own layer under the OGL (its page refused the request, so not read).
+- **OpenStreetMap, as a cross-check only.** `boundary=low_emission_zone` is mapped for Glasgow, Edinburgh (no name tag) and Aberdeen, **not for Dundee or
+  Tyneside**. Its licence (ODbL) would need attribution, as the hazards import already does. Aberdeen's relation carries a start date of 2022-05-30 that
+  does not match the council's 1 June 2024 enforcement, so it is a reminder that OSM is a volunteer map, not a source of record.
+- **Tyneside: not usable yet.** Gateshead Council hosts a layer called CleanAirZone2 on its map server, but its metadata has **no licence, no copyright
+  text and no description**, so reuse is not permitted by anything we can point to. The charging order's deposited plans carry an Ordnance Survey copyright notice.
+  **Ask Newcastle City Council and Gateshead Council** (the zone is run jointly, as BREATHE Clean Air) for the boundary under an open licence, or for
+  written permission to use it. Until they answer, Tyneside has no boundary in the app.
+- **London:** the GLA publishes a Low Emission Zone layer on its map server; **its licence was not read**. London is "warn, never avoid" anyway.
+- **What a boundary is for.** Deciding whether a route enters a zone (to say a charge may apply), never routing round one: zone checks are on a route's
+  own line, so a boundary a few tens of metres out matters little. That is a reason to accept an OGL boundary with a stated date and a spot check, rather than
+  to draw one by hand.
+
 **What this changes in the design**
 
 - The **Euro class** on the vehicle matters for every zone above, and is the same field the FORS requirements ask about (`docs/fors-scope.md`, O1 and O2).
