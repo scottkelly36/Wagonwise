@@ -2,11 +2,41 @@ import {
   feetInchesToMetres,
   formatHeightWithFeetInches,
   formatRouteDistance,
+  kphToMph,
   l100kmToMpg,
   metresToFeetInches,
   metresToFeetInchesBoxes,
   mpgToL100km,
+  mphToKph,
 } from './units';
+
+describe('mphToKph', () => {
+  it('turns miles per hour into km/h as text, to one decimal place', () => {
+    expect(mphToKph('56')).toBe('90.1');
+    expect(mphToKph('50')).toBe('80.5');
+  });
+
+  it('keeps an empty box empty, and flags rubbish so the form can say it is not valid', () => {
+    expect(mphToKph('')).toBe('');
+    expect(mphToKph('  ')).toBe('');
+    expect(mphToKph('fast')).toBe('NaN');
+    expect(mphToKph('-5')).toBe('NaN');
+    expect(mphToKph('0')).toBe('NaN');
+  });
+});
+
+describe('kphToMph', () => {
+  it('turns km/h into miles per hour, so a 56 mph limiter comes back as 56', () => {
+    expect(kphToMph('90.1')).toBe('56');
+    expect(kphToMph('88')).toBe('54.7');
+  });
+
+  it('gives an empty box for nothing or for rubbish', () => {
+    expect(kphToMph('')).toBe('');
+    expect(kphToMph('NaN')).toBe('');
+    expect(kphToMph('0')).toBe('');
+  });
+});
 
 describe('feetInchesToMetres', () => {
   it('converts feet and inches to metres as text', () => {

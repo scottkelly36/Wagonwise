@@ -43,6 +43,22 @@ describe('validateDimensions', () => {
     expect(validateDimensions(dimensions({ axleWeightT: -1 })).ok).toBe(false);
   });
 
+  it('accepts a top speed in a believable range, and none at all', () => {
+    expect(validateDimensions(dimensions({ topSpeedKph: 90 }))).toEqual({
+      ok: true,
+      value: dimensions({ topSpeedKph: 90 }),
+    });
+    expect(validateDimensions(dimensions({ topSpeedKph: 30 })).ok).toBe(true);
+    expect(validateDimensions(dimensions({ topSpeedKph: 130 })).ok).toBe(true);
+  });
+
+  it('rejects a top speed that is a typo (too slow, too fast, or not a number)', () => {
+    expect(validateDimensions(dimensions({ topSpeedKph: 0 })).ok).toBe(false);
+    expect(validateDimensions(dimensions({ topSpeedKph: 9 })).ok).toBe(false);
+    expect(validateDimensions(dimensions({ topSpeedKph: 560 })).ok).toBe(false);
+    expect(validateDimensions(dimensions({ topSpeedKph: Number.NaN })).ok).toBe(false);
+  });
+
   it('rejects a non-finite dimension', () => {
     const result = validateDimensions(dimensions({ heightM: Number.NaN }));
     expect(result.ok).toBe(false);

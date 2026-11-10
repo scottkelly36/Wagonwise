@@ -36,6 +36,15 @@ describe('upsertVehicleProfile', () => {
     expect((await repo.findById(ID as never))?.dimensions.heightM).toBe(4.2);
   });
 
+  it('carries the company vehicle’s top speed to the profile a job is routed with', async () => {
+    const repo = new InMemoryVehicleProfileRepository();
+    await upsertVehicleProfile(
+      { repo },
+      { id: ID, driverId: DRIVER, name: 'Scania', dimensions: { ...DIMENSIONS, topSpeedKph: 90 } },
+    );
+    expect((await repo.findById(ID as never))?.dimensions.topSpeedKph).toBe(90);
+  });
+
   it('refuses measurements that are not real, and stores nothing', async () => {
     const repo = new InMemoryVehicleProfileRepository();
 

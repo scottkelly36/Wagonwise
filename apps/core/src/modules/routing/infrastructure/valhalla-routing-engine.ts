@@ -88,7 +88,10 @@ function toValhallaPolygon(polygon: GeoPolygon): [number, number][] {
  *  flattens the speed difference between roads, so a faster A-road loses its advantage and the
  *  engine picks a shorter back road: Hexham to Heddon-on-the-Wall went A68 + the Military Road
  *  (B6318) instead of the A69, and the A69 route was in fact quicker even when timed with the same
- *  cap. So the route is chosen without it and then timed along that exact road by `retime`. */
+ *  cap. So the route is chosen without it and then timed along that exact road by `retime`.
+ *
+ *  This is the speed when a vehicle has none of its own: a vehicle's `topSpeedKph` (a limiter, or how its driver drives it) takes
+ *  its place for the timing, and still never for choosing the road. */
 const TOP_SPEED_KPH = 88;
 
 /** Used when a route can't be re-timed (Valhalla refuses the trace, e.g. a shape longer than its
@@ -280,7 +283,7 @@ export class ValhallaRoutingEngine implements RoutingEngine {
         body: JSON.stringify({
           shape: decodePolyline(shape).map(toValhallaLocation),
           shape_match: 'edge_walk',
-          ...truckCosting(dimensions, TOP_SPEED_KPH),
+          ...truckCosting(dimensions, dimensions.topSpeedKph ?? TOP_SPEED_KPH),
         }),
       });
       if (!response.ok) return fallback;

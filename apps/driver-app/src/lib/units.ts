@@ -87,6 +87,23 @@ export function l100kmToMpg(l100km: string): string {
   return String(Number((MPG_TIMES_L100KM / value).toFixed(1)));
 }
 
+/** Miles per hour typed as text, to km/h as text for the form's own parsing: speeds are always typed in mph, like the road signs. Empty
+ *  stays empty; anything that is not a positive number gives "NaN" so the form says the top speed is not valid. One decimal place. */
+export function mphToKph(mph: string): string {
+  if (mph.trim() === '') return '';
+  const value = Number(mph.trim());
+  if (!Number.isFinite(value) || value <= 0) return 'NaN';
+  return String(Number((value * KM_PER_MILE).toFixed(1)));
+}
+
+/** km/h as text to miles per hour as text, to one decimal place (56 mph comes back as "56"), for filling the box. A value that is empty
+ *  or not a positive number gives an empty box. */
+export function kphToMph(kph: string): string {
+  const value = Number(kph.trim());
+  if (kph.trim() === '' || !Number.isFinite(value) || value <= 0) return '';
+  return String(Number((value / KM_PER_MILE).toFixed(1)));
+}
+
 export const DISTANCE_UNIT_OPTIONS: readonly { key: DistanceUnit; label: string }[] = [
   { key: 'km', label: 'Kilometres' },
   { key: 'miles', label: 'Miles' },

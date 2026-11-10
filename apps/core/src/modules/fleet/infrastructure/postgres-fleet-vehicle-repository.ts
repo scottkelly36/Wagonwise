@@ -13,6 +13,7 @@ interface FleetVehicleRow {
   readonly length_m: number;
   readonly gross_weight_t: number;
   readonly axle_weight_t: number | null;
+  readonly top_speed_kph: number | null;
   readonly registration: string | null;
 }
 
@@ -28,12 +29,14 @@ function toDomain(row: FleetVehicleRow): FleetVehicle {
       lengthM: row.length_m,
       grossWeightT: row.gross_weight_t,
       ...(row.axle_weight_t === null ? {} : { axleWeightT: row.axle_weight_t }),
+      ...(row.top_speed_kph === null ? {} : { topSpeedKph: row.top_speed_kph }),
     },
   };
 }
 
 const SELECT_COLUMNS = `
-  id, company_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t, registration
+  id, company_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t, top_speed_kph,
+  registration
 `;
 
 /** Raw `sql` tagged-template queries, not Kysely's typed query builder — same reasoning as every
@@ -70,12 +73,13 @@ export class PostgresFleetVehicleRepository implements FleetVehicleRepository {
   async save(vehicle: FleetVehicle): Promise<void> {
     await sql`
       insert into fleet.vehicles
-        (id, company_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t, registration)
+        (id, company_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t,
+         top_speed_kph, registration)
       values (
         ${vehicle.id}, ${vehicle.companyId}, ${vehicle.name},
         ${vehicle.dimensions.heightM}, ${vehicle.dimensions.widthM}, ${vehicle.dimensions.lengthM},
         ${vehicle.dimensions.grossWeightT}, ${vehicle.dimensions.axleWeightT ?? null},
-        ${vehicle.registration ?? null}
+        ${vehicle.dimensions.topSpeedKph ?? null}, ${vehicle.registration ?? null}
       )
       on conflict (id) do update set
         name = excluded.name,
@@ -84,6 +88,7 @@ export class PostgresFleetVehicleRepository implements FleetVehicleRepository {
         length_m = excluded.length_m,
         gross_weight_t = excluded.gross_weight_t,
         axle_weight_t = excluded.axle_weight_t,
+        top_speed_kph = excluded.top_speed_kph,
         registration = excluded.registration
     `.execute(this.db);
   }

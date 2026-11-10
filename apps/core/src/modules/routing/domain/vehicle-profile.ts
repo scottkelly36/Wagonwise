@@ -18,7 +18,14 @@ export interface Dimensions {
    *  exactly this way — is assignable under exactOptionalPropertyTypes without a cast at the call
    *  site (same reasoning as identity's RequestOtpInput.inviteCode). */
   readonly axleWeightT?: number | undefined;
+  /** Km/h the vehicle is timed at, if its owner or driver has said (a speed limiter, usually 90 km/h for a lorry). Not sent to the engine's
+   *  road costing, only used to time the road once it is chosen (`valhalla-routing-engine.ts`), so it can never change the route. */
+  readonly topSpeedKph?: number | undefined;
 }
+
+/** The slowest and fastest top speed accepted, in km/h: 19 to 81 mph. Anything outside is a typo, not a vehicle. */
+export const MIN_TOP_SPEED_KPH = 30;
+export const MAX_TOP_SPEED_KPH = 130;
 
 /** The weight the routing engine is given to find a route that ignores weight limits. Weight is only ever used to
  *  check signed limits (a `maxweight` on a road), so a light figure lets the route use them. It is never shown or
@@ -56,7 +63,7 @@ export interface InvalidFuelConsumption extends TaggedError<'InvalidFuelConsumpt
  * real, positive measurement — a zero or negative value would silently make `applies()` (M2.4,
  * the safety-critical function) wrong for every restriction check against this profile.
  * `axleWeightT` is optional (design doc's `Dimensions` sketch), but must still be positive when
- * given.
+ * given. `topSpeedKph` is optional too, and when given must be 30 to 130 km/h.
  */
 export function validateDimensions(d: Dimensions): Result<Dimensions, InvalidDimensions> {
   const positive = (n: number): boolean => Number.isFinite(n) && n > 0;
@@ -65,7 +72,13 @@ export function validateDimensions(d: Dimensions): Result<Dimensions, InvalidDim
     !positive(d.widthM) ||
     !positive(d.lengthM) ||
     !positive(d.grossWeightT) ||
-    (d.axleWeightT !== undefined && !positive(d.axleWeightT))
+    (d.axleWeightT !== undefined && !positive(d.axleWeightT)) ||
+    (d.topSpeedKph !== undefined &&
+      !(
+        Number.isFinite(d.topSpeedKph) &&
+        d.topSpeedKph >= MIN_TOP_SPEED_KPH &&
+        d.topSpeedKph <= MAX_TOP_SPEED_KPH
+      ))
   ) {
     return err({ tag: 'InvalidDimensions', reason: 'must_be_positive' });
   }

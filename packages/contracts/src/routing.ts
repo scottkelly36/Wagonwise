@@ -23,6 +23,9 @@ export const dimensionsSchema = z.object({
   lengthM: z.number().positive(),
   grossWeightT: z.number().positive(),
   axleWeightT: z.number().positive().optional(),
+  /** The speed the vehicle is timed at, in km/h (a limiter, or how the driver drives it). Blank means the usual 55 mph. It only changes the
+   *  time a route takes, never which road is chosen. 30 to 130 km/h is 19 to 81 mph, which takes in a limited lorry and a van. */
+  topSpeedKph: z.number().min(30).max(130).optional(),
 });
 export type DimensionsDto = z.infer<typeof dimensionsSchema>;
 

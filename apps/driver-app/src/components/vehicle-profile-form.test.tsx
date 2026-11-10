@@ -129,6 +129,72 @@ describe('VehicleProfileForm, in feet and inches', () => {
   });
 });
 
+describe('VehicleProfileForm, top speed', () => {
+  const baseValues = {
+    ...EMPTY_VEHICLE_PROFILE_FORM,
+    name: 'Big wagon',
+    heightM: '4.2',
+    widthM: '2.6',
+    lengthM: '16.5',
+    grossWeightT: '32',
+  };
+
+  async function open(initialValues: typeof baseValues, onSubmit = jest.fn()) {
+    await render(
+      <VehicleProfileForm
+        initialValues={initialValues}
+        submitLabel="Save"
+        pending={false}
+        errorMessage={undefined}
+        onSubmit={onSubmit}
+      />,
+    );
+    return onSubmit;
+  }
+
+  it('sends nothing when left blank, so the usual 55 mph applies', async () => {
+    const onSubmit = await open(baseValues);
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+    expect(onSubmit.mock.calls[0][0].dimensions.topSpeedKph).toBeUndefined();
+  });
+
+  it('is typed in miles per hour and sent in km/h with the dimensions', async () => {
+    const onSubmit = await open(baseValues);
+    await type('profile-top-speed-input', '56');
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+    expect(onSubmit.mock.calls[0][0].dimensions.topSpeedKph).toBe(90.1);
+  });
+
+  it('is there when a preset is chosen, not only when typing the sizes', async () => {
+    await open(baseValues);
+    await fireEvent.press(screen.getByTestId('profile-unit-presets-button'));
+    expect(screen.getByTestId('profile-top-speed-input')).toBeTruthy();
+  });
+
+  it('fills from a saved speed, and sends it unchanged if the driver leaves it alone', async () => {
+    const onSubmit = await open({ ...baseValues, topSpeedKph: '90' });
+    expect(screen.getByTestId('profile-top-speed-input').props.value).toBe('55.9');
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+    expect(onSubmit.mock.calls[0][0].dimensions.topSpeedKph).toBe(90);
+  });
+
+  it('says what is allowed for a speed that is a typo, and does not save it', async () => {
+    const onSubmit = await open(baseValues);
+    await type('profile-top-speed-input', '300');
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Top speed should be between 19 and 80 mph.')).toBeTruthy();
+  });
+
+  it('warns, without blocking, when a lorry is set faster than its limiter', async () => {
+    const onSubmit = await open(baseValues);
+    await type('profile-top-speed-input', '70');
+    expect(screen.getByTestId('profile-top-speed-warning')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('VehicleProfileForm, fuel economy in miles per gallon', () => {
   const baseValues = {
     ...EMPTY_VEHICLE_PROFILE_FORM,
