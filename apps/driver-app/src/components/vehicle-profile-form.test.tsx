@@ -195,6 +195,68 @@ describe('VehicleProfileForm, top speed', () => {
   });
 });
 
+describe('VehicleProfileForm, Euro VI', () => {
+  const baseValues = {
+    ...EMPTY_VEHICLE_PROFILE_FORM,
+    name: 'Big wagon',
+    heightM: '4.2',
+    widthM: '2.6',
+    lengthM: '16.5',
+    grossWeightT: '32',
+  };
+
+  async function open(initialValues: typeof baseValues) {
+    const onSubmit = jest.fn();
+    await render(
+      <VehicleProfileForm
+        initialValues={initialValues}
+        submitLabel="Save"
+        pending={false}
+        errorMessage={undefined}
+        onSubmit={onSubmit}
+      />,
+    );
+    return onSubmit;
+  }
+
+  it('starts on Don’t know and sends nothing, so a vehicle is never assumed compliant', async () => {
+    const onSubmit = await open(baseValues);
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+    expect(onSubmit.mock.calls[0][0].dimensions.euroVI).toBeUndefined();
+  });
+
+  it('sends yes as true, no as false, and back to Don’t know as nothing', async () => {
+    const onSubmit = await open(baseValues);
+
+    await fireEvent.press(screen.getByTestId('profile-euro-vi-yes-button'));
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+    expect(onSubmit.mock.calls[0][0].dimensions.euroVI).toBe(true);
+
+    await fireEvent.press(screen.getByTestId('profile-euro-vi-no-button'));
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+    expect(onSubmit.mock.calls[1][0].dimensions.euroVI).toBe(false);
+
+    await fireEvent.press(screen.getByTestId('profile-euro-vi-unknown-button'));
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+    expect(onSubmit.mock.calls[2][0].dimensions.euroVI).toBeUndefined();
+  });
+
+  it('shows a saved answer, and keeps it when a preset is picked', async () => {
+    const onSubmit = await open({ ...baseValues, euroVI: 'no' });
+    expect(screen.getByTestId('profile-euro-vi-no-button').props.accessibilityState.selected).toBe(
+      true,
+    );
+    await fireEvent.press(screen.getByTestId('profile-submit-button'));
+    expect(onSubmit.mock.calls[0][0].dimensions.euroVI).toBe(false);
+  });
+
+  it('is there when a preset is chosen, not only when typing the sizes', async () => {
+    await open(baseValues);
+    await fireEvent.press(screen.getByTestId('profile-unit-presets-button'));
+    expect(screen.getByTestId('profile-euro-vi-yes-button')).toBeTruthy();
+  });
+});
+
 describe('VehicleProfileForm, fuel economy in miles per gallon', () => {
   const baseValues = {
     ...EMPTY_VEHICLE_PROFILE_FORM,

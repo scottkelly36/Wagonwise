@@ -14,6 +14,9 @@ export interface VehicleProfileFormValues {
   /** In km/h, though the box is in mph (`SpeedInput`): the speed the vehicle is timed at. Blank means the usual 55 mph. It is part of the
    *  dimensions on the wire, but only changes the time a route takes, never which road is chosen. */
   readonly topSpeedKph: string;
+  /** Whether the vehicle meets the Euro VI emissions standard: 'yes', 'no', or '' for not stated. Part of the dimensions on the wire. It is never assumed:
+   *  not stated means a low emission zone may charge it, not that it is fine. */
+  readonly euroVI: string;
   /** M9 (docs/progress.md): a sibling of dimensions, not one of them — never sent to Valhalla,
    *  only feeds the rough fuel-cost estimate shown on route options. */
   readonly fuelConsumptionL100km: string;
@@ -27,6 +30,7 @@ export const EMPTY_VEHICLE_PROFILE_FORM: VehicleProfileFormValues = {
   grossWeightT: '',
   axleWeightT: '',
   topSpeedKph: '',
+  euroVI: '',
   fuelConsumptionL100km: '',
 };
 
@@ -45,6 +49,13 @@ function toNumber(text: string): number {
 }
 
 const fuelConsumptionSchema = z.number().positive();
+
+/** 'yes' and 'no' are answers; anything else (the box left on "Don't know") is not stated, which the server keeps as absent. */
+export function euroVIFromForm(text: string): boolean | undefined {
+  if (text === 'yes') return true;
+  if (text === 'no') return false;
+  return undefined;
+}
 
 /** 30 to 130 km/h, the same range as core's, which is 19 to 80 mph as the driver types it. */
 const topSpeedSchema = z.number().min(30).max(130);
@@ -73,6 +84,7 @@ export function parseVehicleProfileForm(
     grossWeightT: toNumber(values.grossWeightT),
     axleWeightT,
     topSpeedKph,
+    euroVI: euroVIFromForm(values.euroVI),
   });
   if (!parsed.success) {
     return { ok: false, message: 'Every measurement must be a positive number.' };
@@ -107,6 +119,7 @@ export function vehicleProfileFormValuesFrom(profile: {
       profile.dimensions.axleWeightT === undefined ? '' : String(profile.dimensions.axleWeightT),
     topSpeedKph:
       profile.dimensions.topSpeedKph === undefined ? '' : String(profile.dimensions.topSpeedKph),
+    euroVI: profile.dimensions.euroVI === undefined ? '' : profile.dimensions.euroVI ? 'yes' : 'no',
     fuelConsumptionL100km:
       profile.fuelConsumptionL100km === undefined ? '' : String(profile.fuelConsumptionL100km),
   };

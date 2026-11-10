@@ -48,6 +48,12 @@ interface Props {
 /** How the size is given: picked from the typical sizes, or typed in metres or in feet and inches. */
 type SizeMode = 'presets' | 'type';
 
+const EURO_VI_OPTIONS = [
+  { key: 'yes', label: 'Yes' },
+  { key: 'no', label: 'No' },
+  { key: 'unknown', label: "Don't know" },
+] as const;
+
 const SIZE_OPTIONS: readonly { key: 'presets' | LengthUnit; label: string }[] = [
   { key: 'presets', label: 'Presets' },
   { key: 'metres', label: 'Metres' },
@@ -92,6 +98,7 @@ export function VehicleProfileForm({
         name: keepName ? current.name : filled.name,
         fuelConsumptionL100km: current.fuelConsumptionL100km,
         topSpeedKph: current.topSpeedKph,
+        euroVI: current.euroVI,
       };
     });
     onPresetPicked?.();
@@ -304,6 +311,18 @@ export function VehicleProfileForm({
       <Text style={styles.hint}>
         The speed arrival times are worked out at, such as your speed limiter. Leave it blank for 55
         mph. It changes how long a route takes, not which road is chosen.
+      </Text>
+
+      <Text style={styles.label}>Euro VI engine (optional)</Text>
+      <SegmentedControl
+        options={EURO_VI_OPTIONS}
+        value={values.euroVI === 'yes' || values.euroVI === 'no' ? values.euroVI : 'unknown'}
+        onChange={(next) => setField('euroVI')(next === 'unknown' ? '' : next)}
+        testIDPrefix="profile-euro-vi"
+      />
+      <Text style={styles.hint}>
+        For the low emission and clean air zone warnings. Most lorries registered in the last ten
+        years or so are Euro VI. If you are not sure, leave it on Don't know.
       </Text>
 
       {displayedError !== undefined && <Text style={styles.error}>{displayedError}</Text>}

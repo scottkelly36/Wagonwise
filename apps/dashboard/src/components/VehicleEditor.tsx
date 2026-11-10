@@ -62,6 +62,11 @@ export function VehicleEditor({
         ? vehicle.dimensions.topSpeedKph
         : Math.round(topSpeedValue * KPH_PER_MPH * 10) / 10;
 
+  // Yes, no, or not stated: a vehicle is never assumed to meet Euro VI. Not stated is kept as absent.
+  const [euroVI, setEuroVI] = useState<'' | 'yes' | 'no'>(
+    vehicle.dimensions.euroVI === undefined ? '' : vehicle.dimensions.euroVI ? 'yes' : 'no',
+  );
+
   const numbers = DIMENSIONS.map((d) => Number(dimensions[d.key]));
   const valid =
     name.trim() !== '' && numbers.every((n) => Number.isFinite(n) && n > 0) && topSpeedValid;
@@ -81,6 +86,7 @@ export function VehicleEditor({
               ? {}
               : { axleWeightT: vehicle.dimensions.axleWeightT }),
             ...(topSpeedKph === undefined ? {} : { topSpeedKph }),
+            ...(euroVI === '' ? {} : { euroVI: euroVI === 'yes' }),
           },
         }),
       ),
@@ -134,6 +140,18 @@ export function VehicleEditor({
             style={{ width: 90 }}
           />
         </label>
+        <label>
+          <span className="block">Euro VI engine</span>
+          <select
+            value={euroVI}
+            aria-label="Whether the vehicle meets Euro VI"
+            onChange={(e) => setEuroVI(e.target.value as '' | 'yes' | 'no')}
+          >
+            <option value="">Not stated</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </label>
         <button type="submit" disabled={!valid || save.isPending}>
           {save.isPending ? 'Saving…' : 'Save'}
         </button>
@@ -144,7 +162,8 @@ export function VehicleEditor({
       <p className="mt-12 text-muted text-13">
         Top speed is what arrival times are worked out at for this vehicle, such as a speed limiter
         (56 mph on most lorries). Leave it blank for the usual 55 mph. It changes the time a route
-        takes, not which road is chosen.
+        takes, not which road is chosen. Euro VI is what the low emission and clean air zones ask
+        about; "Not stated" is treated as a charge that may apply, never as compliant.
       </p>
       {!topSpeedValid && (
         <p className="text-danger">

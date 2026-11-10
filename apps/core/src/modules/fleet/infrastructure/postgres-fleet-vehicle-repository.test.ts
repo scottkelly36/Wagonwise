@@ -62,6 +62,27 @@ describe('PostgresFleetVehicleRepository', () => {
     expect(await repo().findById(v.id)).toEqual(v);
   });
 
+  it('keeps Euro VI yes, no and not stated apart: false is an answer, not a missing value', async () => {
+    const base = { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32 };
+    const yes = vehicle({
+      id: makeId<'FleetVehicleId'>('88888888-8888-4888-8888-888888888881'),
+      dimensions: { ...base, euroVI: true },
+    });
+    const no = vehicle({
+      id: makeId<'FleetVehicleId'>('88888888-8888-4888-8888-888888888882'),
+      dimensions: { ...base, euroVI: false },
+    });
+    const unstated = vehicle({
+      id: makeId<'FleetVehicleId'>('88888888-8888-4888-8888-888888888883'),
+      dimensions: base,
+    });
+    for (const v of [yes, no, unstated]) await repo().save(v);
+
+    expect((await repo().findById(yes.id))?.dimensions.euroVI).toBe(true);
+    expect((await repo().findById(no.id))?.dimensions.euroVI).toBe(false);
+    expect(await repo().findById(unstated.id)).toEqual(unstated);
+  });
+
   it('returns null for an unknown id', async () => {
     expect(
       await repo().findById(makeId<'FleetVehicleId'>('00000000-0000-4000-8000-000000000000')),

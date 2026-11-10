@@ -1,6 +1,7 @@
 import {
   dimensionWarnings,
   EMPTY_VEHICLE_PROFILE_FORM,
+  euroVIFromForm,
   parseVehicleProfileForm,
   vehicleProfileFormValuesFrom,
   type VehicleProfileFormValues,
@@ -14,8 +15,41 @@ const validValues: VehicleProfileFormValues = {
   grossWeightT: '32',
   axleWeightT: '',
   topSpeedKph: '',
+  euroVI: '',
   fuelConsumptionL100km: '',
 };
+
+describe('Euro VI', () => {
+  it('is left out when not stated, so it is never read as compliant', () => {
+    const result = parseVehicleProfileForm(validValues);
+    expect(result.ok && result.value.dimensions.euroVI).toBeUndefined();
+  });
+
+  it('sends yes as true and no as false, so a no is an answer and not a missing value', () => {
+    const yes = parseVehicleProfileForm({ ...validValues, euroVI: 'yes' });
+    const no = parseVehicleProfileForm({ ...validValues, euroVI: 'no' });
+    expect(yes.ok && yes.value.dimensions.euroVI).toBe(true);
+    expect(no.ok && no.value.dimensions.euroVI).toBe(false);
+  });
+
+  it('treats anything else as not stated', () => {
+    expect(euroVIFromForm('')).toBeUndefined();
+    expect(euroVIFromForm('unknown')).toBeUndefined();
+    expect(euroVIFromForm('YES')).toBeUndefined();
+  });
+
+  it('fills the edit form from a saved profile: yes, no, or blank', () => {
+    const dimensions = { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32 };
+    const from = (euroVI?: boolean) =>
+      vehicleProfileFormValuesFrom({
+        name: 'Rig',
+        dimensions: { ...dimensions, ...(euroVI === undefined ? {} : { euroVI }) },
+      }).euroVI;
+    expect(from(true)).toBe('yes');
+    expect(from(false)).toBe('no');
+    expect(from(undefined)).toBe('');
+  });
+});
 
 describe('top speed', () => {
   it('is left out of the dimensions when blank, so the usual 55 mph applies', () => {
@@ -149,6 +183,7 @@ describe('vehicleProfileFormValuesFrom', () => {
       grossWeightT: '32',
       axleWeightT: '10',
       topSpeedKph: '',
+      euroVI: '',
       fuelConsumptionL100km: '',
     });
   });
