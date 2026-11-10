@@ -29,7 +29,7 @@ import {
   hillsWereChecked,
   routeOptionTitle,
   strategyForOption,
-  tollLine,
+  tollLines,
 } from '../lib/route-option-text';
 import { formatRouteDistance, type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
@@ -879,11 +879,24 @@ export default function PlanRouteScreen() {
                         {hillsLine(option, distanceUnit)}
                       </Text>
                     )}
-                    {tollLine(option) !== undefined && (
-                      <Text style={styles.optionDetail} testID={`route-option-${index}-toll`}>
-                        {tollLine(option)}
-                      </Text>
-                    )}
+                    {tollLines(option).map((line, lineIndex) => (
+                      <View key={line.text}>
+                        <Text
+                          style={styles.optionDetail}
+                          testID={`route-option-${index}-toll${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                        >
+                          {line.text}
+                        </Text>
+                        {line.detail !== undefined && (
+                          <Text
+                            style={styles.optionDetail}
+                            testID={`route-option-${index}-toll-detail${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                          >
+                            {line.detail}
+                          </Text>
+                        )}
+                      </View>
+                    ))}
                     {option.breaksWeightLimit === true && (
                       <Text style={styles.optionWarning}>{WEIGHT_LIMIT_SHORT}</Text>
                     )}
