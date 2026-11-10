@@ -7,8 +7,10 @@ import {
   type RouteOption,
 } from '../domain/route-option.js';
 import type { GeoPoint } from '../domain/geo.js';
+import { chargesOnRoute, type RouteCharge } from '../domain/tolls.js';
 import {
   withoutWeightLimits,
+  type Dimensions,
   type DriverId,
   type VehicleProfileId,
 } from '../domain/vehicle-profile.js';
@@ -71,10 +73,14 @@ export async function previewRouteOptions(
   if (alternatives.ok) {
     return ok(
       buildRouteOptions(
-        await withTolls(
-          deps.routingEngine,
-          request,
-          await withHills(deps.routingEngine, request, alternatives.value, input.loaded),
+        withCharges(
+          await withTolls(
+            deps.routingEngine,
+            request,
+            await withHills(deps.routingEngine, request, alternatives.value, input.loaded),
+            input.tolls,
+          ),
+          profile.dimensions,
           input.tolls,
         ),
         profile.fuelConsumptionL100km,
@@ -95,15 +101,20 @@ export async function previewRouteOptions(
   }
   return ok(
     buildRouteOptions(
-      await withTolls(
-        deps.routingEngine,
-        { ...request, dimensions: withoutWeightLimits(profile.dimensions) },
-        await withHills(
+      withCharges(
+        await withTolls(
           deps.routingEngine,
           { ...request, dimensions: withoutWeightLimits(profile.dimensions) },
-          ignoringWeight.value,
-          input.loaded,
+          await withHills(
+            deps.routingEngine,
+            { ...request, dimensions: withoutWeightLimits(profile.dimensions) },
+            ignoringWeight.value,
+            input.loaded,
+          ),
+          input.tolls,
         ),
+        // The vehicle's real weight, not the light one the engine was given to ignore weight limits: a toll is priced for what the lorry weighs.
+        profile.dimensions,
         input.tolls,
       ),
       profile.fuelConsumptionL100km,
@@ -141,7 +152,24 @@ type Candidate = RouteResult & {
   readonly gentle?: boolean | undefined;
   readonly tollFree?: boolean | undefined;
   readonly fromSearch?: boolean | undefined;
+  readonly charges?: readonly RouteCharge[] | undefined;
 };
+
+/**
+ * When the app asked about tolls: the named tolls on each route and what each charges this vehicle, from the stretches the engine says are tolled
+ * (`chargesOnRoute`). A route with a toll the table does not know has none here, and still says `hasToll`. Otherwise the routes just as they are.
+ */
+function withCharges(
+  routes: readonly Candidate[],
+  vehicle: Dimensions,
+  tolls: boolean | undefined,
+): readonly Candidate[] {
+  if (tolls !== true) return routes;
+  return routes.map((route) => ({
+    ...route,
+    charges: chargesOnRoute(route.tollPoints ?? [], vehicle),
+  }));
+}
 
 /**
  * When the app asked about tolls and one of the routes has one: the route the engine finds when asked to avoid them, as one more option marked
