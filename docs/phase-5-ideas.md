@@ -105,7 +105,9 @@ against the provider's own terms before building.
 Candidates, to be cut by what firms ask for: a calendar or board view for jobs; bulk job import; customers and contacts as
 their own records; documents per vehicle and driver (insurance, licence checks, expiry dates); driver licence and CPC
 reminders; trailer records; a message to a driver from a job; exports and scheduled reports; per-depot views; a read-only
-customer link to track a delivery. The staff guide (`/guide`) grows with each page.
+customer link to track a delivery. The staff guide (`/guide`) grows with each page. **Helping a transport manager keep the evidence for FORS
+accreditation** (expiry records, an infringement log, a tachograph download tracker, policies and acknowledgements) is scoped in
+[`fors-scope.md`](fors-scope.md) (2026-11-10).
 
 **When no features come to mind (the owner, 2026-10-14):** the portal is thin, and the right list comes from watching, not
 guessing. Ways to find it:
