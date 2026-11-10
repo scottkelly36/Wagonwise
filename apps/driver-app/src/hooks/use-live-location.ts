@@ -2,7 +2,13 @@ import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
 
 import type { MapPoint } from '../components/route-map';
-import { facingDegrees, headingChangedEnough } from '../lib/heading';
+import {
+  facingDegrees,
+  facingFrom,
+  headingChangedEnough,
+  isMoving,
+  smoothDegrees,
+} from '../lib/heading';
 
 /** What the phone reports about its movement with a fix: the GPS course and speed. */
 export interface Motion {
@@ -53,8 +59,13 @@ export async function startWatchingPosition(
   }
 }
 
-/** How many degrees the map's bearing must change before it is turned again. */
+/** How many degrees the map's bearing must change before it is turned again, when it follows the GPS
+ *  course (steady). */
 const BEARING_STEP_DEG = 8;
+
+/** The same for the compass, which is held to a wider margin: a compass in a cab is never still, and
+ *  every step turns the whole map. */
+const COMPASS_STEP_DEG = 15;
 
 /** The active-trip screen's "map following position" (design doc §8). Only runs in the
  *  foreground — background tracking for reroute alerts is M6 territory (docs/progress.md). */
@@ -82,21 +93,25 @@ export function useLiveLocation(options: { readonly fast?: boolean } = {}): {
     // The latest of each input: the fix's motion (GPS direction of travel, only while moving) and the
     // compass. The map's bearing is the first while moving and the second when stopped.
     let motion: Motion = { gpsHeadingDeg: null, speedMps: null };
+    // The compass is smoothed as it arrives; `moving` has a margin so a crawl does not swap sources.
     let compassDeg: number | null = null;
+    let moving = false;
     let shownCourse: number | undefined;
     let shownBearing: number | undefined;
     const refresh = () => {
-      const nextCourse = facingDegrees({ ...motion, compassDeg: null });
+      moving = isMoving(moving, motion.speedMps);
+      const nextCourse = facingDegrees({ ...motion, compassDeg: null, moving });
       if (headingChangedEnough(shownCourse, nextCourse)) {
         shownCourse = nextCourse;
         setCourse(nextCourse);
       }
       if (!fast) return;
       // A wider threshold than the arrow needed: each change moves the camera, and a compass wobbles.
-      const nextBearing = facingDegrees({ ...motion, compassDeg });
-      if (headingChangedEnough(shownBearing, nextBearing, BEARING_STEP_DEG)) {
-        shownBearing = nextBearing;
-        setBearing(nextBearing);
+      const next = facingFrom({ ...motion, compassDeg, moving });
+      const step = next?.source === 'compass' ? COMPASS_STEP_DEG : BEARING_STEP_DEG;
+      if (headingChangedEnough(shownBearing, next?.degrees, step)) {
+        shownBearing = next?.degrees;
+        setBearing(next?.degrees);
       }
     };
 
@@ -105,7 +120,9 @@ export function useLiveLocation(options: { readonly fast?: boolean } = {}): {
     if (fast) {
       void Location.watchHeadingAsync((reading) => {
         if (cancelled) return;
-        compassDeg = reading.trueHeading >= 0 ? reading.trueHeading : reading.magHeading;
+        const raw = reading.trueHeading >= 0 ? reading.trueHeading : reading.magHeading;
+        if (!Number.isFinite(raw) || raw < 0) return;
+        compassDeg = smoothDegrees(compassDeg, raw);
         refresh();
       })
         .then((sub) => {
