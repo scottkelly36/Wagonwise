@@ -12,6 +12,11 @@ const DIMENSIONS = [
   { key: 'grossWeightT', label: 'Gross weight (t)' },
 ] as const;
 
+const KPH_PER_MPH = 1.609344;
+/** 19 to 80 mph, which is core's 30 to 130 km/h. */
+const MIN_TOP_SPEED_MPH = 19;
+const MAX_TOP_SPEED_MPH = 80;
+
 /**
  * Changes a company vehicle's name, registration number and measurements. The registration is tidied and checked by
  * core ("ab12 cde" is "AB12CDE"); a blank one removes it. The measurements are the ones routes are planned with, so a
@@ -36,8 +41,30 @@ export function VehicleEditor({
     grossWeightT: String(vehicle.dimensions.grossWeightT),
   });
 
+  // Kept in km/h, shown in mph (what a lorry's limiter is called here). An untouched box sends the stored figure back as it was, so
+  // opening and saving a vehicle never nudges its speed through the round trip.
+  const storedMph =
+    vehicle.dimensions.topSpeedKph === undefined
+      ? ''
+      : String(Math.round(vehicle.dimensions.topSpeedKph / KPH_PER_MPH));
+  const [topSpeedMph, setTopSpeedMph] = useState(storedMph);
+  const topSpeedText = topSpeedMph.trim();
+  const topSpeedValue = Number(topSpeedText);
+  const topSpeedValid =
+    topSpeedText === '' ||
+    (Number.isFinite(topSpeedValue) &&
+      topSpeedValue >= MIN_TOP_SPEED_MPH &&
+      topSpeedValue <= MAX_TOP_SPEED_MPH);
+  const topSpeedKph =
+    topSpeedText === ''
+      ? undefined
+      : topSpeedText === storedMph
+        ? vehicle.dimensions.topSpeedKph
+        : Math.round(topSpeedValue * KPH_PER_MPH * 10) / 10;
+
   const numbers = DIMENSIONS.map((d) => Number(dimensions[d.key]));
-  const valid = name.trim() !== '' && numbers.every((n) => Number.isFinite(n) && n > 0);
+  const valid =
+    name.trim() !== '' && numbers.every((n) => Number.isFinite(n) && n > 0) && topSpeedValid;
 
   const save = useMutation({
     mutationFn: () =>
@@ -53,6 +80,7 @@ export function VehicleEditor({
             ...(vehicle.dimensions.axleWeightT === undefined
               ? {}
               : { axleWeightT: vehicle.dimensions.axleWeightT }),
+            ...(topSpeedKph === undefined ? {} : { topSpeedKph }),
           },
         }),
       ),
@@ -94,6 +122,18 @@ export function VehicleEditor({
             />
           </label>
         ))}
+        <label>
+          <span className="block">Top speed (mph, optional)</span>
+          <input
+            inputMode="decimal"
+            value={topSpeedMph}
+            placeholder="55"
+            aria-label="Top speed in miles per hour"
+            aria-invalid={!topSpeedValid}
+            onChange={(e) => setTopSpeedMph(e.target.value)}
+            style={{ width: 90 }}
+          />
+        </label>
         <button type="submit" disabled={!valid || save.isPending}>
           {save.isPending ? 'Saving…' : 'Save'}
         </button>
@@ -101,6 +141,16 @@ export function VehicleEditor({
           Cancel
         </button>
       </form>
+      <p className="mt-12 text-muted text-13">
+        Top speed is what arrival times are worked out at for this vehicle, such as a speed limiter
+        (56 mph on most lorries). Leave it blank for the usual 55 mph. It changes the time a route
+        takes, not which road is chosen.
+      </p>
+      {!topSpeedValid && (
+        <p className="text-danger">
+          Top speed should be between {MIN_TOP_SPEED_MPH} and {MAX_TOP_SPEED_MPH} mph.
+        </p>
+      )}
       {save.isError && <p className="text-danger">{staffErrorMessage(save.error)}</p>}
     </section>
   );

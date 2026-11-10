@@ -76,6 +76,7 @@ export function presetFormValues(preset: VehiclePreset): VehicleProfileFormValue
     lengthM: String(lengthM),
     grossWeightT: String(grossWeightT),
     axleWeightT: axleWeightT === undefined ? '' : String(axleWeightT),
+    topSpeedKph: '',
     fuelConsumptionL100km: '',
   };
 }

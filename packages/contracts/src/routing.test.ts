@@ -24,6 +24,20 @@ describe('dimensionsSchema', () => {
     expect(dimensionsSchema.safeParse(validDimensions).success).toBe(true);
   });
 
+  it('accepts a top speed from 30 to 130 km/h, and none', () => {
+    expect(dimensionsSchema.safeParse({ ...validDimensions, topSpeedKph: 90 }).success).toBe(true);
+    expect(dimensionsSchema.safeParse({ ...validDimensions, topSpeedKph: 30 }).success).toBe(true);
+    expect(dimensionsSchema.safeParse({ ...validDimensions, topSpeedKph: 130 }).success).toBe(true);
+  });
+
+  it('rejects a top speed that is a typo', () => {
+    expect(dimensionsSchema.safeParse({ ...validDimensions, topSpeedKph: 0 }).success).toBe(false);
+    expect(dimensionsSchema.safeParse({ ...validDimensions, topSpeedKph: 29 }).success).toBe(false);
+    expect(dimensionsSchema.safeParse({ ...validDimensions, topSpeedKph: 200 }).success).toBe(
+      false,
+    );
+  });
+
   it('accepts a positive axleWeightT', () => {
     expect(dimensionsSchema.safeParse({ ...validDimensions, axleWeightT: 10 }).success).toBe(true);
   });

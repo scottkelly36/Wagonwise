@@ -227,6 +227,31 @@ describe('ValhallaRoutingEngine', () => {
       expect(traceRequests[0]?.shape).toEqual(line);
     });
 
+    it('times the road at the vehicle’s own top speed when it has one, and still chooses the road without it', async () => {
+      traceReply = { status: 200, body: { trip: { summary: { time: 900, length: 8.038 } } } };
+      const engine = new ValhallaRoutingEngine(baseUrl);
+      const resultPromise = engine.route({
+        origin,
+        destination,
+        dimensions: { ...dimensions, topSpeedKph: 97 },
+        avoid: [],
+      });
+      const received = await nextRequest;
+      received.respond(
+        { trip: { summary: { time: 475.465, length: 8.038 }, legs: [{ shape }] } },
+        200,
+      );
+      await resultPromise;
+
+      expect(traceRequests[0]).toMatchObject({
+        costing_options: { truck: { top_speed: 97 } },
+      });
+      // The road itself is chosen with no cap, so a different top speed can never send the lorry down a different road.
+      expect(
+        (received.body.costing_options as { truck: Record<string, unknown> }).truck.top_speed,
+      ).toBeUndefined();
+    });
+
     it('falls back to the scaled uncapped time when Valhalla cannot walk the shape (e.g. over its distance limit)', async () => {
       const engine = new ValhallaRoutingEngine(baseUrl);
       const resultPromise = engine.route({ origin, destination, dimensions, avoid: [] });

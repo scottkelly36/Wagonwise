@@ -13,8 +13,54 @@ const validValues: VehicleProfileFormValues = {
   lengthM: '16.5',
   grossWeightT: '32',
   axleWeightT: '',
+  topSpeedKph: '',
   fuelConsumptionL100km: '',
 };
+
+describe('top speed', () => {
+  it('is left out of the dimensions when blank, so the usual 55 mph applies', () => {
+    const result = parseVehicleProfileForm(validValues);
+    expect(result.ok && result.value.dimensions.topSpeedKph).toBeUndefined();
+  });
+
+  it('is sent in km/h as part of the dimensions when given', () => {
+    const result = parseVehicleProfileForm({ ...validValues, topSpeedKph: '90.1' });
+    expect(result.ok && result.value.dimensions.topSpeedKph).toBe(90.1);
+  });
+
+  it('says what range is allowed in mph, not as a bad measurement', () => {
+    const message = 'Top speed should be between 19 and 80 mph.';
+    expect(parseVehicleProfileForm({ ...validValues, topSpeedKph: '10' })).toEqual({
+      ok: false,
+      message,
+    });
+    expect(parseVehicleProfileForm({ ...validValues, topSpeedKph: '200' })).toEqual({
+      ok: false,
+      message,
+    });
+    expect(parseVehicleProfileForm({ ...validValues, topSpeedKph: 'NaN' })).toEqual({
+      ok: false,
+      message,
+    });
+  });
+
+  it('fills the edit form from a saved profile, and leaves it blank when there is none', () => {
+    const dimensions = { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32 };
+    expect(
+      vehicleProfileFormValuesFrom({ name: 'Rig', dimensions: { ...dimensions, topSpeedKph: 90 } })
+        .topSpeedKph,
+    ).toBe('90');
+    expect(vehicleProfileFormValuesFrom({ name: 'Rig', dimensions }).topSpeedKph).toBe('');
+  });
+
+  it('warns about a lorry over 7.5 tonnes set faster than its 56 mph limiter, but not a van, and never blocks', () => {
+    const fast = { ...validValues, topSpeedKph: '113' };
+    expect(dimensionWarnings(fast).topSpeedKph).toBeDefined();
+    expect(dimensionWarnings({ ...fast, grossWeightT: '3.5' }).topSpeedKph).toBeUndefined();
+    expect(dimensionWarnings({ ...validValues, topSpeedKph: '90' }).topSpeedKph).toBeUndefined();
+    expect(parseVehicleProfileForm(fast).ok).toBe(true);
+  });
+});
 
 describe('parseVehicleProfileForm', () => {
   it('parses valid values, omitting an unset optional axle weight', () => {
@@ -102,6 +148,7 @@ describe('vehicleProfileFormValuesFrom', () => {
       lengthM: '16.5',
       grossWeightT: '32',
       axleWeightT: '10',
+      topSpeedKph: '',
       fuelConsumptionL100km: '',
     });
   });

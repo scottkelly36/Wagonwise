@@ -11,6 +11,7 @@ import {
 import { FeetInchesInputs } from './feet-inches-inputs';
 import { VehiclePresetPicker } from './vehicle-preset-picker';
 import { MpgInput } from './mpg-input';
+import { SpeedInput } from './speed-input';
 import { SegmentedControl } from './ui/segmented-control';
 import { FUEL_UNIT_OPTIONS, formatHeightWithFeetInches, type LengthUnit } from '../lib/units';
 import {
@@ -90,6 +91,7 @@ export function VehicleProfileForm({
         ...filled,
         name: keepName ? current.name : filled.name,
         fuelConsumptionL100km: current.fuelConsumptionL100km,
+        topSpeedKph: current.topSpeedKph,
       };
     });
     onPresetPicked?.();
@@ -284,6 +286,25 @@ export function VehicleProfileForm({
           </Text>
         </>
       )}
+
+      {/* Outside the two size modes: a driver who picked a preset still needs to set the speed their limiter is set to. */}
+      <Text style={styles.label}>Top speed (mph, optional)</Text>
+      <SpeedInput
+        kph={values.topSpeedKph}
+        onChangeKph={setField('topSpeedKph')}
+        placeholder="56"
+        inputStyle={styles.input}
+        testID="profile-top-speed-input"
+      />
+      {warnings.topSpeedKph !== undefined && (
+        <Text style={styles.warning} testID="profile-top-speed-warning">
+          {warnings.topSpeedKph}
+        </Text>
+      )}
+      <Text style={styles.hint}>
+        The speed arrival times are worked out at, such as your speed limiter. Leave it blank for 55
+        mph. It changes how long a route takes, not which road is chosen.
+      </Text>
 
       {displayedError !== undefined && <Text style={styles.error}>{displayedError}</Text>}
 

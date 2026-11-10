@@ -104,6 +104,14 @@ Valhalla's default limits make that happen for any route over 200 km or 16,000 s
 (`service_limits.trace` in its `valhalla.json`), so on the droplet raise `trace.max_distance` and
 `trace.max_shape` (for example to 1,000,000 and 100,000); `docs/deployment-guide.md` has the step.
 
+**A vehicle's top speed (2026-11-10, driver feedback).** The 55 mph timing speed is the default; a vehicle can have its own, `topSpeedKph` on the shared
+`dimensions` (contracts `dimensionsSchema`, 30 to 130 km/h, optional), so it is stored for both a driver's own profile (`routing.vehicle_profiles.top_speed_kph`) and a
+company vehicle (`fleet.vehicles.top_speed_kph`, migration 0087), and a job's profile gets the company vehicle's through `upsertVehicleProfile`. `retime` uses
+`dimensions.topSpeedKph ?? TOP_SPEED_KPH`, so it changes the **time** only; the road is still chosen with no cap. The driver app asks for it in mph (always mph, like the
+signs; `SpeedInput` converts to km/h) in the vehicle form, for presets too, with a warning (not a block) when a lorry over 7.5 t is set above its 56 mph limiter. Staff set it in
+the dashboard's vehicle **Edit** form (not on the add form yet). Not covered: the route planner's one-off vehicle (it has no speed box, so it is timed at 55 mph), and when a route
+cannot be re-timed the fallback is still the uncapped time times 1.17, whatever the vehicle's speed.
+
 **Golden-route tests (M2.6):** real requests against a real, tile-built Valhalla instance — not
 part of `pnpm test`/`pnpm verify` (building tiles takes minutes, too slow for every push per
 decision 13). Bring up `valhalla` (above) first, then:

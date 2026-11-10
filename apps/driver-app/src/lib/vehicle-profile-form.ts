@@ -11,6 +11,9 @@ export interface VehicleProfileFormValues {
   readonly lengthM: string;
   readonly grossWeightT: string;
   readonly axleWeightT: string;
+  /** In km/h, though the box is in mph (`SpeedInput`): the speed the vehicle is timed at. Blank means the usual 55 mph. It is part of the
+   *  dimensions on the wire, but only changes the time a route takes, never which road is chosen. */
+  readonly topSpeedKph: string;
   /** M9 (docs/progress.md): a sibling of dimensions, not one of them — never sent to Valhalla,
    *  only feeds the rough fuel-cost estimate shown on route options. */
   readonly fuelConsumptionL100km: string;
@@ -23,6 +26,7 @@ export const EMPTY_VEHICLE_PROFILE_FORM: VehicleProfileFormValues = {
   lengthM: '',
   grossWeightT: '',
   axleWeightT: '',
+  topSpeedKph: '',
   fuelConsumptionL100km: '',
 };
 
@@ -42,6 +46,9 @@ function toNumber(text: string): number {
 
 const fuelConsumptionSchema = z.number().positive();
 
+/** 30 to 130 km/h, the same range as core's, which is 19 to 80 mph as the driver types it. */
+const topSpeedSchema = z.number().min(30).max(130);
+
 /** Mirrors core's own validateName/validateDimensions (routing/domain/vehicle-profile.ts) so a
  *  driver sees the same "not a positive number" rule before a network round trip, not a
  *  different, looser one that the server would reject anyway. */
@@ -54,12 +61,18 @@ export function parseVehicleProfileForm(
   }
 
   const axleWeightT = values.axleWeightT.trim() === '' ? undefined : toNumber(values.axleWeightT);
+  const topSpeedKph = values.topSpeedKph.trim() === '' ? undefined : toNumber(values.topSpeedKph);
+  // Checked on its own, so a mistyped speed is not reported as a bad measurement.
+  if (topSpeedKph !== undefined && !topSpeedSchema.safeParse(topSpeedKph).success) {
+    return { ok: false, message: 'Top speed should be between 19 and 80 mph.' };
+  }
   const parsed = dimensionsSchema.safeParse({
     heightM: toNumber(values.heightM),
     widthM: toNumber(values.widthM),
     lengthM: toNumber(values.lengthM),
     grossWeightT: toNumber(values.grossWeightT),
     axleWeightT,
+    topSpeedKph,
   });
   if (!parsed.success) {
     return { ok: false, message: 'Every measurement must be a positive number.' };
@@ -92,12 +105,15 @@ export function vehicleProfileFormValuesFrom(profile: {
     grossWeightT: String(profile.dimensions.grossWeightT),
     axleWeightT:
       profile.dimensions.axleWeightT === undefined ? '' : String(profile.dimensions.axleWeightT),
+    topSpeedKph:
+      profile.dimensions.topSpeedKph === undefined ? '' : String(profile.dimensions.topSpeedKph),
     fuelConsumptionL100km:
       profile.fuelConsumptionL100km === undefined ? '' : String(profile.fuelConsumptionL100km),
   };
 }
 
-export type DimensionField = 'heightM' | 'widthM' | 'lengthM' | 'grossWeightT' | 'axleWeightT';
+export type DimensionField =
+  'heightM' | 'widthM' | 'lengthM' | 'grossWeightT' | 'axleWeightT' | 'topSpeedKph';
 
 /**
  * Gentle checks on a profile that parses fine but looks unusual for a UK lorry. These only warn,
@@ -124,6 +140,7 @@ export function dimensionWarnings(
   const length = read(values.lengthM);
   const weight = read(values.grossWeightT);
   const axle = read(values.axleWeightT);
+  const topSpeed = read(values.topSpeedKph);
 
   if (width !== undefined && width > 2.6) {
     warnings.widthM =
@@ -141,6 +158,11 @@ export function dimensionWarnings(
   if (axle !== undefined && axle > 11.5) {
     warnings.axleWeightT =
       'Over 11.5 tonnes, the normal UK limit for a drive axle. Check the figure.';
+  }
+  // 90 km/h is the 56 mph limiter on a lorry over 7.5 tonnes; a couple of km/h over it is just how a limiter is set.
+  if (topSpeed !== undefined && topSpeed > 92 && weight !== undefined && weight > 7.5) {
+    warnings.topSpeedKph =
+      'A lorry over 7.5 tonnes is limited to 56 mph. Only keep this if the vehicle really goes faster.';
   }
   return warnings;
 }

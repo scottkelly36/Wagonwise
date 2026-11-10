@@ -53,6 +53,15 @@ describe('PostgresFleetVehicleRepository', () => {
     expect(await repo().findById(v.id)).toEqual(v);
   });
 
+  it('round-trips a vehicle with a top speed', async () => {
+    const v = vehicle({
+      id: makeId<'FleetVehicleId'>('77777777-7777-4777-8777-777777777777'),
+      dimensions: { heightM: 4.2, widthM: 2.6, lengthM: 16.5, grossWeightT: 32, topSpeedKph: 90 },
+    });
+    await repo().save(v);
+    expect(await repo().findById(v.id)).toEqual(v);
+  });
+
   it('returns null for an unknown id', async () => {
     expect(
       await repo().findById(makeId<'FleetVehicleId'>('00000000-0000-4000-8000-000000000000')),

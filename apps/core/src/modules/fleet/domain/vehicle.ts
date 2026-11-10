@@ -20,7 +20,14 @@ export interface Dimensions {
   readonly lengthM: number;
   readonly grossWeightT: number;
   readonly axleWeightT?: number | undefined;
+  /** Km/h the vehicle is timed at, if the company has said (a speed limiter, usually 90 km/h for a lorry). Routing uses it for the
+   *  time a route takes, never to choose the road. */
+  readonly topSpeedKph?: number | undefined;
 }
+
+/** The slowest and fastest top speed accepted, in km/h (19 to 81 mph); the same as routing's. */
+const MIN_TOP_SPEED_KPH = 30;
+const MAX_TOP_SPEED_KPH = 130;
 
 /** A company-owned vehicle (Phase 2 tech design doc §3's `fleet` context) — dispatching a job to
  *  it uses these dimensions for routing, not whatever profile the assigned driver last picked
@@ -49,7 +56,13 @@ export function validateDimensions(d: Dimensions): Result<Dimensions, InvalidDim
     !positive(d.widthM) ||
     !positive(d.lengthM) ||
     !positive(d.grossWeightT) ||
-    (d.axleWeightT !== undefined && !positive(d.axleWeightT))
+    (d.axleWeightT !== undefined && !positive(d.axleWeightT)) ||
+    (d.topSpeedKph !== undefined &&
+      !(
+        Number.isFinite(d.topSpeedKph) &&
+        d.topSpeedKph >= MIN_TOP_SPEED_KPH &&
+        d.topSpeedKph <= MAX_TOP_SPEED_KPH
+      ))
   ) {
     return err({ tag: 'InvalidDimensions', reason: 'must_be_positive' });
   }
