@@ -241,6 +241,26 @@ describe('routeOptionSchema', () => {
       }).success,
     ).toBe(true);
   });
+
+  it('carries named tolls with an optional price, note and when to pay', () => {
+    const base = { geometry: 'g', distanceKm: 80, durationMin: 110, labels: ['fastest'] };
+    expect(
+      routeOptionSchema.safeParse({
+        ...base,
+        charges: [
+          { name: 'Dartford Crossing', lowGBP: 4.2, highGBP: 8.4, note: 'n', payBy: 'p' },
+          { name: 'Humber Bridge' },
+        ],
+      }).success,
+    ).toBe(true);
+    // Absent for an older server, and an empty list is fine too.
+    expect(routeOptionSchema.safeParse(base).success).toBe(true);
+    expect(routeOptionSchema.safeParse({ ...base, charges: [] }).success).toBe(true);
+    // A toll with no name is not a toll the app can show.
+    expect(routeOptionSchema.safeParse({ ...base, charges: [{ lowGBP: 4.2 }] }).success).toBe(
+      false,
+    );
+  });
 });
 
 describe('routePlanSchema', () => {

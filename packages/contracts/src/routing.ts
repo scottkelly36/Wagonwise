@@ -119,6 +119,19 @@ export const hillSummarySchema = z.object({
 });
 export type HillSummaryDto = z.infer<typeof hillSummarySchema>;
 
+/** A named toll on a route and what it charges this vehicle. `lowGBP` and `highGBP` are both absent when there is no price for the vehicle (a class that
+ *  was not read); they differ when the vehicle's axles could put it in more than one class. */
+export const routeChargeSchema = z.object({
+  name: z.string(),
+  lowGBP: z.number().optional(),
+  highGBP: z.number().optional(),
+  /** What the price is, when it is not simply the price of a crossing ("the full length"). */
+  note: z.string().optional(),
+  /** When to pay, only when the operator said. */
+  payBy: z.string().optional(),
+});
+export type RouteChargeDto = z.infer<typeof routeChargeSchema>;
+
 /** `labels` is non-empty — a route that's both the fastest and the shortest of the candidates
  *  carries both labels rather than being split into two identical-looking cards. */
 export const routeOptionSchema = z.object({
@@ -129,6 +142,8 @@ export const routeOptionSchema = z.object({
   labels: z.array(z.enum(['fastest', 'shortest', 'gentle', 'toll-free'])).min(1),
   /** The route has a toll, as far as the map data says. Present only when the engine said either way. */
   hasToll: z.boolean().optional(),
+  /** The named tolls on the route and their prices. Present only when the app asked about tolls (`tolls`) and the route passes one we know. */
+  charges: z.array(routeChargeSchema).optional(),
   /** Present only when `loaded` was asked for and the server has height data. */
   hills: hillSummarySchema.optional(),
   /** Present and true when no route exists for the vehicle's weight and this one goes past a weight limit. */

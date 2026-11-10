@@ -79,7 +79,13 @@ discount or an exemption), or price a toll that depends on time of day (the M6 T
    any route has a toll and the engine finds a way round (nothing is offered when the way round still has one). The app asks with `tolls: true` so an older
    app never sees the new label. Not carried into re-plans, job stops or the faster-route check yet. **Cheapest** replaces the Toll free card once prices exist
    (stage 4).
-2. **The charges table and prices.** Tolls first (crossings from operators' own pages), then the route check and the price line.
+2. **The charges table and prices.** Tolls first (crossings from operators' own pages), then the route check and the price line. **Tolls built 2026-11-10:** five crossings with a price for a goods vehicle (Dartford, Mersey Gateway and Silver Jubilee, M6 Toll, Humber Bridge,
+   Tyne Tunnel), in `routing/domain/tolls.ts` with each row's source page and the day it was read. A card names the toll and its price ("Toll: Dartford Crossing,
+   £8.40", and when to pay). The engine reports the tolled stretches of a route (Valhalla's per-step `toll` flag) and a stretch near a crossing names it. A
+   route with a toll that is **not** in the table still says "Includes a toll". **Not built:** Mersey Tunnels, Tamar Bridge and the many small tolls; clean air and
+   low emission zones (stage 3); a total or a Cheapest card (stage 4); the toll choice in re-plans. **The price depends on the vehicle's axles for some
+   operators and the app holds only the weight**, so a card may show "£4.20 to £8.40" (Dartford, an 18 tonne lorry) or "price not known for your vehicle"
+   (Humber, a 7.5 tonne lorry, whose band was not read). Adding an axle count to the vehicle would settle most of these; not done.
 3. **Zones and the Euro class.** The vehicle field and migration, the zone polygons, the "may be charged" wording. Scotland and Tyneside first.
 4. **Cheapest.** Cost scoring and the label, the faster-route check, re-plans. Test on real routes: Hexham to Dundee and Edinburgh, Newcastle to
    London, and a Humber crossing, with a few kept as golden routes.

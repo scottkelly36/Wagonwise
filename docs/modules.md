@@ -775,6 +775,15 @@ and the **faster-route check** sends `loaded: true`, so core does not offer a qu
 current one (`check-faster-route.ts`). **Not covered:** the reroute alert core sends by itself when a hazard is reported ahead (`detect-reroute.ts`) plans the new route
 without knowing the vehicle is loaded, because the Load setting lives only on the phone; fixing that needs the setting stored with the trip (a migration).
 
+**Toll prices on Plan route (2026-11-10, stage 2 of charges routing).** `valhalla-routing-engine.ts` reads each step's `toll` flag and keeps points on the tolled
+stretches (`RouteResult.tollPoints`, thinned to at most 60, from `tollPointsOf`). `domain/tolls.ts` is the table of crossings (`TOLL_CROSSINGS`: name, where to look, a
+tariff by gross weight and axles, a note, when to pay, source URL, `checkedOn`), `chargesOnRoute` names each crossing a tolled stretch is near and `priceFor`
+prices it for the vehicle. The axle count is not held, so `possibleAxles` works out the options from the weight (two up to 7.5 t, either to 18 t, three or more above):
+the price is a range when they differ and **absent when any option has no tariff** (a class was not read). `previewRouteOptions` adds `charges` to each option
+when the app sent `tolls: true`, priced at the vehicle's real weight; the app shows "Toll: name, price" and when to pay (`tollLines`), and "Includes a toll" for a toll
+not in the table. **Prices are read by hand** from each operator's page: open every `sourceUrl` and update `checkedOn` on a schedule (the Humber row came from a search
+summary because its page refused the request, so check it first). Not the Mersey Tunnels, Tamar Bridge or other small tolls.
+
 **Tolls on Plan route (2026-11-09, stage 1 of charges routing).** Valhalla says whether a route has a toll (`summary.has_toll`, read into
 `RouteResult.hasToll`, from OpenStreetMap tagging, so a hint and not a price). When the app sends `tolls: true` with the preview (this version always does; an
 older app does not, because it cannot read a new label), each card whose route has one says **Includes a toll** (`tollLine`), and when any route has one core asks the

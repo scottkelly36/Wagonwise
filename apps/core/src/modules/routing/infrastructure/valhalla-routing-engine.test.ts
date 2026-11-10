@@ -2,7 +2,11 @@ import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Dimensions } from '../domain/vehicle-profile.js';
-import { FALLBACK_TIME_FACTOR, ValhallaRoutingEngine } from './valhalla-routing-engine.js';
+import {
+  FALLBACK_TIME_FACTOR,
+  tollPointsOf,
+  ValhallaRoutingEngine,
+} from './valhalla-routing-engine.js';
 
 interface ReceivedRequest {
   readonly body: Record<string, unknown>;
@@ -148,6 +152,99 @@ describe('ValhallaRoutingEngine', () => {
 
       const costing = received.body.costing_options as { truck: Record<string, unknown> };
       expect(costing.truck).not.toHaveProperty('use_tolls');
+    });
+
+    describe('where the tolled stretches are', () => {
+      // A test-only encoder, separate from the shipped decoder (see the note further down).
+      const enc = (value: number): string => {
+        let shifted = value < 0 ? ~(value << 1) : value << 1;
+        let chars = '';
+        while (shifted >= 0x20) {
+          chars += String.fromCharCode((shifted & 0x1f) + 0x20 + 63);
+          shifted >>= 5;
+        }
+        return chars + String.fromCharCode(shifted + 63);
+      };
+      const points = [0, 1, 2, 3, 4].map((i) => ({ lat: 51.4 + i * 0.01, lon: 0.2 + i * 0.01 }));
+      const encoded = points
+        .map((p, i) => {
+          const prev = points[i - 1] ?? { lat: 0, lon: 0 };
+          return (
+            enc(Math.round(p.lat * 1e6) - Math.round(prev.lat * 1e6)) +
+            enc(Math.round(p.lon * 1e6) - Math.round(prev.lon * 1e6))
+          );
+        })
+        .join('');
+      const step = (begin: number, end: number, toll?: boolean) => ({
+        type: 8,
+        length: 1,
+        begin_shape_index: begin,
+        end_shape_index: end,
+        ...(toll === undefined ? {} : { toll }),
+      });
+
+      it('collects the points of the steps flagged as tolled, and only those', () => {
+        const found = tollPointsOf(encoded, [step(0, 1), step(1, 3, true), step(3, 4, false)]);
+        expect(found).toHaveLength(3);
+        expect(found[0]?.lat).toBeCloseTo(points[1]!.lat, 5);
+        expect(found[2]?.lon).toBeCloseTo(points[3]!.lon, 5);
+      });
+
+      it('gives nothing when no step is tolled', () => {
+        expect(tollPointsOf(encoded, [step(0, 4), step(1, 2, false)])).toEqual([]);
+      });
+
+      it('thins a long tolled stretch to a few dozen points, keeping the start', () => {
+        const many = Array.from({ length: 2000 }, (_, i) => ({
+          lat: 52.6 + i * 0.0001,
+          lon: -1.9 + i * 0.0001,
+        }));
+        const longShape = many
+          .map((p, i) => {
+            const prev = many[i - 1] ?? { lat: 0, lon: 0 };
+            return (
+              enc(Math.round(p.lat * 1e6) - Math.round(prev.lat * 1e6)) +
+              enc(Math.round(p.lon * 1e6) - Math.round(prev.lon * 1e6))
+            );
+          })
+          .join('');
+        const found = tollPointsOf(longShape, [step(0, 1999, true)]);
+        expect(found.length).toBeLessThanOrEqual(60);
+        expect(found.length).toBeGreaterThan(20);
+        expect(found[0]?.lat).toBeCloseTo(52.6, 5);
+      });
+
+      it('puts the tolled points on the route result', async () => {
+        const engine = new ValhallaRoutingEngine(baseUrl);
+        const resultPromise = engine.route({ origin, destination, dimensions, avoid: [] });
+        (await nextRequest).respond(
+          {
+            trip: {
+              summary: { time: 475, length: 8, has_toll: true },
+              legs: [{ shape: encoded, maneuvers: [step(1, 3, true)] }],
+            },
+          },
+          200,
+        );
+        const result = await resultPromise;
+        expect(result.ok && result.value.tollPoints).toHaveLength(3);
+      });
+
+      it('leaves them out when no step is tolled', async () => {
+        const engine = new ValhallaRoutingEngine(baseUrl);
+        const resultPromise = engine.route({ origin, destination, dimensions, avoid: [] });
+        (await nextRequest).respond(
+          {
+            trip: {
+              summary: { time: 475, length: 8, has_toll: false },
+              legs: [{ shape: encoded, maneuvers: [step(0, 4)] }],
+            },
+          },
+          200,
+        );
+        const result = await resultPromise;
+        expect(result.ok && 'tollPoints' in result.value).toBe(false);
+      });
     });
   });
 
