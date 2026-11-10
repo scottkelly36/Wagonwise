@@ -34,7 +34,7 @@ Not every charge is equal. For Hexham-based work, in rough order of how often it
 4. **Other English clean air zones** (Bath, Birmingham, Bradford, Bristol, Portsmouth, Sheffield), occasional for this fleet.
 5. **London.** For a heavy lorry the emissions rule is the **Low Emission Zone**, Euro VI across Greater London
    ([TfL](https://tfl.gov.uk/modes/driving/low-emission-zone/your-vehicle-and-lez); to be checked against TfL's current pages, since the coverage found was
-   2019 to 2021, and whether the ULEZ also touches HGVs is not settled here). Separately, the **Direct Vision Standard** safety permit applies to lorries over
+   2019 to 2021, and the ULEZ does not apply to HGVs: settled in "Sources read" below). Separately, the **Direct Vision Standard** safety permit applies to lorries over
    12 t ([IOTA summary, 2021](https://www.iota.org.uk/blog/london-direct-vision-standard-safety-permit-enforcement-begins-1st-march-2021)); it is a permit the
    operator holds, not something a route can avoid. Greater London is too big to avoid by avoid-zones, so for London the app can only **warn**.
 
@@ -91,12 +91,62 @@ discount or an exemption), or price a toll that depends on time of day (the M6 T
    London, and a Humber crossing, with a few kept as golden routes.
 5. **The job cost** and a review reminder for the data (a dated checklist, since rates and zones change).
 
+## Sources read (2026-11-10)
+
+The owner's condition for stages 2 and 3. Read from the operators' own pages where they would load; **every figure below needs re-checking on the
+day it goes into the charges table** (each row of that table keeps its URL and "last checked" date), and the penalty amounts were not all on a page
+that loaded. What is **not** confirmed is said so.
+
+**London** ([TfL](https://tfl.gov.uk/modes/driving/low-emission-zone), [larger vehicles](https://tfl.gov.uk/modes/driving/ultra-low-emission-zone/larger-vehicles),
+[your vehicle](https://tfl.gov.uk/modes/driving/low-emission-zone/your-vehicle-and-lez)).
+
+- **Settled: the ULEZ does not apply to HGVs.** TfL says lorries, vans and specialist heavy vehicles over 3.5 t do not pay the ULEZ charge; they pay the
+  **London-wide Low Emission Zone** charge if they do not meet its standard. The LEZ covers most of Greater London, 24 hours a day, every day.
+- **LEZ standard for lorries over 3.5 t: Euro VI (NOx and PM).** Daily charge for one that fails: **£100** if it meets Euro IV (PM), **£300** if it does not
+  (from TfL's payment page as returned by a search, not fetched in full: re-check). Pay before midnight of the third charging day after the journey.
+- **Penalty charge amounts: not confirmed** (an old TfL document gave £500 to £1,000 with a 50 per cent discount; treat it as out of date).
+- **Direct Vision Standard:** an HGV over 12 t needs the free **HGV Safety Permit**; a vehicle without one can get a penalty charge notice. A permit is
+  something the operator holds, so a route cannot avoid it. The app can only remind.
+
+**Scotland** ([mygov.scot](https://www.mygov.scot/low-emission-zones), [fines](https://www.mygov.scot/low-emission-zones/fines),
+[Transport Scotland](https://www.transport.gov.scot/news/low-emission-zones-introduced-across-scotland/), [Glasgow](https://www.glasgow.gov.uk/article/5719/Pay-Appeal-a-LEZ-Penalty-Charge)).
+
+- **Four zones, city centres only:** Glasgow, Edinburgh, Dundee, Aberdeen. 24 hours, every day, including holidays, by number plate cameras. You cannot pay in
+  advance to avoid a fine; a non-compliant vehicle that enters gets a **penalty charge notice**.
+- **Enforcement dates** (Transport Scotland, published 2022, so check they were kept): Glasgow **1 June 2023**, Dundee **30 May 2024**, Edinburgh **1 June 2024**,
+  Aberdeen **1 June 2024**.
+- **Standard for HGVs: Euro VI for diesel, Euro IV for petrol** (national rule, the 2021 regulations; a retrofitted vehicle that meets it may enter). The pages
+  fetched did not state it, so it comes from search results quoting the regulations: **read the regulations themselves before building it in.**
+- **Penalty (Glasgow's page):** £60 for the first, doubling for each further breach by the same vehicle in the same zone to a cap of **£960 for HGVs**
+  (£480 for cars and light goods vehicles), and back to £60 after 90 days with none. £30 if paid within 14 days. Whether the other three cities use
+  the same figures was not checked.
+- Aberdeen's own page did not load (certificate error), and each council's exemptions page was not read.
+
+**England's clean air zones** ([GOV.UK, last updated 12 Feb 2026](https://www.gov.uk/guidance/driving-in-a-clean-air-zone)).
+
+- **Seven**, and all charge HGVs: Bath (C), Birmingham (D), Bradford (C), Bristol (D), Portsmouth (B), Sheffield (C), **Tyneside (C)**. HGV standard in the zones
+  that charge: **Euro VI**. GOV.UK does not list the daily charges: they are on its online service and on each council's page.
+- **Tyneside, Newcastle and Gateshead** ([BREATHE Clean Air](https://www.breathe-cleanair.com/)): Class C; city centre and the Tyne, Swing, High Level and
+  Redheugh bridges; pay within **six days** of the journey. **£50 a day for an HGV** is from 2023 council pages, so it is **not confirmed as current**; the
+  zone's own page gave no amount. Launched 30 January 2023.
+- **Dundee, Edinburgh, Newcastle: the owner's runs.** Edinburgh and Dundee are Scottish LEZ zones (above); Newcastle is the Tyneside zone.
+
+**What this changes in the design**
+
+- The **Euro class** on the vehicle matters for every zone above, and is the same field the FORS requirements ask about (`docs/fors-scope.md`, O1 and O2).
+  For a diesel lorry Euro VI is the standard in London, Scotland and the English zones, so **"Euro VI, yes or no" is enough** for the first version: a vehicle that says yes is
+  not charged in any of them, one that says no (or does not know) gets the "may be charged" wording.
+- Scotland and Tyneside first, as already planned: both are on the Hexham patch. **Zone boundaries come from the councils' own maps or data, not drawn by hand;
+  the map data and its licence were not looked at yet.**
+- London is "warn, never avoid" as planned (Greater London is too large to skirt).
+
 ## Decided (owner, 2026-11-09)
 
 - **No switch: the cheaper route is offered as a card**, never behind a setting.
 - **Look into the ULEZ and clean-air sources before any work starts.** Nothing in stages 2 and 3 begins until the zone rules, boundaries and
   rates for the zones that matter have been read from the operators' own pages (TfL, lowemissionzones.scot and the four Scottish councils, the Tyneside
-  zone, GOV.UK) and written down here with the date. That includes settling whether the ULEZ itself touches HGVs.
+  zone, GOV.UK) and written down here with the date. That includes settling whether the ULEZ itself touches HGVs. **Done 2026-11-10** (see "Sources read"):
+  the ULEZ does not apply to HGVs, the London LEZ does. Some figures still need confirming from a page that loads, noted there.
 
 ## Open decisions (owner)
 
