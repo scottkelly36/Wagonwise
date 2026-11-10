@@ -852,7 +852,7 @@ until the photo has reached the server. **This added a native dependency and the
 `eas update` alone won't carry it.**
 
 **Delivery signature**: set like the photo. A dispatcher ticks "Require receiver's signature" on a
-job (`requiresSignature`, migration 0088); at the delivery stop `/job` shows a "Receiver's signature"
+job (`requiresSignature`, migration 0089); at the delivery stop `/job` shows a "Receiver's signature"
 card whose "Get signature" opens `components/signature-pad.tsx`, where the receiver signs with a
 finger and may type a name. The app has no drawing library (and none could be added over the air), so
 the signature is kept as **strokes**: lists of `[x, y]` points in a 1000 x 500 box (`signatureStrokesSchema`

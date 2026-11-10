@@ -117,7 +117,7 @@ describe('runMigrations', () => {
       '0085_audit_history.sql',
       '0086_route_plan_weight_limit.sql',
       '0087_vehicle_top_speed.sql',
-      '0088_delivery_signatures.sql',
+      '0089_delivery_signatures.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -313,7 +313,7 @@ describe('runMigrations', () => {
       '0085_audit_history.sql',
       '0086_route_plan_weight_limit.sql',
       '0087_vehicle_top_speed.sql',
-      '0088_delivery_signatures.sql',
+      '0089_delivery_signatures.sql',
     ]);
   });
 });
