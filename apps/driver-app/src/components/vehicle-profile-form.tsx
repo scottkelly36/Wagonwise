@@ -322,7 +322,7 @@ export function VehicleProfileForm({
       />
       <Text style={styles.hint}>
         For the low emission and clean air zone warnings. Most lorries registered in the last ten
-        years or so are Euro VI. If you are not sure, leave it on Don't know.
+        years or so are Euro VI. If you are not sure, leave it on Don’t know.
       </Text>
 
       {displayedError !== undefined && <Text style={styles.error}>{displayedError}</Text>}
