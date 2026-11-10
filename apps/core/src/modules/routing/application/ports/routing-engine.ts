@@ -27,6 +27,9 @@ export interface RouteResult {
   /** The route uses a toll road, bridge or tunnel, as the engine knows it from the map data. Absent when the engine does not say. It says that there is a
    *  toll, not which one or what it costs. */
   readonly hasToll?: boolean | undefined;
+  /** Points on the stretches the engine says are tolled (at most a few dozen, spread evenly), for naming which crossing. Absent when none are tolled or the
+   *  engine does not say. */
+  readonly tollPoints?: readonly GeoPoint[] | undefined;
 }
 
 /** The vehicle genuinely cannot get there — every path is blocked by its own dimensions, the

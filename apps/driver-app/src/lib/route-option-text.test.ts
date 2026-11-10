@@ -6,6 +6,7 @@ import {
   routeOptionTitle,
   strategyForOption,
   tollLine,
+  tollLines,
 } from './route-option-text';
 
 const base = { geometry: 'g', distanceKm: 100, durationMin: 90 };
@@ -53,6 +54,73 @@ describe('tollLine', () => {
     expect(routeOptionTitle({ ...base, labels: ['shortest', 'toll-free'] })).toBe(
       'Shortest & Toll free',
     );
+  });
+});
+
+describe('tollLines', () => {
+  const dartford = { name: 'Dartford Crossing', lowGBP: 8.4, highGBP: 8.4 };
+
+  it('names each toll with the price worked out for the vehicle', () => {
+    const option: RouteOptionDto = {
+      ...base,
+      labels: ['fastest'],
+      hasToll: true,
+      charges: [
+        { ...dartford, note: 'Charged from 6am to 10pm.', payBy: 'Pay by midnight the day after.' },
+      ],
+    };
+    expect(tollLines(option)).toEqual([
+      {
+        text: 'Toll: Dartford Crossing, £8.40',
+        detail: 'Charged from 6am to 10pm. Pay by midnight the day after.',
+      },
+    ]);
+  });
+
+  it('shows a range when the axles could put the vehicle in two classes', () => {
+    const option: RouteOptionDto = {
+      ...base,
+      labels: ['fastest'],
+      hasToll: true,
+      charges: [{ name: 'Dartford Crossing', lowGBP: 4.2, highGBP: 8.4 }],
+    };
+    expect(tollLines(option)[0]?.text).toBe('Toll: Dartford Crossing, £4.20 to £8.40');
+  });
+
+  it('says the price is not known rather than leaving it out, when the table has none for the vehicle', () => {
+    const option: RouteOptionDto = {
+      ...base,
+      labels: ['fastest'],
+      hasToll: true,
+      charges: [{ name: 'Humber Bridge' }],
+    };
+    expect(tollLines(option)).toEqual([
+      { text: 'Toll: Humber Bridge, price not known for your vehicle' },
+    ]);
+  });
+
+  it('gives one line per toll, in order', () => {
+    const option: RouteOptionDto = {
+      ...base,
+      labels: ['fastest'],
+      hasToll: true,
+      charges: [dartford, { name: 'M6 Toll', lowGBP: 20.9, highGBP: 20.9 }],
+    };
+    expect(tollLines(option).map((l) => l.text)).toEqual([
+      'Toll: Dartford Crossing, £8.40',
+      'Toll: M6 Toll, £20.90',
+    ]);
+  });
+
+  it('falls back to "Includes a toll" for a toll that could not be named, and says nothing for none', () => {
+    expect(tollLines({ ...base, labels: ['fastest'], hasToll: true })).toEqual([
+      { text: 'Includes a toll' },
+    ]);
+    expect(tollLines({ ...base, labels: ['fastest'], hasToll: true, charges: [] })).toEqual([
+      { text: 'Includes a toll' },
+    ]);
+    expect(tollLines({ ...base, labels: ['fastest'], hasToll: false })).toEqual([]);
+    expect(tollLines({ ...base, labels: ['fastest'] })).toEqual([]);
   });
 });
 

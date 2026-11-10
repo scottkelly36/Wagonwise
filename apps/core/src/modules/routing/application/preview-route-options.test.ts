@@ -143,6 +143,72 @@ describe('previewRouteOptions', () => {
       expect(engine.requests[0]).toMatchObject({ avoidTolls: true });
     });
 
+    describe('what a toll costs', () => {
+      const dartford = [{ lat: 51.4567, lon: 0.2474 }];
+      const tolled = (geometry: string, tollPoints: readonly { lat: number; lon: number }[]) => ({
+        ...withToll(geometry, true, 120, 90),
+        tollPoints,
+      });
+
+      it('names the toll on a route and prices it for the vehicle’s weight when the app asks', async () => {
+        const deps = await buildDeps();
+        const engine = deps.routingEngine as FakeRoutingEngine;
+        engine.alternativesResult = { ok: true, value: [tolled('fast-geometry', dartford)] };
+        engine.result = { ok: true, value: withToll('free-geometry', false, 140, 100) };
+
+        const result = await previewRouteOptions(deps, {
+          driverId,
+          profileId,
+          origin,
+          destination,
+          tolls: true,
+        });
+
+        // The profile is a 32 tonne vehicle, so more than two axles.
+        expect(result.ok && result.value[0]?.charges).toMatchObject([
+          { id: 'dartford', name: 'Dartford Crossing', lowGBP: 8.4, highGBP: 8.4 },
+        ]);
+        // The toll-free route has no toll to name.
+        expect(result.ok && result.value[1]?.charges).toBeUndefined();
+      });
+
+      it('leaves charges off when the app did not ask', async () => {
+        const deps = await buildDeps();
+        const engine = deps.routingEngine as FakeRoutingEngine;
+        engine.alternativesResult = { ok: true, value: [tolled('fast-geometry', dartford)] };
+
+        const result = await previewRouteOptions(deps, {
+          driverId,
+          profileId,
+          origin,
+          destination,
+        });
+
+        expect(result.ok && result.value[0]).not.toHaveProperty('charges');
+      });
+
+      it('says nothing more than "has a toll" for a toll the table does not know', async () => {
+        const deps = await buildDeps();
+        const engine = deps.routingEngine as FakeRoutingEngine;
+        engine.alternativesResult = {
+          ok: true,
+          value: [tolled('fast-geometry', [{ lat: 50.4, lon: -4.2 }])],
+        };
+        engine.result = { ok: true, value: withToll('free-geometry', false, 140, 100) };
+
+        const result = await previewRouteOptions(deps, {
+          driverId,
+          profileId,
+          origin,
+          destination,
+          tolls: true,
+        });
+
+        expect(result.ok && result.value[0]?.hasToll).toBe(true);
+        expect(result.ok && result.value[0]).not.toHaveProperty('charges');
+      });
+    });
+
     it('marks the engine’s own route when it is already the toll-free one, rather than adding a card', async () => {
       const deps = await buildDeps();
       const engine = deps.routingEngine as FakeRoutingEngine;

@@ -29,7 +29,10 @@ interface ValhallaManeuver {
   readonly street_names?: readonly string[];
   readonly length: number;
   readonly begin_shape_index: number;
+  readonly end_shape_index?: number;
   readonly roundabout_exit_count?: number;
+  /** The step is on a toll road, bridge or tunnel, as the map data has it. */
+  readonly toll?: boolean;
 }
 
 interface ValhallaTrip {
@@ -167,17 +170,40 @@ export function toManeuver(m: ValhallaManeuver): Maneuver {
   };
 }
 
+/** A route's tolled stretches are kept as about this many points in all: enough to say which crossing, few enough to carry about. */
+const MAX_TOLL_POINTS = 60;
+
+/**
+ * Points on the stretches of a route the engine says are tolled: the points of each tolled step's part of the route, thinned evenly to at most
+ * `MAX_TOLL_POINTS`. Empty when no step is tolled. Used to name the crossing, so exact spacing does not matter.
+ */
+export function tollPointsOf(
+  shape: string,
+  maneuvers: readonly ValhallaManeuver[],
+): readonly GeoPoint[] {
+  const tolled = maneuvers.filter((m) => m.toll === true);
+  if (tolled.length === 0) return [];
+  const line = decodePolyline(shape);
+  const points = tolled.flatMap((m) =>
+    line.slice(m.begin_shape_index, (m.end_shape_index ?? m.begin_shape_index) + 1),
+  );
+  const step = Math.max(1, Math.ceil(points.length / MAX_TOLL_POINTS));
+  return points.filter((_, index) => index % step === 0);
+}
+
 function toRouteResult(trip: ValhallaTrip): RouteResult {
   const leg = trip.legs[0];
   if (!leg) {
     throw new Error('Valhalla response had no legs');
   }
+  const tollPoints = tollPointsOf(leg.shape, leg.maneuvers ?? []);
   return {
     geometry: leg.shape,
     distanceKm: trip.summary.length,
     durationMin: trip.summary.time / 60,
     maneuvers: (leg.maneuvers ?? []).map(toManeuver),
     ...(typeof trip.summary.has_toll === 'boolean' ? { hasToll: trip.summary.has_toll } : {}),
+    ...(tollPoints.length === 0 ? {} : { tollPoints }),
   };
 }
 

@@ -35,6 +35,39 @@ export function tollLine(option: RouteOptionDto): string | undefined {
   return option.hasToll === true ? 'Includes a toll' : undefined;
 }
 
+const pounds = (amount: number): string => `£${amount.toFixed(2)}`;
+
+export interface TollLine {
+  /** "Toll: Dartford Crossing, £8.40". */
+  readonly text: string;
+  /** What the price is and when to pay, when the server said. */
+  readonly detail?: string;
+}
+
+/**
+ * The tolls on a card, one line each, with the price the server worked out for this vehicle: a single figure when its weight settles the class, "£4.20 to
+ * £8.40" when its axles could put it in either, and "price not known for your vehicle" when the table has no price for it. A route with a toll the server
+ * could not name gets the plain "Includes a toll". Empty when there is no toll, or the server did not say.
+ */
+export function tollLines(option: RouteOptionDto): readonly TollLine[] {
+  const charges = option.charges ?? [];
+  if (charges.length === 0) {
+    const plain = tollLine(option);
+    return plain === undefined ? [] : [{ text: plain }];
+  }
+  return charges.map((charge) => {
+    const { lowGBP, highGBP } = charge;
+    const price =
+      lowGBP === undefined || highGBP === undefined
+        ? 'price not known for your vehicle'
+        : lowGBP === highGBP
+          ? pounds(lowGBP)
+          : `${pounds(lowGBP)} to ${pounds(highGBP)}`;
+    const detail = [charge.note, charge.payBy].filter((s) => s !== undefined).join(' ');
+    return { text: `Toll: ${charge.name}, ${price}`, ...(detail === '' ? {} : { detail }) };
+  });
+}
+
 /** What the hill check found, in a line a driver can weigh against the time, or undefined when hills were not checked. */
 export function hillsLine(option: RouteOptionDto, distanceUnit: DistanceUnit): string | undefined {
   const hills = option.hills;

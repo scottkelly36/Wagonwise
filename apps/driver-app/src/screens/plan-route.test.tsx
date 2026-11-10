@@ -193,6 +193,44 @@ describe('the Load switch on Plan route', () => {
     expect(screen.queryByTestId('route-option-1-toll')).toBeNull();
   });
 
+  it('names the toll and its price on the card, with when to pay, and keeps "Includes a toll" for one it could not name', async () => {
+    await open();
+    await chooseDestination();
+    await fireEvent.press(await screen.findByTestId('plan-route-button'));
+    const [, handlers] = mockPreview.mock.calls[0] as [
+      unknown,
+      { onSuccess: (o: unknown) => void },
+    ];
+    handlers.onSuccess([
+      {
+        geometry: 'a',
+        distanceKm: 120,
+        durationMin: 90,
+        labels: ['fastest', 'shortest'],
+        hasToll: true,
+        charges: [
+          {
+            name: 'Dartford Crossing',
+            lowGBP: 8.4,
+            highGBP: 8.4,
+            note: 'Charged from 6am to 10pm.',
+            payBy: 'Pay by midnight the day after you cross.',
+          },
+        ],
+      },
+      { geometry: 'b', distanceKm: 150, durationMin: 105, labels: ['gentle'], hasToll: true },
+    ]);
+
+    expect(await screen.findByTestId('route-option-1')).toBeTruthy();
+    expect(screen.getByTestId('route-option-0-toll').props.children).toBe(
+      'Toll: Dartford Crossing, £8.40',
+    );
+    expect(screen.getByTestId('route-option-0-toll-detail').props.children).toBe(
+      'Charged from 6am to 10pm. Pay by midnight the day after you cross.',
+    );
+    expect(screen.getByTestId('route-option-1-toll').props.children).toBe('Includes a toll');
+  });
+
   it('says so when the server could not check the hills', async () => {
     useLoadStore.setState({ loaded: true });
     await open();
