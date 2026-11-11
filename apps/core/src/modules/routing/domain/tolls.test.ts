@@ -62,7 +62,7 @@ describe('priceFor', () => {
   it('prices the M6 Toll by axles, and the Tyne Tunnel at its one figure', () => {
     expect(priceFor(crossing('m6-toll'), weight(44))).toEqual({ lowGBP: 20.9, highGBP: 20.9 });
     expect(priceFor(crossing('m6-toll'), weight(7.5))).toEqual({ lowGBP: 20.2, highGBP: 20.2 });
-    expect(priceFor(crossing('tyne-tunnel'), weight(44))).toEqual({ lowGBP: 4.8, highGBP: 4.8 });
+    expect(priceFor(crossing('tyne-tunnel'), weight(44))).toEqual({ lowGBP: 5.2, highGBP: 5.2 });
   });
 });
 

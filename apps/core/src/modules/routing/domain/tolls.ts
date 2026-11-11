@@ -94,27 +94,29 @@ export const TOLL_CROSSINGS: readonly TollCrossing[] = [
     name: 'Humber Bridge',
     near: [{ lat: 53.7068, lon: -0.4501 }],
     radiusM: 3000,
-    // Only two bands were read: two axles from 3.5 to 7 tonnes, and three or more axles over 7.5 tonnes. A lorry between (a 7.5 tonne
-    // two-axle one, say) is in a band that was not read, so it gets no price rather than a wrong one.
+    // Only two bands are held: two axles from 3.5 to 7 tonnes, and three or more axles over 7.5 tonnes. A lorry between (a 7.5 tonne
+    // two-axle one, say) is in a band that was not read, so it gets no price rather than a wrong one. The owner re-read the three-or-more band
+    // on the operator's page on 2026-11-11 (£15.00, £12.00 with an account); the two-axle band is still from a search summary: check it.
     tariffs: [
       { overT: 3.5, upToT: 7, axles: 'two', amountGBP: 5 },
       { overT: 7.5, axles: 'three-or-more', amountGBP: 15 },
     ],
     payBy: 'Pay by midnight the day after you cross.',
-    // Read from the operator's toll page as returned by a search (the page itself would not load): check it first.
     sourceUrl: 'https://www.humberbridge.co.uk/humberbridge/toll-charges-restrictions/',
-    checkedOn: '2026-11-10',
+    checkedOn: '2026-11-11',
   },
   {
     id: 'tyne-tunnel',
     name: 'Tyne Tunnel',
     near: [{ lat: 54.993, lon: -1.485 }],
     radiusM: 2500,
-    // Class 3: the most the order allows for a vehicle over 3.5 tonnes (River Tyne (Tunnels) (Revision of Toll) Order 2024, from 1 May 2024).
-    tariffs: [{ overT: 3.5, amountGBP: 4.8 }],
-    note: 'The most it can be, set by the tolls order of May 2024.',
+    // The owner read the operator's page on 2026-11-11: "LGV, van or bus (over 3.5 tonnes): £5.20 per single passage (£4.68 with a pre-paid account)".
+    // That replaces £4.80, which was only the 2024 order's maximum. The band as worded does not say "lorry", so whether an HGV is in the same band
+    // is still to be confirmed, and the address of the page was not recorded (the order below is where the 2024 figure came from).
+    tariffs: [{ overT: 3.5, amountGBP: 5.2 }],
+    note: 'One passage. Less with a pre-paid account.',
     sourceUrl: 'https://www.legislation.gov.uk/uksi/2024/479/made',
-    checkedOn: '2026-11-10',
+    checkedOn: '2026-11-11',
   },
 ];
 
