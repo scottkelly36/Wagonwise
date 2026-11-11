@@ -94,9 +94,10 @@ export const TOLL_CROSSINGS: readonly TollCrossing[] = [
     name: 'Humber Bridge',
     near: [{ lat: 53.7068, lon: -0.4501 }],
     radiusM: 3000,
-    // Only two bands are held: two axles from 3.5 to 7 tonnes, and three or more axles over 7.5 tonnes. A lorry between (a 7.5 tonne
-    // two-axle one, say) is in a band that was not read, so it gets no price rather than a wrong one. The owner re-read the three-or-more band
-    // on the operator's page on 2026-11-11 (£15.00, £12.00 with an account); the two-axle band is still from a search summary: check it.
+    // The owner's copy of the operator's table (2026-11-11), both bands confirmed: "2 axle vehicles between 3.5 - 7 tonnes, 9-16 passenger mini bus, bus/coaches,
+    // agricultural vehicles" £5.00 (£4.00 with an account), and "3 axles or more, over 7.5 tonnes" £15.00 (£12.00 with an account). The table has no band for a
+    // two-axle vehicle over 7 tonnes (a 7.5 tonne rigid is the common case), nor for three axles at 7.5 tonnes or less, so those get no price here rather than a
+    // guess. Whether the operator charges such a lorry the lower or the higher figure is not stated: ask the operator.
     tariffs: [
       { overT: 3.5, upToT: 7, axles: 'two', amountGBP: 5 },
       { overT: 7.5, axles: 'three-or-more', amountGBP: 15 },
