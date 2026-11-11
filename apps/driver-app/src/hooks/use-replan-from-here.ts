@@ -5,6 +5,7 @@ import type { MapPoint } from '../components/route-map';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { loadedStrategy } from '../lib/loaded-strategy';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
+import { useTripTollsStore } from '../state/trip-tolls-store';
 import { useAccessToken } from './use-access-token';
 
 export interface ReplanInput {
@@ -31,15 +32,20 @@ export function useReplanFromHere() {
       const plan = useCurrentRoutePlanStore.getState().plan;
       if (plan === undefined) return;
       const trips = useCurrentActiveTripStore.getState();
+      const tolls = useTripTollsStore.getState();
+      const avoidingTolls = tolls.isAvoiding(plan.id);
       const newPlan = await routingApi.planRoute(accessToken, {
         profileId: plan.profileId,
         origin: here,
         destination: plan.destination,
         ...(headingDeg === undefined ? {} : { originHeadingDeg: headingDeg }),
         ...loadedStrategy(),
+        // A route chosen for having no toll stays that way when it is planned again from here.
+        ...(avoidingTolls ? { avoidTolls: true } : {}),
       });
       if (trips.trip !== undefined) await routingApi.endTrip(accessToken, trips.trip.id);
       const newTrip = await routingApi.startTrip(accessToken, newPlan.id);
+      if (avoidingTolls) tolls.markAvoiding(newPlan.id);
       useCurrentRoutePlanStore.getState().setPlan(newPlan);
       trips.setTrip(newTrip);
     },

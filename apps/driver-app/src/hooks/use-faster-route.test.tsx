@@ -9,6 +9,7 @@ import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useFasterRouteStore } from '../state/faster-route-store';
 import { useLoadStore } from '../state/load-store';
+import { useTripTollsStore } from '../state/trip-tolls-store';
 import { useFasterRoute, type FasterRouteOffer } from './use-faster-route';
 
 jest.mock('../api/routing');
@@ -51,6 +52,7 @@ beforeEach(() => {
   useLoadStore.setState({ loaded: false });
   useCurrentActiveTripStore.setState({ trip: undefined });
   useCurrentRoutePlanStore.setState({ plan: undefined });
+  useTripTollsStore.setState({ avoiding: {} });
 });
 
 afterEach(() => {
@@ -186,4 +188,38 @@ it('leaves the driver on their route when the new one cannot be started', async 
   expect(api.endTrip).not.toHaveBeenCalled();
   expect(useCurrentActiveTripStore.getState().trip).toBe(current);
   expect(result.current.switchFailed).toBe(true);
+});
+
+it('asks for a route with no toll when the current one was chosen for having none, and carries that to the one switched to', async () => {
+  const current = { id: 'plan-1' } as Awaited<ReturnType<typeof routingApi.getRoutePlan>>;
+  const newPlan = { id: offer.routePlanId } as Awaited<ReturnType<typeof routingApi.getRoutePlan>>;
+  useCurrentRoutePlanStore.setState({ plan: current });
+  useTripTollsStore.getState().markAvoiding('plan-1');
+  api.checkFasterRoute.mockResolvedValue(offer);
+  api.getRoutePlan.mockResolvedValue(newPlan);
+  api.endTrip.mockResolvedValue({} as Awaited<ReturnType<typeof routingApi.endTrip>>);
+  api.startTrip.mockResolvedValue({ id: 'trip-2' } as Awaited<
+    ReturnType<typeof routingApi.startTrip>
+  >);
+  useCurrentActiveTripStore.setState({
+    trip: { id: 'trip-1' } as Awaited<ReturnType<typeof routingApi.startTrip>>,
+  });
+
+  const { result } = await renderHook(() => useFasterRoute('trip-1', here, undefined), { wrapper });
+  await advance(FIRST_CHECK_DELAY_MS);
+  expect(api.checkFasterRoute.mock.calls[0]?.[2]).toMatchObject({ avoidTolls: true });
+  await act(async () => {
+    result.current.switchNow();
+  });
+  expect(useTripTollsStore.getState().isAvoiding(offer.routePlanId)).toBe(true);
+});
+
+it('does not mention tolls in the check when the route was not chosen for having none', async () => {
+  useCurrentRoutePlanStore.setState({
+    plan: { id: 'plan-1' } as Awaited<ReturnType<typeof routingApi.getRoutePlan>>,
+  });
+  api.checkFasterRoute.mockResolvedValue(null);
+  await renderHook(() => useFasterRoute('trip-1', here, undefined), { wrapper });
+  await advance(FIRST_CHECK_DELAY_MS);
+  expect(api.checkFasterRoute.mock.calls[0]?.[2]).not.toHaveProperty('avoidTolls');
 });

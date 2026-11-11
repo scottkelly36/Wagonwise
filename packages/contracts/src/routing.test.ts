@@ -513,6 +513,25 @@ describe('faster-route check', () => {
     expect(fasterRouteCheckRequestSchema.safeParse({ position: 'here' }).success).toBe(false);
   });
 
+  it('can say the driver chose a route for having no toll, and that an offer has one', () => {
+    const request = fasterRouteCheckRequestSchema.safeParse({
+      position: { lat: 55, lon: -2 },
+      avoidTolls: true,
+    });
+    expect(request.success && request.data.avoidTolls).toBe(true);
+    const response = fasterRouteCheckResponseSchema.safeParse({
+      offer: {
+        routePlanId: '22222222-2222-4222-8222-222222222222',
+        key: 'abc12345',
+        savingMinutes: 8,
+        currentMinutes: 60,
+        alternativeMinutes: 52,
+        hasToll: true,
+      },
+    });
+    expect(response.success && response.data.offer?.hasToll).toBe(true);
+  });
+
   it('answers with an offer or null', () => {
     expect(fasterRouteCheckResponseSchema.safeParse({ offer: null }).success).toBe(true);
     expect(

@@ -6,6 +6,7 @@ import * as routingApi from '../api/routing';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useLoadStore } from '../state/load-store';
+import { useTripTollsStore } from '../state/trip-tolls-store';
 import { useReplanFromHere } from './use-replan-from-here';
 
 jest.mock('../api/routing');
@@ -33,6 +34,7 @@ beforeEach(() => {
   useCurrentRoutePlanStore.setState({ plan });
   useCurrentActiveTripStore.setState({ trip: undefined });
   useLoadStore.setState({ loaded: false });
+  useTripTollsStore.setState({ avoiding: {} });
 });
 
 async function replan() {
@@ -53,4 +55,17 @@ it('asks for the gentle route when the vehicle is loaded, so a re-plan does not 
   useLoadStore.setState({ loaded: true });
   await replan();
   expect(api.planRoute.mock.calls[0]?.[1]).toMatchObject({ strategy: 'gentle' });
+});
+
+it('keeps avoiding tolls when the route was chosen for having none, and passes the choice to the new route', async () => {
+  useTripTollsStore.getState().markAvoiding('plan-1');
+  await replan();
+  expect(api.planRoute.mock.calls[0]?.[1]).toMatchObject({ avoidTolls: true });
+  expect(useTripTollsStore.getState().isAvoiding('plan-2')).toBe(true);
+});
+
+it('does not mention tolls when the route was not chosen for having none', async () => {
+  await replan();
+  expect(api.planRoute.mock.calls[0]?.[1]).not.toHaveProperty('avoidTolls');
+  expect(useTripTollsStore.getState().isAvoiding('plan-2')).toBe(false);
 });

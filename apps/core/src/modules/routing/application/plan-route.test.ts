@@ -473,6 +473,24 @@ describe('planRoute', () => {
       expect(engine.requests.every((r) => r.avoidTolls === true)).toBe(true);
     });
 
+    it('keeps avoiding tolls on any strategy when the request says to, as on a re-plan from the middle of a drive', async () => {
+      for (const strategy of [undefined, 'fastest', 'shortest', 'gentle'] as const) {
+        const deps = await buildDeps();
+        const engine = deps.routingEngine as FakeRoutingEngine;
+        await planRoute(deps, {
+          driverId,
+          profileId,
+          origin,
+          destination,
+          avoidTolls: true,
+          ...(strategy === undefined ? {} : { strategy }),
+        });
+        const all = [...engine.requests, ...engine.alternativesRequests];
+        expect(all.length).toBeGreaterThan(0);
+        expect(all.every((r) => r.avoidTolls === true)).toBe(true);
+      }
+    });
+
     it('does not ask to avoid tolls for any other strategy', async () => {
       const deps = await buildDeps();
       const engine = deps.routingEngine as FakeRoutingEngine;

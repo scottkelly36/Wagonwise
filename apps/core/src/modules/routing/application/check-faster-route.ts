@@ -73,6 +73,8 @@ export interface CheckFasterRouteInput {
   readonly keptKeys: readonly string[];
   /** The vehicle is loaded: a route that adds steep hills to what is left of the current one is not offered as the faster one. */
   readonly loaded?: boolean | undefined;
+  /** The driver chose this route for having no toll: the alternatives are asked to avoid tolls, and one that still has a toll is not offered as the faster one. */
+  readonly avoidTolls?: boolean | undefined;
 }
 
 /** A faster route may have this much more steep road than what is left of the current one before a loaded vehicle is not offered it. */
@@ -86,6 +88,8 @@ export interface FasterRouteOffer {
   /** Time left on each route, with traffic. */
   readonly currentMinutes: number;
   readonly alternativeMinutes: number;
+  /** The offered route has a toll, as the map data says: the app says so on the offer, so a quicker route never adds one unannounced. Absent when it has none. */
+  readonly hasToll?: true | undefined;
 }
 
 interface Timed {
@@ -165,6 +169,7 @@ export async function checkFasterRoute(
     originHeadingDeg: input.headingDeg,
     destination: plan.destination,
     dimensions: profile.dimensions,
+    ...(input.avoidTolls === true ? { avoidTolls: true } : {}),
   };
   const alternatives = await deps.routingEngine.routeAlternatives({
     ...request,
@@ -202,6 +207,8 @@ export async function checkFasterRoute(
   for (const route of candidates) {
     const key = routeKey(route.geometry);
     if (kept.has(key)) continue;
+    // A driver who chose this route to avoid tolls is not offered a quicker one that has a toll.
+    if (input.avoidTolls === true && route.hasToll === true) continue;
     // Engine alternatives can ignore avoid areas: refuse any that still pass a blocking obstruction.
     if ((await blockingNear(deps, route.geometry, profile.dimensions)).length > 0) continue;
     // Nor one that goes through a road that is shut when the driver would get there: a quicker way is no use through a closure.
@@ -269,6 +276,7 @@ export async function checkFasterRoute(
     savingMinutes: Math.round(best.currentMinutes - best.minutes),
     currentMinutes: Math.round(best.currentMinutes),
     alternativeMinutes: Math.round(best.minutes),
+    ...(best.route.hasToll === true ? { hasToll: true as const } : {}),
   });
 }
 

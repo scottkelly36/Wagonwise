@@ -187,6 +187,7 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       strategy: parsed.data.strategy,
       originHeadingDeg: parsed.data.originHeadingDeg,
       acceptWeightLimit: parsed.data.acceptWeightLimit,
+      avoidTolls: parsed.data.avoidTolls,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
@@ -366,6 +367,7 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       headingDeg: body.data.headingDeg,
       keptKeys: body.data.keptKeys,
       loaded: body.data.loaded,
+      avoidTolls: body.data.avoidTolls,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });

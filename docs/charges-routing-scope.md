@@ -97,6 +97,8 @@ discount or an exemption), or price a toll that depends on time of day (the M6 T
    data is covered under "Sources read"). "Don't know" is kept as absent and will never be read as compliant.
 4. **Cheapest.** Cost scoring and the label, the faster-route check, re-plans. Test on real routes: Hexham to Dundee and Edinburgh, Newcastle to
    London, and a Humber crossing, with a few kept as golden routes.
+   **Toll choice carried on, built 2026-11-11:** a route chosen as Toll free keeps avoiding tolls when it is planned again from the middle of a drive and when the faster-route check looks for a
+   quicker one (which is never one with a toll; an offer that does have a toll says so). Job stops have no toll choice and are out of scope; a server-raised reroute alert cannot know the app's choice.
 5. **The job cost** and a review reminder for the data (a dated checklist, since rates and zones change).
 
 ## Sources read (2026-11-10)
