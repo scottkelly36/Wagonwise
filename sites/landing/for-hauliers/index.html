@@ -441,6 +441,61 @@
         color: var(--muted);
         font-size: 0.95rem;
       }
+      /* Compared with a tracker box */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      .compare {
+        width: 100%;
+        max-width: 900px;
+        margin: 36px auto 0;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        overflow: hidden;
+      }
+      .compare th,
+      .compare td {
+        padding: 14px 18px;
+        text-align: left;
+        vertical-align: top;
+        border-top: 1px solid var(--line);
+        font-size: 0.97rem;
+      }
+      .compare thead th {
+        border-top: 0;
+        background: var(--navy);
+        color: var(--on-navy);
+        font-size: 0.9rem;
+        letter-spacing: 0.02em;
+      }
+      .compare thead th:last-child {
+        background: var(--blue-dark);
+      }
+      .compare tbody th {
+        width: 26%;
+        font-weight: 700;
+      }
+      .compare td {
+        color: var(--muted);
+      }
+      .compare td:last-child {
+        color: var(--text);
+        background: var(--blue-soft);
+      }
+      .compare-note {
+        max-width: 900px;
+        margin: 16px auto 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
       /* Questions */
       .faq {
         max-width: 760px;
@@ -743,6 +798,33 @@
           border-radius: 24px;
         }
       }
+      @media (max-width: 640px) {
+        .compare,
+        .compare tbody,
+        .compare tr,
+        .compare th,
+        .compare td {
+          display: block;
+          width: 100%;
+        }
+        .compare thead {
+          display: none;
+        }
+        .compare tbody th {
+          width: 100%;
+          background: var(--bg);
+        }
+        .compare td::before {
+          content: attr(data-label);
+          display: block;
+          margin-bottom: 2px;
+          font-size: 0.78rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: var(--muted);
+        }
+      }
       @media (prefers-reduced-motion: reduce) {
         html {
           scroll-behavior: auto;
@@ -991,6 +1073,78 @@
             >
           </div>
         </div>
+
+        <div class="section-head">
+          <span class="tag">Compared with a tracker box</span>
+          <h2>Do you need a box in the cab?</h2>
+          <p>
+            Tracker boxes are good at some things. Here is an honest look at what each one does.
+          </p>
+        </div>
+        <table class="compare">
+          <caption class="sr-only">
+            A tracker box compared with WagonWise
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col"></th>
+              <th scope="col">A tracker box</th>
+              <th scope="col">WagonWise</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Hardware to buy and fit</th>
+              <td data-label="A tracker box">Usually, yes</td>
+              <td data-label="WagonWise">None. It runs on the phones your drivers already have.</td>
+            </tr>
+            <tr>
+              <th scope="row">Engineer visits</th>
+              <td data-label="A tracker box">Usually needed to fit it</td>
+              <td data-label="WagonWise">None</td>
+            </tr>
+            <tr>
+              <th scope="row">Cost</th>
+              <td data-label="A tracker box">A box, plus a monthly subscription</td>
+              <td data-label="WagonWise">
+                The driver app is free. The dashboard is £15 a vehicle a month, or £10 for launch
+                firms.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Where is the lorry?</th>
+              <td data-label="A tracker box">All the time, even with the engine off</td>
+              <td data-label="WagonWise">
+                While the driver is on one of your jobs and the app is open. Otherwise it shows
+                “last seen”.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Engine data, such as ignition and mileage</th>
+              <td data-label="A tracker box">Often, yes</td>
+              <td data-label="WagonWise">No</td>
+            </tr>
+            <tr>
+              <th scope="row">Sat nav for lorries</th>
+              <td data-label="A tracker box">Usually a separate device or app</td>
+              <td data-label="WagonWise">
+                Included: routes for your lorry’s size and weight, with low-bridge and hazard
+                warnings
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Jobs, delivery photos and walk-round checks</th>
+              <td data-label="A tracker box">Often separate tools</td>
+              <td data-label="WagonWise">In the same app and the same dashboard</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="compare-note">
+          If you already have trackers, WagonWise can run alongside them. A tracker may still be the
+          right choice if you need to see a lorry’s position all day or read engine data. What
+          “usually” and “often” mean here comes from how trackers are commonly sold, so check with
+          your own supplier.
+        </p>
 
         <div class="section-head" id="pricing">
           <span class="tag">Pricing</span>
