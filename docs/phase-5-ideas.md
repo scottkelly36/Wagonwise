@@ -339,7 +339,7 @@ The two open tracks from the driver hours work (`phase-3-scope.md`, "Driver hour
 
 - **UK-wide** routing is the Phase 3/launch job. After it: Ireland and the near continent only if a customer drives there.
 - **Live traffic in the engine,** so the first route is already right and the faster-route offer is the exception
-  (`faster-route-scope.md`, later phases).
+  (built 2026-10-10: `history/log-archive.md`).
 - **Charges on the route:** clean air and low emission zones, tolls, and the cost of them in the job cost. Scoped 2026-11-09 in
   `docs/charges-routing-scope.md` (a charge line on each route, and a Cheapest option, in the way hills were done).
 - **Vehicle detail beyond height, width, length and weight:** axle weights, trailers, ADR (dangerous goods) rules.

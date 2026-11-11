@@ -10,88 +10,76 @@ its own `docs/history/<milestone>.md` from the start, with a one-line summary an
 item closes, delete it from this file; the history file keeps the record. Dated entries go to `history/log.md`, not here.
 Use bullets, not tables: a formatted table pads every cell with spaces, which costs tokens.
 
-## Status (2026-10-26)
+## Status (2026-11-11)
 
-- **Phase 1** (M1 foundations, M2 routing, M3 hazards, M4 BFF and sign-in, M5 driver app, M6 alerts, M7 voice, M8 field-ready, M9
-  route options and safe parking): done. Android is live (Play closed test, over-the-air updates). iOS: the Apple account is approved, first TestFlight build next.
-- **Phase 2** (staff accounts, fleet, jobs, live map, moderation, reports, privacy, spoken directions): done 2026-10-08, plus
-  follow-ups (saved places, weather warnings, stored locations, several stops per job, emailed staff invitations).
-- **Phase 3** (`phase-3-scope.md`): built. Billing and invoices, Finances (WagonWise's own books), costing for a company (fuel
-  card import, running costs, job costs, outlook), walk-round checks, maintenance (with MOT and tax lookup by registration),
-  driver hours (clock, break planning, sharing with a company), Great Britain coverage, what3words on Where to?.
-- **Built since, from field testing** (details in `history/log.md`): speed limits, cameras and traffic on the trip screen; hazards
-  only when on the route and ahead, and not when on a road that crosses it; public places with a review screen, and Just me or My
-  company when marking; SOS (hold a button, the company is told where you are); batch invite codes; iOS preparation.
-- **Phase 4:** idea list only (`ideas.md`), apart from the **Sales page** in the admin portal (2026-11-08): the owner's notebook of the
-  firms being approached, a log of each contact, what is due today, and the week against the targets. It sends nothing (`modules.md`).
-  Also the **Audit pack** (Compliance, 2026-11-08): a vehicle's checks, defects, repairs and maintenance in one printable report, with
-  every step of a defect and every corrected due date (history kept from migration 0085; earlier changes show only the latest).
+- **Live.** The driver app (free, no ads) has been on the App Store and Google Play since **8 November 2026**. The fleet portal is
+  £15 per vehicle per month; launch offer £10 per vehicle, fixed for three years, first firms three months free (`sales-playbook.md`).
+  Company: WagonWise Ltd, no. 17530209, registered office 5 Portland Terrace, Hexham NE46 3DT; support@wagon-wise.co.uk.
+- **First 24 hours** (the owner's screenshot of the usage page): 293 accounts, 293 signed in, 178 chose a vehicle, 132 planned a
+  route, 95 started a trip, 10 came back on a second day. The vehicle step was the drop, which is why presets were built.
+- **What the product is:** driver app (routing for the vehicle's size and weight, hazards, parking, fuel, hours, checks, SOS, jobs)
+  and a staff portal (fleet, jobs and proof of delivery, live map, checks, maintenance, reports, costing, billing, sales page).
+  Phases 1 to 3 are built (`phase-3-scope.md`); module notes are in `modules.md`.
+- **Shipped 8 to 11 November** (details in `history/log.md`): the usage page ("Where drivers get to", new drivers by day); vehicle
+  **presets** beside Metres and Feet & inches (Add a vehicle and the route planner); Share sends both store links; **Load type**
+  Normal / Hill-sensitive; **tolls** named with a price on route cards and a Toll free card (five crossings); a **top speed** on a
+  vehicle; a steadier map when stopped; **Euro VI** yes / no / don't know on a vehicle (stored, nothing reads it yet); the Hauliers
+  page comparison with a tracker box; and **the receiver's signature**, required per job like the photo (vector strokes, kept
+  under the photo's retention). The app was released with the `release` label after the signature merged (2026-11-11), and the owner took a signature end to end on a phone;
+  whether the portal's signature viewer and reports are deployed was not checked.
+- **Done by the owner, 2026-11-11 (owner's word):** ICO registration, a business bank account, production secrets that were pasted
+  into chat rotated, the landing site deployed (new privacy wording and the comparison table), Play production access, the Ross
+  Silcock email sent, the Facebook posts made. Not on this list, so still open: the Apple reply below.
 
-## Next up
+## Next up (in order)
 
-0. **Sales page: load the firms** (owner; the page is live since 2026-11-08). Open Admin, Sales, Import from a spreadsheet, and choose
-   `E:/projects/wagonwise-sales/prospects-import.csv` (39 firms from the prospects workbook, plus Griffins from the sales log). Log each
-   contact there from then on. Fleet sizes are estimates; each firm's notes say how sure.
-1. **Android Auto and CarPlay** (drivers have asked; moved up 2026-11-08; scope and findings in `docs/car-screen-scope.md`). **Status:**
-   the CarPlay navigation entitlement request **went to Apple on 2026-11-08** (no timescale; nothing to do until they answer). The Android test tools are
-   installed, and **spike 1 is done: background tracking works on Android with a foreground service, but timers stop** (details in the scope file). Open
-   decisions: a Mac, the first version's feature list. Next in the spike: can the MapLibre map be drawn on the car, how the trip state reaches the car
-   service, can Expo carry it, and the Desktop Head Unit run (the owner accepts Android Auto's terms on the device). The scope has every feature
-   sorted into onto-both, needs-a-decision and stays-on-the-phone, and how to test each platform (Android: Google's Desktop Head Unit on Windows;
-   CarPlay: Apple's simulator, **which needs a Mac**). The build is a native change (1.3.0, with the Play quality fixes). **Background location changes the
-   privacy promise** (today position is shared only while the app is open).
-   1a. **Loaded or empty routing** (driver feedback 2026-11-09: a loaded lorry is sent over the A68 instead of the A1). The owner chose a real loaded/empty option over "avoid a road". Valhalla truck routing has no hill cost and our tiles have no heights, so the plan is to score candidate routes for steep climbs with its `/height` service and re-plan around them when loaded; scope, evidence and stages in `docs/loaded-routing-scope.md`. Built and live 2026-11-09 as the **Load type: Normal / Hill-sensitive** switch (Fastest, Shortest, Fewer hills); the droplet has the height data. To do: check it finds the A1 on the live server and tune.
-   1b. **Tolls and clean-air zones** (owner, 2026-11-09): a charge line on each route and a Cheapest option, same approach as hills; scope, what the engine can do and the stages in `docs/charges-routing-scope.md`. Not started; the first small step is showing that a route has a toll.
-2. **Driver sign-in without invite codes** (plan: `docs/driver-sign-in-plan.md`). Server, driver BFF and the app's password screens are built behind switches (2026-11-01 and 2026-11-04; JavaScript only, so over the air; not tried on a phone); Google/Apple (a store build) and the owner's Google/Apple set-up are not. Nothing ships until after the store release.
-3. **App stores** (owner). Apple: the WagonWise Ltd developer account was approved 2026-10-28 (Team ID in `eas.json`); next is
-   `deployment-guide.md` section 9c, the first TestFlight build (voice, push and SOS on iOS are untested). Google Play: the closed test runs
-   with about 25 testers, and 12 or more must stay opted in for 14 days in a row before applying for production access. The
-   testers' reports came back 2026-11-04 (no crashes): sign-out check, Rate and Share rows and plainer wording are done;
-   a new store listing is in `play-store-listing.md`; the **first-run walkthrough** is the one suggestion left. Answer the
-   production-access form from what was really done, not the provider's template.
-4. **Before the pilot, no code:** the privacy notice and the in-app summary were brought up to date on 2026-11-04 (SOS, shared
-   places, checks, what3words, DVSA; `docs/privacy-review.md`). Still to do: deploy the landing site, update the DPA and DPIA and the
-   Play and Apple store forms from that file, fill the `[brackets]`, get a solicitor to review; register with the ICO; the restriction audit around Hexham; turn on Resend
-   failure alerts (the webhook is built); **rotate every production secret that was pasted into a chat** before launch
-   (rotating `STAFF_SECRET_KEY` makes staff enrol again).
-5. **Check on real devices** (none of these has been tried on a phone yet): hold-to-send SOS and its cancel, the portal strip and the
-   email; 3 words on Where to?; Share with all drivers, Make private, Report, and the Reported places page; the A69 bridge and
-   crossing-road fix; push notifications; voice with accents and cab noise.
-6. **Small code left:** (what3words is on _Where to?_, SOS and the portal job form; _From_ by three words in the driver app is **not planned unless a driver asks**, owner 2026-10-26); road tax by registration is **parked** (DVLA is not taking new applications for its Vehicle Enquiry Service key and the API is in beta, as the owner found on 2026-10-26; tax dates stay a typed or imported date, and the code is ready if a key ever arrives) (MOT comes from DVSA,
-   which is on); a tachograph source for driver hours (waits on what the pilot's lorries have). Unscheduled ideas in
-   `ideas.md` (for example email and password sign-in for drivers) are not in this list.
+1. **Reply to Apple on CarPlay case 23398599** (owner). Apple asked for CPManeuver screenshots; the six mock-ups and a draft reply are
+   made. Nothing more to build until they answer the entitlement request (sent 2026-11-08). Scope and findings: `car-screen-scope.md`.
+2. **Check on a real phone** (nothing below has been tried on one except the signature): presets (Add a vehicle and Plan route),
+   Share on iPhone and Android, a route with a toll, Hill-sensitive loading, top speed changing an arrival time, the steadier map, a
+   signature with no signal. Then read the usage page's "New drivers, by the day they joined" to see whether presets lifted the share
+   choosing a vehicle (compare the days after 9 November with before).
+3. **Pilot firms.** The Sales page (Admin, Sales) is the notebook: log every contact there. Price and offer: `sales-playbook.md`.
+   Ask the first firms what they need: the portal is to be shaped by them (jobs, loaded and delivered, where drivers are).
+4. **Loaded routing: tune it.** Check the live server finds the A1 for Washington to Grangemouth when Hill-sensitive. `loaded-routing-scope.md`.
+5. **Charges, stages 3 and 4** (`charges-routing-scope.md`). Zones: the vehicle field is built; the zone check waits for boundary data
+   (the Scottish national dataset is under the Open Government Licence; Tyneside needs the councils' permission). Then a total and
+   a Cheapest card. Toll prices need a dated review.
+6. **FORS-style records** (`fors-scope.md`, idea only): documents with expiry dates and an infringement log first. Never claim a firm is compliant.
+7. **Driver sign-in without invite codes** (`driver-sign-in-plan.md`): server, driver BFF and password screens are built behind switches;
+   Google and Apple sign-in need a store build and the owner's set-up. Nothing is switched on.
+8. **Next native build (1.3.0)**, which also carries the Play quality fixes below, and Android Auto if it goes ahead.
+9. **Small code left:** an iPhone Rate row (opens the App Store review page; the Rate row is Android only); road tax by registration is
+   **parked** (DVLA is not taking new Vehicle Enquiry Service keys); a tachograph source for driver hours waits on the pilot's lorries.
+   Unscheduled ideas are in `ideas.md` and `phase-5-ideas.md`.
 
-**How the driver app ships now:** JavaScript-only changes go out over the air to the installed version (`runtimeVersion`
-follows `version`, currently **1.2.1**: `eas update` is published for that version only, so a phone on an older build ignores
-it). A native change (new package, plugin or permission) needs `version` bumped and a Play build. Both run from
-`driver-app-release.yml`: the `release` label on a PR (the owner says when), or Run workflow with mode `update` or `build`.
-Merging alone publishes nothing. Core and the portal go live before the app.
+**How the driver app ships:** JavaScript-only changes go out over the air to the installed version (`runtimeVersion` follows
+`version`, currently **1.2.1**: `eas update` is published for that version only, so a phone on an older build ignores it). A native
+change (new package, plugin or permission) needs `version` bumped and a Play build. Both run from `driver-app-release.yml`: the
+`release` label on a PR (the owner says when; adding it after the merge releases main as it is), or Run workflow with mode `update` or
+`build`. Merging alone publishes nothing. **Core, the servers and the portal go live before the app.**
 
 ## Open items
 
-- **Company:** WagonWise Ltd, company number 17530209, registered office 5 Portland Terrace, Hexham NE46 3DT. D-U-N-S is in hand
-  (not recorded here). Still to do: ICO, a business bank account, the company details on the Billing details page.
-- **Google Play quality warnings (release 1.2.1):** none blocks the closed test or production access, and none can be fixed over
-  the air, so do them together in the next native build (bump `version` to 1.3.0): R8 shrinking (code optimisation under 25%,
-  fix by February 2027; test maps and voice on a real phone), edge-to-edge deprecated APIs (a library, usually gone at the next Expo
-  SDK), portrait lock (ignored on tablets from Android 16; low priority).
-- **Keys that expire or cost:** the DVSA key is revoked if unused for 90 days and its secret expires every 2 years; what3words is
-  1,000 lookups a month, used only when a driver taps Find or presses SOS.
-- **Fuel prices (GOV.UK Fuel Finder), started 2026-10-27:** the credentials are on core's `.env` and checked live; the `fuelprices` module
-  has the client, the join and our own copy in Postgres, refreshed hourly by a job in core (see `modules.md`). Still to do: add
-  `FUEL_FINDER_ID` and `FUEL_FINDER_SECRET` to core on DigitalOcean (encrypted; the job starts when both are set, so the first
-  refresh runs on the next deploy); `POST /fuel/nearby` (core and the driver BFF, 2026-10-28) and the driver app's fuel markers, Nearby fuel list and Take me there
-  (built 2026-10-29, JavaScript only, goes out with the next `release` label; untested on a phone) show diesel or petrol prices (a switch, 2026-10-31) from the last week with
-  their age; **read the data licence and
-  terms first** (not found in the docs). Prices can be over a week old, so show their age. Run one core instance only.
-- **Deferred, P2-M6.4c:** a reroute-alert indicator on the live map (needs reroute detection for company jobs). No Valhalla-backed
-  check of the ETA and route preview.
+- **Privacy documents:** keep `privacy-review.md` and the Play and Apple data forms in step with the notice; the signature row and the
+  "photos and signatures" wording are new (2026-11-11). Update the DPA and DPIA from `privacy-review.md`; fill any `[brackets]`; the
+  restriction audit around Hexham; turn on Resend failure alerts (the webhook is built).
+- **Background location would change the privacy promise** (today position is shared only while the app is open), if Android Auto
+  or CarPlay needs it. See `car-screen-scope.md`.
+- **Google Play quality warnings (release 1.2.1):** none blocks anything, and none can be fixed over the air, so do them in the next
+  native build (1.3.0): R8 shrinking (fix by February 2027; test maps and voice on a real phone), edge-to-edge deprecated APIs (a
+  library, usually gone at the next Expo SDK), portrait lock (ignored on tablets from Android 16; low priority).
+- **Keys that expire or cost:** the DVSA key is revoked if unused for 90 days and its secret expires every 2 years; what3words is 1,000
+  lookups a month, used only when a driver taps Find or presses SOS. Fuel prices (GOV.UK Fuel Finder) are refreshed hourly by a job in
+  core: run **one core instance only**, read the data licence and terms, and show each price's age.
+- **Deferred, P2-M6.4c:** a reroute-alert indicator on the live map (needs reroute detection for company jobs).
 
 ## Open questions
 
 - How complete is OSM restriction data on testers' routes around Hexham? Overrides exist (M8); the audit itself hasn't been done.
 - Is on-device speech recognition good enough with local accents and cab noise? Only field-tested informally on Android.
 - What do the pilot firm's lorries have for tachographs (needed before a tachograph source for driver hours)?
+- Do the five preset sizes suit real drivers? They are at or above the common height for each class; watch for feedback.
 
 Decided 2026-09-21, revisit with testers: temporary hazard expiry 7 days; single unconfirmed reports visible immediately,
 labelled "1 report, unconfirmed".
@@ -103,6 +91,10 @@ labelled "1 report, unconfirmed".
 - **Golden routes must be re-recorded after any routing-cost change** (e.g. the 55 mph cap, PR #38). Every nightly run prints
   `golden actual:` values; see `valhalla-routing-engine.golden-test.ts`.
 - **Open every PR against main; never stack PRs.** A stacked PR merged into its base branch and never shipped (2026-10-22).
+- **Two PRs adding a migration at once collide on the number** (0088 was taken by Euro VI while signatures were in review). Check
+  `apps/core/migrations` on main before numbering, and add the file to the lists in `run-migrations.test.ts`.
+- **The portal's typecheck is `tsc -b`, which checks test files too**; a quick `tsc --noEmit` in `apps/dashboard` does not. Run `pnpm typecheck`
+  (or `npx tsc -b --noEmit` there) before pushing a change to a shared contract.
 
 ## Index: where the history went
 
@@ -112,11 +104,10 @@ Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those li
 - `history/m1-foundations.md`: M1 (15–43); `history/m2-routing-core.md`: M2 and the pre-push hook (44–56); `history/m3-hazards-core.md`: M3 (57–70)
 - `history/m4-driver-bff-auth.md`: M4; `history/m5-driver-app.md`: M5 (numbering restarts at 53, overlapping M2/M3; 53–64)
 - `history/m6-alerts.md`: M6 (65–90); `history/m7-voice.md`: M7 (91–107); `history/m9-route-options-parking.md`: M9
-- `history/environment-windows.md`: Windows dev-machine notes; `history/driver-app-redesign.md`: redesign and the Android safe-area fix
 - `history/p2-m1-organisations-auth.md`, `p2-m2-driver-links.md`, `p2-m4-portal-jobs.md`, `p2-m5-driver-app-jobs.md`,
-  `p2-m6-live-map.md`, `p2-m7-moderation.md`, `p2-m8-reports.md`, `p2-m10-spoken-directions.md`: Phase 2 by milestone;
-  `phase-2-early-build.md`: Phase 2 as built early
+  `p2-m6-live-map.md`, `p2-m7-moderation.md`, `p2-m8-reports.md`, `p2-m10-spoken-directions.md`: Phase 2 by milestone
 - `history/saved-places.md`: saved places, public places, Just me or My company, the review screen
 - `phase-3-scope.md`: Phase 3 scope, modules and what is built; `ideas.md`: field-testing ideas backlog
 - `history/deployment-first-deploy.md`: the first deployment (2026-09-25) and the four bugs found getting there
-- `history/log.md`: the dated change log, newest first; `history/log-archive.md`: entries to 2026-10-15
+- `history/log.md`: the dated change log, newest first; `history/log-archive.md`: entries to 2026-10-15 (the faster-route check, built 2026-10-10, is in here)
+- Removed 2026-11-11 (still in git history): the Windows dev-machine notes, the 2026-10-04 app redesign note, the early Phase 2 build summary, and the faster-route scope.
