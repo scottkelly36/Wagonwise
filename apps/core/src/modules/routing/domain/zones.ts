@@ -60,8 +60,8 @@ const scottish = (
 
 /**
  * England: a non-compliant lorry pays a daily charge, and the standard for a heavy goods vehicle is Euro VI diesel in all seven (Euro 6 in the charging orders). The
- * rates were read from each council's own charges page on 2026-11-11, through search summaries of those pages, except Tyneside's, which is from the 2023 council pages and
- * is not confirmed as current. Birmingham's lorry charge is £50, not the £100 the owner's draft suggested. London: £100 a day, or £300 for a lorry older than Euro IV
+ * rates were read from each council's own charges page on 2026-11-11, through search summaries of those pages, and Tyneside's (£50 a day for buses, coaches and
+ * HGVs) was confirmed by the owner from the zone's own page the same day. Birmingham's lorry charge is £50, not the £100 the owner's draft suggested. London: £100 a day, or £300 for a lorry older than Euro IV
  * (particulate), from TfL's payment page; the standard is Euro VI (NOx and PM) for a vehicle over 3.5 tonnes.
  */
 const daily = (
