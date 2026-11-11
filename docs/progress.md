@@ -36,7 +36,8 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 1. **Ireland, this weekend if the gate passes** (owner, 2026-11-11; `ireland-scope.md`). One routing build covers Northern Ireland and the Republic, but the Republic must not go live until speed limits show in km/h (today an 80 km/h limit would show as 50) and the Dublin lorry rules are tested. If either fails, switch on Northern Ireland only. The tile build and swap need the owner's DigitalOcean access.
 2. **MapTiler usage: put off** (owner, 2026-11-11; `map-usage-scope.md`). On Flex since 11 November; the first count was 5,260 requests, about 97% map tiles and 3% address search, so the quick fix (fewer search calls) would not help. Set a usage alert and separate keys for the app and the portal, then re-check once a full day is counted. Own map tiles are the lasting fix if the tile count grows.
 3. **Check on a real phone** (the owner's word, 2026-11-11: **tried and working** are toll prices on a card, the steadier map, Hill-sensitive
-   showing the A1, top speed changing an arrival time, the Euro VI control on the vehicle form, and a signature). **Still untried:** presets
+   showing the A1, top speed changing an arrival time, the Euro VI control on the vehicle form, a signature, a low emission zone line on a route card (Sheffield, shown on a phone), and the zones on the
+   portal's live map). **Still untried:** presets
    (Add a vehicle and Plan route), Share on iPhone and Android, a signature with no signal. Then read the usage page's "New drivers, by the
    day they joined" to see whether presets lifted the share choosing a vehicle (compare the days after 9 November with before).
 4. **Pilot firms.** The Sales page (Admin, Sales) is the notebook: log every contact there. Price and offer: `sales-playbook.md`.
