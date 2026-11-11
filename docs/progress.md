@@ -63,8 +63,11 @@ change (new package, plugin or permission) needs `version` bumped and a Play bui
 
 ## Open items
 
-- **Waiting on Apple:** the CarPlay navigation entitlement (requested 2026-11-08; Apple's follow-up, case 23398599, was answered 2026-11-11 with
-  CPManeuver mock-ups). Nothing to build until they reply. Scope and findings: `car-screen-scope.md`.
+- **CarPlay: Apple has granted the entitlement (email from Apple Developer Relations, 2026-11-11; requested 2026-11-08, follow-up case 23398599 answered with
+  CPManeuver mock-ups).** The owner still has to enable it in the developer account (Identifiers, the App ID, the CarPlay capability, then a new provisioning profile): the
+  email does not name the category, so check it says **Navigation**. Building it needs a **Mac** (Apple's CarPlay simulator), a native iOS build (version bump) and App Review.
+  Scope, findings and the open questions: `car-screen-scope.md`.
+  **Deferred (owner, 2026-11-11): both CarPlay and Android Auto wait until the toll and low emission zone work is finished** (`charges-routing-scope.md`).
 - **Privacy documents:** keep `privacy-review.md` and the Play and Apple data forms in step with the notice; the signature row and the
   "photos and signatures" wording are new (2026-11-11). Update the DPA and DPIA from `privacy-review.md`; fill any `[brackets]`; the
   restriction audit around Hexham; turn on Resend failure alerts (the webhook is built).
