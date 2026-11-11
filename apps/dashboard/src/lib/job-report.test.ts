@@ -98,6 +98,8 @@ describe('toCsv', () => {
     onTime: false,
     requiresProofOfDelivery: true,
     hasProofOfDelivery: false,
+    requiresSignature: false,
+    hasSignature: false,
   };
 
   it('starts with a byte-order mark and a header, one line per job, CRLF line ends', () => {
