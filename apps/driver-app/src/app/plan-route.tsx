@@ -31,6 +31,8 @@ import {
   strategyForOption,
   tollLines,
   ZONE_CREDIT,
+  cheapestLine,
+  costLine,
   zoneLines,
   zonesShown,
 } from '../lib/route-option-text';
@@ -480,6 +482,8 @@ export default function PlanRouteScreen() {
           tolls: true,
           // And an English zone's daily charge, as well as a Scottish penalty.
           dailyZones: true,
+          // And what each route costs, with a Cheapest label on the one that clearly is.
+          costs: true,
         },
         {
           onSuccess: (options) => {
@@ -905,6 +909,16 @@ export default function PlanRouteScreen() {
                         )}
                       </View>
                     ))}
+                    {costLine(option) !== undefined && (
+                      <Text style={styles.optionDetail} testID={`route-option-${index}-cost`}>
+                        {costLine(option)}
+                      </Text>
+                    )}
+                    {cheapestLine(option, routeOptions) !== undefined && (
+                      <Text style={styles.optionDetail} testID={`route-option-${index}-cheapest`}>
+                        {cheapestLine(option, routeOptions)}
+                      </Text>
+                    )}
                     {zoneLines(option).map((line, lineIndex) => (
                       <Text
                         key={line.text}
