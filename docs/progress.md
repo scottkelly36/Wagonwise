@@ -29,27 +29,25 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
   whether the portal's signature viewer and reports are deployed was not checked.
 - **Done by the owner, 2026-11-11 (owner's word):** ICO registration, a business bank account, production secrets that were pasted
   into chat rotated, the landing site deployed (new privacy wording and the comparison table), Play production access, the Ross
-  Silcock email sent, the Facebook posts made. Not on this list, so still open: the Apple reply below.
+  Silcock email sent, the Facebook posts made, and the reply to Apple on case 23398599 (CPManeuver mock-ups) sent.
 
 ## Next up (in order)
 
-1. **Reply to Apple on CarPlay case 23398599** (owner). Apple asked for CPManeuver screenshots; the six mock-ups and a draft reply are
-   made. Nothing more to build until they answer the entitlement request (sent 2026-11-08). Scope and findings: `car-screen-scope.md`.
-2. **Check on a real phone** (nothing below has been tried on one except the signature): presets (Add a vehicle and Plan route),
+1. **Check on a real phone** (nothing below has been tried on one except the signature): presets (Add a vehicle and Plan route),
    Share on iPhone and Android, a route with a toll, Hill-sensitive loading, top speed changing an arrival time, the steadier map, a
    signature with no signal. Then read the usage page's "New drivers, by the day they joined" to see whether presets lifted the share
    choosing a vehicle (compare the days after 9 November with before).
-3. **Pilot firms.** The Sales page (Admin, Sales) is the notebook: log every contact there. Price and offer: `sales-playbook.md`.
+2. **Pilot firms.** The Sales page (Admin, Sales) is the notebook: log every contact there. Price and offer: `sales-playbook.md`.
    Ask the first firms what they need: the portal is to be shaped by them (jobs, loaded and delivered, where drivers are).
-4. **Loaded routing: tune it.** Check the live server finds the A1 for Washington to Grangemouth when Hill-sensitive. `loaded-routing-scope.md`.
-5. **Charges, stages 3 and 4** (`charges-routing-scope.md`). Zones: the vehicle field is built; the zone check waits for boundary data
+3. **Loaded routing: tune it.** Check the live server finds the A1 for Washington to Grangemouth when Hill-sensitive. `loaded-routing-scope.md`.
+4. **Charges, stages 3 and 4** (`charges-routing-scope.md`). Zones: the vehicle field is built; the zone check waits for boundary data
    (the Scottish national dataset is under the Open Government Licence; Tyneside needs the councils' permission). Then a total and
    a Cheapest card. Toll prices need a dated review.
-6. **FORS-style records** (`fors-scope.md`, idea only): documents with expiry dates and an infringement log first. Never claim a firm is compliant.
-7. **Driver sign-in without invite codes** (`driver-sign-in-plan.md`): server, driver BFF and password screens are built behind switches;
+5. **FORS-style records** (`fors-scope.md`, idea only): documents with expiry dates and an infringement log first. Never claim a firm is compliant.
+6. **Driver sign-in without invite codes** (`driver-sign-in-plan.md`): server, driver BFF and password screens are built behind switches;
    Google and Apple sign-in need a store build and the owner's set-up. Nothing is switched on.
-8. **Next native build (1.3.0)**, which also carries the Play quality fixes below, and Android Auto if it goes ahead.
-9. **Small code left:** an iPhone Rate row (opens the App Store review page; the Rate row is Android only); road tax by registration is
+7. **Next native build (1.3.0)**, which also carries the Play quality fixes below, and Android Auto if it goes ahead.
+8. **Small code left:** an iPhone Rate row (opens the App Store review page; the Rate row is Android only); road tax by registration is
    **parked** (DVLA is not taking new Vehicle Enquiry Service keys); a tachograph source for driver hours waits on the pilot's lorries.
    Unscheduled ideas are in `ideas.md` and `phase-5-ideas.md`.
 
@@ -61,6 +59,8 @@ change (new package, plugin or permission) needs `version` bumped and a Play bui
 
 ## Open items
 
+- **Waiting on Apple:** the CarPlay navigation entitlement (requested 2026-11-08; Apple's follow-up, case 23398599, was answered 2026-11-11 with
+  CPManeuver mock-ups). Nothing to build until they reply. Scope and findings: `car-screen-scope.md`.
 - **Privacy documents:** keep `privacy-review.md` and the Play and Apple data forms in step with the notice; the signature row and the
   "photos and signatures" wording are new (2026-11-11). Update the DPA and DPIA from `privacy-review.md`; fill any `[brackets]`; the
   restriction audit around Hexham; turn on Resend failure alerts (the webhook is built).
