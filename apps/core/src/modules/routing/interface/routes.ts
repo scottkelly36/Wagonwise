@@ -341,7 +341,7 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
   });
 
   // While navigating, the app asks (with its position) whether a clearly quicker route exists. Always 200:
-  // `offer: null` is the ordinary answer. Docs: docs/faster-route-scope.md.
+  // `offer: null` is the ordinary answer. Built 2026-10-10: see docs/history/log-archive.md.
   app.post('/routing/trips/:id/faster-route', async (request, reply) => {
     const driverId = requireDriverId(request, reply);
     if (driverId === undefined) return reply;

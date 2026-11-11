@@ -112,7 +112,7 @@ async function measure(
 
 /**
  * While a driver is navigating: is there a clearly quicker route to the same destination, counting
- * live congestion (drivers' reports) and the traffic provider's delays? Docs: `docs/faster-route-scope.md`.
+ * live congestion (drivers' reports) and the traffic provider's delays? Built 2026-10-10: see `docs/history/log-archive.md`.
  *
  * It only ever chooses between routes that are already allowed for this vehicle. Candidates come from the engine
  * with the vehicle's dimensions and every blocking hazard and restriction as an avoid area, and each one is

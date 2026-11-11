@@ -253,7 +253,7 @@ in [`driver-hours-consent.md`](driver-hours-consent.md) (approved by the owner a
 
 ## Faster-route suggestions (scoped 2026-10-10)
 
-Offer a quicker route while navigating when congestion makes the current one slow, and let the driver choose to switch or keep it. Needs the time with traffic, which the routing engine does not have. Scope, options (crowd reports, a traffic provider, live traffic in the engine), behaviour rules, phases and the decisions needed: [`faster-route-scope.md`](faster-route-scope.md).
+Offer a quicker route while navigating when congestion makes the current one slow, and let the driver choose to switch or keep it. Needs the time with traffic, which the routing engine does not have. Scope, options (crowd reports, a traffic provider, live traffic in the engine), behaviour rules, phases and the decisions needed: [`history/log-archive.md` (2026-10-10)](history/log-archive.md).
 
 ## Goals for the end of Phase 3
 

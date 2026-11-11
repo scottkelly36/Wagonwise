@@ -275,7 +275,7 @@ export function composeCore(
     clock,
     callers: { getCaller: staffCaller },
   });
-  // Live traffic (TomTom). Read by routing's faster-route check (docs/faster-route-scope.md).
+  // Live traffic (TomTom). Read by routing's faster-route check (docs/history/log-archive.md, 2026-10-10).
   const traffic = createTrafficModule({
     clock,
     tomtomApiKey: config.tomtomApiKey,
