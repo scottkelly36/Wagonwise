@@ -33,6 +33,7 @@ import {
   ZONE_CREDIT,
   cheapestLine,
   costLine,
+  euroVIUnknown,
   zoneLines,
   zonesShown,
 } from '../lib/route-option-text';
@@ -935,6 +936,24 @@ export default function PlanRouteScreen() {
                   <Icon name="chevron-right" size={26} color={colors.textMuted} />
                 </TouchableOpacity>
               ))}
+              {euroVIUnknown(routeOptions) &&
+                vehicleMode === 'profile' &&
+                selectedProfile !== undefined && (
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: '/profiles/[id]',
+                        params: { id: selectedProfile.id },
+                      })
+                    }
+                    accessibilityRole="button"
+                    testID="say-euro-vi"
+                  >
+                    <Text style={styles.linkText}>
+                      Say whether {selectedProfile.name} is Euro VI
+                    </Text>
+                  </TouchableOpacity>
+                )}
               {zonesShown(routeOptions) && (
                 <Text style={styles.presetNote} testID="zone-credit">
                   {ZONE_CREDIT}

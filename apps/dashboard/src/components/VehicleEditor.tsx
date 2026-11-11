@@ -2,6 +2,7 @@ import type { FleetVehicleDto } from '@wagonwise/contracts/fleet';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as fleetApi from '../api/fleet';
+import { KPH_PER_MPH, MAX_TOP_SPEED_MPH, MIN_TOP_SPEED_MPH } from '../lib/vehicle-speed';
 import { staffErrorMessage } from '../pages/staff/messages';
 import { useStaffAuthStore } from '../state/staff-auth-store';
 
@@ -11,11 +12,6 @@ const DIMENSIONS = [
   { key: 'lengthM', label: 'Length (m)' },
   { key: 'grossWeightT', label: 'Gross weight (t)' },
 ] as const;
-
-const KPH_PER_MPH = 1.609344;
-/** 19 to 80 mph, which is core's 30 to 130 km/h. */
-const MIN_TOP_SPEED_MPH = 19;
-const MAX_TOP_SPEED_MPH = 80;
 
 /**
  * Changes a company vehicle's name, registration number and measurements. The registration is tidied and checked by

@@ -169,6 +169,13 @@ export function zonesShown(options: readonly RouteOptionDto[]): boolean {
   return options.some((option) => (option.zones ?? []).length > 0);
 }
 
+/** Whether any route's zone charge is only possible because the vehicle has not said whether it is Euro VI, so the card can offer the place to say. */
+export function euroVIUnknown(options: readonly RouteOptionDto[]): boolean {
+  return options.some((option) =>
+    (option.zones ?? []).some((zone) => zone.status === 'may-be-charged'),
+  );
+}
+
 /** What the hill check found, in a line a driver can weigh against the time, or undefined when hills were not checked. */
 export function hillsLine(option: RouteOptionDto, distanceUnit: DistanceUnit): string | undefined {
   const hills = option.hills;

@@ -130,7 +130,7 @@ and no alert or email when a vehicle enters a zone (a possible next step).
 **Euro VI on the vehicle (2026-11-10, stage 3 of charges routing, first part).** `euroVI?: boolean` on the shared `dimensions` (contracts `dimensionsSchema`), stored for a driver's own
 profile (`routing.vehicle_profiles.euro_vi`) and a company vehicle (`fleet.vehicles.euro_vi`), migration 0088, and carried to a job's profile through `upsertVehicleProfile` like the top speed.
 Three answers: true, false, and **absent for "don't know"**; the repositories treat only `null` as absent, so a "no" is kept. The driver app asks "Euro VI engine (optional)" with a Yes / No / Don't
-know control (also with a preset); the dashboard vehicle **Edit** form has a select (not the add form yet). **Nothing reads it yet**: it is for the zone check to come, where "don't know" must give "a
+know control (also with a preset); the dashboard vehicle **Edit** form has a select, and so does the add form (2026-11-11). **Nothing reads it yet**: it is for the zone check to come, where "don't know" must give "a
 charge may apply", never "fine". It is not used for routing or timing.
 
 **A vehicle's top speed (2026-11-10, driver feedback).** The 55 mph timing speed is the default; a vehicle can have its own, `topSpeedKph` on the shared
@@ -138,7 +138,7 @@ charge may apply", never "fine". It is not used for routing or timing.
 company vehicle (`fleet.vehicles.top_speed_kph`, migration 0087), and a job's profile gets the company vehicle's through `upsertVehicleProfile`. `retime` uses
 `dimensions.topSpeedKph ?? TOP_SPEED_KPH`, so it changes the **time** only; the road is still chosen with no cap. The driver app asks for it in mph (always mph, like the
 signs; `SpeedInput` converts to km/h) in the vehicle form, for presets too, with a warning (not a block) when a lorry over 7.5 t is set above its 56 mph limiter. Staff set it in
-the dashboard's vehicle **Edit** form (not on the add form yet). Not covered: the route planner's one-off vehicle (it has no speed box, so it is timed at 55 mph), and when a route
+the dashboard's vehicle **Edit** and **Add** forms (`lib/vehicle-speed.ts` holds the conversion and range). Not covered: the route planner's one-off vehicle (it has no speed box, so it is timed at 55 mph), and when a route
 cannot be re-timed the fallback is still the uncapped time times 1.17, whatever the vehicle's speed.
 
 **Golden-route tests (M2.6):** real requests against a real, tile-built Valhalla instance — not
@@ -819,6 +819,8 @@ engine again with `avoidTolls` (Valhalla `use_tolls: 0`, a preference, not a ban
 "Toll free" when it is the same road (`application/toll-free-route.ts`, `withTolls` in `preview-route-options.ts`). Nothing is offered when the route that avoids
 tolls still has one. Choosing it plans with `strategy: 'toll-free'`, and a hazard or closure re-plan keeps avoiding tolls. **Not covered yet:** which toll or what it costs
 (no price, no "Cheapest" card: stage 2 onwards, `docs/charges-routing-scope.md`), clean-air zones, and job stops, which do not carry the choice.
+
+**Euro VI link on the route cards (2026-11-11).** When a card's zone line says a charge may apply because the vehicle has not said whether it is Euro VI (`euroVIUnknown`), and a saved vehicle is selected, a "Say whether <vehicle> is Euro VI" button under the cards opens that vehicle's details (`/profiles/[id]`). A vehicle typed in by hand has no details to open, so no button.
 
 **The toll choice carried on (2026-11-11, charges stage 4).** `avoidTolls` is now an optional field on the plan request and on the faster-route check (`avoidTolls` in `packages/contracts/src/routing.ts`),
 and `plan-route.ts` applies it on every strategy and in every pass (`tollPreference`), so a re-plan from the middle of a drive keeps avoiding tolls however the first plan was made. The check asks the

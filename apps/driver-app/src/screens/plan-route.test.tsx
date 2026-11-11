@@ -5,9 +5,10 @@ import PlanRouteScreen from '../app/plan-route';
 import { useLoadStore } from '../state/load-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
 
+const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
     back: jest.fn(),
     replace: jest.fn(),
     canGoBack: () => true,
@@ -299,6 +300,9 @@ describe('the Load switch on Plan route', () => {
       /^Glasgow Low Emission Zone: a penalty of £60 applies/,
     );
     expect(screen.queryByTestId('route-option-1-zone')).toBeNull();
+    // The vehicle has not said whether it is Euro VI, so the card offers the place to say, which opens that vehicle.
+    await fireEvent.press(screen.getByTestId('say-euro-vi'));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/profiles/[id]', params: { id: 'p1' } });
     // The licence asks for a credit, shown once.
     expect(screen.getAllByTestId('zone-credit')).toHaveLength(1);
     expect(screen.getByTestId('zone-credit').props.children).toMatch(
