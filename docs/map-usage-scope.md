@@ -21,6 +21,10 @@ What is already in place: the phone keeps a **250 MB** map cache (`OfflineManage
 Eleven screens each create their own map (home, active trip, route overview, plan route, reroute, three report screens), so each opens
 the style again.
 
+## First real numbers (2026-11-11, from MapTiler's Analytics page)
+
+The billing period started on 11 November, when the owner moved to Flex, so nothing earlier is shown. By mid-day on the 11th: **5,260 requests, 0 sessions**, almost all **tiles** (about 5,100) and about **150 address searches (roughly 3%)**. So address search is not the cost; **option 1 below is not worth doing** and the order below changes: tiles are the whole story, so the levers are the navigation tilt and zoom (option 2), fewer maps opening (option 3) and own tiles (option 4). **Decision (owner, 2026-11-11): put the change off for now.** Revisit when a full day's count is known: multiply a typical full day by 30 and compare it with the Flex allowance (a third-party page says 500,000 requests a month, not confirmed), remembering that use grows with drivers. Still worth doing now, because they cost nothing: a usage alert and separate keys for the app and the portal (steps 2 and 3 below), and a look for stray users of the key.
+
 ## Look first (the owner, ten minutes, no code)
 
 1. MapTiler Cloud, **Analytics**: split the month by **tile requests vs geocoding vs other**, and by day. A jump on the launch day
@@ -56,8 +60,8 @@ the style again.
 
 ## Suggested order
 
-Do the **ten-minute look** and **option 1** now; they cost nothing or little and tell us what to do next. Decide on **option 4** from
-the numbers. Ireland (`ireland-scope.md`) adds map and search use in a second country, so settle the plan before it launches.
+Set the **usage alert and separate keys** now. Skip **option 1** (search is about 3%). Revisit the tile options (2 to 4) when a full
+day's count is known; decide on **option 4** from the numbers. Ireland (`ireland-scope.md`) adds map and search use in a second country, so settle the plan before it launches.
 
 Not verified: any MapTiler price or limit (the pricing page was not reachable from this session); how much of the use is tiles
 against geocoding; whether style, sprite and font requests count; whether our MapLibre version supports PMTiles or the prefetch and

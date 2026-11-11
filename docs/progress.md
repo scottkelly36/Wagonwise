@@ -34,7 +34,7 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 ## Next up (in order)
 
 1. **Ireland, this weekend if the gate passes** (owner, 2026-11-11; `ireland-scope.md`). One routing build covers Northern Ireland and the Republic, but the Republic must not go live until speed limits show in km/h (today an 80 km/h limit would show as 50) and the Dublin lorry rules are tested. If either fails, switch on Northern Ireland only. The tile build and swap need the owner's DigitalOcean access.
-2. **MapTiler usage** (owner: 75% of the free tier in four days, now on Flex; `map-usage-scope.md`). First look at MapTiler's analytics (tiles against address search, and for stray users of the key), then make address search send fewer requests. Own map tiles are the lasting fix.
+2. **MapTiler usage: put off** (owner, 2026-11-11; `map-usage-scope.md`). On Flex since 11 November; the first count was 5,260 requests, about 97% map tiles and 3% address search, so the quick fix (fewer search calls) would not help. Set a usage alert and separate keys for the app and the portal, then re-check once a full day is counted. Own map tiles are the lasting fix if the tile count grows.
 3. **Check on a real phone** (nothing below has been tried on one except the signature): presets (Add a vehicle and Plan route),
    Share on iPhone and Android, a route with a toll, Hill-sensitive loading, top speed changing an arrival time, the steadier map, a
    signature with no signal. Then read the usage page's "New drivers, by the day they joined" to see whether presets lifted the share
