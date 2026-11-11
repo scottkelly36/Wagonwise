@@ -167,7 +167,13 @@ background-location permission). Each position and a two-second heartbeat timer 
 
 0. **Ask Apple for the navigation entitlement** (draft below). **Done: the owner submitted the request on 2026-11-08**, with the six navigation screenshots
    from `store-assets/raw` (Android captures: there are none from an iPhone yet). Apple gives no timescale; nothing to do until it answers. If it asks for
-   more, or says no, the answer goes here.
+   more, or says no, the answer goes here. **Granted 2026-11-11** (an email from Apple Developer Relations: "The CarPlay app entitlement has been assigned to your Apple
+   Developer Program account"; after a follow-up, case 23398599, answered with CPManeuver mock-ups). The email does not name the category: check the entitlement the portal
+   shows is **Navigation** (`com.apple.developer.carplay-maps`). **The owner's steps, in the developer account:** Identifiers, the App ID `com.wagonwise.driverapp`, enable the CarPlay
+   capability, Save, then create a new provisioning profile (with EAS Build, let it regenerate the profile, or run `eas credentials`). Apple points to the CarPlay Developer
+   Guide, the guidelines and the WWDC26 session "Rev up your CarPlay app": **none of these has been read here yet**, and the navigation-specific App Store rules
+   (the CarPlay App Programming Guide) should be read before building. **What this unblocks:** step 4. **What it does not:** a Mac for the simulator is still needed, there is
+   no CarPlay code, and a native build and App Review are still ahead.
 1. **Set up Android testing.** **Done 2026-11-08** (owner's go-ahead): the Android command-line tools (checked against Google's published SHA-256) and the Desktop
    Head Unit 2.0 are installed in the SDK, and a Play Store virtual device, `Pixel_6_Play`, exists (it has Android Auto and the Play Store on it already). Still
    to do by hand on it: Android Auto's terms and developer mode, which only the owner can accept (see below).
