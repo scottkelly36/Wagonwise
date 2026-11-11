@@ -219,6 +219,45 @@ describe('previewRouteOptionsRequestSchema', () => {
   });
 });
 
+describe('route cost and the cheapest label', () => {
+  const base = { geometry: 'g', distanceKm: 80, durationMin: 110 };
+
+  it('carries a cost with its parts, and a total only when there is fuel', () => {
+    expect(
+      routeOptionSchema.safeParse({
+        ...base,
+        labels: ['shortest', 'cheapest'],
+        cost: { fuelGBP: 38.4, chargesGBP: 8.4, totalGBP: 46.8 },
+      }).success,
+    ).toBe(true);
+    expect(
+      routeOptionSchema.safeParse({
+        ...base,
+        labels: ['fastest'],
+        cost: { chargesGBP: 0, unpriced: true },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('needs the charges figure on a cost, and treats the cost as optional', () => {
+    expect(
+      routeOptionSchema.safeParse({ ...base, labels: ['fastest'], cost: { fuelGBP: 1 } }).success,
+    ).toBe(false);
+    expect(routeOptionSchema.safeParse({ ...base, labels: ['fastest'] }).success).toBe(true);
+  });
+
+  it('accepts a request that asks for costs', () => {
+    expect(
+      previewRouteOptionsRequestSchema.safeParse({
+        profileId: '11111111-1111-4111-8111-111111111111',
+        origin: { lat: 54.9, lon: -1.6 },
+        destination: { lat: 55.9, lon: -3.2 },
+        costs: true,
+      }).success,
+    ).toBe(true);
+  });
+});
+
 describe('lowEmissionZonesResponseSchema', () => {
   const zone = {
     id: 'glasgow',

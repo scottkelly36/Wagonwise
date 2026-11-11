@@ -51,6 +51,9 @@ export interface PreviewRouteOptionsInput {
   readonly tolls?: boolean | undefined;
   /** The app can show a daily charge as well as a penalty: report the English zones and London too. Without it only the Scottish zones are named, as before. */
   readonly dailyZones?: boolean | undefined;
+  /** The app can show what each route costs and a Cheapest label: add the cost of each option and mark the cheapest when it is clearly so. Without it the options are as before
+   *  (an older app cannot read the new label). */
+  readonly costs?: boolean | undefined;
 }
 
 export type PreviewRouteOptionsError = VehicleProfileNotFound | NoRouteFound;
@@ -98,6 +101,7 @@ export async function previewRouteOptions(
         ),
         profile.fuelConsumptionL100km,
         deps.fuelPricePerLitreGBP,
+        input.costs === true,
       ),
     );
   }
@@ -136,6 +140,7 @@ export async function previewRouteOptions(
       ),
       profile.fuelConsumptionL100km,
       deps.fuelPricePerLitreGBP,
+      input.costs === true,
     ).map((option) => ({ ...option, breaksWeightLimit: true })),
   );
 }

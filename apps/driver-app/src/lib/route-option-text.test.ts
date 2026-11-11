@@ -9,6 +9,8 @@ import {
   tollLines,
   zoneLines,
   zonesShown,
+  cheapestLine,
+  costLine,
 } from './route-option-text';
 
 const base = { geometry: 'g', distanceKm: 100, durationMin: 90 };
@@ -212,6 +214,98 @@ describe('zoneLines', () => {
     ]);
     expect(zoneLines({ ...base, labels: ['fastest'], zones: [] })).toEqual([]);
     expect(zoneLines({ ...base, labels: ['fastest'] })).toEqual([]);
+  });
+});
+
+describe('the Cheapest label', () => {
+  it('is named in the title, beside the label of the route it sits on', () => {
+    expect(routeOptionTitle({ ...base, labels: ['shortest', 'cheapest'] })).toBe(
+      'Shortest & Cheapest',
+    );
+    expect(routeOptionTitle({ ...base, labels: ['toll-free', 'cheapest'] })).toBe(
+      'Toll free & Cheapest',
+    );
+  });
+
+  it('is planned by the other label on the route, since the route can be made again by that', () => {
+    expect(strategyForOption({ ...base, labels: ['fastest', 'cheapest'] })).toBe('fastest');
+    expect(strategyForOption({ ...base, labels: ['shortest', 'cheapest'] })).toBe('shortest');
+    expect(strategyForOption({ ...base, labels: ['gentle', 'cheapest'] })).toBe('gentle');
+    expect(strategyForOption({ ...base, labels: ['toll-free', 'cheapest'] })).toBe('toll-free');
+  });
+});
+
+describe('costLine', () => {
+  const withCost = (cost: NonNullable<RouteOptionDto['cost']>): RouteOptionDto => ({
+    ...base,
+    labels: ['fastest'],
+    cost,
+  });
+
+  it('adds the tolls and zone charges to the fuel for a route that has some', () => {
+    expect(costLine(withCost({ fuelGBP: 57.6, chargesGBP: 8.4, totalGBP: 66 }))).toBe(
+      'About £66.00 in all: £57.60 fuel and £8.40 in tolls and zone charges.',
+    );
+  });
+
+  it('says the cost is at least that, and why, when a toll has no price', () => {
+    expect(
+      costLine(withCost({ fuelGBP: 57.6, chargesGBP: 8.4, totalGBP: 66, unpriced: true })),
+    ).toBe(
+      'About at least £66.00 in all: £57.60 fuel and £8.40 in tolls and zone charges, and a toll with no price.',
+    );
+  });
+
+  it('says nothing when there is nothing to add to the fuel, no fuel figure, or no cost', () => {
+    expect(costLine(withCost({ fuelGBP: 57.6, chargesGBP: 0, totalGBP: 57.6 }))).toBeUndefined();
+    expect(costLine(withCost({ chargesGBP: 8.4 }))).toBeUndefined();
+    expect(costLine({ ...base, labels: ['fastest'] })).toBeUndefined();
+  });
+});
+
+describe('cheapestLine', () => {
+  const priced = (
+    labels: RouteOptionDto['labels'],
+    durationMin: number,
+    totalGBP: number,
+  ): RouteOptionDto => ({
+    ...base,
+    labels,
+    durationMin,
+    cost: { fuelGBP: totalGBP, chargesGBP: 0, totalGBP },
+  });
+
+  it('says what it saves against the fastest, and how much longer it takes', () => {
+    const fastest = priced(['fastest'], 90, 57.6);
+    const cheapest = priced(['shortest', 'cheapest'], 110, 38.4);
+    expect(cheapestLine(cheapest, [fastest, cheapest])).toBe(
+      '£19.20 less than the fastest, 20 min longer.',
+    );
+  });
+
+  it('says hours for a long difference', () => {
+    const fastest = priced(['fastest'], 90, 100);
+    const cheapest = priced(['toll-free', 'cheapest'], 215, 60);
+    expect(cheapestLine(cheapest, [fastest, cheapest])).toBe(
+      '£40.00 less than the fastest, 2 h 5 min longer.',
+    );
+  });
+
+  it('says only that it is the cheapest when it is also the fastest', () => {
+    const both = priced(['fastest', 'cheapest'], 90, 38.4);
+    expect(cheapestLine(both, [both, priced(['shortest'], 110, 60)])).toBe(
+      'The cheapest of these routes, and the fastest.',
+    );
+  });
+
+  it('says nothing for a card that is not the cheapest', () => {
+    const fastest = priced(['fastest'], 90, 57.6);
+    expect(cheapestLine(fastest, [fastest])).toBeUndefined();
+  });
+
+  it('falls back to a plain line when the fastest route’s cost is not known', () => {
+    const cheapest = priced(['shortest', 'cheapest'], 110, 38.4);
+    expect(cheapestLine(cheapest, [cheapest])).toBe('The cheapest of these routes.');
   });
 });
 

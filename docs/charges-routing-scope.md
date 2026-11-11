@@ -99,6 +99,12 @@ discount or an exemption), or price a toll that depends on time of day (the M6 T
    London, and a Humber crossing, with a few kept as golden routes.
    **Toll choice carried on, built 2026-11-11:** a route chosen as Toll free keeps avoiding tolls when it is planned again from the middle of a drive and when the faster-route check looks for a
    quicker one (which is never one with a toll; an offer that does have a toll says so). Job stops have no toll choice and are out of scope; a server-raised reroute alert cannot know the app's choice.
+   **Cost and the label built 2026-11-11:** each card can show what the route costs to drive with its tolls and zone charges added to the fuel, and the route that clearly
+   costs least gets a **Cheapest** label ("£19.20 less than the fastest, 20 min longer"). The rules, deliberately cautious: a range counts at its top and a zone the vehicle has not
+   said it avoids counts as charged; nothing is marked unless **every** route has a fuel figure (charges alone would make a long route look cheap) and **no** route has a toll with no
+   price here (the comparison would not be fair); the cheapest must beat the next by at least £2; and only routes that already carry a label can be marked, so choosing it can be planned
+   again by that label. A Cheapest label sits beside the route's other label, so it can read "Toll free & Cheapest". **Not yet:** the toll choice carried into re-plans, job stops and the
+   faster-route check (next), and a search for a cheaper route by avoiding a zone.
 5. **The job cost** and a review reminder for the data (a dated checklist, since rates and zones change).
 
 ## Sources read (2026-11-10)

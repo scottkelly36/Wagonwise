@@ -108,6 +108,8 @@ export const previewRouteOptionsRequestSchema = z.object({
   destination: geoPointSchema,
   /** The app can show an English zone's daily charge as well as a Scottish penalty (and London's). Without it only the Scottish zones are reported, in the old shape. */
   dailyZones: z.boolean().optional(),
+  /** The app can show what each route costs and a Cheapest label. Without it the options carry neither (an older app cannot read the new label). */
+  costs: z.boolean().optional(),
   /** The vehicle is loaded: check the hills on each route and mark the gentlest. Without it the options are as before. */
   loaded: z.boolean().optional(),
   /** The app can show tolls: routes say whether they have one, and when one does a `toll-free` option is looked for. An older app does not send this and
@@ -125,6 +127,15 @@ export const hillSummarySchema = z.object({
   steepStretches: z.number().int(),
 });
 export type HillSummaryDto = z.infer<typeof hillSummarySchema>;
+
+/** What a route costs to drive, in pounds. `totalGBP` is absent without a fuel figure; `unpriced` is true when a toll on the route has no price, so the figures are a floor. */
+export const routeCostSchema = z.object({
+  fuelGBP: z.number().optional(),
+  chargesGBP: z.number(),
+  totalGBP: z.number().optional(),
+  unpriced: z.boolean().optional(),
+});
+export type RouteCostDto = z.infer<typeof routeCostSchema>;
 
 /** A named toll on a route and what it charges this vehicle. `lowGBP` and `highGBP` are both absent when there is no price for the vehicle (a class that
  *  was not read); they differ when the vehicle's axles could put it in more than one class. */
@@ -181,9 +192,11 @@ export const routeOptionSchema = z.object({
   distanceKm: z.number(),
   durationMin: z.number(),
   estimatedFuelCostGBP: z.number().optional(),
-  labels: z.array(z.enum(['fastest', 'shortest', 'gentle', 'toll-free'])).min(1),
+  labels: z.array(z.enum(['fastest', 'shortest', 'gentle', 'toll-free', 'cheapest'])).min(1),
   /** The route has a toll, as far as the map data says. Present only when the engine said either way. */
   hasToll: z.boolean().optional(),
+  /** What the route costs to drive: fuel, tolls and zone charges (the highest the tables say). Present only when the app asked for costs (`costs`). */
+  cost: routeCostSchema.optional(),
   /** The named tolls on the route and their prices. Present only when the app asked about tolls (`tolls`) and the route passes one we know. */
   charges: z.array(routeChargeSchema).optional(),
   /** The low emission zones the route enters that could cost this vehicle. Absent when there are none, including for a vehicle that meets Euro VI. */

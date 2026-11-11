@@ -170,7 +170,11 @@ describe('the Load switch on Plan route', () => {
     await chooseDestination();
     await fireEvent.press(await screen.findByTestId('plan-route-button'));
     // This version tells the server it can show tolls, so an older app is never sent a label it cannot read.
-    expect(mockPreview.mock.calls[0][0]).toMatchObject({ tolls: true, dailyZones: true });
+    expect(mockPreview.mock.calls[0][0]).toMatchObject({
+      tolls: true,
+      dailyZones: true,
+      costs: true,
+    });
 
     const [, handlers] = mockPreview.mock.calls[0] as [
       unknown,
@@ -229,6 +233,46 @@ describe('the Load switch on Plan route', () => {
       'Charged from 6am to 10pm. Pay by midnight the day after you cross.',
     );
     expect(screen.getByTestId('route-option-1-toll').props.children).toBe('Includes a toll');
+  });
+
+  it('shows what a route costs with its tolls added, and what the Cheapest card saves', async () => {
+    await open();
+    await chooseDestination();
+    await fireEvent.press(await screen.findByTestId('plan-route-button'));
+    const [, handlers] = mockPreview.mock.calls[0] as [
+      unknown,
+      { onSuccess: (o: unknown) => void },
+    ];
+    handlers.onSuccess([
+      {
+        geometry: 'a',
+        distanceKm: 120,
+        durationMin: 90,
+        labels: ['fastest'],
+        hasToll: true,
+        charges: [{ name: 'Dartford Crossing', lowGBP: 8.4, highGBP: 8.4 }],
+        cost: { fuelGBP: 57.6, chargesGBP: 8.4, totalGBP: 66 },
+      },
+      {
+        geometry: 'b',
+        distanceKm: 80,
+        durationMin: 110,
+        labels: ['shortest', 'cheapest'],
+        cost: { fuelGBP: 38.4, chargesGBP: 0, totalGBP: 38.4 },
+      },
+    ]);
+
+    expect(await screen.findByTestId('route-option-1')).toBeTruthy();
+    expect(screen.getByText('Shortest & Cheapest')).toBeTruthy();
+    expect(screen.getByTestId('route-option-0-cost').props.children).toBe(
+      'About £66.00 in all: £57.60 fuel and £8.40 in tolls and zone charges.',
+    );
+    expect(screen.getByTestId('route-option-1-cheapest').props.children).toBe(
+      '£27.60 less than the fastest, 20 min longer.',
+    );
+    // The route with no charges has nothing to add to its fuel, and the fastest is not the cheapest.
+    expect(screen.queryByTestId('route-option-1-cost')).toBeNull();
+    expect(screen.queryByTestId('route-option-0-cheapest')).toBeNull();
   });
 
   it('says on the card that a route enters a low emission zone, and what that means for the vehicle', async () => {
