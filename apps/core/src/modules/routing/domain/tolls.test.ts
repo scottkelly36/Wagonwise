@@ -51,12 +51,16 @@ describe('priceFor', () => {
     expect(priceFor(crossing('tyne-tunnel'), weight(3.5))).toBeUndefined();
   });
 
-  it('gives no price for a Humber band that was not read, but prices the one that was', () => {
+  it('prices the Humber bands the operator lists, and a two-axle lorry between them as a range', () => {
     expect(priceFor(crossing('humber-bridge'), weight(44))).toEqual({ lowGBP: 15, highGBP: 15 });
     expect(priceFor(crossing('humber-bridge'), weight(6))).toEqual({ lowGBP: 5, highGBP: 5 });
-    // A 7.5 tonne rigid and an 18 tonne one sit between the two bands that were read.
-    expect(priceFor(crossing('humber-bridge'), weight(7.5))).toBeUndefined();
-    expect(priceFor(crossing('humber-bridge'), weight(18))).toBeUndefined();
+    expect(priceFor(crossing('humber-bridge'), weight(7))).toEqual({ lowGBP: 5, highGBP: 5 });
+    // The table has no band for a two-axle vehicle over 7 tonnes: a 7.5 tonne rigid might pay either figure, so it is shown the range.
+    expect(priceFor(crossing('humber-bridge'), weight(7.5))).toEqual({ lowGBP: 5, highGBP: 15 });
+    // An 18 tonne lorry could be two axles (the range) or more (the top figure): the range again.
+    expect(priceFor(crossing('humber-bridge'), weight(18))).toEqual({ lowGBP: 5, highGBP: 15 });
+    // A heavier one has three or more axles for certain, so it is settled.
+    expect(priceFor(crossing('humber-bridge'), weight(26))).toEqual({ lowGBP: 15, highGBP: 15 });
   });
 
   it('prices the M6 Toll by axles, and the Tyne Tunnel at its one figure', () => {
@@ -103,11 +107,16 @@ describe('chargesOnRoute', () => {
     expect(chargesOnRoute([], weight(44))).toEqual([]);
   });
 
-  it('keeps the name but no price when the vehicle falls in a class that was not read', () => {
+  it('keeps the name but no price when the vehicle is below the weights a goods tariff covers', () => {
+    const [tyne] = chargesOnRoute([{ lat: 54.993, lon: -1.485 }], weight(3.5));
+    expect(tyne?.name).toBe('Tyne Tunnel');
+    expect(tyne).not.toHaveProperty('lowGBP');
+    expect(tyne).not.toHaveProperty('highGBP');
+  });
+
+  it('puts the Humber range on the charge for a 7.5 tonne rigid', () => {
     const [humber] = chargesOnRoute([{ lat: 53.7068, lon: -0.4501 }], weight(7.5));
-    expect(humber?.name).toBe('Humber Bridge');
-    expect(humber).not.toHaveProperty('lowGBP');
-    expect(humber).not.toHaveProperty('highGBP');
+    expect(humber).toMatchObject({ name: 'Humber Bridge', lowGBP: 5, highGBP: 15 });
   });
 
   it('puts a range on the charge when the axles are not known', () => {
