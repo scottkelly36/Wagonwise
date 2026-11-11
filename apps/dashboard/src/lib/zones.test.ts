@@ -1,12 +1,13 @@
 import type { LowEmissionZoneDto } from '@wagonwise/contracts/routing';
 import { describe, expect, it } from 'vitest';
 
-import { euroVIState, zoneAt, zoneNote, zonesGeoJson } from './zones';
+import { chargeText, euroVIState, zoneAt, zoneNote, zonesGeoJson } from './zones';
 
 // A square about 1 km across near Glasgow, and a second one, so "which zone" can be told apart. Rings are [latitude, longitude].
 const square = (id: string, name: string, lat: number, lon: number): LowEmissionZoneDto => ({
   id,
   name,
+  kind: 'penalty',
   penaltyGBP: 60,
   enforcedFrom: '2023-06-01',
   rings: [
@@ -67,6 +68,51 @@ describe('zonesGeoJson', () => {
 
   it('has nothing to draw for no zones', () => {
     expect(zonesGeoJson([]).features).toEqual([]);
+  });
+});
+
+describe('an English zone with a daily charge', () => {
+  const sheffield: LowEmissionZoneDto = {
+    ...glasgow,
+    id: 'sheffield',
+    name: 'Sheffield Clean Air Zone',
+    kind: 'daily',
+    penaltyGBP: undefined,
+    dailyChargeGBP: { lowGBP: 50, highGBP: 50 },
+  };
+  const london: LowEmissionZoneDto = {
+    ...sheffield,
+    id: 'london',
+    name: 'London Low Emission Zone',
+    dailyChargeGBP: { lowGBP: 100, highGBP: 300 },
+  };
+
+  it('says the charge as a phrase: a penalty, a daily charge, and London’s range', () => {
+    expect(chargeText(glasgow)).toBe('a £60 penalty');
+    expect(chargeText(sheffield)).toBe('a £50 a day charge');
+    expect(chargeText(london)).toBe('a £100 to £300 a day charge');
+    expect(chargeText({ kind: 'daily' })).toBe('a daily charge');
+  });
+
+  it('says a daily charge applies to a vehicle that is not Euro VI, with no "more if repeated"', () => {
+    expect(zoneNote(sheffield, 'no', true)).toEqual({
+      text: 'In the Sheffield Clean Air Zone. The vehicle is not Euro VI: a £50 a day charge applies.',
+      tone: 'danger',
+    });
+  });
+
+  it('says a daily charge may apply when Euro VI is not stated, and where to set it', () => {
+    const note = zoneNote(london, 'not-said', false);
+    expect(note.tone).toBe('warn');
+    expect(note.text).toBe(
+      'Last seen in the London Low Emission Zone. Euro VI is not stated for this vehicle, so a £100 to £300 a day charge may apply. Set it on the vehicle.',
+    );
+  });
+
+  it('says what a click on the map shows, with the daily charge', () => {
+    expect(zonesGeoJson([sheffield]).features[0]?.properties.title).toBe(
+      'Sheffield Clean Air Zone: a £50 a day charge for a vehicle that is not Euro VI',
+    );
   });
 });
 

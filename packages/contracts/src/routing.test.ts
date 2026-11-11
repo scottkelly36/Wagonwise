@@ -223,6 +223,7 @@ describe('lowEmissionZonesResponseSchema', () => {
   const zone = {
     id: 'glasgow',
     name: 'Glasgow Low Emission Zone',
+    kind: 'penalty',
     penaltyGBP: 60,
     enforcedFrom: '2023-06-01',
     rings: [
@@ -237,6 +238,20 @@ describe('lowEmissionZonesResponseSchema', () => {
   it('carries zones as outlines of latitude and longitude pairs, with the licence credit', () => {
     expect(
       lowEmissionZonesResponseSchema.safeParse({ zones: [zone], attribution: 'credit' }).success,
+    ).toBe(true);
+  });
+
+  it('carries an English zone with a daily charge in place of a penalty', () => {
+    const english = {
+      id: 'london',
+      name: 'London Low Emission Zone',
+      kind: 'daily',
+      dailyChargeGBP: { lowGBP: 100, highGBP: 300 },
+      enforcedFrom: '2008-02-04',
+      rings: zone.rings,
+    };
+    expect(
+      lowEmissionZonesResponseSchema.safeParse({ zones: [english], attribution: 'credit' }).success,
     ).toBe(true);
   });
 
@@ -300,6 +315,24 @@ describe('routeOptionSchema', () => {
         zones: [{ name: 'Glasgow Low Emission Zone', status: 'fine', penaltyGBP: 60 }],
       }).success,
     ).toBe(false);
+  });
+
+  it('carries a zone with a daily charge, and an older server’s zone with only a penalty and no kind', () => {
+    const base = { geometry: 'g', distanceKm: 80, durationMin: 110, labels: ['fastest'] };
+    expect(
+      routeOptionSchema.safeParse({
+        ...base,
+        zones: [
+          {
+            name: 'London Low Emission Zone',
+            status: 'may-be-charged',
+            kind: 'daily',
+            dailyChargeGBP: { lowGBP: 100, highGBP: 300 },
+          },
+          { name: 'Glasgow Low Emission Zone', status: 'charged', penaltyGBP: 60 },
+        ],
+      }).success,
+    ).toBe(true);
   });
 
   it('carries named tolls with an optional price, note and when to pay', () => {

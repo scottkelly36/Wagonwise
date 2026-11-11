@@ -143,7 +143,7 @@ export const GUIDE: readonly GuideSection[] = [
           'Choose a job in the list to see that vehicle’s route to where it is heading on the map.',
           'Check “last seen” before relying on a dot. An old time means the app has been closed or the phone has no signal.',
           'The arrival time allows for the breaks the driver is expected to take.',
-          'The teal areas are Scotland’s low emission zones (Glasgow, Edinburgh, Dundee and Aberdeen). A vehicle whose last position is inside one says so in the list, and whether a penalty applies or may apply from what you have said about the vehicle’s Euro VI. Untick “Low emission zones” to hide the areas.',
+          'The teal areas are the low emission and clean air zones that can charge a lorry: Glasgow, Edinburgh, Dundee, Aberdeen, Newcastle and Gateshead, Bradford, Sheffield, Birmingham, Bristol, Bath, Portsmouth and London. A vehicle whose last position is inside one says so in the list, and whether a charge applies or may apply from what you have said about the vehicle’s Euro VI. Untick “Low emission zones” to hide the areas.',
         ],
       },
     ],

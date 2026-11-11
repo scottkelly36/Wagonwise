@@ -104,6 +104,8 @@ export const previewRouteOptionsRequestSchema = z.object({
   profileId: vehicleProfileIdSchema,
   origin: geoPointSchema,
   destination: geoPointSchema,
+  /** The app can show an English zone's daily charge as well as a Scottish penalty (and London's). Without it only the Scottish zones are reported, in the old shape. */
+  dailyZones: z.boolean().optional(),
   /** The vehicle is loaded: check the hills on each route and mark the gentlest. Without it the options are as before. */
   loaded: z.boolean().optional(),
   /** The app can show tolls: routes say whether they have one, and when one does a `toll-free` option is looked for. An older app does not send this and
@@ -139,8 +141,10 @@ export type RouteChargeDto = z.infer<typeof routeChargeSchema>;
 export const lowEmissionZoneSchema = z.object({
   id: z.string(),
   name: z.string(),
-  /** The penalty for a first breach, in pounds; it doubles for each further one within 90 days. */
-  penaltyGBP: z.number(),
+  /** What a vehicle that does not meet the standard pays: `penalty` is a Scottish zone's penalty notice (the first is `penaltyGBP`, doubling within 90 days), `daily` an English zone's daily charge. */
+  kind: z.enum(['penalty', 'daily']),
+  penaltyGBP: z.number().optional(),
+  dailyChargeGBP: z.object({ lowGBP: z.number(), highGBP: z.number() }).optional(),
   /** The day enforcement began (YYYY-MM-DD). */
   enforcedFrom: z.string(),
   rings: z.array(z.array(z.tuple([z.number(), z.number()]))),
@@ -159,8 +163,12 @@ export type LowEmissionZonesResponse = z.infer<typeof lowEmissionZonesResponseSc
 export const routeZoneSchema = z.object({
   name: z.string(),
   status: z.enum(['charged', 'may-be-charged']),
-  /** The penalty for a first breach, in pounds; it doubles for each further one within 90 days. */
-  penaltyGBP: z.number(),
+  /** Absent means a penalty zone (older servers sent only those). `daily` is an English zone's daily charge. */
+  kind: z.enum(['penalty', 'daily']).optional(),
+  /** The penalty for a first breach, in pounds; it doubles for each further one within 90 days. Present for a penalty zone. */
+  penaltyGBP: z.number().optional(),
+  /** The daily charge for a lorry, in pounds; the two differ when it depends on something the vehicle's details do not say. Present for a daily zone. */
+  dailyChargeGBP: z.object({ lowGBP: z.number(), highGBP: z.number() }).optional(),
 });
 export type RouteZoneDto = z.infer<typeof routeZoneSchema>;
 

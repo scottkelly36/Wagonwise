@@ -80,22 +80,37 @@ export interface ZoneLine {
  * server leaves those out). Never says a charge will be waived: some vehicles are exempt and the app cannot tell.
  */
 export function zoneLines(option: RouteOptionDto): readonly ZoneLine[] {
-  return (option.zones ?? []).map((zone) =>
-    zone.status === 'charged'
+  return (option.zones ?? []).map((zone) => {
+    const charged = zone.status === 'charged';
+    if (zone.kind === 'daily') {
+      const range = zone.dailyChargeGBP;
+      const amount =
+        range === undefined
+          ? 'a daily charge'
+          : range.lowGBP === range.highGBP
+            ? `a charge of £${range.lowGBP} a day`
+            : `a charge of £${range.lowGBP} to £${range.highGBP} a day`;
+      return charged
+        ? { text: `${zone.name}: your vehicle is not Euro VI, so ${amount} applies.`, charged }
+        : {
+            text: `${zone.name}: ${amount} applies to a vehicle that is not Euro VI. Say whether yours is, in its details.`,
+            charged,
+          };
+    }
+    return charged
       ? {
-          text: `${zone.name}: your vehicle is not Euro VI, so a penalty of £${zone.penaltyGBP} applies (more if repeated).`,
-          charged: true,
+          text: `${zone.name}: your vehicle is not Euro VI, so a penalty of £${zone.penaltyGBP ?? 60} applies (more if repeated).`,
+          charged,
         }
       : {
-          text: `${zone.name}: a penalty of £${zone.penaltyGBP} applies to a vehicle that is not Euro VI. Say whether yours is, in its details.`,
-          charged: false,
-        },
-  );
+          text: `${zone.name}: a penalty of £${zone.penaltyGBP ?? 60} applies to a vehicle that is not Euro VI. Say whether yours is, in its details.`,
+          charged,
+        };
+  });
 }
-
 /** The credit the Open Government Licence asks for beside the zone boundaries, shown once under the cards when a route enters a zone. */
 export const ZONE_CREDIT =
-  'Low emission zone boundaries: Improvement Service, Spatial Hub Scotland. Contains public sector information licensed under the Open Government Licence v3.0. Check the signs: the boundaries are from 2022.';
+  'Zone boundaries: Improvement Service (Spatial Hub Scotland), the councils and the Greater London Authority. Contains public sector information licensed under the Open Government Licence v3.0. Some outlines are approximate or from 2022: check the signs.';
 
 /** Whether any route enters a zone, so the credit is shown. */
 export function zonesShown(options: readonly RouteOptionDto[]): boolean {
