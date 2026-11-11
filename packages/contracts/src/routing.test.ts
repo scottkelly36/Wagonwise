@@ -249,6 +249,26 @@ describe('routeOptionSchema', () => {
     ).toBe(true);
   });
 
+  it('carries low emission zones with a status and the penalty, and treats them as optional', () => {
+    const base = { geometry: 'g', distanceKm: 80, durationMin: 110, labels: ['fastest'] };
+    expect(
+      routeOptionSchema.safeParse({
+        ...base,
+        zones: [
+          { name: 'Glasgow Low Emission Zone', status: 'charged', penaltyGBP: 60 },
+          { name: 'Edinburgh Low Emission Zone', status: 'may-be-charged', penaltyGBP: 60 },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(routeOptionSchema.safeParse(base).success).toBe(true);
+    expect(
+      routeOptionSchema.safeParse({
+        ...base,
+        zones: [{ name: 'Glasgow Low Emission Zone', status: 'fine', penaltyGBP: 60 }],
+      }).success,
+    ).toBe(false);
+  });
+
   it('carries named tolls with an optional price, note and when to pay', () => {
     const base = { geometry: 'g', distanceKm: 80, durationMin: 110, labels: ['fastest'] };
     expect(

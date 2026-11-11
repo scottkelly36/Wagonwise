@@ -1,6 +1,7 @@
 import type { GeoLine } from './geo.js';
 import type { HillStats } from './hill-profile.js';
 import type { RouteCharge } from './tolls.js';
+import type { RouteZone } from './zones.js';
 
 /** `gentle` is the route with the least steep road among those found, asked for when the vehicle is loaded. `toll-free` is a route found by asking the
  *  engine to avoid tolls, offered when another option has one. */
@@ -51,6 +52,8 @@ export interface RouteOption {
   /** The named tolls on the route with what each charges this vehicle (see `chargesOnRoute`). Present only when there is at least one we know; a route
    *  can have a toll that is not named here, which `hasToll` still says. */
   readonly charges?: readonly RouteCharge[] | undefined;
+  /** The low emission zones the route enters that could cost this vehicle (see `zonesForVehicle`). Absent when there are none, including when the vehicle meets Euro VI. */
+  readonly zones?: readonly RouteZone[] | undefined;
 }
 
 interface Candidate {
@@ -62,6 +65,7 @@ interface Candidate {
   readonly gentle?: boolean | undefined;
   readonly hasToll?: boolean | undefined;
   readonly charges?: readonly RouteCharge[] | undefined;
+  readonly zones?: readonly RouteZone[] | undefined;
   /** The route has no toll because the engine was asked to avoid them (see `findTollFreeRoute`): it gets the `toll-free` label. At most one candidate has it. */
   readonly tollFree?: boolean | undefined;
   /** Found by a search of ours, not one of the engine's own alternatives, so it is neither "fastest" nor "shortest" however short it is. */
@@ -141,6 +145,9 @@ export function buildRouteOptions(
       ...(candidate.charges === undefined || candidate.charges.length === 0
         ? {}
         : { charges: candidate.charges }),
+      ...(candidate.zones === undefined || candidate.zones.length === 0
+        ? {}
+        : { zones: candidate.zones }),
     };
   });
 }

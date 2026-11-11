@@ -7,6 +7,8 @@ import {
   strategyForOption,
   tollLine,
   tollLines,
+  zoneLines,
+  zonesShown,
 } from './route-option-text';
 
 const base = { geometry: 'g', distanceKm: 100, durationMin: 90 };
@@ -121,6 +123,64 @@ describe('tollLines', () => {
     ]);
     expect(tollLines({ ...base, labels: ['fastest'], hasToll: false })).toEqual([]);
     expect(tollLines({ ...base, labels: ['fastest'] })).toEqual([]);
+  });
+});
+
+describe('zoneLines', () => {
+  const glasgow = { name: 'Glasgow Low Emission Zone', penaltyGBP: 60 };
+
+  it('tells a vehicle that has not said whether it is Euro VI that a penalty may apply, and where to say', () => {
+    const option: RouteOptionDto = {
+      ...base,
+      labels: ['fastest'],
+      zones: [{ ...glasgow, status: 'may-be-charged' }],
+    };
+    expect(zoneLines(option)).toEqual([
+      {
+        text: 'Glasgow Low Emission Zone: a penalty of £60 applies to a vehicle that is not Euro VI. Say whether yours is, in its details.',
+        charged: false,
+      },
+    ]);
+  });
+
+  it('tells a vehicle that is not Euro VI that the penalty applies', () => {
+    const option: RouteOptionDto = {
+      ...base,
+      labels: ['fastest'],
+      zones: [{ ...glasgow, status: 'charged' }],
+    };
+    expect(zoneLines(option)).toEqual([
+      {
+        text: 'Glasgow Low Emission Zone: your vehicle is not Euro VI, so a penalty of £60 applies (more if repeated).',
+        charged: true,
+      },
+    ]);
+  });
+
+  it('gives a line for each zone, and nothing for none or when the server did not say', () => {
+    const two: RouteOptionDto = {
+      ...base,
+      labels: ['fastest'],
+      zones: [
+        { ...glasgow, status: 'charged' },
+        { name: 'Edinburgh Low Emission Zone', penaltyGBP: 60, status: 'may-be-charged' },
+      ],
+    };
+    expect(zoneLines(two).map((l) => l.text.split(':')[0])).toEqual([
+      'Glasgow Low Emission Zone',
+      'Edinburgh Low Emission Zone',
+    ]);
+    expect(zoneLines({ ...base, labels: ['fastest'], zones: [] })).toEqual([]);
+    expect(zoneLines({ ...base, labels: ['fastest'] })).toEqual([]);
+  });
+});
+
+describe('zonesShown', () => {
+  it('is true only when a route enters a zone, so the credit is not shown for nothing', () => {
+    const zone = { name: 'Glasgow Low Emission Zone', status: 'charged' as const, penaltyGBP: 60 };
+    expect(zonesShown([{ ...base, labels: ['fastest'], zones: [zone] }])).toBe(true);
+    expect(zonesShown([{ ...base, labels: ['fastest'], zones: [] }])).toBe(false);
+    expect(zonesShown([{ ...base, labels: ['fastest'] }])).toBe(false);
   });
 });
 

@@ -135,6 +135,16 @@ export const routeChargeSchema = z.object({
 });
 export type RouteChargeDto = z.infer<typeof routeChargeSchema>;
 
+/** A low emission zone the route enters that could cost this vehicle. `charged`: the vehicle has been said not to meet the standard, so a penalty applies.
+ *  `may-be-charged`: it has not been said either way, which is never read as fine. A vehicle that meets Euro VI gets no entry. */
+export const routeZoneSchema = z.object({
+  name: z.string(),
+  status: z.enum(['charged', 'may-be-charged']),
+  /** The penalty for a first breach, in pounds; it doubles for each further one within 90 days. */
+  penaltyGBP: z.number(),
+});
+export type RouteZoneDto = z.infer<typeof routeZoneSchema>;
+
 /** `labels` is non-empty — a route that's both the fastest and the shortest of the candidates
  *  carries both labels rather than being split into two identical-looking cards. */
 export const routeOptionSchema = z.object({
@@ -147,6 +157,8 @@ export const routeOptionSchema = z.object({
   hasToll: z.boolean().optional(),
   /** The named tolls on the route and their prices. Present only when the app asked about tolls (`tolls`) and the route passes one we know. */
   charges: z.array(routeChargeSchema).optional(),
+  /** The low emission zones the route enters that could cost this vehicle. Absent when there are none, including for a vehicle that meets Euro VI. */
+  zones: z.array(routeZoneSchema).optional(),
   /** Present only when `loaded` was asked for and the server has height data. */
   hills: hillSummarySchema.optional(),
   /** Present and true when no route exists for the vehicle's weight and this one goes past a weight limit. */

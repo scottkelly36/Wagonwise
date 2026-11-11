@@ -231,6 +231,37 @@ describe('the Load switch on Plan route', () => {
     expect(screen.getByTestId('route-option-1-toll').props.children).toBe('Includes a toll');
   });
 
+  it('says on the card that a route enters a low emission zone, and what that means for the vehicle', async () => {
+    await open();
+    await chooseDestination();
+    await fireEvent.press(await screen.findByTestId('plan-route-button'));
+    const [, handlers] = mockPreview.mock.calls[0] as [
+      unknown,
+      { onSuccess: (o: unknown) => void },
+    ];
+    handlers.onSuccess([
+      {
+        geometry: 'a',
+        distanceKm: 120,
+        durationMin: 90,
+        labels: ['fastest', 'shortest'],
+        zones: [{ name: 'Glasgow Low Emission Zone', status: 'may-be-charged', penaltyGBP: 60 }],
+      },
+      { geometry: 'b', distanceKm: 150, durationMin: 105, labels: ['gentle'] },
+    ]);
+
+    expect(await screen.findByTestId('route-option-1')).toBeTruthy();
+    expect(screen.getByTestId('route-option-0-zone').props.children).toMatch(
+      /^Glasgow Low Emission Zone: a penalty of £60 applies/,
+    );
+    expect(screen.queryByTestId('route-option-1-zone')).toBeNull();
+    // The licence asks for a credit, shown once.
+    expect(screen.getAllByTestId('zone-credit')).toHaveLength(1);
+    expect(screen.getByTestId('zone-credit').props.children).toMatch(
+      /Open Government Licence v3.0/,
+    );
+  });
+
   it('says so when the server could not check the hills', async () => {
     useLoadStore.setState({ loaded: true });
     await open();

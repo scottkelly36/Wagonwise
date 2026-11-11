@@ -30,6 +30,9 @@ import {
   routeOptionTitle,
   strategyForOption,
   tollLines,
+  ZONE_CREDIT,
+  zoneLines,
+  zonesShown,
 } from '../lib/route-option-text';
 import { formatRouteDistance, type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
@@ -897,6 +900,15 @@ export default function PlanRouteScreen() {
                         )}
                       </View>
                     ))}
+                    {zoneLines(option).map((line, lineIndex) => (
+                      <Text
+                        key={line.text}
+                        style={line.charged ? styles.optionWarning : styles.optionDetail}
+                        testID={`route-option-${index}-zone${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                      >
+                        {line.text}
+                      </Text>
+                    ))}
                     {option.breaksWeightLimit === true && (
                       <Text style={styles.optionWarning}>{WEIGHT_LIMIT_SHORT}</Text>
                     )}
@@ -904,6 +916,11 @@ export default function PlanRouteScreen() {
                   <Icon name="chevron-right" size={26} color={colors.textMuted} />
                 </TouchableOpacity>
               ))}
+              {zonesShown(routeOptions) && (
+                <Text style={styles.presetNote} testID="zone-credit">
+                  {ZONE_CREDIT}
+                </Text>
+              )}
               <TouchableOpacity
                 onPress={() => setRouteOptions(undefined)}
                 testID="edit-route-button"

@@ -106,6 +106,80 @@ describe('previewRouteOptions', () => {
     expect(result).toEqual({ ok: false, error: { tag: 'NoRouteFound' } });
   });
 
+  describe('low emission zones', () => {
+    // A test-only polyline6 encoder, separate from the shipped decoder, so a bug shared by both cannot hide behind a round trip.
+    const enc = (value: number): string => {
+      let shifted = value < 0 ? ~(value << 1) : value << 1;
+      let chars = '';
+      while (shifted >= 0x20) {
+        chars += String.fromCharCode((shifted & 0x1f) + 0x20 + 63);
+        shifted >>= 5;
+      }
+      return chars + String.fromCharCode(shifted + 63);
+    };
+    const encode = (points: readonly { lat: number; lon: number }[]): string =>
+      points
+        .map((p, i) => {
+          const prev = points[i - 1] ?? { lat: 0, lon: 0 };
+          return (
+            enc(Math.round(p.lat * 1e6) - Math.round(prev.lat * 1e6)) +
+            enc(Math.round(p.lon * 1e6) - Math.round(prev.lon * 1e6))
+          );
+        })
+        .join('');
+    // Two points either side of Glasgow city centre: a straight road through George Square with no point inside the zone.
+    const throughGlasgow = encode([
+      { lat: 55.8611, lon: -4.3 },
+      { lat: 55.8611, lon: -4.2 },
+    ]);
+    const clearOfZones = encode([
+      { lat: 54.9707, lon: -2.1013 },
+      { lat: 54.9738, lon: -2.0165 },
+    ]);
+
+    async function previewWith(euroVI: boolean | undefined, geometry: string) {
+      const deps = await buildDeps();
+      await deps.vehicleProfileRepo.save({
+        id: profileId,
+        driverId,
+        name: 'Big Wagon',
+        dimensions: { ...dimensions, ...(euroVI === undefined ? {} : { euroVI }) },
+      });
+      (deps.routingEngine as FakeRoutingEngine).alternativesResult = {
+        ok: true,
+        value: [{ geometry, distanceKm: 120, durationMin: 90, maneuvers: [] }],
+      };
+      return previewRouteOptions(deps, { driverId, profileId, origin, destination });
+    }
+
+    it('says a vehicle that has not said whether it is Euro VI may be charged in a zone the route enters', async () => {
+      const result = await previewWith(undefined, throughGlasgow);
+      expect(result.ok && result.value[0]?.zones).toEqual([
+        {
+          id: 'glasgow',
+          name: 'Glasgow Low Emission Zone',
+          status: 'may-be-charged',
+          penaltyGBP: 60,
+        },
+      ]);
+    });
+
+    it('says a vehicle that is not Euro VI is charged', async () => {
+      const result = await previewWith(false, throughGlasgow);
+      expect(result.ok && result.value[0]?.zones?.[0]?.status).toBe('charged');
+    });
+
+    it('says nothing about a zone for a Euro VI vehicle', async () => {
+      const result = await previewWith(true, throughGlasgow);
+      expect(result.ok && result.value[0]).not.toHaveProperty('zones');
+    });
+
+    it('says nothing for a route that stays out of the zones', async () => {
+      const result = await previewWith(false, clearOfZones);
+      expect(result.ok && result.value[0]).not.toHaveProperty('zones');
+    });
+  });
+
   describe('tolls', () => {
     const withToll = (geometry: string, hasToll: boolean, km: number, min: number) => ({
       geometry,

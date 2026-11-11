@@ -104,6 +104,16 @@ Valhalla's default limits make that happen for any route over 200 km or 16,000 s
 (`service_limits.trace` in its `valhalla.json`), so on the droplet raise `trace.max_distance` and
 `trace.max_shape` (for example to 1,000,000 and 100,000); `docs/deployment-guide.md` has the step.
 
+**Scottish low emission zones on Plan route (2026-11-11, stage 3 of charges routing, second part).** `domain/zones.ts` holds the four zones (name, outline pieces, penalty, enforcement day,
+source, `checkedOn`); the outlines are `domain/scottish-lez-boundaries.ts`, made once by a script from the Improvement Service's "Low Emission Zones - Scotland" file (British National
+Grid, October 2022, Open Government Licence v3.0, accuracy not stated by the publisher) converted to latitude and longitude with the Ordnance Survey's published method (checked against its
+worked example) and thinned to 8 m. They were compared by eye with OpenStreetMap streets and landmarks, **not** with the councils' own maps. `zonesEntered` fills in any gap over 50 m
+between a route's points (a straight road with a point each side of a small zone must not be missed) and lists the zones in the order met; `zonesForVehicle` turns that into
+`charged` (Euro VI said no), `may-be-charged` (not said) or nothing (Euro VI). `previewRouteOptions` adds `zones` to each option from the route's own line, so the app needs no flag
+(an older app ignores the field); the app shows one line per zone (`zoneLines`) and, once under the cards, the licence credit (`ZONE_CREDIT`). It never says a vehicle is compliant or
+that a charge will be waived (exemptions exist). Penalties are national (Schedule 4 of the 2021 Regulations): £60, £120, £240, £480, £960, half off within 14 days, reset after 90 days.
+The HGV standard in the regulations is Euro VI for diesel and Euro IV for petrol (categories N2 and N3). Not Tyneside, England's other zones or London.
+
 **Euro VI on the vehicle (2026-11-10, stage 3 of charges routing, first part).** `euroVI?: boolean` on the shared `dimensions` (contracts `dimensionsSchema`), stored for a driver's own
 profile (`routing.vehicle_profiles.euro_vi`) and a company vehicle (`fleet.vehicles.euro_vi`), migration 0088, and carried to a job's profile through `upsertVehicleProfile` like the top speed.
 Three answers: true, false, and **absent for "don't know"**; the repositories treat only `null` as absent, so a "no" is kept. The driver app asks "Euro VI engine (optional)" with a Yes / No / Don't
