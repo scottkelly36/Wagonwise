@@ -181,7 +181,8 @@ background-location permission). Each position and a two-second heartbeat timer 
    service; timers stop: Spike 1)**; can the MapLibre map be drawn on the car surface at navigation speed; how the trip state reaches the car service;
    can Expo carry it. _Done when:_ a go, go-with-changes or stop decision and the effort, written here. A custom build, not over the air.
 3. **Build Android Auto** if the spike says go: test-drive mode, navigation intents, templates for the features above, Play review.
-4. **CarPlay** once Apple has granted the entitlement **and a Mac is available**: the same features through CarPlay's templates.
+4. **CarPlay** once Apple has granted the entitlement **and a Mac is available**: the same features through CarPlay's templates. **Both this and Android Auto are deferred
+   (owner, 2026-11-11) until the toll and low emission zone work is finished.**
 5. Privacy notice, consent wording and store forms for background location go out **with** step 3, not after.
 
 Both are native changes: `version` goes up and a Play build and an App Store build are needed. They should share one build with the other native
