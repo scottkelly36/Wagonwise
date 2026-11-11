@@ -48,6 +48,7 @@ import {
   type UpdateVehicleProfileDeps,
 } from '../application/update-vehicle-profile.js';
 import { statusFor } from './error-mapping.js';
+import { routeZoneToDto } from './zone-dto.js';
 
 export interface RoutingRouteDeps {
   readonly createVehicleProfile: CreateVehicleProfileDeps;
@@ -210,11 +211,18 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
       destination: parsed.data.destination,
       loaded: parsed.data.loaded,
       tolls: parsed.data.tolls,
+      dailyZones: parsed.data.dailyZones,
     });
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
-    return reply.status(200).send({ options: result.value });
+    return reply.status(200).send({
+      options: result.value.map((option) =>
+        option.zones === undefined
+          ? option
+          : { ...option, zones: option.zones.map(routeZoneToDto) },
+      ),
+    });
   });
 
   app.get('/routing/route-plans/:id', async (request, reply) => {

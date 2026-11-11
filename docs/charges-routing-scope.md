@@ -90,8 +90,8 @@ discount or an exemption), or price a toll that depends on time of day (the M6 T
    **Scotland built 2026-11-11:** the four city-centre zones (Glasgow, Edinburgh, Dundee, Aberdeen) from the Improvement Service's Open Government Licence dataset
    (`routing/domain/zones.ts`, boundaries in `scottish-lez-boundaries.ts`). A card says when a route enters a zone and what it means for the vehicle: "may be
    charged" when the owner has not said whether it is Euro VI, "charged" when it is not, nothing when it is. Penalties are the national £60 doubling to £960.
-   Edinburgh, Dundee and Aberdeen enforce from 2024; the dataset is from October 2022, so the card says to check the signs. **Not built:** Tyneside (waits on the
-   councils' permission), England's other zones, London, a route that avoids a zone, and the zone charge in a total or a Cheapest card.
+   Edinburgh, Dundee and Aberdeen enforce from 2024; the dataset is from October 2022, so the card says to check the signs. **England and London added 2026-11-11 (owner's decision, below):** Tyneside, Bradford, Sheffield, Birmingham, Bristol, Bath, Portsmouth and London, with a daily-charge card
+   ("a charge of £50 a day applies") instead of a penalty. **Not built:** a route that avoids a zone, and the zone charge in a total or a Cheapest card.
    **Also on the portal (2026-11-11):** the live map outlines the zones and says when a vehicle is inside one, with what its Euro VI answer means. No alert yet. **The vehicle field is built (2026-11-10):** "Euro VI engine: Yes / No / Don't know" on a driver's own vehicle and a company vehicle (`euroVI` on the shared
    dimensions, migration 0088). It is stored and nothing reads it yet: the zone check comes next, and a boundary needs a licence first (the councils' boundary
    data is covered under "Sources read"). "Don't know" is kept as absent and will never be read as compliant.
@@ -155,6 +155,10 @@ that loaded. What is **not** confirmed is said so.
   rates for the zones that matter have been read from the operators' own pages (TfL, lowemissionzones.scot and the four Scottish councils, the Tyneside
   zone, GOV.UK) and written down here with the date. That includes settling whether the ULEZ itself touches HGVs. **Done 2026-11-10** (see "Sources read"):
   the ULEZ does not apply to HGVs, the London LEZ does. Some figures still need confirming from a page that loads, noted there.
+- **2026-11-11: use the zone boundaries without the councils' permission.** The owner chose to put Tyneside, Bradford, Bath and Portsmouth (no licence stated; Bath and Portsmouth
+  extracted from a council PDF and a scanned plan) in the app and on the live map, after being told they were taken without permission and that a council may object. London's
+  licence is unconfirmed too. Each zone's publisher and licence are recorded in `domain/gb-zone-boundaries.ts` and listed in `modules.md`; the credit shows beside the boundaries.
+  Removing one is deleting its entry. Oxford's zero-emission pilot is not included (its test is not Euro VI).
 
 ## Open decisions (owner)
 

@@ -170,7 +170,7 @@ describe('the Load switch on Plan route', () => {
     await chooseDestination();
     await fireEvent.press(await screen.findByTestId('plan-route-button'));
     // This version tells the server it can show tolls, so an older app is never sent a label it cannot read.
-    expect(mockPreview.mock.calls[0][0]).toMatchObject({ tolls: true });
+    expect(mockPreview.mock.calls[0][0]).toMatchObject({ tolls: true, dailyZones: true });
 
     const [, handlers] = mockPreview.mock.calls[0] as [
       unknown,

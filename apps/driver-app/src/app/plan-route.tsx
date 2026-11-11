@@ -475,6 +475,8 @@ export default function PlanRouteScreen() {
           ...(askedLoaded ? { loaded: true } : {}),
           // This version can show a toll and the toll-free option; an older one cannot read the new label, so only it is told to.
           tolls: true,
+          // And an English zone's daily charge, as well as a Scottish penalty.
+          dailyZones: true,
         },
         {
           onSuccess: (options) => {

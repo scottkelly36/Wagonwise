@@ -137,7 +137,17 @@ describe('previewRouteOptions', () => {
       { lat: 54.9738, lon: -2.0165 },
     ]);
 
-    async function previewWith(euroVI: boolean | undefined, geometry: string) {
+    // Two points either side of Sheffield city centre: a road through Fargate with no point inside the zone.
+    const throughSheffield = encode([
+      { lat: 53.3814, lon: -1.5 },
+      { lat: 53.3814, lon: -1.43 },
+    ]);
+
+    async function previewWith(
+      euroVI: boolean | undefined,
+      geometry: string,
+      dailyZones?: boolean,
+    ) {
       const deps = await buildDeps();
       await deps.vehicleProfileRepo.save({
         id: profileId,
@@ -149,8 +159,39 @@ describe('previewRouteOptions', () => {
         ok: true,
         value: [{ geometry, distanceKm: 120, durationMin: 90, maneuvers: [] }],
       };
-      return previewRouteOptions(deps, { driverId, profileId, origin, destination });
+      return previewRouteOptions(deps, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        ...(dailyZones === undefined ? {} : { dailyZones }),
+      });
     }
+
+    it('names an English zone, with its daily charge, when the app can show one', async () => {
+      const result = await previewWith(undefined, throughSheffield, true);
+      expect(result.ok && result.value[0]?.zones).toEqual([
+        {
+          id: 'sheffield',
+          name: 'Sheffield Clean Air Zone',
+          status: 'may-be-charged',
+          charge: { kind: 'daily', lowGBP: 50, highGBP: 50 },
+        },
+      ]);
+    });
+
+    it('says nothing about an English zone to an app that cannot show a daily charge', async () => {
+      const result = await previewWith(undefined, throughSheffield);
+      expect(result.ok && result.value[0]).not.toHaveProperty('zones');
+    });
+
+    it('still names a Scottish zone, as before, to an app that cannot show a daily charge', async () => {
+      const result = await previewWith(false, throughGlasgow);
+      expect(result.ok && result.value[0]?.zones?.[0]).toMatchObject({
+        id: 'glasgow',
+        charge: { kind: 'penalty', firstGBP: 60 },
+      });
+    });
 
     it('says a vehicle that has not said whether it is Euro VI may be charged in a zone the route enters', async () => {
       const result = await previewWith(undefined, throughGlasgow);
@@ -159,7 +200,7 @@ describe('previewRouteOptions', () => {
           id: 'glasgow',
           name: 'Glasgow Low Emission Zone',
           status: 'may-be-charged',
-          penaltyGBP: 60,
+          charge: { kind: 'penalty', firstGBP: 60 },
         },
       ]);
     });

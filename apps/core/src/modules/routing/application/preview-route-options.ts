@@ -9,7 +9,12 @@ import {
 import type { GeoPoint } from '../domain/geo.js';
 import { decodePolyline } from '../domain/geo.js';
 import { chargesOnRoute, type RouteCharge } from '../domain/tolls.js';
-import { zonesEntered, zonesForVehicle, type RouteZone } from '../domain/zones.js';
+import {
+  LOW_EMISSION_ZONES,
+  zonesEntered,
+  zonesForVehicle,
+  type RouteZone,
+} from '../domain/zones.js';
 import {
   withoutWeightLimits,
   type Dimensions,
@@ -44,6 +49,8 @@ export interface PreviewRouteOptionsInput {
   /** The app can show tolls: say which routes have one and, when one does, look for a route that avoids them and mark it `toll-free`. Without it the
    *  options are as before (an older app cannot read the new label). */
   readonly tolls?: boolean | undefined;
+  /** The app can show a daily charge as well as a penalty: report the English zones and London too. Without it only the Scottish zones are named, as before. */
+  readonly dailyZones?: boolean | undefined;
 }
 
 export type PreviewRouteOptionsError = VehicleProfileNotFound | NoRouteFound;
@@ -87,6 +94,7 @@ export async function previewRouteOptions(
             input.tolls,
           ),
           profile.dimensions,
+          input.dailyZones,
         ),
         profile.fuelConsumptionL100km,
         deps.fuelPricePerLitreGBP,
@@ -124,6 +132,7 @@ export async function previewRouteOptions(
           input.tolls,
         ),
         profile.dimensions,
+        input.dailyZones,
       ),
       profile.fuelConsumptionL100km,
       deps.fuelPricePerLitreGBP,
@@ -168,10 +177,19 @@ type Candidate = RouteResult & {
  * The low emission zones each route enters that could cost this vehicle: Euro VI says no charge, "no" says a penalty, and not said means it may be. Worked out
  * from the route's own line, so it needs no flag from the app (an older app does not read the new field and ignores it).
  */
-function withZones(routes: readonly Candidate[], vehicle: Dimensions): readonly Candidate[] {
+function withZones(
+  routes: readonly Candidate[],
+  vehicle: Dimensions,
+  dailyZones: boolean | undefined,
+): readonly Candidate[] {
+  // An app that cannot read a daily charge is told only about the zones with a penalty.
+  const zones =
+    dailyZones === true
+      ? LOW_EMISSION_ZONES
+      : LOW_EMISSION_ZONES.filter((zone) => zone.charge.kind === 'penalty');
   return routes.map((route) => ({
     ...route,
-    zones: zonesForVehicle(zonesEntered(decodePolyline(route.geometry)), vehicle),
+    zones: zonesForVehicle(zonesEntered(decodePolyline(route.geometry), zones), vehicle),
   }));
 }
 

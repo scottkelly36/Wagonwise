@@ -157,6 +157,46 @@ describe('zoneLines', () => {
     ]);
   });
 
+  it('says an English zone’s daily charge, to a vehicle that is not Euro VI and to one that has not said', () => {
+    const daily = {
+      name: 'Bristol Clean Air Zone',
+      kind: 'daily' as const,
+      dailyChargeGBP: { lowGBP: 100, highGBP: 100 },
+    };
+    const base2: RouteOptionDto = { ...base, labels: ['fastest'] };
+    expect(zoneLines({ ...base2, zones: [{ ...daily, status: 'charged' }] })).toEqual([
+      {
+        text: 'Bristol Clean Air Zone: your vehicle is not Euro VI, so a charge of £100 a day applies.',
+        charged: true,
+      },
+    ]);
+    expect(zoneLines({ ...base2, zones: [{ ...daily, status: 'may-be-charged' }] })).toEqual([
+      {
+        text: 'Bristol Clean Air Zone: a charge of £100 a day applies to a vehicle that is not Euro VI. Say whether yours is, in its details.',
+        charged: false,
+      },
+    ]);
+  });
+
+  it('says London’s range, and a plain daily charge when the amount is not given', () => {
+    const base2: RouteOptionDto = { ...base, labels: ['fastest'] };
+    const london = {
+      name: 'London Low Emission Zone',
+      kind: 'daily' as const,
+      status: 'charged' as const,
+      dailyChargeGBP: { lowGBP: 100, highGBP: 300 },
+    };
+    expect(zoneLines({ ...base2, zones: [london] })[0]?.text).toBe(
+      'London Low Emission Zone: your vehicle is not Euro VI, so a charge of £100 to £300 a day applies.',
+    );
+    expect(
+      zoneLines({
+        ...base2,
+        zones: [{ name: 'X Clean Air Zone', kind: 'daily', status: 'charged' }],
+      })[0]?.text,
+    ).toBe('X Clean Air Zone: your vehicle is not Euro VI, so a daily charge applies.');
+  });
+
   it('gives a line for each zone, and nothing for none or when the server did not say', () => {
     const two: RouteOptionDto = {
       ...base,

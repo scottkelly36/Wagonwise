@@ -24,7 +24,7 @@ describe('GET /staff/routing/low-emission-zones', () => {
     expect(response.statusCode).toBe(401);
   });
 
-  it('gives the four zones with their outlines and the licence credit, in the shape the dashboard reads', async () => {
+  it('gives the twelve zones with their outlines and the credit, in the shape the dashboard reads', async () => {
     const response = await buildApp().inject({
       method: 'GET',
       url: '/staff/routing/low-emission-zones',
@@ -32,17 +32,22 @@ describe('GET /staff/routing/low-emission-zones', () => {
     });
     expect(response.statusCode).toBe(200);
     const body = lowEmissionZonesResponseSchema.parse(response.json());
-    expect(body.zones.map((z) => z.id).sort()).toEqual([
-      'aberdeen',
-      'dundee',
-      'edinburgh',
-      'glasgow',
-    ]);
+    expect(body.zones).toHaveLength(12);
+    expect(body.zones.map((zone) => zone.id)).toEqual(
+      expect.arrayContaining(['glasgow', 'tyneside', 'london', 'bristol']),
+    );
     expect(body.attribution).toMatch(/Open Government Licence v3\.0/);
     for (const zone of body.zones) {
-      expect(zone.penaltyGBP).toBe(60);
       expect(zone.rings.length).toBeGreaterThan(0);
       expect(zone.rings.every((ring) => ring.length >= 3)).toBe(true);
     }
+    // Scotland has a penalty notice, England a daily charge.
+    const byId = Object.fromEntries(body.zones.map((zone) => [zone.id, zone]));
+    expect(byId['glasgow']).toMatchObject({ kind: 'penalty', penaltyGBP: 60 });
+    expect(byId['bristol']).toMatchObject({
+      kind: 'daily',
+      dailyChargeGBP: { lowGBP: 100, highGBP: 100 },
+    });
+    expect(byId['london']).toMatchObject({ dailyChargeGBP: { lowGBP: 100, highGBP: 300 } });
   });
 });

@@ -1,75 +1,167 @@
+import { GB_ZONE_RINGS } from './gb-zone-boundaries.js';
 import type { GeoPoint } from './geo.js';
 import { SCOTTISH_LEZ_RINGS, type Ring } from './scottish-lez-boundaries.js';
 
 export type { Ring };
 
 /**
- * Low emission zones a lorry can enter, and whether it may be charged there. First Scotland's four city-centre zones; Tyneside, England's other clean air zones
- * and London are not here (see `docs/charges-routing-scope.md`). A route is never planned round a zone: it only says "this route enters one".
+ * Low emission and clean air zones a lorry can enter, and whether it may be charged there: Scotland's four city-centre zones, seven English clean air zones
+ * (Tyneside, Bradford, Sheffield, Birmingham, Bristol, Bath, Portsmouth) and London's. Oxford's zero-emission pilot is left out on purpose: its test is zero
+ * emission, not Euro VI, so a Euro VI answer says nothing about it. A route is never planned round a zone: it only says "this route enters one".
  */
+
+/** What a vehicle that does not meet the standard pays. A Scottish zone issues a penalty notice (no charge to pay in advance); an English zone has a daily charge. */
+export type ZoneCharge =
+  | {
+      readonly kind: 'penalty';
+      /** The penalty for a first breach, in pounds. It doubles for each further one within 90 days, up to a cap. */
+      readonly firstGBP: number;
+    }
+  | {
+      readonly kind: 'daily';
+      /** The daily charge for a lorry, in pounds. The two differ when it depends on something we are not told (London's: £100, or £300 for one older than Euro IV). */
+      readonly lowGBP: number;
+      readonly highGBP: number;
+    };
 
 export interface LowEmissionZone {
   readonly id: string;
   readonly name: string;
-  /** A zone can be several pieces (Edinburgh's has three). */
+  /** A zone can be several pieces (Edinburgh's has three, London's 22). */
   readonly rings: readonly Ring[];
-  /** The penalty for a first breach by a vehicle that does not meet the standard, in pounds. It doubles for each further one within 90 days, up to a cap. */
-  readonly penaltyGBP: number;
-  /** The day enforcement began or begins (YYYY-MM-DD). */
+  readonly charge: ZoneCharge;
+  /** The day enforcement began (YYYY-MM-DD). */
   readonly enforcedFrom: string;
-  /** Where the rules were read, and the day. */
+  /** Where the charge was read, and the day. */
   readonly sourceUrl: string;
   readonly checkedOn: string;
 }
 
 /**
- * Scotland's zones. The standard for a heavy goods vehicle is Euro VI for a diesel and Euro IV for a petrol one, and the penalties are the same in all four
- * (Schedule 4 of the Low Emission Zones (Emission Standards, Exemptions and Enforcement) (Scotland) Regulations 2021): £60, then £120, £240, £480 and £960 a
- * time for a vehicle in the same zone within 90 days, half off if paid within 14 days. Enforcement dates are Transport Scotland's (published 2022).
+ * Scotland: the standard for a heavy goods vehicle is Euro VI for a diesel and Euro IV for a petrol one, and the penalties are the same in all four (Schedule 4 of
+ * the Low Emission Zones (Emission Standards, Exemptions and Enforcement) (Scotland) Regulations 2021): £60, then £120, £240, £480 and £960 a time for a vehicle in
+ * the same zone within 90 days, half off if paid within 14 days. Enforcement dates are Transport Scotland's (published 2022).
  */
 const REGULATIONS = 'https://www.legislation.gov.uk/ssi/2021/177/made';
+const scottish = (
+  id: string,
+  name: string,
+  rings: readonly Ring[],
+  enforcedFrom: string,
+): LowEmissionZone => ({
+  id,
+  name,
+  rings,
+  charge: { kind: 'penalty', firstGBP: 60 },
+  enforcedFrom,
+  sourceUrl: REGULATIONS,
+  checkedOn: '2026-11-11',
+});
+
+/**
+ * England: a non-compliant lorry pays a daily charge, and the standard for a heavy goods vehicle is Euro VI diesel in all seven (Euro 6 in the charging orders). The
+ * rates were read from each council's own charges page on 2026-11-11, through search summaries of those pages, except Tyneside's, which is from the 2023 council pages and
+ * is not confirmed as current. Birmingham's lorry charge is £50, not the £100 the owner's draft suggested. London: £100 a day, or £300 for a lorry older than Euro IV
+ * (particulate), from TfL's payment page; the standard is Euro VI (NOx and PM) for a vehicle over 3.5 tonnes.
+ */
+const daily = (
+  id: string,
+  name: string,
+  rings: readonly Ring[],
+  gbp: number | readonly [number, number],
+  enforcedFrom: string,
+  sourceUrl: string,
+): LowEmissionZone => ({
+  id,
+  name,
+  rings,
+  charge: {
+    kind: 'daily',
+    lowGBP: typeof gbp === 'number' ? gbp : gbp[0],
+    highGBP: typeof gbp === 'number' ? gbp : gbp[1],
+  },
+  enforcedFrom,
+  sourceUrl,
+  checkedOn: '2026-11-11',
+});
+
 export const LOW_EMISSION_ZONES: readonly LowEmissionZone[] = [
-  {
-    id: 'glasgow',
-    name: 'Glasgow Low Emission Zone',
-    rings: SCOTTISH_LEZ_RINGS.glasgow,
-    penaltyGBP: 60,
-    enforcedFrom: '2023-06-01',
-    sourceUrl: REGULATIONS,
-    checkedOn: '2026-11-11',
-  },
-  {
-    id: 'edinburgh',
-    name: 'Edinburgh Low Emission Zone',
-    rings: SCOTTISH_LEZ_RINGS.edinburgh,
-    penaltyGBP: 60,
-    enforcedFrom: '2024-06-01',
-    sourceUrl: REGULATIONS,
-    checkedOn: '2026-11-11',
-  },
-  {
-    id: 'dundee',
-    name: 'Dundee Low Emission Zone',
-    rings: SCOTTISH_LEZ_RINGS.dundee,
-    penaltyGBP: 60,
-    enforcedFrom: '2024-05-30',
-    sourceUrl: REGULATIONS,
-    checkedOn: '2026-11-11',
-  },
-  {
-    id: 'aberdeen',
-    name: 'Aberdeen Low Emission Zone',
-    rings: SCOTTISH_LEZ_RINGS.aberdeen,
-    penaltyGBP: 60,
-    enforcedFrom: '2024-06-01',
-    sourceUrl: REGULATIONS,
-    checkedOn: '2026-11-11',
-  },
+  scottish('glasgow', 'Glasgow Low Emission Zone', SCOTTISH_LEZ_RINGS.glasgow, '2023-06-01'),
+  scottish('edinburgh', 'Edinburgh Low Emission Zone', SCOTTISH_LEZ_RINGS.edinburgh, '2024-06-01'),
+  scottish('dundee', 'Dundee Low Emission Zone', SCOTTISH_LEZ_RINGS.dundee, '2024-05-30'),
+  scottish('aberdeen', 'Aberdeen Low Emission Zone', SCOTTISH_LEZ_RINGS.aberdeen, '2024-06-01'),
+  daily(
+    'tyneside',
+    'Newcastle and Gateshead Clean Air Zone',
+    GB_ZONE_RINGS.tyneside,
+    50,
+    '2023-01-30',
+    'https://www.breathe-cleanair.com/',
+  ),
+  daily(
+    'bradford',
+    'Bradford Clean Air Zone',
+    GB_ZONE_RINGS.bradford,
+    50,
+    '2022-09-26',
+    'https://www.bradford.gov.uk/clean-air-zone/payments-and-charges/list-of-daily-charges/',
+  ),
+  daily(
+    'sheffield',
+    'Sheffield Clean Air Zone',
+    GB_ZONE_RINGS.sheffield,
+    50,
+    '2023-02-27',
+    'https://www.sheffield.gov.uk/clean-air-zone-sheffield/charges-and-refunds/clean-air-zone-charges-and-how-pay',
+  ),
+  daily(
+    'birmingham',
+    'Birmingham Clean Air Zone',
+    GB_ZONE_RINGS.birmingham,
+    50,
+    '2021-06-01',
+    'https://www.birmingham.gov.uk/info/20076/pollution/1763/a_clean_air_zone_for_birmingham',
+  ),
+  daily(
+    'bristol',
+    'Bristol Clean Air Zone',
+    GB_ZONE_RINGS.bristol,
+    100,
+    '2022-11-28',
+    'https://www.bristol.gov.uk/residents/streets-travel/bristols-caz/charges-and-vehicle-checker',
+  ),
+  daily(
+    'bath',
+    'Bath Clean Air Zone',
+    GB_ZONE_RINGS.bath,
+    100,
+    '2021-03-15',
+    'https://www.bathnes.gov.uk/find-out-bath-clean-air-zone-charges',
+  ),
+  daily(
+    'portsmouth',
+    'Portsmouth Clean Air Zone',
+    GB_ZONE_RINGS.portsmouth,
+    50,
+    '2021-11-29',
+    'https://www.portsmouth.gov.uk/services/parking-roads-and-travel/clean-air-zone-penalty-charge-notices/',
+  ),
+  daily(
+    'london',
+    'London Low Emission Zone',
+    GB_ZONE_RINGS.london,
+    [100, 300],
+    '2008-02-04',
+    'https://tfl.gov.uk/modes/driving/low-emission-zone/your-vehicle-and-lez',
+  ),
 ];
 
-/** The credit the Open Government Licence asks for beside the boundaries, wherever they are shown. */
+/**
+ * The credit shown beside the boundaries, wherever they are drawn. The Open Government Licence asks for a statement; Birmingham's CC-BY needs its council named. The
+ * others are named as the bodies that publish the outlines.
+ */
 export const ZONE_BOUNDARY_CREDIT =
-  'Low emission zone boundaries: Improvement Service, Spatial Hub Scotland. Contains public sector information licensed under the Open Government Licence v3.0. From 2022: check the signs.';
+  'Zone boundaries: Improvement Service (Spatial Hub Scotland); Sheffield, Bristol, Birmingham, Bradford, Bath and Portsmouth councils; Gateshead Council; Greater London Authority and TfL. Contains public sector information licensed under the Open Government Licence v3.0 (Birmingham City Council data: CC-BY). Some outlines are approximate and some are from 2022: check the signs.';
 
 /** Whether a point is inside a ring (ray casting; a point exactly on the edge is not worth a rule). */
 function inRing(point: GeoPoint, ring: Ring): boolean {
@@ -171,9 +263,9 @@ export function zonesEntered(
 export interface RouteZone {
   readonly id: string;
   readonly name: string;
-  /** `charged`: the vehicle has been said not to meet the standard, so a penalty applies. `may-be-charged`: it has not been said either way, which is never read as fine. */
+  /** `charged`: the vehicle has been said not to meet the standard, so the charge applies. `may-be-charged`: it has not been said either way, which is never read as fine. */
   readonly status: 'charged' | 'may-be-charged';
-  readonly penaltyGBP: number;
+  readonly charge: ZoneCharge;
 }
 
 /** What the table needs to know about the vehicle: whether it meets Euro VI, as its owner or driver says. Absent is "not stated". */
@@ -194,6 +286,6 @@ export function zonesForVehicle(
     id: zone.id,
     name: zone.name,
     status: vehicle.euroVI === false ? 'charged' : 'may-be-charged',
-    penaltyGBP: zone.penaltyGBP,
+    charge: zone.charge,
   }));
 }
