@@ -37,6 +37,7 @@ import {
 import { ValhallaRoutingEngine } from './infrastructure/valhalla-routing-engine.js';
 import { ValhallaSpeedLimits } from './infrastructure/valhalla-speed-limits.js';
 import { registerRoutingRoutes, type RoutingRouteDeps } from './interface/routes.js';
+import { registerZoneRoutes } from './interface/zone-routes.js';
 
 // Re-exported for the same reason as the others below — composition/ types its overrides without
 // reaching into application/ directly.
@@ -202,6 +203,7 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
   return {
     registerRoutes(app: FastifyInstance): void {
       registerRoutingRoutes(app, routeDeps);
+      registerZoneRoutes(app);
     },
     estimateRoute: (input) => estimateRoute({ routingEngine }, input),
     upsertVehicleProfile: (input) => upsertVehicleProfile({ repo: vehicleProfileRepo }, input),

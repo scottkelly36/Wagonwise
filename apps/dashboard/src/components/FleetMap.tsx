@@ -1,3 +1,4 @@
+import type { LowEmissionZoneDto } from '@wagonwise/contracts/routing';
 import type { WeatherWarningsWithAreasResponse } from '@wagonwise/contracts/weather';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -7,6 +8,7 @@ import { maptilerApiKey } from '../api/config';
 import { mapStyleUrl } from '../lib/live-map';
 import '../lib/map-worker';
 import { warningsGeoJson } from '../lib/weather';
+import { zonesGeoJson } from '../lib/zones';
 
 export interface MapMarker {
   readonly id: string;
@@ -27,10 +29,13 @@ interface Props {
   readonly line?: readonly [number, number][] | undefined;
   /** Met Office warning areas to shade on the map; none draws nothing. */
   readonly warnings?: WeatherWarningsWithAreasResponse['warnings'] | undefined;
+  /** Low emission zones to outline on the map; none draws nothing. */
+  readonly zones?: readonly LowEmissionZoneDto[] | undefined;
 }
 
 const ROUTE_SOURCE = 'selected-route';
 const WEATHER_SOURCE = 'weather-warnings';
+const ZONE_SOURCE = 'low-emission-zones';
 
 // The whole of Great Britain and the top of Northern Ireland, as [west, south, east, north]. The
 // view until there is a vehicle to fit to; fitted to the box, so it fits whatever size it is.
@@ -57,7 +62,7 @@ function markerElement(marker: MapMarker, onSelect: (id: string) => void): HTMLE
 /** The dispatcher's map (P2-M6.2): one marker per vehicle on the road, plus the selected job's
  *  stops. Imperative MapLibre inside one effect each for creating the map and for syncing markers —
  *  React owns the data, MapLibre owns the pixels. */
-export function FleetMap({ markers, selectedId, onSelect, line, warnings }: Props) {
+export function FleetMap({ markers, selectedId, onSelect, line, warnings, zones }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const live = useRef(new Map<string, maplibregl.Marker>());
@@ -190,6 +195,48 @@ export function FleetMap({ markers, selectedId, onSelect, line, warnings }: Prop
     if (instance.isStyleLoaded()) apply();
     else instance.once('load', apply);
   }, [warnings]);
+
+  // Low emission zones, outlined beneath the route and the vehicles.
+  useEffect(() => {
+    const instance = map.current;
+    if (instance === null) return;
+    const data = zonesGeoJson(zones ?? []);
+    const apply = () => {
+      const source = instance.getSource(ZONE_SOURCE) as maplibregl.GeoJSONSource | undefined;
+      if (source !== undefined) {
+        source.setData(data);
+        return;
+      }
+      instance.addSource(ZONE_SOURCE, { type: 'geojson', data });
+      const beforeRoute = instance.getLayer(ROUTE_SOURCE) === undefined ? undefined : ROUTE_SOURCE;
+      instance.addLayer(
+        {
+          id: `${ZONE_SOURCE}-fill`,
+          type: 'fill',
+          source: ZONE_SOURCE,
+          paint: { 'fill-color': '#0e7490', 'fill-opacity': 0.18 },
+        },
+        beforeRoute,
+      );
+      instance.addLayer(
+        {
+          id: `${ZONE_SOURCE}-line`,
+          type: 'line',
+          source: ZONE_SOURCE,
+          paint: { 'line-color': '#0e7490', 'line-width': 2 },
+        },
+        beforeRoute,
+      );
+      instance.on('click', `${ZONE_SOURCE}-fill`, (event) => {
+        const title = event.features?.[0]?.properties?.['title'];
+        if (typeof title === 'string') {
+          new maplibregl.Popup().setLngLat(event.lngLat).setText(title).addTo(instance);
+        }
+      });
+    };
+    if (instance.isStyleLoaded()) apply();
+    else instance.once('load', apply);
+  }, [zones]);
 
   useEffect(() => {
     const target = markers.find((m) => m.kind === 'vehicle' && m.id === selectedId);

@@ -91,7 +91,8 @@ discount or an exemption), or price a toll that depends on time of day (the M6 T
    (`routing/domain/zones.ts`, boundaries in `scottish-lez-boundaries.ts`). A card says when a route enters a zone and what it means for the vehicle: "may be
    charged" when the owner has not said whether it is Euro VI, "charged" when it is not, nothing when it is. Penalties are the national £60 doubling to £960.
    Edinburgh, Dundee and Aberdeen enforce from 2024; the dataset is from October 2022, so the card says to check the signs. **Not built:** Tyneside (waits on the
-   councils' permission), England's other zones, London, a route that avoids a zone, and the zone charge in a total or a Cheapest card. **The vehicle field is built (2026-11-10):** "Euro VI engine: Yes / No / Don't know" on a driver's own vehicle and a company vehicle (`euroVI` on the shared
+   councils' permission), England's other zones, London, a route that avoids a zone, and the zone charge in a total or a Cheapest card.
+   **Also on the portal (2026-11-11):** the live map outlines the zones and says when a vehicle is inside one, with what its Euro VI answer means. No alert yet. **The vehicle field is built (2026-11-10):** "Euro VI engine: Yes / No / Don't know" on a driver's own vehicle and a company vehicle (`euroVI` on the shared
    dimensions, migration 0088). It is stored and nothing reads it yet: the zone check comes next, and a boundary needs a licence first (the councils' boundary
    data is covered under "Sources read"). "Don't know" is kept as absent and will never be read as compliant.
 4. **Cheapest.** Cost scoring and the label, the faster-route check, re-plans. Test on real routes: Hexham to Dundee and Edinburgh, Newcastle to

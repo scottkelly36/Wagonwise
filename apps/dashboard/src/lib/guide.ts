@@ -143,10 +143,13 @@ export const GUIDE: readonly GuideSection[] = [
           'Choose a job in the list to see that vehicle’s route to where it is heading on the map.',
           'Check “last seen” before relying on a dot. An old time means the app has been closed or the phone has no signal.',
           'The arrival time allows for the breaks the driver is expected to take.',
+          'The teal areas are Scotland’s low emission zones (Glasgow, Edinburgh, Dundee and Aberdeen). A vehicle whose last position is inside one says so in the list, and whether a penalty applies or may apply from what you have said about the vehicle’s Euro VI. Untick “Low emission zones” to hide the areas.',
         ],
       },
     ],
     tips: [
+      'Say whether each vehicle is Euro VI on Vehicles (Edit). Until you do, a vehicle in a zone is shown as one that may be charged.',
+      'The zone outlines are from 2022 and are a guide: check the signs. Some vehicles are exempt, which WagonWise cannot tell.',
       'Drivers are only shared while a job is on the road. Nobody is tracked in the background.',
       'A vehicle that is missing from the map has no job on the road, or its driver has the app closed.',
     ],

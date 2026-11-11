@@ -114,6 +114,15 @@ between a route's points (a straight road with a point each side of a small zone
 that a charge will be waived (exemptions exist). Penalties are national (Schedule 4 of the 2021 Regulations): £60, £120, £240, £480, £960, half off within 14 days, reset after 90 days.
 The HGV standard in the regulations is Euro VI for diesel and Euro IV for petrol (categories N2 and N3). Not Tyneside, England's other zones or London.
 
+**Zones on the dispatcher's live map (2026-11-11).** `GET /staff/routing/low-emission-zones` (core `routing/interface/zone-routes.ts`, passed through the staff BFF) returns the four zones with their outlines
+(`[latitude, longitude]` pairs), penalty, enforcement day and the licence credit (`ZONE_BOUNDARY_CREDIT`); any signed-in staff account, no company scoping, as for weather warnings. The dashboard fetches it
+once (`api/zones.ts`), `FleetMap` outlines the zones in teal beneath the route and the vehicles (a click shows the name and penalty), and the Live trips page tests each vehicle's last position against the
+outlines itself (`lib/zones.ts`: `zoneAt`, `zoneNote`). **Core does not look at where a vehicle is**, so nothing new is stored or shared: it uses the position the live map already shows. A vehicle inside
+a zone gets a line in the list ("In the Glasgow Low Emission Zone…", or "Last seen in…" when its position is not live) and its map label says so. The line uses what the company has said about the vehicle's
+Euro VI (`euroVI` on the fleet vehicle): marked Euro VI gives a quiet note, not Euro VI says a penalty applies, not stated says one may and to set it on the vehicle, and a viewer who cannot see
+vehicles is told to check. It repeats what the company said and never calls a vehicle compliant. A tick box hides the zones; the licence credit shows under it. Not Tyneside, England's other zones or London,
+and no alert or email when a vehicle enters a zone (a possible next step).
+
 **Euro VI on the vehicle (2026-11-10, stage 3 of charges routing, first part).** `euroVI?: boolean` on the shared `dimensions` (contracts `dimensionsSchema`), stored for a driver's own
 profile (`routing.vehicle_profiles.euro_vi`) and a company vehicle (`fleet.vehicles.euro_vi`), migration 0088, and carried to a job's profile through `upsertVehicleProfile` like the top speed.
 Three answers: true, false, and **absent for "don't know"**; the repositories treat only `null` as absent, so a "no" is kept. The driver app asks "Euro VI engine (optional)" with a Yes / No / Don't
