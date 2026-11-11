@@ -23,6 +23,8 @@ export interface Dimensions {
   /** Km/h the vehicle is timed at, if the company has said (a speed limiter, usually 90 km/h for a lorry). Routing uses it for the
    *  time a route takes, never to choose the road. */
   readonly topSpeedKph?: number | undefined;
+  /** Whether the vehicle meets Euro VI, as the company says. Absent means not stated, never assumed compliant. */
+  readonly euroVI?: boolean | undefined;
 }
 
 /** The slowest and fastest top speed accepted, in km/h (19 to 81 mph); the same as routing's. */

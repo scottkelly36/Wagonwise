@@ -61,6 +61,28 @@ describe('PostgresVehicleProfileRepository', () => {
     expect(await repo().findById(p.id)).toEqual(p);
   });
 
+  it('keeps Euro VI yes, no and not stated apart: false is an answer, not a missing value', async () => {
+    const base = { heightM: 4.0, widthM: 2.5, lengthM: 12, grossWeightT: 26 };
+    const yes = profile({
+      id: makeId<'VehicleProfileId'>('55555555-5555-4555-8555-555555555551'),
+      dimensions: { ...base, euroVI: true },
+    });
+    const no = profile({
+      id: makeId<'VehicleProfileId'>('55555555-5555-4555-8555-555555555552'),
+      dimensions: { ...base, euroVI: false },
+    });
+    const unstated = profile({
+      id: makeId<'VehicleProfileId'>('55555555-5555-4555-8555-555555555553'),
+      dimensions: base,
+    });
+    for (const p of [yes, no, unstated]) await repo().save(p);
+
+    expect((await repo().findById(yes.id))?.dimensions.euroVI).toBe(true);
+    expect((await repo().findById(no.id))?.dimensions.euroVI).toBe(false);
+    expect(await repo().findById(unstated.id)).toEqual(unstated);
+    expect((await repo().findById(unstated.id))?.dimensions).not.toHaveProperty('euroVI');
+  });
+
   it('returns null for an unknown id', async () => {
     expect(
       await repo().findById(makeId<'VehicleProfileId'>('00000000-0000-4000-8000-000000000000')),

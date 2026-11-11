@@ -104,6 +104,12 @@ Valhalla's default limits make that happen for any route over 200 km or 16,000 s
 (`service_limits.trace` in its `valhalla.json`), so on the droplet raise `trace.max_distance` and
 `trace.max_shape` (for example to 1,000,000 and 100,000); `docs/deployment-guide.md` has the step.
 
+**Euro VI on the vehicle (2026-11-10, stage 3 of charges routing, first part).** `euroVI?: boolean` on the shared `dimensions` (contracts `dimensionsSchema`), stored for a driver's own
+profile (`routing.vehicle_profiles.euro_vi`) and a company vehicle (`fleet.vehicles.euro_vi`), migration 0088, and carried to a job's profile through `upsertVehicleProfile` like the top speed.
+Three answers: true, false, and **absent for "don't know"**; the repositories treat only `null` as absent, so a "no" is kept. The driver app asks "Euro VI engine (optional)" with a Yes / No / Don't
+know control (also with a preset); the dashboard vehicle **Edit** form has a select (not the add form yet). **Nothing reads it yet**: it is for the zone check to come, where "don't know" must give "a
+charge may apply", never "fine". It is not used for routing or timing.
+
 **A vehicle's top speed (2026-11-10, driver feedback).** The 55 mph timing speed is the default; a vehicle can have its own, `topSpeedKph` on the shared
 `dimensions` (contracts `dimensionsSchema`, 30 to 130 km/h, optional), so it is stored for both a driver's own profile (`routing.vehicle_profiles.top_speed_kph`) and a
 company vehicle (`fleet.vehicles.top_speed_kph`, migration 0087), and a job's profile gets the company vehicle's through `upsertVehicleProfile`. `retime` uses

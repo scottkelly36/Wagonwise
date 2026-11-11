@@ -21,6 +21,9 @@ export interface Dimensions {
   /** Km/h the vehicle is timed at, if its owner or driver has said (a speed limiter, usually 90 km/h for a lorry). Not sent to the engine's
    *  road costing, only used to time the road once it is chosen (`valhalla-routing-engine.ts`), so it can never change the route. */
   readonly topSpeedKph?: number | undefined;
+  /** Whether the vehicle meets Euro VI, as its owner or driver says. Absent means they did not say: that is treated as "may be charged" in a zone,
+   *  never as compliant. Not sent to the engine's costing and not used to choose a road. */
+  readonly euroVI?: boolean | undefined;
 }
 
 /** The slowest and fastest top speed accepted, in km/h: 19 to 81 mph. Anything outside is a typo, not a vehicle. */

@@ -45,6 +45,15 @@ describe('upsertVehicleProfile', () => {
     expect((await repo.findById(ID as never))?.dimensions.topSpeedKph).toBe(90);
   });
 
+  it('carries the company vehicle’s Euro VI answer, including "no", to the profile a job is routed with', async () => {
+    const repo = new InMemoryVehicleProfileRepository();
+    await upsertVehicleProfile(
+      { repo },
+      { id: ID, driverId: DRIVER, name: 'Scania', dimensions: { ...DIMENSIONS, euroVI: false } },
+    );
+    expect((await repo.findById(ID as never))?.dimensions.euroVI).toBe(false);
+  });
+
   it('refuses measurements that are not real, and stores nothing', async () => {
     const repo = new InMemoryVehicleProfileRepository();
 
