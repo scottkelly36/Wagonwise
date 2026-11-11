@@ -13,6 +13,7 @@ import {
   previewJobRouteRequestSchema,
   setJobCommercialRequestSchema,
   proofOfDeliveryResponseSchema,
+  signatureResponseSchema,
   type AssignJobRequest,
   type CreateJobRequest,
   type JobReportRequest,
@@ -24,6 +25,7 @@ import {
   type JobDto,
   type JobPositionDto,
   type ProofOfDeliveryResponse,
+  type SignatureResponse,
 } from '@wagonwise/contracts/jobs';
 
 import { requestJson, throwUnlessSuccess } from './http';
@@ -99,6 +101,20 @@ export async function getProofOfDelivery(
   });
   throwUnlessSuccess(status, json, [200]);
   return proofOfDeliveryResponseSchema.parse(json);
+}
+
+/** The signature a driver took for a job (404 `SignatureNotFound` if none). */
+export async function getSignature(
+  accessToken: string,
+  id: string,
+  stop?: number,
+): Promise<SignatureResponse> {
+  const query = stop === undefined ? '' : `?stop=${stop}`;
+  const { status, json } = await requestJson('GET', `/staff/jobs/${id}/signature${query}`, {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return signatureResponseSchema.parse(json);
 }
 
 /** The latest position of each of the company's jobs that is on the road (P2-M6.1). */

@@ -857,6 +857,27 @@ until the photo has reached the server. **This added a native dependency and the
 (app `version` 1.0.1 → 1.1.0), so it needs a fresh `eas build` before it works on a device — an
 `eas update` alone won't carry it.**
 
+**Delivery signature**: set like the photo. A dispatcher ticks "Require receiver's signature" on a
+job (`requiresSignature`, migration 0089); at the delivery stop `/job` shows a "Receiver's signature"
+card whose "Get signature" opens `components/signature-pad.tsx`, where the receiver signs with a
+finger and may type a name. The app has no drawing library (and none could be added over the air), so
+the signature is kept as **strokes**: lists of `[x, y]` points in a 1000 x 500 box (`signatureStrokesSchema`
+in the contract limits it to 60 strokes, 400 points in one and 2000 in all; `lib/signature.ts` thins
+the points and fits it). The pad draws them as thin rotated Views. They go through the same kind of
+offline queue as the photo (`db/signature-queue.ts`, one row per job, `lib/signature-flush.ts` reusing
+`flushQueuedProofs`, `hooks/use-signature-queue-flush.ts`). Core: `POST /jobs/:id/signature` (driver
+only, replaces the one for the delivery the driver is at), `GET /staff/jobs/:id/signature?stop=`
+(anyone who can see the company's jobs; 404 `SignatureNotFound`), stored in `jobs.delivery_signatures`
+(one row per job and stop, same RLS as the photo). `advanceJobStatus` refuses the step after a
+delivery with `SignatureRequired` (409) when the job requires one and the stop has none, for any
+actor, beside the photo check. A signature follows the **photo's retention** (`photo_retention_months`,
+`pruneProofPhotos` deletes both) and the portal's Settings page says so. Portal: the checkbox on New
+job, a Signature column with "View signature" (the strokes drawn as an SVG path,
+`lib/signature-svg.ts`), signatures and the signer's name in both delivery records, Reports column and
+"Signatures x of y" stat, and two CSV columns. **This is JavaScript only** (the driver app update goes
+out over the air on the `release` label); core and the portal need deploying first, because an old
+core ignores the field and an old app does not show the card.
+
 **Feedback (M5.9)**: `/feedback` — a free-text note plus "Send", with app version
 (`Constants.expoConfig.version`) and device info (RN's built-in `Platform.OS`/`Platform.Version`,
 no new native dependency) attached automatically (`src/lib/app-info.ts`). Closed the last

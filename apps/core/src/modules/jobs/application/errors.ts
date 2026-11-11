@@ -16,6 +16,12 @@ export type DriverBusy = TaggedError<'DriverBusy'>;
  *  been attached yet (P2-M5.5). */
 export type ProofOfDeliveryRequired = TaggedError<'ProofOfDeliveryRequired'>;
 
+/** `delivered` refused: the job requires the receiver's signature and none has been taken for this delivery. */
+export type SignatureRequired = TaggedError<'SignatureRequired'>;
+
+/** The job exists and is visible, but no driver has taken a signature for it. */
+export type SignatureNotFound = TaggedError<'SignatureNotFound'>;
+
 /** The job exists and is visible, but no driver has attached a photo to it. */
 export type ProofOfDeliveryNotFound = TaggedError<'ProofOfDeliveryNotFound'>;
 

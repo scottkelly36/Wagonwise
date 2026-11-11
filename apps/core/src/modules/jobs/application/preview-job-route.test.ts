@@ -30,6 +30,9 @@ async function setup(stops: Job['stops']) {
     hasProofOfDelivery: false,
     currentStop: 0,
     proofStops: [],
+    requiresSignature: false,
+    signatureStops: [],
+    hasSignature: false,
   };
   await repo.save(job);
   const routes = new FakeJobRouteEstimator();

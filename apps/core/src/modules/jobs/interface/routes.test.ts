@@ -84,6 +84,7 @@ function buildApp(): {
     listJobs: { repo },
     getJob: { repo },
     getProofOfDelivery: { repo },
+    getSignature: { repo },
     listPositions: { positions },
     listEtas: { repo, positions, routes: estimator },
     notices: {
@@ -138,6 +139,9 @@ describe('POST /staff/jobs/companies/:companyId/jobs', () => {
       hasProofOfDelivery: false,
       currentStop: 0,
       proofStops: [],
+      requiresSignature: false,
+      signatureStops: [],
+      hasSignature: false,
     });
   });
 
@@ -460,6 +464,53 @@ describe('GET /staff/jobs/:id/proof-of-delivery', () => {
         })
       ).statusCode,
     ).toBe(400);
+  });
+});
+
+describe('GET /staff/jobs/:id/signature', () => {
+  const signature = { signerName: 'A. Receiver', strokes: [[[1, 2] as [number, number]]] };
+
+  it('returns the signature to staff in the job’s company, with no privilege needed', async () => {
+    const { app, repo } = buildApp();
+    const id = await createDraft(app);
+    await repo.saveSignature(makeId<'JobId'>(id), 1, signature);
+    const response = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/${id}/signature`,
+      ...asStaff(VIEWER_ID),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject(signature);
+    expect(Number.isNaN(Date.parse(response.json<{ capturedAt: string }>().capturedAt))).toBe(
+      false,
+    );
+  });
+
+  it('404s when none was taken, and as JobNotFound for another company', async () => {
+    const { app, repo } = buildApp();
+    const id = await createDraft(app);
+    const none = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/${id}/signature`,
+      ...asStaff(DISPATCHER_ID),
+    });
+    expect(none.json()).toMatchObject({ tag: 'SignatureNotFound' });
+    await repo.saveSignature(makeId<'JobId'>(id), 1, signature);
+    const outsider = await app.inject({
+      method: 'GET',
+      url: `/staff/jobs/${id}/signature`,
+      ...asStaff(OUTSIDER_ID),
+    });
+    expect(outsider.statusCode).toBe(404);
+    expect(outsider.json()).toMatchObject({ tag: 'JobNotFound' });
+  });
+
+  it('401s without a signed-in staff member', async () => {
+    const { app } = buildApp();
+    const id = await createDraft(app);
+    expect(
+      (await app.inject({ method: 'GET', url: `/staff/jobs/${id}/signature` })).statusCode,
+    ).toBe(401);
   });
 });
 

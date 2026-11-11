@@ -96,6 +96,7 @@ export const GUIDE: readonly GuideSection[] = [
           'Choose New job above the list, then type a reference.',
           'Add the customer and the price if you want job profit to work for it.',
           'Add the stops in the order the driver does them. If a stop is near a gate your drivers have marked, it is offered to you.',
+          'Tick Require proof of delivery or Require receiver’s signature if the driver must get one before finishing the delivery.',
           'Choose Create job.',
         ],
       },
@@ -113,6 +114,7 @@ export const GUIDE: readonly GuideSection[] = [
           'Send notification again, if a driver says they did not get it.',
           'Customer and price, to add or change them after the job exists.',
           'View photo, to see a proof-of-delivery photo.',
+          'View signature, to see the receiver’s signature and the name they gave.',
           'Delivery record, to open an internal copy or a customer copy of a delivered job.',
           'Cancel, to stop a job that has not been done.',
         ],
@@ -120,7 +122,8 @@ export const GUIDE: readonly GuideSection[] = [
     ],
     tips: [
       'A job that needs proof of delivery cannot be marked delivered until the driver has taken the photo.',
-      'Delivery photos are deleted after the period set under Settings. The job and its record stay.',
+      'Tick Require receiver’s signature on a job and the driver cannot mark it delivered until the receiver has signed on the phone. Set it job by job, like the photo.',
+      'Delivery photos and signatures are deleted after the period set under Settings. The job and its record stay.',
       'A price is what you charge the customer. Wages, fuel and running costs come from the other pages.',
     ],
   },
@@ -539,19 +542,19 @@ export const GUIDE: readonly GuideSection[] = [
     summary: 'Choices your firm makes about its own data.',
     access: 'Needs Manage users. Only managers can change a setting.',
     about: [
-      'Choices your company makes about its own data. For now that is how long delivery photos are kept.',
+      'Choices your company makes about its own data. For now that is how long delivery photos and signatures are kept.',
     ],
     steps: [
       {
-        heading: 'How long delivery photos are kept',
+        heading: 'How long delivery photos and signatures are kept',
         steps: [
-          'Choose a period under Keep photos for.',
-          'Save. Photos older than this are deleted automatically. The job itself stays.',
+          'Choose a period under Keep photos and signatures for.',
+          'Save. Photos and signatures older than this are deleted automatically. The job itself stays.',
         ],
       },
     ],
     tips: [
-      'If you need to keep proof for longer, download what you need before the photo is deleted.',
+      'If you need to keep proof for longer, download what you need before the photo or signature is deleted.',
       'You are the controller of your delivery records, so the period is your choice. WagonWise deletes on your instruction.',
     ],
   },

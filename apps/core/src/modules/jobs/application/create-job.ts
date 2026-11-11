@@ -33,6 +33,7 @@ export interface CreateJobInput {
   readonly plannedStart?: Date | undefined;
   readonly dueBy?: Date | undefined;
   readonly requiresProofOfDelivery?: boolean | undefined;
+  readonly requiresSignature?: boolean | undefined;
   readonly customer?: string | undefined;
   readonly pricePence?: number | undefined;
 }
@@ -69,9 +70,12 @@ export async function createJob(
     status: 'draft',
     timeline: [{ status: 'draft', at: now }],
     requiresProofOfDelivery: input.requiresProofOfDelivery ?? false,
+    requiresSignature: input.requiresSignature ?? false,
     currentStop: 0,
     proofStops: [],
     hasProofOfDelivery: false,
+    signatureStops: [],
+    hasSignature: false,
     ...(input.plannedStart === undefined ? {} : { plannedStart: input.plannedStart }),
     ...(input.dueBy === undefined ? {} : { dueBy: input.dueBy }),
     ...(commercial.value.customer === undefined ? {} : { customer: commercial.value.customer }),

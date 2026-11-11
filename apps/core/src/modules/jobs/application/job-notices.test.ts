@@ -39,6 +39,9 @@ const draft: Job = {
   hasProofOfDelivery: false,
   currentStop: 0,
   proofStops: [],
+  requiresSignature: false,
+  signatureStops: [],
+  hasSignature: false,
   stops: [
     { kind: 'pickup', name: 'Hexham depot', location: { lat: 54.97, lon: -2.1 } },
     { kind: 'delivery', name: 'Newcastle port', location: { lat: 54.97, lon: -1.6 } },

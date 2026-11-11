@@ -44,6 +44,7 @@ function buildApp(): {
     currentJob: { repo },
     changeStatus: { repo, ids: new SequentialIdGenerator(), clock: new FakeClock() },
     attachProofOfDelivery: { repo },
+    attachSignature: { repo },
     recordPosition: { repo, positions, clock: new FakeClock() },
     navigationProfile: { repo, profiles: new FakeNavigationProfileProvisioner() },
     identities: new FakeDriverIdentities(),
@@ -74,6 +75,9 @@ const JOB: Job = {
   hasProofOfDelivery: false,
   currentStop: 0,
   proofStops: [],
+  requiresSignature: false,
+  signatureStops: [],
+  hasSignature: false,
 };
 
 const DELIVERY_STOP = {
@@ -396,5 +400,101 @@ describe('POST /jobs/:id/navigation-profile', () => {
       ...asDriver(DRIVER),
     });
     expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('POST /jobs/:id/signature', () => {
+  const signature = {
+    signerName: ' A. Receiver ',
+    strokes: [
+      [
+        [10, 20],
+        [300, 200],
+        [600, 40],
+      ],
+    ],
+  };
+
+  it('204s and records the signature, with the name trimmed, for the driver on the job', async () => {
+    const { app, repo } = buildApp();
+    await repo.save({
+      ...JOB,
+      stops: [DELIVERY_STOP],
+      status: 'at_delivery',
+      requiresSignature: true,
+    });
+    const response = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/signature`,
+      payload: signature,
+      ...asDriver(DRIVER),
+    });
+    expect(response.statusCode).toBe(204);
+    expect((await repo.findById(JOB_ID))?.hasSignature).toBe(true);
+    expect(repo.signatures.get(JOB_ID)?.get(0)).toMatchObject({
+      signerName: 'A. Receiver',
+      strokes: signature.strokes,
+    });
+  });
+
+  it('refuses the delivered step until the signature is taken, then lets it through', async () => {
+    const { app, repo } = buildApp();
+    await repo.save({
+      ...JOB,
+      stops: [DELIVERY_STOP],
+      status: 'at_delivery',
+      requiresSignature: true,
+    });
+    const deliver = () =>
+      app.inject({
+        method: 'POST',
+        url: `/jobs/${JOB_ID}/status`,
+        payload: { status: 'delivered' },
+        ...asDriver(DRIVER),
+      });
+    const tooSoon = await deliver();
+    expect(tooSoon.statusCode).toBe(409);
+    expect(tooSoon.json()).toMatchObject({ tag: 'SignatureRequired' });
+    await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/signature`,
+      payload: signature,
+      ...asDriver(DRIVER),
+    });
+    expect((await deliver()).statusCode).toBe(200);
+  });
+
+  it("404s for a driver who isn't on the job", async () => {
+    const { app, repo } = buildApp();
+    await repo.save(JOB);
+    const response = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/signature`,
+      payload: signature,
+      ...asDriver(OTHER_DRIVER),
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('400s an empty signature, a point outside the box, or too many points', async () => {
+    const { app, repo } = buildApp();
+    await repo.save(JOB);
+    const post = (payload: object) =>
+      app.inject({
+        method: 'POST',
+        url: `/jobs/${JOB_ID}/signature`,
+        payload,
+        ...asDriver(DRIVER),
+      });
+    const many = Array.from({ length: 6 }, () =>
+      Array.from({ length: 400 }, (_, i) => [i, 5] as [number, number]),
+    );
+    const codes = [
+      (await post({ strokes: [] })).statusCode,
+      (await post({ strokes: [[[1001, 5]]] })).statusCode,
+      (await post({ strokes: [[[5, -1]]] })).statusCode,
+      (await post({ strokes: many })).statusCode,
+    ];
+    expect(codes).toEqual([400, 400, 400, 400]);
   });
 });

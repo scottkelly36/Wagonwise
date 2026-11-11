@@ -1,6 +1,7 @@
-import type { JobDto } from '@wagonwise/contracts/jobs';
+import type { JobDto, SignatureStrokes } from '@wagonwise/contracts/jobs';
 
 import { jobStatusText } from './job-text';
+import { signatureSvg } from './signature-svg';
 
 /** The customer copy leaves out everything about the driver and the vehicle, and the instructions written for
  *  drivers. The internal record is for the company: it adds who drove, what with, and the status history. */
@@ -12,12 +13,20 @@ export interface RecordPhoto {
   readonly capturedAt: string;
 }
 
+export interface RecordSignature {
+  readonly strokes: SignatureStrokes;
+  readonly signerName?: string | undefined;
+  readonly capturedAt: string;
+}
+
 export interface DeliveryRecordInput {
   readonly job: JobDto;
   readonly variant: RecordVariant;
   readonly generatedAt: Date;
   /** By the stop's position in the job. */
   readonly photos: ReadonlyMap<number, RecordPhoto>;
+  /** By the stop's position in the job. */
+  readonly signatures?: ReadonlyMap<number, RecordSignature> | undefined;
   /** Internal only: the driver's sign-in identifier (the portal has no driver name), and the vehicle's name. */
   readonly driverLabel?: string | undefined;
   readonly vehicleName?: string | undefined;
@@ -87,6 +96,7 @@ const STYLE = `
   th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; color: #6b7280; }
   figure { margin: 12px 0; break-inside: avoid; }
   figure img { max-width: 100%; max-height: 520px; border: 1px solid #e5e7eb; }
+  figure.signature svg { max-width: 360px; height: auto; display: block; }
   figcaption { font-size: 13px; color: #374151; margin-top: 4px; }
   footer { margin-top: 28px; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 8px; }
   @media print { body { margin: 0; } }
@@ -132,6 +142,19 @@ export function deliveryRecordHtml(input: DeliveryRecordInput): string {
     })
     .join('');
 
+  const signatures = [...(input.signatures ?? new Map<number, RecordSignature>()).entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([stopIndex, signature]) => {
+      const stop = job.stops[stopIndex];
+      const label = stop === undefined ? 'Delivery' : `Delivery to ${stop.name}`;
+      const who = signature.signerName === undefined ? '' : ` Signed by ${signature.signerName}.`;
+      return `<figure class="signature">
+        ${signatureSvg(signature.strokes, `Signature for ${label}`)}
+        <figcaption>${escapeHtml(label)}.${escapeHtml(who)} Signature taken ${escapeHtml(when(signature.capturedAt))}.</figcaption>
+      </figure>`;
+    })
+    .join('');
+
   const internalBlock = internal
     ? `<h2>Job details</h2>
       <table>
@@ -168,6 +191,8 @@ export function deliveryRecordHtml(input: DeliveryRecordInput): string {
 </table>
 
 ${photos === '' ? '<p class="muted">No delivery photo is held for this job.</p>' : `<h2>Delivery photos</h2>${photos}`}
+
+${signatures === '' ? '' : `<h2>Receiver’s signatures</h2>${signatures}`}
 
 ${internalBlock}
 

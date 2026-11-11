@@ -121,6 +121,33 @@ describe('deliveryRecordHtml', () => {
     expect(html).toContain('Internal copy');
   });
 
+  it('draws each signature as an svg with who signed and when, in both copies', () => {
+    const signatures = new Map([
+      [
+        1,
+        {
+          strokes: [
+            [
+              [1, 2],
+              [30, 40],
+            ] as [number, number][],
+          ],
+          signerName: 'A. <Receiver>',
+          capturedAt: '2026-10-08T08:36:00.000Z',
+        },
+      ],
+    ]);
+    for (const variant of ['customer', 'internal'] as const) {
+      const html = deliveryRecordHtml({ ...base, signatures, variant });
+      expect(html).toContain('Receiver’s signatures');
+      expect(html).toContain('<svg');
+      expect(html).toContain('d="M1 2L30 40"');
+      expect(html).toContain('Signed by A. &lt;Receiver&gt;.');
+      expect(html).not.toContain('<Receiver>');
+    }
+    expect(deliveryRecordHtml({ ...base, variant: 'customer' })).not.toContain('<svg');
+  });
+
   it('escapes names, and says when there is no photo', () => {
     const html = deliveryRecordHtml({
       ...base,

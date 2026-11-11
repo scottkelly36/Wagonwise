@@ -44,6 +44,9 @@ describe('createJob', () => {
       hasProofOfDelivery: false,
       currentStop: 0,
       proofStops: [],
+      requiresSignature: false,
+      signatureStops: [],
+      hasSignature: false,
     });
 
     expect(await repo.findById(result.value.id)).toEqual(result.value);
@@ -86,6 +89,26 @@ describe('createJob', () => {
     });
     expect(required.ok && required.value.requiresProofOfDelivery).toBe(true);
     expect(required.ok && required.value.hasProofOfDelivery).toBe(false);
+  });
+
+  it('defaults requiresSignature to false, but carries it through when given', async () => {
+    const repo = new InMemoryJobRepository();
+    const defaulted = await createJob(buildDeps(repo), {
+      caller: ADMIN,
+      companyId,
+      reference: 'JOB-6',
+      stops: stops(),
+    });
+    expect(defaulted.ok && defaulted.value.requiresSignature).toBe(false);
+    const required = await createJob(buildDeps(repo), {
+      caller: ADMIN,
+      companyId,
+      reference: 'JOB-7',
+      stops: stops(),
+      requiresSignature: true,
+    });
+    expect(required.ok && required.value.requiresSignature).toBe(true);
+    expect(required.ok && required.value.hasSignature).toBe(false);
   });
 
   it('rejects a blank reference without touching the repository', async () => {

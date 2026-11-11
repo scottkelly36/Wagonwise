@@ -21,6 +21,9 @@ function job(overrides: Partial<Job> & { timeline: Job['timeline'] }): Job {
     hasProofOfDelivery: false,
     currentStop: 0,
     proofStops: [],
+    requiresSignature: false,
+    signatureStops: [],
+    hasSignature: false,
     ...overrides,
   };
 }
@@ -99,6 +102,8 @@ describe('summariseJobReport', () => {
           dueBy: at('2026-10-05T17:00:00Z'),
           requiresProofOfDelivery: true,
           hasProofOfDelivery: true,
+          requiresSignature: true,
+          hasSignature: true,
           timeline: [
             step('accepted', '2026-10-05T08:00:00Z'),
             step('delivered', '2026-10-05T10:00:00Z'),
@@ -113,6 +118,9 @@ describe('summariseJobReport', () => {
           hasProofOfDelivery: false,
           currentStop: 0,
           proofStops: [],
+          requiresSignature: true,
+          signatureStops: [],
+          hasSignature: false,
           timeline: [
             step('accepted', '2026-10-05T08:00:00Z'),
             step('delivered', '2026-10-05T12:00:00Z'),
@@ -136,6 +144,8 @@ describe('summariseJobReport', () => {
       averageMinutes: 180,
       proofRequired: 2,
       proofReceived: 1,
+      signatureRequired: 2,
+      signatureReceived: 1,
       revenuePence: 0,
       deliveredWithoutPrice: 2,
     });

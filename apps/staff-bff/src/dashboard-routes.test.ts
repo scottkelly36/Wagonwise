@@ -81,6 +81,7 @@ const VALID = [
   ['PUT', `/staff/companies/${ID}/settings`, { photoRetentionMonths: 6 }],
   ['GET', `/staff/jobs/${ID}`, undefined],
   ['GET', `/staff/jobs/${ID}/proof-of-delivery`, undefined],
+  ['GET', `/staff/jobs/${ID}/signature`, undefined],
   ['POST', `/staff/jobs/${ID}/route-preview`, { vehicleId: 'vehicle-1' }],
   ['POST', `/staff/jobs/${ID}/assign`, { driverId: 'driver-1', vehicleId: 'vehicle-1' }],
   ['POST', `/staff/jobs/${ID}/cancel`, undefined],

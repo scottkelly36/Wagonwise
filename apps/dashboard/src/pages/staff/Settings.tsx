@@ -78,18 +78,18 @@ export function Settings() {
 
       {companyId !== undefined && (
         <section className="card" style={{ maxWidth: 640 }}>
-          <h2>How long delivery photos are kept</h2>
+          <h2>How long delivery photos and signatures are kept</h2>
           <p>
-            Photos of deliveries are deleted automatically once they are older than this. The job
-            itself stays: only the photo goes. If you need to keep proof for longer, download what
-            you need before then. You are the controller of your delivery records, so this is your
-            choice; WagonWise deletes on your instruction.
+            Photos and signatures from deliveries are deleted automatically once they are older than
+            this. The job itself stays: only the photo and the signature go. If you need to keep
+            proof for longer, download what you need before then. You are the controller of your
+            delivery records, so this is your choice; WagonWise deletes on your instruction.
           </p>
           {settings.isPending ? (
             <Loading />
           ) : (
             <>
-              <label htmlFor="photo-retention">Keep photos for</label>{' '}
+              <label htmlFor="photo-retention">Keep photos and signatures for</label>{' '}
               <select
                 id="photo-retention"
                 value={shown ?? 12}

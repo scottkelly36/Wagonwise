@@ -6,12 +6,12 @@ export interface QueuedProofOfDelivery extends AttachProofOfDeliveryRequest {
   readonly jobId: string;
 }
 
-export interface ProofFlushResult {
+export interface ProofFlushResult<T extends { readonly jobId: string } = QueuedProofOfDelivery> {
   /** Job ids whose photo reached the server. */
   readonly sent: readonly string[];
   /** Job ids whose photo the server will never accept — dropped from the queue. */
   readonly discarded: readonly string[];
-  readonly remaining: readonly QueuedProofOfDelivery[];
+  readonly remaining: readonly T[];
 }
 
 /** A 4xx means this photo, for this job, is wrong and retrying can't fix it (job gone, not the
@@ -28,12 +28,12 @@ export function isPermanentRejection(error: unknown): boolean {
  * like `flushQueuedReports` — but with one difference: that queue stops at any failure and so can
  * wedge forever on a report the server will never take. A photo is bigger and tied to a job that
  * can vanish (cancelled, reassigned), so a permanent rejection is dropped and the next one is
- * tried, while anything else (no signal, a 5xx) stops the pass and leaves the rest queued.
+ * tried, while anything else (no signal, a 5xx) stops the pass and leaves the rest queued. The delivery signature queue
+ * (`signature-queue.ts`) is flushed by the same function: it is generic over the queued item.
  */
-export async function flushQueuedProofs(
-  queued: readonly QueuedProofOfDelivery[],
-  submit: (item: QueuedProofOfDelivery) => Promise<unknown>,
-): Promise<ProofFlushResult> {
+export async function flushQueuedProofs<
+  T extends { readonly jobId: string } = QueuedProofOfDelivery,
+>(queued: readonly T[], submit: (item: T) => Promise<unknown>): Promise<ProofFlushResult<T>> {
   const sent: string[] = [];
   const discarded: string[] = [];
   for (let index = 0; index < queued.length; index++) {
