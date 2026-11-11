@@ -809,7 +809,7 @@ prices it for the vehicle. The axle count is not held, so `possibleAxles` works 
 the price is a range when they differ and **absent when any option has no tariff** (a class was not read). `previewRouteOptions` adds `charges` to each option
 when the app sent `tolls: true`, priced at the vehicle's real weight; the app shows "Toll: name, price" and when to pay (`tollLines`), and "Includes a toll" for a toll
 not in the table. **Prices are read by hand** from each operator's page: open every `sourceUrl` and update `checkedOn` on a schedule (owner, 2026-11-11: read the Humber three-or-more-axles band, £15.00, and the Tyne Tunnel, £5.20 for a vehicle over 3.5 t, off the operators' pages; the Humber two-axle band is still from a search
-summary, and whether a lorry is in the Tyne Tunnel's "LGV, van or bus" band is still to confirm). Not the Mersey Tunnels, Tamar Bridge or other small tolls.
+summary, and the Tyne Tunnel's £5.20 band for a vehicle over 3.5 t was confirmed against the operator's own page, tt2.co.uk, on 2026-11-11, where it is the only class above 3.5 t, so a lorry pays it). Not the Mersey Tunnels, Tamar Bridge or other small tolls.
 
 **Tolls on Plan route (2026-11-09, stage 1 of charges routing).** Valhalla says whether a route has a toll (`summary.has_toll`, read into
 `RouteResult.hasToll`, from OpenStreetMap tagging, so a hint and not a price). When the app sends `tolls: true` with the preview (this version always does; an

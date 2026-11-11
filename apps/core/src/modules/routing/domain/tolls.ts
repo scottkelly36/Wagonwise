@@ -110,12 +110,13 @@ export const TOLL_CROSSINGS: readonly TollCrossing[] = [
     name: 'Tyne Tunnel',
     near: [{ lat: 54.993, lon: -1.485 }],
     radiusM: 2500,
-    // The owner read the operator's page on 2026-11-11: "LGV, van or bus (over 3.5 tonnes): £5.20 per single passage (£4.68 with a pre-paid account)".
-    // That replaces £4.80, which was only the 2024 order's maximum. The band as worded does not say "lorry", so whether an HGV is in the same band
-    // is still to be confirmed, and the address of the page was not recorded (the order below is where the 2024 figure came from).
+    // The operator's own page (read 2026-11-11, from the owner's link) lists two paying classes: "Car, Van or Bus less than 3.5 tonnes" at £2.60 and "LGV, Van or Bus
+    // over 3.5 tonnes" at £5.20 a single passage, with 10% off a pre-paid account. There is no class above it, and the page never says "lorry" or "HGV", so a lorry
+    // is in the £5.20 class by elimination (the 2024 tolls order puts every motor vehicle other than classes 1 and 2 in its class 3). That replaced £4.80, which was
+    // only the order's maximum. A tunnel toll is paid online, in the app, by phone or at a PayPoint, never in cash at the tunnel; the page gives no deadline.
     tariffs: [{ overT: 3.5, amountGBP: 5.2 }],
-    note: 'One passage. Less with a pre-paid account.',
-    sourceUrl: 'https://www.legislation.gov.uk/uksi/2024/479/made',
+    note: 'One passage, each way. 10% off with a pre-paid account.',
+    sourceUrl: 'https://www.tt2.co.uk/toll-information/toll-prices/',
     checkedOn: '2026-11-11',
   },
 ];
