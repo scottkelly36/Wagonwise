@@ -46,7 +46,7 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
    trade: an earlier Hexham to Dundee check offered a 43-mile detour as "Fewer hills", so the steepness thresholds may want tuning once a few
    more real runs are seen. `loaded-routing-scope.md`.
 6. **Charges, stages 3 and 4** (`charges-routing-scope.md`). Zones: the vehicle field, Scotland, seven English zones and London are built, on cards and on the live map
-   (2026-11-11; four of the boundaries have no stated licence, the owner's call). Next a total and a Cheapest card. Toll prices and zone rates need a dated review.
+   (2026-11-11; four of the boundaries have no stated licence, the owner's call). A total cost and a Cheapest label are built on the cards (2026-11-11). Next: the toll choice carried into re-plans, job stops and the faster-route check. Toll prices and zone rates need a dated review.
 7. **FORS-style records** (`fors-scope.md`, idea only): documents with expiry dates and an infringement log first. Never claim a firm is compliant.
 8. **Driver sign-in without invite codes** (`driver-sign-in-plan.md`): server, driver BFF and password screens are built behind switches;
    Google and Apple sign-in need a store build and the owner's set-up. Nothing is switched on.

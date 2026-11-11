@@ -106,6 +106,48 @@ describe('previewRouteOptions', () => {
     expect(result).toEqual({ ok: false, error: { tag: 'NoRouteFound' } });
   });
 
+  describe('costs and the Cheapest label', () => {
+    // `null` is a vehicle with no fuel economy set (an omitted argument would take the default).
+    async function previewCosts(costs?: boolean, fuelL100km: number | null = 30) {
+      const deps = await buildDeps(fuelL100km === null ? undefined : fuelL100km);
+      (deps.routingEngine as FakeRoutingEngine).alternativesResult = {
+        ok: true,
+        value: [
+          { geometry: 'fast-geometry', distanceKm: 120, durationMin: 90, maneuvers: [] },
+          { geometry: 'short-geometry', distanceKm: 80, durationMin: 110, maneuvers: [] },
+        ],
+      };
+      return previewRouteOptions(deps, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        ...(costs === undefined ? {} : { costs }),
+      });
+    }
+
+    it('adds a cost to each option and marks the cheapest when the app asks', async () => {
+      const result = await previewCosts(true);
+      // 120 km is £57.60 of fuel; 80 km is £38.40: the shorter road is £19.20 cheaper.
+      expect(result.ok && result.value.map((o) => [o.labels, o.cost?.totalGBP])).toEqual([
+        [['fastest'], 57.6],
+        [['shortest', 'cheapest'], 38.4],
+      ]);
+    });
+
+    it('leaves costs and the Cheapest label off when the app did not ask: an older app cannot read the label', async () => {
+      const result = await previewCosts();
+      expect(result.ok && result.value.flatMap((o) => o.labels)).not.toContain('cheapest');
+      expect(result.ok && result.value[0]).not.toHaveProperty('cost');
+    });
+
+    it('marks nothing when the vehicle has no fuel economy, though each cost still shows its charges', async () => {
+      const result = await previewCosts(true, null);
+      expect(result.ok && result.value.flatMap((o) => o.labels)).not.toContain('cheapest');
+      expect(result.ok && result.value[0]?.cost).toEqual({ chargesGBP: 0 });
+    });
+  });
+
   describe('low emission zones', () => {
     // A test-only polyline6 encoder, separate from the shipped decoder, so a bug shared by both cannot hide behind a round trip.
     const enc = (value: number): string => {
