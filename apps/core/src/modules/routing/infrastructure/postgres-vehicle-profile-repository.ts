@@ -15,6 +15,7 @@ interface VehicleProfileRow {
   readonly axle_weight_t: number | null;
   readonly fuel_consumption_l100km: number | null;
   readonly top_speed_kph: number | null;
+  readonly euro_vi: boolean | null;
 }
 
 function toDomain(row: VehicleProfileRow): VehicleProfile {
@@ -29,6 +30,8 @@ function toDomain(row: VehicleProfileRow): VehicleProfile {
       grossWeightT: row.gross_weight_t,
       ...(row.axle_weight_t === null ? {} : { axleWeightT: row.axle_weight_t }),
       ...(row.top_speed_kph === null ? {} : { topSpeedKph: row.top_speed_kph }),
+      // false is an answer ("not Euro VI"), so only null means not stated.
+      ...(row.euro_vi === null ? {} : { euroVI: row.euro_vi }),
     },
     ...(row.fuel_consumption_l100km === null
       ? {}
@@ -38,7 +41,7 @@ function toDomain(row: VehicleProfileRow): VehicleProfile {
 
 const SELECT_COLUMNS = `
   id, driver_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t,
-  fuel_consumption_l100km, top_speed_kph
+  fuel_consumption_l100km, top_speed_kph, euro_vi
 `;
 
 /** Raw `sql` tagged-template queries, not Kysely's typed query builder — same reasoning as
@@ -65,12 +68,13 @@ export class PostgresVehicleProfileRepository implements VehicleProfileRepositor
     await sql`
       insert into routing.vehicle_profiles
         (id, driver_id, name, height_m, width_m, length_m, gross_weight_t, axle_weight_t,
-         fuel_consumption_l100km, top_speed_kph)
+         fuel_consumption_l100km, top_speed_kph, euro_vi)
       values (
         ${profile.id}, ${profile.driverId}, ${profile.name},
         ${profile.dimensions.heightM}, ${profile.dimensions.widthM}, ${profile.dimensions.lengthM},
         ${profile.dimensions.grossWeightT}, ${profile.dimensions.axleWeightT ?? null},
-        ${profile.fuelConsumptionL100km ?? null}, ${profile.dimensions.topSpeedKph ?? null}
+        ${profile.fuelConsumptionL100km ?? null}, ${profile.dimensions.topSpeedKph ?? null},
+        ${profile.dimensions.euroVI ?? null}
       )
       on conflict (id) do update set
         name = excluded.name,
@@ -80,7 +84,8 @@ export class PostgresVehicleProfileRepository implements VehicleProfileRepositor
         gross_weight_t = excluded.gross_weight_t,
         axle_weight_t = excluded.axle_weight_t,
         fuel_consumption_l100km = excluded.fuel_consumption_l100km,
-        top_speed_kph = excluded.top_speed_kph
+        top_speed_kph = excluded.top_speed_kph,
+        euro_vi = excluded.euro_vi
     `.execute(this.db);
   }
 

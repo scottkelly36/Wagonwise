@@ -26,6 +26,9 @@ export const dimensionsSchema = z.object({
   /** The speed the vehicle is timed at, in km/h (a limiter, or how the driver drives it). Blank means the usual 55 mph. It only changes the
    *  time a route takes, never which road is chosen. 30 to 130 km/h is 19 to 81 mph, which takes in a limited lorry and a van. */
   topSpeedKph: z.number().min(30).max(130).optional(),
+  /** Whether the vehicle meets the Euro VI emissions standard, which the low emission and clean air zones for a lorry ask about. Absent means not stated
+   *  (the driver or firm does not know), and is never read as compliant. */
+  euroVI: z.boolean().optional(),
 });
 export type DimensionsDto = z.infer<typeof dimensionsSchema>;
 

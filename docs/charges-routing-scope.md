@@ -86,7 +86,9 @@ discount or an exemption), or price a toll that depends on time of day (the M6 T
    low emission zones (stage 3); a total or a Cheapest card (stage 4); the toll choice in re-plans. **The price depends on the vehicle's axles for some
    operators and the app holds only the weight**, so a card may show "£4.20 to £8.40" (Dartford, an 18 tonne lorry) or "price not known for your vehicle"
    (Humber, a 7.5 tonne lorry, whose band was not read). Adding an axle count to the vehicle would settle most of these; not done.
-3. **Zones and the Euro class.** The vehicle field and migration, the zone polygons, the "may be charged" wording. Scotland and Tyneside first.
+3. **Zones and the Euro class.** The vehicle field and migration, the zone polygons, the "may be charged" wording. Scotland and Tyneside first. **The vehicle field is built (2026-11-10):** "Euro VI engine: Yes / No / Don't know" on a driver's own vehicle and a company vehicle (`euroVI` on the shared
+   dimensions, migration 0088). It is stored and nothing reads it yet: the zone check comes next, and a boundary needs a licence first (the councils' boundary
+   data is covered under "Sources read"). "Don't know" is kept as absent and will never be read as compliant.
 4. **Cheapest.** Cost scoring and the label, the faster-route check, re-plans. Test on real routes: Hexham to Dundee and Edinburgh, Newcastle to
    London, and a Humber crossing, with a few kept as golden routes.
 5. **The job cost** and a review reminder for the data (a dated checklist, since rates and zones change).

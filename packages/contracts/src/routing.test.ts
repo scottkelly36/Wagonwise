@@ -38,6 +38,13 @@ describe('dimensionsSchema', () => {
     );
   });
 
+  it('accepts Euro VI yes, no, or not stated, and nothing else', () => {
+    expect(dimensionsSchema.safeParse({ ...validDimensions, euroVI: true }).success).toBe(true);
+    expect(dimensionsSchema.safeParse({ ...validDimensions, euroVI: false }).success).toBe(true);
+    expect(dimensionsSchema.safeParse(validDimensions).success).toBe(true);
+    expect(dimensionsSchema.safeParse({ ...validDimensions, euroVI: 'yes' }).success).toBe(false);
+  });
+
   it('accepts a positive axleWeightT', () => {
     expect(dimensionsSchema.safeParse({ ...validDimensions, axleWeightT: 10 }).success).toBe(true);
   });
