@@ -135,6 +135,25 @@ export const routeChargeSchema = z.object({
 });
 export type RouteChargeDto = z.infer<typeof routeChargeSchema>;
 
+/** A low emission zone and its outline, for the dispatcher's live map. `rings` are the pieces of the zone, each a closed outline of `[latitude, longitude]` pairs. */
+export const lowEmissionZoneSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  /** The penalty for a first breach, in pounds; it doubles for each further one within 90 days. */
+  penaltyGBP: z.number(),
+  /** The day enforcement began (YYYY-MM-DD). */
+  enforcedFrom: z.string(),
+  rings: z.array(z.array(z.tuple([z.number(), z.number()]))),
+});
+export type LowEmissionZoneDto = z.infer<typeof lowEmissionZoneSchema>;
+
+/** `GET /staff/routing/low-emission-zones`: the zones to draw, and the credit the licence asks for beside them. */
+export const lowEmissionZonesResponseSchema = z.object({
+  zones: z.array(lowEmissionZoneSchema),
+  attribution: z.string(),
+});
+export type LowEmissionZonesResponse = z.infer<typeof lowEmissionZonesResponseSchema>;
+
 /** A low emission zone the route enters that could cost this vehicle. `charged`: the vehicle has been said not to meet the standard, so a penalty applies.
  *  `may-be-charged`: it has not been said either way, which is never read as fine. A vehicle that meets Euro VI gets no entry. */
 export const routeZoneSchema = z.object({

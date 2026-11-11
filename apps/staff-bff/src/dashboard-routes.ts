@@ -720,6 +720,8 @@ const FORWARDS: readonly Forward[] = [
   },
   // Met Office weather warnings for the banner and the live map; the same for every company.
   { method: 'GET', path: '/staff/weather/warnings', params: noParams },
+  // Scotland's low emission zones, to draw on the live map (public data, the same for every company).
+  { method: 'GET', path: '/staff/routing/low-emission-zones', params: noParams },
   // P2-M8: the jobs report (needs `view_reports`, which core checks).
   {
     method: 'POST',

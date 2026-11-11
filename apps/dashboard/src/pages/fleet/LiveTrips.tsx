@@ -7,12 +7,14 @@ import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
 import * as hoursApi from '../../api/hours';
 import * as jobsApi from '../../api/jobs';
+import * as zonesApi from '../../api/zones';
 import * as weatherApi from '../../api/weather';
 import { driverDisplayName } from '../../lib/driver-name';
 import { breakEffectFor } from '../../lib/breaks-in-journey';
 import { hoursStatusText, hoursStatusUrgent } from '../../lib/hours-status';
 import { jobHasPickup, jobStatusText } from '../../lib/job-text';
 import { decodePolyline6 } from '../../lib/polyline';
+import { euroVIState, zoneAt, zoneNote } from '../../lib/zones';
 import { FleetMap, type MapMarker } from '../../components/FleetMap';
 import {
   etaText,
@@ -79,6 +81,14 @@ export function LiveTrips() {
     refetchInterval: 5 * 60_000,
     retry: false,
   });
+  // Scotland's low emission zones: public, the same for everyone and slow to change, so fetched once.
+  const [showZones, setShowZones] = useState(true);
+  const zones = useQuery({
+    queryKey: ['low-emission-zones'],
+    queryFn: () => withAccessToken((token) => zonesApi.listLowEmissionZones(token)),
+    staleTime: Infinity,
+    retry: false,
+  });
   const positions = useQuery({
     queryKey: ['job-positions', companyId],
     queryFn: () => withAccessToken((token) => jobsApi.listJobPositions(token, companyId as string)),
@@ -134,11 +144,22 @@ export function LiveTrips() {
         const next = nextStop(job);
         const seen = position === undefined ? undefined : lastSeen(position.recordedAt, now);
         const eta = etas.data?.find((e) => e.jobId === job.id);
+        // Inside a zone? From where the vehicle was last heard, with what the company has said about its Euro VI.
+        const zone =
+          position === undefined || zones.data === undefined
+            ? undefined
+            : zoneAt(zones.data.zones, position.location);
+        const zoneLine =
+          zone === undefined || seen === undefined
+            ? undefined
+            : zoneNote(zone, euroVIState(vehicle), seen.freshness === 'live');
         return {
           job,
           position,
           seen,
           eta,
+          zone,
+          zoneLine,
           etaLabel:
             eta !== undefined && seen !== undefined
               ? etaText(
@@ -162,7 +183,16 @@ export function LiveTrips() {
               : undefined,
         };
       });
-  }, [jobs.data, positions.data, etas.data, drivers.data, vehicles.data, hoursStatuses.data, now]);
+  }, [
+    jobs.data,
+    positions.data,
+    etas.data,
+    drivers.data,
+    vehicles.data,
+    hoursStatuses.data,
+    zones.data,
+    now,
+  ]);
 
   // The selected vehicle's route to where it is heading, drawn on the map.
   const routeLine = useMemo(() => {
@@ -179,7 +209,7 @@ export function LiveTrips() {
         kind: 'vehicle',
         lat: row.position.location.lat,
         lon: row.position.location.lon,
-        label: `${row.job.reference}${row.driverName ? ` — ${row.driverName}` : ''} · ${row.seen.label}`,
+        label: `${row.job.reference}${row.driverName ? ` — ${row.driverName}` : ''} · ${row.seen.label}${row.zone === undefined ? '' : ` · in the ${row.zone.name}`}`,
         color: COLOURS[row.seen.freshness],
         selected: row.job.id === selectedJobId,
       });
@@ -252,7 +282,21 @@ export function LiveTrips() {
                 Weather warnings
               </label>
             )}
+            {zones.data !== undefined && (
+              <label
+                className="map-toggle"
+                style={{ top: (weather.data?.warnings.length ?? 0) > 0 ? 44 : 10 }}
+              >
+                <input
+                  type="checkbox"
+                  checked={showZones}
+                  onChange={(e) => setShowZones(e.target.checked)}
+                />
+                Low emission zones
+              </label>
+            )}
             <FleetMap
+              zones={showZones ? zones.data?.zones : undefined}
               warnings={showWeather ? weather.data?.warnings : undefined}
               markers={markers}
               selectedId={selectedJobId}
@@ -262,6 +306,11 @@ export function LiveTrips() {
           </div>
 
           <div className="live-list">
+            {showZones && zones.data !== undefined && (
+              <p className="text-muted text-13" data-testid="zone-credit">
+                {zones.data.attribution}
+              </p>
+            )}
             {jobs.isPending ? (
               <Loading />
             ) : rows.length === 0 ? (
@@ -301,6 +350,21 @@ export function LiveTrips() {
                         </div>
                       )}
                       {row.etaLabel && <div>{row.etaLabel}</div>}
+                      {row.zoneLine && (
+                        <div
+                          data-testid="zone-note"
+                          style={{
+                            color:
+                              row.zoneLine.tone === 'danger'
+                                ? 'var(--danger)'
+                                : row.zoneLine.tone === 'warn'
+                                  ? '#b45309'
+                                  : 'var(--text-muted)',
+                          }}
+                        >
+                          {row.zoneLine.text}
+                        </div>
+                      )}
                       {(() => {
                         const shared =
                           row.job.driverId === undefined

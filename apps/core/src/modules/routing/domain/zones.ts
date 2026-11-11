@@ -67,6 +67,10 @@ export const LOW_EMISSION_ZONES: readonly LowEmissionZone[] = [
   },
 ];
 
+/** The credit the Open Government Licence asks for beside the boundaries, wherever they are shown. */
+export const ZONE_BOUNDARY_CREDIT =
+  'Low emission zone boundaries: Improvement Service, Spatial Hub Scotland. Contains public sector information licensed under the Open Government Licence v3.0. From 2022: check the signs.';
+
 /** Whether a point is inside a ring (ray casting; a point exactly on the edge is not worth a rule). */
 function inRing(point: GeoPoint, ring: Ring): boolean {
   let inside = false;

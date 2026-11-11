@@ -9,6 +9,7 @@ import {
   geoPointSchema,
   planRouteRequestSchema,
   previewRouteOptionsRequestSchema,
+  lowEmissionZonesResponseSchema,
   routeOptionSchema,
   routePlanIdParamsSchema,
   routePlanSchema,
@@ -215,6 +216,38 @@ describe('previewRouteOptionsRequestSchema', () => {
       destination: { lat: 54.9738, lon: -2.0165 },
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe('lowEmissionZonesResponseSchema', () => {
+  const zone = {
+    id: 'glasgow',
+    name: 'Glasgow Low Emission Zone',
+    penaltyGBP: 60,
+    enforcedFrom: '2023-06-01',
+    rings: [
+      [
+        [55.85, -4.26],
+        [55.85, -4.25],
+        [55.86, -4.25],
+      ],
+    ],
+  };
+
+  it('carries zones as outlines of latitude and longitude pairs, with the licence credit', () => {
+    expect(
+      lowEmissionZonesResponseSchema.safeParse({ zones: [zone], attribution: 'credit' }).success,
+    ).toBe(true);
+  });
+
+  it('needs the credit, and pairs rather than longer points', () => {
+    expect(lowEmissionZonesResponseSchema.safeParse({ zones: [zone] }).success).toBe(false);
+    expect(
+      lowEmissionZonesResponseSchema.safeParse({
+        zones: [{ ...zone, rings: [[[55.85, -4.26, 10]]] }],
+        attribution: 'credit',
+      }).success,
+    ).toBe(false);
   });
 });
 
