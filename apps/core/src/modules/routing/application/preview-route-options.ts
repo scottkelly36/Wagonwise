@@ -7,7 +7,9 @@ import {
   type RouteOption,
 } from '../domain/route-option.js';
 import type { GeoPoint } from '../domain/geo.js';
+import { decodePolyline } from '../domain/geo.js';
 import { chargesOnRoute, type RouteCharge } from '../domain/tolls.js';
+import { zonesEntered, zonesForVehicle, type RouteZone } from '../domain/zones.js';
 import {
   withoutWeightLimits,
   type Dimensions,
@@ -73,15 +75,18 @@ export async function previewRouteOptions(
   if (alternatives.ok) {
     return ok(
       buildRouteOptions(
-        withCharges(
-          await withTolls(
-            deps.routingEngine,
-            request,
-            await withHills(deps.routingEngine, request, alternatives.value, input.loaded),
+        withZones(
+          withCharges(
+            await withTolls(
+              deps.routingEngine,
+              request,
+              await withHills(deps.routingEngine, request, alternatives.value, input.loaded),
+              input.tolls,
+            ),
+            profile.dimensions,
             input.tolls,
           ),
           profile.dimensions,
-          input.tolls,
         ),
         profile.fuelConsumptionL100km,
         deps.fuelPricePerLitreGBP,
@@ -101,21 +106,24 @@ export async function previewRouteOptions(
   }
   return ok(
     buildRouteOptions(
-      withCharges(
-        await withTolls(
-          deps.routingEngine,
-          { ...request, dimensions: withoutWeightLimits(profile.dimensions) },
-          await withHills(
+      withZones(
+        withCharges(
+          await withTolls(
             deps.routingEngine,
             { ...request, dimensions: withoutWeightLimits(profile.dimensions) },
-            ignoringWeight.value,
-            input.loaded,
+            await withHills(
+              deps.routingEngine,
+              { ...request, dimensions: withoutWeightLimits(profile.dimensions) },
+              ignoringWeight.value,
+              input.loaded,
+            ),
+            input.tolls,
           ),
+          // The vehicle's real weight, not the light one the engine was given to ignore weight limits: a toll is priced for what the lorry weighs.
+          profile.dimensions,
           input.tolls,
         ),
-        // The vehicle's real weight, not the light one the engine was given to ignore weight limits: a toll is priced for what the lorry weighs.
         profile.dimensions,
-        input.tolls,
       ),
       profile.fuelConsumptionL100km,
       deps.fuelPricePerLitreGBP,
@@ -153,7 +161,19 @@ type Candidate = RouteResult & {
   readonly tollFree?: boolean | undefined;
   readonly fromSearch?: boolean | undefined;
   readonly charges?: readonly RouteCharge[] | undefined;
+  readonly zones?: readonly RouteZone[] | undefined;
 };
+
+/**
+ * The low emission zones each route enters that could cost this vehicle: Euro VI says no charge, "no" says a penalty, and not said means it may be. Worked out
+ * from the route's own line, so it needs no flag from the app (an older app does not read the new field and ignores it).
+ */
+function withZones(routes: readonly Candidate[], vehicle: Dimensions): readonly Candidate[] {
+  return routes.map((route) => ({
+    ...route,
+    zones: zonesForVehicle(zonesEntered(decodePolyline(route.geometry)), vehicle),
+  }));
+}
 
 /**
  * When the app asked about tolls: the named tolls on each route and what each charges this vehicle, from the stretches the engine says are tolled
