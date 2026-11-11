@@ -40,6 +40,11 @@ export function FasterRouteCard({ offer, switching, failed, onSwitch, onKeep, st
               ? 'Could not switch. You are still on your route.'
               : comparisonText(offer.currentMinutes, offer.alternativeMinutes)}
           </Text>
+          {offer.hasToll === true && !failed && (
+            <Text style={styles.sub} testID="faster-route-toll">
+              This route includes a toll.
+            </Text>
+          )}
         </View>
       </View>
       <View style={styles.buttons}>

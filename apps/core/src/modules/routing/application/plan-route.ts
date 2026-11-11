@@ -60,6 +60,9 @@ export interface PlanRouteInput {
    *  avoiding route — the "shortest" preference doesn't carry through a re-plan, an accepted
    *  edge case (safety-avoidance wins over a distance preference). */
   readonly strategy?: 'fastest' | 'shortest' | 'gentle' | 'toll-free' | undefined;
+  /** Keep avoiding tolls, on any strategy: a re-plan from the middle of a drive whose route the driver chose for having none. A preference, not a ban (the engine
+   *  still uses a toll when there is no other way). `strategy: 'toll-free'` already implies it. */
+  readonly avoidTolls?: boolean | undefined;
   /** The direction the driver is already travelling, so a re-plan from the middle of a drive does not
    *  start by sending them back the way they came. */
   readonly originHeadingDeg?: number | undefined;
@@ -109,6 +112,9 @@ export async function planRoute(
   // The route for the vehicle's real size comes first. Only if there is none, and the driver has chosen to go anyway (they were
   // shown the warning in the preview), is one found that ignores weight limits; every later pass then uses those same
   // dimensions, so a re-plan cannot quietly go back to a route that does not exist. Height and width are never relaxed.
+  // Avoiding tolls is on for the toll-free strategy and whenever the request says so, and stays on in every pass below.
+  const tollPreference =
+    input.strategy === 'toll-free' || input.avoidTolls === true ? { avoidTolls: true } : {};
   const firstPassFor = async (
     dimensions: Dimensions,
   ): Promise<Result<RouteResult, NoRouteFound>> => {
@@ -119,6 +125,7 @@ export async function planRoute(
         destination: input.destination,
         dimensions,
         avoid: [],
+        ...tollPreference,
       };
       const alternatives = await deps.routingEngine.routeAlternatives(request);
       if (!alternatives.ok) {
@@ -139,7 +146,7 @@ export async function planRoute(
         destination: input.destination,
         dimensions,
         avoid: [],
-        avoidTolls: true,
+        ...tollPreference,
       });
     }
     if (input.strategy === 'shortest') {
@@ -149,6 +156,7 @@ export async function planRoute(
         destination: input.destination,
         dimensions,
         avoid: [],
+        ...tollPreference,
       });
       if (!alternatives.ok) {
         return alternatives;
@@ -161,6 +169,7 @@ export async function planRoute(
       destination: input.destination,
       dimensions,
       avoid: [],
+      ...tollPreference,
     });
   };
 
@@ -168,7 +177,6 @@ export async function planRoute(
   // the avoid zones that found it stay on in every later pass, or a hazard or a closed road would send the lorry back up the hill. With no
   // height data the engine's own route is used, as for any other strategy.
   let hillZones: readonly GeoPolygon[] = [];
-  const tollPreference = input.strategy === 'toll-free' ? { avoidTolls: true } : {};
   let routingDimensions = profile.dimensions;
   let breaksWeightLimit = false;
   let firstPass = await firstPassFor(routingDimensions);

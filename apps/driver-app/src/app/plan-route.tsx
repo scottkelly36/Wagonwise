@@ -40,6 +40,7 @@ import { formatRouteDistance, type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
 import { useLoadStore } from '../state/load-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
+import { useTripTollsStore } from '../state/trip-tolls-store';
 import { FeetInchesInputs } from '../components/feet-inches-inputs';
 import { VehiclePresetChips } from '../components/vehicle-preset-chips';
 import { presetFigures } from '../components/vehicle-preset-picker';
@@ -429,6 +430,8 @@ export default function PlanRouteScreen() {
       },
       {
         onSuccess: (plan) => {
+          // Chosen for having no toll: the re-plan and the faster-route check keep it that way.
+          if (strategy === 'toll-free') useTripTollsStore.getState().markAvoiding(plan.id);
           setCurrentRoutePlan(plan);
           router.push('/route-overview');
         },

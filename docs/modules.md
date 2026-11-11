@@ -818,8 +818,14 @@ older app does not, because it cannot read a new label), each card whose route h
 engine again with `avoidTolls` (Valhalla `use_tolls: 0`, a preference, not a ban) and adds the result as a **Toll free** card, or labels an existing card
 "Toll free" when it is the same road (`application/toll-free-route.ts`, `withTolls` in `preview-route-options.ts`). Nothing is offered when the route that avoids
 tolls still has one. Choosing it plans with `strategy: 'toll-free'`, and a hazard or closure re-plan keeps avoiding tolls. **Not covered yet:** which toll or what it costs
-(no price, no "Cheapest" card: stage 2 onwards, `docs/charges-routing-scope.md`), clean-air zones, and re-plans, job stops and the faster-route check, which do not carry the
-choice, so a re-plan from the middle of the drive may take the toll again.
+(no price, no "Cheapest" card: stage 2 onwards, `docs/charges-routing-scope.md`), clean-air zones, and job stops, which do not carry the choice.
+
+**The toll choice carried on (2026-11-11, charges stage 4).** `avoidTolls` is now an optional field on the plan request and on the faster-route check (`avoidTolls` in `packages/contracts/src/routing.ts`),
+and `plan-route.ts` applies it on every strategy and in every pass (`tollPreference`), so a re-plan from the middle of a drive keeps avoiding tolls however the first plan was made. The check asks the
+engine for alternatives that avoid tolls and skips any candidate that still has one; an offer whose route has a toll says `hasToll: true` and the card says "This route includes a toll." The app remembers
+which plans the driver chose as Toll free in memory (`state/trip-tolls-store.ts`, set in `planWith` when the strategy is `toll-free`), sends `avoidTolls: true` from `use-replan-from-here.ts` and
+`use-faster-route.ts`, and carries the choice to the new plan on a re-plan or a Switch. Only the Toll free choice sets it: a route that merely has no toll was not chosen for that. **Gaps:** the server
+itself cannot know the app's choice, so a reroute alert it raises (hazard or closure) re-plans without it; job stops and parking have no toll choice; an older app sends nothing and behaves as before.
 
 **Not verified on a real map render** — beyond the disclosed gap every M5 task has had so far (no
 Android SDK, no macOS on this machine), MapLibre specifically needs its own native module built

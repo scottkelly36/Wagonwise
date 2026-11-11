@@ -214,6 +214,29 @@ describe('checkFasterRoute', () => {
     expect(b.engine.alternativesRequests[0]?.dimensions).toEqual(dimensions);
   });
 
+  it('asks for alternatives that avoid tolls, and never offers one with a toll, when the driver chose a route for having none', async () => {
+    const b = await build({ congestion: waitOnCurrentRoute(20) });
+    b.engine.alternativesResult = ok([{ ...altRoute, hasToll: true }]);
+    b.engine.result = ok({ ...altRoute, hasToll: true });
+    expect(await offerOf(b.deps, { ...b.input, avoidTolls: true })).toBeNull();
+    expect(b.engine.alternativesRequests[0]).toMatchObject({ avoidTolls: true });
+  });
+
+  it('offers one with no toll when avoiding tolls, and says so when an offer does have a toll', async () => {
+    const free = await build({ congestion: waitOnCurrentRoute(20) });
+    free.engine.alternativesResult = ok([{ ...altRoute, hasToll: false }]);
+    free.engine.result = ok({ ...altRoute, hasToll: false });
+    const offered = await offerOf(free.deps, { ...free.input, avoidTolls: true });
+    expect(offered).not.toBeNull();
+    expect(offered).not.toHaveProperty('hasToll');
+
+    const tolled = await build({ congestion: waitOnCurrentRoute(20) });
+    tolled.engine.alternativesResult = ok([{ ...altRoute, hasToll: true }]);
+    tolled.engine.result = ok({ ...altRoute, hasToll: true });
+    expect(await offerOf(tolled.deps, tolled.input)).toMatchObject({ hasToll: true });
+    expect(tolled.engine.alternativesRequests[0]).not.toHaveProperty('avoidTolls');
+  });
+
   it('does not offer a route the driver already kept their own over', async () => {
     const b = await build({ congestion: waitOnCurrentRoute(20) });
     const first = await offerOf(b.deps, b.input);

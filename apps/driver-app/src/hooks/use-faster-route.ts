@@ -10,6 +10,7 @@ import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useFasterRouteStore } from '../state/faster-route-store';
 import { useLoadStore } from '../state/load-store';
+import { useTripTollsStore } from '../state/trip-tolls-store';
 import { useAccessToken } from './use-access-token';
 
 export type FasterRouteOffer = NonNullable<FasterRouteCheckResponse['offer']>;
@@ -56,6 +57,10 @@ export function useFasterRoute(
           ...(heading === undefined ? {} : { headingDeg: heading }),
           keptKeys: [...(useFasterRouteStore.getState().keptByTrip[tripId] ?? [])],
           ...(useLoadStore.getState().loaded ? { loaded: true } : {}),
+          // A route chosen for having no toll is only offered a quicker one that has none.
+          ...(useTripTollsStore.getState().isAvoiding(useCurrentRoutePlanStore.getState().plan?.id)
+            ? { avoidTolls: true }
+            : {}),
         });
         if (cancelled || found === null) return;
         setHeld({ tripId, offer: found });
@@ -83,10 +88,13 @@ export function useFasterRoute(
 
   const switchMutation = useMutation({
     mutationFn: async (chosen: FasterRouteOffer) => {
+      const previousPlanId = useCurrentRoutePlanStore.getState().plan?.id;
       const newPlan = await routingApi.getRoutePlan(accessToken, chosen.routePlanId);
       const trips = useCurrentActiveTripStore.getState();
       if (trips.trip !== undefined) await routingApi.endTrip(accessToken, trips.trip.id);
       const newTrip = await routingApi.startTrip(accessToken, newPlan.id);
+      if (previousPlanId !== undefined)
+        useTripTollsStore.getState().carryOver(previousPlanId, newPlan.id);
       useCurrentRoutePlanStore.getState().setPlan(newPlan);
       trips.setTrip(newTrip);
     },

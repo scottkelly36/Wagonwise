@@ -95,6 +95,8 @@ export const planRouteRequestSchema = z.object({
   /** The driver has been told no route exists for the vehicle's weight and chose one past a weight limit anyway (shown by
    *  `breaksWeightLimit` on a previewed option). Without it only a route for the real weight is made. */
   acceptWeightLimit: z.boolean().optional(),
+  /** Keep avoiding tolls, on any strategy: set on a re-plan from the middle of a drive whose route was chosen for having no toll. A preference, not a ban. */
+  avoidTolls: z.boolean().optional(),
 });
 export type PlanRouteRequest = z.infer<typeof planRouteRequestSchema>;
 
@@ -387,6 +389,8 @@ export const fasterRouteCheckRequestSchema = z.object({
   keptKeys: z.array(z.string().max(32)).max(20).default([]),
   /** The vehicle is loaded: a route that adds steep hills is not offered as the faster one. Only has an effect when the server has height data. */
   loaded: z.boolean().optional(),
+  /** The driver chose this route for having no toll: ask for alternatives that avoid tolls, and never offer one that has a toll. */
+  avoidTolls: z.boolean().optional(),
 });
 export type FasterRouteCheckRequest = z.infer<typeof fasterRouteCheckRequestSchema>;
 
@@ -401,6 +405,8 @@ export const fasterRouteCheckResponseSchema = z.object({
       /** Minutes left on each route, counting traffic and drivers' congestion reports. */
       currentMinutes: z.number().int(),
       alternativeMinutes: z.number().int(),
+      /** The offered route has a toll (as the map data says), so the card can say so. Absent when it has none. */
+      hasToll: z.boolean().optional(),
     })
     .nullable(),
 });
