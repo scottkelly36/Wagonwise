@@ -66,7 +66,7 @@ describe('flushTripOutbox', () => {
   it('still ends the trip when the job refuses the arrival, for good', async () => {
     const d = deps({ advanceJob: jest.fn().mockRejectedValue(refused(409)) });
     const result = await flushTripOutbox([arrival], d);
-    expect(d.endTrip).toHaveBeenCalledWith('trip-1');
+    expect(d.endTrip).toHaveBeenCalledWith('trip-1', undefined);
     expect(result.done).toEqual(['trip-1']);
   });
 
@@ -75,6 +75,12 @@ describe('flushTripOutbox', () => {
     const result = await flushTripOutbox([arrival], d);
     expect(d.endTrip).not.toHaveBeenCalled();
     expect(result.remaining).toEqual([arrival]);
+  });
+
+  it('tells the server when the driver ended the trip, not when the signal came back', async () => {
+    const d = deps({});
+    await flushTripOutbox([{ tripId: 'trip-1', endedAt: '2026-11-12T09:30:00.000Z' }], d);
+    expect(d.endTrip).toHaveBeenCalledWith('trip-1', '2026-11-12T09:30:00.000Z');
   });
 
   it('does nothing for an empty queue', async () => {

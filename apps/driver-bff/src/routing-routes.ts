@@ -1,6 +1,7 @@
 import {
   activeTripIdParamsSchema,
   createVehicleProfileRequestSchema,
+  endTripRequestSchema,
   fasterRouteCheckRequestSchema,
   planRouteRequestSchema,
   previewRouteOptionsRequestSchema,
@@ -176,14 +177,19 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
     if (token === undefined) return reply;
 
     const params = activeTripIdParamsSchema.safeParse(request.params);
-    if (!params.success) {
+    // Optional: an older app sends no body; a newer one says when the driver ended the trip if it held the end until it had signal.
+    const parsed = endTripRequestSchema.safeParse(request.body ?? {});
+    if (!params.success || !parsed.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
     const core = await deps.coreClient.request(
       'POST',
       `/routing/trips/${params.data.id}/end`,
       request.id,
-      { authorization: `Bearer ${token}` },
+      {
+        ...(parsed.data.endedAt === undefined ? {} : { body: parsed.data }),
+        authorization: `Bearer ${token}`,
+      },
     );
     return reply.status(core.status).send(core.body);
   });

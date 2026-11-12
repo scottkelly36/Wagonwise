@@ -75,7 +75,7 @@ describe('syncTripOutbox', () => {
     expect(jobs.advanceJobStatus).toHaveBeenCalledWith('token-1', 'job-1', {
       status: 'at_delivery',
     });
-    expect(routing.endTrip).toHaveBeenCalledWith('token-1', 'trip-1');
+    expect(routing.endTrip).toHaveBeenCalledWith('token-1', 'trip-1', undefined);
     expect(removePendingTripEnd).toHaveBeenCalledWith('trip-1');
     expect(usePendingArrivalsStore.getState().advances).toEqual({});
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: CURRENT_JOB_KEY });
