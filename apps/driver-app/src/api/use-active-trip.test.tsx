@@ -75,7 +75,10 @@ describe('End trip', () => {
   it('saves the end to send later when there is no signal, and still succeeds', async () => {
     routing.endTrip.mockRejectedValue(offline());
     await end();
-    expect(queueTripEnd).toHaveBeenCalledWith({ tripId: 'trip-1' });
+    expect(queueTripEnd).toHaveBeenCalledWith({
+      tripId: 'trip-1',
+      endedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+    });
   });
 
   it('saves it when the server is down or the token is about to refresh', async () => {
@@ -131,6 +134,7 @@ describe('Arrived on a job', () => {
     expect(routing.endTrip).not.toHaveBeenCalled();
     expect(queueTripEnd).toHaveBeenCalledWith({
       tripId: 'trip-1',
+      endedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
       jobAdvance: { jobId: 'job-1', status: 'at_delivery' },
     });
   });
@@ -141,7 +145,10 @@ describe('Arrived on a job', () => {
     );
     routing.endTrip.mockRejectedValue(offline());
     await arrive();
-    expect(queueTripEnd).toHaveBeenCalledWith({ tripId: 'trip-1' });
+    expect(queueTripEnd).toHaveBeenCalledWith({
+      tripId: 'trip-1',
+      endedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+    });
   });
 
   it('shows a refusal the server will always give for the job, and does not end the trip', async () => {

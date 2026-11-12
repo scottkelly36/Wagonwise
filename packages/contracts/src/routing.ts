@@ -359,6 +359,13 @@ export const activeTripIdParamsSchema = z.object({
 });
 export type ActiveTripIdParams = z.infer<typeof activeTripIdParamsSchema>;
 
+/**
+ * `POST /routing/trips/:id/end`. The body is optional: an app that ended the trip with no signal says when the driver tapped, so the trip is not recorded as
+ * ending whenever the signal came back. The server keeps it between the trip's start and now, and a trip already ended keeps the end it has.
+ */
+export const endTripRequestSchema = z.object({ endedAt: z.iso.datetime().optional() });
+export type EndTripRequest = z.infer<typeof endTripRequestSchema>;
+
 /** `lastPosition`/`endedAt` are always absent for the whole of M5.6 (docs/progress.md) — the
  *  shape is here so nothing about the wire contract has to change once M6 populates them. */
 export const activeTripSchema = z.object({
