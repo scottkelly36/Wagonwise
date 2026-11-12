@@ -6,6 +6,7 @@ import {
   pendingArrivals,
   SAVED_TRIP_MAX_AGE_MS,
   usableSavedTrip,
+  waitingNotice,
   withPendingArrival,
 } from './saved-trip';
 
@@ -75,5 +76,29 @@ describe('the arrival shown while it waits to be sent', () => {
         { tripId: 'b', jobAdvance: { jobId: 'job-1', status: 'at_pickup' } },
       ]),
     ).toEqual({ 'job-1': 'at_pickup' });
+  });
+});
+
+describe('waitingNotice', () => {
+  it('says nothing when nothing is saved', () => {
+    expect(waitingNotice([])).toBeUndefined();
+  });
+
+  it('says a trip end is saved, and that it will go when there is signal', () => {
+    expect(waitingNotice([{ tripId: 'a' }])).toBe(
+      'Your trip end is saved. It will be sent when you have signal.',
+    );
+  });
+
+  it('says an arrival is saved when it is one', () => {
+    expect(
+      waitingNotice([{ tripId: 'a', jobAdvance: { jobId: 'job-1', status: 'at_delivery' } }]),
+    ).toBe('Your arrival is saved. It will be sent when you have signal.');
+  });
+
+  it('counts them when there are several', () => {
+    expect(waitingNotice([{ tripId: 'a' }, { tripId: 'b' }])).toBe(
+      '2 things are saved on your phone. They will be sent when you have signal.',
+    );
   });
 });

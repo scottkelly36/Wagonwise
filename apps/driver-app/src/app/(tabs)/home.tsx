@@ -11,6 +11,7 @@ import { useNearbyClosures } from '../../api/use-closures';
 import { useNearbyFuel } from '../../api/use-fuel';
 import { useNearbySafeParkingSpots } from '../../api/use-parking';
 import { HazardDetailDrawer } from '../../components/hazard-detail-drawer';
+import { WaitingForSignalNotice } from '../../components/waiting-for-signal-notice';
 import { WhatsNewCard } from '../../components/whats-new-card';
 import { useNavigateToPlace } from '../../hooks/use-navigate-to-spot';
 import { useDrivingProfileId } from '../../hooks/use-parking-drive-times';
@@ -301,6 +302,11 @@ export default function HomeScreen() {
 
       {/* The newest note from WagonWise about what has changed, once. Home only, so it never interrupts a drive. */}
       <WhatsNewCard />
+
+      {/* Saved on the phone with no signal and not yet sent: say so, so the driver is not left wondering whether it counted. */}
+      <WaitingForSignalNotice
+        style={{ position: 'absolute', left: 12, right: 12, bottom: 84, zIndex: 40 }}
+      />
 
       <View style={[styles.topRow, { top }]} pointerEvents="box-none">
         <View style={styles.topLeft} pointerEvents="box-none">

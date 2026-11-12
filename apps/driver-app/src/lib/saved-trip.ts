@@ -37,6 +37,20 @@ export function withPendingArrival(
   return status === undefined || status === job.status ? job : { ...job, status };
 }
 
+/**
+ * What to tell the driver while something they did with no signal is saved on the phone and not yet sent: that it is saved, and that it will go when there is
+ * signal. Plain words about what it is. Nothing when nothing is waiting.
+ */
+export function waitingNotice(pending: readonly PendingTripEnd[]): string | undefined {
+  if (pending.length === 0) return undefined;
+  if (pending.length > 1) {
+    return `${pending.length} things are saved on your phone. They will be sent when you have signal.`;
+  }
+  return pending[0]?.jobAdvance === undefined
+    ? 'Your trip end is saved. It will be sent when you have signal.'
+    : 'Your arrival is saved. It will be sent when you have signal.';
+}
+
 /** The status each job with an arrival waiting to be sent has been moved to. */
 export function pendingArrivals(pending: readonly PendingTripEnd[]): Record<string, JobStatus> {
   const advances: Record<string, JobStatus> = {};
