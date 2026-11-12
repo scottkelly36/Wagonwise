@@ -19,6 +19,10 @@ export class InMemoryDeviceRepository implements DeviceRepository {
     return Promise.resolve(matches);
   }
 
+  listAll(): Promise<Device[]> {
+    return Promise.resolve([...this.#byId.values()]);
+  }
+
   save(device: Device): Promise<void> {
     this.#byId.set(device.id, device);
     return Promise.resolve();

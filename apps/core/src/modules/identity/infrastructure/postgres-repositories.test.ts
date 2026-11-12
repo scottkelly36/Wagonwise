@@ -315,6 +315,34 @@ describe('identity Postgres repositories', () => {
       expect(await repo().findByDriverId(driverId)).toEqual([d]);
     });
 
+    it('lists every device with its driver, for a notification to all drivers', async () => {
+      const mine = device({
+        id: makeId<'DeviceId'>('dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
+        pushToken: 'ExponentPushToken[list-a]',
+      });
+      const theirs = device({
+        id: makeId<'DeviceId'>('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'),
+        driverId: otherDriverId,
+        pushToken: 'ExponentPushToken[list-b]',
+      });
+      await repo().save(mine);
+      await repo().save(theirs);
+      try {
+        const all = await repo().listAll();
+        expect(all).toContainEqual(
+          expect.objectContaining({ driverId, pushToken: mine.pushToken }),
+        );
+        expect(all).toContainEqual(
+          expect.objectContaining({ driverId: otherDriverId, pushToken: theirs.pushToken }),
+        );
+      } finally {
+        // The tests after this one count a driver's devices, so these two are not left behind.
+        await pool.query(
+          "delete from identity.devices where push_token like 'ExponentPushToken%list-%'",
+        );
+      }
+    });
+
     it('returns null/empty for an unknown token or driver', async () => {
       expect(await repo().findByPushToken('never-registered')).toBeNull();
       expect(

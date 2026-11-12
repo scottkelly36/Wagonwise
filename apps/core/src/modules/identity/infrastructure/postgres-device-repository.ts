@@ -43,6 +43,14 @@ export class PostgresDeviceRepository implements DeviceRepository {
     return rows.map(toDomain);
   }
 
+  async listAll(): Promise<Device[]> {
+    const { rows } = await sql<DeviceRow>`
+      select id, driver_id, push_token, created_at, updated_at
+      from identity.devices order by created_at asc
+    `.execute(this.db);
+    return rows.map(toDomain);
+  }
+
   /** Upsert on `push_token` (the domain's own idempotency key — `registerDevice` decides
    *  create vs. reassign, this just persists whichever `Device` it built). */
   async save(device: Device): Promise<void> {

@@ -120,6 +120,7 @@ describe('runMigrations', () => {
       '0088_vehicle_euro_vi.sql',
       '0089_delivery_signatures.sql',
       '0090_announcements.sql',
+      '0091_announcement_push.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -318,6 +319,7 @@ describe('runMigrations', () => {
       '0088_vehicle_euro_vi.sql',
       '0089_delivery_signatures.sql',
       '0090_announcements.sql',
+      '0091_announcement_push.sql',
     ]);
   });
 });

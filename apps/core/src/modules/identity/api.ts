@@ -109,6 +109,8 @@ export interface IdentityModule {
    *  strings, not `Device`s: nothing outside identity needs a device's id or timestamps, only
    *  what a `PushNotifier` actually sends to. Unconsumed until M6.4 gives it a real caller. */
   getPushTokensForDriver(driverId: DriverId): Promise<string[]>;
+  /** Every registered phone and the driver it belongs to, for a notification to all drivers (`announcements`' audience, supplied by composition). */
+  listPushTargets(): Promise<{ driverId: string; pushToken: string }[]>;
   /** A driver's normalised sign-in identifier (phone or email), or null. For fleet, which uses it
    *  to match invitations to the driver (supplied by composition). */
   getDriverIdentifier(driverId: string): Promise<string | null>;
@@ -293,6 +295,10 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     async getDriverName(driverId: string): Promise<string | null> {
       const driver = await driverRepo.findById(makeId<'DriverId'>(driverId));
       return driver?.name ?? null;
+    },
+    async listPushTargets(): Promise<{ driverId: string; pushToken: string }[]> {
+      const devices = await deviceRepo.listAll();
+      return devices.map((device) => ({ driverId: device.driverId, pushToken: device.pushToken }));
     },
     async getPushTokensForDriver(driverId: DriverId): Promise<string[]> {
       const devices = await deviceRepo.findByDriverId(driverId);
