@@ -77,7 +77,8 @@ import {
   type VehicleProfileFormValues,
 } from '../lib/vehicle-profile-form';
 import { cameraMarkers } from '../lib/camera-markers';
-import { isCameraType } from '../lib/camera-report';
+import { isCameraType, withoutCameras } from '../lib/camera-report';
+import { hazardCountLine } from '../lib/hazard-marker';
 import { placeOnRoute } from '../lib/on-route';
 import { thinPoints } from '../lib/thin-points';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
@@ -148,11 +149,8 @@ const INCHES_PLACEHOLDERS: Partial<Record<string, string>> = {
   lengthM: '2',
 };
 
-// Same radius as home.tsx's "near me" query — a straight line between origin and destination
-// isn't the real route yet (that only exists once planning succeeds), but it's a reasonable
-// stand-in for "roughly this direction of travel" until then (design decision, 2026-09-24: fixes
-// hazards being visible on the home map but not here).
-const NEARBY_RADIUS_M = 5_000;
+// No line to look along yet: hazards are asked for only once there are routes (see `nearbyHazards` below).
+const NO_CORRIDOR: readonly MapPoint[] = [];
 /** Once there are routes to look along: the width the server looks either side of them, before the exact "on the road" cut. */
 const ON_ROUTE_HAZARD_RADIUS_M = 750;
 /** The most points the server takes for the line of a request. */
@@ -230,11 +228,8 @@ export default function PlanRouteScreen() {
   // override a start they searched for or tapped.
   const effectiveOrigin = fromMode === 'here' ? location.point : origin;
 
-  // Before the routes are compared, what is around the straight line from here to there. Once they are, only what is on one of
-  // the routes shown: a hazard a few streets over, or on the road that crosses, is not on the way.
-  const straightCorridor = [effectiveOrigin, destination].filter(
-    (p): p is MapPoint => p !== undefined,
-  );
+  // Once the routes are compared, only what is on one of the routes shown: a hazard a few streets over, or on the road that
+  // crosses, is not on the way.
   const optionCorridor = useMemo(
     () =>
       optionLines?.flatMap((o) =>
@@ -245,18 +240,25 @@ export default function PlanRouteScreen() {
       ),
     [optionLines],
   );
-  const nearbyHazards = useNearbyHazards(
-    optionCorridor ?? straightCorridor,
-    optionCorridor ? ON_ROUTE_HAZARD_RADIUS_M : NEARBY_RADIUS_M,
-  );
+  // Nothing is asked for, or drawn, until there are routes: before that the only line to look along was a straight one from
+  // here to there, and the markers it gave were about roads the driver might never use.
+  const nearbyHazards = useNearbyHazards(optionCorridor ?? NO_CORRIDOR, ON_ROUTE_HAZARD_RADIUS_M);
+  // Which hazards are on each route (by the route's place in the list), and so which are drawn and how many each card says.
+  const hazardsByOption = useMemo(() => {
+    const found = withoutCameras(nearbyHazards.data ?? []);
+    return (optionLines ?? []).map(
+      (option) => new Set(placeOnRoute(option.line, found).map((placed) => placed.item.id)),
+    );
+  }, [nearbyHazards.data, optionLines]);
   const shownHazards = useMemo(() => {
-    const found = nearbyHazards.data ?? [];
-    if (!optionLines) return found;
+    if (!optionLines) return [];
     const onAnyRoute = new Set<string>();
     for (const option of optionLines) {
-      for (const placed of placeOnRoute(option.line, found)) onAnyRoute.add(placed.item.id);
+      for (const placed of placeOnRoute(option.line, nearbyHazards.data ?? [])) {
+        onAnyRoute.add(placed.item.id);
+      }
     }
-    return found.filter((h) => onAnyRoute.has(h.id));
+    return (nearbyHazards.data ?? []).filter((h) => onAnyRoute.has(h.id));
   }, [nearbyHazards.data, optionLines]);
   const mapCameras = useMemo(() => cameraMarkers(undefined, shownHazards), [shownHazards]);
 
@@ -573,7 +575,12 @@ export default function PlanRouteScreen() {
           onMapPress={handleMapPress}
           hazards={shownHazards
             .filter((h) => !isCameraType(h.type))
-            .map((h) => ({ id: h.id, type: h.type, location: h.location }))}
+            .map((h) => ({
+              id: h.id,
+              type: h.type,
+              location: h.location,
+              measurement: h.measurement,
+            }))}
           cameras={mapCameras}
           onHazardPress={setSelectedHazardId}
         />
@@ -939,6 +946,11 @@ export default function PlanRouteScreen() {
                           ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
                           : ''}
                       </Text>
+                      {nearbyHazards.data !== undefined && (
+                        <Text style={styles.optionDetail} testID={`route-option-${index}-hazards`}>
+                          {hazardCountLine(hazardsByOption[index]?.size ?? 0)}
+                        </Text>
+                      )}
                       {hillsLine(option, distanceUnit) !== undefined && (
                         <Text style={styles.optionDetail} testID={`route-option-${index}-hills`}>
                           {hillsLine(option, distanceUnit)}

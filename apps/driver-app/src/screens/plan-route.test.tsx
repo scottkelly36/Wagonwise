@@ -370,5 +370,9 @@ describe('room for the map on Plan route', () => {
     expect(inList('route-option-0')).toBe(true);
     expect(inList('route-option-2')).toBe(true);
     expect(inList('edit-route-button')).toBe(false);
+    // Each card says how many reported hazards are on its route, so the markers on the map need no counting.
+    expect(screen.getByTestId('route-option-0-hazards').props.children).toBe(
+      'No hazards reported on this route',
+    );
   });
 });

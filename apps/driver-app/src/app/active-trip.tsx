@@ -340,7 +340,12 @@ export default function ActiveTripScreen() {
     () =>
       hazardsAhead
         .filter((h) => !isCameraType(h.type))
-        .map((h) => ({ id: h.id, type: h.type, location: h.location })),
+        .map((h) => ({
+          id: h.id,
+          type: h.type,
+          location: h.location,
+          measurement: h.measurement,
+        })),
     [hazardsAhead],
   );
   // Cameras on the map: the ones along the route from the map data and the ones drivers marked, in their own markers.

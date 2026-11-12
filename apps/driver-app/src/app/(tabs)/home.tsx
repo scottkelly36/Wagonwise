@@ -176,7 +176,12 @@ export default function HomeScreen() {
     () =>
       nearbyHazards.data
         ?.filter((h) => !isCameraType(h.type))
-        .map((h) => ({ id: h.id, type: h.type, location: h.location })),
+        .map((h) => ({
+          id: h.id,
+          type: h.type,
+          location: h.location,
+          measurement: h.measurement,
+        })),
     [nearbyHazards.data],
   );
   const mapCameras = useMemo(

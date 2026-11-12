@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStartTrip } from '../api/use-active-trip';
 import { useClosuresAlongRoute } from '../api/use-closures';
 import { useNearbyHazards } from '../api/use-hazards';
+import { useVehicleProfiles } from '../api/use-vehicle-profiles';
+import { hazardOnRouteLine } from '../lib/hazard-marker';
 import { ClosureDrawer } from '../components/closure-drawer';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { RouteClosuresSection } from '../components/route-closures-section';
@@ -32,7 +34,6 @@ import { withoutCameras } from '../lib/camera-report';
 import { useRouteSpeedLimits } from '../api/use-route-speed-limits';
 import { placeOnRoute } from '../lib/on-route';
 import { thinPoints } from '../lib/thin-points';
-import { formatMeasurement, HAZARD_TYPE_LABELS } from '../lib/hazard-labels';
 import { decodePolyline6 } from '../lib/polyline';
 import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
@@ -81,6 +82,9 @@ export default function RouteOverviewScreen() {
   );
   const nearbyHazards = useNearbyHazards(corridor, ON_ROUTE_HAZARD_RADIUS_M);
   const nearbyHazardsData = nearbyHazards.data;
+  // The vehicle the route was planned for, so its own height or weight can be shown beside a hazard's. Not known for a company
+  // job's vehicle, which is not one of the driver's own: the line then just leaves it out.
+  const vehicle = useVehicleProfiles().data?.find((p) => p.id === plan?.profileId);
   // Which roads the route runs along, and where it is up on a bridge: a hazard on a road that crosses it is not the driver's.
   const roads = useRouteSpeedLimits(plan?.id).data;
   // `plan.hazardsOnRoute` is the authoritative "on this route" list (a real, ~30m-of-the-final-
@@ -93,10 +97,12 @@ export default function RouteOverviewScreen() {
   const onRouteHazards = useMemo(
     () =>
       routeLine && nearbyHazardsData
-        ? placeOnRoute(routeLine, nearbyHazardsData, roads).map(({ item: h }) => ({
+        ? placeOnRoute(routeLine, nearbyHazardsData, roads).map(({ item: h, offsetM }) => ({
             id: h.id,
             type: h.type,
             location: h.location,
+            measurement: h.measurement,
+            offsetM,
           }))
         : [],
     [routeLine, nearbyHazardsData, roads],
@@ -342,8 +348,13 @@ export default function RouteOverviewScreen() {
                   <View style={styles.itemRow}>
                     <Icon name="alert-outline" size={22} color={colors.warning} />
                     <Text style={styles.sectionItem}>
-                      {HAZARD_TYPE_LABELS[hazard.type]}
-                      {hazard.measurement ? ` · ${formatMeasurement(hazard.measurement)}` : ''}
+                      {hazardOnRouteLine({
+                        type: hazard.type,
+                        measurement: hazard.measurement,
+                        vehicle: vehicle?.dimensions,
+                        offsetM: onRouteHazards.find((h) => h.id === hazard.id)?.offsetM,
+                        distanceUnit,
+                      })}
                     </Text>
                   </View>
                 </TouchableOpacity>
