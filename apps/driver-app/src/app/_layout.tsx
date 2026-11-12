@@ -31,6 +31,7 @@ import { useHoursStartStore } from '../state/hours-start-store';
 import { useShiftStore } from '../state/shift-store';
 import { useThemeStore } from '../state/theme-store';
 import { useWalkthroughStore } from '../state/walkthrough-store';
+import { useWhatsNewStore } from '../state/whats-new-store';
 
 export default function RootLayout() {
   const mode = useThemeStore((s) => s.mode);
@@ -48,6 +49,7 @@ export default function RootLayout() {
   const restoreMapLayers = useMapLayersStore((s) => s.restore);
   const restoreUpdateNotice = useUpdateNoticeStore((s) => s.restore);
   const restoreWalkthrough = useWalkthroughStore((s) => s.restore);
+  const restoreWhatsNew = useWhatsNewStore((s) => s.restore);
 
   useEffect(() => {
     void restoreAuth();
@@ -64,6 +66,7 @@ export default function RootLayout() {
     void restoreMapLayers();
     void restoreUpdateNotice();
     void restoreWalkthrough();
+    void restoreWhatsNew();
     // Keep more of the map on the phone, so places a driver has already seen draw straight away instead of waiting on the network
     // again. 250 MB is a few hundred miles of road map at the zoom levels used.
     OfflineManager.setMaximumAmbientCacheSize(250 * 1024 * 1024).catch(() => undefined);
@@ -82,6 +85,7 @@ export default function RootLayout() {
     restoreMapLayers,
     restoreUpdateNotice,
     restoreWalkthrough,
+    restoreWhatsNew,
   ]);
 
   useOpportunisticRefresh();
