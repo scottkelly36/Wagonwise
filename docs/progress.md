@@ -41,7 +41,7 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
    figure, two-tap End trip, miles by default: `history/log.md`), presets
    (Add a vehicle and Plan route), Share on iPhone and Android, a signature with no signal. Then read the usage page's "New drivers, by the
    day they joined" to see whether presets lifted the share choosing a vehicle (compare the days after 9 November with before).
-4. **Pilot firms.** The Sales page (Admin, Sales) is the notebook: log every contact there. Price and offer: `sales-playbook.md`.
+4. **Pilot firms** (and **route choice on a job**, built 2026-11-12: Start now opens the route cards; a company policy on tolls and loads, and saving the chosen route against the job, wait for what a pilot firm wants). The Sales page (Admin, Sales) is the notebook: log every contact there. Price and offer: `sales-playbook.md`.
    Ask the first firms what they need: the portal is to be shaped by them (jobs, loaded and delivered, where drivers are).
 5. **Loaded routing: tune it.** The A1 now shows when Hill-sensitive (owner, 2026-11-11), so the heights work. What is left is judging the
    trade: an earlier Hexham to Dundee check offered a 43-mile detour as "Fewer hills", so the steepness thresholds may want tuning once a few
