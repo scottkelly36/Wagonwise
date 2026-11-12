@@ -328,3 +328,47 @@ describe('the Load switch on Plan route', () => {
     expect(screen.queryByTestId('route-option-0-hills')).toBeNull();
   });
 });
+
+describe('room for the map on Plan route', () => {
+  it('folds the vehicle and the load switch into one line while the destination is picked on the map', async () => {
+    await open();
+    expect(await screen.findByTestId('load-switch')).toBeTruthy();
+
+    await chooseDestination();
+
+    expect(await screen.findByTestId('vehicle-folded')).toBeTruthy();
+    expect(screen.queryByTestId('load-switch')).toBeNull();
+    expect(screen.queryByTestId('vehicle-mode-profile-button')).toBeNull();
+
+    // Change opens them again.
+    await fireEvent.press(screen.getByTestId('vehicle-folded-change'));
+    expect(await screen.findByTestId('load-switch')).toBeTruthy();
+    expect(screen.getByTestId('vehicle-mode-profile-button')).toBeTruthy();
+  });
+
+  it('puts the route cards in a list that scrolls, with the way back kept outside it', async () => {
+    await open();
+    await chooseDestination();
+    await fireEvent.press(await screen.findByTestId('plan-route-button'));
+    const [, handlers] = mockPreview.mock.calls[0] as [
+      unknown,
+      { onSuccess: (o: unknown) => void },
+    ];
+    handlers.onSuccess([
+      { geometry: 'a', distanceKm: 221, durationMin: 228, labels: ['fastest'] },
+      { geometry: 'b', distanceKm: 210, durationMin: 240, labels: ['shortest'] },
+      { geometry: 'c', distanceKm: 260, durationMin: 250, labels: ['gentle'] },
+    ]);
+
+    const list = await screen.findByTestId('route-options-scroll');
+    const inList = (id: string) => {
+      for (let node = screen.getByTestId(id).parent; node !== null; node = node.parent) {
+        if (node === list || node.props.testID === 'route-options-scroll') return true;
+      }
+      return false;
+    };
+    expect(inList('route-option-0')).toBe(true);
+    expect(inList('route-option-2')).toBe(true);
+    expect(inList('edit-route-button')).toBe(false);
+  });
+});

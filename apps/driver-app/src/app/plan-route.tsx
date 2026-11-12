@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -162,6 +163,11 @@ const CORRIDOR_MAX_POINTS = 1500;
 // which reads as a river on the base map (design decision, 2026-09-24).
 const OPTION_COLOURS = ['#5B4BDB', '#D6336C', '#E8890C'] as const;
 
+/** Whether Enter details has a size in it yet: a preset picked, or a height typed. */
+function presetInBoxesOrTyped(values: VehicleProfileFormValues): boolean {
+  return values.heightM.trim() !== '';
+}
+
 export default function PlanRouteScreen() {
   const router = useRouter();
   const location = useCurrentLocation();
@@ -207,6 +213,10 @@ export default function PlanRouteScreen() {
   const [tapTarget, setTapTarget] = useState<PointEnd>('destination');
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const insets = useSafeAreaInsets();
+  // The route cards and the list under them never take more than about half the screen: the map keeps the rest.
+  const { height: windowHeight } = useWindowDimensions();
+  // Opened again by the driver while an end is being set on the map (see `folded` below).
+  const [vehicleOpen, setVehicleOpen] = useState(false);
   const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const loaded = useLoadStore((s) => s.loaded);
   const setLoaded = useLoadStore((s) => s.setLoaded);
@@ -261,6 +271,18 @@ export default function PlanRouteScreen() {
     destination !== undefined &&
     !pending &&
     (vehicleMode === 'manual' || selectedProfile !== undefined);
+
+  // While an end is being set on the map, the map is the tool: once a vehicle is chosen its part of the form and the load
+  // switch fold into one line, so the map keeps the room. "Change" opens them again.
+  const vehicleChosen =
+    vehicleMode === 'profile'
+      ? selectedProfile !== undefined
+      : presetInBoxesOrTyped(dimensionValues);
+  const folded =
+    routeOptions === undefined &&
+    (toMode === 'map' || fromMode === 'map') &&
+    vehicleChosen &&
+    !vehicleOpen;
 
   // The one thing still needed before a route can be planned, in the order a first-time driver does
   // them, so the button is never just greyed out with no word on why.
@@ -573,147 +595,169 @@ export default function PlanRouteScreen() {
         <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
           {routeOptions === undefined ? (
             <>
-              <SegmentedControl
-                options={VEHICLE_MODE_OPTIONS}
-                value={vehicleMode}
-                onChange={handleSelectVehicleMode}
-                testIDPrefix="vehicle-mode"
-              />
-
-              {vehicleMode === 'profile' && noVehiclesYet ? (
-                <View style={styles.firstUse} testID="first-vehicle-card">
-                  <View style={styles.firstUseHeader}>
-                    <Icon name="truck-outline" size={28} color={colors.accent} />
-                    <Text style={styles.firstUseTitle}>First, tell us about your HGV</Text>
-                  </View>
-                  <Text style={styles.firstUseBody}>
-                    Its height, width, length and weight decide which roads and bridges are safe.
-                    Pick the nearest size or type your own. Add it once and it is remembered for
-                    every trip.
+              {folded ? (
+                <View style={styles.summary} testID="vehicle-folded">
+                  <Icon name="truck-outline" size={20} color={colors.accent} />
+                  <Text style={styles.summaryText} numberOfLines={1}>
+                    {vehicleMode === 'profile'
+                      ? (selectedProfile?.name ?? 'Your vehicle')
+                      : 'The vehicle details you entered'}
+                    {loaded ? ' · hill-sensitive load' : ''}
                   </Text>
                   <TouchableOpacity
-                    style={styles.firstUseButton}
-                    onPress={() => router.push('/profiles/new')}
+                    onPress={() => setVehicleOpen(true)}
                     accessibilityRole="button"
-                    testID="add-first-vehicle-button"
+                    style={styles.summaryAction}
+                    testID="vehicle-folded-change"
                   >
-                    <Text style={styles.firstUseButtonText}>Add my vehicle</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleSelectVehicleMode('manual')}
-                    testID="first-vehicle-manual-link"
-                  >
-                    <Text style={styles.firstUseLink}>
-                      Or pick a size or enter the details just for this trip
-                    </Text>
+                    <Text style={styles.linkText}>Change</Text>
                   </TouchableOpacity>
                 </View>
-              ) : vehicleMode === 'profile' ? (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.profileRow}
-                >
-                  {profilesLoading ? (
-                    <ActivityIndicator color={colors.text} />
-                  ) : profiles === undefined || profiles.length === 0 ? (
-                    <Text style={styles.hint}>
-                      No saved vehicles yet. Try “Enter details” instead.
-                    </Text>
-                  ) : (
-                    profiles.map((profile) => (
+              ) : (
+                <>
+                  <SegmentedControl
+                    options={VEHICLE_MODE_OPTIONS}
+                    value={vehicleMode}
+                    onChange={handleSelectVehicleMode}
+                    testIDPrefix="vehicle-mode"
+                  />
+
+                  {vehicleMode === 'profile' && noVehiclesYet ? (
+                    <View style={styles.firstUse} testID="first-vehicle-card">
+                      <View style={styles.firstUseHeader}>
+                        <Icon name="truck-outline" size={28} color={colors.accent} />
+                        <Text style={styles.firstUseTitle}>First, tell us about your HGV</Text>
+                      </View>
+                      <Text style={styles.firstUseBody}>
+                        Its height, width, length and weight decide which roads and bridges are
+                        safe. Pick the nearest size or type your own. Add it once and it is
+                        remembered for every trip.
+                      </Text>
                       <TouchableOpacity
-                        key={profile.id}
-                        style={[
-                          styles.chip,
-                          profile.id === selectedProfile?.id && styles.chipSelected,
-                        ]}
-                        onPress={() => handleSelectProfile(profile.id)}
-                        testID={`profile-chip-${profile.id}`}
+                        style={styles.firstUseButton}
+                        onPress={() => router.push('/profiles/new')}
+                        accessibilityRole="button"
+                        testID="add-first-vehicle-button"
                       >
-                        <Text
-                          style={[
-                            styles.chipText,
-                            profile.id === selectedProfile?.id && styles.chipTextSelected,
-                          ]}
-                        >
-                          {profile.name}
+                        <Text style={styles.firstUseButtonText}>Add my vehicle</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleSelectVehicleMode('manual')}
+                        testID="first-vehicle-manual-link"
+                      >
+                        <Text style={styles.firstUseLink}>
+                          Or pick a size or enter the details just for this trip
                         </Text>
                       </TouchableOpacity>
-                    ))
-                  )}
-                </ScrollView>
-              ) : (
-                <ScrollView
-                  style={styles.manualForm}
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}
-                >
-                  <SegmentedControl
-                    options={SIZE_OPTIONS}
-                    value={manualMode === 'presets' ? 'presets' : lengthUnit}
-                    onChange={handleSizeChoice}
-                    testIDPrefix="manual-unit"
-                    compact
-                  />
-                  {manualMode === 'presets' ? (
-                    <>
-                      <VehiclePresetChips
-                        selectedId={presetInBoxes?.id}
-                        onPick={handlePickPreset}
-                      />
-                      {presetInBoxes !== undefined ? (
-                        <Text style={styles.presetNote} testID="manual-preset-note">
-                          {`${presetFigures(presetInBoxes).main} · ${presetFigures(presetInBoxes).size}. Typical sizes: check the height matches yours.`}
+                    </View>
+                  ) : vehicleMode === 'profile' ? (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.profileRow}
+                    >
+                      {profilesLoading ? (
+                        <ActivityIndicator color={colors.text} />
+                      ) : profiles === undefined || profiles.length === 0 ? (
+                        <Text style={styles.hint}>
+                          No saved vehicles yet. Try “Enter details” instead.
                         </Text>
-                      ) : dimensionValues.heightM.trim() !== '' ? (
-                        <Text style={styles.presetNote} testID="manual-own-sizes-note">
-                          Using your own sizes. Switch to Metres or Feet and inches to see or change
-                          them.
-                        </Text>
-                      ) : null}
-                    </>
+                      ) : (
+                        profiles.map((profile) => (
+                          <TouchableOpacity
+                            key={profile.id}
+                            style={[
+                              styles.chip,
+                              profile.id === selectedProfile?.id && styles.chipSelected,
+                            ]}
+                            onPress={() => handleSelectProfile(profile.id)}
+                            testID={`profile-chip-${profile.id}`}
+                          >
+                            <Text
+                              style={[
+                                styles.chipText,
+                                profile.id === selectedProfile?.id && styles.chipTextSelected,
+                              ]}
+                            >
+                              {profile.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </ScrollView>
                   ) : (
-                    DIMENSION_FIELDS.map((field) => {
-                      const isSize =
-                        field.key === 'heightM' ||
-                        field.key === 'widthM' ||
-                        field.key === 'lengthM';
-                      const inFeet = isSize && lengthUnit === 'feet';
-                      return (
-                        <View key={field.key}>
-                          <Text style={styles.label}>
-                            {inFeet
-                              ? field.label.replace('(metres)', '(feet and inches)')
-                              : field.label}
-                          </Text>
-                          {inFeet ? (
-                            // Remounted when the unit changes, so the boxes are filled afresh from the value in metres.
-                            <FeetInchesInputs
-                              key={`${field.key}-${lengthUnit}`}
-                              metres={dimensionValues[field.key]}
-                              onChangeMetres={setDimensionField(field.key)}
-                              feetPlaceholder={FEET_PLACEHOLDERS[field.key] ?? ''}
-                              inchesPlaceholder={INCHES_PLACEHOLDERS[field.key] ?? ''}
-                              inputStyle={styles.input}
-                              testIDPrefix={`manual-${field.key}`}
-                            />
-                          ) : (
-                            <TextInput
-                              style={styles.input}
-                              value={dimensionValues[field.key]}
-                              onChangeText={setDimensionField(field.key)}
-                              placeholder={field.placeholder}
-                              placeholderTextColor={colors.textDim}
-                              keyboardType="decimal-pad"
-                              testID={`manual-${field.key}-input`}
-                            />
-                          )}
-                        </View>
-                      );
-                    })
+                    <ScrollView
+                      style={styles.manualForm}
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                    >
+                      <SegmentedControl
+                        options={SIZE_OPTIONS}
+                        value={manualMode === 'presets' ? 'presets' : lengthUnit}
+                        onChange={handleSizeChoice}
+                        testIDPrefix="manual-unit"
+                        compact
+                      />
+                      {manualMode === 'presets' ? (
+                        <>
+                          <VehiclePresetChips
+                            selectedId={presetInBoxes?.id}
+                            onPick={handlePickPreset}
+                          />
+                          {presetInBoxes !== undefined ? (
+                            <Text style={styles.presetNote} testID="manual-preset-note">
+                              {`${presetFigures(presetInBoxes).main} · ${presetFigures(presetInBoxes).size}. Typical sizes: check the height matches yours.`}
+                            </Text>
+                          ) : dimensionValues.heightM.trim() !== '' ? (
+                            <Text style={styles.presetNote} testID="manual-own-sizes-note">
+                              Using your own sizes. Switch to Metres or Feet and inches to see or
+                              change them.
+                            </Text>
+                          ) : null}
+                        </>
+                      ) : (
+                        DIMENSION_FIELDS.map((field) => {
+                          const isSize =
+                            field.key === 'heightM' ||
+                            field.key === 'widthM' ||
+                            field.key === 'lengthM';
+                          const inFeet = isSize && lengthUnit === 'feet';
+                          return (
+                            <View key={field.key}>
+                              <Text style={styles.label}>
+                                {inFeet
+                                  ? field.label.replace('(metres)', '(feet and inches)')
+                                  : field.label}
+                              </Text>
+                              {inFeet ? (
+                                // Remounted when the unit changes, so the boxes are filled afresh from the value in metres.
+                                <FeetInchesInputs
+                                  key={`${field.key}-${lengthUnit}`}
+                                  metres={dimensionValues[field.key]}
+                                  onChangeMetres={setDimensionField(field.key)}
+                                  feetPlaceholder={FEET_PLACEHOLDERS[field.key] ?? ''}
+                                  inchesPlaceholder={INCHES_PLACEHOLDERS[field.key] ?? ''}
+                                  inputStyle={styles.input}
+                                  testIDPrefix={`manual-${field.key}`}
+                                />
+                              ) : (
+                                <TextInput
+                                  style={styles.input}
+                                  value={dimensionValues[field.key]}
+                                  onChangeText={setDimensionField(field.key)}
+                                  placeholder={field.placeholder}
+                                  placeholderTextColor={colors.textDim}
+                                  keyboardType="decimal-pad"
+                                  testID={`manual-${field.key}-input`}
+                                />
+                              )}
+                            </View>
+                          );
+                        })
+                      )}
+                    </ScrollView>
                   )}
-                </ScrollView>
+                </>
               )}
 
               <PointPicker
@@ -805,7 +849,7 @@ export default function PlanRouteScreen() {
             </Text>
           )}
 
-          {routeOptions === undefined && (
+          {routeOptions === undefined && !folded && (
             <View testID="load-switch">
               <Text style={styles.label}>Load type</Text>
               <SegmentedControl
@@ -839,127 +883,137 @@ export default function PlanRouteScreen() {
           ) : (
             <View style={styles.optionsList}>
               <Text style={styles.label}>Choose a route</Text>
-              {comparedLoaded && !hillsWereChecked(routeOptions) && (
-                <Text style={styles.presetNote} testID="hills-unavailable">
-                  {HILLS_UNAVAILABLE}
-                </Text>
-              )}
-              {routeOptions.some((option) => option.breaksWeightLimit === true) && (
-                <Text style={styles.weightWarning} testID="weight-limit-banner">
-                  {WEIGHT_LIMIT_BANNER}
-                </Text>
-              )}
-              {routeOptions.map((option, index) => (
-                <TouchableOpacity
-                  key={`${option.geometry}-${index}`}
-                  style={[
-                    styles.optionCard,
-                    {
-                      borderLeftWidth: 6,
-                      borderLeftColor: OPTION_COLOURS[index % OPTION_COLOURS.length],
-                    },
-                  ]}
-                  disabled={createRoutePlan.isPending}
-                  onPress={() => handleConfirmOption(option)}
-                  testID={`route-option-${index}`}
-                >
-                  <View style={styles.optionIcon}>
-                    <Icon
-                      name={
-                        option.labels.includes('fastest')
-                          ? 'lightning-bolt'
-                          : option.labels.includes('gentle')
-                            ? 'terrain'
-                            : option.labels.includes('shortest')
-                              ? 'ruler'
-                              : 'cash-remove'
-                      }
-                      size={26}
-                      color={colors.accent}
-                    />
-                  </View>
-                  <View style={styles.optionText}>
-                    <Text style={styles.optionLabel}>{routeOptionTitle(option)}</Text>
-                    <Text style={styles.optionDetail}>
-                      {formatRouteDistance(option.distanceKm, distanceUnit)} ·{' '}
-                      {formatDuration(option.durationMin)}
-                      {option.estimatedFuelCostGBP !== undefined
-                        ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
-                        : ''}
-                    </Text>
-                    {hillsLine(option, distanceUnit) !== undefined && (
-                      <Text style={styles.optionDetail} testID={`route-option-${index}-hills`}>
-                        {hillsLine(option, distanceUnit)}
+              {/* Cards with toll and zone lines are tall: three of them ran off the bottom of the screen with no way to reach
+                  the last. They scroll inside half the screen, and the map keeps the rest. */}
+              <ScrollView
+                style={{ maxHeight: Math.round(windowHeight * 0.5) }}
+                contentContainerStyle={styles.optionsScroll}
+                showsVerticalScrollIndicator
+                testID="route-options-scroll"
+              >
+                {comparedLoaded && !hillsWereChecked(routeOptions) && (
+                  <Text style={styles.presetNote} testID="hills-unavailable">
+                    {HILLS_UNAVAILABLE}
+                  </Text>
+                )}
+                {routeOptions.some((option) => option.breaksWeightLimit === true) && (
+                  <Text style={styles.weightWarning} testID="weight-limit-banner">
+                    {WEIGHT_LIMIT_BANNER}
+                  </Text>
+                )}
+                {routeOptions.map((option, index) => (
+                  <TouchableOpacity
+                    key={`${option.geometry}-${index}`}
+                    style={[
+                      styles.optionCard,
+                      {
+                        borderLeftWidth: 6,
+                        borderLeftColor: OPTION_COLOURS[index % OPTION_COLOURS.length],
+                      },
+                    ]}
+                    disabled={createRoutePlan.isPending}
+                    onPress={() => handleConfirmOption(option)}
+                    testID={`route-option-${index}`}
+                  >
+                    <View style={styles.optionIcon}>
+                      <Icon
+                        name={
+                          option.labels.includes('fastest')
+                            ? 'lightning-bolt'
+                            : option.labels.includes('gentle')
+                              ? 'terrain'
+                              : option.labels.includes('shortest')
+                                ? 'ruler'
+                                : 'cash-remove'
+                        }
+                        size={26}
+                        color={colors.accent}
+                      />
+                    </View>
+                    <View style={styles.optionText}>
+                      <Text style={styles.optionLabel}>{routeOptionTitle(option)}</Text>
+                      <Text style={styles.optionDetail}>
+                        {formatRouteDistance(option.distanceKm, distanceUnit)} ·{' '}
+                        {formatDuration(option.durationMin)}
+                        {option.estimatedFuelCostGBP !== undefined
+                          ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
+                          : ''}
                       </Text>
-                    )}
-                    {tollLines(option).map((line, lineIndex) => (
-                      <View key={line.text}>
+                      {hillsLine(option, distanceUnit) !== undefined && (
+                        <Text style={styles.optionDetail} testID={`route-option-${index}-hills`}>
+                          {hillsLine(option, distanceUnit)}
+                        </Text>
+                      )}
+                      {tollLines(option).map((line, lineIndex) => (
+                        <View key={line.text}>
+                          <Text
+                            style={styles.optionDetail}
+                            testID={`route-option-${index}-toll${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                          >
+                            {line.text}
+                          </Text>
+                          {line.detail !== undefined && (
+                            <Text
+                              style={styles.optionDetail}
+                              testID={`route-option-${index}-toll-detail${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                            >
+                              {line.detail}
+                            </Text>
+                          )}
+                        </View>
+                      ))}
+                      {costLine(option) !== undefined && (
+                        <Text style={styles.optionDetail} testID={`route-option-${index}-cost`}>
+                          {costLine(option)}
+                        </Text>
+                      )}
+                      {cheapestLine(option, routeOptions) !== undefined && (
+                        <Text style={styles.optionDetail} testID={`route-option-${index}-cheapest`}>
+                          {cheapestLine(option, routeOptions)}
+                        </Text>
+                      )}
+                      {zoneLines(option).map((line, lineIndex) => (
                         <Text
-                          style={styles.optionDetail}
-                          testID={`route-option-${index}-toll${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                          key={line.text}
+                          style={line.charged ? styles.optionWarning : styles.optionDetail}
+                          testID={`route-option-${index}-zone${lineIndex === 0 ? '' : `-${lineIndex}`}`}
                         >
                           {line.text}
                         </Text>
-                        {line.detail !== undefined && (
-                          <Text
-                            style={styles.optionDetail}
-                            testID={`route-option-${index}-toll-detail${lineIndex === 0 ? '' : `-${lineIndex}`}`}
-                          >
-                            {line.detail}
-                          </Text>
-                        )}
-                      </View>
-                    ))}
-                    {costLine(option) !== undefined && (
-                      <Text style={styles.optionDetail} testID={`route-option-${index}-cost`}>
-                        {costLine(option)}
-                      </Text>
-                    )}
-                    {cheapestLine(option, routeOptions) !== undefined && (
-                      <Text style={styles.optionDetail} testID={`route-option-${index}-cheapest`}>
-                        {cheapestLine(option, routeOptions)}
-                      </Text>
-                    )}
-                    {zoneLines(option).map((line, lineIndex) => (
-                      <Text
-                        key={line.text}
-                        style={line.charged ? styles.optionWarning : styles.optionDetail}
-                        testID={`route-option-${index}-zone${lineIndex === 0 ? '' : `-${lineIndex}`}`}
-                      >
-                        {line.text}
-                      </Text>
-                    ))}
-                    {option.breaksWeightLimit === true && (
-                      <Text style={styles.optionWarning}>{WEIGHT_LIMIT_SHORT}</Text>
-                    )}
-                  </View>
-                  <Icon name="chevron-right" size={26} color={colors.textMuted} />
-                </TouchableOpacity>
-              ))}
-              {euroVIUnknown(routeOptions) &&
-                vehicleMode === 'profile' &&
-                selectedProfile !== undefined && (
-                  <TouchableOpacity
-                    onPress={() =>
-                      router.push({
-                        pathname: '/profiles/[id]',
-                        params: { id: selectedProfile.id },
-                      })
-                    }
-                    accessibilityRole="button"
-                    testID="say-euro-vi"
-                  >
-                    <Text style={styles.linkText}>
-                      Say whether {selectedProfile.name} is Euro VI
-                    </Text>
+                      ))}
+                      {option.breaksWeightLimit === true && (
+                        <Text style={styles.optionWarning}>{WEIGHT_LIMIT_SHORT}</Text>
+                      )}
+                    </View>
+                    <Icon name="chevron-right" size={26} color={colors.textMuted} />
                   </TouchableOpacity>
+                ))}
+                {euroVIUnknown(routeOptions) &&
+                  vehicleMode === 'profile' &&
+                  selectedProfile !== undefined && (
+                    <TouchableOpacity
+                      onPress={() =>
+                        router.push({
+                          pathname: '/profiles/[id]',
+                          params: { id: selectedProfile.id },
+                        })
+                      }
+                      accessibilityRole="button"
+                      testID="say-euro-vi"
+                    >
+                      <Text style={styles.linkText}>
+                        Say whether {selectedProfile.name} is Euro VI
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                {zonesShown(routeOptions) && (
+                  <Text style={styles.presetNote} testID="zone-credit">
+                    {ZONE_CREDIT}
+                  </Text>
                 )}
-              {zonesShown(routeOptions) && (
-                <Text style={styles.presetNote} testID="zone-credit">
-                  {ZONE_CREDIT}
-                </Text>
-              )}
+              </ScrollView>
               <TouchableOpacity
+                style={styles.editButton}
                 onPress={() => setRouteOptions(undefined)}
                 testID="edit-route-button"
               >
@@ -994,6 +1048,9 @@ function createStyles(colors: ThemeColors) {
     },
     summary: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 2 },
     summaryText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+    summaryAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+    optionsScroll: { gap: 8 },
+    editButton: { minHeight: 44, justifyContent: 'center' },
     backOverlay: {
       position: 'absolute',
       left: 16,
