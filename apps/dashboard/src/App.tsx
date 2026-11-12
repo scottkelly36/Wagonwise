@@ -30,6 +30,7 @@ import { Plans } from './pages/admin/Plans';
 import { InviteCodes } from './pages/admin/InviteCodes';
 import { Feedback } from './pages/admin/Feedback';
 import { Testers } from './pages/admin/Testers';
+import { Announcements } from './pages/admin/Announcements';
 import { Sales } from './pages/admin/Sales';
 import { AuditPack } from './pages/fleet/AuditPack';
 import { Parking } from './pages/admin/Parking';
@@ -93,6 +94,7 @@ export function App() {
             <Route path="/admin/invite-codes" element={<InviteCodes />} />
             <Route path="/admin/testers" element={<Testers />} />
             <Route path="/admin/sales" element={<Sales />} />
+            <Route path="/admin/announcements" element={<Announcements />} />
             <Route path="/admin/feedback" element={<Feedback />} />
             <Route path="/admin/parking" element={<Parking />} />
             <Route path="/admin/reported-places" element={<ReportedPlaces />} />

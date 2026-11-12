@@ -7,6 +7,10 @@ import { createChecksModule, type UntypedDb as ChecksUntypedDb } from '../module
 import { createUsageModule, type UntypedDb as UsageUntypedDb } from '../modules/usage/api.js';
 import { createEmailAlertsModule } from '../modules/emailalerts/api.js';
 import { createAuditModule, type UntypedDb as AuditUntypedDb } from '../modules/audit/api.js';
+import {
+  createAnnouncementsModule,
+  type UntypedDb as AnnouncementsUntypedDb,
+} from '../modules/announcements/api.js';
 import { createSalesModule, type UntypedDb as SalesUntypedDb } from '../modules/sales/api.js';
 import { createSignupsModule, type UntypedDb as SignupsUntypedDb } from '../modules/signups/api.js';
 import { createCostingModule, type UntypedDb as CostingUntypedDb } from '../modules/costing/api.js';
@@ -253,6 +257,7 @@ export function composeCore(
   const costingDb: CostingUntypedDb = identityDb;
   const signupsDb: SignupsUntypedDb = identityDb;
   const salesDb: SalesUntypedDb = identityDb;
+  const announcementsDb: AnnouncementsUntypedDb = identityDb;
   const auditDb: AuditUntypedDb = identityDb;
   const usageDb: UsageUntypedDb = identityDb;
   const fleetDb: FleetUntypedDb = identityDb;
@@ -523,6 +528,13 @@ export function composeCore(
     ids,
     clock,
     dataScopes,
+    callers: { getCaller: staffCaller },
+  });
+  // Notes from WagonWise to its drivers about what has changed in the app: written by WagonWise staff, the newest shown once in the driver app.
+  const announcements = createAnnouncementsModule({
+    db: announcementsDb,
+    ids,
+    clock,
     callers: { getCaller: staffCaller },
   });
   // Told by the driver BFF when Resend reports an email that did not get through: logged, and the owner is emailed (if an
@@ -954,6 +966,7 @@ export function composeCore(
   costing.registerRoutes(app);
   signups.registerRoutes(app);
   sales.registerRoutes(app);
+  announcements.registerRoutes(app);
   audit.registerRoutes(app);
   emailAlerts.registerRoutes(app);
   usage.registerRoutes(app);

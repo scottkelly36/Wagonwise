@@ -74,6 +74,11 @@
       "import": "./dist/audit.js",
       "default": "./dist/audit.js"
     },
+    "./announcements": {
+      "types": "./dist/announcements.d.ts",
+      "import": "./dist/announcements.js",
+      "default": "./dist/announcements.js"
+    },
     "./sales": {
       "types": "./dist/sales.d.ts",
       "import": "./dist/sales.js",

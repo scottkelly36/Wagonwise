@@ -118,6 +118,10 @@ import {
   prospectIdParamsSchema,
   updateProspectRequestSchema,
 } from '@wagonwise/contracts/sales';
+import {
+  announcementIdParamsSchema,
+  createAnnouncementRequestSchema,
+} from '@wagonwise/contracts/announcements';
 import { listSosQuerySchema, sosIdParamsSchema } from '@wagonwise/contracts/sos';
 import { wordsToLocationRequestSchema } from '@wagonwise/contracts/what3words';
 import { createInviteCodesRequestSchema } from '@wagonwise/contracts/identity';
@@ -522,6 +526,15 @@ const FORWARDS: readonly Forward[] = [
   },
   { method: 'DELETE', path: '/staff/sales/entries/:id', params: entryIdParamsSchema },
   { method: 'POST', path: '/staff/sales/import', params: noParams, body: importRequestSchema },
+  // Notes to the drivers about what has changed in the app (WagonWise staff only; core decides).
+  { method: 'GET', path: '/staff/announcements', params: noParams },
+  {
+    method: 'POST',
+    path: '/staff/announcements',
+    params: noParams,
+    body: createAnnouncementRequestSchema,
+  },
+  { method: 'DELETE', path: '/staff/announcements/:id', params: announcementIdParamsSchema },
   // Driver hours sharing: the firm's switch, and the statuses of drivers who agreed to share. Core decides who may.
   {
     method: 'GET',

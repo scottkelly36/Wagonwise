@@ -11,6 +11,7 @@ import { useNearbyClosures } from '../../api/use-closures';
 import { useNearbyFuel } from '../../api/use-fuel';
 import { useNearbySafeParkingSpots } from '../../api/use-parking';
 import { HazardDetailDrawer } from '../../components/hazard-detail-drawer';
+import { WhatsNewCard } from '../../components/whats-new-card';
 import { useNavigateToPlace } from '../../hooks/use-navigate-to-spot';
 import { useDrivingProfileId } from '../../hooks/use-parking-drive-times';
 import { ClosureDrawer } from '../../components/closure-drawer';
@@ -297,6 +298,9 @@ export default function HomeScreen() {
         hazardId={selectedHazardId}
         onClose={() => setSelectedHazardId(undefined)}
       />
+
+      {/* The newest note from WagonWise about what has changed, once. Home only, so it never interrupts a drive. */}
+      <WhatsNewCard />
 
       <View style={[styles.topRow, { top }]} pointerEvents="box-none">
         <View style={styles.topLeft} pointerEvents="box-none">
