@@ -159,7 +159,12 @@ export function Announcements() {
       ) : announcements.length === 0 ? (
         <p className="text-muted">Nothing yet. The first note you publish is shown to drivers.</p>
       ) : (
-        <DataTable columns={columns} rows={announcements} rowKey={(a) => a.id} />
+        <DataTable
+          columns={columns}
+          rows={announcements}
+          rowKey={(a) => a.id}
+          emptyText="Nothing yet."
+        />
       )}
     </div>
   );
