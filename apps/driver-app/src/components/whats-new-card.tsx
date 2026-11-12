@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useWhatsNew } from '../hooks/use-whats-new';
 import { whatsNewPoints } from '../lib/whats-new';
+import { usePendingArrivalsStore } from '../state/pending-arrivals-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle } from '../theme/tokens';
 
@@ -14,6 +15,8 @@ import { cardStyle } from '../theme/tokens';
 export function WhatsNewCard() {
   const { announcement, dismiss } = useWhatsNew();
   const insets = useSafeAreaInsets();
+  // Sits above the notice that something is saved and waiting for signal, when that is showing too.
+  const waiting = usePendingArrivalsStore((s) => s.waiting !== undefined);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -21,7 +24,7 @@ export function WhatsNewCard() {
 
   return (
     <View
-      style={[styles.wrap, { bottom: Math.max(insets.bottom, 12) + 72 }]}
+      style={[styles.wrap, { bottom: Math.max(insets.bottom, 12) + 72 + (waiting ? 84 : 0) }]}
       pointerEvents="box-none"
       testID="whats-new"
     >

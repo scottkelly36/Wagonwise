@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
 import { useJobNavigation } from '../hooks/use-job-navigation';
 import { CheckDueCard } from '../components/check-due-card';
+import { WaitingForSignalNotice } from '../components/waiting-for-signal-notice';
 import { JobPlacesCard } from '../components/job-places-card';
 import { OpenSettingsButton } from '../components/open-settings-button';
 import { MIC_OFF_MESSAGE } from '../lib/mic-off-message';
@@ -143,6 +144,7 @@ export default function JobScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <ScreenHeader title={current.reference} subtitle={jobStatusLabel(current)} />
+        <WaitingForSignalNotice />
         {isTrackedStatus(current.status) && (
           <View style={styles.notice}>
             <Icon name="map-marker-radius-outline" size={22} color={colors.accent} />

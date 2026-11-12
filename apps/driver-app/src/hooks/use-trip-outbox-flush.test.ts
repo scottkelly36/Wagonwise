@@ -45,6 +45,9 @@ describe('queueing an end', () => {
     await queueTripEnd(arrival);
     expect(enqueueTripEnd).toHaveBeenCalledWith(arrival);
     expect(usePendingArrivalsStore.getState().advances).toEqual({ 'job-1': 'at_delivery' });
+    expect(usePendingArrivalsStore.getState().waiting).toBe(
+      'Your arrival is saved. It will be sent when you have signal.',
+    );
   });
 
   it('loads what is waiting when the app opens', async () => {
@@ -78,6 +81,7 @@ describe('syncTripOutbox', () => {
     expect(routing.endTrip).toHaveBeenCalledWith('token-1', 'trip-1', undefined);
     expect(removePendingTripEnd).toHaveBeenCalledWith('trip-1');
     expect(usePendingArrivalsStore.getState().advances).toEqual({});
+    expect(usePendingArrivalsStore.getState().waiting).toBeUndefined();
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: CURRENT_JOB_KEY });
   });
 

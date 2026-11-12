@@ -11,14 +11,15 @@ import {
   removePendingTripEnd,
   type PendingTripEnd,
 } from '../db/trip-outbox';
-import { pendingArrivals } from '../lib/saved-trip';
+import { pendingArrivals, waitingNotice } from '../lib/saved-trip';
 import { flushTripOutbox } from '../lib/trip-outbox-flush';
 import { useAuthStore } from '../state/auth-store';
 import { usePendingArrivalsStore } from '../state/pending-arrivals-store';
 
 /** Reloads the arrivals waiting to be sent into the store the job screen reads. */
 export async function refreshPendingArrivals(): Promise<void> {
-  usePendingArrivalsStore.getState().setAdvances(pendingArrivals(await listPendingTripEnds()));
+  const pending = await listPendingTripEnds();
+  usePendingArrivalsStore.getState().setPending(pendingArrivals(pending), waitingNotice(pending));
 }
 
 /** Saves an end (and, for a job, the arrival) to send when there is signal, and shows the arrival on the job meanwhile. */
