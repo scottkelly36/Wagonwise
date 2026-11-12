@@ -534,6 +534,30 @@ describe('POST /routing/trips/:id/end', () => {
     });
   });
 
+  it('forwards when the driver ended it, from an app that held the end for signal', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 200, body: { id: ID } };
+    await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${ID}/end`,
+      headers: AUTH_HEADER,
+      payload: { endedAt: '2026-06-15T08:40:00.000Z' },
+    });
+    expect(coreClient.calls[0]).toMatchObject({ body: { endedAt: '2026-06-15T08:40:00.000Z' } });
+  });
+
+  it('400s an end time that is not a date, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${ID}/end`,
+      headers: AUTH_HEADER,
+      payload: { endedAt: 'yesterday' },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+
   it('relays a 404 from core unchanged', async () => {
     const { app, coreClient } = buildApp();
     coreClient.nextResponse = { status: 404, body: { tag: 'ActiveTripNotFound' } };

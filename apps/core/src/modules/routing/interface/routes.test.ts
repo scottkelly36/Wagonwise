@@ -840,6 +840,37 @@ describe('POST /routing/trips/:id/end', () => {
     expect(response.json<{ endedAt?: string }>().endedAt).toBeDefined();
   });
 
+  it('takes the time the driver ended it, from an app that held the end for signal', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+    const started = await app.inject({
+      method: 'POST',
+      url: `/routing/route-plans/${routePlanId}/trip`,
+      ...asDriver('driver-1'),
+    });
+    const { id: tripId, startedAt } = started.json<{ id: string; startedAt: string }>();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/routing/trips/${tripId}/end`,
+      ...asDriver('driver-1'),
+      payload: { endedAt: new Date(Date.parse(startedAt) + 1000).toISOString() },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ endedAt?: string }>().endedAt).toBeDefined();
+  });
+
+  it('400s an end time that is not a date', async () => {
+    const { app } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/routing/trips/11111111-1111-4111-8111-111111111111/end',
+      ...asDriver('driver-1'),
+      payload: { endedAt: 'yesterday' },
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
   it('404s an unknown trip id', async () => {
     const { app } = buildApp();
     const response = await app.inject({

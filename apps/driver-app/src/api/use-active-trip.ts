@@ -40,12 +40,14 @@ export function useEndTrip() {
   const accessToken = useAccessToken();
   return useMutation({
     mutationFn: async (tripId: string): Promise<ActiveTripDto | undefined> => {
+      // When the driver tapped, kept if the end has to wait for signal.
+      const tapped = new Date().toISOString();
       try {
         return await routingApi.endTrip(accessToken, tripId);
       } catch (error) {
         if (isTripGone(error)) return undefined;
         if (isPermanentRejection(error)) throw error;
-        await queueTripEnd({ tripId });
+        await queueTripEnd({ tripId, endedAt: tapped });
         return undefined;
       }
     },
@@ -62,12 +64,14 @@ export function useArriveAtStop() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { jobId: string; status: JobStatus; tripId: string }) => {
+      const tapped = new Date().toISOString();
       try {
         await jobsApi.advanceJobStatus(accessToken, input.jobId, { status: input.status });
       } catch (error) {
         if (isPermanentRejection(error)) throw error;
         await queueTripEnd({
           tripId: input.tripId,
+          endedAt: tapped,
           jobAdvance: { jobId: input.jobId, status: input.status },
         });
         return;
@@ -77,7 +81,7 @@ export function useArriveAtStop() {
       } catch (error) {
         if (isTripGone(error)) return;
         if (isPermanentRejection(error)) throw error;
-        await queueTripEnd({ tripId: input.tripId });
+        await queueTripEnd({ tripId: input.tripId, endedAt: tapped });
       }
     },
     onSettled: () => void queryClient.invalidateQueries({ queryKey: CURRENT_JOB_KEY }),

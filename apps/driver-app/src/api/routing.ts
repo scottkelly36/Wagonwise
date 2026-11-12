@@ -1,4 +1,5 @@
 import {
+  endTripRequestSchema,
   activeTripSchema,
   createVehicleProfileRequestSchema,
   fasterRouteCheckRequestSchema,
@@ -177,8 +178,14 @@ export async function startTrip(accessToken: string, routePlanId: string): Promi
   return activeTripSchema.parse(json);
 }
 
-export async function endTrip(accessToken: string, tripId: string): Promise<ActiveTripDto> {
+/** `endedAt` is only for an end the app held until it had signal: when the driver tapped, so the trip is not recorded as ending whenever the signal came back. */
+export async function endTrip(
+  accessToken: string,
+  tripId: string,
+  endedAt?: string,
+): Promise<ActiveTripDto> {
   const { status, json } = await requestJson('POST', `/routing/trips/${tripId}/end`, {
+    ...(endedAt === undefined ? {} : { body: endTripRequestSchema.parse({ endedAt }) }),
     authorization: bearer(accessToken),
   });
   throwUnlessSuccess(status, json, [200]);
