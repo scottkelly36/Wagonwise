@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
 import { useAccessToken } from '../hooks/use-access-token';
+import { withPendingArrival } from '../lib/saved-trip';
+import { usePendingArrivalsStore } from '../state/pending-arrivals-store';
 import * as jobsApi from './jobs';
 
 export const CURRENT_JOB_KEY = ['current-job'] as const;
@@ -15,10 +17,13 @@ export const CURRENT_JOB_POLL_MS = 20_000;
 
 export function useCurrentJob() {
   const accessToken = useAccessToken();
+  // An arrival the driver made with no signal shows on the job until the server has it.
+  const advances = usePendingArrivalsStore((s) => s.advances);
   const query = useQuery({
     queryKey: CURRENT_JOB_KEY,
     queryFn: () => jobsApi.getCurrentJob(accessToken),
     refetchInterval: CURRENT_JOB_POLL_MS,
+    select: (job) => (job === null ? job : withPendingArrival(job, advances)),
   });
 
   // Asking again the moment the driver comes back to the app, so a job assigned while it was in the

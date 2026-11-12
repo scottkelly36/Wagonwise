@@ -41,19 +41,20 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
    figure, two-tap End trip, miles by default: `history/log.md`), presets
    (Add a vehicle and Plan route), Share on iPhone and Android, a signature with no signal. Then read the usage page's "New drivers, by the
    day they joined" to see whether presets lifted the share choosing a vehicle (compare the days after 9 November with before).
-4. **Pilot firms** (and **route choice on a job**, built 2026-11-12: Start now opens the route cards; a company policy on tolls and loads, and saving the chosen route against the job, wait for what a pilot firm wants). The Sales page (Admin, Sales) is the notebook: log every contact there. Price and offer: `sales-playbook.md`.
+4. **Offline trips, built 2026-11-12:** a trip is kept on the phone and brought back when the app opens with no signal, and End trip and Arrived are queued and sent later (see `modules.md`, "A trip that survives a restart with no signal"). Needs the `release` label to reach phones; **not tried on a real phone** (try: start a trip, turn on airplane mode, force-close and reopen, then End trip and turn the signal back on).
+5. **Pilot firms** (and **route choice on a job**, built 2026-11-12: Start now opens the route cards; a company policy on tolls and loads, and saving the chosen route against the job, wait for what a pilot firm wants). The Sales page (Admin, Sales) is the notebook: log every contact there. Price and offer: `sales-playbook.md`.
    Ask the first firms what they need: the portal is to be shaped by them (jobs, loaded and delivered, where drivers are).
-5. **Loaded routing: tune it.** The A1 now shows when Hill-sensitive (owner, 2026-11-11), so the heights work. What is left is judging the
+6. **Loaded routing: tune it.** The A1 now shows when Hill-sensitive (owner, 2026-11-11), so the heights work. What is left is judging the
    trade: an earlier Hexham to Dundee check offered a 43-mile detour as "Fewer hills", so the steepness thresholds may want tuning once a few
    more real runs are seen. `loaded-routing-scope.md`.
-6. **Charges, stages 3 and 4** (`charges-routing-scope.md`). Zones: the vehicle field, Scotland, seven English zones and London are built, on cards and on the live map
+7. **Charges, stages 3 and 4** (`charges-routing-scope.md`). Zones: the vehicle field, Scotland, seven English zones and London are built, on cards and on the live map
    (2026-11-11; four of the boundaries have no stated licence, the owner's call). Next a total and a Cheapest card. Toll prices and zone rates need a dated review. The toll choice now carries into re-plans and the faster-route check (2026-11-11).
    (2026-11-11; four of the boundaries have no stated licence, the owner's call). A total cost and a Cheapest label are built on the cards (2026-11-11). Next: the toll choice carried into re-plans, job stops and the faster-route check. Toll prices and zone rates need a dated review.
-7. **FORS-style records** (`fors-scope.md`, idea only): documents with expiry dates and an infringement log first. Never claim a firm is compliant.
-8. **Driver sign-in without invite codes** (`driver-sign-in-plan.md`): server, driver BFF and password screens are built behind switches;
+8. **FORS-style records** (`fors-scope.md`, idea only): documents with expiry dates and an infringement log first. Never claim a firm is compliant.
+9. **Driver sign-in without invite codes** (`driver-sign-in-plan.md`): server, driver BFF and password screens are built behind switches;
    Google and Apple sign-in need a store build and the owner's set-up. Nothing is switched on.
-9. **Next native build (1.3.0)**, which also carries the Play quality fixes below, and Android Auto if it goes ahead.
-10. **Small code left:** an iPhone Rate row (opens the App Store review page; the Rate row is Android only); road tax by registration is
+10. **Next native build (1.3.0)**, which also carries the Play quality fixes below, and Android Auto if it goes ahead.
+11. **Small code left:** an iPhone Rate row (opens the App Store review page; the Rate row is Android only); road tax by registration is
     **parked** (DVLA is not taking new Vehicle Enquiry Service keys); a tachograph source for driver hours waits on the pilot's lorries.
     Unscheduled ideas are in `ideas.md` and `phase-5-ideas.md`.
 

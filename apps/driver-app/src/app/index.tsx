@@ -26,6 +26,7 @@ export default function IndexScreen() {
   const setPlan = useCurrentRoutePlanStore((s) => s.setPlan);
   const resumeQuery = useResumeActiveTrip(
     state.status === 'signedIn' ? state.accessToken : undefined,
+    state.status === 'signedIn' ? state.driver.id : undefined,
   );
   const walkthrough = useWalkthroughStore((s) => s.status);
   const colors = useThemeColors();
