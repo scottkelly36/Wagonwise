@@ -12,6 +12,7 @@ import { FieldError } from '../../components/FieldError';
 import { VehicleEditor } from '../../components/VehicleEditor';
 import { VehicleMaintenance } from '../../components/VehicleMaintenance';
 import { focusFirstInvalid, hasErrors, type FieldErrors } from '../../lib/forms';
+import { euroVIFromChoice, topSpeedKphFromMph } from '../../lib/vehicle-speed';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
@@ -30,6 +31,8 @@ const EMPTY_FORM = {
   widthM: '',
   lengthM: '',
   grossWeightT: '',
+  topSpeedMph: '',
+  euroVI: '' as '' | 'yes' | 'no',
 };
 
 /** A company's own vehicles (Phase 2 tech design doc §3's `fleet` context, first slice).
@@ -64,6 +67,7 @@ export function VehicleProfiles() {
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [maintenanceId, setMaintenanceId] = useState<string | undefined>(undefined);
   const notify = useNotify();
+  const topSpeed = topSpeedKphFromMph(form.topSpeedMph);
   const createVehicle = useMutation({
     mutationFn: () =>
       withAccessToken((token) =>
@@ -76,6 +80,10 @@ export function VehicleProfiles() {
             widthM: Number(form.widthM),
             lengthM: Number(form.lengthM),
             grossWeightT: Number(form.grossWeightT),
+            ...(topSpeed.ok && topSpeed.kph !== undefined ? { topSpeedKph: topSpeed.kph } : {}),
+            ...(euroVIFromChoice(form.euroVI) === undefined
+              ? {}
+              : { euroVI: euroVIFromChoice(form.euroVI) }),
           },
         }),
       ),
@@ -95,13 +103,14 @@ export function VehicleProfiles() {
 
   const [showErrors, setShowErrors] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const errors: FieldErrors<'name' | (typeof DIMENSION_FIELDS)[number]['key']> = {};
+  const errors: FieldErrors<'name' | 'topSpeedMph' | (typeof DIMENSION_FIELDS)[number]['key']> = {};
   if (form.name.trim() === '') errors.name = 'Enter a name so you can tell vehicles apart.';
   for (const field of DIMENSION_FIELDS) {
     const value = form[field.key].trim();
     if (value === '') errors[field.key] = `Enter the ${field.noun}, like ${field.example}.`;
     else if (!(Number(value) > 0)) errors[field.key] = `Enter ${field.noun} as a number above 0.`;
   }
+  if (!topSpeed.ok) errors.topSpeedMph = topSpeed.message;
   const shown = (field: keyof typeof errors): string | undefined =>
     showErrors ? errors[field] : undefined;
 
@@ -277,6 +286,33 @@ export function VehicleProfiles() {
                 <FieldError id={`vehicle-${field.key}-error`} message={shown(field.key)} />
               </div>
             ))}
+            <div className="field" style={{ flex: '1 1 140px' }}>
+              <label htmlFor="vehicle-topSpeedMph">Top speed (mph, optional)</label>
+              <input
+                id="vehicle-topSpeedMph"
+                inputMode="decimal"
+                value={form.topSpeedMph}
+                onChange={(e) => setForm((f) => ({ ...f, topSpeedMph: e.target.value }))}
+                placeholder="55"
+                aria-invalid={shown('topSpeedMph') !== undefined}
+                aria-describedby="vehicle-topSpeedMph-error"
+              />
+              <FieldError id="vehicle-topSpeedMph-error" message={shown('topSpeedMph')} />
+            </div>
+            <div className="field" style={{ flex: '1 1 140px' }}>
+              <label htmlFor="vehicle-euroVI">Euro VI engine</label>
+              <select
+                id="vehicle-euroVI"
+                value={form.euroVI}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, euroVI: e.target.value as '' | 'yes' | 'no' }))
+                }
+              >
+                <option value="">Not stated</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
             <button type="submit" disabled={createVehicle.isPending} className="form-row-button">
               {createVehicle.isPending ? 'Adding…' : 'Add vehicle'}
             </button>

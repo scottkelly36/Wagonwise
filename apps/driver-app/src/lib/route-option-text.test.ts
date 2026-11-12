@@ -10,6 +10,7 @@ import {
   zoneLines,
   zonesShown,
   cheapestLine,
+  euroVIUnknown,
   costLine,
 } from './route-option-text';
 
@@ -339,5 +340,20 @@ describe('hillsWereChecked', () => {
   it('is true when any option has hill figures', () => {
     expect(hillsWereChecked([{ ...base, labels: ['fastest'] }])).toBe(false);
     expect(hillsWereChecked([{ ...base, labels: ['fastest'], hills }])).toBe(true);
+  });
+});
+
+describe('euroVIUnknown', () => {
+  const zone = (status: 'charged' | 'may-be-charged') =>
+    ({
+      ...base,
+      labels: ['fastest'],
+      zones: [{ name: 'A', status, penaltyGBP: 60 }],
+    }) as RouteOptionDto;
+
+  it('is true only when a zone may apply because the vehicle has not said', () => {
+    expect(euroVIUnknown([zone('may-be-charged')])).toBe(true);
+    expect(euroVIUnknown([zone('charged')])).toBe(false);
+    expect(euroVIUnknown([{ ...base, labels: ['fastest'] }])).toBe(false);
   });
 });
