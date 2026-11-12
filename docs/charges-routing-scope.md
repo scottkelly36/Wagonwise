@@ -82,7 +82,7 @@ discount or an exemption), or price a toll that depends on time of day (the M6 T
 2. **The charges table and prices.** Tolls first (crossings from operators' own pages), then the route check and the price line. **Tolls built 2026-11-10:** five crossings with a price for a goods vehicle (Dartford, Mersey Gateway and Silver Jubilee, M6 Toll, Humber Bridge,
    Tyne Tunnel), in `routing/domain/tolls.ts` with each row's source page and the day it was read. A card names the toll and its price ("Toll: Dartford Crossing,
    £8.40", and when to pay). The engine reports the tolled stretches of a route (Valhalla's per-step `toll` flag) and a stretch near a crossing names it. A
-   route with a toll that is **not** in the table still says "Includes a toll". **Not built:** Mersey Tunnels, Tamar Bridge and the many small tolls; clean air and
+   route with a toll that is **not** in the table still says "Includes a toll". **Mersey Tunnels and Tamar Bridge added 2026-11-12** (prices from the owner's copy of the operators' tables; the Tamar toll is eastbound only, so a westbound route is not charged). **Not built:** the Itchen Bridge and the many small tolls; clean air and
    low emission zones (stage 3); a total or a Cheapest card (stage 4); the toll choice in re-plans. **The price depends on the vehicle's axles for some
    operators and the app holds only the weight**, so a card may show "£4.20 to £8.40" (Dartford, an 18 tonne lorry) or "price not known for your vehicle"
    (Humber, a 7.5 tonne lorry, whose band was not read). Adding an axle count to the vehicle would settle most of these; not done.

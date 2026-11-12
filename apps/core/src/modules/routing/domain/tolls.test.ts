@@ -103,7 +103,7 @@ describe('chargesOnRoute', () => {
   });
 
   it('says nothing for a toll the table does not know, or for no toll', () => {
-    expect(chargesOnRoute([{ lat: 50.4, lon: -4.2 }], weight(44))).toEqual([]);
+    expect(chargesOnRoute([{ lat: 52.0, lon: -1.0 }], weight(44))).toEqual([]);
     expect(chargesOnRoute([], weight(44))).toEqual([]);
   });
 
@@ -129,6 +129,57 @@ describe('chargesOnRoute', () => {
     );
     expect(chargesOnRoute([{ lat: 53.3459, lon: -2.7381 }], weight(26))[0]?.id).toBe(
       'mersey-gateway',
+    );
+  });
+});
+
+describe('the Mersey Tunnels', () => {
+  const queensway = [{ lat: 53.4009, lon: -3.0031 }];
+
+  it('prices by axles, with a range where the weight does not settle them', () => {
+    expect(priceFor(crossing('mersey-tunnels'), weight(7.5))).toEqual({
+      lowGBP: 7.2,
+      highGBP: 7.2,
+    });
+    expect(priceFor(crossing('mersey-tunnels'), weight(12))).toEqual({ lowGBP: 7.2, highGBP: 9.6 });
+    expect(priceFor(crossing('mersey-tunnels'), weight(44))).toEqual({ lowGBP: 9.6, highGBP: 9.6 });
+    expect(priceFor(crossing('mersey-tunnels'), weight(3.5))).toBeUndefined();
+  });
+
+  it('is named for either tunnel, and once', () => {
+    const kingsway = [{ lat: 53.413, lon: -3.01 }];
+    expect(chargesOnRoute(queensway, weight(44))[0]?.id).toBe('mersey-tunnels');
+    expect(chargesOnRoute(kingsway, weight(44))[0]?.id).toBe('mersey-tunnels');
+    expect(chargesOnRoute([...queensway, ...kingsway], weight(44))).toHaveLength(1);
+  });
+});
+
+describe('the Tamar Bridge', () => {
+  // The bridge runs about 600 m, Saltash in the west to Plymouth in the east.
+  const saltash = { lat: 50.4086, lon: -4.2074 };
+  const plymouth = { lat: 50.4082, lon: -4.1993 };
+
+  it('prices by axles, and gives the three-axle to four-axle range for three or more', () => {
+    expect(priceFor(crossing('tamar-bridge'), weight(7.5))).toEqual({ lowGBP: 7.3, highGBP: 7.3 });
+    expect(priceFor(crossing('tamar-bridge'), weight(12))).toEqual({ lowGBP: 7.3, highGBP: 16.5 });
+    expect(priceFor(crossing('tamar-bridge'), weight(44))).toEqual({ lowGBP: 12, highGBP: 16.5 });
+    expect(priceFor(crossing('tamar-bridge'), weight(3.5))).toBeUndefined();
+  });
+
+  it('is charged going east into Plymouth', () => {
+    const [charge] = chargesOnRoute([saltash, plymouth], weight(44));
+    expect(charge).toMatchObject({ id: 'tamar-bridge', lowGBP: 12, highGBP: 16.5 });
+    expect(charge?.note).toMatch(/Eastbound/);
+  });
+
+  it('is not charged going west, which is free', () => {
+    expect(chargesOnRoute([plymouth, saltash], weight(44))).toEqual([]);
+  });
+
+  it('is treated as charged when the route cannot say which way it goes', () => {
+    expect(chargesOnRoute([saltash], weight(44))[0]?.id).toBe('tamar-bridge');
+    expect(chargesOnRoute([saltash, { lat: 50.40861, lon: -4.20741 }], weight(44))[0]?.id).toBe(
+      'tamar-bridge',
     );
   });
 });
