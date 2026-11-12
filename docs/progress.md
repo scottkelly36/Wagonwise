@@ -22,7 +22,7 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
   Phases 1 to 3 are built (`phase-3-scope.md`); module notes are in `modules.md`.
 - **Shipped 8 to 11 November** (details in `history/log.md`): the usage page ("Where drivers get to", new drivers by day); vehicle
   **presets** beside Metres and Feet & inches (Add a vehicle and the route planner); Share sends both store links; **Load type**
-  Normal / Hill-sensitive; **tolls** named with a price on route cards and a Toll free card (five crossings); a **top speed** on a
+  Normal / Hill-sensitive; **tolls** named with a price on route cards and a Toll free card (seven crossings, including the Mersey Tunnels and Tamar Bridge); a **top speed** on a
   vehicle; a steadier map when stopped; **Euro VI** yes / no / don't know on a vehicle (stored, nothing reads it yet); the Hauliers
   page comparison with a tracker box; and **the receiver's signature**, required per job like the photo (vector strokes, kept
   under the photo's retention). The app was released with the `release` label after the signature merged (2026-11-11), and the owner took a signature end to end on a phone;

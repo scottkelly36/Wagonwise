@@ -30,6 +30,8 @@ export interface TollCrossing {
   /** Where to look: a tolled stretch of a route within `radiusM` of any of these points is this crossing. Approximate on purpose. */
   readonly near: readonly GeoPoint[];
   readonly radiusM: number;
+  /** Charged in one direction only: the direction of travel (compass degrees) and how far either side of it still counts. A route that crosses the other way is not charged. When the route's direction there cannot be told (one point), it is treated as charged. */
+  readonly oneWay?: { readonly centreDeg: number; readonly withinDeg: number };
   readonly tariffs: readonly TollTariff[];
   /** What the price is, when it is not simply the price of a crossing: "the full length", "the most it can be". */
   readonly note?: string;
@@ -123,6 +125,44 @@ export const TOLL_CROSSINGS: readonly TollCrossing[] = [
     sourceUrl: 'https://www.tt2.co.uk/toll-information/toll-prices/',
     checkedOn: '2026-11-11',
   },
+  {
+    id: 'mersey-tunnels',
+    name: 'Mersey Tunnels (Queensway or Kingsway)',
+    // Midpoints of the two tunnels (Wikipedia); the tunnels are about 2.5 to 3 km long, so the radius reaches both portals.
+    near: [
+      { lat: 53.4009, lon: -3.0031 },
+      { lat: 53.413, lon: -3.01 },
+    ],
+    radiusM: 2500,
+    // The owner's copy of Merseytravel's table valid from 1 April 2026 (2026-11-12): Class 3, "medium goods/buses, 2 axles" £7.20 cash or card (£6.00 with T-FLOW), and
+    // Class 4, "heavy goods/buses, 3+ axles" £9.60 cash or card (£8.00 with T-FLOW). Priced by axles, so a lorry between 7.5 and 18 tonnes gets the range. The page itself
+    // gave a 403 to our fetch, and which direction is charged was not stated, so none is claimed.
+    tariffs: [
+      { overT: 3.5, axles: 'two', amountGBP: 7.2 },
+      { overT: 3.5, axles: 'three-or-more', amountGBP: 9.6 },
+    ],
+    note: 'The cash or card price. About 17% less with a T-FLOW account.',
+    sourceUrl: 'https://www.merseytravel.gov.uk/tunnels/tolls-fees-and-charges/',
+    checkedOn: '2026-11-12',
+  },
+  {
+    id: 'tamar-bridge',
+    name: 'Tamar Bridge',
+    near: [{ lat: 50.4081, lon: -4.2034 }],
+    radiusM: 1500,
+    // Charged only eastbound, from Saltash into Plymouth (the bridge runs west to east): the toll applies within 75 degrees of due east.
+    oneWay: { centreDeg: 90, withinDeg: 75 },
+    // The owner's copy of Tamar Crossings' table (2026-11-12), over 3.5 tonnes, cash or card: two axles £7.30, three axles £12.00, four or more £16.50 (half with a TamarTag).
+    // We hold only whether a lorry has three or more axles, not which, so for three or more the price is the range from the three-axle to the four-axle figure.
+    // The operator's goods-vehicle table was not on the page we could read, so these are from the owner.
+    tariffs: [
+      { overT: 3.5, axles: 'two', amountGBP: 7.3 },
+      { overT: 3.5, axles: 'three-or-more', amountGBP: 12, mightBeGBP: 16.5 },
+    ],
+    note: 'Eastbound into Plymouth only, and free the other way. Half price with a TamarTag. Three axles cost less than four or more.',
+    sourceUrl: 'https://www.tamarcrossings.org.uk/prices/tamar-bridge-tolls/',
+    checkedOn: '2026-11-12',
+  },
 ];
 
 /** What a route is charged at one crossing, in a form for the card. */
@@ -180,6 +220,45 @@ export function priceFor(
 
 const EARTH_RADIUS_M = 6_371_000;
 
+function bearingDeg(from: GeoPoint, to: GeoPoint): number {
+  const rad = (deg: number): number => (deg * Math.PI) / 180;
+  const dLon = rad(to.lon - from.lon);
+  const y = Math.sin(dLon) * Math.cos(rad(to.lat));
+  const x =
+    Math.cos(rad(from.lat)) * Math.sin(rad(to.lat)) -
+    Math.sin(rad(from.lat)) * Math.cos(rad(to.lat)) * Math.cos(dLon);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+/** The smallest angle between two compass bearings, 0 to 180. */
+function angleBetweenDeg(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+
+/** Fewer metres apart than this and a route's first and last point at a crossing do not say which way it is going. */
+const MIN_SPAN_FOR_DIRECTION_M = 100;
+
+/** Whether a route travels a one-way crossing in the direction that is charged. Treated as charged when it cannot be told. */
+function chargedDirection(crossing: TollCrossing, tollPoints: readonly GeoPoint[]): boolean {
+  if (crossing.oneWay === undefined) return true;
+  const here = tollPoints.filter((point) =>
+    crossing.near.some((anchor) => distanceM(point, anchor) <= crossing.radiusM),
+  );
+  const first = here[0];
+  const last = here[here.length - 1];
+  if (
+    first === undefined ||
+    last === undefined ||
+    distanceM(first, last) < MIN_SPAN_FOR_DIRECTION_M
+  ) {
+    return true;
+  }
+  return (
+    angleBetweenDeg(bearingDeg(first, last), crossing.oneWay.centreDeg) <= crossing.oneWay.withinDeg
+  );
+}
+
 function distanceM(a: GeoPoint, b: GeoPoint): number {
   const rad = (deg: number): number => (deg * Math.PI) / 180;
   const dLat = rad(b.lat - a.lat);
@@ -204,6 +283,7 @@ export function chargesOnRoute(
       crossing.near.some((anchor) => distanceM(point, anchor) <= crossing.radiusM),
     );
     if (firstIndex < 0) continue;
+    if (!chargedDirection(crossing, tollPoints)) continue;
     const price = priceFor(crossing, vehicle);
     found.push({
       firstIndex,

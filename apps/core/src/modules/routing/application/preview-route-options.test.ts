@@ -349,7 +349,7 @@ describe('previewRouteOptions', () => {
         const engine = deps.routingEngine as FakeRoutingEngine;
         engine.alternativesResult = {
           ok: true,
-          value: [tolled('fast-geometry', [{ lat: 50.4, lon: -4.2 }])],
+          value: [tolled('fast-geometry', [{ lat: 52.0, lon: -1.0 }])],
         };
         engine.result = { ok: true, value: withToll('free-geometry', false, 140, 100) };
 
