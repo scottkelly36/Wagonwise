@@ -4,26 +4,27 @@ import type { AnnouncementRepository } from '../announcements.js';
 export class InMemoryAnnouncementRepository implements AnnouncementRepository {
   readonly items: Announcement[] = [];
 
-  async insert(announcement: Announcement): Promise<void> {
+  insert(announcement: Announcement): Promise<void> {
     this.items.push(announcement);
+    return Promise.resolve();
   }
 
   private newestFirst(): Announcement[] {
     return [...this.items].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
   }
 
-  async listNewest(limit: number): Promise<Announcement[]> {
-    return this.newestFirst().slice(0, limit);
+  listNewest(limit: number): Promise<Announcement[]> {
+    return Promise.resolve(this.newestFirst().slice(0, limit));
   }
 
-  async findLatest(): Promise<Announcement | null> {
-    return this.newestFirst()[0] ?? null;
+  findLatest(): Promise<Announcement | null> {
+    return Promise.resolve(this.newestFirst()[0] ?? null);
   }
 
-  async delete(id: AnnouncementId): Promise<boolean> {
+  delete(id: AnnouncementId): Promise<boolean> {
     const index = this.items.findIndex((a) => a.id === id);
-    if (index < 0) return false;
+    if (index < 0) return Promise.resolve(false);
     this.items.splice(index, 1);
-    return true;
+    return Promise.resolve(true);
   }
 }
