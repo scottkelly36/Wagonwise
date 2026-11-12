@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>WagonWise email template</title>
+  </head>
+  <!--
+    The layout for emails written by hand (to hauliers, pilot firms, suppliers). How to use it: docs/email/README.md.
+    Same brand as the launch email (apps/core/src/modules/signups/domain/launch-email.ts): tables and inline styles
+    only, because that is what mail apps, Outlook above all, draw reliably. Replace everything in [brackets].
+  -->
+  <body style="margin: 0; padding: 0; background: #f3f6fb">
+    <table
+      role="presentation"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      width="100%"
+      bgcolor="#f3f6fb"
+      style="background: #f3f6fb"
+    >
+      <tr>
+        <td align="center" style="padding: 24px 12px">
+          <table
+            role="presentation"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            width="600"
+            style="width: 100%; max-width: 600px"
+          >
+            <!-- Header: logo and name -->
+            <tr>
+              <td
+                bgcolor="#0b1220"
+                style="background: #0b1220; border-radius: 16px 16px 0 0; padding: 20px 28px"
+              >
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                  <tr>
+                    <td width="52" valign="middle">
+                      <img
+                        src="https://wagon-wise.co.uk/img/icon-192.png"
+                        width="40"
+                        height="40"
+                        alt=""
+                        style="display: block; border: 0; border-radius: 10px"
+                      />
+                    </td>
+                    <td
+                      valign="middle"
+                      style="
+                        font-family: Arial, Helvetica, sans-serif;
+                        font-size: 20px;
+                        line-height: 26px;
+                        font-weight: 700;
+                        color: #ffffff;
+                      "
+                    >
+                      WagonWise
+                    </td>
+                    <td
+                      valign="middle"
+                      align="right"
+                      style="
+                        font-family: Arial, Helvetica, sans-serif;
+                        font-size: 12px;
+                        line-height: 18px;
+                        font-weight: 700;
+                        letter-spacing: 1px;
+                        text-transform: uppercase;
+                        color: #7fb2ff;
+                      "
+                    >
+                      HGV navigation
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- The message -->
+            <tr>
+              <td
+                bgcolor="#ffffff"
+                style="
+                  background: #ffffff;
+                  padding: 32px 28px 8px 28px;
+                  font-family: Arial, Helvetica, sans-serif;
+                  font-size: 16px;
+                  line-height: 25px;
+                  color: #0f1a2e;
+                "
+              >
+                <p style="margin: 0 0 16px 0">Hello [first name],</p>
+                <p style="margin: 0 0 16px 0">
+                  [Opening line: why you are writing, in one sentence.]
+                </p>
+                <p style="margin: 0 0 16px 0">
+                  [The main point. Keep it to two or three short paragraphs. One idea in each.]
+                </p>
+                <p style="margin: 0 0 24px 0">
+                  [What you would like to happen next, with a date if there is one.]
+                </p>
+
+                <!-- Optional button. Delete this table if the email does not need one. -->
+                <table
+                  role="presentation"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  style="margin: 0 0 24px 0"
+                >
+                  <tr>
+                    <td
+                      align="center"
+                      bgcolor="#1a73e8"
+                      style="background: #1a73e8; border-radius: 10px"
+                    >
+                      <a
+                        href="https://wagon-wise.co.uk"
+                        target="_blank"
+                        style="
+                          display: inline-block;
+                          padding: 12px 24px;
+                          font-family: Arial, Helvetica, sans-serif;
+                          font-size: 16px;
+                          line-height: 22px;
+                          font-weight: 700;
+                          text-decoration: none;
+                          color: #ffffff;
+                        "
+                        >[Button text]</a
+                      >
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin: 0 0 24px 0">Kind regards,</p>
+              </td>
+            </tr>
+
+            <!-- Signature -->
+            <tr>
+              <td bgcolor="#ffffff" style="background: #ffffff; padding: 0 28px 28px 28px">
+                <table
+                  role="presentation"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  width="100%"
+                  style="border-top: 1px solid #d9e1ee"
+                >
+                  <tr>
+                    <td
+                      style="
+                        padding-top: 20px;
+                        font-family: Arial, Helvetica, sans-serif;
+                        font-size: 14px;
+                        line-height: 21px;
+                        color: #55617a;
+                      "
+                    >
+                      <span
+                        style="font-size: 16px; line-height: 23px; font-weight: 700; color: #0f1a2e"
+                        >[Your name]</span
+                      ><br />
+                      [Your role], WagonWise<br />
+                      [Phone number] &nbsp;|&nbsp;
+                      <a
+                        href="mailto:support@wagon-wise.co.uk"
+                        style="color: #1a73e8; text-decoration: none"
+                        >support@wagon-wise.co.uk</a
+                      >
+                      &nbsp;|&nbsp;
+                      <a
+                        href="https://wagon-wise.co.uk"
+                        style="color: #1a73e8; text-decoration: none"
+                        >wagon-wise.co.uk</a
+                      >
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Footer: the company details a limited company must show on business emails -->
+            <tr>
+              <td
+                bgcolor="#0b1220"
+                style="
+                  background: #0b1220;
+                  border-radius: 0 0 16px 16px;
+                  padding: 18px 28px;
+                  font-family: Arial, Helvetica, sans-serif;
+                  font-size: 12px;
+                  line-height: 18px;
+                  color: #a9b8d3;
+                "
+              >
+                WagonWise Ltd. Registered in England and Wales, company number 17530209. Registered
+                office: 5 Portland Terrace, Hexham NE46 3DT.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
