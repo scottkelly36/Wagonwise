@@ -1,9 +1,9 @@
 import {
   announcementListResponseSchema,
-  announcementSchema,
-  type AnnouncementDto,
+  publishAnnouncementResponseSchema,
   type AnnouncementListResponse,
   type CreateAnnouncementRequest,
+  type PublishAnnouncementResponse,
 } from '@wagonwise/contracts/announcements';
 
 import { requestJson, throwUnlessSuccess } from './http';
@@ -19,13 +19,13 @@ export async function listAnnouncements(accessToken: string): Promise<Announceme
 export async function createAnnouncement(
   accessToken: string,
   request: CreateAnnouncementRequest,
-): Promise<AnnouncementDto> {
+): Promise<PublishAnnouncementResponse> {
   const { status, json } = await requestJson('POST', '/staff/announcements', {
     ...bearer(accessToken),
     body: request,
   });
   throwUnlessSuccess(status, json, [201]);
-  return announcementSchema.parse(json);
+  return publishAnnouncementResponseSchema.parse(json);
 }
 
 export async function deleteAnnouncement(accessToken: string, id: string): Promise<void> {

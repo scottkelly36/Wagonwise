@@ -234,6 +234,7 @@ export function composeCore(
         await parking.eraseDriverData(driverId);
         await hours.eraseDriverData(driverId);
         await sos.eraseDriverData(driverId);
+        await announcements.eraseDriverData(driverId);
       },
     },
   });
@@ -536,6 +537,10 @@ export function composeCore(
     ids,
     clock,
     callers: { getCaller: staffCaller },
+    audience: {
+      listPushTargets: () => identity.listPushTargets(),
+    },
+    expoAccessToken: config.expoAccessToken,
   });
   // Told by the driver BFF when Resend reports an email that did not get through: logged, and the owner is emailed (if an
   // alert address is set) through the same sender that carries sign-in codes.

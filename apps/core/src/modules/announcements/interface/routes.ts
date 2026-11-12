@@ -1,5 +1,6 @@
 import {
   announcementIdParamsSchema,
+  announcementPreferenceSchema,
   createAnnouncementRequestSchema,
 } from '@wagonwise/contracts/announcements';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -7,8 +8,10 @@ import { makeId } from '../../../shared/brand.js';
 import {
   createAnnouncement,
   deleteAnnouncement,
+  getPushPreference,
   latestAnnouncement,
   listAnnouncements,
+  setPushPreference,
   type AnnouncementDeps,
   type CallerDirectory,
   type StaffCaller,
@@ -25,12 +28,15 @@ const announcementDto = (a: Announcement) => ({
   title: a.title,
   body: a.body,
   publishedAt: a.publishedAt.toISOString(),
+  ...(a.pushedAt === undefined ? {} : { pushedAt: a.pushedAt.toISOString() }),
+  ...(a.pushedTo === undefined ? {} : { pushedTo: a.pushedTo }),
 });
 
 const STATUS: Record<string, number> = {
   Forbidden: 403,
   NotFound: 404,
   InvalidAnnouncement: 400,
+  PushTooSoon: 429,
 };
 
 /**
@@ -77,7 +83,10 @@ export function registerAnnouncementRoutes(
     if (!body.success) return invalid(request, reply);
     const result = await createAnnouncement(deps.announcements, who.caller, who.staffId, body.data);
     if (!result.ok) return refuse(request, reply, result.error);
-    return reply.status(201).send(announcementDto(result.value));
+    return reply.status(201).send({
+      ...announcementDto(result.value.announcement),
+      ...(result.value.pushFailed === true ? { pushFailed: true } : {}),
+    });
   });
 
   app.delete('/staff/announcements/:id', async (request, reply) => {
@@ -103,5 +112,24 @@ export function registerAnnouncementRoutes(
     return reply
       .status(200)
       .send({ announcement: latest === null ? null : announcementDto(latest) });
+  });
+
+  // A driver's choice about notifications from WagonWise about what has changed: on unless they turn it off.
+  app.get('/announcements/preference', async (request, reply) => {
+    if (request.driverId === undefined) {
+      return reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+    }
+    const pushes = await getPushPreference(deps.announcements, request.driverId);
+    return reply.status(200).send({ pushes });
+  });
+
+  app.put('/announcements/preference', async (request, reply) => {
+    if (request.driverId === undefined) {
+      return reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+    }
+    const body = announcementPreferenceSchema.safeParse(request.body);
+    if (!body.success) return invalid(request, reply);
+    await setPushPreference(deps.announcements, request.driverId, body.data.pushes);
+    return reply.status(200).send({ pushes: body.data.pushes });
   });
 }

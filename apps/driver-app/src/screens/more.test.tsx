@@ -22,6 +22,12 @@ jest.mock('../api/use-identity', () => ({
   useDeleteAccount: () => ({ mutate: jest.fn(), isPending: false, isError: false }),
 }));
 
+const mockSetPushes = jest.fn();
+let mockNews = { pushes: true, failed: false };
+jest.mock('../hooks/use-announcement-preference', () => ({
+  useAnnouncementPreference: () => ({ ...mockNews, setPushes: mockSetPushes }),
+}));
+
 // The first render in a file loads the React Native modules, which can pass Jest's 5 s default on a busy runner.
 jest.setTimeout(30_000);
 
@@ -29,6 +35,7 @@ const signOut = jest.fn(() => Promise.resolve());
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockNews = { pushes: true, failed: false };
   useAuthStore.setState({
     state: {
       status: 'signedIn',
@@ -101,5 +108,29 @@ describe('More screen', () => {
     await render(<MoreScreen />);
     expect(screen.queryByTestId('rate-app-button')).toBeNull();
     expect(screen.getByTestId('share-app-button')).toBeTruthy();
+  });
+
+  describe('notifications from WagonWise', () => {
+    it('shows the switch on, which is the default, and turns it off when tapped', async () => {
+      await render(<MoreScreen />);
+      const toggle = screen.getByTestId('news-switch');
+      expect(toggle.props.value).toBe(true);
+      await fireEvent(toggle, 'valueChange', false);
+      expect(mockSetPushes).toHaveBeenCalledWith(false);
+    });
+
+    it('shows it off when the driver has turned it off', async () => {
+      mockNews = { pushes: false, failed: false };
+      await render(<MoreScreen />);
+      expect(screen.getByTestId('news-switch').props.value).toBe(false);
+    });
+
+    it('says so when a change did not save, and otherwise says what the notifications are', async () => {
+      await render(<MoreScreen />);
+      expect(screen.getByTestId('news-note').props.children).toMatch(/never a sound/);
+      mockNews = { pushes: true, failed: true };
+      await render(<MoreScreen />);
+      expect(screen.getAllByTestId('news-note').at(-1)?.props.children).toMatch(/did not save/);
+    });
   });
 });

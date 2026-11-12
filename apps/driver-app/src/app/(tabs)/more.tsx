@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDeleteAccount } from '../../api/use-identity';
 import { useSignInOptions } from '../../api/use-sign-in-options';
+import { useAnnouncementPreference } from '../../hooks/use-announcement-preference';
 import { Icon, type IconName } from '../../components/ui/icon';
 import { SegmentedControl } from '../../components/ui/segmented-control';
 import { identityErrorMessage } from '../../lib/error-messages';
@@ -105,6 +106,7 @@ export default function MoreScreen() {
   const setDistanceUnit = useMeasureUnitsStore((s) => s.setDistance);
   const fuelUnit = useMeasureUnitsStore((s) => s.fuel);
   const setFuelUnit = useMeasureUnitsStore((s) => s.setFuel);
+  const news = useAnnouncementPreference();
   const signInOptions = useSignInOptions();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -239,6 +241,27 @@ export default function MoreScreen() {
           Distances are everywhere: routes, turn instructions (spoken too), parking, fuel stops and
           warnings. Kilometres means metres and kilometres, Miles means yards and miles. Speed
           limits stay in mph, like the road signs, and miles per gallon means the UK gallon.
+        </Text>
+
+        <Text style={styles.sectionLabel}>Notifications</Text>
+        <View style={styles.group}>
+          <View style={styles.row}>
+            <View style={styles.rowIcon}>
+              <Icon name="bell-outline" size={26} color={colors.accent} />
+            </View>
+            <Text style={styles.rowLabel}>News from {PRODUCT_NAME}</Text>
+            <Switch
+              value={news.pushes}
+              onValueChange={news.setPushes}
+              accessibilityLabel="News from WagonWise"
+              testID="news-switch"
+            />
+          </View>
+        </View>
+        <Text style={styles.settingNote} testID="news-note">
+          {news.failed
+            ? 'That did not save. Check your signal and try again.'
+            : 'A short, quiet notification now and then when something changes in the app. Never an alert, never a sound, and never about your jobs or routes. Turn it off any time.'}
         </Text>
 
         <Text style={styles.sectionLabel}>Driving</Text>

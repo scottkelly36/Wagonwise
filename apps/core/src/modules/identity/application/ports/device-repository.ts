@@ -7,6 +7,8 @@ export interface DeviceRepository {
    *  subscriber needs (design doc §6: "device tokens come from a read-model port onto
    *  Identity"), exposed on `identity/api.ts`'s facade once M6.4 has a real caller. */
   findByDriverId(driverId: DriverId): Promise<Device[]>;
+  /** Every registered device, for a notification to all drivers (the read-model `announcements` is given, through composition). */
+  listAll(): Promise<Device[]>;
   /** Upsert, keyed by `pushToken` — `registerDevice` decides whether a row already exists. */
   save(device: Device): Promise<void>;
   /** M8's `deleteAccount` — a push token is itself somewhat identifying, so it goes with the rest

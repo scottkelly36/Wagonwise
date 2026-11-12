@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   announcementListResponseSchema,
+  announcementPreferenceSchema,
+  announcementSchema,
+  publishAnnouncementResponseSchema,
   createAnnouncementRequestSchema,
   latestAnnouncementResponseSchema,
 } from './announcements.js';
@@ -42,5 +45,30 @@ describe('announcements', () => {
     expect(
       announcementListResponseSchema.safeParse({ announcements: [announcement] }).success,
     ).toBe(true);
+  });
+});
+
+describe('sending a note as a notification', () => {
+  it('is only asked for when staff choose to', () => {
+    expect(createAnnouncementRequestSchema.safeParse({ title: 'x', body: 'y' }).success).toBe(true);
+    const parsed = createAnnouncementRequestSchema.safeParse({ title: 'x', body: 'y', push: true });
+    expect(parsed.success && parsed.data.push).toBe(true);
+    expect(
+      createAnnouncementRequestSchema.safeParse({ title: 'x', body: 'y', push: 'yes' }).success,
+    ).toBe(false);
+  });
+
+  it('says when and to how many phones it was sent, and when that failed', () => {
+    const sent = { ...announcement, pushedAt: '2026-11-12T09:01:00.000Z', pushedTo: 12 };
+    expect(announcementListResponseSchema.safeParse({ announcements: [sent] }).success).toBe(true);
+    expect(
+      publishAnnouncementResponseSchema.safeParse({ ...announcement, pushFailed: true }).success,
+    ).toBe(true);
+    expect(announcementSchema.safeParse({ ...announcement, pushedTo: -1 }).success).toBe(false);
+  });
+
+  it('holds a driver’s choice as a plain on or off', () => {
+    expect(announcementPreferenceSchema.safeParse({ pushes: false }).success).toBe(true);
+    expect(announcementPreferenceSchema.safeParse({}).success).toBe(false);
   });
 });

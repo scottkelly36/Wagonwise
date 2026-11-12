@@ -3,9 +3,11 @@ import {
   ANNOUNCEMENT_BODY_MAX,
   ANNOUNCEMENT_TITLE_MAX,
   type AnnouncementDto,
+  type PublishAnnouncementResponse,
 } from '@wagonwise/contracts/announcements';
 import { useState } from 'react';
 import * as announcementsApi from '../../api/announcements';
+import { ApiError } from '../../api/errors';
 import { DataTable, IconButton, type Column } from '../../components/DataTable';
 import { ErrorNotice } from '../../components/ErrorNotice';
 import { useConfirm, useNotify } from '../../components/feedback-context';
@@ -13,6 +15,18 @@ import { Loading } from '../../components/Loading';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
 const KEY = ['announcements'] as const;
+
+/** What publishing did, in plain words: published, and what happened to the notification if one was asked for. */
+function publishedMessage(published: PublishAnnouncementResponse, askedForPush: boolean): string {
+  if (!askedForPush) return 'Published. Drivers will see it when they next open the app.';
+  if (published.pushFailed === true) {
+    return 'Published, but the notification could not be sent. Drivers will still see the note when they next open the app.';
+  }
+  if (published.pushedAt === undefined) {
+    return 'Published. No driver has notifications on, so none was sent.';
+  }
+  return `Published, and sent as a notification to ${published.pushedTo ?? 0} phones.`;
+}
 
 /**
  * Notes to the drivers about what has changed in the app, for WagonWise staff only. The driver app shows the newest one once, as "What's new",
@@ -31,17 +45,23 @@ export function Announcements() {
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [push, setPush] = useState(false);
   const ready = title.trim() !== '' && body.trim() !== '';
 
   const create = useMutation({
     mutationFn: () =>
       withAccessToken((token) =>
-        announcementsApi.createAnnouncement(token, { title: title.trim(), body: body.trim() }),
+        announcementsApi.createAnnouncement(token, {
+          title: title.trim(),
+          body: body.trim(),
+          ...(push ? { push: true } : {}),
+        }),
       ),
-    onSuccess: () => {
-      notify('Published. Drivers will see it when they next open the app.');
+    onSuccess: (published) => {
+      notify(publishedMessage(published, push));
       setTitle('');
       setBody('');
+      setPush(false);
       void queryClient.invalidateQueries({ queryKey: KEY });
     },
   });
@@ -72,6 +92,12 @@ export function Announcements() {
       cell: (a) => (
         <>
           <strong>{a.title}</strong>
+          {a.pushedAt === undefined ? null : (
+            <span className="text-muted text-13">
+              {' '}
+              (sent as a notification to {a.pushedTo ?? 0})
+            </span>
+          )}
           {a.id === newest ? (
             <span className="text-muted text-13"> (the one drivers see now)</span>
           ) : null}
@@ -103,7 +129,8 @@ export function Announcements() {
     },
   ];
 
-  const error = list.error ?? create.error ?? remove.error;
+  const tooSoon = create.error instanceof ApiError && create.error.tag === 'PushTooSoon';
+  const error = list.error ?? (tooSoon ? null : create.error) ?? remove.error;
 
   return (
     <div>
@@ -115,6 +142,12 @@ export function Announcements() {
       </p>
 
       {error !== null && error !== undefined && <ErrorNotice error={error} />}
+      {tooSoon && (
+        <p className="text-danger" role="alert">
+          A notification went out in the last three days, so drivers are not sent another yet.
+          Nothing was published. Untick the notification to publish it quietly, or try again later.
+        </p>
+      )}
 
       <form
         onSubmit={(event) => {
@@ -147,6 +180,15 @@ export function Announcements() {
             onChange={(e) => setBody(e.target.value)}
             style={{ width: '100%' }}
           />
+        </label>
+        <label className="block mb-16">
+          <input type="checkbox" checked={push} onChange={(e) => setPush(e.target.checked)} />{' '}
+          <strong>Also send it as a notification</strong>
+          <span className="block text-muted text-13">
+            Sends the heading and the first point to every driver who has not turned these off, with
+            no sound. Use it rarely: drivers can switch these off, and it cannot be sent more than
+            once in three days. It cannot be taken back once sent.
+          </span>
         </label>
         <button type="submit" disabled={!ready || create.isPending}>
           {create.isPending ? 'Publishing…' : 'Publish'}
