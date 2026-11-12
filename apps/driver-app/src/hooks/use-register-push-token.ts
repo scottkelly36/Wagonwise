@@ -38,6 +38,12 @@ export function useRegisterPushToken(): void {
             name: 'default',
             importance: Notifications.AndroidImportance.HIGH,
           });
+          // News from WagonWise about what has changed: shown in the tray, never a sound, so one cannot ring while a driver is on the road.
+          await Notifications.setNotificationChannelAsync('news', {
+            name: 'News from WagonWise',
+            importance: Notifications.AndroidImportance.DEFAULT,
+            sound: null,
+          });
         }
         const result = await obtainPushToken({
           getPermissionsAsync: Notifications.getPermissionsAsync,

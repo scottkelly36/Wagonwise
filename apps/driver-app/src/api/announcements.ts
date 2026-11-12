@@ -1,4 +1,5 @@
 import {
+  announcementPreferenceSchema,
   latestAnnouncementResponseSchema,
   type AnnouncementDto,
 } from '@wagonwise/contracts/announcements';
@@ -12,4 +13,25 @@ export async function getLatestAnnouncement(accessToken: string): Promise<Announ
   });
   throwUnlessSuccess(status, json, [200]);
   return latestAnnouncementResponseSchema.parse(json).announcement;
+}
+
+/** Whether this driver gets notifications from WagonWise about what has changed. On unless they have turned it off. */
+export async function getAnnouncementPreference(accessToken: string): Promise<boolean> {
+  const { status, json } = await requestJson('GET', '/announcements/preference', {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return announcementPreferenceSchema.parse(json).pushes;
+}
+
+export async function setAnnouncementPreference(
+  accessToken: string,
+  pushes: boolean,
+): Promise<boolean> {
+  const { status, json } = await requestJson('PUT', '/announcements/preference', {
+    body: announcementPreferenceSchema.parse({ pushes }),
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return announcementPreferenceSchema.parse(json).pushes;
 }

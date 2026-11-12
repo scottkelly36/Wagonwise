@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 
 import { CURRENT_JOB_KEY } from '../api/use-jobs';
 import { queryClient } from '../api/query-client';
+import { announcementIdFrom } from '../lib/announcement-notification';
 import { assignedJobIdFrom } from '../lib/job-notification';
 import { newRoutePlanIdFrom } from '../lib/reroute-notification';
 import { useAuthStore } from '../state/auth-store';
@@ -14,12 +15,16 @@ import { useAuthStore } from '../state/auth-store';
 // the hook below, since it's process-wide state, not something that needs re-registering per
 // render (same reasoning as api/query-client.ts's module-scope QueryClient).
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    // News from WagonWise about what has changed is not an alert: while the app is open it goes quietly to the tray, with no banner over the map and no sound.
+    const news = announcementIdFrom(notification.request.content.data) !== undefined;
+    return {
+      shouldShowBanner: !news,
+      shouldShowList: true,
+      shouldPlaySound: !news,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 /**
@@ -53,11 +58,20 @@ export function useRerouteNotifications(): void {
       if (opened) router.push('/jobs');
     }
 
+    // News: refresh the note, so the "What's new" card is there on the home screen. Nothing else: no navigation, so a driver on a trip is never moved off it.
+    function handleNews(data: unknown): void {
+      if (announcementIdFrom(data) === undefined) return;
+      if (useAuthStore.getState().state.status !== 'signedIn') return;
+      void queryClient.invalidateQueries({ queryKey: ['whats-new'] });
+    }
+
     const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
+      handleNews(notification.request.content.data);
       handle(newRoutePlanIdFrom(notification.request.content.data));
       handleAssigned(notification.request.content.data, false);
     });
     const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      handleNews(response.notification.request.content.data);
       handle(newRoutePlanIdFrom(response.notification.request.content.data));
       handleAssigned(response.notification.request.content.data, true);
     });
