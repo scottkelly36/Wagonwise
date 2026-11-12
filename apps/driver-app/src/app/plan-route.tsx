@@ -10,7 +10,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,26 +22,10 @@ import { useCreateRoutePlan, usePreviewRouteOptions } from '../api/use-route-pla
 import { AddressSearchField } from '../components/address-search-field';
 import { WordsSearchField } from '../components/words-search-field';
 import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
+import { OPTION_COLOURS, RouteOptionsList } from '../components/route-options-list';
 import { RouteMap, type MapPoint, type RouteOptionLine } from '../components/route-map';
-import { formatDuration } from '../lib/format-duration';
-import {
-  hillsLine,
-  hillsWereChecked,
-  routeOptionTitle,
-  strategyForOption,
-  tollLines,
-  ZONE_CREDIT,
-  cheapestLine,
-  costLine,
-  euroVIUnknown,
-  zoneLines,
-  zonesShown,
-  routeHasDetails,
-  routeSummaryIsWarning,
-  routeSummaryLine,
-  routesHeading,
-} from '../lib/route-option-text';
-import { formatRouteDistance, type LengthUnit } from '../lib/units';
+import { strategyForOption } from '../lib/route-option-text';
+import { type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
 import { useLoadStore } from '../state/load-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
@@ -56,12 +39,7 @@ import { useCurrentLocation } from '../hooks/use-current-location';
 import type { GeocodingResult } from '../lib/geocoding';
 import { formatDateTime } from '../lib/format-date';
 import { routingErrorMessage } from '../lib/error-messages';
-import {
-  WEIGHT_LIMIT_BANNER,
-  WEIGHT_LIMIT_CONFIRM_BODY,
-  WEIGHT_LIMIT_CONFIRM_TITLE,
-  WEIGHT_LIMIT_SHORT,
-} from '../lib/weight-limit-warning';
+import { WEIGHT_LIMIT_CONFIRM_BODY, WEIGHT_LIMIT_CONFIRM_TITLE } from '../lib/weight-limit-warning';
 import {
   mapTapTarget,
   targetAfterTap,
@@ -82,7 +60,6 @@ import {
 } from '../lib/vehicle-profile-form';
 import { cameraMarkers } from '../lib/camera-markers';
 import { isCameraType, withoutCameras } from '../lib/camera-report';
-import { hazardCountLine } from '../lib/hazard-marker';
 import { placeOnRoute } from '../lib/on-route';
 import { thinPoints } from '../lib/thin-points';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
@@ -105,8 +82,6 @@ const LOAD_OPTIONS = [
 const LOAD_NOTE_EMPTY = 'Plans the usual way, with no hill check.';
 const LOAD_NOTE_LOADED =
   'For a load that does not like steep roads. Checks the hills on each route, and offers one with fewer when there is one. It takes a little longer.';
-const HILLS_UNAVAILABLE =
-  'The hill check is not available yet, so these routes are not checked for hills.';
 
 const VEHICLE_MODE_OPTIONS = [
   { key: 'profile', label: 'My vehicles' },
@@ -160,11 +135,6 @@ const ON_ROUTE_HAZARD_RADIUS_M = 750;
 /** The most points the server takes for the line of a request. */
 const CORRIDOR_MAX_POINTS = 1500;
 
-// One colour per route option, drawn on the map and repeated on its card so the two can be matched.
-// Indigo, magenta, amber: in the app's blue-violet family for the first, and none of them a pale blue,
-// which reads as a river on the base map (design decision, 2026-09-24).
-const OPTION_COLOURS = ['#5B4BDB', '#D6336C', '#E8890C'] as const;
-
 /** Whether Enter details has a size in it yet: a preset picked, or a height typed. */
 function presetInBoxesOrTyped(values: VehicleProfileFormValues): boolean {
   return values.heightM.trim() !== '';
@@ -215,17 +185,6 @@ export default function PlanRouteScreen() {
   const [tapTarget, setTapTarget] = useState<PointEnd>('destination');
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const insets = useSafeAreaInsets();
-  // The route cards and the list under them never take more than about half the screen: the map keeps the rest.
-  const { height: windowHeight } = useWindowDimensions();
-  // Which route cards have their details open, by the route's line. A card starts folded to its one-line summary.
-  const [openCards, setOpenCards] = useState<ReadonlySet<string>>(new Set());
-  function toggleCard(geometry: string): void {
-    setOpenCards((current) => {
-      const next = new Set(current);
-      if (!next.delete(geometry)) next.add(geometry);
-      return next;
-    });
-  }
   // Opened again by the driver while an end is being set on the map (see `folded` below).
   const [vehicleOpen, setVehicleOpen] = useState(false);
   const distanceUnit = useMeasureUnitsStore((s) => s.distance);
@@ -902,199 +861,23 @@ export default function PlanRouteScreen() {
             </TouchableOpacity>
           ) : (
             <View style={styles.optionsList}>
-              <Text style={styles.label} testID="routes-heading">
-                {routesHeading(routeOptions.length)}
-              </Text>
-              {/* Cards with toll and zone lines are tall: three of them ran off the bottom of the screen with no way to reach
-                  the last. They scroll inside half the screen, and the map keeps the rest. */}
-              <ScrollView
-                style={{ maxHeight: Math.round(windowHeight * 0.5) }}
-                contentContainerStyle={styles.optionsScroll}
-                showsVerticalScrollIndicator
-                testID="route-options-scroll"
-              >
-                {comparedLoaded && !hillsWereChecked(routeOptions) && (
-                  <Text style={styles.presetNote} testID="hills-unavailable">
-                    {HILLS_UNAVAILABLE}
-                  </Text>
-                )}
-                {routeOptions.some((option) => option.breaksWeightLimit === true) && (
-                  <Text style={styles.weightWarning} testID="weight-limit-banner">
-                    {WEIGHT_LIMIT_BANNER}
-                  </Text>
-                )}
-                {routeOptions.map((option, index) => (
-                  <TouchableOpacity
-                    key={`${option.geometry}-${index}`}
-                    style={[
-                      styles.optionCard,
-                      {
-                        borderLeftWidth: 6,
-                        borderLeftColor: OPTION_COLOURS[index % OPTION_COLOURS.length],
-                      },
-                    ]}
-                    disabled={createRoutePlan.isPending}
-                    onPress={() => handleConfirmOption(option)}
-                    testID={`route-option-${index}`}
-                  >
-                    <View style={styles.optionIcon}>
-                      <Icon
-                        name={
-                          option.labels.includes('fastest')
-                            ? 'lightning-bolt'
-                            : option.labels.includes('gentle')
-                              ? 'terrain'
-                              : option.labels.includes('shortest')
-                                ? 'ruler'
-                                : 'cash-remove'
-                        }
-                        size={26}
-                        color={colors.accent}
-                      />
-                    </View>
-                    <View style={styles.optionText}>
-                      <Text style={styles.optionLabel}>{routeOptionTitle(option)}</Text>
-                      <Text style={styles.optionDetail}>
-                        {formatRouteDistance(option.distanceKm, distanceUnit)} ·{' '}
-                        {formatDuration(option.durationMin)}
-                        {option.estimatedFuelCostGBP !== undefined
-                          ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
-                          : ''}
-                      </Text>
-                      {/* Folded: one line for money, zones and hazards, so three cards fit in the list. Details opens the rest. */}
-                      {!openCards.has(option.geometry) &&
-                        routeSummaryLine(
-                          option,
-                          nearbyHazards.data === undefined
-                            ? undefined
-                            : (hazardsByOption[index]?.size ?? 0),
-                        ) !== undefined && (
-                          <Text
-                            style={
-                              routeSummaryIsWarning(option)
-                                ? styles.optionWarning
-                                : styles.optionDetail
-                            }
-                            testID={`route-option-${index}-summary`}
-                          >
-                            {routeSummaryLine(
-                              option,
-                              nearbyHazards.data === undefined
-                                ? undefined
-                                : (hazardsByOption[index]?.size ?? 0),
-                            )}
-                          </Text>
-                        )}
-                      {openCards.has(option.geometry) && (
-                        <>
-                          {nearbyHazards.data !== undefined && (
-                            <Text
-                              style={styles.optionDetail}
-                              testID={`route-option-${index}-hazards`}
-                            >
-                              {hazardCountLine(hazardsByOption[index]?.size ?? 0)}
-                            </Text>
-                          )}
-                          {hillsLine(option, distanceUnit) !== undefined && (
-                            <Text
-                              style={styles.optionDetail}
-                              testID={`route-option-${index}-hills`}
-                            >
-                              {hillsLine(option, distanceUnit)}
-                            </Text>
-                          )}
-                          {tollLines(option).map((line, lineIndex) => (
-                            <View key={line.text}>
-                              <Text
-                                style={styles.optionDetail}
-                                testID={`route-option-${index}-toll${lineIndex === 0 ? '' : `-${lineIndex}`}`}
-                              >
-                                {line.text}
-                              </Text>
-                              {line.detail !== undefined && (
-                                <Text
-                                  style={styles.optionDetail}
-                                  testID={`route-option-${index}-toll-detail${lineIndex === 0 ? '' : `-${lineIndex}`}`}
-                                >
-                                  {line.detail}
-                                </Text>
-                              )}
-                            </View>
-                          ))}
-                          {costLine(option) !== undefined && (
-                            <Text style={styles.optionDetail} testID={`route-option-${index}-cost`}>
-                              {costLine(option)}
-                            </Text>
-                          )}
-                          {cheapestLine(option, routeOptions) !== undefined && (
-                            <Text
-                              style={styles.optionDetail}
-                              testID={`route-option-${index}-cheapest`}
-                            >
-                              {cheapestLine(option, routeOptions)}
-                            </Text>
-                          )}
-                          {zoneLines(option).map((line, lineIndex) => (
-                            <Text
-                              key={line.text}
-                              style={line.charged ? styles.optionWarning : styles.optionDetail}
-                              testID={`route-option-${index}-zone${lineIndex === 0 ? '' : `-${lineIndex}`}`}
-                            >
-                              {line.text}
-                            </Text>
-                          ))}
-                        </>
-                      )}
-                      {option.breaksWeightLimit === true && (
-                        <Text style={styles.optionWarning}>{WEIGHT_LIMIT_SHORT}</Text>
-                      )}
-                      {(routeHasDetails(option, routeOptions, distanceUnit) ||
-                        nearbyHazards.data !== undefined) && (
-                        <TouchableOpacity
-                          style={styles.detailsButton}
-                          onPress={() => toggleCard(option.geometry)}
-                          accessibilityRole="button"
-                          accessibilityState={{ expanded: openCards.has(option.geometry) }}
-                          testID={`route-option-${index}-details`}
-                        >
-                          <Text style={styles.detailsText}>
-                            {openCards.has(option.geometry) ? 'Hide details' : 'Details'}
-                          </Text>
-                          <Icon
-                            name={openCards.has(option.geometry) ? 'chevron-up' : 'chevron-down'}
-                            size={20}
-                            color={colors.accent}
-                          />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    <Icon name="chevron-right" size={26} color={colors.textMuted} />
-                  </TouchableOpacity>
-                ))}
-                {euroVIUnknown(routeOptions) &&
-                  vehicleMode === 'profile' &&
-                  selectedProfile !== undefined && (
-                    <TouchableOpacity
-                      onPress={() =>
-                        router.push({
-                          pathname: '/profiles/[id]',
-                          params: { id: selectedProfile.id },
-                        })
-                      }
-                      accessibilityRole="button"
-                      testID="say-euro-vi"
-                    >
-                      <Text style={styles.linkText}>
-                        Say whether {selectedProfile.name} is Euro VI
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                {zonesShown(routeOptions) && (
-                  <Text style={styles.presetNote} testID="zone-credit">
-                    {ZONE_CREDIT}
-                  </Text>
-                )}
-              </ScrollView>
+              <RouteOptionsList
+                options={routeOptions}
+                comparedLoaded={comparedLoaded}
+                distanceUnit={distanceUnit}
+                hazardCounts={
+                  nearbyHazards.data === undefined
+                    ? undefined
+                    : hazardsByOption.map((ids) => ids?.size ?? 0)
+                }
+                busy={createRoutePlan.isPending}
+                onChoose={handleConfirmOption}
+                euroViVehicle={
+                  vehicleMode === 'profile' && selectedProfile !== undefined
+                    ? { id: selectedProfile.id, name: selectedProfile.name }
+                    : undefined
+                }
+              />
               <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => setRouteOptions(undefined)}
@@ -1132,7 +915,6 @@ function createStyles(colors: ThemeColors) {
     summary: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 2 },
     summaryText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.textSecondary },
     summaryAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
-    optionsScroll: { gap: 8 },
     editButton: { minHeight: 44, justifyContent: 'center' },
     backOverlay: {
       position: 'absolute',
@@ -1246,57 +1028,6 @@ function createStyles(colors: ThemeColors) {
     },
     optionsList: {
       gap: 8,
-    },
-    optionCard: {
-      minHeight: 72,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
-      borderRadius: radius.card,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      backgroundColor: colors.surface,
-    },
-    optionIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: radius.badge,
-      backgroundColor: colors.accentSoft,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    optionText: {
-      flex: 1,
-    },
-    optionLabel: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    optionDetail: {
-      fontSize: 15,
-      color: colors.textMuted,
-      marginTop: 2,
-    },
-    weightWarning: {
-      fontSize: 15,
-      color: colors.warning,
-    },
-    // Its own target inside the card: tapping it opens the details, tapping anywhere else on the card chooses the route.
-    detailsButton: {
-      minHeight: 44,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-      alignSelf: 'flex-start',
-      paddingRight: 12,
-    },
-    detailsText: { fontSize: 15, fontWeight: '700', color: colors.accent },
-    optionWarning: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: colors.warning,
-      marginTop: 2,
     },
     editLink: {
       fontSize: 14,
