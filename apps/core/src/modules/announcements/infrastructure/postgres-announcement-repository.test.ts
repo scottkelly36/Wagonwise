@@ -2,14 +2,14 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
-import { applySchema } from '../../identity/infrastructure/testing/apply-schema.js';
-import { createDb, createPool } from '../../identity/infrastructure/testing/db-for-tests.js';
 import type { Announcement } from '../domain/announcement.js';
 import {
   PostgresAnnouncementRepository,
   PostgresPushPreferences,
   type UntypedDb,
 } from './postgres-announcement-repository.js';
+import { applySchema } from './testing/apply-schema.js';
+import { createDb, createPool } from './testing/db-for-tests.js';
 
 /** A real PostGIS container with the real migrations applied, as for the other repositories: proves the SQL and the row mapping, which fakes cannot. */
 describe('announcements Postgres repositories', () => {
