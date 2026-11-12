@@ -1066,7 +1066,8 @@ function createStyles(colors: ThemeColors) {
       color: colors.danger,
     },
     endButtonArmed: { backgroundColor: colors.danger },
-    endButtonTextArmed: { color: colors.textOnAccent },
+    // The screen's own background colour, not white: the dark theme's red is a soft one and white on it was hard to read.
+    endButtonTextArmed: { color: colors.background },
     buttonDisabled: {
       opacity: 0.5,
     },
