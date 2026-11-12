@@ -14,9 +14,9 @@ beforeEach(() => {
   useMeasureUnitsStore.setState({ distance: 'km', fuel: 'l100km' });
 });
 
-it('is kilometres and L/100km until the driver chooses otherwise', () => {
-  expect(useMeasureUnitsStore.getState().distance).toBe('km');
-  expect(useMeasureUnitsStore.getState().fuel).toBe('l100km');
+it('is miles and miles per gallon until the driver chooses otherwise', () => {
+  expect(useMeasureUnitsStore.getInitialState().distance).toBe('miles');
+  expect(useMeasureUnitsStore.getInitialState().fuel).toBe('mpg');
 });
 
 it('restores saved choices, and ignores anything unrecognised or unreadable', async () => {

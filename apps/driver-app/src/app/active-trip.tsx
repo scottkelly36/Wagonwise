@@ -97,18 +97,18 @@ import { Icon, type IconName } from '../components/ui/icon';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle, radius } from '../theme/tokens';
 
-// Short, since three share one row over the map; the fuller wording is in the notes above them.
+// Short, since four share one row over the map ("Report hazard" was cut to "Report …"); the same word as the home screen's card.
 const VOICE_FLOW_LABEL: Record<string, string> = {
-  idle: 'Report hazard',
+  idle: 'Hazard',
   'capturing-report': 'Listening…',
   'report-no-speech': 'Try again',
   parsing: 'Working…',
   'speaking-summary': 'Confirm…',
   'capturing-confirmation': 'Listening…',
   filing: 'Saving…',
-  filed: 'Report hazard',
-  queued: 'Report hazard',
-  'draft-saved': 'Report hazard',
+  filed: 'Hazard',
+  queued: 'Hazard',
+  'draft-saved': 'Hazard',
   error: 'Try again',
 };
 
@@ -155,6 +155,8 @@ const DRAWN_LINE_STEP_M = 50;
 const DRAW_AHEAD_ONLY_WITHIN_M = 100;
 // Parking a little further out than hazards: a layby just off the route is worth seeing.
 const ON_ROUTE_PARKING_RADIUS_M = 1500;
+/** Parking stays on the map until the lorry is this far past it. */
+const PARKING_BEHIND_M = 500;
 // A function of its own so the clock is read where it is used, not while the screen is drawn.
 /** The hazards and cameras ahead are re-cut each time the lorry has moved this far, not every second. */
 const AHEAD_STEP_M = 250;
@@ -164,6 +166,9 @@ const REPORT_OPEN_MS = 8_000;
 
 /** How long a break or faster-route notice stays open before it shrinks to a small flag. */
 const NOTICE_OPEN_MS = 12_000;
+
+/** How long End trip stays armed after the first tap, waiting for the second. */
+const END_TRIP_ARMED_MS = 5_000;
 
 const clockNow = (): number => Date.now();
 
@@ -210,9 +215,14 @@ export default function ActiveTripScreen() {
   // Safe parking along the route, so a spot marked while driving is on the map where it was marked.
   // Thinned: the request takes at most 2000 points and a long route has more.
   const nearbyParking = useNearbySafeParkingSpots(corridor, ON_ROUTE_PARKING_RADIUS_M);
-  const mapParking = useMemo(
-    () => nearbyParking.data?.map((s) => ({ id: s.id, location: s.location, kind: s.kind })),
-    [nearbyParking.data],
+  // Where along the route each spot is, worked out once; the map then draws only the ones still ahead (see `mapParking`).
+  const parkingAlongRoute = useMemo(
+    () =>
+      (nearbyParking.data ?? []).map((s) => ({
+        item: { id: s.id, location: s.location, kind: s.kind },
+        offsetM: routeLine ? routeProgress(routeLine, s.location).traveledMetres : 0,
+      })),
+    [nearbyParking.data, routeLine],
   );
   // Whether the map is following the driver. When they move it away, a Recenter button appears; it is
   // gone again as soon as the map is following. (The map's own small button sat under the turn card.)
@@ -235,6 +245,10 @@ export default function ActiveTripScreen() {
   // few seconds, and stay while a voice report is running.
   const [reportOpen, setReportOpen] = useState(false);
   const [reportTaps, setReportTaps] = useState(0);
+  // End trip takes two taps: it is a wide button at the bottom edge of a phone in a cradle, and one stray touch used to end the
+  // trip and clear the route. The first tap arms it for a few seconds; nothing here needs typing or a small target.
+  const [endArmed, setEndArmed] = useState(false);
+  useAutoClear(endArmed, END_TRIP_ARMED_MS, () => setEndArmed(false));
   const [selectedParkingId, setSelectedParkingId] = useState<string | undefined>(undefined);
   const selectedParking = nearbyParking.data?.find((s) => s.id === selectedParkingId);
   const nearbyHazardsData = nearbyHazards.data;
@@ -331,6 +345,12 @@ export default function ActiveTripScreen() {
         ? sliceRoute(routeLine, drawnFromM / totalM, 1)
         : routeLine,
     [routeLine, drawnFromM, totalM],
+  );
+  // Parking behind the lorry is no use to it: like hazards, only what is ahead is drawn (with a little behind, for a spot
+  // just passed that the driver is turning back to).
+  const mapParking = useMemo(
+    () => stillAhead(parkingAlongRoute, aheadFromM, PARKING_BEHIND_M),
+    [parkingAlongRoute, aheadFromM],
   );
   const hazardsAhead = useMemo(
     () => stillAhead(hazardsPlaced, aheadFromM),
@@ -515,6 +535,11 @@ export default function ActiveTripScreen() {
 
   function handleEndTrip(): void {
     if (!trip || endTrip.isPending) return;
+    if (!endArmed) {
+      setEndArmed(true);
+      return;
+    }
+    setEndArmed(false);
     endTrip.mutate(trip.id, {
       onSuccess: () => {
         clearTrip();
@@ -875,7 +900,13 @@ export default function ActiveTripScreen() {
             />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.endButton, endTrip.isPending && styles.buttonDisabled]}
+            style={[
+              styles.endButton,
+              endArmed && styles.endButtonArmed,
+              endTrip.isPending && styles.buttonDisabled,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={endArmed ? 'Tap again to end the trip' : 'End trip'}
             disabled={endTrip.isPending}
             onPress={handleEndTrip}
             testID="end-trip-button"
@@ -883,7 +914,9 @@ export default function ActiveTripScreen() {
             {endTrip.isPending ? (
               <ActivityIndicator color={colors.danger} />
             ) : (
-              <Text style={styles.endButtonText}>End trip</Text>
+              <Text style={[styles.endButtonText, endArmed && styles.endButtonTextArmed]}>
+                {endArmed ? 'Tap again to end' : 'End trip'}
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -915,7 +948,7 @@ function createStyles(colors: ThemeColors) {
     // fixed dark/translucent values in both themes so it stays legible against the map's own
     // (unthemed) imagery rather than washing out against a light background.
     overlayFootnote: {
-      fontSize: 13,
+      fontSize: 16,
       color: '#E5E7EB',
       textAlign: 'center',
       backgroundColor: 'rgba(11, 18, 32, 0.85)',
@@ -960,8 +993,9 @@ function createStyles(colors: ThemeColors) {
     // Room on the right of a notice for its dismiss button.
     noticeCard: { paddingRight: 44 },
     etaTime: { fontSize: 18, fontWeight: '800', color: colors.text },
-    etaDistance: { fontSize: 13, color: colors.textMuted },
-    hazardRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    etaDistance: { fontSize: 16, color: colors.textMuted },
+    // Tall enough to hit from the driver's seat: the row was only as high as its icon.
+    hazardRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 52 },
     hint: {
       fontSize: 14,
       color: colors.textMuted,
@@ -1031,6 +1065,8 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '700',
       color: colors.danger,
     },
+    endButtonArmed: { backgroundColor: colors.danger },
+    endButtonTextArmed: { color: colors.textOnAccent },
     buttonDisabled: {
       opacity: 0.5,
     },

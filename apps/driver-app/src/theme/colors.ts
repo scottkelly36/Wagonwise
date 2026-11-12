@@ -26,9 +26,9 @@ export interface ThemeColors {
    *  active state" — kept as two tokens even though they're both blue now, since they still mean
    *  different things and may need to diverge again later. */
   readonly accent: string;
-  /** Sky blue — origin pin, links, active-tab border. Constant across themes. */
+  /** Blue for links, the ETA and active states: sky blue on dark, a deeper blue on light so it can be read as text. */
   readonly accentBlue: string;
-  /** Green — success/current-position pin. Constant across themes. */
+  /** Green for success: mint on dark, a deeper green on light so it can be read as text and behind white text. */
   readonly accentGreen: string;
   /** Errors. Deliberately a different shade per theme (see `lightColors`) — the dark theme's
    *  soft red doesn't have enough contrast against a light background. */
@@ -80,8 +80,10 @@ export const lightColors: ThemeColors = {
   textDim: '#6B7280',
   textOnAccent: '#FFFFFF',
   accent: '#1A73E8',
-  accentBlue: '#38BDF8',
-  accentGreen: '#34D399',
+  // Deeper than the dark theme's sky blue and mint, which were about 2:1 against this near-white background: these are used for
+  // text (the ETA, "cheapest") and behind white button text, and both are now above 4.5:1.
+  accentBlue: '#0369A1',
+  accentGreen: '#047857',
   danger: '#DC2626',
   warning: '#B45309',
   card: '#FFFFFF',

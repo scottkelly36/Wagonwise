@@ -173,6 +173,7 @@ export default function MoreScreen() {
           {PRODUCT_NAME} · signed in as {state.driver.name ?? state.driver.identifier}
         </Text>
 
+        <Text style={styles.sectionLabel}>You and your vehicles</Text>
         <View style={styles.group}>
           {rows.map((row, index) => (
             <TouchableOpacity
@@ -281,10 +282,11 @@ export default function MoreScreen() {
           instruction. Your answers keep the hazard list accurate for other drivers.
         </Text>
 
+        <Text style={styles.sectionLabel}>{PRODUCT_NAME}</Text>
         <View style={styles.group}>
           {Platform.OS === 'android' && (
             <TouchableOpacity
-              style={[styles.row, styles.rowDivider]}
+              style={styles.row}
               onPress={handleRate}
               accessibilityRole="button"
               testID="rate-app-button"
@@ -297,7 +299,8 @@ export default function MoreScreen() {
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            style={[styles.row, styles.rowDivider]}
+            // The line sits above a row, so the first row of the group has none (Rate is only there on Android).
+            style={[styles.row, Platform.OS === 'android' && styles.rowDivider]}
             onPress={handleShare}
             accessibilityRole="button"
             testID="share-app-button"
@@ -309,7 +312,7 @@ export default function MoreScreen() {
             <Icon name="chevron-right" size={26} color={colors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.row}
+            style={[styles.row, styles.rowDivider]}
             onPress={handleSignOut}
             accessibilityRole="button"
             testID="sign-out-button"
