@@ -528,7 +528,7 @@ export function RouteMap({
                 color="#0B1220"
               />
               {hazardMarkerFigure(hazard.measurement) !== undefined && (
-                <Text style={styles.hazardMarkerText}>
+                <Text style={styles.hazardMarkerText} numberOfLines={1}>
                   {hazardMarkerFigure(hazard.measurement)}
                 </Text>
               )}
@@ -773,6 +773,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   hazardMarkerText: {
+    flexShrink: 0,
     fontSize: 13,
     fontWeight: '800',
     color: '#0B1220',
