@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react-native';
 import IndexScreen from '../app';
 import { CONSENT_VERSION } from '../lib/consent-version';
 import { useAuthStore } from '../state/auth-store';
+import { useCurrentActiveTripStore } from '../state/current-active-trip-store';
+import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useWalkthroughStore } from '../state/walkthrough-store';
 
 jest.mock('expo-router', () => {
@@ -21,7 +23,13 @@ jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: j
 let mockResume: { isPending: boolean; data?: { trip: unknown; plan: unknown } } = {
   isPending: false,
 };
-jest.mock('../api/use-active-trip', () => ({ useResumeActiveTrip: () => mockResume }));
+const mockResumeCalls: unknown[][] = [];
+jest.mock('../api/use-active-trip', () => ({
+  useResumeActiveTrip: (...args: unknown[]) => {
+    mockResumeCalls.push(args);
+    return mockResume;
+  },
+}));
 
 // The first render in a file loads the React Native modules, which can pass Jest's 5 s default on a busy runner.
 jest.setTimeout(30_000);
@@ -38,6 +46,9 @@ const where = () => screen.getByTestId('redirect').props.children as string;
 
 beforeEach(() => {
   mockResume = { isPending: false };
+  mockResumeCalls.length = 0;
+  useCurrentActiveTripStore.setState({ trip: undefined });
+  useCurrentRoutePlanStore.setState({ plan: undefined });
   useWalkthroughStore.setState({ status: 'seen' });
   useAuthStore.setState({
     state: { status: 'signedIn', accessToken: 'a', refreshToken: 'r', driver },
@@ -67,6 +78,22 @@ describe('launch gate', () => {
     mockResume = { isPending: false, data: { trip: {}, plan: {} } };
     await render(<IndexScreen />);
     expect(where()).toBe('/active-trip');
+  });
+
+  it('puts the driver back on a trip kept on the phone when there is no signal, and fills the trip and plan the screen reads', async () => {
+    useWalkthroughStore.setState({ status: 'unseen' });
+    const trip = { id: 'trip-1' };
+    const plan = { id: 'plan-1' };
+    mockResume = { isPending: false, data: { trip, plan, fromPhone: true } as never };
+    await render(<IndexScreen />);
+    expect(where()).toBe('/active-trip');
+    expect(useCurrentActiveTripStore.getState().trip).toBe(trip);
+    expect(useCurrentRoutePlanStore.getState().plan).toBe(plan);
+  });
+
+  it('tells the resume check which driver is signed in, so another driver’s saved trip is never brought back', async () => {
+    await render(<IndexScreen />);
+    expect(mockResumeCalls[0]).toEqual(['a', 'd1']);
   });
 
   it('asks for the privacy screen before the tour', async () => {

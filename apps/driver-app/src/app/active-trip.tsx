@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useEndTrip } from '../api/use-active-trip';
-import { useAdvanceJobStatus, useCurrentJob } from '../api/use-jobs';
+import { useArriveAtStop, useEndTrip } from '../api/use-active-trip';
+import { useCurrentJob } from '../api/use-jobs';
 import { useNearbyHazards } from '../api/use-hazards';
 import { useNearbySafeParkingSpots } from '../api/use-parking';
 import { ACTION_COLOURS, ActionCard } from '../components/ui/action-card';
@@ -197,7 +197,7 @@ export default function ActiveTripScreen() {
   // A company job being driven (the "Start" on the job screen): the arrival is confirmed from here,
   // so a driver never has to leave the navigation to tell dispatch they have got there.
   const job = useCurrentJob();
-  const advanceJob = useAdvanceJobStatus();
+  const advanceJob = useArriveAtStop();
   const arrival = job.data ? arrivalStep(job.data) : undefined;
   const voiceFlow = useVoiceHazardReportFlow(location.point);
   const quickReport = useQuickVoiceReport(location.point);
@@ -515,19 +515,15 @@ export default function ActiveTripScreen() {
   }
 
   function handleArrived(): void {
-    if (!job.data || !arrival || advanceJob.isPending || endTrip.isPending) return;
+    if (!job.data || !arrival || !trip || advanceJob.isPending || endTrip.isPending) return;
+    // Arrived and the trip to this stop is over, together, and with no signal both are kept and sent later. The job screen has the next step.
     advanceJob.mutate(
-      { jobId: job.data.id, status: arrival.to },
+      { jobId: job.data.id, status: arrival.to, tripId: trip.id },
       {
         onSuccess: () => {
-          // Arrived: the trip to this stop is over. The job screen has the next step.
-          const finish = () => {
-            clearTrip();
-            clearPlan();
-            router.replace('/job');
-          };
-          if (trip) endTrip.mutate(trip.id, { onSuccess: finish });
-          else finish();
+          clearTrip();
+          clearPlan();
+          router.replace('/job');
         },
       },
     );
