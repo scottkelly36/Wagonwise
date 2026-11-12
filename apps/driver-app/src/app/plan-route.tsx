@@ -37,6 +37,10 @@ import {
   euroVIUnknown,
   zoneLines,
   zonesShown,
+  routeHasDetails,
+  routeSummaryIsWarning,
+  routeSummaryLine,
+  routesHeading,
 } from '../lib/route-option-text';
 import { formatRouteDistance, type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
@@ -213,6 +217,15 @@ export default function PlanRouteScreen() {
   const insets = useSafeAreaInsets();
   // The route cards and the list under them never take more than about half the screen: the map keeps the rest.
   const { height: windowHeight } = useWindowDimensions();
+  // Which route cards have their details open, by the route's line. A card starts folded to its one-line summary.
+  const [openCards, setOpenCards] = useState<ReadonlySet<string>>(new Set());
+  function toggleCard(geometry: string): void {
+    setOpenCards((current) => {
+      const next = new Set(current);
+      if (!next.delete(geometry)) next.add(geometry);
+      return next;
+    });
+  }
   // Opened again by the driver while an end is being set on the map (see `folded` below).
   const [vehicleOpen, setVehicleOpen] = useState(false);
   const distanceUnit = useMeasureUnitsStore((s) => s.distance);
@@ -889,7 +902,9 @@ export default function PlanRouteScreen() {
             </TouchableOpacity>
           ) : (
             <View style={styles.optionsList}>
-              <Text style={styles.label}>Choose a route</Text>
+              <Text style={styles.label} testID="routes-heading">
+                {routesHeading(routeOptions.length)}
+              </Text>
               {/* Cards with toll and zone lines are tall: three of them ran off the bottom of the screen with no way to reach
                   the last. They scroll inside half the screen, and the map keeps the rest. */}
               <ScrollView
@@ -946,55 +961,111 @@ export default function PlanRouteScreen() {
                           ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
                           : ''}
                       </Text>
-                      {nearbyHazards.data !== undefined && (
-                        <Text style={styles.optionDetail} testID={`route-option-${index}-hazards`}>
-                          {hazardCountLine(hazardsByOption[index]?.size ?? 0)}
-                        </Text>
-                      )}
-                      {hillsLine(option, distanceUnit) !== undefined && (
-                        <Text style={styles.optionDetail} testID={`route-option-${index}-hills`}>
-                          {hillsLine(option, distanceUnit)}
-                        </Text>
-                      )}
-                      {tollLines(option).map((line, lineIndex) => (
-                        <View key={line.text}>
+                      {/* Folded: one line for money, zones and hazards, so three cards fit in the list. Details opens the rest. */}
+                      {!openCards.has(option.geometry) &&
+                        routeSummaryLine(
+                          option,
+                          nearbyHazards.data === undefined
+                            ? undefined
+                            : (hazardsByOption[index]?.size ?? 0),
+                        ) !== undefined && (
                           <Text
-                            style={styles.optionDetail}
-                            testID={`route-option-${index}-toll${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                            style={
+                              routeSummaryIsWarning(option)
+                                ? styles.optionWarning
+                                : styles.optionDetail
+                            }
+                            testID={`route-option-${index}-summary`}
                           >
-                            {line.text}
+                            {routeSummaryLine(
+                              option,
+                              nearbyHazards.data === undefined
+                                ? undefined
+                                : (hazardsByOption[index]?.size ?? 0),
+                            )}
                           </Text>
-                          {line.detail !== undefined && (
+                        )}
+                      {openCards.has(option.geometry) && (
+                        <>
+                          {nearbyHazards.data !== undefined && (
                             <Text
                               style={styles.optionDetail}
-                              testID={`route-option-${index}-toll-detail${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                              testID={`route-option-${index}-hazards`}
                             >
-                              {line.detail}
+                              {hazardCountLine(hazardsByOption[index]?.size ?? 0)}
                             </Text>
                           )}
-                        </View>
-                      ))}
-                      {costLine(option) !== undefined && (
-                        <Text style={styles.optionDetail} testID={`route-option-${index}-cost`}>
-                          {costLine(option)}
-                        </Text>
+                          {hillsLine(option, distanceUnit) !== undefined && (
+                            <Text
+                              style={styles.optionDetail}
+                              testID={`route-option-${index}-hills`}
+                            >
+                              {hillsLine(option, distanceUnit)}
+                            </Text>
+                          )}
+                          {tollLines(option).map((line, lineIndex) => (
+                            <View key={line.text}>
+                              <Text
+                                style={styles.optionDetail}
+                                testID={`route-option-${index}-toll${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                              >
+                                {line.text}
+                              </Text>
+                              {line.detail !== undefined && (
+                                <Text
+                                  style={styles.optionDetail}
+                                  testID={`route-option-${index}-toll-detail${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                                >
+                                  {line.detail}
+                                </Text>
+                              )}
+                            </View>
+                          ))}
+                          {costLine(option) !== undefined && (
+                            <Text style={styles.optionDetail} testID={`route-option-${index}-cost`}>
+                              {costLine(option)}
+                            </Text>
+                          )}
+                          {cheapestLine(option, routeOptions) !== undefined && (
+                            <Text
+                              style={styles.optionDetail}
+                              testID={`route-option-${index}-cheapest`}
+                            >
+                              {cheapestLine(option, routeOptions)}
+                            </Text>
+                          )}
+                          {zoneLines(option).map((line, lineIndex) => (
+                            <Text
+                              key={line.text}
+                              style={line.charged ? styles.optionWarning : styles.optionDetail}
+                              testID={`route-option-${index}-zone${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                            >
+                              {line.text}
+                            </Text>
+                          ))}
+                        </>
                       )}
-                      {cheapestLine(option, routeOptions) !== undefined && (
-                        <Text style={styles.optionDetail} testID={`route-option-${index}-cheapest`}>
-                          {cheapestLine(option, routeOptions)}
-                        </Text>
-                      )}
-                      {zoneLines(option).map((line, lineIndex) => (
-                        <Text
-                          key={line.text}
-                          style={line.charged ? styles.optionWarning : styles.optionDetail}
-                          testID={`route-option-${index}-zone${lineIndex === 0 ? '' : `-${lineIndex}`}`}
-                        >
-                          {line.text}
-                        </Text>
-                      ))}
                       {option.breaksWeightLimit === true && (
                         <Text style={styles.optionWarning}>{WEIGHT_LIMIT_SHORT}</Text>
+                      )}
+                      {(routeHasDetails(option, routeOptions, distanceUnit) ||
+                        nearbyHazards.data !== undefined) && (
+                        <TouchableOpacity
+                          style={styles.detailsButton}
+                          onPress={() => toggleCard(option.geometry)}
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded: openCards.has(option.geometry) }}
+                          testID={`route-option-${index}-details`}
+                        >
+                          <Text style={styles.detailsText}>
+                            {openCards.has(option.geometry) ? 'Hide details' : 'Details'}
+                          </Text>
+                          <Icon
+                            name={openCards.has(option.geometry) ? 'chevron-up' : 'chevron-down'}
+                            size={20}
+                            color={colors.accent}
+                          />
+                        </TouchableOpacity>
                       )}
                     </View>
                     <Icon name="chevron-right" size={26} color={colors.textMuted} />
@@ -1211,6 +1282,16 @@ function createStyles(colors: ThemeColors) {
       fontSize: 15,
       color: colors.warning,
     },
+    // Its own target inside the card: tapping it opens the details, tapping anywhere else on the card chooses the route.
+    detailsButton: {
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      alignSelf: 'flex-start',
+      paddingRight: 12,
+    },
+    detailsText: { fontSize: 15, fontWeight: '700', color: colors.accent },
     optionWarning: {
       fontSize: 15,
       fontWeight: '600',

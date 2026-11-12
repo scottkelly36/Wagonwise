@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import PlanRouteScreen from '../app/plan-route';
 import { useLoadStore } from '../state/load-store';
@@ -89,6 +89,13 @@ async function open() {
   );
 }
 
+/** A card starts folded to one line; the tests that read its lines open every card first. */
+async function showDetails() {
+  for (const button of await screen.findAllByTestId(/^route-option-\d+-details$/)) {
+    await fireEvent.press(button);
+  }
+}
+
 async function chooseDestination() {
   await fireEvent.press(await screen.findByTestId('map-tap'));
 }
@@ -153,6 +160,7 @@ describe('the Load switch on Plan route', () => {
         hills: hills(2.3, 328),
       },
     ]);
+    await showDetails();
 
     expect(await screen.findByTestId('route-option-1')).toBeTruthy();
     expect(screen.getByText('Fastest & Shortest')).toBeTruthy();
@@ -191,6 +199,7 @@ describe('the Load switch on Plan route', () => {
       },
       { geometry: 'b', distanceKm: 150, durationMin: 105, labels: ['toll-free'], hasToll: false },
     ]);
+    await showDetails();
 
     expect(await screen.findByTestId('route-option-1')).toBeTruthy();
     expect(screen.getByText('Toll free')).toBeTruthy();
@@ -225,6 +234,7 @@ describe('the Load switch on Plan route', () => {
       },
       { geometry: 'b', distanceKm: 150, durationMin: 105, labels: ['gentle'], hasToll: true },
     ]);
+    await showDetails();
 
     expect(await screen.findByTestId('route-option-1')).toBeTruthy();
     expect(screen.getByTestId('route-option-0-toll').props.children).toBe(
@@ -262,6 +272,7 @@ describe('the Load switch on Plan route', () => {
         cost: { fuelGBP: 38.4, chargesGBP: 0, totalGBP: 38.4 },
       },
     ]);
+    await showDetails();
 
     expect(await screen.findByTestId('route-option-1')).toBeTruthy();
     expect(screen.getByText('Shortest & Cheapest')).toBeTruthy();
@@ -294,6 +305,7 @@ describe('the Load switch on Plan route', () => {
       },
       { geometry: 'b', distanceKm: 150, durationMin: 105, labels: ['gentle'] },
     ]);
+    await showDetails();
 
     expect(await screen.findByTestId('route-option-1')).toBeTruthy();
     expect(screen.getByTestId('route-option-0-zone').props.children).toMatch(
@@ -323,6 +335,7 @@ describe('the Load switch on Plan route', () => {
     handlers.onSuccess([
       { geometry: 'a', distanceKm: 221, durationMin: 228, labels: ['fastest', 'shortest'] },
     ]);
+    await showDetails();
 
     expect(await screen.findByTestId('hills-unavailable')).toBeTruthy();
     expect(screen.queryByTestId('route-option-0-hills')).toBeNull();
@@ -359,6 +372,7 @@ describe('room for the map on Plan route', () => {
       { geometry: 'b', distanceKm: 210, durationMin: 240, labels: ['shortest'] },
       { geometry: 'c', distanceKm: 260, durationMin: 250, labels: ['gentle'] },
     ]);
+    await showDetails();
 
     const list = await screen.findByTestId('route-options-scroll');
     const inList = (id: string) => {
@@ -374,5 +388,35 @@ describe('room for the map on Plan route', () => {
     expect(screen.getByTestId('route-option-0-hazards').props.children).toBe(
       'No hazards reported on this route',
     );
+  });
+
+  it('folds each card to one line, says how many routes there are, and opens a card with Details', async () => {
+    await open();
+    await chooseDestination();
+    await fireEvent.press(await screen.findByTestId('plan-route-button'));
+    const [, handlers] = mockPreview.mock.calls[0] as [
+      unknown,
+      { onSuccess: (o: unknown) => void },
+    ];
+    await act(async () => {
+      handlers.onSuccess([
+        { geometry: 'a', distanceKm: 221, durationMin: 228, labels: ['fastest'], hasToll: true },
+        { geometry: 'b', distanceKm: 210, durationMin: 240, labels: ['shortest'] },
+      ]);
+    });
+
+    expect((await screen.findByTestId('routes-heading')).props.children).toBe(
+      'Choose from 2 routes',
+    );
+    expect(screen.getByTestId('route-option-0-summary').props.children).toBe(
+      'Includes a toll · no hazards reported',
+    );
+    expect(screen.queryByTestId('route-option-0-toll')).toBeNull();
+
+    await fireEvent.press(screen.getByTestId('route-option-0-details'));
+    expect(await screen.findByTestId('route-option-0-toll')).toBeTruthy();
+    expect(screen.queryByTestId('route-option-0-summary')).toBeNull();
+    // The other card stays folded.
+    expect(screen.getByTestId('route-option-1-summary')).toBeTruthy();
   });
 });

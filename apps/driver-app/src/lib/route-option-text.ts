@@ -191,3 +191,63 @@ export function hillsLine(option: RouteOptionDto, distanceUnit: DistanceUnit): s
 export function hillsWereChecked(options: readonly RouteOptionDto[]): boolean {
   return options.some((option) => option.hills !== undefined);
 }
+
+/**
+ * The one line a folded route card gives for what a route costs and what to watch for: the total with tolls and charges, a toll,
+ * a zone charge and the hazards reported on it. Details on the card opens each of these in full. Undefined when there is
+ * nothing to say.
+ */
+export function routeSummaryLine(
+  option: RouteOptionDto,
+  hazardCount: number | undefined,
+): string | undefined {
+  const parts: string[] = [];
+  const cost = option.cost;
+  if (cost?.totalGBP !== undefined && cost.chargesGBP > 0) {
+    parts.push(
+      `about${cost.unpriced === true ? ' at least' : ''} ${poundsText(cost.totalGBP)} with tolls and charges`,
+    );
+  } else if (tollLines(option).length > 0) {
+    parts.push('includes a toll');
+  }
+  const zones = zoneLines(option);
+  if (zones.some((zone) => zone.charged)) parts.push('zone charge applies');
+  else if (zones.length > 0) parts.push('zone charge may apply');
+  if (hazardCount !== undefined) {
+    parts.push(
+      hazardCount === 0
+        ? 'no hazards reported'
+        : hazardCount === 1
+          ? '1 hazard'
+          : `${hazardCount} hazards`,
+    );
+  }
+  if (parts.length === 0) return undefined;
+  const line = parts.join(' · ');
+  return line.charAt(0).toUpperCase() + line.slice(1);
+}
+
+/** Whether a route's zone charge is certain for this vehicle, so the folded card's summary is drawn as a warning. */
+export function routeSummaryIsWarning(option: RouteOptionDto): boolean {
+  return zoneLines(option).some((zone) => zone.charged);
+}
+
+/** Whether a card has anything behind Details: hills, a named toll, a total, what Cheapest saves, or a zone. */
+export function routeHasDetails(
+  option: RouteOptionDto,
+  options: readonly RouteOptionDto[],
+  distanceUnit: DistanceUnit,
+): boolean {
+  return (
+    hillsLine(option, distanceUnit) !== undefined ||
+    tollLines(option).length > 0 ||
+    costLine(option) !== undefined ||
+    cheapestLine(option, options) !== undefined ||
+    zoneLines(option).length > 0
+  );
+}
+
+/** The heading over the route cards: how many there are, so a list that scrolls does not hide that there are more. */
+export function routesHeading(count: number): string {
+  return count === 1 ? 'One route found' : `Choose from ${count} routes`;
+}
