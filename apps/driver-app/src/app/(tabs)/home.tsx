@@ -37,6 +37,7 @@ import { PositionSharingChip } from '../../components/position-sharing-chip';
 import { isSharingPosition } from '../../lib/job-position-reporting';
 import type { MapView } from '../../lib/map-view';
 import { useCurrentActiveTripStore } from '../../state/current-active-trip-store';
+import { useMapLayersStore } from '../../state/map-layers-store';
 import { useJobPositionReporting } from '../../hooks/use-job-position-reporting';
 import { useLiveLocation } from '../../hooks/use-live-location';
 import { jobSubtitle, navigationTarget } from '../../lib/job-navigation';
@@ -138,19 +139,28 @@ export default function HomeScreen() {
   const [selectedClosureId, setSelectedClosureId] = useState<string | undefined>(undefined);
   const selectedClosure = nearbyClosures.data?.closures.find((c) => c.id === selectedClosureId);
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
-  // Which kinds of marker the map shows. All on until a driver turns something off to declutter.
+  // Which kinds of marker the map shows. All on until a driver turns something off to declutter; the choice is kept on the phone.
+  const layers = useMapLayersStore((state) => state.layers);
+  const setLayer = useMapLayersStore((state) => state.setLayer);
   const [layersOpen, setLayersOpen] = useState(false);
   // How tall the report buttons and "Where to?" sheet are, so the layers list can stop above them on any screen size.
   const [overlayHeight, setOverlayHeight] = useState(220);
-  const [showHazards, setShowHazards] = useState(true);
-  const [showTraffic, setShowTraffic] = useState(true);
-  const [showParking, setShowParking] = useState(true);
-  const [showCameras, setShowCameras] = useState(true);
-  const [showFuel, setShowFuel] = useState(true);
-  const [showClosures, setShowClosures] = useState(true);
+  const showHazards = layers.hazards;
+  const setShowHazards = (shown: boolean) => void setLayer('hazards', shown);
+  const showTraffic = layers.traffic;
+  const setShowTraffic = (shown: boolean) => void setLayer('traffic', shown);
+  const showParking = layers.parking;
+  const setShowParking = (shown: boolean) => void setLayer('parking', shown);
+  const showCameras = layers.cameras;
+  const setShowCameras = (shown: boolean) => void setLayer('cameras', shown);
+  const showFuel = layers.fuel;
+  const setShowFuel = (shown: boolean) => void setLayer('fuel', shown);
+  const showClosures = layers.closures;
+  const setShowClosures = (shown: boolean) => void setLayer('closures', shown);
   const [reportingCamera, setReportingCamera] = useState(false);
   // Parking and lay-bys are separate layers: a lay-by is a roadside stop nobody has checked suits a lorry.
-  const [showLaybys, setShowLaybys] = useState(true);
+  const showLaybys = layers.laybys;
+  const setShowLaybys = (shown: boolean) => void setLayer('laybys', shown);
   const mapParkingSpots = useMemo(
     () =>
       (nearbyParkingSpots.data ?? [])
@@ -176,7 +186,12 @@ export default function HomeScreen() {
     () =>
       nearbyHazards.data
         ?.filter((h) => !isCameraType(h.type))
-        .map((h) => ({ id: h.id, type: h.type, location: h.location })),
+        .map((h) => ({
+          id: h.id,
+          type: h.type,
+          location: h.location,
+          measurement: h.measurement,
+        })),
     [nearbyHazards.data],
   );
   const mapCameras = useMemo(
@@ -233,7 +248,10 @@ export default function HomeScreen() {
       />
 
       {viewTooWide && (
-        <View style={[styles.zoomHint, { bottom: insets.bottom + 220 }]} pointerEvents="none">
+        <View
+          style={[styles.zoomHint, { bottom: overlayHeight + LAYERS_PANEL_GAP }]}
+          pointerEvents="none"
+        >
           <View style={styles.zoomHintCard}>
             <Text style={styles.zoomHintText} testID="zoom-hint">
               Zoom in to see hazards, cameras, traffic, parking, fuel and closures

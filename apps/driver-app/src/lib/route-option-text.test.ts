@@ -12,6 +12,10 @@ import {
   cheapestLine,
   euroVIUnknown,
   costLine,
+  routeHasDetails,
+  routeSummaryIsWarning,
+  routeSummaryLine,
+  routesHeading,
 } from './route-option-text';
 
 const base = { geometry: 'g', distanceKm: 100, durationMin: 90 };
@@ -355,5 +359,52 @@ describe('euroVIUnknown', () => {
     expect(euroVIUnknown([zone('may-be-charged')])).toBe(true);
     expect(euroVIUnknown([zone('charged')])).toBe(false);
     expect(euroVIUnknown([{ ...base, labels: ['fastest'] }])).toBe(false);
+  });
+});
+
+describe('a folded route card', () => {
+  const base = { geometry: 'a', distanceKm: 100, durationMin: 90, labels: ['fastest' as const] };
+
+  it('puts the total, a zone that may charge and the hazard count on one line', () => {
+    expect(
+      routeSummaryLine(
+        {
+          ...base,
+          hasToll: true,
+          charges: [{ name: 'Humber Bridge', lowGBP: 15, highGBP: 15 }],
+          cost: { fuelGBP: 25.4, chargesGBP: 15, totalGBP: 40.4 },
+          zones: [{ name: 'Sheffield Clean Air Zone', status: 'may-be-charged', kind: 'daily' }],
+        },
+        3,
+      ),
+    ).toBe('About £40.40 with tolls and charges · zone charge may apply · 3 hazards');
+  });
+
+  it('says a toll it cannot price, and a zone charge that is certain as a warning', () => {
+    const option = {
+      ...base,
+      hasToll: true,
+      zones: [{ name: 'Glasgow Low Emission Zone', status: 'charged' as const }],
+    };
+    expect(routeSummaryLine(option, 1)).toBe('Includes a toll · zone charge applies · 1 hazard');
+    expect(routeSummaryIsWarning(option)).toBe(true);
+    expect(routeSummaryIsWarning(base)).toBe(false);
+  });
+
+  it('says no hazards were reported, and nothing at all before the hazards are known on a plain route', () => {
+    expect(routeSummaryLine(base, 0)).toBe('No hazards reported');
+    expect(routeSummaryLine(base, undefined)).toBeUndefined();
+  });
+
+  it('has details only when there is something behind them', () => {
+    expect(routeHasDetails(base, [base], 'miles')).toBe(false);
+    expect(routeHasDetails({ ...base, hasToll: true }, [base], 'miles')).toBe(true);
+  });
+});
+
+describe('the heading over the route cards', () => {
+  it('says how many routes there are', () => {
+    expect(routesHeading(3)).toBe('Choose from 3 routes');
+    expect(routesHeading(1)).toBe('One route found');
   });
 });

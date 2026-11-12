@@ -24,6 +24,7 @@ import { useLengthUnitStore } from '../state/length-unit-store';
 import { useLoadStore } from '../state/load-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useStillThereStore } from '../state/still-there-store';
+import { useMapLayersStore } from '../state/map-layers-store';
 import { useHoursStartStore } from '../state/hours-start-store';
 import { useShiftStore } from '../state/shift-store';
 import { useThemeStore } from '../state/theme-store';
@@ -42,6 +43,7 @@ export default function RootLayout() {
   const restoreMeasureUnits = useMeasureUnitsStore((s) => s.restore);
   const restoreLoad = useLoadStore((s) => s.restore);
   const restoreStillThere = useStillThereStore((s) => s.restore);
+  const restoreMapLayers = useMapLayersStore((s) => s.restore);
   const restoreUpdateNotice = useUpdateNoticeStore((s) => s.restore);
   const restoreWalkthrough = useWalkthroughStore((s) => s.restore);
 
@@ -57,6 +59,7 @@ export default function RootLayout() {
     void restoreMeasureUnits();
     void restoreLoad();
     void restoreStillThere();
+    void restoreMapLayers();
     void restoreUpdateNotice();
     void restoreWalkthrough();
     // Keep more of the map on the phone, so places a driver has already seen draw straight away instead of waiting on the network
@@ -74,6 +77,7 @@ export default function RootLayout() {
     restoreMeasureUnits,
     restoreLoad,
     restoreStillThere,
+    restoreMapLayers,
     restoreUpdateNotice,
     restoreWalkthrough,
   ]);

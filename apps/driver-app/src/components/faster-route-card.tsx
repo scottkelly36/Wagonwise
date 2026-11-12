@@ -81,7 +81,7 @@ function createStyles(colors: ThemeColors) {
     head: { flexDirection: 'row', gap: 10, alignItems: 'center' },
     headText: { flex: 1 },
     title: { fontSize: 17, fontWeight: '800', color: colors.text },
-    sub: { fontSize: 13, color: colors.textMuted },
+    sub: { fontSize: 16, color: colors.textMuted },
     buttons: { flexDirection: 'row', gap: 10 },
     button: {
       minHeight: 48,

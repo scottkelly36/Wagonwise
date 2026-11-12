@@ -53,7 +53,7 @@ export function formatHeightWithFeetInches(heightM: number | undefined): string 
   return `${heightM}m (${metresToFeetInches(heightM)})`;
 }
 
-/** How a driver reads the length of a route: kilometres until they choose miles. */
+/** How a driver reads the length of a route: miles until they choose kilometres. */
 export type DistanceUnit = 'km' | 'miles';
 
 /** How a driver reads and types a vehicle's fuel economy: litres per 100 km until they choose miles per gallon. */

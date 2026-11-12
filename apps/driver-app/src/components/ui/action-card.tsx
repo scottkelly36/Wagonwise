@@ -80,7 +80,7 @@ function createStyles(colors: ThemeColors) {
     },
     cardCompact: { minHeight: 58, paddingVertical: 8, gap: 2 },
     disabled: { opacity: 0.5 },
-    labelCompact: { fontSize: 13 },
+    labelCompact: { fontSize: 14 },
     label: {
       fontSize: 14,
       fontWeight: '600',

@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,6 +37,10 @@ import {
   euroVIUnknown,
   zoneLines,
   zonesShown,
+  routeHasDetails,
+  routeSummaryIsWarning,
+  routeSummaryLine,
+  routesHeading,
 } from '../lib/route-option-text';
 import { formatRouteDistance, type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
@@ -76,7 +81,8 @@ import {
   type VehicleProfileFormValues,
 } from '../lib/vehicle-profile-form';
 import { cameraMarkers } from '../lib/camera-markers';
-import { isCameraType } from '../lib/camera-report';
+import { isCameraType, withoutCameras } from '../lib/camera-report';
+import { hazardCountLine } from '../lib/hazard-marker';
 import { placeOnRoute } from '../lib/on-route';
 import { thinPoints } from '../lib/thin-points';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
@@ -147,11 +153,8 @@ const INCHES_PLACEHOLDERS: Partial<Record<string, string>> = {
   lengthM: '2',
 };
 
-// Same radius as home.tsx's "near me" query — a straight line between origin and destination
-// isn't the real route yet (that only exists once planning succeeds), but it's a reasonable
-// stand-in for "roughly this direction of travel" until then (design decision, 2026-09-24: fixes
-// hazards being visible on the home map but not here).
-const NEARBY_RADIUS_M = 5_000;
+// No line to look along yet: hazards are asked for only once there are routes (see `nearbyHazards` below).
+const NO_CORRIDOR: readonly MapPoint[] = [];
 /** Once there are routes to look along: the width the server looks either side of them, before the exact "on the road" cut. */
 const ON_ROUTE_HAZARD_RADIUS_M = 750;
 /** The most points the server takes for the line of a request. */
@@ -161,6 +164,11 @@ const CORRIDOR_MAX_POINTS = 1500;
 // Indigo, magenta, amber: in the app's blue-violet family for the first, and none of them a pale blue,
 // which reads as a river on the base map (design decision, 2026-09-24).
 const OPTION_COLOURS = ['#5B4BDB', '#D6336C', '#E8890C'] as const;
+
+/** Whether Enter details has a size in it yet: a preset picked, or a height typed. */
+function presetInBoxesOrTyped(values: VehicleProfileFormValues): boolean {
+  return values.heightM.trim() !== '';
+}
 
 export default function PlanRouteScreen() {
   const router = useRouter();
@@ -207,6 +215,19 @@ export default function PlanRouteScreen() {
   const [tapTarget, setTapTarget] = useState<PointEnd>('destination');
   const [selectedHazardId, setSelectedHazardId] = useState<string | undefined>(undefined);
   const insets = useSafeAreaInsets();
+  // The route cards and the list under them never take more than about half the screen: the map keeps the rest.
+  const { height: windowHeight } = useWindowDimensions();
+  // Which route cards have their details open, by the route's line. A card starts folded to its one-line summary.
+  const [openCards, setOpenCards] = useState<ReadonlySet<string>>(new Set());
+  function toggleCard(geometry: string): void {
+    setOpenCards((current) => {
+      const next = new Set(current);
+      if (!next.delete(geometry)) next.add(geometry);
+      return next;
+    });
+  }
+  // Opened again by the driver while an end is being set on the map (see `folded` below).
+  const [vehicleOpen, setVehicleOpen] = useState(false);
   const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const loaded = useLoadStore((s) => s.loaded);
   const setLoaded = useLoadStore((s) => s.setLoaded);
@@ -220,11 +241,8 @@ export default function PlanRouteScreen() {
   // override a start they searched for or tapped.
   const effectiveOrigin = fromMode === 'here' ? location.point : origin;
 
-  // Before the routes are compared, what is around the straight line from here to there. Once they are, only what is on one of
-  // the routes shown: a hazard a few streets over, or on the road that crosses, is not on the way.
-  const straightCorridor = [effectiveOrigin, destination].filter(
-    (p): p is MapPoint => p !== undefined,
-  );
+  // Once the routes are compared, only what is on one of the routes shown: a hazard a few streets over, or on the road that
+  // crosses, is not on the way.
   const optionCorridor = useMemo(
     () =>
       optionLines?.flatMap((o) =>
@@ -235,18 +253,25 @@ export default function PlanRouteScreen() {
       ),
     [optionLines],
   );
-  const nearbyHazards = useNearbyHazards(
-    optionCorridor ?? straightCorridor,
-    optionCorridor ? ON_ROUTE_HAZARD_RADIUS_M : NEARBY_RADIUS_M,
-  );
+  // Nothing is asked for, or drawn, until there are routes: before that the only line to look along was a straight one from
+  // here to there, and the markers it gave were about roads the driver might never use.
+  const nearbyHazards = useNearbyHazards(optionCorridor ?? NO_CORRIDOR, ON_ROUTE_HAZARD_RADIUS_M);
+  // Which hazards are on each route (by the route's place in the list), and so which are drawn and how many each card says.
+  const hazardsByOption = useMemo(() => {
+    const found = withoutCameras(nearbyHazards.data ?? []);
+    return (optionLines ?? []).map(
+      (option) => new Set(placeOnRoute(option.line, found).map((placed) => placed.item.id)),
+    );
+  }, [nearbyHazards.data, optionLines]);
   const shownHazards = useMemo(() => {
-    const found = nearbyHazards.data ?? [];
-    if (!optionLines) return found;
+    if (!optionLines) return [];
     const onAnyRoute = new Set<string>();
     for (const option of optionLines) {
-      for (const placed of placeOnRoute(option.line, found)) onAnyRoute.add(placed.item.id);
+      for (const placed of placeOnRoute(option.line, nearbyHazards.data ?? [])) {
+        onAnyRoute.add(placed.item.id);
+      }
     }
-    return found.filter((h) => onAnyRoute.has(h.id));
+    return (nearbyHazards.data ?? []).filter((h) => onAnyRoute.has(h.id));
   }, [nearbyHazards.data, optionLines]);
   const mapCameras = useMemo(() => cameraMarkers(undefined, shownHazards), [shownHazards]);
 
@@ -261,6 +286,18 @@ export default function PlanRouteScreen() {
     destination !== undefined &&
     !pending &&
     (vehicleMode === 'manual' || selectedProfile !== undefined);
+
+  // While an end is being set on the map, the map is the tool: once a vehicle is chosen its part of the form and the load
+  // switch fold into one line, so the map keeps the room. "Change" opens them again.
+  const vehicleChosen =
+    vehicleMode === 'profile'
+      ? selectedProfile !== undefined
+      : presetInBoxesOrTyped(dimensionValues);
+  const folded =
+    routeOptions === undefined &&
+    (toMode === 'map' || fromMode === 'map') &&
+    vehicleChosen &&
+    !vehicleOpen;
 
   // The one thing still needed before a route can be planned, in the order a first-time driver does
   // them, so the button is never just greyed out with no word on why.
@@ -551,7 +588,12 @@ export default function PlanRouteScreen() {
           onMapPress={handleMapPress}
           hazards={shownHazards
             .filter((h) => !isCameraType(h.type))
-            .map((h) => ({ id: h.id, type: h.type, location: h.location }))}
+            .map((h) => ({
+              id: h.id,
+              type: h.type,
+              location: h.location,
+              measurement: h.measurement,
+            }))}
           cameras={mapCameras}
           onHazardPress={setSelectedHazardId}
         />
@@ -573,147 +615,169 @@ export default function PlanRouteScreen() {
         <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
           {routeOptions === undefined ? (
             <>
-              <SegmentedControl
-                options={VEHICLE_MODE_OPTIONS}
-                value={vehicleMode}
-                onChange={handleSelectVehicleMode}
-                testIDPrefix="vehicle-mode"
-              />
-
-              {vehicleMode === 'profile' && noVehiclesYet ? (
-                <View style={styles.firstUse} testID="first-vehicle-card">
-                  <View style={styles.firstUseHeader}>
-                    <Icon name="truck-outline" size={28} color={colors.accent} />
-                    <Text style={styles.firstUseTitle}>First, tell us about your HGV</Text>
-                  </View>
-                  <Text style={styles.firstUseBody}>
-                    Its height, width, length and weight decide which roads and bridges are safe.
-                    Pick the nearest size or type your own. Add it once and it is remembered for
-                    every trip.
+              {folded ? (
+                <View style={styles.summary} testID="vehicle-folded">
+                  <Icon name="truck-outline" size={20} color={colors.accent} />
+                  <Text style={styles.summaryText} numberOfLines={1}>
+                    {vehicleMode === 'profile'
+                      ? (selectedProfile?.name ?? 'Your vehicle')
+                      : 'The vehicle details you entered'}
+                    {loaded ? ' · hill-sensitive load' : ''}
                   </Text>
                   <TouchableOpacity
-                    style={styles.firstUseButton}
-                    onPress={() => router.push('/profiles/new')}
+                    onPress={() => setVehicleOpen(true)}
                     accessibilityRole="button"
-                    testID="add-first-vehicle-button"
+                    style={styles.summaryAction}
+                    testID="vehicle-folded-change"
                   >
-                    <Text style={styles.firstUseButtonText}>Add my vehicle</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleSelectVehicleMode('manual')}
-                    testID="first-vehicle-manual-link"
-                  >
-                    <Text style={styles.firstUseLink}>
-                      Or pick a size or enter the details just for this trip
-                    </Text>
+                    <Text style={styles.linkText}>Change</Text>
                   </TouchableOpacity>
                 </View>
-              ) : vehicleMode === 'profile' ? (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.profileRow}
-                >
-                  {profilesLoading ? (
-                    <ActivityIndicator color={colors.text} />
-                  ) : profiles === undefined || profiles.length === 0 ? (
-                    <Text style={styles.hint}>
-                      No saved vehicles yet. Try “Enter details” instead.
-                    </Text>
-                  ) : (
-                    profiles.map((profile) => (
+              ) : (
+                <>
+                  <SegmentedControl
+                    options={VEHICLE_MODE_OPTIONS}
+                    value={vehicleMode}
+                    onChange={handleSelectVehicleMode}
+                    testIDPrefix="vehicle-mode"
+                  />
+
+                  {vehicleMode === 'profile' && noVehiclesYet ? (
+                    <View style={styles.firstUse} testID="first-vehicle-card">
+                      <View style={styles.firstUseHeader}>
+                        <Icon name="truck-outline" size={28} color={colors.accent} />
+                        <Text style={styles.firstUseTitle}>First, tell us about your HGV</Text>
+                      </View>
+                      <Text style={styles.firstUseBody}>
+                        Its height, width, length and weight decide which roads and bridges are
+                        safe. Pick the nearest size or type your own. Add it once and it is
+                        remembered for every trip.
+                      </Text>
                       <TouchableOpacity
-                        key={profile.id}
-                        style={[
-                          styles.chip,
-                          profile.id === selectedProfile?.id && styles.chipSelected,
-                        ]}
-                        onPress={() => handleSelectProfile(profile.id)}
-                        testID={`profile-chip-${profile.id}`}
+                        style={styles.firstUseButton}
+                        onPress={() => router.push('/profiles/new')}
+                        accessibilityRole="button"
+                        testID="add-first-vehicle-button"
                       >
-                        <Text
-                          style={[
-                            styles.chipText,
-                            profile.id === selectedProfile?.id && styles.chipTextSelected,
-                          ]}
-                        >
-                          {profile.name}
+                        <Text style={styles.firstUseButtonText}>Add my vehicle</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleSelectVehicleMode('manual')}
+                        testID="first-vehicle-manual-link"
+                      >
+                        <Text style={styles.firstUseLink}>
+                          Or pick a size or enter the details just for this trip
                         </Text>
                       </TouchableOpacity>
-                    ))
-                  )}
-                </ScrollView>
-              ) : (
-                <ScrollView
-                  style={styles.manualForm}
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}
-                >
-                  <SegmentedControl
-                    options={SIZE_OPTIONS}
-                    value={manualMode === 'presets' ? 'presets' : lengthUnit}
-                    onChange={handleSizeChoice}
-                    testIDPrefix="manual-unit"
-                    compact
-                  />
-                  {manualMode === 'presets' ? (
-                    <>
-                      <VehiclePresetChips
-                        selectedId={presetInBoxes?.id}
-                        onPick={handlePickPreset}
-                      />
-                      {presetInBoxes !== undefined ? (
-                        <Text style={styles.presetNote} testID="manual-preset-note">
-                          {`${presetFigures(presetInBoxes).main} · ${presetFigures(presetInBoxes).size}. Typical sizes: check the height matches yours.`}
+                    </View>
+                  ) : vehicleMode === 'profile' ? (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.profileRow}
+                    >
+                      {profilesLoading ? (
+                        <ActivityIndicator color={colors.text} />
+                      ) : profiles === undefined || profiles.length === 0 ? (
+                        <Text style={styles.hint}>
+                          No saved vehicles yet. Try “Enter details” instead.
                         </Text>
-                      ) : dimensionValues.heightM.trim() !== '' ? (
-                        <Text style={styles.presetNote} testID="manual-own-sizes-note">
-                          Using your own sizes. Switch to Metres or Feet and inches to see or change
-                          them.
-                        </Text>
-                      ) : null}
-                    </>
+                      ) : (
+                        profiles.map((profile) => (
+                          <TouchableOpacity
+                            key={profile.id}
+                            style={[
+                              styles.chip,
+                              profile.id === selectedProfile?.id && styles.chipSelected,
+                            ]}
+                            onPress={() => handleSelectProfile(profile.id)}
+                            testID={`profile-chip-${profile.id}`}
+                          >
+                            <Text
+                              style={[
+                                styles.chipText,
+                                profile.id === selectedProfile?.id && styles.chipTextSelected,
+                              ]}
+                            >
+                              {profile.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </ScrollView>
                   ) : (
-                    DIMENSION_FIELDS.map((field) => {
-                      const isSize =
-                        field.key === 'heightM' ||
-                        field.key === 'widthM' ||
-                        field.key === 'lengthM';
-                      const inFeet = isSize && lengthUnit === 'feet';
-                      return (
-                        <View key={field.key}>
-                          <Text style={styles.label}>
-                            {inFeet
-                              ? field.label.replace('(metres)', '(feet and inches)')
-                              : field.label}
-                          </Text>
-                          {inFeet ? (
-                            // Remounted when the unit changes, so the boxes are filled afresh from the value in metres.
-                            <FeetInchesInputs
-                              key={`${field.key}-${lengthUnit}`}
-                              metres={dimensionValues[field.key]}
-                              onChangeMetres={setDimensionField(field.key)}
-                              feetPlaceholder={FEET_PLACEHOLDERS[field.key] ?? ''}
-                              inchesPlaceholder={INCHES_PLACEHOLDERS[field.key] ?? ''}
-                              inputStyle={styles.input}
-                              testIDPrefix={`manual-${field.key}`}
-                            />
-                          ) : (
-                            <TextInput
-                              style={styles.input}
-                              value={dimensionValues[field.key]}
-                              onChangeText={setDimensionField(field.key)}
-                              placeholder={field.placeholder}
-                              placeholderTextColor={colors.textDim}
-                              keyboardType="decimal-pad"
-                              testID={`manual-${field.key}-input`}
-                            />
-                          )}
-                        </View>
-                      );
-                    })
+                    <ScrollView
+                      style={styles.manualForm}
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                    >
+                      <SegmentedControl
+                        options={SIZE_OPTIONS}
+                        value={manualMode === 'presets' ? 'presets' : lengthUnit}
+                        onChange={handleSizeChoice}
+                        testIDPrefix="manual-unit"
+                        compact
+                      />
+                      {manualMode === 'presets' ? (
+                        <>
+                          <VehiclePresetChips
+                            selectedId={presetInBoxes?.id}
+                            onPick={handlePickPreset}
+                          />
+                          {presetInBoxes !== undefined ? (
+                            <Text style={styles.presetNote} testID="manual-preset-note">
+                              {`${presetFigures(presetInBoxes).main} · ${presetFigures(presetInBoxes).size}. Typical sizes: check the height matches yours.`}
+                            </Text>
+                          ) : dimensionValues.heightM.trim() !== '' ? (
+                            <Text style={styles.presetNote} testID="manual-own-sizes-note">
+                              Using your own sizes. Switch to Metres or Feet and inches to see or
+                              change them.
+                            </Text>
+                          ) : null}
+                        </>
+                      ) : (
+                        DIMENSION_FIELDS.map((field) => {
+                          const isSize =
+                            field.key === 'heightM' ||
+                            field.key === 'widthM' ||
+                            field.key === 'lengthM';
+                          const inFeet = isSize && lengthUnit === 'feet';
+                          return (
+                            <View key={field.key}>
+                              <Text style={styles.label}>
+                                {inFeet
+                                  ? field.label.replace('(metres)', '(feet and inches)')
+                                  : field.label}
+                              </Text>
+                              {inFeet ? (
+                                // Remounted when the unit changes, so the boxes are filled afresh from the value in metres.
+                                <FeetInchesInputs
+                                  key={`${field.key}-${lengthUnit}`}
+                                  metres={dimensionValues[field.key]}
+                                  onChangeMetres={setDimensionField(field.key)}
+                                  feetPlaceholder={FEET_PLACEHOLDERS[field.key] ?? ''}
+                                  inchesPlaceholder={INCHES_PLACEHOLDERS[field.key] ?? ''}
+                                  inputStyle={styles.input}
+                                  testIDPrefix={`manual-${field.key}`}
+                                />
+                              ) : (
+                                <TextInput
+                                  style={styles.input}
+                                  value={dimensionValues[field.key]}
+                                  onChangeText={setDimensionField(field.key)}
+                                  placeholder={field.placeholder}
+                                  placeholderTextColor={colors.textDim}
+                                  keyboardType="decimal-pad"
+                                  testID={`manual-${field.key}-input`}
+                                />
+                              )}
+                            </View>
+                          );
+                        })
+                      )}
+                    </ScrollView>
                   )}
-                </ScrollView>
+                </>
               )}
 
               <PointPicker
@@ -805,7 +869,7 @@ export default function PlanRouteScreen() {
             </Text>
           )}
 
-          {routeOptions === undefined && (
+          {routeOptions === undefined && !folded && (
             <View testID="load-switch">
               <Text style={styles.label}>Load type</Text>
               <SegmentedControl
@@ -838,128 +902,201 @@ export default function PlanRouteScreen() {
             </TouchableOpacity>
           ) : (
             <View style={styles.optionsList}>
-              <Text style={styles.label}>Choose a route</Text>
-              {comparedLoaded && !hillsWereChecked(routeOptions) && (
-                <Text style={styles.presetNote} testID="hills-unavailable">
-                  {HILLS_UNAVAILABLE}
-                </Text>
-              )}
-              {routeOptions.some((option) => option.breaksWeightLimit === true) && (
-                <Text style={styles.weightWarning} testID="weight-limit-banner">
-                  {WEIGHT_LIMIT_BANNER}
-                </Text>
-              )}
-              {routeOptions.map((option, index) => (
-                <TouchableOpacity
-                  key={`${option.geometry}-${index}`}
-                  style={[
-                    styles.optionCard,
-                    {
-                      borderLeftWidth: 6,
-                      borderLeftColor: OPTION_COLOURS[index % OPTION_COLOURS.length],
-                    },
-                  ]}
-                  disabled={createRoutePlan.isPending}
-                  onPress={() => handleConfirmOption(option)}
-                  testID={`route-option-${index}`}
-                >
-                  <View style={styles.optionIcon}>
-                    <Icon
-                      name={
-                        option.labels.includes('fastest')
-                          ? 'lightning-bolt'
-                          : option.labels.includes('gentle')
-                            ? 'terrain'
-                            : option.labels.includes('shortest')
-                              ? 'ruler'
-                              : 'cash-remove'
-                      }
-                      size={26}
-                      color={colors.accent}
-                    />
-                  </View>
-                  <View style={styles.optionText}>
-                    <Text style={styles.optionLabel}>{routeOptionTitle(option)}</Text>
-                    <Text style={styles.optionDetail}>
-                      {formatRouteDistance(option.distanceKm, distanceUnit)} ·{' '}
-                      {formatDuration(option.durationMin)}
-                      {option.estimatedFuelCostGBP !== undefined
-                        ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
-                        : ''}
-                    </Text>
-                    {hillsLine(option, distanceUnit) !== undefined && (
-                      <Text style={styles.optionDetail} testID={`route-option-${index}-hills`}>
-                        {hillsLine(option, distanceUnit)}
+              <Text style={styles.label} testID="routes-heading">
+                {routesHeading(routeOptions.length)}
+              </Text>
+              {/* Cards with toll and zone lines are tall: three of them ran off the bottom of the screen with no way to reach
+                  the last. They scroll inside half the screen, and the map keeps the rest. */}
+              <ScrollView
+                style={{ maxHeight: Math.round(windowHeight * 0.5) }}
+                contentContainerStyle={styles.optionsScroll}
+                showsVerticalScrollIndicator
+                testID="route-options-scroll"
+              >
+                {comparedLoaded && !hillsWereChecked(routeOptions) && (
+                  <Text style={styles.presetNote} testID="hills-unavailable">
+                    {HILLS_UNAVAILABLE}
+                  </Text>
+                )}
+                {routeOptions.some((option) => option.breaksWeightLimit === true) && (
+                  <Text style={styles.weightWarning} testID="weight-limit-banner">
+                    {WEIGHT_LIMIT_BANNER}
+                  </Text>
+                )}
+                {routeOptions.map((option, index) => (
+                  <TouchableOpacity
+                    key={`${option.geometry}-${index}`}
+                    style={[
+                      styles.optionCard,
+                      {
+                        borderLeftWidth: 6,
+                        borderLeftColor: OPTION_COLOURS[index % OPTION_COLOURS.length],
+                      },
+                    ]}
+                    disabled={createRoutePlan.isPending}
+                    onPress={() => handleConfirmOption(option)}
+                    testID={`route-option-${index}`}
+                  >
+                    <View style={styles.optionIcon}>
+                      <Icon
+                        name={
+                          option.labels.includes('fastest')
+                            ? 'lightning-bolt'
+                            : option.labels.includes('gentle')
+                              ? 'terrain'
+                              : option.labels.includes('shortest')
+                                ? 'ruler'
+                                : 'cash-remove'
+                        }
+                        size={26}
+                        color={colors.accent}
+                      />
+                    </View>
+                    <View style={styles.optionText}>
+                      <Text style={styles.optionLabel}>{routeOptionTitle(option)}</Text>
+                      <Text style={styles.optionDetail}>
+                        {formatRouteDistance(option.distanceKm, distanceUnit)} ·{' '}
+                        {formatDuration(option.durationMin)}
+                        {option.estimatedFuelCostGBP !== undefined
+                          ? ` · est. £${option.estimatedFuelCostGBP.toFixed(2)} fuel`
+                          : ''}
                       </Text>
-                    )}
-                    {tollLines(option).map((line, lineIndex) => (
-                      <View key={line.text}>
-                        <Text
-                          style={styles.optionDetail}
-                          testID={`route-option-${index}-toll${lineIndex === 0 ? '' : `-${lineIndex}`}`}
-                        >
-                          {line.text}
-                        </Text>
-                        {line.detail !== undefined && (
+                      {/* Folded: one line for money, zones and hazards, so three cards fit in the list. Details opens the rest. */}
+                      {!openCards.has(option.geometry) &&
+                        routeSummaryLine(
+                          option,
+                          nearbyHazards.data === undefined
+                            ? undefined
+                            : (hazardsByOption[index]?.size ?? 0),
+                        ) !== undefined && (
                           <Text
-                            style={styles.optionDetail}
-                            testID={`route-option-${index}-toll-detail${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                            style={
+                              routeSummaryIsWarning(option)
+                                ? styles.optionWarning
+                                : styles.optionDetail
+                            }
+                            testID={`route-option-${index}-summary`}
                           >
-                            {line.detail}
+                            {routeSummaryLine(
+                              option,
+                              nearbyHazards.data === undefined
+                                ? undefined
+                                : (hazardsByOption[index]?.size ?? 0),
+                            )}
                           </Text>
                         )}
-                      </View>
-                    ))}
-                    {costLine(option) !== undefined && (
-                      <Text style={styles.optionDetail} testID={`route-option-${index}-cost`}>
-                        {costLine(option)}
-                      </Text>
-                    )}
-                    {cheapestLine(option, routeOptions) !== undefined && (
-                      <Text style={styles.optionDetail} testID={`route-option-${index}-cheapest`}>
-                        {cheapestLine(option, routeOptions)}
-                      </Text>
-                    )}
-                    {zoneLines(option).map((line, lineIndex) => (
-                      <Text
-                        key={line.text}
-                        style={line.charged ? styles.optionWarning : styles.optionDetail}
-                        testID={`route-option-${index}-zone${lineIndex === 0 ? '' : `-${lineIndex}`}`}
-                      >
-                        {line.text}
-                      </Text>
-                    ))}
-                    {option.breaksWeightLimit === true && (
-                      <Text style={styles.optionWarning}>{WEIGHT_LIMIT_SHORT}</Text>
-                    )}
-                  </View>
-                  <Icon name="chevron-right" size={26} color={colors.textMuted} />
-                </TouchableOpacity>
-              ))}
-              {euroVIUnknown(routeOptions) &&
-                vehicleMode === 'profile' &&
-                selectedProfile !== undefined && (
-                  <TouchableOpacity
-                    onPress={() =>
-                      router.push({
-                        pathname: '/profiles/[id]',
-                        params: { id: selectedProfile.id },
-                      })
-                    }
-                    accessibilityRole="button"
-                    testID="say-euro-vi"
-                  >
-                    <Text style={styles.linkText}>
-                      Say whether {selectedProfile.name} is Euro VI
-                    </Text>
+                      {openCards.has(option.geometry) && (
+                        <>
+                          {nearbyHazards.data !== undefined && (
+                            <Text
+                              style={styles.optionDetail}
+                              testID={`route-option-${index}-hazards`}
+                            >
+                              {hazardCountLine(hazardsByOption[index]?.size ?? 0)}
+                            </Text>
+                          )}
+                          {hillsLine(option, distanceUnit) !== undefined && (
+                            <Text
+                              style={styles.optionDetail}
+                              testID={`route-option-${index}-hills`}
+                            >
+                              {hillsLine(option, distanceUnit)}
+                            </Text>
+                          )}
+                          {tollLines(option).map((line, lineIndex) => (
+                            <View key={line.text}>
+                              <Text
+                                style={styles.optionDetail}
+                                testID={`route-option-${index}-toll${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                              >
+                                {line.text}
+                              </Text>
+                              {line.detail !== undefined && (
+                                <Text
+                                  style={styles.optionDetail}
+                                  testID={`route-option-${index}-toll-detail${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                                >
+                                  {line.detail}
+                                </Text>
+                              )}
+                            </View>
+                          ))}
+                          {costLine(option) !== undefined && (
+                            <Text style={styles.optionDetail} testID={`route-option-${index}-cost`}>
+                              {costLine(option)}
+                            </Text>
+                          )}
+                          {cheapestLine(option, routeOptions) !== undefined && (
+                            <Text
+                              style={styles.optionDetail}
+                              testID={`route-option-${index}-cheapest`}
+                            >
+                              {cheapestLine(option, routeOptions)}
+                            </Text>
+                          )}
+                          {zoneLines(option).map((line, lineIndex) => (
+                            <Text
+                              key={line.text}
+                              style={line.charged ? styles.optionWarning : styles.optionDetail}
+                              testID={`route-option-${index}-zone${lineIndex === 0 ? '' : `-${lineIndex}`}`}
+                            >
+                              {line.text}
+                            </Text>
+                          ))}
+                        </>
+                      )}
+                      {option.breaksWeightLimit === true && (
+                        <Text style={styles.optionWarning}>{WEIGHT_LIMIT_SHORT}</Text>
+                      )}
+                      {(routeHasDetails(option, routeOptions, distanceUnit) ||
+                        nearbyHazards.data !== undefined) && (
+                        <TouchableOpacity
+                          style={styles.detailsButton}
+                          onPress={() => toggleCard(option.geometry)}
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded: openCards.has(option.geometry) }}
+                          testID={`route-option-${index}-details`}
+                        >
+                          <Text style={styles.detailsText}>
+                            {openCards.has(option.geometry) ? 'Hide details' : 'Details'}
+                          </Text>
+                          <Icon
+                            name={openCards.has(option.geometry) ? 'chevron-up' : 'chevron-down'}
+                            size={20}
+                            color={colors.accent}
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <Icon name="chevron-right" size={26} color={colors.textMuted} />
                   </TouchableOpacity>
+                ))}
+                {euroVIUnknown(routeOptions) &&
+                  vehicleMode === 'profile' &&
+                  selectedProfile !== undefined && (
+                    <TouchableOpacity
+                      onPress={() =>
+                        router.push({
+                          pathname: '/profiles/[id]',
+                          params: { id: selectedProfile.id },
+                        })
+                      }
+                      accessibilityRole="button"
+                      testID="say-euro-vi"
+                    >
+                      <Text style={styles.linkText}>
+                        Say whether {selectedProfile.name} is Euro VI
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                {zonesShown(routeOptions) && (
+                  <Text style={styles.presetNote} testID="zone-credit">
+                    {ZONE_CREDIT}
+                  </Text>
                 )}
-              {zonesShown(routeOptions) && (
-                <Text style={styles.presetNote} testID="zone-credit">
-                  {ZONE_CREDIT}
-                </Text>
-              )}
+              </ScrollView>
               <TouchableOpacity
+                style={styles.editButton}
                 onPress={() => setRouteOptions(undefined)}
                 testID="edit-route-button"
               >
@@ -994,6 +1131,9 @@ function createStyles(colors: ThemeColors) {
     },
     summary: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 2 },
     summaryText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+    summaryAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+    optionsScroll: { gap: 8 },
+    editButton: { minHeight: 44, justifyContent: 'center' },
     backOverlay: {
       position: 'absolute',
       left: 16,
@@ -1142,6 +1282,16 @@ function createStyles(colors: ThemeColors) {
       fontSize: 15,
       color: colors.warning,
     },
+    // Its own target inside the card: tapping it opens the details, tapping anywhere else on the card chooses the route.
+    detailsButton: {
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      alignSelf: 'flex-start',
+      paddingRight: 12,
+    },
+    detailsText: { fontSize: 15, fontWeight: '700', color: colors.accent },
     optionWarning: {
       fontSize: 15,
       fontWeight: '600',

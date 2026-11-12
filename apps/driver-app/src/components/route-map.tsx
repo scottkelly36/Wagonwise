@@ -10,7 +10,7 @@ import {
   type PressEvent,
   type ViewStateChangeEvent,
 } from '@maplibre/maplibre-react-native';
-import type { HazardTypeDto } from '@wagonwise/contracts/hazards';
+import type { HazardTypeDto, MeasurementDto } from '@wagonwise/contracts/hazards';
 import {
   useEffect,
   useImperativeHandle,
@@ -26,6 +26,7 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { config } from '../config';
 import type { PlaceCategory } from '@wagonwise/contracts/places';
 import { hazardSeverityFor } from '../lib/hazard-labels';
+import { HAZARD_MARKER_ICONS, hazardMarkerFigure } from '../lib/hazard-marker';
 import { viewFromBounds, type MapView } from '../lib/map-view';
 import { INITIAL_MAP_LOAD, mapLoadMessage, mapLoadReducer, SLOW_AFTER_MS } from '../lib/map-load';
 import { PLACE_CATEGORY_ICONS } from '../lib/place-icons';
@@ -44,6 +45,8 @@ export interface HazardMarker {
   readonly id: string;
   readonly type: HazardTypeDto;
   readonly location: MapPoint;
+  /** The height, width or weight on the report, written on the marker so a driver need not tap to learn it. */
+  readonly measurement?: MeasurementDto | undefined;
 }
 
 /** A crowd-sourced congestion report (Phase 1, docs/progress.md) — distinct in shape and colour
@@ -518,7 +521,17 @@ export function RouteMap({
               ]}
               testID={`hazard-pin-${hazard.id}`}
             >
-              <Text style={styles.hazardMarkerText}>!</Text>
+              {/* A picture of what it is, and its figure when it has one: every hazard used to be the same "!". */}
+              <Icon
+                name={HAZARD_MARKER_ICONS[hazard.type]}
+                size={navigating ? 15 : 17}
+                color="#0B1220"
+              />
+              {hazardMarkerFigure(hazard.measurement) !== undefined && (
+                <Text style={styles.hazardMarkerText} numberOfLines={1}>
+                  {hazardMarkerFigure(hazard.measurement)}
+                </Text>
+              )}
             </View>
           </ViewAnnotation>
         ))}
@@ -748,8 +761,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#34D399',
   },
   hazardMarker: {
-    width: 26,
+    minWidth: 26,
     height: 26,
+    paddingHorizontal: 3,
+    flexDirection: 'row',
+    gap: 3,
     borderRadius: 6,
     borderWidth: 2,
     borderColor: '#FFFFFF',
@@ -757,7 +773,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   hazardMarkerText: {
-    fontSize: 15,
+    flexShrink: 0,
+    fontSize: 13,
     fontWeight: '800',
     color: '#0B1220',
   },
