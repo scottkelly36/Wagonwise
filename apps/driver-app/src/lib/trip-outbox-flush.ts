@@ -10,7 +10,7 @@ export interface TripOutboxFlushResult {
 }
 
 interface Deps {
-  advanceJob(jobId: string, status: JobStatus): Promise<unknown>;
+  advanceJob(jobId: string, status: JobStatus, at: string | undefined): Promise<unknown>;
   endTrip(tripId: string, endedAt: string | undefined): Promise<unknown>;
 }
 
@@ -30,7 +30,7 @@ export async function flushTripOutbox(
     try {
       if (item.jobAdvance !== undefined) {
         try {
-          await deps.advanceJob(item.jobAdvance.jobId, item.jobAdvance.status);
+          await deps.advanceJob(item.jobAdvance.jobId, item.jobAdvance.status, item.endedAt);
         } catch (error) {
           if (!isPermanentRejection(error)) throw error;
         }
