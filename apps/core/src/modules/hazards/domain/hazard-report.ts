@@ -74,6 +74,25 @@ export function validateMeasurement(m: Measurement): Result<Measurement, Invalid
   return ok(m);
 }
 
+/** The most a signed limit can sensibly be: no road in Britain is signed above about 5 m high, 5 m wide or 44 t, so a bigger number is a mistake, usually a
+ *  height typed in feet ("13.9" for 13 ft 9 in) into the metres box. Generous, so nothing real is ever caught. */
+const MAX_PLAUSIBLE_LIMIT: Record<Measurement['kind'], number> = {
+  height: 7,
+  width: 8,
+  weight: 100,
+};
+
+/**
+ * The limit routing should compare a vehicle against, or `undefined` when the report has none it can trust. A number no sign could carry is treated as
+ * if the driver gave no measurement at all, which routing handles the cautious way: an unmeasured blocking report avoids every vehicle (`applies()`). Taking
+ * the number at its word would do the opposite, because a bridge "13.9 m high" stops nothing. Only used for the avoid-or-not decision; what was reported
+ * is kept as it was typed.
+ */
+export function usableLimit(measurement: Measurement | undefined): number | undefined {
+  if (measurement === undefined) return undefined;
+  return measurement.value > MAX_PLAUSIBLE_LIMIT[measurement.kind] ? undefined : measurement.value;
+}
+
 /**
  * Blocking types (design doc §5) can become avoid polygons for a vehicle `applies()` (routing
  * domain, M2.4) says is affected; advisory types are shown on the route but never force a

@@ -127,6 +127,21 @@ describe('findAvoidanceCandidates and the doubtful-report hold', () => {
     expect(found.find((c) => c.id === measured.id)).toMatchObject({ kind: 'height', limit: 3.5 });
   });
 
+  it('treats a height no sign could carry (13.9 typed for 13 ft 9 in) as no measurement, so it avoids every vehicle rather than none', async () => {
+    const feetInMetresBox = report({
+      reporterId: NEW,
+      location: { lat: 54.9712, lon: -2.1 },
+      measurement: { kind: 'height', value: 13.9, unit: 'm' },
+    });
+    await repo.save(feetInMetresBox);
+
+    const found = await hazards.findAvoidanceCandidates(corridor, 80);
+    const candidate = found.find((c) => c.id === feetInMetresBox.id);
+
+    expect(candidate).toMatchObject({ kind: 'height' });
+    expect(candidate).not.toHaveProperty('limit');
+  });
+
   it('routes around a held-back report again once a moderator approves it', async () => {
     const doubtful = report({ reporterId: BAD, location: { lat: 54.9708, lon: -2.1 } });
     await repo.save(doubtful);

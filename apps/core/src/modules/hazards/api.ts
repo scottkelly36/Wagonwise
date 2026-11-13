@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { HazardParser } from './application/ports/hazard-parser.js';
-import { isExpired, type GeoPoint, type HazardType } from './domain/hazard-report.js';
+import { isExpired, usableLimit, type GeoPoint, type HazardType } from './domain/hazard-report.js';
 import { expireHazards } from './application/expire-hazards.js';
 import { findNearbyHazards } from './application/find-nearby-hazards.js';
 import { assessReports } from './application/trust.js';
@@ -165,10 +165,11 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
         if (kind === undefined) {
           continue;
         }
+        const limit = usableLimit(report.measurement);
         candidates.push({
           id: report.id,
           kind,
-          ...(report.measurement === undefined ? {} : { limit: report.measurement.value }),
+          ...(limit === undefined ? {} : { limit }),
           location: report.location,
         });
       }

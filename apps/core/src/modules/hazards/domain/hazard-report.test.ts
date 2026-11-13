@@ -10,6 +10,7 @@ import {
   isBlocking,
   isExpired,
   isTemporary,
+  usableLimit,
   validateMeasurement,
   type HazardReport,
   type HazardType,
@@ -210,5 +211,25 @@ describe('dismiss', () => {
     const r = report({ dismissals: 0 });
     dismiss(r);
     expect(r.dismissals).toBe(0);
+  });
+});
+
+describe('usableLimit', () => {
+  it('gives back a limit a sign could carry', () => {
+    expect(usableLimit({ kind: 'height', value: 3.5, unit: 'm' })).toBe(3.5);
+    expect(usableLimit({ kind: 'height', value: 5, unit: 'm' })).toBe(5);
+    expect(usableLimit({ kind: 'width', value: 2, unit: 'm' })).toBe(2);
+    expect(usableLimit({ kind: 'weight', value: 7.5, unit: 't' })).toBe(7.5);
+  });
+
+  it('has none when there was no measurement', () => {
+    expect(usableLimit(undefined)).toBeUndefined();
+  });
+
+  it('has none for a number no sign could carry, such as 13 ft 9 in typed as 13.9 in the metres box', () => {
+    expect(usableLimit({ kind: 'height', value: 13.9, unit: 'm' })).toBeUndefined();
+    expect(usableLimit({ kind: 'height', value: 7.1, unit: 'm' })).toBeUndefined();
+    expect(usableLimit({ kind: 'width', value: 9, unit: 'm' })).toBeUndefined();
+    expect(usableLimit({ kind: 'weight', value: 150, unit: 't' })).toBeUndefined();
   });
 });
