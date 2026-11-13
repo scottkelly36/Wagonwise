@@ -192,10 +192,15 @@ export const assignJobRequestSchema = z.object({
 });
 export type AssignJobRequest = z.infer<typeof assignJobRequestSchema>;
 
-/** One step forward; `position` is the GPS fix to stamp on the change, when there is one. */
+/**
+ * One step forward; `position` is the GPS fix to stamp on the change, when there is one. `at` is when the driver tapped, sent by an app that held the step
+ * until it had signal, so the job is not recorded as arriving whenever the signal came back; the server keeps it between the job's last step and now,
+ * and only the driver's own route reads it.
+ */
 export const advanceJobStatusRequestSchema = z.object({
   status: jobStatusSchema,
   position: geoPointSchema.optional(),
+  at: z.iso.datetime().optional(),
 });
 export type AdvanceJobStatusRequest = z.infer<typeof advanceJobStatusRequestSchema>;
 

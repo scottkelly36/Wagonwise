@@ -28,6 +28,19 @@ const arrival: PendingTripEnd = {
 };
 
 describe('flushTripOutbox', () => {
+  it('sends the time the driver tapped with the arrival, so the job is not stamped when the signal came back', async () => {
+    const advanceJob = jest.fn().mockResolvedValue(undefined);
+    const tapped = '2026-11-13T09:15:00.000Z';
+    await flushTripOutbox([{ ...arrival, endedAt: tapped }], deps({ advanceJob }));
+    expect(advanceJob).toHaveBeenCalledWith('job-1', 'at_delivery', tapped);
+  });
+
+  it('sends no time for an arrival queued by an older version of the app', async () => {
+    const advanceJob = jest.fn().mockResolvedValue(undefined);
+    await flushTripOutbox([arrival], deps({ advanceJob }));
+    expect(advanceJob).toHaveBeenCalledWith('job-1', 'at_delivery', undefined);
+  });
+
   it('says the job has arrived before it ends the trip, then moves on to the next trip', async () => {
     const d = deps({});
     const result = await flushTripOutbox([arrival, { tripId: 'trip-2' }], d);

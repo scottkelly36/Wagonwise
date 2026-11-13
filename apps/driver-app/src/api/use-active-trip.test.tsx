@@ -123,6 +123,7 @@ describe('Arrived on a job', () => {
     await arrive();
     expect(jobs.advanceJobStatus).toHaveBeenCalledWith('token-1', 'job-1', {
       status: 'at_delivery',
+      at: expect.any(String),
     });
     expect(routing.endTrip).toHaveBeenCalledWith('token-1', 'trip-1');
     expect(queueTripEnd).not.toHaveBeenCalled();

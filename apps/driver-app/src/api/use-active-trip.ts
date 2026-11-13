@@ -66,7 +66,10 @@ export function useArriveAtStop() {
     mutationFn: async (input: { jobId: string; status: JobStatus; tripId: string }) => {
       const tapped = new Date().toISOString();
       try {
-        await jobsApi.advanceJobStatus(accessToken, input.jobId, { status: input.status });
+        await jobsApi.advanceJobStatus(accessToken, input.jobId, {
+          status: input.status,
+          at: tapped,
+        });
       } catch (error) {
         if (isPermanentRejection(error)) throw error;
         await queueTripEnd({

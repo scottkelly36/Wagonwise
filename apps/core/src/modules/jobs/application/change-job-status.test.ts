@@ -71,6 +71,38 @@ describe('advanceJobStatus', () => {
     expect(repo.events.map((e) => e.eventType)).toEqual(['JobStatusChanged']);
   });
 
+  it('stamps the time the driver tapped when the app held the step until it had signal', async () => {
+    const { deps } = await setup('assigned');
+    const r = await advanceJobStatus(deps, {
+      actor: DRIVER,
+      jobId,
+      to: 'accepted',
+      at: new Date('2026-10-01T10:30:00.000Z'),
+    });
+    expect(r.ok && r.value.timeline.at(-1)?.at).toEqual(new Date('2026-10-01T10:30:00.000Z'));
+  });
+
+  it('never stamps a step in the future, or before the last step of the job', async () => {
+    const future = await setup('assigned');
+    const late = await advanceJobStatus(future.deps, {
+      actor: DRIVER,
+      jobId,
+      to: 'accepted',
+      at: new Date('2026-10-01T12:00:00.000Z'),
+    });
+    expect(late.ok && late.value.timeline.at(-1)?.at).toEqual(new Date('2026-10-01T11:00:00.000Z'));
+
+    const past = await setup('assigned');
+    const lastStep = (await past.repo.findById(jobId))?.timeline.at(-1)?.at;
+    const early = await advanceJobStatus(past.deps, {
+      actor: DRIVER,
+      jobId,
+      to: 'accepted',
+      at: new Date('2000-01-01T00:00:00.000Z'),
+    });
+    expect(early.ok && early.value.timeline.at(-1)?.at).toEqual(lastStep);
+  });
+
   it('raises JobCompleted as well when the job is delivered', async () => {
     const { repo, deps } = await setup('at_delivery');
     await advanceJobStatus(deps, { actor: DRIVER, jobId, to: 'delivered' });
