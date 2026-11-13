@@ -12,6 +12,7 @@ import { RouteMap, type MapPoint, type RouteOptionLine } from '../components/rou
 import { RoundButton } from '../components/ui/round-button';
 import { useAccessToken } from '../hooks/use-access-token';
 import { fetchCurrentLocation } from '../hooks/use-current-location';
+import { useRouteOptionHazards } from '../hooks/use-route-option-hazards';
 import { jobNavigationErrorMessage, LocationUnavailableError } from '../lib/error-messages';
 import { navigationTarget } from '../lib/job-navigation';
 import { decodePolyline6 } from '../lib/polyline';
@@ -95,6 +96,9 @@ export default function JobRouteScreen() {
       })),
     [prepared],
   );
+
+  // The known hazards on each route, for the count on its card.
+  const routeHazards = useRouteOptionHazards(optionLines);
 
   if (job.isPending) {
     return (
@@ -189,6 +193,7 @@ export default function JobRouteScreen() {
             options={prepared.options}
             comparedLoaded={prepared.loaded}
             distanceUnit={distanceUnit}
+            hazardCounts={routeHazards.counts}
             busy={createRoutePlan.isPending}
             onChoose={handleChoose}
           />
