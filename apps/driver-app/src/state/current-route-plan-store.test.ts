@@ -1,6 +1,7 @@
 import type { RoutePlanDto } from '@wagonwise/contracts/routing';
 
 import { useCurrentRoutePlanStore } from './current-route-plan-store';
+import { useTripTollsStore } from './trip-tolls-store';
 
 const plan = {
   id: 'plan-1',
@@ -18,6 +19,7 @@ const plan = {
 
 beforeEach(() => {
   useCurrentRoutePlanStore.setState({ plan: undefined });
+  useTripTollsStore.setState({ avoiding: {} });
 });
 
 describe('useCurrentRoutePlanStore', () => {
@@ -28,6 +30,16 @@ describe('useCurrentRoutePlanStore', () => {
   it('setPlan makes it the current plan', () => {
     useCurrentRoutePlanStore.getState().setPlan(plan);
     expect(useCurrentRoutePlanStore.getState().plan).toEqual(plan);
+  });
+
+  it('remembers a plan the server says was chosen for having no toll, so a re-plan from it keeps avoiding tolls', () => {
+    useCurrentRoutePlanStore.getState().setPlan({ ...plan, avoidsTolls: true });
+    expect(useTripTollsStore.getState().isAvoiding('plan-1')).toBe(true);
+  });
+
+  it('does not mark an ordinary plan as avoiding tolls', () => {
+    useCurrentRoutePlanStore.getState().setPlan(plan);
+    expect(useTripTollsStore.getState().isAvoiding('plan-1')).toBe(false);
   });
 
   it('clear removes it again', () => {

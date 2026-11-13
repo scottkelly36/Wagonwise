@@ -44,4 +44,6 @@ export interface RoutePlan {
   /** True when no route existed for the vehicle's real weight, and the driver chose to go anyway: the route goes past a signed
    *  weight limit somewhere (it may allow access for deliveries; the engine cannot tell). Absent for an ordinary route. */
   readonly breaksWeightLimit?: boolean | undefined;
+  /** True when the driver chose this route for having no toll, or it was planned to keep avoiding tolls: a re-route worked out later keeps avoiding them (a preference, not a ban). Absent otherwise. */
+  readonly avoidsTolls?: boolean | undefined;
 }

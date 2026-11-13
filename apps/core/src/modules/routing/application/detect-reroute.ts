@@ -72,10 +72,12 @@ const KIND_LABEL: Record<AvoidanceCandidate['kind'], string> = {
 function buildNotification(
   kind: AvoidanceCandidate['kind'],
   newRoutePlanId: RoutePlanId,
+  /** The driver chose a route with no toll and the way round has one: say so, so a re-route never adds one unannounced. */
+  hasTollNow: boolean,
 ): PushNotification {
   return {
     title: 'New hazard on your route',
-    body: `A ${KIND_LABEL[kind]} was reported ahead on your route. Tap for a new route.`,
+    body: `A ${KIND_LABEL[kind]} was reported ahead on your route. Tap for a new route.${hasTollNow ? ' The new route has a toll.' : ''}`,
     data: { newRoutePlanId },
   };
 }
@@ -92,6 +94,8 @@ interface Subject {
    *  — revisit once M6.6 (or later) adds real position updates. */
   readonly origin: GeoPoint;
   readonly destination: GeoPoint;
+  /** The driver chose this route for having no toll: the route worked out around the hazard keeps avoiding tolls, as a preference. */
+  readonly avoidsTolls: boolean;
 }
 
 async function findAffectedSubjects(
@@ -111,6 +115,7 @@ async function findAffectedSubjects(
       profileId: plan.profileId,
       origin: trip.lastPosition ?? plan.origin,
       destination: plan.destination,
+      avoidsTolls: plan.avoidsTolls === true,
     });
   }
 
@@ -128,6 +133,7 @@ async function findAffectedSubjects(
       profileId: plan.profileId,
       origin: plan.origin,
       destination: plan.destination,
+      avoidsTolls: plan.avoidsTolls === true,
     });
   }
 
@@ -201,6 +207,7 @@ export async function detectReroute(
       destination: subject.destination,
       dimensions: profile.dimensions,
       avoid: [zone],
+      ...(subject.avoidsTolls ? { avoidTolls: true } : {}),
     });
     if (!routed.ok) continue; // genuinely no way around it — no new route id to notify with
 
@@ -217,6 +224,7 @@ export async function detectReroute(
       maneuvers: routed.value.maneuvers,
       hazardsOnRoute: [trigger.hazardId],
       createdAt: deps.clock.now(),
+      ...(subject.avoidsTolls ? { avoidsTolls: true } : {}),
     };
     await deps.routePlanRepo.save(newPlan);
 
@@ -235,7 +243,11 @@ export async function detectReroute(
     // here would wake the driver twice about the same bridge (AGENTS.md rule 9).
 
     const tokens = await deps.identity.getPushTokensForDriver(subject.driverId);
-    const notification = buildNotification(candidate.kind, newPlan.id);
+    const notification = buildNotification(
+      candidate.kind,
+      newPlan.id,
+      subject.avoidsTolls && routed.value.hasToll === true,
+    );
     for (const token of tokens) {
       await deps.pushNotifier.send(token, notification);
     }

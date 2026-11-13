@@ -74,6 +74,19 @@ describe('PostgresRoutePlanRepository', () => {
     expect((await repo().findById(ordinary.id))?.breaksWeightLimit).toBeUndefined();
   });
 
+  it('keeps the choice of a route with no toll, and leaves an ordinary route unmarked', async () => {
+    const chosen = plan({
+      id: makeId<'RoutePlanId'>('c0de0008-0000-4000-8000-000000000001'),
+      avoidsTolls: true,
+    });
+    const ordinary = plan({ id: makeId<'RoutePlanId'>('c0de0008-0000-4000-8000-000000000002') });
+    await repo().save(chosen);
+    await repo().save(ordinary);
+
+    expect((await repo().findById(chosen.id))?.avoidsTolls).toBe(true);
+    expect((await repo().findById(ordinary.id))?.avoidsTolls).toBeUndefined();
+  });
+
   it('round-trips turn-by-turn steps, including a roundabout exit (P2-M10)', async () => {
     const p = plan({
       id: makeId<'RoutePlanId'>('c0de0001-0000-4000-8000-000000000001'),
