@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
-import { err } from '../../../shared/result.js';
+import { err, ok } from '../../../shared/result.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { AvoidanceCandidate } from '../../hazards/api.js';
@@ -163,6 +163,66 @@ describe('detectReroute', () => {
       origin,
       destination,
       dimensions: tallVehicle,
+    });
+  });
+
+  describe('a driver who chose a route with no toll', () => {
+    async function arrange(avoidsTolls: boolean, hasToll: boolean | undefined) {
+      const b = build();
+      await b.vehicleProfileRepo.save({
+        id: profileId,
+        driverId,
+        name: 'Big Wagon',
+        dimensions: tallVehicle,
+      });
+      await b.routePlanRepo.save({
+        id: makeId<'RoutePlanId'>('plan-1'),
+        driverId,
+        profileId,
+        origin,
+        destination,
+        geometry: REAL_GEOMETRY,
+        distanceKm: 8,
+        durationMin: 10,
+        avoidedRestrictions: [],
+        maneuvers: [],
+        hazardsOnRoute: [],
+        createdAt: b.clock.now(),
+        ...(avoidsTolls ? { avoidsTolls: true } : {}),
+      });
+      b.routingEngine.result = ok({
+        geometry: 'fake-geometry',
+        distanceKm: 10,
+        durationMin: 15,
+        maneuvers: [],
+        ...(hasToll === undefined ? {} : { hasToll }),
+      });
+      await detectReroute(b.deps, trigger);
+      return b;
+    }
+
+    it('is routed round the hazard avoiding tolls, and the new plan keeps the choice', async () => {
+      const b = await arrange(true, false);
+      expect(b.routingEngine.requests[0]).toMatchObject({ avoidTolls: true });
+      const id = b.pushNotifier.sent[0]?.notification.data.newRoutePlanId as string;
+      const saved = await b.routePlanRepo.findById(makeId<'RoutePlanId'>(id));
+      expect(saved?.avoidsTolls).toBe(true);
+      expect(b.pushNotifier.sent[0]?.notification.body).not.toContain('toll');
+    });
+
+    it('is told when the way round has a toll anyway', async () => {
+      const b = await arrange(true, true);
+      expect(b.pushNotifier.sent[0]?.notification.body).toContain('The new route has a toll.');
+    });
+
+    it('is not asked about tolls when the route was not chosen for having none', async () => {
+      const b = await arrange(false, true);
+      expect(b.routingEngine.requests[0]).not.toHaveProperty('avoidTolls');
+      expect(b.pushNotifier.sent[0]?.notification.body).not.toContain('toll');
+      const id = b.pushNotifier.sent[0]?.notification.data.newRoutePlanId as string;
+      expect(
+        (await b.routePlanRepo.findById(makeId<'RoutePlanId'>(id)))?.avoidsTolls,
+      ).toBeUndefined();
     });
   });
 

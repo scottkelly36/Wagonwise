@@ -277,6 +277,8 @@ export const routePlanSchema = z.object({
   estimatedFuelCostGBP: z.number().optional(),
   /** Present and true when the driver chose a route past a weight limit because none existed for the vehicle's weight. */
   breaksWeightLimit: z.boolean().optional(),
+  /** Present and true when the route was chosen for having no toll, so a re-plan and a re-route made by the server keep avoiding tolls. */
+  avoidsTolls: z.boolean().optional(),
 });
 export type RoutePlanDto = z.infer<typeof routePlanSchema>;
 
