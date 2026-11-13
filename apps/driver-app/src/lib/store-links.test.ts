@@ -1,4 +1,10 @@
-import { APP_STORE_URL, PLAY_STORE_APP_URL, PLAY_STORE_WEB_URL, shareMessage } from './store-links';
+import {
+  APP_STORE_REVIEW_URL,
+  APP_STORE_URL,
+  PLAY_STORE_APP_URL,
+  PLAY_STORE_WEB_URL,
+  shareMessage,
+} from './store-links';
 
 describe('store links', () => {
   it('points the Play Store app and the web page at the same listing', () => {
@@ -8,8 +14,9 @@ describe('store links', () => {
     );
   });
 
-  it('has the App Store listing', () => {
+  it('has the App Store listing, and the same listing opened on the page to write a review', () => {
     expect(APP_STORE_URL).toBe('https://apps.apple.com/gb/app/id6827935469');
+    expect(APP_STORE_REVIEW_URL).toBe(`${APP_STORE_URL}?action=write-review`);
   });
 
   it('shares both store links in one message, so it works for whoever receives it', () => {

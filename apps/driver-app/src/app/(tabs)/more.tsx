@@ -23,7 +23,12 @@ import { SegmentedControl } from '../../components/ui/segmented-control';
 import { identityErrorMessage } from '../../lib/error-messages';
 import { needsEmail } from '../../lib/sign-in-form';
 import { DISTANCE_UNIT_OPTIONS, FUEL_UNIT_OPTIONS } from '../../lib/units';
-import { PLAY_STORE_APP_URL, PLAY_STORE_WEB_URL, shareMessage } from '../../lib/store-links';
+import {
+  APP_STORE_REVIEW_URL,
+  PLAY_STORE_APP_URL,
+  PLAY_STORE_WEB_URL,
+  shareMessage,
+} from '../../lib/store-links';
 import { PRODUCT_NAME } from '../../product';
 import { useAuthStore } from '../../state/auth-store';
 import { useFasterRouteStore } from '../../state/faster-route-store';
@@ -137,8 +142,12 @@ export default function MoreScreen() {
     ]);
   }
 
-  /** Opens the Play Store app on our listing; the web page when the phone has no Play Store app. */
+  /** On an iPhone, the App Store's page to write a review. On Android, the Play Store app on our listing, or the web page when the phone has no Play Store app. */
   function handleRate(): void {
+    if (Platform.OS === 'ios') {
+      void Linking.openURL(APP_STORE_REVIEW_URL);
+      return;
+    }
     Linking.openURL(PLAY_STORE_APP_URL).catch(() => Linking.openURL(PLAY_STORE_WEB_URL));
   }
 
@@ -307,23 +316,20 @@ export default function MoreScreen() {
 
         <Text style={styles.sectionLabel}>{PRODUCT_NAME}</Text>
         <View style={styles.group}>
-          {Platform.OS === 'android' && (
-            <TouchableOpacity
-              style={styles.row}
-              onPress={handleRate}
-              accessibilityRole="button"
-              testID="rate-app-button"
-            >
-              <View style={styles.rowIcon}>
-                <Icon name="star-outline" size={26} color={colors.accent} />
-              </View>
-              <Text style={styles.rowLabel}>Rate {PRODUCT_NAME}</Text>
-              <Icon name="chevron-right" size={26} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
           <TouchableOpacity
-            // The line sits above a row, so the first row of the group has none (Rate is only there on Android).
-            style={[styles.row, Platform.OS === 'android' && styles.rowDivider]}
+            style={styles.row}
+            onPress={handleRate}
+            accessibilityRole="button"
+            testID="rate-app-button"
+          >
+            <View style={styles.rowIcon}>
+              <Icon name="star-outline" size={26} color={colors.accent} />
+            </View>
+            <Text style={styles.rowLabel}>Rate {PRODUCT_NAME}</Text>
+            <Icon name="chevron-right" size={26} color={colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.row, styles.rowDivider]}
             onPress={handleShare}
             accessibilityRole="button"
             testID="share-app-button"

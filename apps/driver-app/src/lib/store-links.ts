@@ -12,6 +12,9 @@ export const PLAY_STORE_WEB_URL = `https://play.google.com/store/apps/details?id
 /** The App Store listing, for iPhone. */
 export const APP_STORE_URL = 'https://apps.apple.com/gb/app/id6827935469';
 
+/** The same listing, opened on the page to write a review (Apple's `action=write-review`), for the Rate row on an iPhone. */
+export const APP_STORE_REVIEW_URL = `${APP_STORE_URL}?action=write-review`;
+
 /**
  * What the Share row sends: a line about the app and both store links, whichever phone the sender has, because the person who
  * gets it may have the other kind.
