@@ -645,6 +645,10 @@ the map changes until platform staff approve it at the top of `/admin/parking` (
 The home-screen "Mark safe parking" report also takes optional details (name, spaces, facilities): given as-is to a new spot, but filed as a suggestion when the report lands on a spot already on the map.
 Deciding a suggestion deletes it, and `parking.eraseDriverData` (run on account deletion) removes a driver's waiting ones.
 
+## Portal content security policy
+
+The built portal's `index.html` carries a `Content-Security-Policy` meta tag (2026-11-13; `apps/dashboard/src/lib/content-security-policy.ts`, added by a Vite plugin in `vite.config.ts` for builds only, so the dev server's hot reload is untouched). DigitalOcean static sites cannot set response headers, hence a meta tag. It allows scripts only from the portal itself (no inline, no `eval`), and connections only to the staff server (the origin of `VITE_STAFF_BFF_URL`), `api.postcodes.io` and the two map hosts (`api.maptiler.com`, `demotiles.maplibre.org`); styles allow inline because React and MapLibre set them. **A meta policy cannot set `frame-ancestors`, so the portal can still be framed by another site**; closing that needs real headers (a different host in front, or serving the portal from a service). **If the portal ever calls a new host, add it in that file or the browser will block the call.** Checked in a browser on 2026-11-13: sign-in page renders, a map built the portal's way (same worker and style) loads and draws labels, an injected inline script and a call to another host are both blocked. The signed-in pages were not clicked through.
+
 ## Staff BFF
 
 `apps/staff-bff` (P2-M1.9) is the dashboard's back end for staff accounts. It does the same
