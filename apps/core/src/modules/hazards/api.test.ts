@@ -148,7 +148,7 @@ describe('findAvoidanceCandidates and the doubtful-report hold', () => {
     expect(await hazards.findHazardIdsNear(corridor, 50)).toContain(doubtful.id);
   });
 
-  it('leaves an OpenStreetMap hazard out of routing (the router reads those limits itself) and the moderation queue, but keeps it on the route’s hazard list', async () => {
+  it('leaves an OpenStreetMap hazard mapped on a road out of routing (the router reads those limits itself) and the moderation queue, but keeps it on the route’s hazard list', async () => {
     const imported = report({
       reporterId: makeId<'DriverId'>('00000000-0000-4000-8000-0000000005a1'),
       source: 'osm',
@@ -156,6 +156,10 @@ describe('findAvoidanceCandidates and the doubtful-report hold', () => {
       measurement: { kind: 'height', value: 3.2, unit: 'm' },
     });
     await repo.save(imported);
+    // Only the import writes this column, so the test does too.
+    await pool.query(`update hazards.reports set osm_id = 'way/999999999101' where id = $1`, [
+      imported.id,
+    ]);
 
     expect((await hazards.findAvoidanceCandidates(corridor, 50)).map((c) => c.id)).not.toContain(
       imported.id,
@@ -172,5 +176,36 @@ describe('findAvoidanceCandidates and the doubtful-report hold', () => {
       fromDriver.id,
     );
     expect((await repo.findAwaitingReview()).map((r) => r.id)).toContain(fromDriver.id);
+  });
+
+  it('passes an OpenStreetMap hazard mapped as a point to routing, marked as a point of the road: the router does not read those', async () => {
+    const imported = report({
+      reporterId: makeId<'DriverId'>('00000000-0000-4000-8000-0000000005a1'),
+      source: 'osm',
+      location: { lat: 54.9709, lon: -2.1 },
+      measurement: { kind: 'height', value: 3.35, unit: 'm' },
+    });
+    await repo.save(imported);
+    await pool.query(`update hazards.reports set osm_id = 'node/999999999102' where id = $1`, [
+      imported.id,
+    ]);
+    const fromDriver = report({
+      location: { lat: 54.9711, lon: -2.1 },
+      measurement: { kind: 'height', value: 3.2, unit: 'm' },
+    });
+    await repo.save(fromDriver);
+
+    const candidates = await hazards.findAvoidanceCandidates(corridor, 50);
+
+    expect(candidates.find((c) => c.id === imported.id)).toEqual({
+      id: imported.id,
+      kind: 'height',
+      limit: 3.35,
+      location: { lat: 54.9709, lon: -2.1 },
+      onRoadPoint: true,
+    });
+    expect(candidates.find((c) => c.id === fromDriver.id)).not.toHaveProperty('onRoadPoint');
+    // Still not something for a moderator to review.
+    expect((await repo.findAwaitingReview()).map((r) => r.id)).not.toContain(imported.id);
   });
 });
