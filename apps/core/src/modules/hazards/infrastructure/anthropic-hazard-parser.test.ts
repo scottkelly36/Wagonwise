@@ -109,6 +109,51 @@ describe('AnthropicHazardParser', () => {
     });
   });
 
+  it('tells the model to give metres and tonnes and to convert feet and inches', async () => {
+    const parser = new AnthropicHazardParser('secret-key', baseUrl);
+    const parsePromise = parser.parse('low bridge thirteen foot six');
+    const received = await nextRequest();
+    received.respond(toolUseResponse({ type: 'low_bridge' }), 200);
+    await parsePromise;
+
+    const system = received.body['system'] as string;
+    expect(system).toContain('feet and inches');
+    expect(system).toContain('13 ft 6 in is 4.11 m');
+    expect(system).toContain('never put a number of feet in the metres field');
+  });
+
+  it('leaves out a measurement no sign could carry, such as feet given as metres, and keeps the rest', async () => {
+    const parser = new AnthropicHazardParser('secret-key', baseUrl);
+    const parsePromise = parser.parse('low bridge thirteen foot nine');
+    (await nextRequest()).respond(
+      toolUseResponse({
+        type: 'low_bridge',
+        note: 'Low bridge',
+        measurement: { kind: 'height', value: 13.9, unit: 'm' },
+      }),
+      200,
+    );
+
+    await expect(parsePromise).resolves.toEqual({ type: 'low_bridge', note: 'Low bridge' });
+  });
+
+  it('keeps a measurement that is plausible', async () => {
+    const parser = new AnthropicHazardParser('secret-key', baseUrl);
+    const parsePromise = parser.parse('low bridge four point one metres');
+    (await nextRequest()).respond(
+      toolUseResponse({
+        type: 'low_bridge',
+        measurement: { kind: 'height', value: 4.1, unit: 'm' },
+      }),
+      200,
+    );
+
+    await expect(parsePromise).resolves.toEqual({
+      type: 'low_bridge',
+      measurement: { kind: 'height', value: 4.1, unit: 'm' },
+    });
+  });
+
   it('retries once when the first response has no tool_use block, then uses the retry', async () => {
     const parser = new AnthropicHazardParser('secret-key', baseUrl);
     const parsePromise = parser.parse('roadworks ahead');
