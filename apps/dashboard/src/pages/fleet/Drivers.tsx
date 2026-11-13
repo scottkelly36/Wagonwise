@@ -11,6 +11,7 @@ import { driverDisplayName, driverSubtext } from '../../lib/driver-name';
 import { identifierError } from '../../lib/forms';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 const COMPANIES_KEY = ['companies'] as const;
 
@@ -32,7 +33,8 @@ export function Drivers() {
     enabled: everyCompany,
   });
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(undefined);
+  const [pickedCompanyId, setSelectedCompanyId] = useWorkingCompany();
+  const selectedCompanyId = pickedCompanyId === '' ? undefined : pickedCompanyId;
   const companyId = everyCompany ? selectedCompanyId : me?.companyId;
   const linksKey = ['driver-links', companyId] as const;
   const codeKey = ['company-code', companyId] as const;
@@ -152,7 +154,7 @@ export function Drivers() {
             Company:{' '}
             <select
               value={selectedCompanyId ?? ''}
-              onChange={(e) => setSelectedCompanyId(e.target.value || undefined)}
+              onChange={(e) => setSelectedCompanyId(e.target.value)}
             >
               <option value="">— choose a company —</option>
               {companies.data?.map((company) => (

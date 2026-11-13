@@ -127,3 +127,24 @@ export function etaText(
   const clock = arrival.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   return `${journey} journey${withBreaks} · around ${clock}`;
 }
+
+/** A job that has a vehicle spoken for: given to a driver, or on the road. A draft has no vehicle yet. */
+const HOLDS_A_VEHICLE: readonly JobStatus[] = ['assigned', ...ON_THE_ROAD];
+
+/**
+ * The company's vehicles with no job on them right now, A to Z by name: the ones free to be given work. A vehicle
+ * counts as busy from the moment a job with it is assigned, not only once the driver is moving.
+ */
+export function vehiclesNotOnAJob<V extends { readonly id: string; readonly name: string }>(
+  vehicles: readonly V[],
+  jobs: readonly Pick<JobDto, 'status' | 'vehicleId'>[],
+): V[] {
+  const busy = new Set(
+    jobs.flatMap((job) =>
+      HOLDS_A_VEHICLE.includes(job.status) && job.vehicleId !== undefined ? [job.vehicleId] : [],
+    ),
+  );
+  return vehicles
+    .filter((vehicle) => !busy.has(vehicle.id))
+    .sort((a, b) => a.name.localeCompare(b.name, 'en-GB'));
+}

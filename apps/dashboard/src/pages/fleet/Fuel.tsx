@@ -27,6 +27,7 @@ import { formatPence } from '../../lib/money';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 type Period = 'thisMonth' | 'lastMonth' | 'last30';
 const PERIODS: Record<Period, string> = {
@@ -44,7 +45,7 @@ export function Fuel() {
   const me = useStaffAuthStore((s) => s.session?.staff);
   const everyCompany = isPlatform(me);
   const canManage = everyCompany || holds(me, 'manage_fleet');
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useWorkingCompany();
   const companyId = everyCompany ? selectedCompanyId || undefined : me?.companyId;
   const [period, setPeriod] = useState<Period>('thisMonth');
 

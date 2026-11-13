@@ -30,6 +30,7 @@ import {
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 type Tab = 'due' | 'repairs' | 'items';
 type Filter = 'needs' | 'overdue' | 'all';
@@ -43,7 +44,7 @@ export function Maintenance() {
   const me = useStaffAuthStore((s) => s.session?.staff);
   const everyCompany = isPlatform(me);
   const canManage = everyCompany || holds(me, 'manage_maintenance');
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useWorkingCompany();
   const companyId = everyCompany ? selectedCompanyId || undefined : me?.companyId;
   const [tab, setTab] = useState<Tab>('due');
 

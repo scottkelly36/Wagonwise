@@ -4,6 +4,8 @@ import * as staffApi from '../api/staff';
 import { guideIdForPath, guideSection } from '../lib/guide';
 import { useAlerts } from '../lib/use-alerts';
 import { useStaffAuthStore } from '../state/staff-auth-store';
+import { useWorkingCompany } from '../state/working-company-store';
+import { CompanySelect } from './CompanySelect';
 import { PopMenu } from './PopMenu';
 
 /** The bar across the top: the menu button on a phone, whose company this is, the bell, the guide, and the account menu. */
@@ -25,7 +27,8 @@ export function TopBar({ navOpen, onToggleNav }: { navOpen: boolean; onToggleNav
   const alerts = useAlerts();
   const section = guideSection(guideIdForPath(pathname));
 
-  const company = staff?.kind === 'platform' ? 'WagonWise staff' : account.data?.companyName;
+  const company = staff?.kind === 'platform' ? undefined : account.data?.companyName;
+  const [workingCompany, setWorkingCompany] = useWorkingCompany();
 
   return (
     <header className="topbar">
@@ -39,7 +42,20 @@ export function TopBar({ navOpen, onToggleNav }: { navOpen: boolean; onToggleNav
       >
         <span aria-hidden="true">{navOpen ? '✕' : '☰'}</span>
       </button>
-      <div className="topbar-company">{company}</div>
+      {staff?.kind === 'platform' ? (
+        // WagonWise staff look at one company at a time; the choice holds as they move between pages.
+        <div className="topbar-company topbar-company-picker">
+          <label htmlFor="topbar-company-select">Company</label>
+          <CompanySelect
+            id="topbar-company-select"
+            value={workingCompany}
+            onChange={setWorkingCompany}
+            emptyLabel="Choose a company"
+          />
+        </div>
+      ) : (
+        <div className="topbar-company">{company}</div>
+      )}
 
       {staff !== undefined && (
         <>

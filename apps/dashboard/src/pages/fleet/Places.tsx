@@ -17,6 +17,7 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { mapLink, PLACE_CATEGORY_LABELS } from '../../lib/places';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 const CATEGORIES = Object.keys(PLACE_CATEGORY_LABELS) as PlaceCategory[];
 
@@ -33,7 +34,7 @@ export function Places() {
   const canEdit = everyCompany || holds(me, 'dispatch');
   const queryClient = useQueryClient();
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useWorkingCompany();
   const companyId = everyCompany ? selectedCompanyId || undefined : me?.companyId;
   const key = ['places', companyId] as const;
 

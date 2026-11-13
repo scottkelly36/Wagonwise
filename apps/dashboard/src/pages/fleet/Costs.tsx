@@ -11,6 +11,7 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { formatPence, parsePounds, ukToday } from '../../lib/money';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 const monthOf = (day: string): string => day.slice(0, 7);
 
@@ -38,7 +39,7 @@ export function Costs() {
   const me = useStaffAuthStore((s) => s.session?.staff);
   const everyCompany = isPlatform(me);
   const allowed = everyCompany || holds(me, 'manage_billing');
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useWorkingCompany();
   const companyId = everyCompany ? selectedCompanyId || undefined : me?.companyId;
 
   return (

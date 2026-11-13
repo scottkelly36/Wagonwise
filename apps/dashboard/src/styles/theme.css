@@ -1181,6 +1181,16 @@ textarea {
   padding: 3px;
 }
 
+/* A row of choices wider than the screen scrolls within itself, not the whole page. */
+.seg-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-bottom: 8px;
+}
+.seg-scroll .seg button {
+  white-space: nowrap;
+}
+
 .seg button {
   border: 0;
   background: transparent;
@@ -1480,6 +1490,27 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* WagonWise staff: the company picker where a company's name would be. */
+.topbar-company-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: visible;
+}
+.topbar-company-picker label {
+  font-size: 14px;
+  font-weight: 600;
+}
+.topbar-company-picker select {
+  min-width: 0;
+  max-width: 280px;
+  font-weight: 400;
+}
+@media (max-width: 700px) {
+  .topbar-company-picker label {
+    display: none;
+  }
 }
 .topbar-button,
 .topbar-account {

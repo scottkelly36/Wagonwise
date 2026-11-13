@@ -1,5 +1,6 @@
 import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
+import { Seg } from '../../components/Seg';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import { companyIdSchema } from '@wagonwise/contracts/companies';
 import type { JobDto, ProofOfDeliveryResponse, SignatureResponse } from '@wagonwise/contracts/jobs';
@@ -43,8 +44,17 @@ import {
 import { noticeText } from '../../lib/job-notice';
 import { signaturePath } from '../../lib/signature-svg';
 import { jobStatusText } from '../../lib/job-text';
+import {
+  emptyJobsText,
+  JOB_TABS,
+  jobsInTab,
+  jobTabCounts,
+  jobTabLabel,
+  type JobTab,
+} from '../../lib/job-tabs';
 import { formatPence, parsePounds } from '../../lib/money';
 import { staffErrorMessage } from '../staff/messages';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 const COMPANIES_KEY = ['companies'] as const;
 const TERMINAL: readonly JobDto['status'][] = ['delivered', 'cancelled', 'failed'];
@@ -78,11 +88,14 @@ export function Jobs() {
     enabled: everyCompany,
   });
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(undefined);
+  const [pickedCompanyId, setSelectedCompanyId] = useWorkingCompany();
+  const selectedCompanyId = pickedCompanyId === '' ? undefined : pickedCompanyId;
   const companyId = everyCompany ? selectedCompanyId : me?.companyId;
   const jobsKey = ['jobs', companyId] as const;
   // Finished jobs older than the server's window are left out until asked for.
   const [showOlder, setShowOlder] = useState(false);
+  // Which group of jobs the table shows.
+  const [tab, setTab] = useState<JobTab>('all');
   const driversKey = ['driver-links', companyId] as const;
   const vehiclesKey = ['fleet-vehicles', companyId] as const;
 
@@ -99,6 +112,7 @@ export function Jobs() {
   });
   const jobs = { ...jobsResponse, data: jobsResponse.data?.jobs };
   const windowStart = jobsResponse.data?.since;
+  const tabCounts = jobTabCounts(jobs.data ?? []);
 
   // How telling each waiting driver went. Checked every half minute so the office sees when a driver opens the job.
   const notices = useQuery({
@@ -713,7 +727,7 @@ export function Jobs() {
             Company:{' '}
             <select
               value={selectedCompanyId ?? ''}
-              onChange={(e) => setSelectedCompanyId(e.target.value || undefined)}
+              onChange={(e) => setSelectedCompanyId(e.target.value)}
             >
               <option value="">— choose a company —</option>
               {companies.data?.map((company) => (
@@ -933,17 +947,27 @@ export function Jobs() {
                 </button>
               )}
             </div>
+            {jobs.data !== undefined && (
+              <div className="seg-scroll">
+                <Seg
+                  ariaLabel="Show jobs"
+                  options={JOB_TABS.map((key) => ({ key, label: jobTabLabel(key, tabCounts) }))}
+                  value={tab}
+                  onChange={setTab}
+                />
+              </div>
+            )}
             {jobs.isPending ? (
               <Loading />
             ) : (
               <DataTable
                 columns={jobColumns}
-                rows={jobs.data ?? []}
+                rows={jobsInTab(jobs.data ?? [], tab)}
                 rowKey={(job) => job.id}
                 searchText={(job) =>
                   `${job.reference} ${job.stops.map((stop) => stop.name).join(' ')} ${jobStatusText(job)}`
                 }
-                emptyText="No jobs yet."
+                emptyText={emptyJobsText(tab)}
                 maxHeight="70vh"
               />
             )}
