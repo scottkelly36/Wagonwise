@@ -5,6 +5,7 @@ import {
   cohortShare,
   fromFirstJoin,
   percentOf,
+  retentionCells,
   shortDay,
   withShare,
 } from './usage';
@@ -69,5 +70,34 @@ describe('fromFirstJoin', () => {
   it('is empty when nobody joined at all', () => {
     expect(fromFirstJoin([day(0), day(0)])).toEqual([]);
     expect(fromFirstJoin([])).toEqual([]);
+  });
+});
+
+describe('retentionCells', () => {
+  it('gives the share who started a trip in each week since joining, blank for weeks still to come', () => {
+    expect(retentionCells({ joined: 40, startedTripInWeek: [30, 12, 9] }, 5)).toEqual([
+      '75%',
+      '30%',
+      '23%',
+      '',
+      '',
+    ]);
+  });
+
+  it('fills eight weeks by default', () => {
+    expect(retentionCells({ joined: 10, startedTripInWeek: [1, 2, 3, 4, 5, 6, 7, 8] })).toEqual([
+      '10%',
+      '20%',
+      '30%',
+      '40%',
+      '50%',
+      '60%',
+      '70%',
+      '80%',
+    ]);
+  });
+
+  it('shows a dash for a week nobody joined', () => {
+    expect(retentionCells({ joined: 0, startedTripInWeek: [0, 0] }, 3)).toEqual(['–', '–', '']);
   });
 });

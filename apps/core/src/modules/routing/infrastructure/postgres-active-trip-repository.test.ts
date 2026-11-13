@@ -45,6 +45,44 @@ describe('PostgresActiveTripRepository', () => {
     expect(await repo().findById(t.id)).toEqual(t);
   });
 
+  it('notes the UK week a trip started in, once per driver and week, and keeps it when the trip is ended', async () => {
+    const driverId = makeId<'DriverId'>('44444444-4444-4444-8444-444444444444');
+    const weeks = async () =>
+      (
+        await pool.query<{ week: string }>(
+          `select to_char(week, 'YYYY-MM-DD') as week from routing.driver_trip_weeks where driver_id = $1 order by week`,
+          [driverId],
+        )
+      ).rows.map((r) => r.week);
+    // Sunday 23:30 in London (BST) is still Sunday there, though it is Sunday 22:30 UTC: the week is the one starting Monday 8 June.
+    const sunday = trip({
+      id: makeId<'ActiveTripId'>('44444444-0000-4000-8000-000000000001'),
+      driverId,
+      startedAt: new Date('2026-06-14T22:30:00.000Z'),
+    });
+    await repo().save(sunday);
+    await repo().save({ ...sunday, endedAt: new Date('2026-06-14T23:00:00.000Z') });
+    // Monday 00:30 in London is Sunday 23:30 UTC: a new week there.
+    await repo().save(
+      trip({
+        id: makeId<'ActiveTripId'>('44444444-0000-4000-8000-000000000002'),
+        driverId,
+        startedAt: new Date('2026-06-14T23:30:00.000Z'),
+        endedAt: new Date('2026-06-15T01:00:00.000Z'),
+      }),
+    );
+    // A second trip in the same week adds nothing.
+    await repo().save(
+      trip({
+        id: makeId<'ActiveTripId'>('44444444-0000-4000-8000-000000000003'),
+        driverId,
+        startedAt: new Date('2026-06-17T09:00:00.000Z'),
+      }),
+    );
+
+    expect(await weeks()).toEqual(['2026-06-08', '2026-06-15']);
+  });
+
   it('returns null for an unknown id', async () => {
     expect(
       await repo().findById(makeId<'ActiveTripId'>('00000000-0000-4000-8000-000000000000')),

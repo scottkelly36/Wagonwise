@@ -45,6 +45,19 @@ export const cohortDaySchema = z.object({
 });
 export type CohortDayDto = z.infer<typeof cohortDaySchema>;
 
+/**
+ * The drivers who joined in one UK week (Monday start), and how many of them started a trip in that week and in each week after
+ * it, up to and including this one (which is not over yet). `startedTripInWeek[0]` is the week they joined, `[1]` the week after,
+ * and so on. This is the "do they come back" view: the running totals cannot tell a driver who drives every week from one who
+ * tried it once.
+ */
+export const retentionWeekSchema = z.object({
+  weekStart: z.string(),
+  joined: count,
+  startedTripInWeek: z.array(count),
+});
+export type RetentionWeekDto = z.infer<typeof retentionWeekSchema>;
+
 export const usageFirmSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -69,6 +82,8 @@ export const usageReportSchema = z.object({
   funnel: funnelSchema,
   /** The last 14 UK days, oldest first, by the day an account was made. Days with no new drivers are included. */
   newDriversByDay: z.array(cohortDaySchema),
+  /** The last 8 UK weeks of new drivers, oldest first, weeks with none included. Optional: a core from before it sends none. */
+  retentionByWeek: z.array(retentionWeekSchema).optional(),
   tripsRunningNow: count,
   /** The last 14 UK days, oldest first, days with none included. */
   tripsPerDay: z.array(dayCountSchema),

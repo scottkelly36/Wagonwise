@@ -66,6 +66,9 @@ change (new package, plugin or permission) needs `version` bumped and a Play bui
 
 ## Open items
 
+- **Success checkpoint (owner, 2026-11-13):** judge drivers at about three months (mid-February) on the usage page's "Do drivers come back?"
+  (week 4 to 8 shares levelling off, not falling to nothing), and the business on paying for itself. 18 firms were messaged on 2026-11-13: log
+  replies in the Sales notebook.
 - **Point-mapped low bridges, check on the live router** (built 2026-11-13 after a driver's review; `modules.md`, "Hazards from OpenStreetMap"): plan a route for a 4 m
   vehicle along a road with one (for example through 53.9410, -1.0916 in York, 3.35 m) and see that it goes round. The driver's own route and vehicle are still not known.
 - **CarPlay: Apple has granted the entitlement (email from Apple Developer Relations, 2026-11-11; requested 2026-11-08, follow-up case 23398599 answered with

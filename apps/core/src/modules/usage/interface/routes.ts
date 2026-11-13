@@ -24,6 +24,7 @@ const toDto = (r: UsageReport) => ({
   devices: { total: r.devices },
   funnel: r.funnel,
   newDriversByDay: r.newDriversByDay,
+  retentionByWeek: r.retentionByWeek,
   tripsRunningNow: r.tripsRunningNow,
   tripsPerDay: r.tripsPerDay,
   jobsCreatedPerWeek: r.jobsCreatedPerWeek,

@@ -122,6 +122,7 @@ describe('runMigrations', () => {
       '0090_announcements.sql',
       '0091_announcement_push.sql',
       '0092_route_plan_avoids_tolls.sql',
+      '0093_driver_trip_weeks.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -322,6 +323,7 @@ describe('runMigrations', () => {
       '0090_announcements.sql',
       '0091_announcement_push.sql',
       '0092_route_plan_avoids_tolls.sql',
+      '0093_driver_trip_weeks.sql',
     ]);
   });
 });

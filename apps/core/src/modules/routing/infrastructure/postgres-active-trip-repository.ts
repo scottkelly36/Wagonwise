@@ -54,9 +54,15 @@ export class PostgresActiveTripRepository implements ActiveTripRepository {
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
-  /** Upsert (the port's contract) — `endTrip` re-saves the same id with `endedAt` set. */
+  /** Upsert (the port's contract) — `endTrip` re-saves the same id with `endedAt` set. Also notes the UK week the trip started
+   *  in (`routing.driver_trip_weeks`), which outlives the trip, for the admin usage page's "do drivers come back" view. */
   async save(trip: ActiveTrip): Promise<void> {
     await sql`
+      with week as (
+        insert into routing.driver_trip_weeks (driver_id, week)
+        values (${trip.driverId}, date_trunc('week', ${trip.startedAt}::timestamptz at time zone 'Europe/London')::date)
+        on conflict do nothing
+      )
       insert into routing.active_trips
         (id, route_plan_id, driver_id, started_at, last_position_lat, last_position_lon, ended_at)
       values (
