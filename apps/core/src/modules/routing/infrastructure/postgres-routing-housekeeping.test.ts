@@ -78,7 +78,7 @@ describe('PostgresRoutingHousekeeping', () => {
       ).rows[0]?.n,
     );
 
-  it('erases a driver’s profiles, plans, trips and alerts, and nobody else’s', async () => {
+  it('erases a driver’s profiles, plans, trips, alerts and trip weeks, and nobody else’s', async () => {
     const profiles = new PostgresVehicleProfileRepository(db);
     const vehicle = (id: string, driverId: string): VehicleProfile => ({
       id: makeId<'VehicleProfileId'>(id),
@@ -93,12 +93,23 @@ describe('PostgresRoutingHousekeeping', () => {
     await startTrip(trip(1), plan(1), ANNA, null);
     await startTrip(trip(2), plan(2), BEN, null);
     await alert('f0000000-0000-4000-8000-000000000001', plan(1), ANNA, '2026-10-02T08:00:00Z');
+    await pool.query(
+      `insert into routing.driver_trip_weeks (driver_id, week) values ($1, '2026-09-28'), ($2, '2026-09-28')`,
+      [ANNA, BEN],
+    );
 
     await housekeeping().eraseDriver(ANNA);
 
-    for (const table of ['vehicle_profiles', 'route_plans', 'active_trips', 'reroute_alerts']) {
+    for (const table of [
+      'vehicle_profiles',
+      'route_plans',
+      'active_trips',
+      'reroute_alerts',
+      'driver_trip_weeks',
+    ]) {
       expect(await count(table, ANNA)).toBe(0);
     }
+    expect(await count('driver_trip_weeks', BEN)).toBe(1);
     expect(await count('vehicle_profiles', BEN)).toBe(1);
     expect(await count('route_plans', BEN)).toBe(1);
     expect(await count('active_trips', BEN)).toBe(1);

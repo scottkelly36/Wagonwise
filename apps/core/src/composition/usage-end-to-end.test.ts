@@ -141,6 +141,11 @@ describe('usage end to end (real RLS, real scopes)', () => {
         hoursAgo(49),
       ],
     );
+    // The weeks drivers started trips in: drivers 1 and 2 drove in the week they joined (Monday 5 October).
+    await q(
+      `insert into routing.driver_trip_weeks (driver_id, week) values ($1, '2026-10-05'), ($2, '2026-10-05')`,
+      [id(1), id(2)],
+    );
     await q(
       `insert into checks.checks (id, company_id, template_id, template_version, template_name, vehicle_id, vehicle_name,
          driver_id, check_day, items, answers, result, submitted_at)
@@ -240,6 +245,29 @@ describe('usage end to end (real RLS, real scopes)', () => {
       startedTrip: 0,
     });
     expect(body.newDriversByDay.reduce((sum, d) => sum + d.joined, 0)).toBe(body.drivers.total);
+  });
+
+  it('counts, for each week of new drivers, how many started a trip in that week and each one since', async () => {
+    const body = await report();
+    const weeks = body.retentionByWeek ?? [];
+    expect(weeks.map((w) => w.weekStart)).toEqual([
+      '2026-08-17',
+      '2026-08-24',
+      '2026-08-31',
+      '2026-09-07',
+      '2026-09-14',
+      '2026-09-21',
+      '2026-09-28',
+      '2026-10-05',
+    ]);
+    // All three joined this week; two have started a trip in it.
+    expect(weeks.at(-1)).toEqual({ weekStart: '2026-10-05', joined: 3, startedTripInWeek: [2] });
+    // A week nobody joined has a zero for each week from then to now: eight for the oldest.
+    expect(weeks[0]).toEqual({
+      weekStart: '2026-08-17',
+      joined: 0,
+      startedTripInWeek: [0, 0, 0, 0, 0, 0, 0, 0],
+    });
   });
 
   it('shows each firm with its drivers, vehicles, staff, jobs and when it was last used', async () => {

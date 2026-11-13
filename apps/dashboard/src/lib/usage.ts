@@ -49,3 +49,20 @@ export function shortDay(day: string): string {
     timeZone: 'UTC',
   });
 }
+
+/** How many weeks after joining the "do they come back" table shows: week 1 (the week they joined) to week 8. */
+export const RETENTION_WEEKS = 8;
+
+/**
+ * One row of the "do they come back" table: for the week they joined and each week after it, the share of that week's new drivers
+ * who started a trip in it. A week that has not come yet is blank. The last filled cell is this week, which is not over.
+ */
+export function retentionCells(
+  week: { readonly joined: number; readonly startedTripInWeek: readonly number[] },
+  columns = RETENTION_WEEKS,
+): string[] {
+  return Array.from({ length: columns }, (_, k) => {
+    const n = week.startedTripInWeek[k];
+    return n === undefined ? '' : cohortShare(n, week.joined);
+  });
+}

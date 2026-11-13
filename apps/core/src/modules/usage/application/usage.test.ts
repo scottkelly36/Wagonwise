@@ -23,6 +23,7 @@ const report: UsageReport = {
     startedTripOnTwoDays: 0,
   },
   newDriversByDay: [],
+  retentionByWeek: [],
   tripsRunningNow: 0,
   tripsPerDay: [],
   jobsCreatedPerWeek: [],

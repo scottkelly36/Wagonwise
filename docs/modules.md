@@ -319,6 +319,8 @@ without ever needing `X-Internal-Key` yourself — the BFF adds it for you — a
 hazards, forwarding your own `Authorization: Bearer <accessToken>` unchanged, since core does its
 own authoritative re-verification (design doc §9, "verify twice").
 
+**Rate limit and headers (2026-11-13).** Every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` and a `Content-Security-Policy` of `default-src 'none'; frame-ancestors 'none'` (the staff BFF sends the same), and `Strict-Transport-Security` in production (`host/security-headers.ts`). Per address, in memory (`host/rate-limit.ts`): 1,200 calls a minute overall, 40 per 15 minutes across the routes anyone can call (code request, code check, sign-in options, tester sign-up), and 60 per 10 minutes on the routes that call a paid service (voice parse, what3words); `/health` is never limited; over the limit is a `429` with `Retry-After`. It needs `TRUST_PROXY_HOPS` (`1` on App Platform, same as the staff BFF) to know the real caller; at the default `0` the limit is **off**, because every caller would look like the proxy and share one count. Per instance, so a second instance would count separately. Core's per-account OTP limits stay the real guard.
+
 ```bash
 pnpm --filter @wagonwise/driver-bff dev   # port 3002 by default
 curl http://127.0.0.1:3002/health
@@ -580,7 +582,11 @@ that period. Counts only, and test accounts are included. **New drivers by day (
 14 UK days, how many drivers joined (`identity.drivers.created_at`) and how many of them have chosen a vehicle, planned a route and
 started a trip so far. It exists because the running totals in `funnel` move slowly: a day's new drivers are all on one version of the
 app, so comparing days before and after a change shows whether it helped. The page leaves out the empty days before the first
-driver joined.
+driver joined. **Do drivers come back (2026-11-13):** `retentionByWeek` is, for each of the last 8 UK weeks (Monday starts), how many drivers
+joined and, for that week and each one since, how many of them started a trip in it; the page shows it as shares, Wk 1 to Wk 8. It reads
+`routing.driver_trip_weeks` (migration 0093: a driver and a Monday, nothing else), written by `PostgresActiveTripRepository.save` when a trip
+is saved, because trips themselves are deleted after 30 days. Backfilled from the trips held when it went in (all of them since launch on
+8 November); removed with the account in `eraseDriver`. Kept until the account is deleted.
 
 ## Sales notebook (admin, 2026-11-08)
 
@@ -659,7 +665,7 @@ Same variables as the driver BFF (`NODE_ENV`, `HOST`, `PORT` (default `3003`), `
 `CORE_INTERNAL_URL`, `CORE_INTERNAL_KEY`), with the same defaults, plus `DASHBOARD_ORIGIN`
 (default `http://localhost:5173`, the only browser origin it answers) and `TRUST_PROXY_HOPS`
 (default `0`): how many proxies sit in front and add to `X-Forwarded-For`, so the sign-in rate
-limit counts each real caller. Leave it `0` locally; `1` on DigitalOcean App Platform.
+limit counts each real caller. Leave it `0` locally; `1` on DigitalOcean App Platform. It sends the same security headers as the driver BFF.
 
 The whole dashboard talks to it, and only to it (P2-M1.12c: the driver sign-in is gone, and the
 driver BFF answers no browser). Pages: `/staff/sign-in` (email, password, then the second
