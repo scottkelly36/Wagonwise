@@ -6,7 +6,7 @@ import * as fleetApi from '../../api/fleet';
 import * as hoursApi from '../../api/hours';
 import * as jobsApi from '../../api/jobs';
 import * as maintenanceApi from '../../api/maintenance';
-import { HomeNote, HomePanel, HomeRows, HomeTiles } from '../../components/HomeParts';
+import { HomeFailed, HomeNote, HomePanel, HomeRows, HomeTiles } from '../../components/HomeParts';
 import { driverNamesById } from '../../lib/driver-name';
 import { complianceRows, localDay, lowOnHours, managerTiles, onTheRoad } from '../../lib/home';
 import { byUrgency, managerSummary, todaysJobs } from '../../lib/home-summary';
@@ -142,13 +142,21 @@ export function ManagerHome({ companyId }: { companyId: string }) {
         {me === undefined ? '' : `, ${me.name.split(' ')[0] ?? me.name}`}
       </h1>
       <p className="home-summary" aria-live="polite">
-        {jobs.isPending ? 'Checking the fleet…' : summary}
+        {jobs.isPending
+          ? 'Checking the fleet…'
+          : jobs.isError
+            ? 'The jobs could not be loaded, so nothing here can be trusted yet.'
+            : summary}
       </p>
-      <HomeTiles tiles={byUrgency(tiles)} loading={jobs.isPending} />
+      <HomeTiles tiles={byUrgency(tiles)} loading={jobs.isPending || jobs.isError} />
       <div className="home-panels">
         <HomePanel title="Today's jobs" area="ops" to="/fleet/jobs" linkLabel="Open jobs">
           {jobs.isPending ? (
             <HomeNote>Loading…</HomeNote>
+          ) : jobs.isError ? (
+            <HomeFailed onRetry={() => void jobs.refetch()}>
+              Today's jobs could not be loaded.
+            </HomeFailed>
           ) : dayJobs.total === 0 ? (
             <HomeNote>No jobs are planned for today.</HomeNote>
           ) : (
@@ -180,6 +188,10 @@ export function ManagerHome({ companyId }: { companyId: string }) {
         >
           {jobs.isPending ? (
             <HomeNote>Loading…</HomeNote>
+          ) : jobs.isError ? (
+            <HomeFailed onRetry={() => void jobs.refetch()}>
+              Jobs on the road could not be loaded.
+            </HomeFailed>
           ) : road.length === 0 ? (
             <HomeNote>No vehicles are on a job right now.</HomeNote>
           ) : (
