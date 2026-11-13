@@ -5,6 +5,7 @@ import type { HazardReportDto, ModerateHazardRequest } from '@wagonwise/contract
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as hazardsApi from '../../api/hazards';
+import { measurementProblem } from '../../lib/hazard-limits';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
 const QUEUE_KEY = ['hazard-moderation-queue'] as const;
@@ -219,6 +220,8 @@ function EditForm({
   );
   const [value, setValue] = useState(hazard.measurement ? String(hazard.measurement.value) : '');
   const [remove, setRemove] = useState(false);
+  // A height typed in feet (13.9 for 13 ft 9 in) or any number no sign could carry is refused here, not saved.
+  const problem = remove ? undefined : measurementProblem(kind, value);
 
   function save(): void {
     const number = Number(value);
@@ -266,7 +269,12 @@ function EditForm({
           Remove measurement
         </label>
       )}
-      <button className="btn-primary" disabled={busy} onClick={save}>
+      {problem !== undefined && (
+        <span className="text-danger text-13" role="alert">
+          {problem}
+        </span>
+      )}
+      <button className="btn-primary" disabled={busy || problem !== undefined} onClick={save}>
         Save
       </button>
       <button disabled={busy} onClick={onCancel}>

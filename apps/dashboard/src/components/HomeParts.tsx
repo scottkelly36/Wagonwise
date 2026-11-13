@@ -62,6 +62,18 @@ export function HomeRows({ rows }: { rows: readonly Row[] }) {
   );
 }
 
+/** What to say when something failed to load, so it is not read as "nothing to show", with a way to ask again. */
+export function HomeFailed({ children, onRetry }: { children: ReactNode; onRetry: () => void }) {
+  return (
+    <p className="error home-note" role="alert">
+      {children}{' '}
+      <button type="button" className="btn-quiet" onClick={onRetry}>
+        Try again
+      </button>
+    </p>
+  );
+}
+
 /** What to say while something loads, or when it has nothing to show. */
 export function HomeNote({ children }: { children: ReactNode }) {
   return <p className="muted home-note">{children}</p>;
