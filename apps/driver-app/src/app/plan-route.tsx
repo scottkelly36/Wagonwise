@@ -17,7 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { PlanRouteRequest, RouteOptionDto } from '@wagonwise/contracts/routing';
 
 import { useCreateVehicleProfile, useVehicleProfiles } from '../api/use-vehicle-profiles';
-import { useNearbyHazards } from '../api/use-hazards';
 import { useCreateRoutePlan, usePreviewRouteOptions } from '../api/use-route-plans';
 import { AddressSearchField } from '../components/address-search-field';
 import { WordsSearchField } from '../components/words-search-field';
@@ -36,6 +35,7 @@ import { presetFigures } from '../components/vehicle-preset-picker';
 import { decodePolyline6 } from '../lib/polyline';
 import { config } from '../config';
 import { useCurrentLocation } from '../hooks/use-current-location';
+import { useRouteOptionHazards } from '../hooks/use-route-option-hazards';
 import type { GeocodingResult } from '../lib/geocoding';
 import { formatDateTime } from '../lib/format-date';
 import { routingErrorMessage } from '../lib/error-messages';
@@ -59,9 +59,7 @@ import {
   type VehicleProfileFormValues,
 } from '../lib/vehicle-profile-form';
 import { cameraMarkers } from '../lib/camera-markers';
-import { isCameraType, withoutCameras } from '../lib/camera-report';
-import { placeOnRoute } from '../lib/on-route';
-import { thinPoints } from '../lib/thin-points';
+import { isCameraType } from '../lib/camera-report';
 import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { Icon } from '../components/ui/icon';
 import { PointPicker } from '../components/point-picker';
@@ -128,13 +126,6 @@ const INCHES_PLACEHOLDERS: Partial<Record<string, string>> = {
   lengthM: '2',
 };
 
-// No line to look along yet: hazards are asked for only once there are routes (see `nearbyHazards` below).
-const NO_CORRIDOR: readonly MapPoint[] = [];
-/** Once there are routes to look along: the width the server looks either side of them, before the exact "on the road" cut. */
-const ON_ROUTE_HAZARD_RADIUS_M = 750;
-/** The most points the server takes for the line of a request. */
-const CORRIDOR_MAX_POINTS = 1500;
-
 /** Whether Enter details has a size in it yet: a preset picked, or a height typed. */
 function presetInBoxesOrTyped(values: VehicleProfileFormValues): boolean {
   return values.heightM.trim() !== '';
@@ -200,38 +191,9 @@ export default function PlanRouteScreen() {
   // override a start they searched for or tapped.
   const effectiveOrigin = fromMode === 'here' ? location.point : origin;
 
-  // Once the routes are compared, only what is on one of the routes shown: a hazard a few streets over, or on the road that
-  // crosses, is not on the way.
-  const optionCorridor = useMemo(
-    () =>
-      optionLines?.flatMap((o) =>
-        thinPoints(
-          o.line.map(([lon, lat]) => ({ lat, lon })),
-          Math.floor(CORRIDOR_MAX_POINTS / optionLines.length),
-        ),
-      ),
-    [optionLines],
-  );
-  // Nothing is asked for, or drawn, until there are routes: before that the only line to look along was a straight one from
-  // here to there, and the markers it gave were about roads the driver might never use.
-  const nearbyHazards = useNearbyHazards(optionCorridor ?? NO_CORRIDOR, ON_ROUTE_HAZARD_RADIUS_M);
-  // Which hazards are on each route (by the route's place in the list), and so which are drawn and how many each card says.
-  const hazardsByOption = useMemo(() => {
-    const found = withoutCameras(nearbyHazards.data ?? []);
-    return (optionLines ?? []).map(
-      (option) => new Set(placeOnRoute(option.line, found).map((placed) => placed.item.id)),
-    );
-  }, [nearbyHazards.data, optionLines]);
-  const shownHazards = useMemo(() => {
-    if (!optionLines) return [];
-    const onAnyRoute = new Set<string>();
-    for (const option of optionLines) {
-      for (const placed of placeOnRoute(option.line, nearbyHazards.data ?? [])) {
-        onAnyRoute.add(placed.item.id);
-      }
-    }
-    return (nearbyHazards.data ?? []).filter((h) => onAnyRoute.has(h.id));
-  }, [nearbyHazards.data, optionLines]);
+  // Which known hazards are on each route (a count for each card) and which are drawn: only what is on one of the routes.
+  const routeHazards = useRouteOptionHazards(optionLines);
+  const shownHazards = routeHazards.shown;
   const mapCameras = useMemo(() => cameraMarkers(undefined, shownHazards), [shownHazards]);
 
   // With exactly one saved vehicle there is nothing to choose, so it is already selected.
@@ -865,11 +827,7 @@ export default function PlanRouteScreen() {
                 options={routeOptions}
                 comparedLoaded={comparedLoaded}
                 distanceUnit={distanceUnit}
-                hazardCounts={
-                  nearbyHazards.data === undefined
-                    ? undefined
-                    : hazardsByOption.map((ids) => ids?.size ?? 0)
-                }
+                hazardCounts={routeHazards.counts}
                 busy={createRoutePlan.isPending}
                 onChoose={handleConfirmOption}
                 euroViVehicle={
