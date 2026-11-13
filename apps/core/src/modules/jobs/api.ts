@@ -151,7 +151,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
     },
     changeStatus: { repo, ids: deps.ids, clock: deps.clock },
     setCommercial: { repo },
-    listJobs: { repo },
+    listJobs: { repo, clock: deps.clock },
     getJob: { repo },
     getProofOfDelivery: { repo },
     getSignature: { repo },
@@ -206,7 +206,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
       });
     },
     async activeDriverIds(companyId: string): Promise<string[]> {
-      const jobs = await repo.listForCompany(makeId<'CompanyId'>(companyId));
+      const jobs = await repo.listOpenForCompany(makeId<'CompanyId'>(companyId));
       return jobs.flatMap((j) =>
         j.driverId !== undefined && isActive(j.status) ? [j.driverId] : [],
       );

@@ -12,6 +12,7 @@ import {
   ACTIVE_STATUSES,
   hasProof,
   hasSignatureFor,
+  TERMINAL_STATUSES,
   type CompanyId,
   type DriverId,
   type GeoPoint,
@@ -166,10 +167,27 @@ export class PostgresJobRepository implements JobRepository {
     return job ?? null;
   }
 
-  async listForCompany(companyId: CompanyId): Promise<Job[]> {
+  async listForCompany(
+    companyId: CompanyId,
+    options: { readonly since?: Date; readonly limit?: number } = {},
+  ): Promise<Job[]> {
+    const { since, limit } = options;
     const { rows } = await sql<JobRow>`
       select ${sql.raw(JOB_SELECT_COLUMNS)} from jobs.jobs
-      where company_id = ${companyId} order by created_at desc, id
+      where company_id = ${companyId}
+        and (${since === undefined} or created_at >= ${since ?? null}
+             or status not in (${sql.join(TERMINAL_STATUSES)}))
+      order by created_at desc, id
+      limit ${limit ?? null}
+    `.execute(this.db);
+    return this.#withStops(rows);
+  }
+
+  async listOpenForCompany(companyId: CompanyId): Promise<Job[]> {
+    const { rows } = await sql<JobRow>`
+      select ${sql.raw(JOB_SELECT_COLUMNS)} from jobs.jobs
+      where company_id = ${companyId} and status not in (${sql.join(TERMINAL_STATUSES)})
+      order by created_at desc, id
     `.execute(this.db);
     return this.#withStops(rows);
   }

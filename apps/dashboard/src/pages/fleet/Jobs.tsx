@@ -3,7 +3,13 @@ import { Loading } from '../../components/Loading';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import { companyIdSchema } from '@wagonwise/contracts/companies';
 import type { JobDto, ProofOfDeliveryResponse, SignatureResponse } from '@wagonwise/contracts/jobs';
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import * as companiesApi from '../../api/companies';
 import * as fleetApi from '../../api/fleet';
@@ -75,14 +81,24 @@ export function Jobs() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(undefined);
   const companyId = everyCompany ? selectedCompanyId : me?.companyId;
   const jobsKey = ['jobs', companyId] as const;
+  // Finished jobs older than the server's window are left out until asked for.
+  const [showOlder, setShowOlder] = useState(false);
   const driversKey = ['driver-links', companyId] as const;
   const vehiclesKey = ['fleet-vehicles', companyId] as const;
 
-  const jobs = useQuery({
-    queryKey: jobsKey,
-    queryFn: () => withAccessToken((token) => jobsApi.listJobs(token, companyId as string)),
+  const jobsResponse = useQuery({
+    // Extends `jobsKey`, so refreshing the jobs refreshes this too; the other pages' plain list stays apart.
+    queryKey: [...jobsKey, showOlder ? 'all' : 'recent'],
+    queryFn: () =>
+      withAccessToken((token) =>
+        jobsApi.listJobsWindow(token, companyId as string, { all: showOlder }),
+      ),
     enabled: companyId !== undefined,
+    // Keeps what is on screen while the older jobs load, instead of flashing empty.
+    placeholderData: keepPreviousData,
   });
+  const jobs = { ...jobsResponse, data: jobsResponse.data?.jobs };
+  const windowStart = jobsResponse.data?.since;
 
   // How telling each waiting driver went. Checked every half minute so the office sees when a driver opens the job.
   const notices = useQuery({
@@ -930,6 +946,20 @@ export function Jobs() {
                 emptyText="No jobs yet."
                 maxHeight="70vh"
               />
+            )}
+            {windowStart !== undefined && !showOlder && (
+              <p className="muted">
+                Showing jobs still open, and finished ones since{' '}
+                {new Date(windowStart).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+                .{' '}
+                <button type="button" className="btn-secondary" onClick={() => setShowOlder(true)}>
+                  Show older jobs
+                </button>
+              </p>
             )}
           </section>
         </>
