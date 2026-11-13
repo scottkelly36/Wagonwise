@@ -5,7 +5,16 @@ import { ErrorNotice } from '../../components/ErrorNotice';
 import * as usageApi from '../../api/usage';
 import { DataTable, type Column } from '../../components/DataTable';
 import { HomeNote, HomePanel, HomeRows } from '../../components/HomeParts';
-import { ago, barHeights, cohortShare, fromFirstJoin, shortDay, withShare } from '../../lib/usage';
+import {
+  RETENTION_WEEKS,
+  ago,
+  barHeights,
+  cohortShare,
+  fromFirstJoin,
+  retentionCells,
+  shortDay,
+  withShare,
+} from '../../lib/usage';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
 const MINUTE = 60_000;
@@ -76,10 +85,13 @@ function CohortRow({
   cells,
   header = false,
   title,
+  compact = false,
 }: {
   cells: readonly string[];
   header?: boolean;
   title?: string;
+  /** Smaller type and a narrower first column, for a table with many columns on a phone. */
+  compact?: boolean;
 }) {
   return (
     <div
@@ -90,7 +102,7 @@ function CohortRow({
         gap: 8,
         padding: '5px 0',
         borderTop: header ? undefined : '1px solid var(--line, rgba(128,128,128,0.2))',
-        fontSize: header ? 12 : 14,
+        fontSize: header || compact ? 12 : 14,
         fontVariantNumeric: 'tabular-nums',
         opacity: header ? 0.7 : 1,
       }}
@@ -99,7 +111,11 @@ function CohortRow({
         <span
           key={`${i}-${cell}`}
           role={header ? 'columnheader' : 'cell'}
-          style={{ flex: i === 0 ? '0 0 92px' : 1, textAlign: i === 0 ? 'left' : 'right' }}
+          style={{
+            flex: i === 0 ? `0 0 ${compact ? 56 : 92}px` : 1,
+            minWidth: 0,
+            textAlign: i === 0 ? 'left' : 'right',
+          }}
         >
           {cell}
         </span>
@@ -149,6 +165,7 @@ export function AppUsage() {
 
   const u = usage.data;
   const newDrivers = fromFirstJoin(u.newDriversByDay);
+  const retention = fromFirstJoin(u.retentionByWeek ?? []);
   const now = new Date(u.generatedAt);
   const columns: Column<UsageFirmDto>[] = [
     { key: 'name', header: 'Firm', sortValue: (f) => f.name, cell: (f) => f.name },
@@ -295,6 +312,46 @@ export function AppUsage() {
           <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
             The share of each day&apos;s new drivers who have got that far so far. Compare days
             after a change to the app with the days before it. A day with few drivers swings a lot.
+          </p>
+        </section>
+        <section className="home-panel">
+          <h2>Do drivers come back?</h2>
+          <div
+            style={{ marginTop: 8 }}
+            role="table"
+            aria-label="Share of each week's new drivers who started a trip, week by week"
+          >
+            <CohortRow
+              compact
+              header
+              cells={[
+                'Joined',
+                ...Array.from({ length: RETENTION_WEEKS }, (_, k) => `Wk ${k + 1}`),
+              ]}
+            />
+            {retention.length === 0 && (
+              <p className="muted" style={{ margin: '8px 0 0' }}>
+                No new drivers in the last 8 weeks.
+              </p>
+            )}
+            {retention
+              .slice()
+              .reverse()
+              .map((w) => (
+                <CohortRow
+                  compact
+                  key={w.weekStart}
+                  title={`${w.joined} joined in the week of ${shortDay(w.weekStart)}. Started a trip, week by week: ${w.startedTripInWeek.join(', ')}.`}
+                  cells={[shortDay(w.weekStart), ...retentionCells(w)]}
+                />
+              ))}
+          </div>
+          <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+            Drivers grouped by the week they joined (weeks start on Monday). Each figure is the
+            share of them who started at least one trip that week: Wk 1 is the week they joined. The
+            last figure in each row is this week, so far. A level line from week 4 on means a core
+            of regular drivers; a fall to almost nothing means they tried it and stopped. A week
+            with few new drivers swings a lot.
           </p>
         </section>
         <section className="home-panel">

@@ -11,7 +11,8 @@ export class PostgresRoutingHousekeeping implements RoutingHousekeeping {
     await sql`
       with alerts as (delete from routing.reroute_alerts where driver_id = ${driverId} returning 1),
            trips as (delete from routing.active_trips where driver_id = ${driverId} returning 1),
-           plans as (delete from routing.route_plans where driver_id = ${driverId} returning 1)
+           plans as (delete from routing.route_plans where driver_id = ${driverId} returning 1),
+           weeks as (delete from routing.driver_trip_weeks where driver_id = ${driverId} returning 1)
       delete from routing.vehicle_profiles where driver_id = ${driverId}
     `.execute(this.db);
   }

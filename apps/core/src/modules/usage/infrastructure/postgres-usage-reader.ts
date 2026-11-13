@@ -110,6 +110,25 @@ export class PostgresUsageReader implements UsageReader {
         on (dr.created_at at time zone 'Europe/London')::date = d.day::date
       group by d.day order by d.day`.execute(db);
 
+    // The drivers who joined in each of the last 8 UK weeks, and for each week from then to this one, how many of them started a
+    // trip in it. From routing.driver_trip_weeks, which outlives the trips themselves.
+    const retention = await sql<{ week: string; joined: number; active: number[] }>`
+      with this_week as (select date_trunc('week', ${today}::date)::date as week),
+      cohort as (
+        select d.id, date_trunc('week', d.created_at at time zone 'Europe/London')::date as week
+        from identity.drivers d
+      )
+      select to_char(w.week, 'YYYY-MM-DD') as week,
+             (select count(*) from cohort c where c.week = w.week)::int as joined,
+             (select coalesce(array_agg(n order by k), '{}')
+                from (select k, (select count(*) from routing.driver_trip_weeks t
+                                   join cohort c on c.id = t.driver_id
+                                   where c.week = w.week::date and t.week = w.week::date + 7 * k)::int as n
+                      from generate_series(0, ((select week from this_week) - w.week::date) / 7) as k) as per_week
+             ) as active
+      from generate_series((select week from this_week) - 49, (select week from this_week), interval '7 days') as w(week)
+      order by w.week`.execute(db);
+
     const tripsPerDay = await sql<{ day: string; count: number }>`
       select to_char(d.day, 'YYYY-MM-DD') as day, count(t.id)::int as count
       from generate_series(${today}::date - 13, ${today}::date, interval '1 day') as d(day)
@@ -189,6 +208,11 @@ export class PostgresUsageReader implements UsageReader {
         hasVehicle: row.has_vehicle,
         plannedRoute: row.planned,
         startedTrip: row.trip,
+      })),
+      retentionByWeek: retention.rows.map((row) => ({
+        weekStart: row.week,
+        joined: row.joined,
+        startedTripInWeek: row.active,
       })),
       tripsRunningNow: c?.running ?? 0,
       tripsPerDay: tripsPerDay.rows,
