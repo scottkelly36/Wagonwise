@@ -46,7 +46,8 @@ describe('PostgresActiveTripRepository', () => {
   });
 
   it('notes the UK week a trip started in, once per driver and week, and keeps it when the trip is ended', async () => {
-    const driverId = makeId<'DriverId'>('44444444-4444-4444-8444-444444444444');
+    // Its own driver: this test leaves an unended trip, which the findActiveForDriver test below must not see.
+    const driverId = makeId<'DriverId'>('aaaaaaaa-6666-4666-8666-aaaaaaaaaaaa');
     const weeks = async () =>
       (
         await pool.query<{ week: string }>(

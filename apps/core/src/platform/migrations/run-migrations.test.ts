@@ -166,6 +166,7 @@ describe('runMigrations', () => {
     );
     expect(routingTables.map((row) => row.table_name)).toEqual([
       'active_trips',
+      'driver_trip_weeks',
       'reroute_alerts',
       'restriction_overrides',
       'route_plans',
