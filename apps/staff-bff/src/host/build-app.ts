@@ -5,6 +5,7 @@ import type { Config } from '../config.js';
 import { registerErrorHandling } from './error-handler.js';
 import { registerHealthRoute } from './health-route.js';
 import { registerGuessingLimit } from './rate-limit.js';
+import { registerSecurityHeaders } from './security-headers.js';
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
@@ -34,6 +35,7 @@ export function buildApp(config: Config): FastifyInstance {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   });
 
+  registerSecurityHeaders(app, { production: config.nodeEnv === 'production' });
   registerErrorHandling(app);
   registerGuessingLimit(app);
   registerHealthRoute(app);

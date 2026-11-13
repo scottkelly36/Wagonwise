@@ -233,7 +233,9 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
      is: the `migrate` job still needs the owner. Until `APP_DATABASE_URL` is set, core keeps
      serving on `DATABASE_URL` exactly as before.
    - `driver-bff`: public route on your domain. Env: `CORE_INTERNAL_URL=http://core:3001`,
-     `CORE_INTERNAL_KEY` (must match one of `core`'s `INTERNAL_KEYS`), `NODE_ENV=production`.
+     `CORE_INTERNAL_KEY` (must match one of `core`'s `INTERNAL_KEYS`), `NODE_ENV=production`,
+     `TRUST_PROXY_HOPS=1` (App Platform's router is the one proxy in front; without it the
+     per-address rate limit stays off).
    - Basic containers, $5/mo each, to start.
    - **`migrate` job (`kind: PRE_DEPLOY`), added 2026-09-26.** Same image as `core`, entrypoint
      overridden to `pnpm --filter @wagonwise/core run db:migrate`. DO runs this once before

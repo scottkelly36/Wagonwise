@@ -3,6 +3,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type { Config } from '../config.js';
 import { registerErrorHandling } from './error-handler.js';
 import { registerHealthRoute } from './health-route.js';
+import { registerRateLimits } from './rate-limit.js';
+import { registerSecurityHeaders } from './security-headers.js';
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
@@ -24,6 +26,9 @@ export function buildApp(config: Config): FastifyInstance {
     // through this BFF on its way to core, so it needs the same headroom over Fastify's 1 MiB
     // default.
     bodyLimit: 10 * 1024 * 1024,
+    // `request.ip` must be the real caller for the rate limit (TRUST_PROXY_HOPS). Trusting the
+    // nearest N hops is what a hop count means to proxy-addr; at 0 it trusts none.
+    trustProxy: (_address: string, hop: number) => hop < config.trustProxyHops,
   });
 
   app.addHook('onSend', (request, reply, _payload, done) => {
@@ -34,6 +39,8 @@ export function buildApp(config: Config): FastifyInstance {
   // No CORS: since P2-M1.12c the dashboard talks only to the staff BFF, and the driver app is a
   // mobile app. No browser page has any business calling this one.
 
+  registerSecurityHeaders(app, { production: config.nodeEnv === 'production' });
+  registerRateLimits(app, { behindProxy: config.trustProxyHops > 0 });
   registerErrorHandling(app);
   registerHealthRoute(app);
 

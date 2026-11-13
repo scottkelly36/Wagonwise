@@ -41,6 +41,14 @@ describe('staff-bff host', () => {
     expect(other.headers['access-control-allow-origin']).not.toBe('http://evil.test');
   });
 
+  it('tells a browser not to sniff, frame or send a referrer for anything it returns', async () => {
+    const response = await makeApp().inject({ method: 'GET', url: '/health' });
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    expect(response.headers['x-frame-options']).toBe('DENY');
+    expect(response.headers['referrer-policy']).toBe('no-referrer');
+    expect(response.headers['strict-transport-security']).toBeUndefined(); // production only
+  });
+
   it('answers unknown routes with 404 and a request id', async () => {
     const response = await makeApp().inject({ method: 'GET', url: '/nope' });
     expect(response.statusCode).toBe(404);
