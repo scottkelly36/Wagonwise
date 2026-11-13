@@ -96,6 +96,17 @@ export function Sales() {
       ),
     },
     {
+      key: 'email',
+      header: 'Email',
+      sortValue: (p) => (p.email ?? '').toLowerCase(),
+      cell: (p) =>
+        p.email === undefined ? (
+          <span className="text-muted text-13">Not recorded</span>
+        ) : (
+          <span className="text-13">{p.email}</span>
+        ),
+    },
+    {
       key: 'fleet',
       header: 'Lorries',
       align: 'right',

@@ -580,7 +580,7 @@ driver joined.
 `apps/core/src/modules/sales` (migration 0084): WagonWise's own list of the haulage firms being approached and a log of each
 contact, for platform staff only. Tables `sales.prospects` and `sales.entries`, both readable only in the platform scope (the
 same Row-Level Security as `signups.testers`); the dashboard page is `/admin/sales`, under Customers. **It records and sends
-nothing:** no email, no message, no call. Routes (all `/staff/sales...`, core checks platform staff in the use case, the BFF
+nothing:** no email, no message, no call (it can draft an email to copy; see Email drafts below). Routes (all `/staff/sales...`, core checks platform staff in the use case, the BFF
 only passes them on): `GET` the whole list with every entry, `POST` and `PUT` and `DELETE /prospects`, `POST /prospects/:id/entries`,
 `DELETE /entries/:id`, `POST /import`.
 
@@ -600,6 +600,7 @@ only passes them on): `GET` the whole list with every entry, `POST` and `PUT` an
 - **Import** reads a CSV in the browser (`readFirmsCsv`; columns found by heading, only Name needed; a "Contact details (public)"
   column is split into phone and mailbox) and sends up to 200 rows at a time. The server reads each cell leniently and never
   guesses the kind of business: only "Ltd" or "Limited" makes it a limited company. The firms are the owner's, not in the repo.
+- **Email drafts (2026-11-13):** the list has an **Email** column (the firm's company mailbox, saved with Edit details; "Not recorded" when empty), and each open firm has **Draft an email** (`components/SalesEmailDrafts.tsx`, wording and rules in `lib/sales-email.ts`, pure and tested). It writes the first email, a listening invitation, the one-week and one-month follow-ups, and the after-a-demo email from what the firm already holds: who to ask for, the firm name, and the problem last led with (from the latest logged pitch). Every cold email says who you are, how you found them and how to say no; the founding terms are worded as the playbook has them. No draft for a firm in "do not contact" or a sole trader or partnership (the same rules as the contact hint). **Copy** or **Open in my email** (a `mailto:` link, so the owner reads and sends it from their own mail). It still sends nothing and logs nothing; the contact is logged by hand afterwards. The owner's phone number and the "stores are live" tick are remembered in this browser only. The wording is the owner's "Outreach messages" page, ported.
 - Tests: `application/sales.test.ts` (in-memory), `composition/sales-end-to-end.test.ts` (real Postgres and RLS), and
   `dashboard/src/lib/sales.test.ts`.
 

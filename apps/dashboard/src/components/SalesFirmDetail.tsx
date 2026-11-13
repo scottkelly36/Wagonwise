@@ -26,6 +26,7 @@ import {
 import { staffErrorMessage } from '../pages/staff/messages';
 import { useStaffAuthStore } from '../state/staff-auth-store';
 import { useConfirm, useNotify } from './feedback-context';
+import { SalesEmailDrafts } from './SalesEmailDrafts';
 import { SalesFirmForm } from './SalesFirmForm';
 
 /** A contact on a day other than today is stamped midday that day; today's is stamped now. */
@@ -152,6 +153,8 @@ export function SalesFirmDetail({
           .join(' · ') || 'No contact details yet.'}
       </p>
       {firm.notes !== undefined && <p className="pre-wrap text-13">{firm.notes}</p>}
+
+      <SalesEmailDrafts firm={firm} entries={entries} />
 
       {editing ? (
         <SalesFirmForm
