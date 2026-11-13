@@ -39,7 +39,11 @@ export async function syncTripOutbox(accessToken: string): Promise<void> {
     const queued = await listPendingTripEnds();
     if (queued.length === 0) return;
     const result = await flushTripOutbox(queued, {
-      advanceJob: (jobId, status) => jobsApi.advanceJobStatus(accessToken, jobId, { status }),
+      advanceJob: (jobId, status, at) =>
+        jobsApi.advanceJobStatus(accessToken, jobId, {
+          status,
+          ...(at === undefined ? {} : { at }),
+        }),
       endTrip: (tripId, endedAt) => routingApi.endTrip(accessToken, tripId, endedAt),
     });
     for (const tripId of result.done) await removePendingTripEnd(tripId);

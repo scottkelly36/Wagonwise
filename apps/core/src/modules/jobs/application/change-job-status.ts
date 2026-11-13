@@ -61,11 +61,20 @@ async function commit(
   return ok(after);
 }
 
+/** The time to stamp a step with: now, or when the driver tapped if the app says so, kept after the job's last step and never in the future, so a wrong phone clock cannot reorder the timeline. */
+function stampTime(job: Job, tapped: Date | undefined, now: Date): Date {
+  if (tapped === undefined) return now;
+  const last = job.timeline.at(-1)?.at.getTime() ?? 0;
+  return new Date(Math.min(Math.max(tapped.getTime(), last), now.getTime()));
+}
+
 export interface AdvanceJobStatusInput {
   readonly actor: JobActor;
   readonly jobId: JobId;
   readonly to: JobStatus;
   readonly position?: GeoPoint | undefined;
+  /** When the driver tapped, if the app held the step until it had signal. Kept between the job's last step and now. */
+  readonly at?: Date | undefined;
 }
 
 /** Moves a job one step forward (accepted, at pickup, loaded, ...). The driver on the job or a
@@ -116,7 +125,12 @@ export async function advanceJobStatus(
   ) {
     return err({ tag: 'SignatureRequired' });
   }
-  const next = advanceStatus(loaded.value, input.to, deps.clock.now(), input.position);
+  const next = advanceStatus(
+    loaded.value,
+    input.to,
+    stampTime(loaded.value, input.at, deps.clock.now()),
+    input.position,
+  );
   if (!next.ok) return next;
   return commit(deps, loaded.value, next.value);
 }

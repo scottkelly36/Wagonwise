@@ -109,6 +109,7 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
         jobId: makeId<'JobId'>(params.data.id),
         to: body.data.status,
         position: body.data.position,
+        at: body.data.at === undefined ? undefined : new Date(body.data.at),
       });
       return result.ok ? { status: 200, body: jobDto(result.value) } : failure(result.error);
     }),
