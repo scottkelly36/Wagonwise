@@ -3,6 +3,7 @@ import {
   hasProof,
   hasSignatureFor,
   isActive,
+  TERMINAL_STATUSES,
   type CompanyId,
   type DriverId,
   type Job,
@@ -45,8 +46,28 @@ export class InMemoryJobRepository implements JobRepository {
     return Promise.resolve(found ?? null);
   }
 
-  listForCompany(companyId: CompanyId): Promise<Job[]> {
-    return Promise.resolve([...this.#byId.values()].filter((j) => j.companyId === companyId));
+  listForCompany(
+    companyId: CompanyId,
+    options: { readonly since?: Date; readonly limit?: number } = {},
+  ): Promise<Job[]> {
+    const { since, limit } = options;
+    const created = (j: Job) => j.timeline[0]?.at.getTime() ?? 0;
+    const found = [...this.#byId.values()]
+      .filter((j) => j.companyId === companyId)
+      .filter(
+        (j) =>
+          since === undefined ||
+          created(j) >= since.getTime() ||
+          !TERMINAL_STATUSES.includes(j.status),
+      )
+      .sort((a, b) => created(b) - created(a));
+    return Promise.resolve(limit === undefined ? found : found.slice(0, limit));
+  }
+
+  listOpenForCompany(companyId: CompanyId): Promise<Job[]> {
+    return this.listForCompany(companyId).then((jobs) =>
+      jobs.filter((j) => !TERMINAL_STATUSES.includes(j.status)),
+    );
   }
 
   save(job: Job, events: readonly DomainEvent[] = []): Promise<void> {

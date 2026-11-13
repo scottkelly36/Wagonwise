@@ -411,6 +411,10 @@ second check on top — core alone decides ownership/authorization for those.
 - **Outlook** (`domain/outlook.ts`, `application/outlook.ts`): `outlook` builds six months of actuals with `buildCostReport` (one read of the jobs, fuel, costs and rates for the whole stretch) and `buildOutlook` adds a three-month forecast: revenue, wages and fuel are the average of the last three complete months that had jobs; running costs and overheads are what is already entered for each month ahead (`isActiveIn`). No forecast without a complete month of jobs. The what-if sliders are in the dashboard (`lib/outlook.ts`) and save nothing.
 - **Dashboard:** `pages/fleet/Fuel.tsx` and `lib/fuel-import.ts` (the CSV is read in the browser; the column choice is remembered per company in `localStorage`).
 
+## Job list window
+
+`GET /staff/jobs/companies/:companyId/jobs` (2026-11-13) no longer returns a firm's whole history. It returns every job still open (draft to at_delivery, any age) and finished ones (delivered, cancelled, failed) created in the last 90 days, newest first, capped at 2,000. `?days=N` (1 to 3650) sets the window; `?days=all` lifts it; anything else is a 400. The response has `since` (where the window starts) unless `all` was asked for. The portal's Jobs page shows a line with **Show older jobs**; the home, live trips and alerts keep the default window. `JobRepository.listForCompany(companyId, { since, limit })` does the cut in SQL on `created_at` (set by the database when the job is inserted); `listOpenForCompany` serves the ETAs and the active-driver lookup, which only ever wanted open jobs. The jobs report and the costing "delivered between" lookup still read everything, because they answer for a date range of the firm's choosing.
+
 ## Job notifications
 
 `apps/core/src/modules/jobs`: telling a driver a job is theirs, and letting the office see and repeat it.
@@ -640,6 +644,10 @@ the map changes until platform staff approve it at the top of `/admin/parking` (
 .../:id/approve|reject`; the list never shows who suggested). Approve lays the changes over the spot; "gone" approved deletes the spot.
 The home-screen "Mark safe parking" report also takes optional details (name, spaces, facilities): given as-is to a new spot, but filed as a suggestion when the report lands on a spot already on the map.
 Deciding a suggestion deletes it, and `parking.eraseDriverData` (run on account deletion) removes a driver's waiting ones.
+
+## Portal content security policy
+
+The built portal's `index.html` carries a `Content-Security-Policy` meta tag (2026-11-13; `apps/dashboard/src/lib/content-security-policy.ts`, added by a Vite plugin in `vite.config.ts` for builds only, so the dev server's hot reload is untouched). DigitalOcean static sites cannot set response headers, hence a meta tag. It allows scripts only from the portal itself (no inline, no `eval`), and connections only to the staff server (the origin of `VITE_STAFF_BFF_URL`), `api.postcodes.io` and the two map hosts (`api.maptiler.com`, `demotiles.maplibre.org`); styles allow inline because React and MapLibre set them. **A meta policy cannot set `frame-ancestors`, so the portal can still be framed by another site**; closing that needs real headers (a different host in front, or serving the portal from a service). **If the portal ever calls a new host, add it in that file or the browser will block the call.** Checked in a browser on 2026-11-13: sign-in page renders, a map built the portal's way (same worker and style) loads and draws labels, an injected inline script and a call to another host are both blocked. The signed-in pages were not clicked through.
 
 ## Staff BFF
 
