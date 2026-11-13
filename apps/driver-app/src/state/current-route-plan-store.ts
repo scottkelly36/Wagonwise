@@ -1,6 +1,8 @@
 import type { RoutePlanDto } from '@wagonwise/contracts/routing';
 import { create } from 'zustand';
 
+import { useTripTollsStore } from './trip-tolls-store';
+
 interface CurrentRoutePlanStore {
   readonly plan: RoutePlanDto | undefined;
   setPlan(plan: RoutePlanDto): void;
@@ -19,6 +21,10 @@ interface CurrentRoutePlanStore {
  */
 export const useCurrentRoutePlanStore = create<CurrentRoutePlanStore>((set) => ({
   plan: undefined,
-  setPlan: (plan) => set({ plan }),
+  setPlan: (plan) => {
+    // A plan the server says was chosen for having no toll (one it made itself after a hazard was reported, or one fetched again) keeps that choice.
+    if (plan.avoidsTolls === true) useTripTollsStore.getState().markAvoiding(plan.id);
+    set({ plan });
+  },
   clear: () => set({ plan: undefined }),
 }));

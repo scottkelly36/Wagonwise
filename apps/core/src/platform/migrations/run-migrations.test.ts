@@ -121,6 +121,7 @@ describe('runMigrations', () => {
       '0089_delivery_signatures.sql',
       '0090_announcements.sql',
       '0091_announcement_push.sql',
+      '0092_route_plan_avoids_tolls.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -320,6 +321,7 @@ describe('runMigrations', () => {
       '0089_delivery_signatures.sql',
       '0090_announcements.sql',
       '0091_announcement_push.sql',
+      '0092_route_plan_avoids_tolls.sql',
     ]);
   });
 });

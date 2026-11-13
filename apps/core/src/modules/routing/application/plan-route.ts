@@ -113,8 +113,8 @@ export async function planRoute(
   // shown the warning in the preview), is one found that ignores weight limits; every later pass then uses those same
   // dimensions, so a re-plan cannot quietly go back to a route that does not exist. Height and width are never relaxed.
   // Avoiding tolls is on for the toll-free strategy and whenever the request says so, and stays on in every pass below.
-  const tollPreference =
-    input.strategy === 'toll-free' || input.avoidTolls === true ? { avoidTolls: true } : {};
+  const avoidsTolls = input.strategy === 'toll-free' || input.avoidTolls === true;
+  const tollPreference = avoidsTolls ? { avoidTolls: true } : {};
   const firstPassFor = async (
     dimensions: Dimensions,
   ): Promise<Result<RouteResult, NoRouteFound>> => {
@@ -287,6 +287,7 @@ export async function planRoute(
       deps.fuelPricePerLitreGBP,
     ),
     ...(breaksWeightLimit ? { breaksWeightLimit: true } : {}),
+    ...(avoidsTolls ? { avoidsTolls: true } : {}),
   };
   await deps.routePlanRepo.save(plan);
   return ok(plan);

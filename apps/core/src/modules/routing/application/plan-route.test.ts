@@ -491,6 +491,33 @@ describe('planRoute', () => {
       }
     });
 
+    it('keeps the choice with the plan, so a re-route the server works out later can honour it', async () => {
+      const chosen = await buildDeps();
+      const toll = await planRoute(chosen, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        strategy: 'toll-free',
+      });
+      const kept = await planRoute(chosen, {
+        driverId,
+        profileId,
+        origin,
+        destination,
+        avoidTolls: true,
+      });
+      const plain = await planRoute(await buildDeps(), {
+        driverId,
+        profileId,
+        origin,
+        destination,
+      });
+      expect(toll.ok && toll.value.avoidsTolls).toBe(true);
+      expect(kept.ok && kept.value.avoidsTolls).toBe(true);
+      expect(plain.ok && plain.value).not.toHaveProperty('avoidsTolls');
+    });
+
     it('does not ask to avoid tolls for any other strategy', async () => {
       const deps = await buildDeps();
       const engine = deps.routingEngine as FakeRoutingEngine;
