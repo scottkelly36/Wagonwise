@@ -21,6 +21,10 @@ const envSchema = z.object({
   APP_UPDATE_URL: z.url().max(500).optional(),
   // Resend's signing secret for the failure webhook (POST /webhooks/resend). Unset: the route answers that it is not set up.
   RESEND_WEBHOOK_SECRET: z.string().trim().min(1).optional(),
+  // How many proxies sit in front of this server (App Platform's router is 1). Needed to know the
+  // real caller's address for the rate limit; at 0 the limit is off, because every caller would
+  // look like the proxy. Too many and a caller can pick their own address.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
 });
 
 export interface Config {
@@ -32,6 +36,8 @@ export interface Config {
   readonly coreInternalKey: string;
   /** Resend's signing secret for the failure webhook; undefined means the webhook is not set up. */
   readonly resendWebhookSecret: string | undefined;
+  /** Proxies in front of this server; 0 means the rate limit is off (see TRUST_PROXY_HOPS). */
+  readonly trustProxyHops: number;
   /** The newest build, the oldest still allowed, and where to get it; each may be absent. */
   readonly appVersion: {
     readonly latestVersion?: string;
@@ -69,6 +75,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     coreInternalUrl: values.CORE_INTERNAL_URL,
     coreInternalKey: values.CORE_INTERNAL_KEY,
     resendWebhookSecret: values.RESEND_WEBHOOK_SECRET,
+    trustProxyHops: values.TRUST_PROXY_HOPS,
     appVersion: {
       ...(values.APP_LATEST_VERSION ? { latestVersion: values.APP_LATEST_VERSION } : {}),
       ...(values.APP_MINIMUM_VERSION ? { minimumVersion: values.APP_MINIMUM_VERSION } : {}),
