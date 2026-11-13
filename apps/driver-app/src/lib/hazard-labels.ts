@@ -42,8 +42,8 @@ export function measurementUnitFor(kind: MeasurementDto['kind']): MeasurementDto
 }
 
 const MEASUREMENT_LABEL: Record<MeasurementDto['kind'], string> = {
-  height: 'Height (metres, optional)',
-  width: 'Width (metres, optional)',
+  height: 'Height in metres, for example 4.2 (optional)',
+  width: 'Width in metres, for example 2.5 (optional)',
   weight: 'Weight limit (tonnes, optional)',
 };
 

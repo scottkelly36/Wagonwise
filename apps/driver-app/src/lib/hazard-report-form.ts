@@ -30,6 +30,23 @@ export type ParseHazardReportFormResult =
   | { readonly ok: true; readonly value: ParsedHazardReport }
   | { readonly ok: false; readonly message: string };
 
+/** What to say when a number is bigger than any sign could carry, which is nearly always a height typed in feet into the metres box (13.9 for 13 ft 9 in): a bridge that high would stop nothing. */
+export function implausibleMeasurementMessage(
+  kind: MeasurementDto['kind'],
+  value: number,
+): string | undefined {
+  if (kind === 'height' && value > 7) {
+    return 'That is too high for a bridge. Heights are in metres, for example 4.2. 13 ft 9 in is 4.19 m.';
+  }
+  if (kind === 'width' && value > 8) {
+    return 'That is too wide for a road. Widths are in metres, for example 2.5.';
+  }
+  if (kind === 'weight' && value > 100) {
+    return 'That is too heavy for a weight limit. Weights are in tonnes, for example 7.5.';
+  }
+  return undefined;
+}
+
 /** Mirrors core's own validateMeasurement (hazards/domain/hazard-report.ts) so a driver sees the
  *  same "not a positive number" rule before a network round trip. The measurement field itself
  *  only appears in the UI for a type `measurementKindFor` returns a kind for — this still checks
@@ -51,6 +68,8 @@ export function parseHazardReportForm(values: HazardReportFormValues): ParseHaza
     if (!Number.isFinite(value) || value <= 0) {
       return { ok: false, message: 'The measurement must be a positive number.' };
     }
+    const tooBig = implausibleMeasurementMessage(kind, value);
+    if (tooBig !== undefined) return { ok: false, message: tooBig };
     measurement = { kind, value, unit: measurementUnitFor(kind) };
   }
 

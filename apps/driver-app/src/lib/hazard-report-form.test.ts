@@ -90,4 +90,33 @@ describe('parseHazardReportForm', () => {
       }),
     ).toEqual({ ok: false, message: 'The measurement must be a positive number.' });
   });
+
+  it('stops a height typed in feet (13.9 for 13 ft 9 in) and says what to type instead', () => {
+    const result = parseHazardReportForm({
+      ...EMPTY_HAZARD_REPORT_FORM,
+      type: 'low_bridge',
+      location,
+      measurementValue: '13.9',
+    });
+    expect(result).toEqual({
+      ok: false,
+      message:
+        'That is too high for a bridge. Heights are in metres, for example 4.2. 13 ft 9 in is 4.19 m.',
+    });
+  });
+
+  it('still takes a real height, width and weight', () => {
+    const ok = (type: 'low_bridge' | 'width_restriction' | 'weight_limit', value: string) =>
+      parseHazardReportForm({
+        ...EMPTY_HAZARD_REPORT_FORM,
+        type,
+        location,
+        measurementValue: value,
+      }).ok;
+    expect(ok('low_bridge', '4.19')).toBe(true);
+    expect(ok('width_restriction', '2.5')).toBe(true);
+    expect(ok('weight_limit', '7.5')).toBe(true);
+    expect(ok('width_restriction', '9')).toBe(false);
+    expect(ok('weight_limit', '150')).toBe(false);
+  });
 });
