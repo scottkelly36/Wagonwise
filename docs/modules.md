@@ -411,6 +411,10 @@ second check on top — core alone decides ownership/authorization for those.
 - **Outlook** (`domain/outlook.ts`, `application/outlook.ts`): `outlook` builds six months of actuals with `buildCostReport` (one read of the jobs, fuel, costs and rates for the whole stretch) and `buildOutlook` adds a three-month forecast: revenue, wages and fuel are the average of the last three complete months that had jobs; running costs and overheads are what is already entered for each month ahead (`isActiveIn`). No forecast without a complete month of jobs. The what-if sliders are in the dashboard (`lib/outlook.ts`) and save nothing.
 - **Dashboard:** `pages/fleet/Fuel.tsx` and `lib/fuel-import.ts` (the CSV is read in the browser; the column choice is remembered per company in `localStorage`).
 
+## Job list window
+
+`GET /staff/jobs/companies/:companyId/jobs` (2026-11-13) no longer returns a firm's whole history. It returns every job still open (draft to at_delivery, any age) and finished ones (delivered, cancelled, failed) created in the last 90 days, newest first, capped at 2,000. `?days=N` (1 to 3650) sets the window; `?days=all` lifts it; anything else is a 400. The response has `since` (where the window starts) unless `all` was asked for. The portal's Jobs page shows a line with **Show older jobs**; the home, live trips and alerts keep the default window. `JobRepository.listForCompany(companyId, { since, limit })` does the cut in SQL on `created_at` (set by the database when the job is inserted); `listOpenForCompany` serves the ETAs and the active-driver lookup, which only ever wanted open jobs. The jobs report and the costing "delivered between" lookup still read everything, because they answer for a date range of the firm's choosing.
+
 ## Job notifications
 
 `apps/core/src/modules/jobs`: telling a driver a job is theirs, and letting the office see and repeat it.

@@ -5,6 +5,7 @@ import {
   createJobRequestSchema,
   failJobRequestSchema,
   jobCompanyIdParamsSchema,
+  listJobsQuerySchema,
   jobIdParamsSchema,
   jobReportRequestSchema,
   previewJobRouteRequestSchema,
@@ -157,13 +158,23 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
   app.get('/staff/jobs/companies/:companyId/jobs', (request, reply) =>
     asStaff(request, reply, async (caller) => {
       const params = jobCompanyIdParamsSchema.safeParse(request.params);
-      if (!params.success) return INVALID;
+      const query = listJobsQuerySchema.safeParse(request.query);
+      if (!params.success || !query.success) return INVALID;
       const result = await listJobs(deps.listJobs, {
         caller,
         companyId: makeId<'CompanyId'>(params.data.companyId),
+        ...(query.data.days === undefined ? {} : { days: query.data.days }),
       });
       return result.ok
-        ? { status: 200, body: { jobs: result.value.map((j) => staffJobDto(j, caller)) } }
+        ? {
+            status: 200,
+            body: {
+              jobs: result.value.jobs.map((j) => staffJobDto(j, caller)),
+              ...(result.value.since === undefined
+                ? {}
+                : { since: result.value.since.toISOString() }),
+            },
+          }
         : failure(result.error);
     }),
   );

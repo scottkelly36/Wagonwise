@@ -81,7 +81,7 @@ function buildApp(): {
     },
     changeStatus: { repo, ids, clock },
     setCommercial: { repo },
-    listJobs: { repo },
+    listJobs: { repo, clock },
     getJob: { repo },
     getProofOfDelivery: { repo },
     getSignature: { repo },
@@ -379,6 +379,30 @@ describe('dispatching a job', () => {
     const done = await cancel(DISPATCHER_ID);
     expect(done.statusCode).toBe(200);
     expect(done.json()).toMatchObject({ status: 'cancelled' });
+  });
+
+  it('refuses a list window that is not a number of days or "all"', async () => {
+    const { app } = buildApp();
+    for (const days of ['0', '-3', 'abc', '99999']) {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/staff/jobs/companies/${companyA}/jobs?days=${days}`,
+        ...asStaff(VIEWER_ID),
+      });
+      expect(res.statusCode).toBe(400);
+    }
+  });
+
+  it('says where the default window starts, and nothing when asked for everything', async () => {
+    const { app } = buildApp();
+    await createDraft(app);
+    const url = `/staff/jobs/companies/${companyA}/jobs`;
+    const windowed = await app.inject({ method: 'GET', url, ...asStaff(VIEWER_ID) });
+    expect(windowed.json<{ since?: string }>().since).toEqual(expect.any(String));
+    const all = await app.inject({ method: 'GET', url: `${url}?days=all`, ...asStaff(VIEWER_ID) });
+    expect(all.statusCode).toBe(200);
+    expect(all.json()).not.toHaveProperty('since');
+    expect(all.json<{ jobs: unknown[] }>().jobs).toHaveLength(1);
   });
 
   it('lists a company’s jobs, and 403s staff from another company', async () => {

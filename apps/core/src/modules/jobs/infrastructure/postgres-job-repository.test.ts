@@ -3,7 +3,7 @@ import { sql } from 'kysely';
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
-import type { Job } from '../domain/job.js';
+import type { Job, JobId } from '../domain/job.js';
 import type { UntypedDb } from './db.js';
 import { PostgresJobRepository } from './postgres-job-repository.js';
 import { applySchema } from './testing/apply-schema.js';
@@ -224,6 +224,52 @@ describe('PostgresJobRepository', () => {
     expect(mine.length).toBeGreaterThan(0);
     expect(mine.every((j) => j.companyId === companyId)).toBe(true);
     expect(mine.every((j) => j.stops.length === 2)).toBe(true);
+  });
+
+  describe('a window on the list', () => {
+    const windowCompany = makeId<'CompanyId'>('77777777-0000-4000-8000-777777777777');
+    const ids = {
+      newDone: makeId<'JobId'>('77777777-1111-4111-8111-000000000001'),
+      oldDone: makeId<'JobId'>('77777777-1111-4111-8111-000000000002'),
+      oldOpen: makeId<'JobId'>('77777777-1111-4111-8111-000000000003'),
+      newOpen: makeId<'JobId'>('77777777-1111-4111-8111-000000000004'),
+    };
+
+    /** Four jobs created on known dates (created_at is set by the database on insert, so it is set after). */
+    async function seed() {
+      const r = repo();
+      const make = async (id: JobId, status: Job['status'], created: string) => {
+        await r.save(job({ companyId: windowCompany, id, status }));
+        await sql`update jobs.jobs set created_at = ${created}::timestamptz where id = ${id}`.execute(
+          db,
+        );
+      };
+      await make(ids.newDone, 'delivered', '2026-11-10T09:00:00.000Z');
+      await make(ids.oldDone, 'cancelled', '2026-05-01T09:00:00.000Z');
+      await make(ids.oldOpen, 'en_route', '2026-04-01T09:00:00.000Z');
+      await make(ids.newOpen, 'assigned', '2026-11-12T09:00:00.000Z');
+    }
+
+    it('leaves out finished jobs from before the date, keeps open ones, newest first', async () => {
+      await seed();
+      const found = await repo().listForCompany(windowCompany, {
+        since: new Date('2026-08-01T00:00:00.000Z'),
+      });
+      expect(found.map((j) => j.id)).toEqual([ids.newOpen, ids.newDone, ids.oldOpen]);
+    });
+
+    it('lists everything with no date, and caps the count keeping the newest', async () => {
+      await seed();
+      expect(await repo().listForCompany(windowCompany)).toHaveLength(4);
+      const capped = await repo().listForCompany(windowCompany, { limit: 2 });
+      expect(capped.map((j) => j.id)).toEqual([ids.newOpen, ids.newDone]);
+    });
+
+    it('lists only the jobs not finished', async () => {
+      await seed();
+      const open = await repo().listOpenForCompany(windowCompany);
+      expect(open.map((j) => j.id)).toEqual([ids.newOpen, ids.oldOpen]);
+    });
   });
 
   it('writes events to the outbox with the job', async () => {

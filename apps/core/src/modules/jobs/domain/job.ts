@@ -165,7 +165,7 @@ export const ACTIVE_STATUSES: readonly JobStatus[] = [
   'at_delivery',
 ];
 
-const TERMINAL_STATUSES: readonly JobStatus[] = ['delivered', 'cancelled', 'failed'];
+export const TERMINAL_STATUSES: readonly JobStatus[] = ['delivered', 'cancelled', 'failed'];
 
 export function isActive(status: JobStatus): boolean {
   return ACTIVE_STATUSES.includes(status);

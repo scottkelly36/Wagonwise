@@ -103,8 +103,17 @@ export const jobsErrorResponseSchema = z.object({
 });
 export type JobsErrorResponse = z.infer<typeof jobsErrorResponseSchema>;
 
+/** `GET /staff/jobs/companies/:companyId/jobs?days=…`: how far back finished jobs go (jobs still open are
+ *  always listed). Default 90 days; `all` lifts the window. */
+export const listJobsQuerySchema = z.object({
+  days: z.union([z.literal('all'), z.coerce.number().int().min(1).max(3650)]).optional(),
+});
+export type ListJobsQuery = z.infer<typeof listJobsQuerySchema>;
+
 export const listJobsResponseSchema = z.object({
   jobs: z.array(jobSchema),
+  /** Where the window starts, when finished jobs from before it were left out; absent for the full list. */
+  since: z.iso.datetime().optional(),
 });
 export type ListJobsResponse = z.infer<typeof listJobsResponseSchema>;
 
