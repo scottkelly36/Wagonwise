@@ -81,6 +81,49 @@ describe('HazardAvoidanceQueryAdapter', () => {
     expect(result[0]).not.toHaveProperty('limit');
   });
 
+  describe('a limit OpenStreetMap maps as a point of the road', () => {
+    const bridge = { lat: 53.940982, lon: -1.091564 };
+    const candidate: AvoidanceCandidate = {
+      id: 'osm-node',
+      kind: 'height',
+      limit: 3.35,
+      location: bridge,
+      onRoadPoint: true,
+    };
+    const adapter = new HazardAvoidanceQueryAdapter({
+      findAvoidanceCandidates: () => Promise.resolve([candidate]),
+    });
+
+    it('is kept, with its point, for a route along that road', async () => {
+      const under = [{ lat: 53.9399, lon: -1.091564 }, bridge, { lat: 53.9418, lon: -1.091564 }];
+      const result = await adapter.activeNear(encodePolyline(under));
+      expect(result.map((o) => o.id)).toEqual(['osm-node']);
+      expect(result[0]?.roadPoint).toEqual(bridge);
+    });
+
+    it('is dropped for a route that only crosses over it', async () => {
+      const over = [
+        { lat: 53.940982, lon: -1.0922 },
+        { lat: 53.940982, lon: -1.0909 },
+      ];
+      expect(await adapter.activeNear(encodePolyline(over))).toEqual([]);
+    });
+
+    it('a driver’s report at the same place is kept either way', async () => {
+      const { onRoadPoint: _unused, ...fromDriver } = candidate;
+      const drivers = new HazardAvoidanceQueryAdapter({
+        findAvoidanceCandidates: () => Promise.resolve([fromDriver]),
+      });
+      const over = [
+        { lat: 53.940982, lon: -1.0922 },
+        { lat: 53.940982, lon: -1.0909 },
+      ];
+      const result = await drivers.activeNear(encodePolyline(over));
+      expect(result.map((o) => o.id)).toEqual(['osm-node']);
+      expect(result[0]).not.toHaveProperty('roadPoint');
+    });
+  });
+
   it('returns an empty array when there are no candidates', async () => {
     const adapter = new HazardAvoidanceQueryAdapter({
       findAvoidanceCandidates: () => Promise.resolve([]),

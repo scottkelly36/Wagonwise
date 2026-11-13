@@ -76,6 +76,9 @@ export interface AvoidanceCandidate {
   readonly kind: 'height' | 'width' | 'weight' | 'prohibition';
   readonly limit?: number;
   readonly location: GeoPoint;
+  /** Set for a restriction OpenStreetMap maps as a point: `location` is then a point of the restricted road's own line, not
+   *  a driver's estimate of where it is. Lets routing tell a route along that road from one that only crosses over it. */
+  readonly onRoadPoint?: true;
 }
 
 export interface HazardsModule {
@@ -149,8 +152,9 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
       const live = nearby.filter(
         (r) =>
           r.status === 'active' &&
-          // The router already reads these same OpenStreetMap limits itself; steering around them twice adds nothing.
-          r.source !== 'osm' &&
+          // The router already reads the OpenStreetMap limits mapped on a road itself; steering around them twice adds
+          // nothing. It does not read one mapped as a point (Valhalla takes `maxheight` from ways only), so those go through.
+          (r.source !== 'osm' || r.osmWayId === undefined) &&
           !isExpired(r, now) &&
           AVOIDANCE_KIND[r.type] !== undefined,
       );
@@ -170,6 +174,7 @@ export function createHazardsModule(deps: HazardsModuleDeps): HazardsModule {
           kind,
           ...(report.measurement === undefined ? {} : { limit: report.measurement.value }),
           location: report.location,
+          ...(report.source === 'osm' ? { onRoadPoint: true as const } : {}),
         });
       }
       return candidates;

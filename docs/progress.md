@@ -66,6 +66,8 @@ change (new package, plugin or permission) needs `version` bumped and a Play bui
 
 ## Open items
 
+- **Point-mapped low bridges, check on the live router** (built 2026-11-13 after a driver's review; `modules.md`, "Hazards from OpenStreetMap"): plan a route for a 4 m
+  vehicle along a road with one (for example through 53.9410, -1.0916 in York, 3.35 m) and see that it goes round. The driver's own route and vehicle are still not known.
 - **CarPlay: Apple has granted the entitlement (email from Apple Developer Relations, 2026-11-11; requested 2026-11-08, follow-up case 23398599 answered with
   CPManeuver mock-ups).** The owner still has to enable it in the developer account (Identifiers, the App ID, the CarPlay capability, then a new provisioning profile): the
   email does not name the category, so check it says **Navigation**. Building it needs a **Mac** (Apple's CarPlay simulator), a native iOS build (version bump) and App Review.
