@@ -402,6 +402,38 @@ describe('GET /routing/route-plans/:id/speed-limits', () => {
     });
   });
 
+  it('passes on kph=1, the sign that the app can show a limit in km/h, and nothing else', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 200, body: { zones: [] } };
+
+    await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${ID}/speed-limits?kph=1&other=x`,
+      headers: AUTH_HEADER,
+    });
+    await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${ID}/speed-limits`,
+      headers: AUTH_HEADER,
+    });
+
+    expect(coreClient.calls[0]).toMatchObject({
+      path: `/routing/route-plans/${ID}/speed-limits?kph=1`,
+    });
+    expect(coreClient.calls[1]).toMatchObject({ path: `/routing/route-plans/${ID}/speed-limits` });
+  });
+
+  it('400s a kph value that is not 1, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${ID}/speed-limits?kph=yes`,
+      headers: AUTH_HEADER,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+
   it('400s a non-UUID id and requires a token, without calling core', async () => {
     const { app, coreClient } = buildApp();
     const bad = await app.inject({

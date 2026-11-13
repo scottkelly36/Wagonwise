@@ -1,6 +1,6 @@
 # Ireland: scope (2026-11-11)
 
-**Status: scoped, nothing built.** The owner wants it live this weekend (14 and 15 November). This file says what "Ireland" means for
+**Status: speed limits in km/h built (2026-11-13, see `modules.md`, "Speed limits on the trip screen"); the rest scoped, nothing built.** The owner wants it live this weekend (14 and 15 November). This file says what "Ireland" means for
 the product, what breaks if the routing tiles are simply switched over, what must be done first, and what can wait. Written from the
 code and docs; web facts are named with their source and **marked where they were not checked against the original**.
 

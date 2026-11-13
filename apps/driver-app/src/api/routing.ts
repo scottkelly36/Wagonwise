@@ -137,7 +137,8 @@ export async function getRouteSpeedLimits(
 ): Promise<{ zones: SpeedZoneDto[]; bridges: BridgeStretchDto[]; wayIds: number[] }> {
   const { status, json } = await requestJson(
     'GET',
-    `/routing/route-plans/${routePlanId}/speed-limits`,
+    // `kph=1` says this app can show a limit in km/h; without it the server sends none for the Republic of Ireland.
+    `/routing/route-plans/${routePlanId}/speed-limits?kph=1`,
     { authorization: bearer(accessToken) },
   );
   throwUnlessSuccess(status, json, [200]);

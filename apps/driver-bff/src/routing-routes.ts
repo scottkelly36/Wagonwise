@@ -6,6 +6,7 @@ import {
   planRouteRequestSchema,
   previewRouteOptionsRequestSchema,
   routePlanIdParamsSchema,
+  routeSpeedLimitsQuerySchema,
   tripTrafficRequestSchema,
   updateVehicleProfileRequestSchema,
   vehicleProfileIdParamsSchema,
@@ -238,9 +239,13 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
     if (!params.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
+    const query = routeSpeedLimitsQuerySchema.safeParse(request.query);
+    if (!query.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
     const core = await deps.coreClient.request(
       'GET',
-      `/routing/route-plans/${params.data.id}/speed-limits`,
+      `/routing/route-plans/${params.data.id}/speed-limits${query.data.kph === '1' ? '?kph=1' : ''}`,
       request.id,
       { authorization: `Bearer ${token}` },
     );

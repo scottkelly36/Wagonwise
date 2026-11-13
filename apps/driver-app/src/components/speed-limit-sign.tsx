@@ -22,10 +22,10 @@ export function SpeedLimitSignView({ sign }: { readonly sign: SpeedLimitSign }) 
       accessibilityLabel={speedLimitLabel(sign)}
       testID="speed-limit-sign"
     >
-      {sign.kind === 'limit' ? (
+      {sign.kind !== 'national' ? (
         <View style={styles.ring}>
           <Text style={styles.number} allowFontScaling={false}>
-            {sign.mph}
+            {sign.kind === 'limit-kph' ? sign.kph : sign.mph}
           </Text>
         </View>
       ) : (

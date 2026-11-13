@@ -56,6 +56,50 @@ describe('ValhallaSpeedLimits', () => {
     expect((body['shape'] as unknown[]).length).toBe(10);
   });
 
+  it('reads each section as km/h in the Republic and mph elsewhere, from the country list the router returns', async () => {
+    let attributes: unknown;
+    const source = new ValhallaSpeedLimits('http://valhalla', (_url, init) => {
+      const sent = JSON.parse(init.body as string) as { filters: { attributes: unknown } };
+      attributes = sent.filters.attributes;
+      return Promise.resolve(
+        reply(200, {
+          admins: [{ country_code: 'IE' }, { country_code: 'GB', state_code: 'NIR' }],
+          edges: [
+            {
+              length: 0.5,
+              speed_limit: 80,
+              road_class: 'primary',
+              use: 'road',
+              end_node: { admin_index: 0 },
+            },
+            {
+              length: 0.5,
+              speed_limit: 80,
+              road_class: 'primary',
+              use: 'road',
+              end_node: { admin_index: 1 },
+            },
+          ],
+        }),
+      );
+    });
+    const { zones } = await source.featuresAlong(route);
+    expect(zones).toEqual([
+      { from: 0, to: 0.5, limitKph: 80 },
+      { from: 0.5, to: 1, limitMph: 50 },
+    ]);
+    expect(attributes).toEqual(expect.arrayContaining(['node.admin_index', 'admin.country_code']));
+  });
+
+  it('reads the limits the United Kingdom way when the router gives no countries, as before', async () => {
+    const source = new ValhallaSpeedLimits('http://valhalla', () =>
+      Promise.resolve(
+        reply(200, { edges: [{ length: 1, speed_limit: 80, road_class: 'primary', use: 'road' }] }),
+      ),
+    );
+    expect((await source.featuresAlong(route)).zones).toEqual([{ from: 0, to: 1, limitMph: 50 }]);
+  });
+
   it('says where the route runs over a bridge, as the points where it starts and ends', async () => {
     const matched = line(10);
     const source = new ValhallaSpeedLimits('http://valhalla', (_url, init) => {

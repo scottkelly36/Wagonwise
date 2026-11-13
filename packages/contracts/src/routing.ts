@@ -291,15 +291,25 @@ export type RoutePlanIdParams = z.infer<typeof routePlanIdParamsSchema>;
 
 /**
  * `GET /routing/route-plans/:id/speed-limits`: what to show a driver about the speed limit along a route. `from` and
- * `to` are fractions of the route's length (0 to 1). A zone without `limitMph` is the national speed limit. Stretches
- * with no zone have nothing to show: the limit is not known, and nothing is guessed.
+ * `to` are fractions of the route's length (0 to 1). A zone with `limitMph` is a posted limit in the United Kingdom and one with `limitKph`
+ * a posted limit in the Republic of Ireland; a zone with neither is the national speed limit (Great Britain only). Stretches with no zone
+ * have nothing to show: the limit is not known, and nothing is guessed.
  */
 export const speedZoneSchema = z.object({
   from: z.number().min(0).max(1),
   to: z.number().min(0).max(1),
   limitMph: z.number().int().positive().optional(),
+  limitKph: z.number().int().positive().optional(),
 });
 export type SpeedZoneDto = z.infer<typeof speedZoneSchema>;
+
+/**
+ * The query of `GET /routing/route-plans/:id/speed-limits`. An app that can show a limit in km/h sends `kph=1`. One that cannot (a version from
+ * before the Republic of Ireland) does not, and is sent no zone for the Republic at all: it would read a zone with no `limitMph` as the national
+ * speed limit, which does not exist there, so a stretch with no sign is the safe answer.
+ */
+export const routeSpeedLimitsQuerySchema = z.object({ kph: z.literal('1').optional() });
+export type RouteSpeedLimitsQuery = z.infer<typeof routeSpeedLimitsQuerySchema>;
 
 /** Where the route runs over a bridge, as the points where each starts and ends. A low-bridge restriction is on the road underneath, so such a hazard
  *  on one of these stretches is not the driver's. */

@@ -282,7 +282,8 @@ describe('getRouteSpeedLimits', () => {
 
     expect(await getRouteSpeedLimits('token-1', planId)).toEqual({ zones, bridges, wayIds });
     const [url] = fetchMock.mock.calls[0] as [string];
-    expect(url).toMatch(new RegExp(`/routing/route-plans/${planId}/speed-limits$`));
+    // `kph=1` says this app can show a limit in km/h, so the server includes the Republic of Ireland's.
+    expect(url).toMatch(new RegExp(`/routing/route-plans/${planId}/speed-limits\\?kph=1$`));
   });
 
   it('treats a reply with no bridges as none', async () => {
