@@ -1,6 +1,6 @@
 import type { HazardStatusDto, HazardTypeDto, MeasurementDto } from '@wagonwise/contracts/hazards';
 
-import { formatHeightWithFeetInches } from './units';
+import { formatHeightWithFeetInches, type LengthUnit } from './units';
 
 /** Plain words, not domain jargon (AGENTS.md: "Low bridge", "Too heavy for this road" — not
  *  "restriction" or "prohibition"). The type picker on the report-hazard screen renders every
@@ -47,8 +47,37 @@ const MEASUREMENT_LABEL: Record<MeasurementDto['kind'], string> = {
   weight: 'Weight limit (tonnes, optional)',
 };
 
-export function measurementLabelFor(kind: MeasurementDto['kind']): string {
-  return MEASUREMENT_LABEL[kind];
+const MEASUREMENT_LABEL_FEET: Partial<Record<MeasurementDto['kind'], string>> = {
+  height: 'Height in feet and inches, as on the sign (optional)',
+  width: 'Width in feet and inches, as on the sign (optional)',
+};
+
+/** The label for the measurement box. Height and width can be given in feet and inches when that is how the driver reads signs. */
+export function measurementLabelFor(
+  kind: MeasurementDto['kind'],
+  unit: LengthUnit = 'metres',
+): string {
+  return (unit === 'feet' ? MEASUREMENT_LABEL_FEET[kind] : undefined) ?? MEASUREMENT_LABEL[kind];
+}
+
+/** Whether this kind of measurement can be typed in feet and inches: UK height and width signs use both; weight is tonnes only. */
+export function canTypeInFeet(kind: MeasurementDto['kind']): boolean {
+  return kind === 'height' || kind === 'width';
+}
+
+/**
+ * What to show under the box as the driver types, so a mistake is seen before it is sent: in metres, a height also in feet and inches (13.9 m reads
+ * as 45'7", plainly not a bridge); in feet and inches, what that is in metres. Nothing while the box is empty or not a positive number.
+ */
+export function measurementEcho(
+  kind: MeasurementDto['kind'],
+  metresText: string,
+  unit: LengthUnit,
+): string | undefined {
+  const metres = Number(metresText.trim());
+  if (metresText.trim() === '' || !Number.isFinite(metres) || metres <= 0) return undefined;
+  if (unit === 'feet' && canTypeInFeet(kind)) return `${metres.toFixed(2)} m`;
+  return kind === 'height' ? formatHeightWithFeetInches(metres) : undefined;
 }
 
 /** A recorded measurement, formatted for display — height gets the feet-and-inches aside UK

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { HazardParser, ParsedVoiceReport } from '../application/ports/hazard-parser.js';
+import { usableLimit } from '../domain/hazard-report.js';
 
 const DEFAULT_ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
@@ -15,6 +16,7 @@ Always call ${TOOL_NAME} exactly once with your best interpretation — never as
 "type" must be the single closest match from the fixed list, even if imperfect; use "other" only when nothing fits.
 "speed_camera" is a fixed speed camera (a Gatso, an average-speed camera, a red-light camera); "mobile_camera" is a mobile speed camera van or a police speed check, anything that will not be there for long.
 "measurement" is only for a stated height, width or weight limit (e.g. "three and a half metres", "seven and a half tonnes") — omit it if the driver didn't give a number.
+Give a height or width in metres and a weight in tonnes, always. Drivers often say feet and inches ("thirteen foot six", "13 foot 6", "thirteen six"): convert to metres (one foot is 0.3048 m, one inch 0.0254 m, so 13 ft 6 in is 4.11 m) and never put a number of feet in the metres field; "tons" means tonnes. If you cannot tell what unit a number is in, omit the measurement rather than guess.
 "positionHint" is a short phrase for where the hazard is, in the driver's own words (e.g. "just past the roundabout"), if they said one — omit it otherwise.
 "note" is a short, factual description of the hazard itself, written like a log entry — never a retelling of the driver's own experience, reaction or exact wording. Drop filler, hesitation, false starts and anything about what happened to the driver personally; keep only what the hazard is and, if given, roughly where. For example, if the driver says "eee I just passed a bridge that was lower than what it should have been, I nearly took the wagon's roof off", the note should be "Bridge lower than signed" — not a shortened version of the driver's story. Never include swearing, insults or other offensive language, however the driver phrased it — rephrase around it neutrally rather than quoting or censoring it (e.g. "traffic's bad here" rather than repeating an expletive).`;
 
@@ -172,6 +174,11 @@ export class AnthropicHazardParser implements HazardParser {
     }
 
     const validated = parsedVoiceReportSchema.safeParse(toolUse.input);
-    return validated.success ? validated.data : undefined;
+    if (!validated.success) return undefined;
+    // A number no sign could carry is a unit slip (feet given as metres): leave it out, so the driver is not shown, and does not send, a bridge 13.9 m high.
+    const { measurement, ...rest } = validated.data;
+    return measurement !== undefined && usableLimit(measurement) === undefined
+      ? rest
+      : validated.data;
   }
 }

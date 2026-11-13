@@ -1,7 +1,10 @@
 import {
+  canTypeInFeet,
   hazardSeverityFor,
   hazardWarningSpeech,
+  measurementEcho,
   measurementKindFor,
+  measurementLabelFor,
   measurementUnitFor,
 } from './hazard-labels';
 
@@ -55,5 +58,40 @@ describe('hazardWarningSpeech', () => {
   it('rates the camera types as take-care, not cannot-pass', () => {
     expect(hazardSeverityFor('speed_camera')).toBe('caution');
     expect(hazardSeverityFor('mobile_camera')).toBe('caution');
+  });
+});
+
+describe('measurementLabelFor and canTypeInFeet', () => {
+  it('asks for feet and inches for a height or width when that is the driver unit', () => {
+    expect(measurementLabelFor('height', 'feet')).toContain('feet and inches');
+    expect(measurementLabelFor('width', 'feet')).toContain('feet and inches');
+    expect(measurementLabelFor('height', 'metres')).toContain('metres');
+    expect(measurementLabelFor('height')).toContain('metres');
+  });
+
+  it('always asks for tonnes for a weight', () => {
+    expect(measurementLabelFor('weight', 'feet')).toContain('tonnes');
+    expect(canTypeInFeet('weight')).toBe(false);
+    expect(canTypeInFeet('height')).toBe(true);
+    expect(canTypeInFeet('width')).toBe(true);
+  });
+});
+
+describe('measurementEcho', () => {
+  it('shows a height typed in metres in feet and inches too, so 13.9 is seen to be 45 feet', () => {
+    expect(measurementEcho('height', '4.19', 'metres')).toBe('4.19m (13\'9")');
+    expect(measurementEcho('height', '13.9', 'metres')).toContain("45'");
+  });
+
+  it('shows what feet and inches come to in metres', () => {
+    expect(measurementEcho('height', '4.191', 'feet')).toBe('4.19 m');
+    expect(measurementEcho('width', '2.286', 'feet')).toBe('2.29 m');
+  });
+
+  it('has nothing for an empty or invalid box, a width in metres, or a weight', () => {
+    expect(measurementEcho('height', '', 'metres')).toBeUndefined();
+    expect(measurementEcho('height', 'NaN', 'feet')).toBeUndefined();
+    expect(measurementEcho('width', '2.5', 'metres')).toBeUndefined();
+    expect(measurementEcho('weight', '7.5', 'feet')).toBeUndefined();
   });
 });

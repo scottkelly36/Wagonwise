@@ -13,11 +13,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useReportHazard } from '../api/use-hazards';
+import { HazardMeasurementInput } from '../components/hazard-measurement-input';
 import { RouteMap, type MapPoint } from '../components/route-map';
 import { enqueueHazardReport, removeQueuedHazardReport } from '../db/hazard-queue';
 import { useCurrentLocation } from '../hooks/use-current-location';
 import { isCameraType } from '../lib/camera-report';
-import { HAZARD_TYPE_LABELS, measurementKindFor, measurementLabelFor } from '../lib/hazard-labels';
+import { HAZARD_TYPE_LABELS, measurementKindFor } from '../lib/hazard-labels';
 import { parseHazardReportForm } from '../lib/hazard-report-form';
 import { Icon } from '../components/ui/icon';
 import { MapSheet } from '../components/ui/map-sheet';
@@ -151,18 +152,11 @@ export default function ReportHazardScreen() {
       </View>
 
       {measurementKind !== undefined && (
-        <>
-          <Text style={styles.label}>{measurementLabelFor(measurementKind)}</Text>
-          <TextInput
-            style={styles.input}
-            value={measurementValue}
-            onChangeText={setMeasurementValue}
-            placeholder="e.g. 3.5"
-            placeholderTextColor={colors.textDim}
-            keyboardType="decimal-pad"
-            testID="hazard-measurement-input"
-          />
-        </>
+        <HazardMeasurementInput
+          kind={measurementKind}
+          value={measurementValue}
+          onChange={setMeasurementValue}
+        />
       )}
 
       <Text style={styles.label}>Note (optional)</Text>
