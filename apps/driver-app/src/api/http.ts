@@ -1,4 +1,5 @@
 import { config } from '../config';
+import { useConnectionStore } from '../state/connection-store';
 import { ApiError } from './errors';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -33,7 +34,15 @@ export async function requestJson(
     init.body = JSON.stringify(options.body);
   }
 
-  const response = await fetch(`${config.bffUrl}${path}`, init);
+  let response: Response;
+  try {
+    response = await fetch(`${config.bffUrl}${path}`, init);
+  } catch (error) {
+    // Never reached the server: no signal. Any answer at all (even an error) means there is.
+    useConnectionStore.getState().setOffline(true);
+    throw error;
+  }
+  useConnectionStore.getState().setOffline(false);
   const contentLength = response.headers.get('content-length');
   const json: unknown =
     response.status === 204 || contentLength === '0' ? undefined : await response.json();
