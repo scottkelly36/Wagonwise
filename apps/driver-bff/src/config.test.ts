@@ -10,6 +10,7 @@ describe('loadConfig', () => {
       logLevel: 'info',
       coreInternalUrl: 'http://127.0.0.1:3001',
       coreInternalKey: 'local-dev-internal-key',
+      trustProxyHops: 0,
       appVersion: {},
     });
   });
@@ -34,6 +35,7 @@ describe('loadConfig', () => {
       logLevel: 'warn',
       coreInternalUrl: 'https://core.internal',
       coreInternalKey: 'a-real-shared-secret',
+      trustProxyHops: 0,
       appVersion: {},
     });
   });
@@ -50,6 +52,12 @@ describe('loadConfig', () => {
       updateUrl: 'https://play.google.com/store/apps/details?id=x',
     });
     expect(() => loadConfig({ APP_UPDATE_URL: 'not-a-url' })).toThrow(ConfigError);
+  });
+
+  it('reads how many proxies sit in front, and refuses a silly number', () => {
+    expect(loadConfig({ TRUST_PROXY_HOPS: '1' }).trustProxyHops).toBe(1);
+    expect(() => loadConfig({ TRUST_PROXY_HOPS: '9' })).toThrow(ConfigError);
+    expect(() => loadConfig({ TRUST_PROXY_HOPS: '-1' })).toThrow(ConfigError);
   });
 
   it('reads Resend’s webhook secret when set, and leaves it undefined when not or blank', () => {

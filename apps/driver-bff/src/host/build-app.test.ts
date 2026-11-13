@@ -33,6 +33,34 @@ describe('request IDs', () => {
   });
 });
 
+describe('security headers', () => {
+  it('tells a browser not to sniff, frame or send a referrer for anything it returns', async () => {
+    const response = await makeApp().inject({ method: 'GET', url: '/health' });
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    expect(response.headers['x-frame-options']).toBe('DENY');
+    expect(response.headers['referrer-policy']).toBe('no-referrer');
+    expect(response.headers['content-security-policy']).toContain("frame-ancestors 'none'");
+  });
+
+  it('carries them on an error too', async () => {
+    const response = await makeApp().inject({ method: 'GET', url: '/nothing-here' });
+    expect(response.statusCode).toBe(404);
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('sends Strict-Transport-Security in production only', async () => {
+    const dev = await makeApp().inject({ method: 'GET', url: '/health' });
+    expect(dev.headers['strict-transport-security']).toBeUndefined();
+    const prod = await buildApp(loadConfig({ LOG_LEVEL: 'silent', NODE_ENV: 'production' })).inject(
+      {
+        method: 'GET',
+        url: '/health',
+      },
+    );
+    expect(prod.headers['strict-transport-security']).toContain('max-age=');
+  });
+});
+
 describe('CORS', () => {
   it('allows no browser origin at all: the dashboard uses the staff BFF (P2-M1.12c)', async () => {
     const app = makeApp();

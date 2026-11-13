@@ -37,6 +37,13 @@ export interface CohortDay {
   readonly startedTrip: number;
 }
 
+/** The drivers who joined in one UK week, and how many started a trip in that week and each one after it, up to this week. */
+export interface RetentionWeek {
+  readonly weekStart: string;
+  readonly joined: number;
+  readonly startedTripInWeek: readonly number[];
+}
+
 export interface UsageFirm {
   readonly id: string;
   readonly name: string;
@@ -54,6 +61,7 @@ export interface UsageReport {
   readonly devices: number;
   readonly funnel: UsageFunnel;
   readonly newDriversByDay: readonly CohortDay[];
+  readonly retentionByWeek: readonly RetentionWeek[];
   readonly tripsRunningNow: number;
   readonly tripsPerDay: readonly { day: string; count: number }[];
   readonly jobsCreatedPerWeek: readonly { weekStart: string; count: number }[];
