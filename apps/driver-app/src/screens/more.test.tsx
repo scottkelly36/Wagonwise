@@ -103,10 +103,15 @@ describe('More screen', () => {
     );
   });
 
-  it('has no Rate row on iOS, which has no listing yet', async () => {
+  it('opens the App Store page to write a review on an iPhone, and still has Share', async () => {
     jest.replaceProperty(Platform, 'OS', 'ios');
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     await render(<MoreScreen />);
-    expect(screen.queryByTestId('rate-app-button')).toBeNull();
+    await fireEvent.press(screen.getByTestId('rate-app-button'));
+
+    expect(open).toHaveBeenCalledWith(
+      'https://apps.apple.com/gb/app/id6827935469?action=write-review',
+    );
     expect(screen.getByTestId('share-app-button')).toBeTruthy();
   });
 

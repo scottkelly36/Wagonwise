@@ -820,10 +820,13 @@ export default function ActiveTripScreen() {
         <HoursSharingChip />
 
         {location.status === 'denied' && (
-          <Text style={styles.hint}>
-            Location access is off, so the map won’t follow you. Road signs and your own judgement
-            still apply.
-          </Text>
+          <>
+            <Text style={styles.hint}>
+              Location access is off, so the map won’t follow you. Road signs and your own judgement
+              still apply.
+            </Text>
+            <OpenSettingsButton />
+          </>
         )}
 
         {hazardsOpen && (

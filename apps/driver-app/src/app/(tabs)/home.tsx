@@ -12,6 +12,7 @@ import { useNearbyFuel } from '../../api/use-fuel';
 import { useNearbySafeParkingSpots } from '../../api/use-parking';
 import { HazardDetailDrawer } from '../../components/hazard-detail-drawer';
 import { NoSignalChip } from '../../components/no-signal-chip';
+import { OpenSettingsButton } from '../../components/open-settings-button';
 import { WaitingForSignalNotice } from '../../components/waiting-for-signal-notice';
 import { WhatsNewCard } from '../../components/whats-new-card';
 import { useNavigateToPlace } from '../../hooks/use-navigate-to-spot';
@@ -430,9 +431,12 @@ export default function HomeScreen() {
         onLayout={(e) => setOverlayHeight(e.nativeEvent.layout.height)}
       >
         {location.status === 'denied' && (
-          <Text style={styles.hint}>
-            Location access is off. You can still plan a route, but the map won’t centre on you.
-          </Text>
+          <>
+            <Text style={styles.hint}>
+              Location access is off. You can still plan a route, but the map won’t centre on you.
+            </Text>
+            <OpenSettingsButton />
+          </>
         )}
 
         <View style={styles.reportButtonRow}>
