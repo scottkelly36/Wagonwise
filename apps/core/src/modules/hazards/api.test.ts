@@ -157,7 +157,7 @@ describe('findAvoidanceCandidates and the doubtful-report hold', () => {
     });
     await repo.save(imported);
     // Only the import writes this column, so the test does too.
-    await pool.query(`update hazards.reports set osm_id = 'way/147420937' where id = $1`, [
+    await pool.query(`update hazards.reports set osm_id = 'way/999999999101' where id = $1`, [
       imported.id,
     ]);
 
@@ -186,7 +186,7 @@ describe('findAvoidanceCandidates and the doubtful-report hold', () => {
       measurement: { kind: 'height', value: 3.35, unit: 'm' },
     });
     await repo.save(imported);
-    await pool.query(`update hazards.reports set osm_id = 'node/5301704539' where id = $1`, [
+    await pool.query(`update hazards.reports set osm_id = 'node/999999999102' where id = $1`, [
       imported.id,
     ]);
     const fromDriver = report({
