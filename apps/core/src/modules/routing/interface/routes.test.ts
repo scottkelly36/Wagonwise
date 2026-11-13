@@ -87,7 +87,10 @@ function buildApp(): {
       speedLimits: {
         featuresAlong: () =>
           Promise.resolve({
-            zones: [{ from: 0, to: 1, limitMph: 30 }],
+            zones: [
+              { from: 0, to: 0.5, limitMph: 30 },
+              { from: 0.5, to: 1, limitKph: 80 },
+            ],
             bridges: [{ from: { lat: 54.97, lon: -2.1 }, to: { lat: 54.971, lon: -2.1 } }],
             wayIds: [581694342],
           }),
@@ -593,7 +596,7 @@ describe('GET /routing/route-plans/:id', () => {
 });
 
 describe('GET /routing/route-plans/:id/speed-limits', () => {
-  it('200s with the zones for the owner of the plan', async () => {
+  it('200s with the zones for the owner of the plan, leaving out the Republic of Ireland for an app that cannot read km/h', async () => {
     const { app } = buildApp();
     const routePlanId = await planned(app);
 
@@ -604,10 +607,37 @@ describe('GET /routing/route-plans/:id/speed-limits', () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      zones: [{ from: 0, to: 1, limitMph: 30 }],
+      zones: [{ from: 0, to: 0.5, limitMph: 30 }],
       bridges: [{ from: { lat: 54.97, lon: -2.1 }, to: { lat: 54.971, lon: -2.1 } }],
       wayIds: [581694342],
     });
+  });
+
+  it('includes the zones in km/h for an app that asks with kph=1', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${routePlanId}/speed-limits?kph=1`,
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ zones: unknown }>().zones).toEqual([
+      { from: 0, to: 0.5, limitMph: 30 },
+      { from: 0.5, to: 1, limitKph: 80 },
+    ]);
+  });
+
+  it('400s a kph value that is not 1', async () => {
+    const { app } = buildApp();
+    const routePlanId = await planned(app);
+    const response = await app.inject({
+      method: 'GET',
+      url: `/routing/route-plans/${routePlanId}/speed-limits?kph=yes`,
+      ...asDriver('driver-1'),
+    });
+    expect(response.statusCode).toBe(400);
   });
 
   it('404s an unknown plan and a plan owned by a different driver', async () => {

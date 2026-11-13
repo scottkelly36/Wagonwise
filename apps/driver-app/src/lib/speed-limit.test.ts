@@ -25,6 +25,15 @@ describe('speedLimitHere', () => {
     expect(speedLimitHere(zones, 10_000, 10_000, 0)).toBeUndefined();
   });
 
+  it('shows a limit in km/h as km/h for a stretch in the Republic of Ireland, never as the national speed limit', () => {
+    const irish = [
+      { from: 0, to: 0.5, limitKph: 80 },
+      { from: 0.5, to: 1, limitMph: 30 },
+    ];
+    expect(speedLimitHere(irish, 2_000, 10_000, 0)).toEqual({ kind: 'limit-kph', kph: 80 });
+    expect(speedLimitHere(irish, 7_000, 10_000, 0)).toEqual({ kind: 'limit', mph: 30 });
+  });
+
   it('shows nothing when the driver has left the route', () => {
     expect(speedLimitHere(zones, 2_000, 10_000, 200)).toBeUndefined();
   });
@@ -40,6 +49,9 @@ describe('speedLimitLabel', () => {
   it('says what is shown and to check the signs', () => {
     expect(speedLimitLabel({ kind: 'limit', mph: 40 })).toBe(
       'Speed limit 40 miles per hour. Check the signs.',
+    );
+    expect(speedLimitLabel({ kind: 'limit-kph', kph: 80 })).toBe(
+      'Speed limit 80 kilometres per hour. Check the signs.',
     );
     expect(speedLimitLabel({ kind: 'national' })).toBe(
       'National speed limit applies. Check the signs.',

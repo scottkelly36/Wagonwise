@@ -7,6 +7,7 @@ import {
   planRouteRequestSchema,
   previewRouteOptionsRequestSchema,
   routePlanIdParamsSchema,
+  routeSpeedLimitsQuerySchema,
   updateVehicleProfileRequestSchema,
   vehicleProfileIdParamsSchema,
 } from '@wagonwise/contracts/routing';
@@ -276,6 +277,10 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
     if (!params.success) {
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
+    const query = routeSpeedLimitsQuerySchema.safeParse(request.query);
+    if (!query.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
     const result = await getRouteSpeedLimits(deps.getRouteSpeedLimits, {
       id: makeId<'RoutePlanId'>(params.data.id),
       driverId,
@@ -283,8 +288,12 @@ export function registerRoutingRoutes(app: FastifyInstance, deps: RoutingRouteDe
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
+    // An app that cannot read km/h is sent no zone for the Republic (it would take one with no mph for the national speed limit).
+    const canShowKph = query.data.kph === '1';
     return reply.status(200).send({
-      zones: result.value.zones,
+      zones: canShowKph
+        ? result.value.zones
+        : result.value.zones.filter((zone) => zone.limitKph === undefined),
       bridges: result.value.bridges,
       wayIds: result.value.wayIds,
     });

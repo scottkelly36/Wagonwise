@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bridgesFromShape,
   joinBridges,
+  irishLimitKph,
   joinWayIds,
   joinZones,
   postedLimit,
@@ -177,5 +178,75 @@ describe('wayIdsFromEdges', () => {
 describe('joinWayIds', () => {
   it('joins the roads of several pieces, a road met in two pieces only once', () => {
     expect(joinWayIds([[1, 2], [], [2, 3]])).toEqual([1, 2, 3]);
+  });
+});
+
+describe('the Republic of Ireland', () => {
+  const irish = (kph: number | string | undefined, extra: Partial<RoadEdge> = {}): RoadEdge =>
+    edge(kph, { country: 'IE', ...extra });
+  const british = (kph: number | string | undefined): RoadEdge => edge(kph, { country: 'GB' });
+
+  it('shows a posted limit as it is in km/h, never converted to mph (80 km/h is not 50)', () => {
+    expect(irishLimitKph(irish(80))).toBe(80);
+    expect(irishLimitKph(irish(50))).toBe(50);
+    expect(irishLimitKph(irish(100))).toBe(100);
+    expect(irishLimitKph(irish(120))).toBe(120);
+    expect(zonesFromEdges([irish(80)])).toEqual([{ from: 0, to: 1, limitKph: 80 }]);
+  });
+
+  it('never shows the national speed limit disc, which does not exist there, even for 100 and 120', () => {
+    const zones = zonesFromEdges([irish(100), irish(120)]);
+    expect(zones).toHaveLength(2);
+    expect(zones.every((z) => z.limitKph !== undefined && z.limitMph === undefined)).toBe(true);
+  });
+
+  it('shows nothing for a road with no limit in the map, a motorway included', () => {
+    expect(zonesFromEdges([irish(undefined, { roadClass: 'motorway' })])).toEqual([]);
+    expect(zonesFromEdges([irish('unlimited', { roadClass: 'motorway' })])).toEqual([]);
+    expect(zonesFromEdges([irish(0)])).toEqual([]);
+  });
+
+  it('shows nothing for a number that is not a limit Ireland posts', () => {
+    expect(irishLimitKph(irish(65))).toBeUndefined();
+    expect(irishLimitKph(irish(7))).toBeUndefined();
+    expect(irishLimitKph(irish(200))).toBeUndefined();
+  });
+
+  it('keeps Northern Ireland and Great Britain in mph, and a section with no country as before', () => {
+    // 48 km/h is the map's 30 mph and 80 km/h its 50 mph: the same numbers mean something else in the Republic.
+    expect(zonesFromEdges([british(48)])).toEqual([{ from: 0, to: 1, limitMph: 30 }]);
+    expect(zonesFromEdges([british(80)])).toEqual([{ from: 0, to: 1, limitMph: 50 }]);
+    expect(zonesFromEdges([edge(80)])).toEqual([{ from: 0, to: 1, limitMph: 50 }]);
+  });
+
+  it('joins equal neighbours, but not a limit in km/h with the same number in mph', () => {
+    const zones = zonesFromEdges([irish(80), irish(80), british(80)]);
+    expect(zones).toHaveLength(2);
+    expect(zones[0]).toMatchObject({ limitKph: 80 });
+    expect(zones[1]).toMatchObject({ limitMph: 50 });
+    expect(
+      joinZones([
+        { from: 0, to: 0.5, limitKph: 80 },
+        { from: 0.5, to: 1, limitKph: 80 },
+      ]),
+    ).toEqual([{ from: 0, to: 1, limitKph: 80 }]);
+    expect(
+      joinZones([
+        { from: 0, to: 0.5, limitKph: 50 },
+        { from: 0.5, to: 1, limitMph: 50 },
+      ]),
+    ).toHaveLength(2);
+  });
+
+  it('goes from km/h to mph at the border on one route', () => {
+    const zones = zonesFromEdges([irish(100), irish(80), british(97), british(48)]);
+    expect(zones.map((z) => z.limitKph ?? z.limitMph ?? 'national')).toEqual([
+      100,
+      80,
+      'national',
+      30,
+    ]);
+    expect(zones[1]).toHaveProperty('limitKph');
+    expect(zones[3]).toHaveProperty('limitMph');
   });
 });

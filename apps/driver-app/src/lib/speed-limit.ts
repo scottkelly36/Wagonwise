@@ -2,9 +2,11 @@ import type { SpeedZoneDto } from '@wagonwise/contracts/routing';
 
 import { OFF_ROUTE_M } from './turn-guidance';
 
-/** What the sign shows: a number, or the national speed limit. */
+/** What the sign shows: a number of mph (the United Kingdom), a number of km/h (the Republic of Ireland), or the national speed limit (Great Britain only). */
 export type SpeedLimitSign =
-  { readonly kind: 'limit'; readonly mph: number } | { readonly kind: 'national' };
+  | { readonly kind: 'limit'; readonly mph: number }
+  | { readonly kind: 'limit-kph'; readonly kph: number }
+  | { readonly kind: 'national' };
 
 /**
  * The sign for where the driver is along the route, or nothing when no limit is known there (the stretches between zones),
@@ -25,12 +27,14 @@ export function speedLimitHere(
   const fraction = Math.min(1, Math.max(0, traveledMetres / totalMetres));
   const zone = zones.find((z) => fraction >= z.from && fraction < z.to);
   if (!zone) return undefined;
+  if (zone.limitKph !== undefined) return { kind: 'limit-kph', kph: zone.limitKph };
   return zone.limitMph === undefined ? { kind: 'national' } : { kind: 'limit', mph: zone.limitMph };
 }
 
 /** For a screen reader. */
 export function speedLimitLabel(sign: SpeedLimitSign): string {
-  return sign.kind === 'national'
-    ? 'National speed limit applies. Check the signs.'
-    : `Speed limit ${sign.mph} miles per hour. Check the signs.`;
+  if (sign.kind === 'national') return 'National speed limit applies. Check the signs.';
+  if (sign.kind === 'limit-kph')
+    return `Speed limit ${sign.kph} kilometres per hour. Check the signs.`;
+  return `Speed limit ${sign.mph} miles per hour. Check the signs.`;
 }

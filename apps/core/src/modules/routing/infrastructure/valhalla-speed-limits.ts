@@ -78,12 +78,23 @@ interface TraceEdge {
   begin_shape_index?: unknown;
   end_shape_index?: unknown;
   way_id?: unknown;
+  end_node?: { admin_index?: unknown } | null;
 }
 
 const text = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
 
+/** The countries a trace passes through, in the order the router numbers them (each section says which it ends in, by position here). */
+function countriesOf(admins: unknown): (string | undefined)[] {
+  if (!Array.isArray(admins)) return [];
+  return admins.map((a) =>
+    typeof a === 'object' && a !== null
+      ? text((a as { country_code?: unknown }).country_code)
+      : undefined,
+  );
+}
+
 /** The part of an edge the route uses: the first and last sections can be cut part-way along. */
-function toRoadEdge(e: TraceEdge): RoadEdge {
+function toRoadEdge(e: TraceEdge, countries: readonly (string | undefined)[]): RoadEdge {
   const length = typeof e.length === 'number' && e.length > 0 ? e.length : 0;
   const from = typeof e.source_percent_along === 'number' ? e.source_percent_along : 0;
   const to = typeof e.target_percent_along === 'number' ? e.target_percent_along : 1;
@@ -96,7 +107,14 @@ function toRoadEdge(e: TraceEdge): RoadEdge {
         : undefined,
     roadClass: text(e.road_class),
     use: text(e.use),
+    country: countryOf(e, countries),
   };
+}
+
+/** Which country the section is in, from the country list the router returned with the trace. Absent when the router gave none (map data without borders). */
+function countryOf(e: TraceEdge, countries: readonly (string | undefined)[]): string | undefined {
+  const index = e.end_node?.admin_index;
+  return typeof index === 'number' ? countries[index] : undefined;
 }
 
 /**
@@ -171,6 +189,10 @@ export class ValhallaSpeedLimits implements SpeedLimitSource {
               'shape',
               'edge.source_percent_along',
               'edge.target_percent_along',
+              // Which country each section is in, so a limit in the Republic is read as km/h and not as mph: the sections name an
+              // entry of the country list (`admins`) that the response then carries.
+              'node.admin_index',
+              'admin.country_code',
             ],
             action: 'include',
           },
@@ -178,10 +200,15 @@ export class ValhallaSpeedLimits implements SpeedLimitSource {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
       if (!response.ok) return undefined;
-      const body = (await response.json()) as { edges?: unknown; shape?: unknown };
+      const body = (await response.json()) as {
+        edges?: unknown;
+        shape?: unknown;
+        admins?: unknown;
+      };
       if (!Array.isArray(body.edges)) return undefined;
       const traced = body.edges as TraceEdge[];
-      const edges = traced.map(toRoadEdge);
+      const countries = countriesOf(body.admins);
+      const edges = traced.map((e) => toRoadEdge(e, countries));
       // Where the bridges are: the matched line (so the edges' shape indexes mean something) and which sections are bridge.
       const shape = typeof body.shape === 'string' ? decodePolyline(body.shape) : [];
       const bridgeEdges = traced.map((e) => ({
