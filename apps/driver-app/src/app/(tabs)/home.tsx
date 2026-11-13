@@ -11,6 +11,7 @@ import { useNearbyClosures } from '../../api/use-closures';
 import { useNearbyFuel } from '../../api/use-fuel';
 import { useNearbySafeParkingSpots } from '../../api/use-parking';
 import { HazardDetailDrawer } from '../../components/hazard-detail-drawer';
+import { NoSignalChip } from '../../components/no-signal-chip';
 import { WaitingForSignalNotice } from '../../components/waiting-for-signal-notice';
 import { WhatsNewCard } from '../../components/whats-new-card';
 import { useNavigateToPlace } from '../../hooks/use-navigate-to-spot';
@@ -318,6 +319,7 @@ export default function HomeScreen() {
               testID="current-job-banner"
             />
           )}
+          <NoSignalChip style={styles.sharingChip} />
           {sharing && (
             <View style={styles.sharingChip}>
               <PositionSharingChip />

@@ -12,6 +12,7 @@ import { useHazardQueueFlush } from '../hooks/use-hazard-queue-flush';
 import { useCheckQueueFlush } from '../hooks/use-check-queue-flush';
 import { useProofOfDeliveryQueueFlush } from '../hooks/use-proof-of-delivery-queue-flush';
 import { useSignatureQueueFlush } from '../hooks/use-signature-queue-flush';
+import { useConnectionProbe } from '../hooks/use-connection-probe';
 import { useTripOutboxFlush } from '../hooks/use-trip-outbox-flush';
 import { useTripPersistence } from '../hooks/use-trip-persistence';
 import { useOpportunisticRefresh } from '../hooks/use-opportunistic-refresh';
@@ -96,6 +97,7 @@ export default function RootLayout() {
   // The trip in progress is kept on the phone, and what the driver did with no signal (ending a trip, arriving) is sent when there is one.
   useTripPersistence();
   useTripOutboxFlush();
+  useConnectionProbe();
   useShareHours();
   useRegisterPushToken();
   useRerouteNotifications();
