@@ -13,6 +13,7 @@ import { STATUS_LABELS, whenText } from '../../lib/check-results';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 type Filter = 'todo' | DefectStatus;
 
@@ -52,7 +53,7 @@ export function Defects() {
   const canHandle = everyCompany || holds(me, 'manage_fleet') || holds(me, 'dispatch');
   const queryClient = useQueryClient();
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useWorkingCompany();
   const companyId = everyCompany ? selectedCompanyId || undefined : me?.companyId;
   const [filter, setFilter] = useState<Filter>('todo');
   const key = ['check-defects', companyId, filter] as const;

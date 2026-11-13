@@ -8,6 +8,7 @@ import { CompanySelect } from '../../components/CompanySelect';
 import { retentionChoices } from '../../lib/retention';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 /**
  * Settings: the choices a company makes about its own data. For now, how long delivery photos are kept. The
@@ -22,7 +23,7 @@ export function Settings() {
   const canEdit = everyCompany || holds(me, 'manage_users');
   const queryClient = useQueryClient();
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useWorkingCompany();
   const companyId = everyCompany ? selectedCompanyId || undefined : me?.companyId;
   const key = ['company-settings', companyId] as const;
 

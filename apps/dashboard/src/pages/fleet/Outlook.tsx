@@ -9,6 +9,7 @@ import { chartMonths, forecastWith, isChanged, NO_CHANGE, type WhatIf } from '..
 import { formatPence, ukToday } from '../../lib/money';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 const monthName = (month: string): string =>
   new Date(`${month}-01T00:00:00.000Z`).toLocaleDateString('en-GB', {
@@ -32,7 +33,7 @@ export function Outlook() {
   const me = useStaffAuthStore((s) => s.session?.staff);
   const everyCompany = isPlatform(me);
   const allowed = everyCompany || holds(me, 'manage_billing');
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useWorkingCompany();
   const companyId = everyCompany ? selectedCompanyId || undefined : me?.companyId;
 
   return (

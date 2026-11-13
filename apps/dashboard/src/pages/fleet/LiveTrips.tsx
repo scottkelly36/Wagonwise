@@ -23,10 +23,12 @@ import {
   lastSeen,
   nextStop,
   straightLineMetres,
+  vehiclesNotOnAJob,
   type Freshness,
 } from '../../lib/live-map';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 const POLL_MS = 10_000;
 const COLOURS: Record<Freshness, string> = {
@@ -65,7 +67,8 @@ export function LiveTrips() {
     queryFn: () => withAccessToken((token) => companiesApi.listCompanies(token)),
     enabled: everyCompany,
   });
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(undefined);
+  const [pickedCompanyId, setSelectedCompanyId] = useWorkingCompany();
+  const selectedCompanyId = pickedCompanyId === '' ? undefined : pickedCompanyId;
   const companyId = everyCompany ? selectedCompanyId : me?.companyId;
 
   const jobs = useQuery({
@@ -112,6 +115,12 @@ export function LiveTrips() {
       withAccessToken((token) => fleetApi.listFleetVehicles(token, companyId as string)),
     enabled: canSeeNames && companyId !== undefined,
   });
+
+  // Vehicles with no job on them, once both lists have loaded (vehicles are only loaded for those who dispatch).
+  const freeVehicles =
+    vehicles.data !== undefined && jobs.data !== undefined
+      ? vehiclesNotOnAJob(vehicles.data, jobs.data)
+      : undefined;
 
   // The clock the "last seen" labels read, advanced on a timer so they age without a re-fetch.
   const [now, setNow] = useState(() => new Date());
@@ -245,7 +254,7 @@ export function LiveTrips() {
             <select
               value={selectedCompanyId ?? ''}
               onChange={(e) => {
-                setSelectedCompanyId(e.target.value || undefined);
+                setSelectedCompanyId(e.target.value);
                 setSelectedJobId(undefined);
               }}
             >
@@ -401,6 +410,25 @@ export function LiveTrips() {
                   </li>
                 ))}
               </ul>
+            )}
+            {freeVehicles !== undefined && (
+              <section aria-labelledby="free-vehicles-heading" style={{ marginTop: 16 }}>
+                <h2 id="free-vehicles-heading" className="text-14">
+                  Not on a job ({freeVehicles.length})
+                </h2>
+                {freeVehicles.length === 0 ? (
+                  <p className="text-muted">Every vehicle has a job.</p>
+                ) : (
+                  <ul className="text-muted" style={{ margin: 0, paddingLeft: 18 }}>
+                    {freeVehicles.map((vehicle) => (
+                      <li key={vehicle.id}>
+                        {vehicle.name}
+                        {vehicle.registration !== undefined && <> · {vehicle.registration}</>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
             )}
           </div>
         </div>

@@ -25,6 +25,7 @@ import {
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 interface Draft {
   /** Absent for a list not saved yet. */
@@ -49,7 +50,7 @@ export function Checks() {
   const canBuild = everyCompany || holds(me, 'manage_fleet');
   const queryClient = useQueryClient();
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useWorkingCompany();
   const companyId = everyCompany ? selectedCompanyId || undefined : me?.companyId;
   const key = ['check-templates', companyId] as const;
   const refresh = () => void queryClient.invalidateQueries({ queryKey: key });

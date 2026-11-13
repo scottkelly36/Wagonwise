@@ -22,6 +22,7 @@ import {
 import { formatDuration } from '../../lib/live-map';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 const PRESETS = Object.keys(PRESET_LABELS) as ReportPreset[];
 
@@ -131,7 +132,7 @@ export function Reports() {
   const everyCompany = isPlatform(me);
   const allowed = everyCompany || holds(me, 'view_reports');
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useWorkingCompany();
   const companyId = everyCompany ? selectedCompanyId || undefined : me?.companyId;
 
   const [preset, setPreset] = useState<ReportPreset>('last30');

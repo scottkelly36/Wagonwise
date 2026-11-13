@@ -21,6 +21,7 @@ import { ukToday } from '../../lib/money';
 import { isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 const RESULT_COLOURS = {
   clear: '#15803d',
@@ -37,7 +38,7 @@ export function CheckResults() {
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
   const everyCompany = isPlatform(me);
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useWorkingCompany();
   const companyId = everyCompany ? selectedCompanyId || undefined : me?.companyId;
   const [choice, setChoice] = useState<RangeChoice>('7');
   const [openId, setOpenId] = useState<string | undefined>(undefined);

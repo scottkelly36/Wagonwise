@@ -10,6 +10,7 @@ import {
   mapStyleUrl,
   nextStop,
   straightLineMetres,
+  vehiclesNotOnAJob,
 } from './live-map';
 
 const pickup = { kind: 'pickup' as const, name: 'Depot', location: { lat: 54.9, lon: -2.1 } };
@@ -166,5 +167,41 @@ describe('etaText', () => {
   it('says due about now when the arrival has passed', () => {
     const old = { durationMin: 10, fromRecordedAt: '2026-10-03T11:30:00.000Z' };
     expect(etaText(old, 'stale', now)).toBe('10 min journey · due about now');
+  });
+});
+
+describe('vehiclesNotOnAJob', () => {
+  const vehicles = [
+    { id: 'v1', name: 'Scania' },
+    { id: 'v2', name: 'DAF' },
+    { id: 'v3', name: 'Volvo' },
+    { id: 'v4', name: 'MAN' },
+  ];
+
+  it('leaves out a vehicle once a job with it is given to a driver, or on the road', () => {
+    const jobs = [
+      { status: 'assigned' as const, vehicleId: 'v1' },
+      { status: 'en_route' as const, vehicleId: 'v2' },
+    ];
+    expect(vehiclesNotOnAJob(vehicles, jobs).map((v) => v.name)).toEqual(['MAN', 'Volvo']);
+  });
+
+  it('counts a finished or cancelled job, or a draft with no vehicle, as nothing', () => {
+    const jobs = [
+      { status: 'delivered' as const, vehicleId: 'v1' },
+      { status: 'cancelled' as const, vehicleId: 'v2' },
+      { status: 'failed' as const, vehicleId: 'v3' },
+      { status: 'draft' as const, vehicleId: undefined },
+    ];
+    expect(vehiclesNotOnAJob(vehicles, jobs)).toHaveLength(4);
+  });
+
+  it('lists every vehicle when there are no jobs, A to Z', () => {
+    expect(vehiclesNotOnAJob(vehicles, []).map((v) => v.name)).toEqual([
+      'DAF',
+      'MAN',
+      'Scania',
+      'Volvo',
+    ]);
   });
 });

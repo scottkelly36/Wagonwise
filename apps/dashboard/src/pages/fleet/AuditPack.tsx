@@ -30,6 +30,7 @@ import {
 } from '../../lib/audit-pack';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 const PRESETS: readonly RangePreset[] = ['last3', 'last12', 'last24', 'custom'];
 
@@ -218,7 +219,7 @@ export function AuditPack() {
   const allowed =
     everyCompany || holds(me, 'manage_fleet') || holds(me, 'dispatch') || holds(me, 'view_reports');
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useWorkingCompany();
   const companyId = everyCompany ? selectedCompanyId || undefined : me?.companyId;
   const [vehicleId, setVehicleId] = useState('');
   const [preset, setPreset] = useState<RangePreset>('last12');

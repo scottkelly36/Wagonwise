@@ -15,6 +15,7 @@ import { focusFirstInvalid, hasErrors, type FieldErrors } from '../../lib/forms'
 import { euroVIFromChoice, topSpeedKphFromMph } from '../../lib/vehicle-speed';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
+import { useWorkingCompany } from '../../state/working-company-store';
 
 const COMPANIES_KEY = ['companies'] as const;
 const DIMENSION_FIELDS = [
@@ -52,7 +53,8 @@ export function VehicleProfiles() {
     enabled: everyCompany,
   });
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(undefined);
+  const [pickedCompanyId, setSelectedCompanyId] = useWorkingCompany();
+  const selectedCompanyId = pickedCompanyId === '' ? undefined : pickedCompanyId;
   const companyId = everyCompany ? selectedCompanyId : me?.companyId;
   const vehiclesKey = ['fleet-vehicles', companyId] as const;
 
@@ -219,7 +221,7 @@ export function VehicleProfiles() {
             Company:{' '}
             <select
               value={selectedCompanyId ?? ''}
-              onChange={(e) => setSelectedCompanyId(e.target.value || undefined)}
+              onChange={(e) => setSelectedCompanyId(e.target.value)}
             >
               <option value="">— choose a company —</option>
               {companies.data?.map((company) => (
