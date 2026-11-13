@@ -31,8 +31,15 @@ export interface JobRepository {
   findActiveForDriver(driverId: DriverId): Promise<Job | null>;
   /** The job a vehicle is currently on, if any (assigned up to at_delivery). */
   findActiveForVehicle(vehicleId: VehicleId): Promise<Job | null>;
-  /** Newest first. */
-  listForCompany(companyId: CompanyId): Promise<Job[]>;
+  /** Newest first. With `since`, a finished job (delivered, cancelled, failed) is left out unless it was
+   *  created on or after that time; a job still open is always in. `limit` caps the count, newest kept. */
+  listForCompany(
+    companyId: CompanyId,
+    options?: { readonly since?: Date; readonly limit?: number },
+  ): Promise<Job[]>;
+  /** Every job not yet finished (draft up to at_delivery), newest first. For callers that only care about work in
+   *  progress, so a firm's whole history is not loaded each time. */
+  listOpenForCompany(companyId: CompanyId): Promise<Job[]>;
   /** `events` are written to the outbox together with the job. */
   save(job: Job, events?: readonly DomainEvent[]): Promise<void>;
   /** Replaces any existing photo for this delivery stop (by position) — retaking replaces, not appends. */

@@ -8,7 +8,7 @@ import type { JobRepository } from './ports/job-repository.js';
 import type { JobRouteEstimator, RouteEstimate } from './ports/route-estimator.js';
 
 export interface ListJobEtasDeps {
-  readonly repo: Pick<JobRepository, 'listForCompany'>;
+  readonly repo: Pick<JobRepository, 'listOpenForCompany'>;
   readonly positions: Pick<JobPositionRepository, 'latestForCompany'>;
   readonly routes: JobRouteEstimator;
 }
@@ -38,7 +38,7 @@ export async function listJobEtas(
   if (!canViewJobs(input.caller, input.companyId)) return err({ tag: 'Forbidden' });
 
   const [jobs, positions] = await Promise.all([
-    deps.repo.listForCompany(input.companyId),
+    deps.repo.listOpenForCompany(input.companyId),
     deps.positions.latestForCompany(input.companyId),
   ]);
   const positionByJob = new Map(positions.map((p) => [p.jobId, p]));

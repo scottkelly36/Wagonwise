@@ -10,6 +10,7 @@ import {
   listJobEtasResponseSchema,
   listJobPositionsResponseSchema,
   listJobsResponseSchema,
+  type ListJobsResponse,
   previewJobRouteRequestSchema,
   setJobCommercialRequestSchema,
   proofOfDeliveryResponseSchema,
@@ -30,12 +31,27 @@ import {
 
 import { requestJson, throwUnlessSuccess } from './http';
 
-export async function listJobs(accessToken: string, companyId: string): Promise<JobDto[]> {
-  const { status, json } = await requestJson('GET', `/staff/jobs/companies/${companyId}/jobs`, {
-    authorization: `Bearer ${accessToken}`,
-  });
+/**
+ * A company's jobs: every one still open, and finished ones from the last 90 days. `since` is where that
+ * window starts; it is absent when `all` was asked for.
+ */
+export async function listJobsWindow(
+  accessToken: string,
+  companyId: string,
+  options: { readonly all?: boolean } = {},
+): Promise<ListJobsResponse> {
+  const query = options.all === true ? '?days=all' : '';
+  const { status, json } = await requestJson(
+    'GET',
+    `/staff/jobs/companies/${companyId}/jobs${query}`,
+    { authorization: `Bearer ${accessToken}` },
+  );
   throwUnlessSuccess(status, json, [200]);
-  return listJobsResponseSchema.parse(json).jobs;
+  return listJobsResponseSchema.parse(json);
+}
+
+export async function listJobs(accessToken: string, companyId: string): Promise<JobDto[]> {
+  return (await listJobsWindow(accessToken, companyId)).jobs;
 }
 
 /** The jobs report for a period (P2-M8); needs the `view_reports` privilege. */
