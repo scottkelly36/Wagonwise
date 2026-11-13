@@ -46,8 +46,8 @@ describe('PostgresActiveTripRepository', () => {
   });
 
   it('notes the UK week a trip started in, once per driver and week, and keeps it when the trip is ended', async () => {
-    // Its own driver: this test leaves an unended trip, which the findActiveForDriver test below must not see.
-    const driverId = makeId<'DriverId'>('aaaaaaaa-6666-4666-8666-aaaaaaaaaaaa');
+    // A driver no other test uses: a later test expects its own driver to have no trip running.
+    const driverId = makeId<'DriverId'>('abababab-abab-4bab-8bab-abababababab');
     const weeks = async () =>
       (
         await pool.query<{ week: string }>(
@@ -57,7 +57,7 @@ describe('PostgresActiveTripRepository', () => {
       ).rows.map((r) => r.week);
     // Sunday 23:30 in London (BST) is still Sunday there, though it is Sunday 22:30 UTC: the week is the one starting Monday 8 June.
     const sunday = trip({
-      id: makeId<'ActiveTripId'>('44444444-0000-4000-8000-000000000001'),
+      id: makeId<'ActiveTripId'>('abababab-0000-4000-8000-000000000001'),
       driverId,
       startedAt: new Date('2026-06-14T22:30:00.000Z'),
     });
@@ -66,7 +66,7 @@ describe('PostgresActiveTripRepository', () => {
     // Monday 00:30 in London is Sunday 23:30 UTC: a new week there.
     await repo().save(
       trip({
-        id: makeId<'ActiveTripId'>('44444444-0000-4000-8000-000000000002'),
+        id: makeId<'ActiveTripId'>('abababab-0000-4000-8000-000000000002'),
         driverId,
         startedAt: new Date('2026-06-14T23:30:00.000Z'),
         endedAt: new Date('2026-06-15T01:00:00.000Z'),
@@ -75,9 +75,10 @@ describe('PostgresActiveTripRepository', () => {
     // A second trip in the same week adds nothing.
     await repo().save(
       trip({
-        id: makeId<'ActiveTripId'>('44444444-0000-4000-8000-000000000003'),
+        id: makeId<'ActiveTripId'>('abababab-0000-4000-8000-000000000003'),
         driverId,
         startedAt: new Date('2026-06-17T09:00:00.000Z'),
+        endedAt: new Date('2026-06-17T10:00:00.000Z'),
       }),
     );
 
