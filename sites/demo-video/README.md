@@ -1,12 +1,13 @@
 # Demo video
 
-A 76-second video (1920 x 1080, no sound) of the portal and the driver app working together: one job from the office to
+A 76-second video (1920 x 1080, music and no speech) of the portal and the driver app working together: one job from the office to
 the cab and back. It is built from the store screenshots (`apps/dashboard/store-assets/raw/` and
 `apps/driver-app/store-assets/raw/`), so every screen is real and all the data is made up.
 
 - `wagonwise-demo.mp4`: the whole video.
 - `clips/`: the same video as one file per scene, in order. Drop them into any video editor to reorder, cut or replace one.
 - `../landing/video/`: the smaller copy (1280 x 720) and the still that the For hauliers page plays (`sites/landing/for-hauliers/index.html`, "Watch it work"). `render.mjs` rewrites both, so the page follows the video.
+- `music.mp3`: the music under the whole video, supplied by the owner on 2026-11-15 as royalty free ("Upbeat Advertising, Only Time" by bombinsound, going by the file's name; the licence itself was not checked here, so keep a note of where it came from). Swap the file to change the music, or delete it for a silent video; the clips are always silent.
 - `index.html`: the animation itself (layout, wording, timings). Open it in a browser and run `render(35)` in the console
   to see second 35.
 - `render.mjs`: turns `index.html` into the clips and joins them.

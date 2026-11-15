@@ -3,7 +3,7 @@
 //   node render.mjs 4 5    only scenes 4 and 5 (see SCENES), then the full video from the clips
 // Needs ffmpeg and Playwright with Chromium. Timings and wording live in index.html.
 import { spawn } from 'node:child_process';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -78,19 +78,22 @@ await browser.close();
 
 const list = join(here, 'clips', 'list.txt');
 writeFileSync(list, SCENES.map(([name]) => `file '${name}.mp4'\n`).join(''));
-await ffmpeg([
-  '-f',
-  'concat',
-  '-safe',
-  '0',
-  '-i',
-  list,
-  '-c',
-  'copy',
-  '-movflags',
-  '+faststart',
-  join(here, 'wagonwise-demo.mp4'),
-]).done;
+// The clips are joined as they are. If there is a music.mp3 beside this script it is laid under the whole video (quieter,
+// faded in and out, cut to the video's length); the clips themselves stay silent so they can be reordered in an editor.
+const music = join(here, 'music.mp3');
+const total = SCENES.at(-1)[2];
+const joined = ['-f', 'concat', '-safe', '0', '-i', list];
+const out = ['-movflags', '+faststart', join(here, 'wagonwise-demo.mp4')];
+if (existsSync(music)) {
+  const fade = `volume=0.5,afade=t=in:d=0.8,afade=t=out:st=${total - 3}:d=3`;
+  await ffmpeg([
+    ...joined,
+    ...['-i', music, '-map', '0:v', '-map', '1:a', '-af', fade, '-t', String(total)],
+    ...['-c:v', 'copy', '-c:a', 'aac', '-b:a', '160k', ...out],
+  ]).done;
+} else {
+  await ffmpeg([...joined, '-c', 'copy', ...out]).done;
+}
 rmSync(list);
 console.log('wagonwise-demo.mp4 written');
 
@@ -98,7 +101,16 @@ console.log('wagonwise-demo.mp4 written');
 const web = join(here, '..', 'landing', 'video');
 mkdirSync(web, { recursive: true });
 await ffmpeg([
-  ...['-i', join(here, 'wagonwise-demo.mp4'), '-vf', 'scale=1280:720', '-an'],
+  ...[
+    '-i',
+    join(here, 'wagonwise-demo.mp4'),
+    '-vf',
+    'scale=1280:720',
+    '-c:a',
+    'aac',
+    '-b:a',
+    '128k',
+  ],
   ...['-c:v', 'libx264', '-preset', 'slow', '-crf', '25', '-pix_fmt', 'yuv420p'],
   ...['-movflags', '+faststart', join(web, 'wagonwise-demo.mp4')],
 ]).done;
