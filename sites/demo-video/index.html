@@ -1,114 +1,577 @@
-<!doctype html><html><head><meta charset="utf-8"><style>
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{width:1920px;height:1080px;overflow:hidden;background:#070d1c;font-family:Inter,sans-serif;color:#fff}
-#stage{position:absolute;inset:0;background:radial-gradient(1200px 800px at 22% 0%,#16306b 0%,rgba(22,48,107,0) 60%),radial-gradient(900px 700px at 100% 100%,#0e3a5c 0%,rgba(14,58,92,0) 60%),#070d1c}
-#grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:64px 64px}
-.abs{position:absolute}
-#browser{left:130px;top:232px;width:1200px;height:792px;border-radius:14px;overflow:hidden;background:#111a30;box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.1);transform-origin:50% 50%}
-#chrome{height:42px;background:#1a2440;display:flex;align-items:center;padding:0 16px;gap:8px}
-#chrome i{width:12px;height:12px;border-radius:50%;background:#3a4668;display:block}
-#chrome span{margin-left:14px;flex:1;max-width:520px;height:26px;border-radius:13px;background:#0e1730;color:#9fb0d6;font-size:13px;line-height:26px;padding:0 14px}
-#bscreen{position:relative;width:1200px;height:750px;overflow:hidden;background:#f1f4fb}
-#bscreen img,#pscreen img{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
-#phone{left:1399px;top:222px;width:391px;height:822px;border-radius:44px;background:#05080f;padding:11px;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 2px #2b3552,inset 0 0 0 2px #151c30;transform-origin:50% 50%}
-#pscreen{position:relative;width:369px;height:800px;border-radius:34px;overflow:hidden;background:#0b1220}
-.hl{position:absolute;border:3px solid #37a0ff;border-radius:12px;pointer-events:none}
-.tap{position:absolute;width:0;height:0;pointer-events:none}
-.tap b{position:absolute;left:-40px;top:-40px;width:80px;height:80px;border-radius:50%;border:4px solid #fff;background:rgba(255,255,255,.25)}
-.tap u{position:absolute;left:-13px;top:-13px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.5)}
-#cap{left:130px;top:38px;width:1250px}
-.c{position:absolute;left:0;top:0;width:1250px}
-.pill{display:inline-block;font-size:15px;font-weight:700;letter-spacing:.14em;padding:7px 14px;border-radius:999px;margin-bottom:14px}
-.pill.portal{background:rgba(55,160,255,.16);color:#7cc0ff}
-.pill.app{background:rgba(52,211,153,.16);color:#6ee7b7}
-.pill.both{background:rgba(250,204,21,.16);color:#fde047}
-.c h2{font-size:52px;font-weight:800;letter-spacing:-.02em;line-height:1.08}
-.c p{font-size:23px;line-height:1.4;color:#b4c2e2;margin-top:10px;max-width:1180px}
-#steps{left:1399px;top:150px;width:391px;display:flex;gap:8px;justify-content:flex-end}
-#steps i{display:block;width:34px;height:6px;border-radius:3px;background:rgba(255,255,255,.18);overflow:hidden}
-#steps i b{display:block;height:100%;background:#37a0ff;width:0}
-#steplabel{left:1399px;top:112px;width:391px;text-align:right;font-size:15px;font-weight:600;color:#8fa0c8;letter-spacing:.08em}
-#pulse{width:22px;height:22px;border-radius:50%;background:#fde047;box-shadow:0 0 0 8px rgba(253,224,71,.25),0 0 40px 10px rgba(253,224,71,.6);margin:-11px 0 0 -11px}
-.card{inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
-.card img.icon{width:168px;height:168px;border-radius:38px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.card h1{font-size:92px;font-weight:800;letter-spacing:-.03em;margin-top:34px}
-.card h3{font-size:36px;font-weight:500;color:#b4c2e2;margin-top:14px}
-.card .badges{display:flex;gap:22px;margin-top:44px;align-items:center}
-.card .badges img{height:68px}
-.card .url{margin-top:40px;font-size:34px;font-weight:700;color:#7cc0ff}
-.card small{margin-top:18px;font-size:20px;color:#8394bb}
-</style></head><body><div id="stage"><div id="grid"></div>
-<div class="abs" id="cap"></div>
-<div class="abs" id="steplabel"></div><div class="abs" id="steps"></div>
-<div class="abs" id="browser"><div id="chrome"><i></i><i></i><i></i><span>WagonWise portal</span></div><div id="bscreen"></div></div>
-<div class="abs" id="phone"><div id="pscreen"></div></div>
-<div class="abs" id="pulse"></div>
-<div class="abs card" id="intro"><img class="icon" src="../../apps/driver-app/assets/images/icon.png"><h1>WagonWise</h1><h3>The company portal and the driver app, working together</h3></div>
-<div class="abs card" id="outro"><img class="icon" src="../../apps/driver-app/assets/images/icon.png"><h1>WagonWise</h1><h3>One job, from the office to the cab and back.</h3>
-<div class="badges"><img src="../landing/img/store-apple.png"><img src="../landing/img/store-play.png"></div>
-<div class="url">wagon-wise.co.uk</div><small>Driver app free on the App Store and Google Play · Fleet portal for UK hauliers · Screens show made-up example data</small></div>
-</div><script>
-const $=s=>document.querySelector(s);
-const cl=x=>Math.max(0,Math.min(1,x)), ss=x=>{x=cl(x);return x*x*(3-2*x)};
-const win=(t,a,b,f=.45)=>ss((t-a)/f)*ss((b-t)/f);
-const kf=(t,k)=>{if(t<=k[0][0])return k[0][1];for(let i=1;i<k.length;i++){if(t<=k[i][0]){const[a,va]=k[i-1],[b,vb]=k[i];return va+(vb-va)*ss((t-a)/(b-a))}}return k[k.length-1][1]};
-const R=[]; // render fns
-const END=70, OUT=76;
-// screens: [time, file]
-const B=[[0,'jobs'],[30,'live-map'],[54,'check-results'],[57,'defects'],[60,'overview'],[63.4,'job-profit'],[66.7,'reports']];
-const P=[[0,'00-map-home-raw'],[12,'08-job-detail-raw'],[20,'02-route-options-raw'],[24.5,'03-hazards-on-route-raw'],[29.3,'01-trip-map-raw'],[40,'06-report-hazard-raw'],[45,'05-faster-route-raw'],[50,'08-job-detail-raw'],[60,'00-map-home-raw']];
-function stack(host,list,dir){list.forEach(([a,f])=>{const im=new Image();im.src=dir+f+'.png';host.appendChild(im);R.push(t=>im.style.opacity=a===0?1:ss((t-a)/.45))})}
-stack($('#bscreen'),B,'../../apps/dashboard/store-assets/raw/');stack($('#pscreen'),P,'../../apps/driver-app/store-assets/raw/');
-// highlights in source px: host, scale
-const bs=1200/1440, ps=369/1080;
-function hl(host,s,x,y,w,h,a,b,r=12){const d=document.createElement('div');d.className='hl';Object.assign(d.style,{left:x*s-4+'px',top:y*s-4+'px',width:w*s+8+'px',height:h*s+8+'px',borderRadius:r+'px'});host.appendChild(d);
- R.push(t=>{const o=win(t,a,b,.3);d.style.opacity=o;const g=10+8*Math.sin((t-a)*5);d.style.boxShadow=`0 0 0 ${g}px rgba(55,160,255,.22),0 0 30px rgba(55,160,255,.6)`})}
-function tap(host,s,x,y,a){const d=document.createElement('div');d.className='tap';d.style.left=x*s+'px';d.style.top=y*s+'px';d.innerHTML='<b></b><u></u>';host.appendChild(d);const[b,u]=d.children;
- R.push(t=>{const p=cl((t-a)/.7);b.style.transform=`scale(${.3+p*1.2})`;b.style.opacity=(t>=a&&p<1)?1-p:0;u.style.opacity=win(t,a-.5,a+.5,.2);u.style.transform=`scale(${1-.25*win(t,a-.08,a+.25,.12)})`})}
-// pulse travelling between devices (stage coords)
-function pulse(x0,y0,x1,y1,a,d=.9){const el=$('#pulse');R.push(t=>{if(t<a-.01||t>a+d+.01)return;const p=ss((t-a)/d);el.style.left=x0+(x1-x0)*p+'px';el.style.top=y0+(y1-y0)*p-Math.sin(p*Math.PI)*90+'px';el.dataset.on=1})}
-const BX=130,BY=274,PX=1410,PY=233;
-// captions
-const C=[
- [4,12,'portal','PORTAL','The office plans the job','Create a job in the portal and give it to a driver and a vehicle. The driver’s phone is notified straight away.'],
- [12,20,'app','DRIVER APP','It lands on the driver’s phone','Pickup, delivery and the site notes, on one screen. The driver taps Accept and the office sees it.'],
- [20,30,'app','DRIVER APP','A route that fits the lorry','Planned for the vehicle’s height, weight and width, with the known hazards on the way shown before setting off.'],
- [30,40,'both','TOGETHER','The office sees the trip, live','Live trips shows who is on a job, where they are heading and when they were last seen, while the driver has the app open.'],
- [40,50,'app','DRIVER APP','Drivers look out for each other','Report a hazard with a tap when parked, or by voice on the move. A faster route is offered, never switched without asking.'],
- [50,60,'both','TOGETHER','Daily checks, straight to the office','The walk-round check is done on the phone. Results and any defects show up in the portal.'],
- [60,70,'portal','PORTAL','And what the work made','Today at a glance, profit by job, and reports, built from the same jobs your drivers delivered.'],
-];
-const cap=$('#cap'),steps=$('#steps');
-C.forEach(([a,b,k,lab,h,p],i)=>{const d=document.createElement('div');d.className='c';d.innerHTML=`<span class="pill ${k}">${lab}</span><h2>${h}</h2><p>${p}</p>`;cap.appendChild(d);
- R.push(t=>{const o=win(t,a+.15,b-.05,.4);d.style.opacity=o;d.style.transform=`translateY(${(1-ss((t-a-.15)/.5))*18}px)`});
- const s=document.createElement('i');s.innerHTML='<b></b>';steps.appendChild(s);R.push(t=>s.firstChild.style.width=cl((t-a)/(b-a))*100+'%')});
-R.push(t=>{const i=C.findIndex(c=>t>=c[0]&&t<c[1]);$('#steplabel').textContent=i<0?'':`STEP ${i+1} OF ${C.length}`;const o=win(t,4.2,END-.1);$('#steplabel').style.opacity=o;steps.style.opacity=o});
-// device presence + focus (1 = focused)
-const bf=[[0,1],[11.6,1],[12.4,.32],[29.8,.32],[30.6,1],[39.8,1],[40.5,.32],[53.6,.32],[54.4,1],[70,1]];
-const pf=[[0,.32],[11.6,.32],[12.4,1],[53.8,1],[54.6,.5],[59.6,.5],[60.3,.32],[70,.32]];
-const br=$('#browser'),ph=$('#phone');
-R.push(t=>{const inn=ss((t-3.9)/.9),out=1-ss((t-(END-.5))/.6);const f=kf(t,bf),g=kf(t,pf);
- br.style.opacity=inn*out*(.42+.58*f);br.style.transform=`translateY(${(1-inn)*60}px) scale(${.965+.035*f})`;br.style.filter=`saturate(${.5+.5*f})`;
- const inp=ss((t-4.2)/.9);ph.style.opacity=inp*out*(.3+.7*g);ph.style.transform=`translateY(${(1-inp)*60}px) scale(${.955+.045*g})`;ph.style.filter=`saturate(${.5+.5*g})`});
-// story beats
-const bS=$('#bscreen'),pS=$('#pscreen');
-hl(bS,bs,280,203,1130,168,6,11.6);                 // JOB-1042 row
-pulse(BX+760*bs,BY+290*bs,PX+185,PY+150,11.5);     // office -> phone
-hl(pS,ps,70,1944,942,146,15.5,19.6,22);            // Accept job
-tap(pS,ps,540,2017,17.6);
-pulse(PX+185,PY+740,BX+820*bs,BY+290*bs,18.2);     // accept -> office
-hl(pS,ps,40,2035,1000,200,21.2,24.3,16);           // route option card
-tap(pS,ps,540,2135,23.9);
-tap(pS,ps,540,2030,28.8);                          // Start trip
-pulse(PX+185,PY+500,BX+625*bs,BY+445*bs,30.4);     // trip -> live map
-hl(bS,bs,992,187,420,162,33,39.6);                 // live trip card
-hl(pS,ps,40,525,830,410,46,49.6,16);               // faster route card
-hl(pS,ps,42,366,996,188,50.6,54,20);               // daily check due
-tap(pS,ps,540,460,53.2);
-pulse(PX+185,PY+160,BX+900*bs,BY+250*bs,53.6);     // check -> office
-R.push(t=>{const on=[11.5,18.2,30.4,53.6].some(a=>t>=a&&t<=a+.9);$('#pulse').style.opacity=on?1:0});
-// intro / outro
-R.push(t=>{const i=$('#intro');i.style.opacity=win(t,.2,3.7,.6);i.style.transform=`scale(${.96+.04*ss(t/3)})`;
- const o=$('#outro');o.style.opacity=ss((t-END-.1)/.7)*ss((OUT-t)/.4);o.style.transform=`scale(${.96+.04*ss((t-END)/2)})`});
-window.render=t=>{R.forEach(f=>f(t))};window.DURATION=OUT;render(0);
-</script></body></html>
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #070d1c;
+        font-family: Inter, sans-serif;
+        color: #fff;
+      }
+      #stage {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(1200px 800px at 22% 0%, #16306b 0%, rgba(22, 48, 107, 0) 60%),
+          radial-gradient(900px 700px at 100% 100%, #0e3a5c 0%, rgba(14, 58, 92, 0) 60%), #070d1c;
+      }
+      #grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 64px 64px;
+      }
+      .abs {
+        position: absolute;
+      }
+      #browser {
+        left: 130px;
+        top: 232px;
+        width: 1200px;
+        height: 792px;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #111a30;
+        box-shadow:
+          0 30px 80px rgba(0, 0, 0, 0.55),
+          0 0 0 1px rgba(255, 255, 255, 0.1);
+        transform-origin: 50% 50%;
+      }
+      #chrome {
+        height: 42px;
+        background: #1a2440;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        gap: 8px;
+      }
+      #chrome i {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #3a4668;
+        display: block;
+      }
+      #chrome span {
+        margin-left: 14px;
+        flex: 1;
+        max-width: 520px;
+        height: 26px;
+        border-radius: 13px;
+        background: #0e1730;
+        color: #9fb0d6;
+        font-size: 13px;
+        line-height: 26px;
+        padding: 0 14px;
+      }
+      #bscreen {
+        position: relative;
+        width: 1200px;
+        height: 750px;
+        overflow: hidden;
+        background: #f1f4fb;
+      }
+      #bscreen img,
+      #pscreen img {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      #phone {
+        left: 1408px;
+        top: 222px;
+        width: 382px;
+        height: 822px;
+        border-radius: 44px;
+        background: #05080f;
+        padding: 11px;
+        box-shadow:
+          0 30px 80px rgba(0, 0, 0, 0.6),
+          0 0 0 2px #2b3552,
+          inset 0 0 0 2px #151c30;
+        transform-origin: 50% 50%;
+      }
+      #pscreen {
+        position: relative;
+        width: 360px;
+        height: 800px;
+        border-radius: 34px;
+        overflow: hidden;
+        background: #0b1220;
+      }
+      .hl {
+        position: absolute;
+        border: 3px solid #37a0ff;
+        border-radius: 12px;
+        pointer-events: none;
+      }
+      .tap {
+        position: absolute;
+        width: 0;
+        height: 0;
+        pointer-events: none;
+      }
+      .tap b {
+        position: absolute;
+        left: -40px;
+        top: -40px;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: 4px solid #fff;
+        background: rgba(255, 255, 255, 0.25);
+      }
+      .tap u {
+        position: absolute;
+        left: -13px;
+        top: -13px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      }
+      #cap {
+        left: 130px;
+        top: 38px;
+        width: 1250px;
+      }
+      .c {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1250px;
+      }
+      .pill {
+        display: inline-block;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        padding: 7px 14px;
+        border-radius: 999px;
+        margin-bottom: 14px;
+      }
+      .pill.portal {
+        background: rgba(55, 160, 255, 0.16);
+        color: #7cc0ff;
+      }
+      .pill.app {
+        background: rgba(52, 211, 153, 0.16);
+        color: #6ee7b7;
+      }
+      .pill.both {
+        background: rgba(250, 204, 21, 0.16);
+        color: #fde047;
+      }
+      .c h2 {
+        font-size: 52px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        line-height: 1.08;
+      }
+      .c p {
+        font-size: 23px;
+        line-height: 1.4;
+        color: #b4c2e2;
+        margin-top: 10px;
+        max-width: 1180px;
+      }
+      #steps {
+        left: 1399px;
+        top: 150px;
+        width: 391px;
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      #steps i {
+        display: block;
+        width: 34px;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.18);
+        overflow: hidden;
+      }
+      #steps i b {
+        display: block;
+        height: 100%;
+        background: #37a0ff;
+        width: 0;
+      }
+      #steplabel {
+        left: 1399px;
+        top: 112px;
+        width: 391px;
+        text-align: right;
+        font-size: 15px;
+        font-weight: 600;
+        color: #8fa0c8;
+        letter-spacing: 0.08em;
+      }
+      #pulse {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #fde047;
+        box-shadow:
+          0 0 0 8px rgba(253, 224, 71, 0.25),
+          0 0 40px 10px rgba(253, 224, 71, 0.6);
+        margin: -11px 0 0 -11px;
+      }
+      .card {
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .card img.icon {
+        width: 168px;
+        height: 168px;
+        border-radius: 38px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      }
+      .card h1 {
+        font-size: 92px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        margin-top: 34px;
+      }
+      .card h3 {
+        font-size: 36px;
+        font-weight: 500;
+        color: #b4c2e2;
+        margin-top: 14px;
+      }
+      .card .badges {
+        display: flex;
+        gap: 22px;
+        margin-top: 44px;
+        align-items: center;
+      }
+      .card .badges img {
+        height: 68px;
+      }
+      .card .url {
+        margin-top: 40px;
+        font-size: 34px;
+        font-weight: 700;
+        color: #7cc0ff;
+      }
+      .card small {
+        margin-top: 18px;
+        font-size: 20px;
+        color: #8394bb;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <div id="grid"></div>
+      <div class="abs" id="cap"></div>
+      <div class="abs" id="steplabel"></div>
+      <div class="abs" id="steps"></div>
+      <div class="abs" id="browser">
+        <div id="chrome"><i></i><i></i><i></i><span>WagonWise portal</span></div>
+        <div id="bscreen"></div>
+      </div>
+      <div class="abs" id="phone"><div id="pscreen"></div></div>
+      <div class="abs" id="pulse"></div>
+      <div class="abs card" id="intro">
+        <img class="icon" src="../../apps/driver-app/assets/images/icon.png" />
+        <h1>WagonWise</h1>
+        <h3>The company portal and the driver app, working together</h3>
+      </div>
+      <div class="abs card" id="outro">
+        <img class="icon" src="../../apps/driver-app/assets/images/icon.png" />
+        <h1>WagonWise</h1>
+        <h3>One job, from the office to the cab and back.</h3>
+        <div class="badges">
+          <img src="../landing/img/store-apple.png" /><img src="../landing/img/store-play.png" />
+        </div>
+        <div class="url">wagon-wise.co.uk</div>
+        <small
+          >Driver app free on the App Store and Google Play · Fleet portal for UK hauliers · Screens
+          show made-up example data</small
+        >
+      </div>
+    </div>
+    <script>
+      const $ = (s) => document.querySelector(s);
+      const cl = (x) => Math.max(0, Math.min(1, x)),
+        ss = (x) => {
+          x = cl(x);
+          return x * x * (3 - 2 * x);
+        };
+      const win = (t, a, b, f = 0.45) => ss((t - a) / f) * ss((b - t) / f);
+      const kf = (t, k) => {
+        if (t <= k[0][0]) return k[0][1];
+        for (let i = 1; i < k.length; i++) {
+          if (t <= k[i][0]) {
+            const [a, va] = k[i - 1],
+              [b, vb] = k[i];
+            return va + (vb - va) * ss((t - a) / (b - a));
+          }
+        }
+        return k[k.length - 1][1];
+      };
+      const R = []; // render fns
+      const END = 70,
+        OUT = 76;
+      // screens: [time, file]
+      const B = [
+        [0, 'jobs'],
+        [30, 'live-map'],
+        [54, 'check-results'],
+        [57, 'defects'],
+        [60, 'overview'],
+        [63.4, 'job-profit'],
+        [66.7, 'reports'],
+      ];
+      const P = [
+        [0, '00-map-home-raw'],
+        [12, '08-job-detail-raw'],
+        [20, '02-route-options-raw'],
+        [24.5, '03-hazards-on-route-raw'],
+        [29.3, '01-trip-map-raw'],
+        [40, '06-report-hazard-raw'],
+        [45, '05-faster-route-raw'],
+        [50, '08-job-detail-raw'],
+        [60, '00-map-home-raw'],
+      ];
+      function stack(host, list, dir) {
+        list.forEach(([a, f]) => {
+          const im = new Image();
+          im.src = dir + f + '.png';
+          host.appendChild(im);
+          R.push((t) => (im.style.opacity = a === 0 ? 1 : ss((t - a) / 0.45)));
+        });
+      }
+      stack($('#bscreen'), B, '../../apps/dashboard/store-assets/raw/');
+      stack($('#pscreen'), P, '../../apps/driver-app/store-assets/raw/');
+      // highlights in source px: host, scale
+      const bs = 1200 / 1440,
+        ps = 360 / 1080;
+      function hl(host, s, x, y, w, h, a, b, r = 12) {
+        const d = document.createElement('div');
+        d.className = 'hl';
+        Object.assign(d.style, {
+          left: x * s - 4 + 'px',
+          top: y * s - 4 + 'px',
+          width: w * s + 8 + 'px',
+          height: h * s + 8 + 'px',
+          borderRadius: r + 'px',
+        });
+        host.appendChild(d);
+        R.push((t) => {
+          const o = win(t, a, b, 0.3);
+          d.style.opacity = o;
+          const g = 10 + 8 * Math.sin((t - a) * 5);
+          d.style.boxShadow = `0 0 0 ${g}px rgba(55,160,255,.22),0 0 30px rgba(55,160,255,.6)`;
+        });
+      }
+      function tap(host, s, x, y, a) {
+        const d = document.createElement('div');
+        d.className = 'tap';
+        d.style.left = x * s + 'px';
+        d.style.top = y * s + 'px';
+        d.innerHTML = '<b></b><u></u>';
+        host.appendChild(d);
+        const [b, u] = d.children;
+        R.push((t) => {
+          const p = cl((t - a) / 0.7);
+          b.style.transform = `scale(${0.3 + p * 1.2})`;
+          b.style.opacity = t >= a && p < 1 ? 1 - p : 0;
+          u.style.opacity = win(t, a - 0.5, a + 0.5, 0.2);
+          u.style.transform = `scale(${1 - 0.25 * win(t, a - 0.08, a + 0.25, 0.12)})`;
+        });
+      }
+      // pulse travelling between devices (stage coords)
+      function pulse(x0, y0, x1, y1, a, d = 0.9) {
+        const el = $('#pulse');
+        R.push((t) => {
+          if (t < a - 0.01 || t > a + d + 0.01) return;
+          const p = ss((t - a) / d);
+          el.style.left = x0 + (x1 - x0) * p + 'px';
+          el.style.top = y0 + (y1 - y0) * p - Math.sin(p * Math.PI) * 90 + 'px';
+          el.dataset.on = 1;
+        });
+      }
+      const BX = 130,
+        BY = 274,
+        PX = 1419,
+        PY = 233;
+      // captions
+      const C = [
+        [
+          4,
+          12,
+          'portal',
+          'PORTAL',
+          'The office plans the job',
+          'Create a job in the portal and give it to a driver and a vehicle. The driver’s phone is notified straight away.',
+        ],
+        [
+          12,
+          20,
+          'app',
+          'DRIVER APP',
+          'It lands on the driver’s phone',
+          'Pickup, delivery and the site notes, on one screen. The driver taps Accept and the office sees it.',
+        ],
+        [
+          20,
+          30,
+          'app',
+          'DRIVER APP',
+          'A route that fits the lorry',
+          'Planned for the vehicle’s height, weight and width, with the known hazards on the way shown before setting off.',
+        ],
+        [
+          30,
+          40,
+          'both',
+          'TOGETHER',
+          'The office sees the trip, live',
+          'Live trips shows who is on a job, where they are heading and when they were last seen, while the driver has the app open.',
+        ],
+        [
+          40,
+          50,
+          'app',
+          'DRIVER APP',
+          'Drivers look out for each other',
+          'Report a hazard with a tap when parked, or by voice on the move. A faster route is offered, never switched without asking.',
+        ],
+        [
+          50,
+          60,
+          'both',
+          'TOGETHER',
+          'Daily checks, straight to the office',
+          'The walk-round check is done on the phone. Results and any defects show up in the portal.',
+        ],
+        [
+          60,
+          70,
+          'portal',
+          'PORTAL',
+          'And what the work made',
+          'Today at a glance, profit by job, and reports, built from the same jobs your drivers delivered.',
+        ],
+      ];
+      const cap = $('#cap'),
+        steps = $('#steps');
+      C.forEach(([a, b, k, lab, h, p], i) => {
+        const d = document.createElement('div');
+        d.className = 'c';
+        d.innerHTML = `<span class="pill ${k}">${lab}</span><h2>${h}</h2><p>${p}</p>`;
+        cap.appendChild(d);
+        R.push((t) => {
+          const o = win(t, a + 0.15, b - 0.05, 0.4);
+          d.style.opacity = o;
+          d.style.transform = `translateY(${(1 - ss((t - a - 0.15) / 0.5)) * 18}px)`;
+        });
+        const s = document.createElement('i');
+        s.innerHTML = '<b></b>';
+        steps.appendChild(s);
+        R.push((t) => (s.firstChild.style.width = cl((t - a) / (b - a)) * 100 + '%'));
+      });
+      R.push((t) => {
+        const i = C.findIndex((c) => t >= c[0] && t < c[1]);
+        $('#steplabel').textContent = i < 0 ? '' : `STEP ${i + 1} OF ${C.length}`;
+        const o = win(t, 4.2, END - 0.1);
+        $('#steplabel').style.opacity = o;
+        steps.style.opacity = o;
+      });
+      // device presence + focus (1 = focused)
+      const bf = [
+        [0, 1],
+        [11.6, 1],
+        [12.4, 0.32],
+        [29.8, 0.32],
+        [30.6, 1],
+        [39.8, 1],
+        [40.5, 0.32],
+        [53.6, 0.32],
+        [54.4, 1],
+        [70, 1],
+      ];
+      const pf = [
+        [0, 0.32],
+        [11.6, 0.32],
+        [12.4, 1],
+        [53.8, 1],
+        [54.6, 0.5],
+        [59.6, 0.5],
+        [60.3, 0.32],
+        [70, 0.32],
+      ];
+      const br = $('#browser'),
+        ph = $('#phone');
+      R.push((t) => {
+        const inn = ss((t - 3.9) / 0.9),
+          out = 1 - ss((t - (END - 0.5)) / 0.6);
+        const f = kf(t, bf),
+          g = kf(t, pf);
+        br.style.opacity = inn * out * (0.42 + 0.58 * f);
+        br.style.transform = `translateY(${(1 - inn) * 60}px) scale(${0.965 + 0.035 * f})`;
+        br.style.filter = `saturate(${0.5 + 0.5 * f})`;
+        const inp = ss((t - 4.2) / 0.9);
+        ph.style.opacity = inp * out * (0.3 + 0.7 * g);
+        ph.style.transform = `translateY(${(1 - inp) * 60}px) scale(${0.955 + 0.045 * g})`;
+        ph.style.filter = `saturate(${0.5 + 0.5 * g})`;
+      });
+      // story beats
+      const bS = $('#bscreen'),
+        pS = $('#pscreen');
+      hl(bS, bs, 280, 203, 1130, 168, 6, 11.6); // JOB-1042 row
+      pulse(BX + 760 * bs, BY + 290 * bs, PX + 185, PY + 150, 11.5); // office -> phone
+      hl(pS, ps, 70, 1944, 942, 146, 15.5, 19.6, 22); // Accept job
+      tap(pS, ps, 540, 2017, 17.6);
+      pulse(PX + 185, PY + 740, BX + 820 * bs, BY + 290 * bs, 18.2); // accept -> office
+      hl(pS, ps, 40, 2075, 1000, 205, 21.2, 24.3, 16); // route option card
+      tap(pS, ps, 540, 2180, 23.9);
+      tap(pS, ps, 540, 2075, 28.8); // Start trip
+      pulse(PX + 185, PY + 500, BX + 625 * bs, BY + 445 * bs, 30.4); // trip -> live map
+      hl(bS, bs, 992, 187, 420, 162, 33, 39.6); // live trip card
+      hl(pS, ps, 40, 535, 830, 420, 46, 49.6, 16); // faster route card
+      hl(pS, ps, 42, 366, 996, 188, 50.6, 54, 20); // daily check due
+      tap(pS, ps, 540, 460, 53.2);
+      pulse(PX + 185, PY + 160, BX + 900 * bs, BY + 250 * bs, 53.6); // check -> office
+      R.push((t) => {
+        const on = [11.5, 18.2, 30.4, 53.6].some((a) => t >= a && t <= a + 0.9);
+        $('#pulse').style.opacity = on ? 1 : 0;
+      });
+      // intro / outro
+      R.push((t) => {
+        const i = $('#intro');
+        i.style.opacity = win(t, 0.2, 3.7, 0.6);
+        i.style.transform = `scale(${0.96 + 0.04 * ss(t / 3)})`;
+        const o = $('#outro');
+        o.style.opacity = ss((t - END - 0.1) / 0.7) * ss((OUT - t) / 0.4);
+        o.style.transform = `scale(${0.96 + 0.04 * ss((t - END) / 2)})`;
+      });
+      window.render = (t) => {
+        R.forEach((f) => f(t));
+      };
+      window.DURATION = OUT;
+      render(0);
+    </script>
+  </body>
+</html>

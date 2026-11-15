@@ -27,9 +27,13 @@ const SCENES = [
 ];
 
 function ffmpeg(args, stdin = 'ignore') {
-  const child = spawn('ffmpeg', ['-v', 'error', '-y', ...args], { stdio: [stdin, 'inherit', 'inherit'] });
+  const child = spawn('ffmpeg', ['-v', 'error', '-y', ...args], {
+    stdio: [stdin, 'inherit', 'inherit'],
+  });
   const done = new Promise((resolve, reject) =>
-    child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)))),
+    child.on('close', (code) =>
+      code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)),
+    ),
   );
   return { child, done };
 }
@@ -49,14 +53,23 @@ for (const [index, [name, start, end]] of SCENES.entries()) {
       ...['-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-'],
       ...['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-shortest'],
       ...['-c:v', 'libx264', '-preset', 'slow', '-crf', '20', '-pix_fmt', 'yuv420p'],
-      ...['-c:a', 'aac', '-b:a', '64k', '-movflags', '+faststart', join(here, 'clips', `${name}.mp4`)],
+      ...[
+        '-c:a',
+        'aac',
+        '-b:a',
+        '64k',
+        '-movflags',
+        '+faststart',
+        join(here, 'clips', `${name}.mp4`),
+      ],
     ],
     'pipe',
   );
   for (let frame = 0; frame < (end - start) * FPS; frame++) {
     await page.evaluate((t) => window.render(t), start + frame / FPS);
     const image = await page.screenshot({ type: 'jpeg', quality: 96 });
-    if (!child.stdin.write(image)) await new Promise((resolve) => child.stdin.once('drain', resolve));
+    if (!child.stdin.write(image))
+      await new Promise((resolve) => child.stdin.once('drain', resolve));
   }
   child.stdin.end();
   await done;
@@ -65,6 +78,18 @@ await browser.close();
 
 const list = join(here, 'clips', 'list.txt');
 writeFileSync(list, SCENES.map(([name]) => `file '${name}.mp4'\n`).join(''));
-await ffmpeg(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', join(here, 'wagonwise-demo.mp4')]).done;
+await ffmpeg([
+  '-f',
+  'concat',
+  '-safe',
+  '0',
+  '-i',
+  list,
+  '-c',
+  'copy',
+  '-movflags',
+  '+faststart',
+  join(here, 'wagonwise-demo.mp4'),
+]).done;
 rmSync(list);
 console.log('wagonwise-demo.mp4 written');

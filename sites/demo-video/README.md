@@ -10,17 +10,17 @@ the cab and back. It is built from the store screenshots (`apps/dashboard/store-
   to see second 35.
 - `render.mjs`: turns `index.html` into the clips and joins them.
 
-| Clip                           | Seconds  | Shows                                                    |
-| ------------------------------ | -------- | -------------------------------------------------------- |
-| `00-intro`                     | 0 to 4   | Logo and title                                           |
-| `01-office-plans-the-job`      | 4 to 12  | Portal: the Jobs page, JOB-1042 assigned                 |
-| `02-lands-on-the-phone`        | 12 to 20 | App: the job screen, Accept job                          |
-| `03-route-that-fits`           | 20 to 30 | App: route choice, hazards on the route, Start trip      |
-| `04-office-sees-the-trip`      | 30 to 40 | App on a trip beside the portal's Live trips             |
-| `05-drivers-report-hazards`    | 40 to 50 | App: report a hazard, the faster-route offer             |
-| `06-daily-checks`              | 50 to 60 | App: daily check due; portal: check results and defects  |
-| `07-what-the-work-made`        | 60 to 70 | Portal: overview, job profit, reports                    |
-| `08-outro`                     | 70 to 76 | Logo, store badges, web address                          |
+| Clip                        | Seconds  | Shows                                                   |
+| --------------------------- | -------- | ------------------------------------------------------- |
+| `00-intro`                  | 0 to 4   | Logo and title                                          |
+| `01-office-plans-the-job`   | 4 to 12  | Portal: the Jobs page, JOB-1042 assigned                |
+| `02-lands-on-the-phone`     | 12 to 20 | App: the job screen, Accept job                         |
+| `03-route-that-fits`        | 20 to 30 | App: route choice, hazards on the route, Start trip     |
+| `04-office-sees-the-trip`   | 30 to 40 | App on a trip beside the portal's Live trips            |
+| `05-drivers-report-hazards` | 40 to 50 | App: report a hazard, the faster-route offer            |
+| `06-daily-checks`           | 50 to 60 | App: daily check due; portal: check results and defects |
+| `07-what-the-work-made`     | 60 to 70 | Portal: overview, job profit, reports                   |
+| `08-outro`                  | 70 to 76 | Logo, store badges, web address                         |
 
 ## Changing it
 
