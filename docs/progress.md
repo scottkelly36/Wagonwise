@@ -55,7 +55,7 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
    Google and Apple sign-in need a store build and the owner's set-up. Nothing is switched on.
 10. **Next native build (1.3.0)**, which also carries the Play quality fixes below, and Android Auto if it goes ahead.
 11. **Small code left:** road tax by registration is
-    **parked** (DVLA is not taking new Vehicle Enquiry Service keys); a tachograph source for driver hours waits on the pilot's lorries.
+    **parked** (DVLA is not taking new Vehicle Enquiry Service keys); a tachograph source for driver hours waits on the pilot's lorries. Tachograph downloads are scoped, not built (`tachograph-download-scope.md`).
     Unscheduled ideas are in `ideas.md` and `phase-5-ideas.md`.
 
 **How the driver app ships:** JavaScript-only changes go out over the air to the installed version (`runtimeVersion` follows
