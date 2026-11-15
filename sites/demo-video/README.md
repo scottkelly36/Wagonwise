@@ -6,6 +6,7 @@ the cab and back. It is built from the store screenshots (`apps/dashboard/store-
 
 - `wagonwise-demo.mp4`: the whole video.
 - `clips/`: the same video as one file per scene, in order. Drop them into any video editor to reorder, cut or replace one.
+- `../landing/video/`: the smaller copy (1280 x 720) and the still that the For hauliers page plays (`sites/landing/for-hauliers/index.html`, "Watch it work"). `render.mjs` rewrites both, so the page follows the video.
 - `index.html`: the animation itself (layout, wording, timings). Open it in a browser and run `render(35)` in the console
   to see second 35.
 - `render.mjs`: turns `index.html` into the clips and joins them.

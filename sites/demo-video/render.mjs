@@ -3,7 +3,7 @@
 //   node render.mjs 4 5    only scenes 4 and 5 (see SCENES), then the full video from the clips
 // Needs ffmpeg and Playwright with Chromium. Timings and wording live in index.html.
 import { spawn } from 'node:child_process';
-import { rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -93,3 +93,17 @@ await ffmpeg([
 ]).done;
 rmSync(list);
 console.log('wagonwise-demo.mp4 written');
+
+// The copy the For hauliers page plays: smaller (1280 x 720) so it starts quickly, and a still to show before it plays.
+const web = join(here, '..', 'landing', 'video');
+mkdirSync(web, { recursive: true });
+await ffmpeg([
+  ...['-i', join(here, 'wagonwise-demo.mp4'), '-vf', 'scale=1280:720', '-an'],
+  ...['-c:v', 'libx264', '-preset', 'slow', '-crf', '25', '-pix_fmt', 'yuv420p'],
+  ...['-movflags', '+faststart', join(web, 'wagonwise-demo.mp4')],
+]).done;
+await ffmpeg([
+  ...['-ss', '35', '-i', join(here, 'wagonwise-demo.mp4'), '-frames:v', '1'],
+  ...['-vf', 'scale=1280:720', '-q:v', '4', join(web, 'wagonwise-demo-poster.jpg')],
+]).done;
+console.log('landing/video copy and poster written');

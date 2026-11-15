@@ -302,6 +302,20 @@
         margin-top: 14px;
         color: var(--muted);
       }
+      /* Demo video */
+      .demo {
+        text-align: center;
+      }
+      .demo video {
+        display: block;
+        width: 100%;
+        max-width: 960px;
+        height: auto;
+        margin: 28px auto 0;
+        border-radius: 16px;
+        background: #070d1c;
+        box-shadow: 0 24px 60px rgba(11, 18, 32, 0.25);
+      }
       /* Portal */
       .portal {
         margin-top: clamp(56px, 9vw, 104px);
@@ -910,6 +924,31 @@
               <p class="fine">Example data for a fictional firm.</p>
             </div>
           </div>
+        </section>
+
+        <section class="demo" id="video" aria-labelledby="video-title">
+          <div class="section-head">
+            <span class="tag">Watch it work</span>
+            <h2 id="video-title">One job, from the office to the cab and back</h2>
+            <p>
+              A 76-second look at the dashboard and the driver app working together. There is no
+              sound.
+            </p>
+          </div>
+          <video
+            controls
+            muted
+            playsinline
+            preload="none"
+            width="1280"
+            height="720"
+            poster="/video/wagonwise-demo-poster.jpg"
+            aria-label="A demo of the WagonWise dashboard and driver app: a job is created in the office, accepted on the driver's phone, followed on the live map, and shows up in the reports."
+          >
+            <source src="/video/wagonwise-demo.mp4" type="video/mp4" />
+            <a href="/video/wagonwise-demo.mp4">Download the demo video (MP4)</a>
+          </video>
+          <p class="fine">Example data for a fictional firm.</p>
         </section>
 
         <div class="section-head">
