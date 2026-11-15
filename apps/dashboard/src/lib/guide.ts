@@ -111,7 +111,7 @@ export const GUIDE: readonly GuideSection[] = [
       {
         heading: 'Afterwards',
         steps: [
-          'Send notification again, if a driver says they did not get it.',
+          'Notify again, if a driver says they did not get it.',
           'Customer and price, to add or change them after the job exists.',
           'View photo, to see a proof-of-delivery photo.',
           'View signature, to see the receiver’s signature and the name they gave.',

@@ -443,7 +443,9 @@ export function Jobs() {
       key: 'stops',
       header: 'Stops',
       sortValue: (j) => j.stops.map((stop) => stop.name).join(' '),
-      cell: (j) => j.stops.map((stop) => stop.name).join(' → '),
+      cell: (j) => (
+        <span className="job-stops">{j.stops.map((stop) => stop.name).join(' → ')}</span>
+      ),
     },
     ...(canDispatch
       ? [
@@ -565,14 +567,14 @@ export function Jobs() {
       header: 'Delivery record',
       cell: (job) =>
         job.status === 'delivered' ? (
-          <>
+          <div className="job-actions job-record-actions">
             <button
               type="button"
               className="secondary"
               onClick={() => void openRecord(job, 'internal')}
             >
               Internal
-            </button>{' '}
+            </button>
             <button
               type="button"
               className="secondary"
@@ -580,7 +582,7 @@ export function Jobs() {
             >
               Customer copy
             </button>
-          </>
+          </div>
         ) : (
           '—'
         ),
@@ -593,7 +595,7 @@ export function Jobs() {
             cell: (job: JobDto) => {
               const picked = assigning[job.id] ?? { driverId: '', vehicleId: '' };
               return (
-                <div>
+                <div className="job-actions">
                   {job.status === 'draft' && (
                     <>
                       <span className="assign-controls">
@@ -644,7 +646,7 @@ export function Jobs() {
                         </button>
                       </span>
                       {assignHint[job.id] !== undefined && (
-                        <p className="field-error" role="alert" style={{ margin: '4px 0 0' }}>
+                        <p className="field-error" role="alert">
                           {assignHint[job.id]}
                         </p>
                       )}
@@ -664,18 +666,17 @@ export function Jobs() {
                             job.pricePence === undefined ? '' : (job.pricePence / 100).toFixed(2),
                         })
                       }
-                      className="mr-6"
                     >
                       Customer and price
                     </button>
                   )}
                   {job.status === 'assigned' && (
                     <button
-                      className="btn-caution mr-6"
+                      className="btn-caution"
                       onClick={() => resend.mutate(job.id)}
                       disabled={resend.isPending}
                     >
-                      Send notification again
+                      Notify again
                     </button>
                   )}
                   {!TERMINAL.includes(job.status) && (
@@ -692,7 +693,6 @@ export function Jobs() {
                         });
                       }}
                       disabled={cancel.isPending}
-                      style={{ marginTop: job.status === 'draft' ? 6 : 0 }}
                     >
                       Cancel
                     </button>

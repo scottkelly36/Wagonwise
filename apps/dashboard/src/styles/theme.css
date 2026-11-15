@@ -388,8 +388,14 @@ button.nav-toggle:hover:not(:disabled) {
 .field-row {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 10px;
   margin-bottom: 12px;
+}
+
+/* The button beside the fields lines up with the inputs, not stretched to the height of label and input together */
+.field-row > button {
+  align-self: flex-end;
 }
 
 .btn-chip {
@@ -784,6 +790,72 @@ button.btn-quiet {
 
 button.btn-quiet:hover:not(:disabled) {
   background: var(--bg);
+}
+
+/* A button in a list never breaks its words over two lines: a wrapped label looks like two buttons touching */
+.data-table td button {
+  white-space: nowrap;
+}
+
+/* The Jobs list has eight columns, so its cells sit a little closer and it fits a laptop screen without scrolling sideways */
+.data-table:has(.job-actions) th,
+.data-table:has(.job-actions) td {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.data-table:has(.job-actions) th:first-child,
+.data-table:has(.job-actions) td:first-child {
+  padding-left: 16px;
+}
+
+.data-table:has(.job-actions) th:last-child,
+.data-table:has(.job-actions) td:last-child {
+  padding-right: 16px;
+}
+
+/* The stops keep enough width to read as a line or two, not a word to a line */
+.job-stops {
+  display: inline-block;
+  min-width: 180px;
+}
+
+/* The Jobs list: a row's actions as one tidy column, each the same width with the same gap */
+.job-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 164px;
+  margin-left: auto;
+}
+
+.job-actions button,
+.job-actions select {
+  font-size: 14px;
+  padding: 6px 12px;
+}
+
+.job-record-actions {
+  width: 136px;
+  margin-left: 0;
+}
+
+.job-actions select {
+  width: 100%;
+  min-width: 0;
+}
+
+.job-actions .assign-controls {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.job-actions .field-error {
+  margin: 0;
+  white-space: normal;
 }
 
 .row-actions {

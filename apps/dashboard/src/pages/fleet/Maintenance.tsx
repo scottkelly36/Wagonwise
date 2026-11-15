@@ -27,6 +27,7 @@ import {
   worstText,
   type VehicleSummary,
 } from '../../lib/maintenance-by-vehicle';
+import { Seg } from '../../components/Seg';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from '../staff/messages';
@@ -72,16 +73,17 @@ export function Maintenance() {
         <p>Choose a company.</p>
       ) : (
         <>
-          <div className="flex gap-8 mb-16">
-            <button type="button" disabled={tab === 'due'} onClick={() => setTab('due')}>
-              What is due
-            </button>
-            <button type="button" disabled={tab === 'repairs'} onClick={() => setTab('repairs')}>
-              Repairs
-            </button>
-            <button type="button" disabled={tab === 'items'} onClick={() => setTab('items')}>
-              What you keep track of
-            </button>
+          <div className="seg-scroll mb-16">
+            <Seg
+              ariaLabel="Maintenance"
+              value={tab}
+              onChange={setTab}
+              options={[
+                { key: 'due', label: 'What is due' },
+                { key: 'repairs', label: 'Repairs' },
+                { key: 'items', label: 'What you keep track of' },
+              ]}
+            />
           </div>
           {tab === 'due' ? (
             <Due companyId={companyId} canManage={canManage} />
@@ -178,18 +180,13 @@ function Due({ companyId, canManage }: { companyId: string; canManage: boolean }
           )}
         </div>
       )}
-      <div className="flex gap-8 wrap mb-12">
-        {choices.map((c) => (
-          <button
-            key={c.value}
-            type="button"
-            aria-pressed={filter === c.value}
-            disabled={filter === c.value}
-            onClick={() => setFilter(c.value)}
-          >
-            {c.label}
-          </button>
-        ))}
+      <div className="seg-scroll mb-12">
+        <Seg
+          ariaLabel="Which vehicles to show"
+          value={filter}
+          onChange={setFilter}
+          options={choices.map((c) => ({ key: c.value, label: c.label }))}
+        />
       </div>
       {rows.isError && <ErrorNotice error={rows.error} />}
       {rows.isPending ? (
