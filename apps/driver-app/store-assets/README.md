@@ -9,6 +9,12 @@
 
 All screenshots use made-up data (fictional firm, example emails). Scripts are Windows PowerShell and expect the repo at `E:\projects\wagonwise`.
 
+## The portal screenshots (retaken 2026-11-15, after the button tidy-up)
+
+Taken with Playwright at 1440 x 900 against a local stack (`pnpm db:up`, `pnpm db:migrate`, core, the staff BFF and the portal's dev server), signed in as a made-up manager (`manager@example.com`, "Sam Carter") of a made-up firm, "Tynedale Haulage". The data went in by SQL and is not in the repo: six vehicles, six drivers, about 300 jobs over 75 days (JOB-1042 assigned and not yet opened, three on the road, one at pickup, one with no driver), ten days of walk-round checks with one "fix soon" defect, running costs, driver rates, a fuel statement and maintenance dates with two overdue. Job profit is shown for October, the last full month.
+
+**The live map's background is not live.** Map tiles could not be fetched where these were taken, so the map style was swapped for the map area of the previous `live-map.png`, placed at its true position (zoom 9, north-east England), and the three vehicles were given positions that sit on the dots already in that picture. The page, the markers, the list and the zone outline are the real portal. Retake it with a MapTiler key (`VITE_MAPTILER_API_KEY`) when one is to hand.
+
 ## Retaking them (last done 2026-11-04, from `main` at `c462742`, after the compass and Keep-button fixes)
 
 Retake whenever the app's screens change: the shots show whatever JavaScript Metro serves, so run Metro from a checkout of current `main`, not an old branch. Faster-route offer, in practice: seed the congestion report, plan Hexham to Gateshead from the A69 east of Hexham, start the trip, step the GPS about 40 points along the road, then take screenshots every few seconds for a couple of minutes (the card appears about a minute in, then folds to a small chip and reappears; tap nothing). Expire the congestion report before the trip shot so the card is not in it.

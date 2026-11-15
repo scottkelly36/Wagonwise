@@ -288,7 +288,7 @@ export function VehicleProfiles() {
                 <FieldError id={`vehicle-${field.key}-error`} message={shown(field.key)} />
               </div>
             ))}
-            <div className="field" style={{ flex: '1 1 140px' }}>
+            <div className="field" style={{ flex: '1 1 200px' }}>
               <label htmlFor="vehicle-topSpeedMph">Top speed (mph, optional)</label>
               <input
                 id="vehicle-topSpeedMph"
@@ -301,7 +301,7 @@ export function VehicleProfiles() {
               />
               <FieldError id="vehicle-topSpeedMph-error" message={shown('topSpeedMph')} />
             </div>
-            <div className="field" style={{ flex: '1 1 140px' }}>
+            <div className="field" style={{ flex: '0 1 200px' }}>
               <label htmlFor="vehicle-euroVI">Euro VI engine</label>
               <select
                 id="vehicle-euroVI"
