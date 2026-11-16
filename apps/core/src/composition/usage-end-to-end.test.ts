@@ -205,7 +205,9 @@ describe('usage end to end (real RLS, real scopes)', () => {
     expect(body.devices).toEqual({ total: 1 });
     expect(body.tripsRunningNow).toBe(1);
     expect(body.testers).toEqual({ total: 0 });
-  });
+    // The first request in this file pays for a cold server and database, and under the whole suite running at once it has taken
+    // just over the default 5 seconds (2026-11-16, 5016 ms on a push). The later tests reuse the warm connections.
+  }, 30_000);
 
   it('counts how far drivers got, as different drivers, with those who came back', async () => {
     const body = await report();
