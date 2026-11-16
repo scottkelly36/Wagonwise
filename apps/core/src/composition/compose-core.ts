@@ -946,6 +946,8 @@ export function composeCore(
     name: 'prune-route-plans',
     intervalMs: config.positionSweepIntervalMs,
     run: async () => {
+      const ended = await routing.endAbandonedTrips();
+      if (ended > 0) app.log.info({ ended }, 'ended trips left running for a day');
       const removed = await routing.pruneOldRoutePlans(config.routeRetentionDays);
       if (removed > 0) app.log.info({ removed }, 'deleted old route plans');
     },

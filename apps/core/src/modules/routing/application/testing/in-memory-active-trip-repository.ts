@@ -39,6 +39,16 @@ export class InMemoryActiveTripRepository implements ActiveTripRepository {
     return Promise.resolve();
   }
 
+  endStartedBefore(cutoff: Date, endedAt: Date): Promise<number> {
+    let ended = 0;
+    for (const trip of this.#byId.values()) {
+      if (trip.endedAt !== undefined || trip.startedAt >= cutoff) continue;
+      this.#byId.set(trip.id, { ...trip, endedAt });
+      ended += 1;
+    }
+    return Promise.resolve(ended);
+  }
+
   async findActiveNear(location: GeoPoint, radiusM: number): Promise<ActiveTrip[]> {
     if (!this.routePlans) {
       throw new Error('InMemoryActiveTripRepository: findActiveNear needs a routePlans fake');

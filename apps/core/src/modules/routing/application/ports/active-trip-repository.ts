@@ -14,4 +14,6 @@ export interface ActiveTripRepository {
    *  position tracking exists yet (`lastPosition` stays unset — decision, M5.6), so "the trip's
    *  route" means its `RoutePlan`'s own geometry, not a live position (M6.4). */
   findActiveNear(location: GeoPoint, radiusM: number): Promise<ActiveTrip[]>;
+  /** Ends every in-progress trip that started before `cutoff`, setting `endedAt` to `endedAt`, and says how many it ended. */
+  endStartedBefore(cutoff: Date, endedAt: Date): Promise<number>;
 }

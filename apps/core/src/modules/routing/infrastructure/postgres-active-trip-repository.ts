@@ -76,6 +76,15 @@ export class PostgresActiveTripRepository implements ActiveTripRepository {
     `.execute(this.db);
   }
 
+  /** One statement for every trip at once: the hourly sweep may find dozens. */
+  async endStartedBefore(cutoff: Date, endedAt: Date): Promise<number> {
+    const result = await sql`
+      update routing.active_trips set ended_at = ${endedAt}
+      where ended_at is null and started_at < ${cutoff}
+    `.execute(this.db);
+    return Number(result.numAffectedRows ?? 0);
+  }
+
   /** In-progress trips whose *plan's* geometry (no live position exists to query against yet —
    *  decision, M5.6) passes within `radiusM` of `location`. Joins to `routing.route_plans` for
    *  the geography column this table doesn't have its own copy of. */
