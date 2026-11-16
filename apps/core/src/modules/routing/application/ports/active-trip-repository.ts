@@ -16,4 +16,14 @@ export interface ActiveTripRepository {
   findActiveNear(location: GeoPoint, radiusM: number): Promise<ActiveTrip[]>;
   /** Ends every in-progress trip that started before `cutoff`, setting `endedAt` to `endedAt`, and says how many it ended. */
   endStartedBefore(cutoff: Date, endedAt: Date): Promise<number>;
+  /** Running trips that started after `startedAfter` and have had no reminder yet, each with its plan's driving time. */
+  findReminderCandidates(startedAfter: Date): Promise<ReminderCandidate[]>;
+  /** Notes that the trip's reminder went out. False if it already had one or has ended since, so two runs never both send. */
+  markReminded(id: ActiveTripId, at: Date): Promise<boolean>;
+}
+
+export interface ReminderCandidate {
+  readonly trip: ActiveTrip;
+  /** The planned route's driving time, from its `RoutePlan`. */
+  readonly plannedDurationMin: number;
 }

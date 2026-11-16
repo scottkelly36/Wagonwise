@@ -7,6 +7,7 @@ import { queryClient } from '../api/query-client';
 import { announcementIdFrom } from '../lib/announcement-notification';
 import { assignedJobIdFrom } from '../lib/job-notification';
 import { newRoutePlanIdFrom } from '../lib/reroute-notification';
+import { tripReminderIdFrom } from '../lib/trip-reminder-notification';
 import { useAuthStore } from '../state/auth-store';
 
 // Foreground notifications are suppressed by expo-notifications unless a handler says otherwise
@@ -16,12 +17,14 @@ import { useAuthStore } from '../state/auth-store';
 // render (same reasoning as api/query-client.ts's module-scope QueryClient).
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    // News from WagonWise about what has changed is not an alert: while the app is open it goes quietly to the tray, with no banner over the map and no sound.
-    const news = announcementIdFrom(notification.request.content.data) !== undefined;
+    // News from WagonWise about what has changed, and a reminder that a trip is still running, are not alerts: while the app is
+    // open they go quietly to the tray, with no banner over the map and no sound.
+    const data = notification.request.content.data;
+    const quiet = announcementIdFrom(data) !== undefined || tripReminderIdFrom(data) !== undefined;
     return {
-      shouldShowBanner: !news,
+      shouldShowBanner: !quiet,
       shouldShowList: true,
-      shouldPlaySound: !news,
+      shouldPlaySound: !quiet,
       shouldSetBadge: false,
     };
   },

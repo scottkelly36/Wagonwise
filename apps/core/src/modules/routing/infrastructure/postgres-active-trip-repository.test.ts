@@ -239,4 +239,47 @@ describe('PostgresActiveTripRepository', () => {
     expect((await repo().findById(alreadyEnded.id))?.endedAt).toEqual(alreadyEnded.endedAt);
     expect((await repo().findById(recent.id))?.endedAt).toBeUndefined();
   });
+  it('finds running, unreminded trips with their planned driving time, and marks a reminder only once', async () => {
+    const planId = makeId<'RoutePlanId'>('fefefefe-0000-4000-8000-000000000001');
+    const plan: RoutePlan = {
+      id: planId,
+      driverId: makeId<'DriverId'>('fefefefe-1111-4000-8000-000000000000'),
+      profileId: makeId<'VehicleProfileId'>('fefefefe-2222-4000-8000-000000000000'),
+      origin: { lat: 54.9707, lon: -2.1013 },
+      destination: { lat: 54.9738, lon: -2.0165 },
+      geometry: 'encoded-polyline',
+      distanceKm: 40,
+      durationMin: 47,
+      avoidedRestrictions: [],
+      maneuvers: [],
+      hazardsOnRoute: [],
+      createdAt: new Date('2021-05-01T08:00:00.000Z'),
+    };
+    await new PostgresRoutePlanRepository(db).save(plan);
+    const t = (n: number, startedAt: string, endedAt?: string) =>
+      trip({
+        id: makeId<'ActiveTripId'>(`fefefefe-0000-4000-8000-00000000001${n}`),
+        routePlanId: planId,
+        driverId: makeId<'DriverId'>(`fefefefe-${n}${n}${n}${n}-4000-8000-000000000001`),
+        startedAt: new Date(startedAt),
+        endedAt: endedAt === undefined ? undefined : new Date(endedAt),
+      });
+    // Trips from 2021, so a cutoff late in April 2021 sees only these and the 2026 trips of other tests.
+    const running = t(1, '2021-05-01T09:00:00.000Z');
+    const ended = t(2, '2021-05-01T09:00:00.000Z', '2021-05-01T10:00:00.000Z');
+    const tooOld = t(3, '2021-04-01T09:00:00.000Z');
+    for (const x of [running, ended, tooOld]) await repo().save(x);
+    const mine = async () =>
+      (await repo().findReminderCandidates(new Date('2021-04-30T00:00:00.000Z'))).filter((c) =>
+        [running.id, ended.id, tooOld.id].includes(c.trip.id),
+      );
+
+    expect(await mine()).toEqual([{ trip: running, plannedDurationMin: 47 }]);
+
+    const at = new Date('2021-05-01T12:00:00.000Z');
+    expect(await repo().markReminded(running.id, at)).toBe(true);
+    expect(await repo().markReminded(running.id, at)).toBe(false);
+    expect(await repo().markReminded(ended.id, at)).toBe(false);
+    expect(await mine()).toEqual([]);
+  });
 });

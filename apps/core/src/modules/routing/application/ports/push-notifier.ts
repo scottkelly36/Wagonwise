@@ -1,11 +1,12 @@
 export interface PushNotification {
   readonly title: string;
   readonly body: string;
-  /** Carries the new route's id (design doc §6: "include the new route ID in the payload") so
-   *  the driver app can open straight to the old-vs-new comparison screen. */
-  readonly data: {
-    readonly newRoutePlanId: string;
-  };
+  /** What the app acts on. A reroute carries the new route's id (design doc §6: "include the new route ID in the payload") so
+   *  the app can open straight to the old-vs-new comparison; a trip reminder carries `type: 'trip-reminder'` and the trip's id. */
+  readonly data: Readonly<Record<string, string>>;
+  /** Not an alert: ordinary priority, on the app's quiet Android channel (`news`, no sound), so it never rings in the cab.
+   *  Unset for a reroute, which is meant to be heard. */
+  readonly quiet?: boolean;
 }
 
 /**
