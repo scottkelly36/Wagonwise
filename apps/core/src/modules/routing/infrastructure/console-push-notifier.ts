@@ -9,7 +9,7 @@ import type { PushNotification, PushNotifier } from '../application/ports/push-n
 export class ConsolePushNotifier implements PushNotifier {
   send(pushToken: string, notification: PushNotification): Promise<void> {
     console.log(
-      `[dev] push to ${pushToken}: ${notification.title} — ${notification.body} (newRoutePlanId=${notification.data.newRoutePlanId})`,
+      `[dev] push to ${pushToken}: ${notification.title} — ${notification.body} ${JSON.stringify(notification.data)}`,
     );
     return Promise.resolve();
   }

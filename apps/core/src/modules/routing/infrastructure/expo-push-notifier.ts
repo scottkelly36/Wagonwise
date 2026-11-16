@@ -47,6 +47,7 @@ export class ExpoPushNotifier implements PushNotifier {
           title: notification.title,
           body: notification.body,
           data: notification.data,
+          ...(notification.quiet === true ? { priority: 'normal', channelId: 'news' } : {}),
         },
       ]),
     });

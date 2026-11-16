@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { remindOpenTrips } from './application/remind-open-trips.js';
 import {
   endAbandonedTrips,
   eraseDriverRoutingData,
@@ -112,6 +113,9 @@ export interface RoutingModule {
   /** Ends trips still running a day after they started (left behind by a driver who never tapped End trip); returns how many.
    *  Run on a timer by composition, before `pruneOldRoutePlans` so their plans can go in the same run once old enough. */
   endAbandonedTrips(): Promise<number>;
+  /** Sends a quiet "still on your trip?" reminder for each trip still running two hours after its planned arrival, once per
+   *  trip and never at night; returns how many were sent. Run on a timer by composition. */
+  remindOpenTrips(): Promise<number>;
 }
 
 /**
@@ -219,5 +223,12 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
     pruneOldRoutePlans: (retentionDays) =>
       pruneOldRoutePlans({ housekeeping, clock: deps.clock }, { retentionDays }),
     endAbandonedTrips: () => endAbandonedTrips({ repo: activeTripRepo, clock: deps.clock }),
+    remindOpenTrips: () =>
+      remindOpenTrips({
+        activeTripRepo,
+        identity: deps.identity,
+        pushNotifier,
+        clock: deps.clock,
+      }),
   };
 }

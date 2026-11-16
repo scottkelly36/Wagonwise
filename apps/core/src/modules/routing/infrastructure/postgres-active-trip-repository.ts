@@ -1,6 +1,9 @@
 import { sql } from 'kysely';
 import { makeId } from '../../../shared/brand.js';
-import type { ActiveTripRepository } from '../application/ports/active-trip-repository.js';
+import type {
+  ActiveTripRepository,
+  ReminderCandidate,
+} from '../application/ports/active-trip-repository.js';
 import type { ActiveTrip, ActiveTripId } from '../domain/active-trip.js';
 import type { GeoPoint } from '../domain/geo.js';
 import type { DriverId } from '../domain/vehicle-profile.js';
@@ -83,6 +86,29 @@ export class PostgresActiveTripRepository implements ActiveTripRepository {
       where ended_at is null and started_at < ${cutoff}
     `.execute(this.db);
     return Number(result.numAffectedRows ?? 0);
+  }
+
+  async findReminderCandidates(startedAfter: Date): Promise<ReminderCandidate[]> {
+    const { rows } = await sql<ActiveTripRow & { readonly duration_min: number }>`
+      select at.id, at.route_plan_id, at.driver_id, at.started_at,
+             at.last_position_lat, at.last_position_lon, at.ended_at, rp.duration_min
+      from routing.active_trips at
+      join routing.route_plans rp on rp.id = at.route_plan_id
+      where at.ended_at is null and at.reminded_at is null and at.started_at > ${startedAfter}
+    `.execute(this.db);
+    return rows.map((row) => ({
+      trip: toDomain(row),
+      plannedDurationMin: Number(row.duration_min),
+    }));
+  }
+
+  /** Conditional, so if two runs ever overlap only one of them gets `true` and sends. */
+  async markReminded(id: ActiveTripId, at: Date): Promise<boolean> {
+    const result = await sql`
+      update routing.active_trips set reminded_at = ${at}
+      where id = ${id} and reminded_at is null and ended_at is null
+    `.execute(this.db);
+    return Number(result.numAffectedRows ?? 0) === 1;
   }
 
   /** In-progress trips whose *plan's* geometry (no live position exists to query against yet —

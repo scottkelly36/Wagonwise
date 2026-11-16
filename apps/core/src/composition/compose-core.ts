@@ -943,6 +943,15 @@ export function composeCore(
   });
 
   periodicTasks.start({
+    name: 'remind-open-trips',
+    intervalMs: 15 * 60 * 1000,
+    run: async () => {
+      const reminded = await routing.remindOpenTrips();
+      if (reminded > 0) app.log.info({ reminded }, 'reminded drivers of trips still running');
+    },
+  });
+
+  periodicTasks.start({
     name: 'prune-route-plans',
     intervalMs: config.positionSweepIntervalMs,
     run: async () => {
