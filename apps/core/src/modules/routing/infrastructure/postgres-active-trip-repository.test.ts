@@ -218,4 +218,25 @@ describe('PostgresActiveTripRepository', () => {
       expect(found.map((r) => r.id)).not.toContain(t.id);
     });
   });
+  it('endStartedBefore ends only unended trips that started before the cutoff, and counts them', async () => {
+    // Trips from 2020, older than any other test's, so the cutoff touches only these.
+    const t = (n: number, startedAt: string, endedAt?: string) =>
+      trip({
+        id: makeId<'ActiveTripId'>(`edededed-0000-4000-8000-00000000000${n}`),
+        driverId: makeId<'DriverId'>(`edededed-${n}${n}${n}${n}-4000-8000-000000000000`),
+        startedAt: new Date(startedAt),
+        endedAt: endedAt === undefined ? undefined : new Date(endedAt),
+      });
+    const old = t(1, '2020-03-01T08:00:00.000Z');
+    const alreadyEnded = t(2, '2020-03-01T08:00:00.000Z', '2020-03-01T12:00:00.000Z');
+    const recent = t(3, '2020-03-02T09:00:00.000Z');
+    for (const x of [old, alreadyEnded, recent]) await repo().save(x);
+    const at = new Date('2020-03-02T10:00:00.000Z');
+
+    expect(await repo().endStartedBefore(new Date('2020-03-02T00:00:00.000Z'), at)).toBe(1);
+
+    expect((await repo().findById(old.id))?.endedAt).toEqual(at);
+    expect((await repo().findById(alreadyEnded.id))?.endedAt).toEqual(alreadyEnded.endedAt);
+    expect((await repo().findById(recent.id))?.endedAt).toBeUndefined();
+  });
 });

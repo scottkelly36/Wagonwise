@@ -1,5 +1,9 @@
 import type { FastifyInstance } from 'fastify';
-import { eraseDriverRoutingData, pruneOldRoutePlans } from './application/housekeeping.js';
+import {
+  endAbandonedTrips,
+  eraseDriverRoutingData,
+  pruneOldRoutePlans,
+} from './application/housekeeping.js';
 import { PostgresRoutingHousekeeping } from './infrastructure/postgres-routing-housekeeping.js';
 import type { HazardsModule } from '../hazards/api.js';
 import type { CamerasModule } from '../cameras/api.js';
@@ -105,6 +109,9 @@ export interface RoutingModule {
   /** Deletes route plans older than `retentionDays` (not those a running trip uses), with their
    *  ended trips and alerts; returns how many plans went. Run on a timer by composition. */
   pruneOldRoutePlans(retentionDays: number): Promise<number>;
+  /** Ends trips still running a day after they started (left behind by a driver who never tapped End trip); returns how many.
+   *  Run on a timer by composition, before `pruneOldRoutePlans` so their plans can go in the same run once old enough. */
+  endAbandonedTrips(): Promise<number>;
 }
 
 /**
@@ -211,5 +218,6 @@ export function createRoutingModule(deps: RoutingModuleDeps): RoutingModule {
     eraseDriverData: (driverId) => eraseDriverRoutingData({ housekeeping }, { driverId }),
     pruneOldRoutePlans: (retentionDays) =>
       pruneOldRoutePlans({ housekeeping, clock: deps.clock }, { retentionDays }),
+    endAbandonedTrips: () => endAbandonedTrips({ repo: activeTripRepo, clock: deps.clock }),
   };
 }
