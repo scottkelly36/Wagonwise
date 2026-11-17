@@ -1,6 +1,6 @@
 # Flow tracking: a plan
 
-Written 2026-11-17 at the owner's request, for approval before anything is built. **Nothing is built.** The aim is to see how drivers move
+Written 2026-11-17 at the owner's request and approved the same day. **Step 1 (the server side) is built; the app and the usage page are not.** The aim is to see how drivers move
 through planning a route and taking a trip, step by step, so the first-trip redesign (the design canvas from the same day) can be judged
 against today's screens rather than guessed at.
 
@@ -79,7 +79,7 @@ A **Flows** section on the admin usage page (`/admin/usage`):
 
 ## Order of work
 
-1. **Core and contracts:** the table, the use case, the sweep, the driver server route, and tests (unit, Postgres, real RLS end to end).
+1. **Built 2026-11-17** (`modules.md`, "Flow events"). **Core and contracts:** the table, the use case, the sweep, the driver server route, and tests (unit, Postgres, real RLS end to end).
    Live on merge; nothing sends yet.
 2. **App:** the queue and the events for today's screens, and the opt-out switch. JavaScript only, so it goes out over the air with the
    `release` label. **Ship this before the redesign** so there is a "before".

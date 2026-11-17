@@ -558,6 +558,7 @@ export function composeCore(
   const usage = createUsageModule({
     db: usageDb,
     clock,
+    ids,
     dataScopes,
     callers: { getCaller: staffCaller },
   });
@@ -939,6 +940,15 @@ export function composeCore(
       if (sent > 0 || failed > 0) {
         app.log.info({ sent, failed }, 'maintenance reminders');
       }
+    },
+  });
+
+  periodicTasks.start({
+    name: 'prune-flow-events',
+    intervalMs: config.positionSweepIntervalMs,
+    run: async () => {
+      const removed = await usage.pruneFlowEvents();
+      if (removed > 0) app.log.info({ removed }, 'deleted flow events over 90 days old');
     },
   });
 

@@ -95,3 +95,91 @@ export const usageReportSchema = z.object({
   firmList: z.array(usageFirmSchema),
 });
 export type UsageReportDto = z.infer<typeof usageReportSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// Flow events (docs/flow-tracking-plan.md): which steps drivers reach and which fixed choices they make, so screens can be judged on
+// what drivers do. Anonymous: a random session id made in memory when the app opens, never a driver, account or device id. Never a
+// position, an address, a postcode, search text or three words: every event and every choice is from the fixed lists below, so
+// anything else is refused rather than stored.
+
+/** Each event, and the choices it may carry (`null`: none). Names stay the same when a screen is redesigned, so before and after line up. */
+export const FLOW_EVENT_CHOICES = {
+  walkthrough_step: ['1', '2', '3', '4', '5'],
+  walkthrough_skipped: null,
+  home_card_tapped: null,
+  plan_opened: ['where_to', 'home_card', 'saved_place', 'replan', 'job'],
+  vehicle_prompt_shown: null,
+  vehicle_chosen: [
+    'rigid-7-5',
+    'rigid-18',
+    'rigid-26',
+    'rigid-32',
+    'artic-44',
+    'own_sizes',
+    'existing',
+  ],
+  load_chosen: ['normal', 'hill_sensitive'],
+  start_chosen: ['my_position', 'search', 'what3words', 'map', 'saved_place', 'yard'],
+  destination_chosen: ['search', 'what3words', 'map', 'saved_place', 'sample'],
+  route_options_shown: ['1', '2', '3', '4', '5', '6'],
+  route_option_picked: [
+    'fastest',
+    'shortest',
+    'toll_free',
+    'fewer_hills',
+    'cheapest',
+    'avoids_weight_limit',
+    'other',
+  ],
+  route_shown: null,
+  trip_started: ['personal', 'job'],
+  trip_ended: ['end_button', 'arrival_prompt', 'arrived_job', 'replan', 'offline_queue'],
+  reminder_opened: null,
+} as const satisfies Record<string, readonly string[] | null>;
+
+export type FlowEventName = keyof typeof FLOW_EVENT_CHOICES;
+export const FLOW_EVENT_NAMES = Object.keys(FLOW_EVENT_CHOICES) as [
+  FlowEventName,
+  ...FlowEventName[],
+];
+
+/** The most events one request may carry; the app sends in batches. */
+export const MAX_FLOW_EVENTS_PER_REQUEST = 50;
+
+export const flowEventSchema = z
+  .object({
+    event: z.enum(FLOW_EVENT_NAMES),
+    choice: z.string().max(40).optional(),
+    /** When it happened, on the phone's clock. */
+    at: z.iso.datetime(),
+  })
+  .superRefine((value, ctx) => {
+    const allowed: readonly string[] | null = FLOW_EVENT_CHOICES[value.event];
+    if (allowed === null && value.choice !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `${value.event} carries no choice`,
+        path: ['choice'],
+      });
+    }
+    if (allowed !== null && (value.choice === undefined || !allowed.includes(value.choice))) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `not a choice for ${value.event}`,
+        path: ['choice'],
+      });
+    }
+  });
+export type FlowEventDto = z.infer<typeof flowEventSchema>;
+
+/** `POST /usage/flow-events` (a signed-in driver; who it was is not passed on or kept). Always answers `{ recorded }`. */
+export const flowEventsRequestSchema = z.object({
+  sessionId: z.uuid(),
+  appVersion: z.string().regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}$/),
+  platform: z.enum(['ios', 'android']),
+  events: z.array(flowEventSchema).min(1).max(MAX_FLOW_EVENTS_PER_REQUEST),
+});
+export type FlowEventsRequest = z.infer<typeof flowEventsRequestSchema>;
+
+export const flowEventsResponseSchema = z.object({ recorded: z.number().int().min(0) });
+export type FlowEventsResponse = z.infer<typeof flowEventsResponseSchema>;
