@@ -34,6 +34,7 @@ export default function NewVehicleProfileScreen() {
           <VehicleProfileForm
             initialValues={EMPTY_VEHICLE_PROFILE_FORM}
             initialMode={mode === 'type' ? 'type' : 'presets'}
+            showPresets={mode !== 'type'}
             // After a preset is picked, take the driver down to the Add vehicle button.
             onPresetPicked={() => scrollRef.current?.scrollToEnd?.({ animated: true })}
             submitLabel="Add vehicle"

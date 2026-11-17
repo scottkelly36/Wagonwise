@@ -43,6 +43,8 @@ interface Props {
   readonly initialMode?: SizeMode;
   /** Called after a preset is picked, so a screen can take the driver down to the button. */
   readonly onPresetPicked?: () => void;
+  /** False leaves the Presets choice out: the set-up's own sizes, where the driver has just passed over the presets. */
+  readonly showPresets?: boolean;
 }
 
 /** How the size is given: picked from the typical sizes, or typed in metres or in feet and inches. */
@@ -68,6 +70,7 @@ export function VehicleProfileForm({
   onSubmit,
   initialMode = 'type',
   onPresetPicked,
+  showPresets = true,
 }: Props) {
   const [values, setValues] = useState(initialValues);
   const [mode, setMode] = useState<SizeMode>(initialMode);
@@ -204,7 +207,7 @@ export function VehicleProfileForm({
 
       <Text style={styles.label}>Vehicle size</Text>
       <SegmentedControl
-        options={SIZE_OPTIONS}
+        options={showPresets ? SIZE_OPTIONS : SIZE_OPTIONS.filter((o) => o.key !== 'presets')}
         value={mode === 'presets' ? 'presets' : unit}
         onChange={handleSizeChoice}
         testIDPrefix="profile-unit"

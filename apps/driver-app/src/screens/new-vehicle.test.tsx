@@ -50,6 +50,9 @@ describe('Add a vehicle', () => {
     await render(<NewVehicleProfileScreen />);
     expect(screen.getByTestId('profile-height-input')).toBeTruthy();
     expect(screen.queryByTestId('vehicle-preset-picker')).toBeNull();
+    // Only Metres and Feet and inches: the presets were on the step before.
+    expect(screen.queryByTestId('profile-unit-presets-button')).toBeNull();
+    expect(screen.getByTestId('profile-unit-feet-button')).toBeTruthy();
   });
 
   it('names the vehicle after the preset, and saves the preset figures as shown on its card', async () => {
