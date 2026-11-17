@@ -17,15 +17,20 @@ are the questions the redesign raises.
 - **Steps and fixed choices, never content.** An event is a step name from a fixed list and, where there is one, a choice from a fixed list
   (`what3words`, `hill_sensitive`). **Never** a position, an address, a postcode, search text, three words, a name or a free-text note. The
   allowed values are zod enums in `packages/contracts` (rule 11), so anything else is refused at the driver server, not just discouraged.
-- **Short retention.** Deleted after 90 days by an hourly sweep, like route plans and positions. Erased with the account (`eraseDriverData`).
-- **An opt-out.** A switch on the More tab, on by default ("Help improve WagonWise: share which screens you use. No locations."). The owner's
-  call: see the questions at the end.
+- **Anonymous (owner, 2026-11-17).** No driver id, account or device id is stored. Each event carries a random session id, made in memory
+  when the app opens and thrown away when it closes, so the steps of one sitting can be joined and nothing more.
+- **Short retention (owner, 2026-11-17): at most 90 days,** deleted by an hourly sweep, like route plans and positions.
+- **Told in the privacy notice, with an opt-out.** No consent is asked: the basis is legitimate interests (improving the app), stated in the
+  privacy notice drivers already see. A switch on the More tab, on by default ("Help improve WagonWise: share which screens you use. No
+  locations."), turns it off. Check the ICO's current guidance on analytics before release (PECR as amended by the Data (Use and Access)
+  Act 2025 allows this kind of analytics without consent where people are told and can object; not checked against the Act's text here).
 
 ## What is recorded
 
-One table, `usage.flow_events` (migration: the next free number when built, 0095 today): `id`, `driver_id`, `session_id` (random, made when
-the app opens, so steps in one sitting can be joined), `event`, `choice` (nullable), `app_version`, `platform`, `at`. No row-level policy:
-written by core for the signed-in driver and read only by platform staff through the usage page, like the rest of `usage`.
+One table, `usage.flow_events` (migration: the next free number when built, 0095 today): `id`, `session_id` (random, made in memory when the
+app opens), `event`, `choice` (nullable), `app_version`, `platform`, `at`. **No driver id.** No row-level policy: written by core and read
+only by platform staff through the usage page, like the rest of `usage`. The driver server needs a signed-in driver to accept events (so
+strangers cannot fill the table), but does not pass on who it was.
 
 Events, by area. Names stay the same when the redesign replaces a screen, so before and after line up:
 
@@ -56,7 +61,8 @@ cheaper and more honest than guessing at "abandoned".
 
 A **Flows** section on the admin usage page (`/admin/usage`):
 
-- **The setup steps as a funnel:** drivers reaching each step this week, and the share who carry on to the next.
+- **The setup steps as a funnel:** sittings (sessions) reaching each step this week, and the share that carry on to the next. Sittings,
+  not drivers: a driver who plans twice counts twice. Whether drivers come back is still on the existing usage page.
 - **Time per step:** the median seconds between one step and the next, so a step people stall on stands out.
 - **Choice splits:** how starts and destinations are picked, Normal against Hill-sensitive, presets against own sizes, sample routes tried.
 - **How trips end:** button, arrival prompt, reminder, or the server's 24-hour cut-off.
@@ -65,10 +71,11 @@ A **Flows** section on the admin usage page (`/admin/usage`):
 ## Privacy work that goes with it
 
 - Privacy notice: one paragraph ("which screens you use and the choices you make on them, such as how you picked a place; never where you
-  were") with the 90 days and the opt-out. `privacy-review.md` and the DPIA get a row.
+  were, and not linked to your account") with the 90 days, the basis (legitimate interests) and the opt-out. `privacy-review.md` and the
+  DPIA get a row; being anonymous keeps both short.
 - Google Play data safety: "App activity: app interactions", collected, not shared, for analytics, optional (the opt-out).
-- Apple: "Usage data: product interaction", linked to the user, for analytics. **Not tracking** in Apple's sense (no third party, no
-  advertising), so the label's "Not tracking" stays true.
+- Apple: "Usage data: product interaction", **not linked** to the user, for analytics. **Not tracking** in Apple's sense (no third party,
+  no advertising), so the label's "Not tracking" stays true.
 
 ## Order of work
 
@@ -81,9 +88,8 @@ A **Flows** section on the admin usage page (`/admin/usage`):
 
 Steps 1 to 3 are medium in size. The privacy notice and store forms change before step 2 is released.
 
-## Questions for the owner
+## Decided (owner, 2026-11-17)
 
-- **Opt-out on by default** (as planned), or ask each driver first? Asking is cleaner but most will not answer, so the numbers shrink.
-- **90 days** enough? It covers the February checkpoint for drivers joining from mid-November.
-- **Linked to the driver** (as planned) or anonymous? Anonymous cannot count different drivers or join a step to whether they came back
-  another day, which is most of the point.
+- **Told in the privacy notice, not asked:** legitimate interests, with the opt-out switch on the More tab.
+- **At most 90 days.**
+- **Anonymous:** a session id only, no link to the driver or the account.
