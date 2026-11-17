@@ -32,6 +32,7 @@ import {
 import { PRODUCT_NAME } from '../../product';
 import { useAuthStore } from '../../state/auth-store';
 import { useFasterRouteStore } from '../../state/faster-route-store';
+import { useFlowEventsStore } from '../../state/flow-events-store';
 import { useMeasureUnitsStore } from '../../state/measure-units-store';
 import { useStillThereStore } from '../../state/still-there-store';
 import { useThemeStore, type ThemeMode } from '../../state/theme-store';
@@ -112,6 +113,8 @@ export default function MoreScreen() {
   const fuelUnit = useMeasureUnitsStore((s) => s.fuel);
   const setFuelUnit = useMeasureUnitsStore((s) => s.setFuel);
   const news = useAnnouncementPreference();
+  const flowEvents = useFlowEventsStore((s) => s.status);
+  const setFlowEventsOn = useFlowEventsStore((s) => s.setOn);
   const signInOptions = useSignInOptions();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -271,6 +274,27 @@ export default function MoreScreen() {
           {news.failed
             ? 'That did not save. Check your signal and try again.'
             : 'A short, quiet notification now and then when something changes in the app. Never an alert, never a sound, and never about your jobs or routes. Turn it off any time.'}
+        </Text>
+
+        <Text style={styles.sectionLabel}>Help improve {PRODUCT_NAME}</Text>
+        <View style={styles.group}>
+          <View style={styles.row}>
+            <View style={styles.rowIcon}>
+              <Icon name="chart-bar" size={26} color={colors.accent} />
+            </View>
+            <Text style={styles.rowLabel}>Share which screens I use</Text>
+            <Switch
+              value={flowEvents !== 'off'}
+              onValueChange={(on) => void setFlowEventsOn(on)}
+              accessibilityLabel="Share which screens I use"
+              testID="flow-events-switch"
+            />
+          </View>
+        </View>
+        <Text style={styles.settingNote} testID="flow-events-note">
+          Which steps you reach and the choices you make on them, such as how you picked a place, so
+          we can see which screens need work. Never where you are or were, never what you typed, and
+          not linked to your account. Kept up to 90 days.
         </Text>
 
         <Text style={styles.sectionLabel}>Driving</Text>

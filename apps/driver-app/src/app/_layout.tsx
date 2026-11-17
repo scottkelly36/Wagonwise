@@ -14,6 +14,8 @@ import { useProofOfDeliveryQueueFlush } from '../hooks/use-proof-of-delivery-que
 import { useSignatureQueueFlush } from '../hooks/use-signature-queue-flush';
 import { useConnectionProbe } from '../hooks/use-connection-probe';
 import { useTripOutboxFlush } from '../hooks/use-trip-outbox-flush';
+import { useFlowEventsFlush } from '../hooks/use-flow-events-flush';
+import { useFlowEventsStore } from '../state/flow-events-store';
 import { useTripPersistence } from '../hooks/use-trip-persistence';
 import { useOpportunisticRefresh } from '../hooks/use-opportunistic-refresh';
 import { useRegisterPushToken } from '../hooks/use-register-push-token';
@@ -51,6 +53,7 @@ export default function RootLayout() {
   const restoreUpdateNotice = useUpdateNoticeStore((s) => s.restore);
   const restoreWalkthrough = useWalkthroughStore((s) => s.restore);
   const restoreWhatsNew = useWhatsNewStore((s) => s.restore);
+  const restoreFlowEvents = useFlowEventsStore((s) => s.restore);
 
   useEffect(() => {
     void restoreAuth();
@@ -68,6 +71,7 @@ export default function RootLayout() {
     void restoreUpdateNotice();
     void restoreWalkthrough();
     void restoreWhatsNew();
+    void restoreFlowEvents();
     // Keep more of the map on the phone, so places a driver has already seen draw straight away instead of waiting on the network
     // again. 250 MB is a few hundred miles of road map at the zoom levels used.
     OfflineManager.setMaximumAmbientCacheSize(250 * 1024 * 1024).catch(() => undefined);
@@ -87,6 +91,7 @@ export default function RootLayout() {
     restoreUpdateNotice,
     restoreWalkthrough,
     restoreWhatsNew,
+    restoreFlowEvents,
   ]);
 
   useOpportunisticRefresh();
@@ -98,6 +103,8 @@ export default function RootLayout() {
   useTripPersistence();
   useTripOutboxFlush();
   useConnectionProbe();
+  // Anonymous steps and choices, for judging screens (docs/flow-tracking-plan.md); off when the driver turns it off on More.
+  useFlowEventsFlush();
   useShareHours();
   useRegisterPushToken();
   useRerouteNotifications();

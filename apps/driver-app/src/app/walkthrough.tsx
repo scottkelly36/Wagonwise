@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon } from '../components/ui/icon';
 import { WALKTHROUGH_CLOSING, WALKTHROUGH_STEPS } from '../lib/walkthrough-steps';
+import { trackFlow } from '../lib/flow-events';
 import { PRODUCT_NAME } from '../product';
 import { useWalkthroughStore } from '../state/walkthrough-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
@@ -22,6 +23,10 @@ export default function WalkthroughScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [index, setIndex] = useState(0);
 
+  useEffect(() => {
+    trackFlow('walkthrough_step', String(index + 1));
+  }, [index]);
+
   const step = WALKTHROUGH_STEPS[index];
   const isLast = index === WALKTHROUGH_STEPS.length - 1;
   if (!step) return null;
@@ -37,7 +42,10 @@ export default function WalkthroughScreen() {
         <Text style={styles.brand}>{PRODUCT_NAME}</Text>
         {!isLast && (
           <TouchableOpacity
-            onPress={leave}
+            onPress={() => {
+              trackFlow('walkthrough_skipped');
+              leave();
+            }}
             accessibilityRole="button"
             hitSlop={12}
             testID="walkthrough-skip-button"
