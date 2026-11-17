@@ -93,6 +93,7 @@ import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useStillThereStore } from '../state/still-there-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { formatRouteDistance } from '../lib/units';
+import { trackFlow } from '../lib/flow-events';
 import { useGuidanceStore } from '../state/guidance-store';
 import { Icon, type IconName } from '../components/ui/icon';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
@@ -522,6 +523,7 @@ export default function ActiveTripScreen() {
       { jobId: job.data.id, status: arrival.to, tripId: trip.id },
       {
         onSuccess: () => {
+          trackFlow('trip_ended', 'arrived_job');
           clearTrip();
           clearPlan();
           router.replace('/job');
@@ -539,6 +541,7 @@ export default function ActiveTripScreen() {
     setEndArmed(false);
     endTrip.mutate(trip.id, {
       onSuccess: () => {
+        trackFlow('trip_ended', 'end_button');
         clearTrip();
         clearPlan();
         router.replace('/home');

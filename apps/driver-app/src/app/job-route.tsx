@@ -22,6 +22,7 @@ import { useCurrentRoutePlanStore } from '../state/current-route-plan-store';
 import { useLoadStore } from '../state/load-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useTripTollsStore } from '../state/trip-tolls-store';
+import { notePlanKind } from '../lib/flow-events';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle, radius } from '../theme/tokens';
 
@@ -128,6 +129,7 @@ export default function JobRouteScreen() {
           // Chosen for having no toll: the re-plan from here and the faster-route check keep it that way.
           if (strategy === 'toll-free') useTripTollsStore.getState().markAvoiding(made.id);
           setCurrentRoutePlan(made);
+          notePlanKind('job');
           router.replace('/route-overview');
         },
       },

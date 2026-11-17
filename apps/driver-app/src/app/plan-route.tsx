@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -24,6 +24,7 @@ import { HazardDetailDrawer } from '../components/hazard-detail-drawer';
 import { OPTION_COLOURS, RouteOptionsList } from '../components/route-options-list';
 import { RouteMap, type MapPoint, type RouteOptionLine } from '../components/route-map';
 import { strategyForOption } from '../lib/route-option-text';
+import { notePlanKind, routeOptionChoice, trackFlow } from '../lib/flow-events';
 import { type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
 import { useLoadStore } from '../state/load-store';
@@ -200,6 +201,14 @@ export default function PlanRouteScreen() {
   const selectedProfile =
     profiles?.find((p) => p.id === profileId) ?? (profiles?.length === 1 ? profiles[0] : undefined);
   const noVehiclesYet = !profilesLoading && profiles !== undefined && profiles.length === 0;
+
+  useEffect(() => {
+    trackFlow('plan_opened', 'where_to');
+  }, []);
+  const vehiclePromptShown = vehicleMode === 'profile' && noVehiclesYet;
+  useEffect(() => {
+    if (vehiclePromptShown) trackFlow('vehicle_prompt_shown');
+  }, [vehiclePromptShown]);
   const pending =
     createVehicleProfile.isPending || createRoutePlan.isPending || previewRouteOptions.isPending;
   const canPlan =
@@ -428,6 +437,14 @@ export default function PlanRouteScreen() {
   function handleCompareRoutes(): void {
     if (!canPlan || effectiveOrigin === undefined || destination === undefined) return;
     setRouteOptions(undefined);
+    // What the driver settled on, noted as they commit to it (never the places themselves: only how each was picked).
+    trackFlow(
+      'vehicle_chosen',
+      vehicleMode === 'profile' ? 'existing' : (presetInBoxes?.id ?? 'own_sizes'),
+    );
+    trackFlow('load_chosen', loaded ? 'hill_sensitive' : 'normal');
+    trackFlow('start_chosen', fromMode === 'here' ? 'my_position' : fromMode);
+    trackFlow('destination_chosen', toMode === 'words' ? 'what3words' : toMode);
     resolveProfileId((resolvedProfileId) => {
       setComparedProfileId(resolvedProfileId);
       const askedLoaded = loaded;
@@ -448,6 +465,8 @@ export default function PlanRouteScreen() {
           onSuccess: (options) => {
             setComparedLoaded(askedLoaded);
             setRouteOptions(options);
+            if (options.length > 0)
+              trackFlow('route_options_shown', String(Math.min(options.length, 6)));
           },
         },
       );
@@ -465,6 +484,8 @@ export default function PlanRouteScreen() {
     const profileId = comparedProfileId;
     const origin = effectiveOrigin;
     const to = destination;
+    trackFlow('route_option_picked', routeOptionChoice(option.labels));
+    notePlanKind('personal');
     if (option.breaksWeightLimit === true) {
       // The driver has to choose this on purpose: it is only offered when no route keeps to the vehicle's weight limits.
       Alert.alert(WEIGHT_LIMIT_CONFIRM_TITLE, WEIGHT_LIMIT_CONFIRM_BODY, [

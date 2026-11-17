@@ -77,5 +77,19 @@ or another third party by the company; the notice does not need to change for th
   phone number, name, photos (delivery and check photos), user content (reports, places, feedback), device ids (push token). Encrypted in
   transit; deletion available in the app and at `/delete-account`.
 - **Apple privacy labels:** the same list, plus contact info for sign-in; location is linked to the user. Not tracking.
+- **Flow events (2026-11-17, `flow-tracking-plan.md`):** Play: "App activity: app interactions", collected, not shared, for analytics,
+  optional. Apple: "Usage data: product interaction", **not linked** to the user, for analytics; still not tracking (first party, no
+  advertising). Change both before the app release that sends them.
+
+## Flow events (added 2026-11-17)
+
+- **What:** which steps a driver reaches and the fixed choices made on them (`FLOW_EVENT_CHOICES` in `packages/contracts`). No position,
+  place, search text or three words; no driver, account or device id: a random session id made when the app opens. 90 days at most.
+- **Basis:** legitimate interests (improving the app), stated in the notice (section 2's table and section 4), with an opt-out on the
+  More tab, on by default. No consent is asked.
+- **For the solicitor:** does storing the queue on the phone fall under PECR's storage rule, and does the analytics exception added by
+  the Data (Use and Access) Act 2025 cover it with the notice and the opt-out as they are? Not checked against the Act's text here.
+- **DPIA:** a short row: anonymous, low risk; the main risk is the fixed lists growing to include something identifying, which the
+  contract test guards against.
 - When password, Google and Apple sign-in ships (on hold until after the app release): add Google and Apple as sign-in services,
   the email address as the sign-in, and a note that passwords are stored scrambled.

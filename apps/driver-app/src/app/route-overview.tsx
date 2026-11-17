@@ -1,6 +1,6 @@
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Redirect, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -27,6 +27,7 @@ import { planForShift } from '../lib/break-plan';
 import { breakExplanation } from '../lib/break-explanation';
 import { WEIGHT_LIMIT_CONFIRM_BODY, WEIGHT_LIMIT_SHORT } from '../lib/weight-limit-warning';
 import { computeEta } from '../lib/eta';
+import { currentPlanKind, trackFlow } from '../lib/flow-events';
 import { routingErrorMessage } from '../lib/error-messages';
 import { formatTime } from '../lib/format-date';
 import { formatDuration } from '../lib/format-duration';
@@ -58,6 +59,11 @@ export default function RouteOverviewScreen() {
   const clearPlan = useCurrentRoutePlanStore((s) => s.clear);
   const setCurrentTrip = useCurrentActiveTripStore((s) => s.setTrip);
   const startTrip = useStartTrip();
+
+  const planId = plan?.id;
+  useEffect(() => {
+    if (planId !== undefined) trackFlow('route_shown');
+  }, [planId]);
 
   // undefined means "leaving now" — recomputed against the current time on every render,
   // rather than frozen at mount, so the ETA stays right if a driver lingers on this screen.
@@ -205,6 +211,7 @@ export default function RouteOverviewScreen() {
     if (!plan || startTrip.isPending) return;
     startTrip.mutate(plan.id, {
       onSuccess: (trip) => {
+        trackFlow('trip_started', currentPlanKind());
         setCurrentTrip(trip);
         router.replace('/active-trip');
       },

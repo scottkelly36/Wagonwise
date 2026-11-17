@@ -64,6 +64,11 @@ export default function ConsentScreen() {
           each time.
         </Text>
         <Text style={styles.paragraph}>
+          We also note which screens you use and the choices you make on them, such as how you
+          picked a place, to see which need work. Never where you are, never what you type, and not
+          linked to your account. Turn it off any time in More.
+        </Text>
+        <Text style={styles.paragraph}>
           You can delete your account at any time from the More tab. That removes your sign-in,
           vehicle profiles, routes, feedback and the places you marked for yourself. Hazard reports
           you filed stay, with nothing linking them to you, and a company keeps its own job and

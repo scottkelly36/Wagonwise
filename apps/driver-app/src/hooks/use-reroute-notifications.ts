@@ -7,6 +7,7 @@ import { queryClient } from '../api/query-client';
 import { announcementIdFrom } from '../lib/announcement-notification';
 import { assignedJobIdFrom } from '../lib/job-notification';
 import { newRoutePlanIdFrom } from '../lib/reroute-notification';
+import { trackFlow } from '../lib/flow-events';
 import { tripReminderIdFrom } from '../lib/trip-reminder-notification';
 import { useAuthStore } from '../state/auth-store';
 
@@ -74,6 +75,9 @@ export function useRerouteNotifications(): void {
       handleAssigned(notification.request.content.data, false);
     });
     const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      if (tripReminderIdFrom(response.notification.request.content.data) !== undefined) {
+        trackFlow('reminder_opened');
+      }
       handleNews(response.notification.request.content.data);
       handle(newRoutePlanIdFrom(response.notification.request.content.data));
       handleAssigned(response.notification.request.content.data, true);
