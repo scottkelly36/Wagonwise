@@ -70,6 +70,32 @@ export const usageFirmSchema = z.object({
 export type UsageFirmDto = z.infer<typeof usageFirmSchema>;
 
 /**
+ * The anonymous flow events of the last 7 days (docs/flow-tracking-plan.md), as counts of sessions: one session is one sitting in the
+ * app, not a driver, so a driver who plans twice counts twice.
+ */
+export const flowsReportSchema = z.object({
+  windowDays: count,
+  sessions: count,
+  events: count,
+  /** The planning steps in order, each with the sessions that reached it. */
+  steps: z.array(z.object({ event: z.string(), sessions: count })),
+  /** The same, from opening Plan route to starting a trip, by app version, newest first. */
+  byVersion: z.array(
+    z.object({ appVersion: z.string(), sessions: count, planOpened: count, tripStarted: count }),
+  ),
+  /** Median seconds from opening Plan route to pressing it, and from seeing the route to starting the trip; null with no data. */
+  medianSeconds: z.object({
+    planToPress: z.number().nullable(),
+    routeToStart: z.number().nullable(),
+  }),
+  /** How often each fixed choice was made, most common first within each event. */
+  choices: z.array(z.object({ event: z.string(), choice: z.string(), count })),
+  walkthrough: z.object({ started: count, finished: count, skipped: count }),
+  remindersOpened: count,
+});
+export type FlowsReportDto = z.infer<typeof flowsReportSchema>;
+
+/**
  * `GET /staff/usage` (WagonWise staff only): how the app is being used. Counts only: no driver is named. "Active" means a
  * session was used (a sign-in or a refresh) in the window.
  */
@@ -93,6 +119,8 @@ export const usageReportSchema = z.object({
   checksPerWeek: z.array(weekCountSchema),
   testers: z.object({ total: count }),
   firmList: z.array(usageFirmSchema),
+  /** Optional: a core from before flow events sends none. */
+  flows: flowsReportSchema.optional(),
 });
 export type UsageReportDto = z.infer<typeof usageReportSchema>;
 

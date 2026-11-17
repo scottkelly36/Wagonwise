@@ -43,6 +43,7 @@ const toDto = (r: UsageReport) => ({
     jobsThisMonth: f.jobsThisMonth,
     lastActiveAt: iso(f.lastActiveAt),
   })),
+  flows: r.flows,
 });
 
 /** `GET /staff/usage`: how the app is being used, for WagonWise staff only (checked here and again in the use case). */

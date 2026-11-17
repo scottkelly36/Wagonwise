@@ -54,6 +54,56 @@ export interface UsageFirm {
   readonly lastActiveAt: Date | null;
 }
 
+/** The planning steps, in the order a driver meets them, for the Flows funnel (docs/flow-tracking-plan.md). */
+export const FLOW_FUNNEL_STEPS = [
+  'plan_opened',
+  'destination_chosen',
+  'route_options_shown',
+  'route_option_picked',
+  'route_shown',
+  'trip_started',
+] as const;
+
+/** Events whose fixed choices are counted on the Flows section. */
+export const FLOW_CHOICE_EVENTS = [
+  'vehicle_chosen',
+  'load_chosen',
+  'start_chosen',
+  'destination_chosen',
+  'route_option_picked',
+  'trip_started',
+  'trip_ended',
+] as const;
+
+/** The last 7 days of anonymous flow events, counted by session (one sitting in the app), never by driver. */
+export interface FlowsSummary {
+  readonly windowDays: number;
+  readonly sessions: number;
+  readonly events: number;
+  readonly steps: readonly { readonly event: string; readonly sessions: number }[];
+  readonly byVersion: readonly {
+    readonly appVersion: string;
+    readonly sessions: number;
+    readonly planOpened: number;
+    readonly tripStarted: number;
+  }[];
+  readonly medianSeconds: {
+    readonly planToPress: number | null;
+    readonly routeToStart: number | null;
+  };
+  readonly choices: readonly {
+    readonly event: string;
+    readonly choice: string;
+    readonly count: number;
+  }[];
+  readonly walkthrough: {
+    readonly started: number;
+    readonly finished: number;
+    readonly skipped: number;
+  };
+  readonly remindersOpened: number;
+}
+
 export interface UsageReport {
   readonly generatedAt: Date;
   readonly drivers: Activity;
@@ -69,6 +119,7 @@ export interface UsageReport {
   readonly checksPerWeek: readonly { weekStart: string; count: number }[];
   readonly testers: number;
   readonly firms: readonly UsageFirm[];
+  readonly flows: FlowsSummary;
 }
 
 /** Reads the figures across the app. Counts only: nothing here names a driver. */

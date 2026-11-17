@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  flowChoiceLabel,
+  flowChoiceRows,
+  seconds,
   ago,
   barHeights,
   cohortShare,
@@ -99,5 +102,36 @@ describe('retentionCells', () => {
 
   it('shows a dash for a week nobody joined', () => {
     expect(retentionCells({ joined: 0, startedTripInWeek: [0, 0] }, 3)).toEqual(['–', '–', '']);
+  });
+});
+
+describe('flow helpers', () => {
+  it('names choices in plain English, and shows an unknown one as it is', () => {
+    expect(flowChoiceLabel('hill_sensitive')).toBe('Hill-sensitive');
+    expect(flowChoiceLabel('rigid_18t')).toBe('rigid 18t');
+  });
+
+  it('groups choices by event, most common first, with shares', () => {
+    expect(
+      flowChoiceRows([
+        { event: 'trip_ended', choice: 'end_button', count: 1 },
+        { event: 'destination_chosen', choice: 'map', count: 1 },
+        { event: 'destination_chosen', choice: 'search', count: 3 },
+      ]),
+    ).toEqual([
+      {
+        event: 'destination_chosen',
+        label: 'Destination picked by',
+        value: 'Search 3 (75%), Map 1 (25%)',
+      },
+      { event: 'trip_ended', label: 'How trips ended', value: 'End button 1 (100%)' },
+    ]);
+  });
+
+  it('writes seconds as seconds or minutes', () => {
+    expect(seconds(null)).toBe('–');
+    expect(seconds(45)).toBe('45 s');
+    expect(seconds(120)).toBe('2 min');
+    expect(seconds(125)).toBe('2 min 5 s');
   });
 });
