@@ -5,8 +5,10 @@ import { useLengthUnitStore } from '../state/length-unit-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
 
 const mockBack = jest.fn();
+const mockParams: { current: Record<string, string> } = { current: {} };
 const mockMutate = jest.fn();
 jest.mock('expo-router', () => ({
+  useLocalSearchParams: () => mockParams.current,
   useRouter: () => ({ back: mockBack, canGoBack: () => true, replace: jest.fn() }),
 }));
 jest.mock('expo-secure-store', () => ({
@@ -21,6 +23,7 @@ jest.setTimeout(30_000);
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockParams.current = {};
   useLengthUnitStore.setState({ unit: 'metres' });
   useMeasureUnitsStore.setState({ distance: 'km', fuel: 'l100km' });
 });
@@ -40,6 +43,13 @@ describe('Add a vehicle', () => {
     ).toMatchObject({ selected: true });
     // The typed boxes are not there until a driver chooses a unit.
     expect(screen.queryByTestId('profile-height-input')).toBeNull();
+  });
+
+  it('opens on the boxes to type in when the set-up sends the driver to type their own sizes', async () => {
+    mockParams.current = { mode: 'type' };
+    await render(<NewVehicleProfileScreen />);
+    expect(screen.getByTestId('profile-height-input')).toBeTruthy();
+    expect(screen.queryByTestId('vehicle-preset-picker')).toBeNull();
   });
 
   it('names the vehicle after the preset, and saves the preset figures as shown on its card', async () => {

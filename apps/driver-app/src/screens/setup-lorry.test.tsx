@@ -114,7 +114,7 @@ it("goes to Add a vehicle for the driver's own sizes, and Change goes back a ste
   mockProfiles.current = [{ id: 'a', name: 'Artic' }];
   await render(<SetupLorryScreen />);
   await fireEvent.press(screen.getByTestId('setup-own-sizes'));
-  expect(mockPush).toHaveBeenCalledWith('/profiles/new');
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/profiles/new', params: { mode: 'type' } });
 
   await fireEvent.press(screen.getByTestId('setup-next'));
   await fireEvent.press(screen.getByTestId('setup-done-vehicle'));

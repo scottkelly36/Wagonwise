@@ -142,7 +142,7 @@ export default function SetupLorryScreen() {
           onOwnSizes={() => {
             setPicked(undefined);
             setBefore((profiles ?? []).map((p) => p.id));
-            router.push('/profiles/new');
+            router.push({ pathname: '/profiles/new', params: { mode: 'type' } });
           }}
           onNext={handleVehicleNext}
           onBack={leave}
