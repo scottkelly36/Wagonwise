@@ -66,3 +66,76 @@ export function retentionCells(
     return n === undefined ? '' : cohortShare(n, week.joined);
   });
 }
+
+/** The Flows funnel's steps in plain English, keyed by event name (docs/flow-tracking-plan.md). */
+export const FLOW_STEP_LABELS: Readonly<Record<string, string>> = {
+  plan_opened: 'Opened planning',
+  destination_chosen: 'Pressed Plan route',
+  route_options_shown: 'Saw route options',
+  route_option_picked: 'Picked an option',
+  route_shown: 'Saw the route',
+  trip_started: 'Started the trip',
+};
+
+/** The heading for each event's choices on the Flows section. */
+export const FLOW_CHOICE_HEADINGS: Readonly<Record<string, string>> = {
+  vehicle_chosen: 'Vehicle',
+  load_chosen: 'Load',
+  start_chosen: 'Starting from',
+  destination_chosen: 'Destination picked by',
+  route_option_picked: 'Route option',
+  trip_started: 'Trip',
+  trip_ended: 'How trips ended',
+};
+
+const CHOICE_LABELS: Readonly<Record<string, string>> = {
+  own_sizes: 'Own sizes',
+  existing: 'Already set',
+  normal: 'Normal',
+  hill_sensitive: 'Hill-sensitive',
+  my_position: 'Where I am',
+  search: 'Search',
+  what3words: 'what3words',
+  map: 'Map',
+  saved_place: 'Saved place',
+  yard: 'Yard',
+  sample: 'Sample route',
+  personal: 'Own trip',
+  job: 'Job',
+  end_button: 'End button',
+  arrival_prompt: 'Arrival prompt',
+  arrived_job: 'Job delivered',
+  replan: 'Replanned',
+  offline_queue: 'Ended offline',
+  fastest: 'Fastest',
+  toll_free: 'Toll free',
+};
+
+/** A choice in plain English; one not on the list (a vehicle preset's id, say) is shown as it is, with underscores as spaces. */
+export function flowChoiceLabel(choice: string): string {
+  return CHOICE_LABELS[choice] ?? choice.replaceAll('_', ' ');
+}
+
+/** Each event's choices as "Search 12 (60%), Map 8 (40%)", most common first, in the order of FLOW_CHOICE_HEADINGS. */
+export function flowChoiceRows(
+  choices: readonly { readonly event: string; readonly choice: string; readonly count: number }[],
+): { event: string; label: string; value: string }[] {
+  return Object.entries(FLOW_CHOICE_HEADINGS).flatMap(([event, label]) => {
+    const own = choices.filter((c) => c.event === event).sort((a, b) => b.count - a.count);
+    if (own.length === 0) return [];
+    const total = own.reduce((sum, c) => sum + c.count, 0);
+    const value = own
+      .map((c) => `${flowChoiceLabel(c.choice)} ${c.count} (${percentOf(c.count, total)})`)
+      .join(', ');
+    return [{ event, label, value }];
+  });
+}
+
+/** "45 s", "2 min 5 s" or a dash when there is nothing to take a median of. */
+export function seconds(s: number | null): string {
+  if (s === null) return '–';
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60);
+  const rest = s % 60;
+  return rest === 0 ? `${m} min` : `${m} min ${rest} s`;
+}

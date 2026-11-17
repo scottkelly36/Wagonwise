@@ -388,5 +388,68 @@ describe('usage end to end (real RLS, real scopes)', () => {
         (await post(batch([{ event: 'route_shown', at: hoursAgo(1) }]), null)).statusCode,
       ).toBe(401);
     });
+
+    it('reports the last 7 days of flows by sitting, with medians, choices and versions', async () => {
+      await ownerPool.query(`delete from usage.flow_events`);
+      const A = '64000000-0000-4000-8000-00000000000a';
+      const B = '64000000-0000-4000-8000-00000000000b';
+      const C = '64000000-0000-4000-8000-00000000000c';
+      const minutesAgo = (m: number) => hoursAgo(m / 60);
+      // [session, event, choice, version, minutes ago]
+      const rows: [string, string, string | null, string, number][] = [
+        [A, 'walkthrough_step', '1', '1.2.1', 60],
+        [A, 'walkthrough_step', '5', '1.2.1', 59],
+        [A, 'plan_opened', 'where_to', '1.2.1', 50],
+        [A, 'load_chosen', 'normal', '1.2.1', 49],
+        [A, 'destination_chosen', 'search', '1.2.1', 48], // 120 s after opening
+        [A, 'route_shown', null, '1.2.1', 47],
+        [A, 'trip_started', 'personal', '1.2.1', 46], // 60 s after the route
+        [B, 'walkthrough_skipped', null, '1.2.0', 40],
+        [B, 'plan_opened', 'where_to', '1.2.0', 30],
+        [B, 'destination_chosen', 'what3words', '1.2.0', 26], // 240 s
+        [C, 'reminder_opened', null, '1.10.0', 10],
+        [C, 'plan_opened', 'replan', '1.10.0', 9],
+        // Older than the week: not counted.
+        [C, 'trip_started', 'job', '1.10.0', 8 * 24 * 60],
+      ];
+      await Promise.all(
+        rows.map(([session, event, choice, version, ago], i) =>
+          ownerPool.query(
+            `insert into usage.flow_events (id, session_id, event, choice, app_version, platform, at)
+             values ($1, $2, $3, $4, $5, 'android', $6)`,
+            [id(200 + i), session, event, choice, version, minutesAgo(ago)],
+          ),
+        ),
+      );
+
+      const flows = (await report()).flows;
+      expect(flows).toBeDefined();
+      expect(flows?.windowDays).toBe(7);
+      expect(flows?.sessions).toBe(3);
+      expect(flows?.events).toBe(12);
+      expect(flows?.steps).toEqual([
+        { event: 'plan_opened', sessions: 3 },
+        { event: 'destination_chosen', sessions: 2 },
+        { event: 'route_options_shown', sessions: 0 },
+        { event: 'route_option_picked', sessions: 0 },
+        { event: 'route_shown', sessions: 1 },
+        { event: 'trip_started', sessions: 1 },
+      ]);
+      // Newest version first, compared as numbers (1.10.0 is after 1.2.1).
+      expect(flows?.byVersion).toEqual([
+        { appVersion: '1.10.0', sessions: 1, planOpened: 1, tripStarted: 0 },
+        { appVersion: '1.2.1', sessions: 1, planOpened: 1, tripStarted: 1 },
+        { appVersion: '1.2.0', sessions: 1, planOpened: 1, tripStarted: 0 },
+      ]);
+      expect(flows?.medianSeconds).toEqual({ planToPress: 180, routeToStart: 60 });
+      expect(flows?.choices).toEqual([
+        { event: 'destination_chosen', choice: 'search', count: 1 },
+        { event: 'destination_chosen', choice: 'what3words', count: 1 },
+        { event: 'load_chosen', choice: 'normal', count: 1 },
+        { event: 'trip_started', choice: 'personal', count: 1 },
+      ]);
+      expect(flows?.walkthrough).toEqual({ started: 1, finished: 1, skipped: 1 });
+      expect(flows?.remindersOpened).toBe(1);
+    });
   });
 });

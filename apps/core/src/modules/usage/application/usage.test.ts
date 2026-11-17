@@ -31,6 +31,17 @@ const report: UsageReport = {
   checksPerWeek: [],
   testers: 0,
   firms: [],
+  flows: {
+    windowDays: 7,
+    sessions: 0,
+    events: 0,
+    steps: [],
+    byVersion: [],
+    medianSeconds: { planToPress: null, routeToStart: null },
+    choices: [],
+    walkthrough: { started: 0, finished: 0, skipped: 0 },
+    remindersOpened: 0,
+  },
 };
 const reader: UsageReader = { read: () => Promise.resolve(report) };
 const deps = { reader, clock: { now: () => now } };

@@ -1,5 +1,15 @@
 import { sql, type Kysely } from 'kysely';
-import type { Activity, UsageFirm, UsageReader, UsageReport } from '../application/usage.js';
+import {
+  FLOW_CHOICE_EVENTS,
+  FLOW_FUNNEL_STEPS,
+  type Activity,
+  type FlowsSummary,
+  type UsageFirm,
+  type UsageReader,
+  type UsageReport,
+} from '../application/usage.js';
+
+const FLOW_WINDOW_DAYS = 7;
 
 export type UntypedDb = Kysely<Record<string, unknown>>;
 
@@ -186,6 +196,8 @@ export class PostgresUsageReader implements UsageReader {
       from companies.companies c
       order by last_active desc nulls last, c.name`.execute(db);
 
+    const flows = await this.readFlows(now);
+
     const week = (rows: WeekRow[]) => rows.map((r) => ({ weekStart: r.week, count: r.count }));
     const c = counts.rows[0];
     const f = funnel.rows[0];
@@ -229,6 +241,100 @@ export class PostgresUsageReader implements UsageReader {
         jobsThisMonth: r.jobs,
         lastActiveAt: r.last_active,
       })),
+      flows,
+    };
+  }
+
+  /** The anonymous flow events of the last 7 days, counted by session. No driver is in the table, so none can be named here. */
+  private async readFlows(now: Date): Promise<FlowsSummary> {
+    const db = this.db;
+    const since = sql`${now}::timestamptz - make_interval(days => ${FLOW_WINDOW_DAYS})`;
+
+    const totals = await sql<{ sessions: number; events: number; reminders: number }>`
+      select count(distinct session_id)::int as sessions, count(*)::int as events,
+             count(*) filter (where event = 'reminder_opened')::int as reminders
+      from usage.flow_events where at >= ${since}`.execute(db);
+
+    const steps = await sql<{ event: string; sessions: number }>`
+      select event, count(distinct session_id)::int as sessions
+      from usage.flow_events
+      where at >= ${since} and event = any(${[...FLOW_FUNNEL_STEPS]}::text[])
+      group by event`.execute(db);
+    const stepCount = new Map(steps.rows.map((r) => [r.event, r.sessions]));
+
+    const byVersion = await sql<{
+      version: string;
+      sessions: number;
+      opened: number;
+      started: number;
+    }>`
+      select app_version as version, count(distinct session_id)::int as sessions,
+             count(distinct session_id) filter (where event = 'plan_opened')::int as opened,
+             count(distinct session_id) filter (where event = 'trip_started')::int as started
+      from usage.flow_events where at >= ${since}
+      group by app_version
+      order by string_to_array(app_version, '.')::int[] desc
+      limit 5`.execute(db);
+
+    // Each session's first time at each step; the medians use only sessions that reached both, in that order.
+    const medians = await sql<{ plan_to_press: number | null; route_to_start: number | null }>`
+      with firsts as (
+        select session_id,
+               min(at) filter (where event = 'plan_opened') as opened,
+               min(at) filter (where event = 'destination_chosen') as pressed,
+               min(at) filter (where event = 'route_shown') as shown,
+               min(at) filter (where event = 'trip_started') as started
+        from usage.flow_events where at >= ${since}
+        group by session_id
+      )
+      select
+        percentile_cont(0.5) within group (order by extract(epoch from pressed - opened))
+          filter (where pressed >= opened) as plan_to_press,
+        percentile_cont(0.5) within group (order by extract(epoch from started - shown))
+          filter (where started >= shown) as route_to_start
+      from firsts`.execute(db);
+
+    const choices = await sql<{ event: string; choice: string; count: number }>`
+      select event, choice, count(*)::int as count
+      from usage.flow_events
+      where at >= ${since} and choice is not null and event = any(${[...FLOW_CHOICE_EVENTS]}::text[])
+      group by event, choice
+      order by event, count desc, choice`.execute(db);
+
+    const walkthrough = await sql<{ started: number; finished: number; skipped: number }>`
+      select
+        count(distinct session_id) filter (where event = 'walkthrough_step' and choice = '1')::int as started,
+        count(distinct session_id) filter (where event = 'walkthrough_step' and choice = '5')::int as finished,
+        count(distinct session_id) filter (where event = 'walkthrough_skipped')::int as skipped
+      from usage.flow_events where at >= ${since}`.execute(db);
+
+    const t = totals.rows[0];
+    const m = medians.rows[0];
+    const w = walkthrough.rows[0];
+    const seconds = (v: number | string | null | undefined): number | null =>
+      v === null || v === undefined ? null : Math.round(Number(v));
+    return {
+      windowDays: FLOW_WINDOW_DAYS,
+      sessions: t?.sessions ?? 0,
+      events: t?.events ?? 0,
+      steps: FLOW_FUNNEL_STEPS.map((event) => ({ event, sessions: stepCount.get(event) ?? 0 })),
+      byVersion: byVersion.rows.map((r) => ({
+        appVersion: r.version,
+        sessions: r.sessions,
+        planOpened: r.opened,
+        tripStarted: r.started,
+      })),
+      medianSeconds: {
+        planToPress: seconds(m?.plan_to_press),
+        routeToStart: seconds(m?.route_to_start),
+      },
+      choices: choices.rows,
+      walkthrough: {
+        started: w?.started ?? 0,
+        finished: w?.finished ?? 0,
+        skipped: w?.skipped ?? 0,
+      },
+      remindersOpened: t?.reminders ?? 0,
     };
   }
 }

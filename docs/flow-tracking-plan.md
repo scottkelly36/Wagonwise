@@ -1,6 +1,6 @@
 # Flow tracking: a plan
 
-Written 2026-11-17 at the owner's request and approved the same day. **Steps 1 and 2 (the server and the app) are built; the usage page is not.** The aim is to see how drivers move
+Written 2026-11-17 at the owner's request and approved the same day. **Steps 1 to 3 (the server, the app and the usage page) are built; the redesign is not.** The aim is to see how drivers move
 through planning a route and taking a trip, step by step, so the first-trip redesign (the design canvas from the same day) can be judged
 against today's screens rather than guessed at.
 
@@ -83,7 +83,7 @@ A **Flows** section on the admin usage page (`/admin/usage`):
    Live on merge; nothing sends yet.
 2. **Built 2026-11-17** (`modules.md`, "Flow events"). **App:** the queue and the events for today's screens, and the opt-out switch. JavaScript only, so it goes out over the air with the
    `release` label. **Ship this before the redesign** so there is a "before".
-3. **Usage page:** the Flows section.
+3. **Built 2026-11-17** (`modules.md`, "Flow events"). **Usage page:** the Flows section.
 4. **Redesign:** each new screen sends its events as it is built.
 
 Steps 1 to 3 are medium in size. The privacy notice and store forms change before step 2 is released.
