@@ -35,6 +35,11 @@ import { ACTION_COLOURS, ActionCard } from '../../components/ui/action-card';
 import { Icon } from '../../components/ui/icon';
 import { RoundButton } from '../../components/ui/round-button';
 import { WeatherButton } from '../../components/weather-button';
+import { SetUpLorryCard } from '../../components/setup/setup-steps';
+import { useVehicleProfiles } from '../../api/use-vehicle-profiles';
+import { needsSetup } from '../../lib/lorry-setup';
+import { trackFlow } from '../../lib/flow-events';
+import { useUsualVehicleStore } from '../../state/usual-vehicle-store';
 import { useDebouncedValue } from '../../hooks/use-debounced-value';
 import { useJobArrivalGeofence } from '../../hooks/use-job-arrival-geofence';
 import { PositionSharingChip } from '../../components/position-sharing-chip';
@@ -216,6 +221,12 @@ export default function HomeScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const top = insets.top + 8;
+  // First-trip redesign: a driver with no lorry yet gets one card, Set up my lorry, and Where to? starts the same steps until a
+  // usual lorry is set. While the vehicles cannot be fetched (no signal) neither shows and Where to? opens Plan route as before.
+  const vehicleProfiles = useVehicleProfiles();
+  const usualId = useUsualVehicleStore((s) => s.profileId);
+  const setupFirst = needsSetup(vehicleProfiles.data, usualId);
+  const showSetupCard = vehicleProfiles.data?.length === 0;
 
   return (
     <View style={styles.container}>
@@ -312,6 +323,17 @@ export default function HomeScreen() {
 
       <View style={[styles.topRow, { top }]} pointerEvents="box-none">
         <View style={styles.topLeft} pointerEvents="box-none">
+          {showSetupCard && (
+            // Left of the map's buttons, which stay where they are: moved below a card this tall they would reach the report buttons.
+            <View style={styles.setupCard}>
+              <SetUpLorryCard
+                onPress={() => {
+                  trackFlow('home_card_tapped');
+                  router.push({ pathname: '/setup-lorry', params: { entry: 'home_card' } });
+                }}
+              />
+            </View>
+          )}
           {currentJob.data && (
             <JobCard
               title={`On job ${currentJob.data.reference}`}
@@ -474,7 +496,7 @@ export default function HomeScreen() {
           <View style={styles.handle} />
           <TouchableOpacity
             style={styles.planButton}
-            onPress={() => router.push('/plan-route')}
+            onPress={() => router.push(setupFirst ? '/setup-lorry' : '/plan-route')}
             accessibilityRole="button"
             testID="plan-route-button"
           >
@@ -534,6 +556,8 @@ function createStyles(colors: ThemeColors) {
     },
     topLeft: { flex: 1 },
     sharingChip: { marginTop: 8 },
+    // The right-hand buttons are 52 wide, 16 from the edge: the card stops 12 short of them.
+    setupCard: { marginRight: 64, marginBottom: 8 },
     rightColumn: {
       position: 'absolute',
       right: 16,

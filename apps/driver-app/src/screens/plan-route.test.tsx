@@ -4,13 +4,17 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import PlanRouteScreen from '../app/plan-route';
 import { useLoadStore } from '../state/load-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
+import { useUsualVehicleStore } from '../state/usual-vehicle-store';
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
+const mockParams: { current: Record<string, string> } = { current: {} };
 jest.mock('expo-router', () => ({
+  useLocalSearchParams: () => mockParams.current,
   useRouter: () => ({
     push: mockPush,
     back: jest.fn(),
-    replace: jest.fn(),
+    replace: mockReplace,
     canGoBack: () => true,
   }),
 }));
@@ -102,6 +106,9 @@ async function chooseDestination() {
 
 beforeEach(() => {
   mockPreview.mockReset();
+  mockReplace.mockReset();
+  mockParams.current = {};
+  useUsualVehicleStore.setState({ profileId: undefined });
   useLoadStore.setState({ loaded: false });
   useMeasureUnitsStore.setState({ distance: 'km', fuel: 'l100km' });
 });
@@ -418,5 +425,46 @@ describe('room for the map on Plan route', () => {
     expect(screen.queryByTestId('route-option-0-summary')).toBeNull();
     // The other card stays folded.
     expect(screen.getByTestId('route-option-1-summary')).toBeTruthy();
+  });
+});
+
+describe('Plan route after the set-up, or with a usual lorry', () => {
+  it('opens on where you are heading, with the lorry and load in one line', async () => {
+    mockParams.current = { via: 'setup', profile: 'p1', from: 'here', chosen: 'artic-44' };
+    useLoadStore.setState({ loaded: true });
+    await open();
+    expect(await screen.findByTestId('plan-heading')).toBeTruthy();
+    expect(screen.getByText('Artic 44 t · Hill-sensitive load')).toBeTruthy();
+    expect(screen.queryByTestId('load-switch')).toBeNull();
+    expect(screen.queryByTestId('vehicle-mode-profile-button')).toBeNull();
+  });
+
+  it('plans with the set-up lorry, and Change goes back to the set-up', async () => {
+    mockParams.current = { via: 'setup', profile: 'p1', from: 'here', chosen: 'artic-44' };
+    await open();
+    await chooseDestination();
+    await fireEvent.press(screen.getByTestId('plan-route-button'));
+    expect(mockPreview).toHaveBeenCalledWith(
+      expect.objectContaining({ profileId: 'p1' }),
+      expect.anything(),
+    );
+    await fireEvent.press(screen.getByTestId('vehicle-folded-change'));
+    expect(mockReplace).toHaveBeenCalledWith({
+      pathname: '/setup-lorry',
+      params: { entry: 'change' },
+    });
+  });
+
+  it('starts on the usual lorry when Where to? opens it directly', async () => {
+    useUsualVehicleStore.setState({ profileId: 'p1' });
+    await open();
+    expect(await screen.findByTestId('plan-heading')).toBeTruthy();
+    expect(screen.getByText('Artic 44 t · Normal load')).toBeTruthy();
+  });
+
+  it('is as before for a driver with no usual lorry', async () => {
+    await open();
+    expect(await screen.findByTestId('load-switch')).toBeTruthy();
+    expect(screen.queryByTestId('plan-heading')).toBeNull();
   });
 });
