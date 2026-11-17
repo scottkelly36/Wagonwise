@@ -9,6 +9,7 @@ import { createUsageModule, type StaffCaller } from '../modules/usage/api.js';
 import { runMigrations } from '../platform/migrations/run-migrations.js';
 import { attachPoolErrorHandler } from '../platform/db.js';
 import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
+import { UuidIdGenerator } from '../platform/uuid-id-generator.js';
 import { FakeClock } from '../shared/testing/fake-clock.js';
 
 const migrationsDir = fileURLToPath(new URL('../../migrations', import.meta.url));
@@ -34,6 +35,7 @@ describe('usage end to end (real RLS, real scopes)', () => {
   let container: StartedPostgreSqlContainer;
   let ownerPool: Pool;
   let appPool: Pool;
+  let usage: ReturnType<typeof createUsageModule>;
   let app: FastifyInstance;
 
   beforeAll(async () => {
@@ -153,9 +155,10 @@ describe('usage end to end (real RLS, real scopes)', () => {
       [id(80), ACME, id(81), id(40), id(1), hoursAgo(3)],
     );
 
-    const usage = createUsageModule({
+    usage = createUsageModule({
       db,
       clock: new FakeClock(NOW),
+      ids: new UuidIdGenerator(),
       dataScopes: scopes,
       callers: { getCaller: (staffId) => Promise.resolve(staff[staffId] ?? null) },
     });
@@ -163,6 +166,8 @@ describe('usage end to end (real RLS, real scopes)', () => {
     app.addHook('onRequest', (request, _reply, done) => {
       const staffId = request.headers['x-test-staff-id'];
       if (typeof staffId === 'string') request.staffId = staffId;
+      const driverId = request.headers['x-test-driver-id'];
+      if (typeof driverId === 'string') request.driverId = driverId;
       done();
     });
     usage.registerRoutes(app);
@@ -313,5 +318,75 @@ describe('usage end to end (real RLS, real scopes)', () => {
   it('is for WagonWise staff only', async () => {
     expect((await get(FLEET)).statusCode).toBe(403);
     expect((await get()).statusCode).toBe(401);
+  });
+
+  describe('flow events (anonymous, as the restricted app role)', () => {
+    const SESSION = '63000000-0000-4000-8000-000000000001';
+    const post = (body: unknown, driver: string | null = id(1)) =>
+      app.inject({
+        method: 'POST',
+        url: '/usage/flow-events',
+        payload: body as Record<string, unknown>,
+        ...(driver === null ? {} : { headers: { 'x-test-driver-id': driver } }),
+      });
+    const batch = (events: unknown[]) => ({
+      sessionId: SESSION,
+      appVersion: '1.2.1',
+      platform: 'android',
+      events,
+    });
+
+    it('stores a batch with no driver id, and leaves out one whose time is not believable', async () => {
+      const response = await post(
+        batch([
+          { event: 'load_chosen', choice: 'hill_sensitive', at: hoursAgo(1) },
+          { event: 'route_shown', at: hoursAgo(2) },
+          { event: 'route_shown', at: hoursAgo(30) },
+        ]),
+      );
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ recorded: 2 });
+
+      const { rows } = await ownerPool.query<Record<string, unknown>>(
+        `select * from usage.flow_events where session_id = $1 order by at`,
+        [SESSION],
+      );
+      expect(rows.map((r) => [r.event, r.choice])).toEqual([
+        ['route_shown', null],
+        ['load_chosen', 'hill_sensitive'],
+      ]);
+      expect(Object.keys(rows[0] ?? {}).sort()).toEqual(
+        ['app_version', 'at', 'choice', 'event', 'id', 'platform', 'session_id'].sort(),
+      );
+    });
+
+    it('deletes events over 90 days old, as the restricted app role', async () => {
+      await ownerPool.query(
+        `insert into usage.flow_events (id, session_id, event, app_version, platform, at)
+         values ($1, $3, 'route_shown', '1.2.1', 'ios', $4), ($2, $3, 'route_shown', '1.2.1', 'ios', $5)`,
+        [
+          id(90),
+          id(91),
+          '63000000-0000-4000-8000-000000000002',
+          hoursAgo(91 * 24),
+          hoursAgo(89 * 24),
+        ],
+      );
+      expect(await usage.pruneFlowEvents()).toBe(1);
+      const { rows } = await ownerPool.query<{ id: string }>(
+        `select id from usage.flow_events where session_id = '63000000-0000-4000-8000-000000000002'`,
+      );
+      expect(rows.map((r) => r.id)).toEqual([id(91)]);
+    });
+
+    it('refuses a choice that is not on the list, and anyone not signed in', async () => {
+      expect(
+        (await post(batch([{ event: 'destination_chosen', choice: 'NE46 3DT', at: hoursAgo(1) }])))
+          .statusCode,
+      ).toBe(400);
+      expect(
+        (await post(batch([{ event: 'route_shown', at: hoursAgo(1) }]), null)).statusCode,
+      ).toBe(401);
+    });
   });
 });
