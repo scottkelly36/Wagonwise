@@ -1,3 +1,4 @@
+import * as Updates from 'expo-updates';
 import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 
@@ -5,6 +6,7 @@ import { postFlowEvents } from '../api/usage';
 import { clearFlowEvents, listFlowEvents, removeFlowEvents } from '../db/flow-event-queue';
 import { getAppVersion } from '../lib/app-info';
 import { planFlowBatch } from '../lib/flow-batch';
+import { updateDay } from '../lib/update-day';
 import { FLOW_SESSION_ID } from '../lib/flow-events';
 import { useAuthStore } from '../state/auth-store';
 import { useFlowEventsStore } from '../state/flow-events-store';
@@ -33,6 +35,8 @@ export async function sendFlowEvents(accessToken: string, now: Date = new Date()
       sessionId: FLOW_SESSION_ID,
       appVersion: version,
       platform: Platform.OS,
+      // Which over-the-air release: the store version (above) stays the same across them.
+      ...withUpdateDay(updateDay(Updates.createdAt, Updates.isEmbeddedLaunch)),
       events: send.map((e) => ({
         event: e.event as never,
         ...(e.choice === undefined ? {} : { choice: e.choice }),
@@ -64,4 +68,8 @@ export function useFlowEventsFlush(): void {
       subscription.remove();
     };
   }, [state]);
+}
+
+function withUpdateDay(day: string | undefined): { updateDate?: string } {
+  return day === undefined ? {} : { updateDate: day };
 }

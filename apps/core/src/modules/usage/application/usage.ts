@@ -81,8 +81,10 @@ export interface FlowsSummary {
   readonly sessions: number;
   readonly events: number;
   readonly steps: readonly { readonly event: string; readonly sessions: number }[];
+  /** Each store version and over-the-air update (its publish day; null for the store build's own code), newest first. */
   readonly byVersion: readonly {
     readonly appVersion: string;
+    readonly updateDate: string | null;
     readonly sessions: number;
     readonly planOpened: number;
     readonly tripStarted: number;

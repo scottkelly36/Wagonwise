@@ -81,7 +81,15 @@ export const flowsReportSchema = z.object({
   steps: z.array(z.object({ event: z.string(), sessions: count })),
   /** The same, from opening Plan route to starting a trip, by app version, newest first. */
   byVersion: z.array(
-    z.object({ appVersion: z.string(), sessions: count, planOpened: count, tripStarted: count }),
+    z.object({
+      appVersion: z.string(),
+      /** The over-the-air update's publish day, or null for the store build's own code (or an app too old to say). Optional: a
+       *  core from before it was sent has none. */
+      updateDate: z.string().nullable().optional(),
+      sessions: count,
+      planOpened: count,
+      tripStarted: count,
+    }),
   ),
   /** Median seconds from opening Plan route to pressing it, and from seeing the route to starting the trip; null with no data. */
   medianSeconds: z.object({
@@ -205,6 +213,9 @@ export const flowEventsRequestSchema = z.object({
   sessionId: z.uuid(),
   appVersion: z.string().regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}$/),
   platform: z.enum(['ios', 'android']),
+  /** The day the over-the-air update the phone runs was published (YYYY-MM-DD), so releases that keep the store version apart can be
+   *  told apart. Absent from an app built before it was sent, and when the store build's own code is running. */
+  updateDate: z.iso.date().optional(),
   events: z.array(flowEventSchema).min(1).max(MAX_FLOW_EVENTS_PER_REQUEST),
 });
 export type FlowEventsRequest = z.infer<typeof flowEventsRequestSchema>;

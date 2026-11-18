@@ -77,6 +77,7 @@ export function registerUsageRoutes(app: FastifyInstance, deps: UsageRouteDeps):
       sessionId: body.data.sessionId,
       appVersion: body.data.appVersion,
       platform: body.data.platform,
+      updateDate: body.data.updateDate,
       events: body.data.events.map((e) => ({
         event: e.event,
         choice: e.choice,

@@ -10,6 +10,18 @@ jest.mock('expo-constants', () => ({
   __esModule: true,
   default: { expoConfig: { version: '1.2.1' } },
 }));
+const mockUpdate: { createdAt: Date | null; isEmbeddedLaunch: boolean } = {
+  createdAt: null,
+  isEmbeddedLaunch: true,
+};
+jest.mock('expo-updates', () => ({
+  get createdAt() {
+    return mockUpdate.createdAt;
+  },
+  get isEmbeddedLaunch() {
+    return mockUpdate.isEmbeddedLaunch;
+  },
+}));
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(async () => null),
   setItemAsync: jest.fn(async () => undefined),
@@ -42,6 +54,8 @@ beforeEach(() => {
   mockRows.length = 0;
   mockPosted.length = 0;
   mockPostFails = false;
+  mockUpdate.createdAt = null;
+  mockUpdate.isEmbeddedLaunch = true;
   useFlowEventsStore.setState({ status: 'on' });
 });
 
@@ -63,6 +77,16 @@ describe('sendFlowEvents', () => {
       },
     ]);
     expect(mockRows).toEqual([]);
+  });
+
+  it('says which over-the-air update the phone runs, by the day it was published', async () => {
+    mockUpdate.createdAt = new Date('2026-11-18T21:05:00.000Z');
+    mockUpdate.isEmbeddedLaunch = false;
+    mockRows.push({ id: 1, event: 'route_shown', at: '2026-11-17T11:00:00.000Z' });
+    await sendFlowEvents('token', now);
+    expect(mockPosted).toEqual([
+      expect.objectContaining({ appVersion: '1.2.1', updateDate: '2026-11-18' }),
+    ]);
   });
 
   it('keeps the events for next time when sending fails, and says nothing', async () => {

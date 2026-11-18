@@ -125,6 +125,7 @@ describe('runMigrations', () => {
       '0093_driver_trip_weeks.sql',
       '0094_trip_reminders.sql',
       '0095_flow_events.sql',
+      '0096_flow_event_update_date.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -329,6 +330,7 @@ describe('runMigrations', () => {
       '0093_driver_trip_weeks.sql',
       '0094_trip_reminders.sql',
       '0095_flow_events.sql',
+      '0096_flow_event_update_date.sql',
     ]);
   });
 });

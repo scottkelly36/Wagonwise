@@ -20,6 +20,7 @@ export interface RecordFlowEventsInput {
   readonly sessionId: string;
   readonly appVersion: string;
   readonly platform: 'ios' | 'android';
+  readonly updateDate?: string | undefined;
   readonly events: readonly {
     readonly event: string;
     readonly choice?: string | undefined;
@@ -43,6 +44,7 @@ export async function recordFlowEvents(
       choice: e.choice,
       appVersion: input.appVersion,
       platform: input.platform,
+      updateDate: input.updateDate,
       at: e.at,
     }));
   if (kept.length > 0) await deps.repo.insert(kept);
