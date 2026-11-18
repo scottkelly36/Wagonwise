@@ -282,8 +282,8 @@ export function VehicleStep({
       ))}
       {preset !== undefined && (
         <Text style={styles.note} testID="setup-preset-note">
-          Typical sizes: check the height matches your lorry. You can change any figure later in
-          Saved, under My vehicles.
+          Typical sizes: check the height matches your lorry. You can change any figure later under
+          More, Vehicle profiles.
         </Text>
       )}
       <TouchableOpacity
