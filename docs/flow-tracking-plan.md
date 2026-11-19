@@ -66,7 +66,8 @@ A **Flows** section on the admin usage page (`/admin/usage`):
 - **Time per step:** the median seconds between one step and the next, so a step people stall on stands out.
 - **Choice splits:** how starts and destinations are picked, Normal against Hill-sensitive, presets against own sizes, sample routes tried.
 - **How trips end:** button, arrival prompt, reminder, or the server's 24-hour cut-off.
-- **By app version,** so a release with the redesign can be compared with the one before.
+- **By app version,** so a release with the redesign can be compared with the one before. The store version does not change for an
+  over-the-air release, so each one is told apart by the day it was published (added 2026-11-18).
 
 ## Privacy work that goes with it
 

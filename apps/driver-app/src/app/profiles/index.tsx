@@ -14,12 +14,14 @@ import { useVehicleProfiles } from '../../api/use-vehicle-profiles';
 import { Icon } from '../../components/ui/icon';
 import { ScreenHeader } from '../../components/ui/screen-header';
 import { formatHeightWithFeetInches } from '../../lib/units';
+import { useUsualVehicleStore } from '../../state/usual-vehicle-store';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
 import { cardStyle, radius } from '../../theme/tokens';
 
 export default function VehicleProfilesScreen() {
   const router = useRouter();
   const { data, isLoading, isError, isRefetching, refetch } = useVehicleProfiles();
+  const usualId = useUsualVehicleStore((s) => s.profileId);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -60,7 +62,14 @@ export default function VehicleProfilesScreen() {
                 <Icon name="truck" size={28} color={colors.accent} />
               </View>
               <View style={styles.rowText}>
-                <Text style={styles.rowName}>{item.name}</Text>
+                <View style={styles.nameLine}>
+                  <Text style={styles.rowName}>{item.name}</Text>
+                  {item.id === usualId && (
+                    <Text style={styles.usualTag} testID={`profile-usual-${item.id}`}>
+                      Usual
+                    </Text>
+                  )}
+                </View>
                 <Text style={styles.rowDetail}>
                   {formatHeightWithFeetInches(item.dimensions.heightM)} ·{' '}
                   {item.dimensions.grossWeightT}t
@@ -93,6 +102,17 @@ function createStyles(colors: ThemeColors) {
     },
     header: {
       padding: 16,
+    },
+    nameLine: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+    usualTag: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 999,
+      overflow: 'hidden',
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.accentBlue,
+      backgroundColor: colors.accentSoft,
     },
     list: {
       padding: 16,

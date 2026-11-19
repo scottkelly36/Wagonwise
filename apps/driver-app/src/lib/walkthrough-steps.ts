@@ -11,8 +11,8 @@ export interface WalkthroughStep {
 export const WALKTHROUGH_STEPS: readonly WalkthroughStep[] = [
   {
     icon: 'truck-outline',
-    title: 'Routes that fit your vehicle',
-    body: 'Save your vehicle’s height, width, length and weight once, under More, Vehicle profiles. Then search for a place on the map and the route keeps clear of low bridges and roads you can’t use.',
+    title: 'Routes that fit your lorry',
+    body: 'Tell us what you drive once (Set up my lorry, on the map, takes about 30 seconds) and every route keeps clear of the low bridges and roads your lorry can’t use.',
   },
   {
     icon: 'alert-outline',

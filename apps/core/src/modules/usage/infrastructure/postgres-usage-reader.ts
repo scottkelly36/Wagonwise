@@ -264,16 +264,18 @@ export class PostgresUsageReader implements UsageReader {
 
     const byVersion = await sql<{
       version: string;
+      update_date: string | null;
       sessions: number;
       opened: number;
       started: number;
     }>`
-      select app_version as version, count(distinct session_id)::int as sessions,
+      select app_version as version, to_char(update_date, 'YYYY-MM-DD') as update_date,
+             count(distinct session_id)::int as sessions,
              count(distinct session_id) filter (where event = 'plan_opened')::int as opened,
              count(distinct session_id) filter (where event = 'trip_started')::int as started
       from usage.flow_events where at >= ${since}
-      group by app_version
-      order by string_to_array(app_version, '.')::int[] desc
+      group by app_version, update_date
+      order by string_to_array(app_version, '.')::int[] desc, update_date desc nulls last
       limit 5`.execute(db);
 
     // Each session's first time at each step; the medians use only sessions that reached both, in that order.
@@ -320,6 +322,7 @@ export class PostgresUsageReader implements UsageReader {
       steps: FLOW_FUNNEL_STEPS.map((event) => ({ event, sessions: stepCount.get(event) ?? 0 })),
       byVersion: byVersion.rows.map((r) => ({
         appVersion: r.version,
+        updateDate: r.update_date,
         sessions: r.sessions,
         planOpened: r.opened,
         tripStarted: r.started,

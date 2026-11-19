@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import {
   ActivityIndicator,
@@ -28,6 +28,8 @@ import { notePlanKind, routeOptionChoice, trackFlow } from '../lib/flow-events';
 import { type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
 import { useLoadStore } from '../state/load-store';
+import { useUsualVehicleStore } from '../state/usual-vehicle-store';
+import { fromParam, hasUsual, lorrySummary, param, usualProfile } from '../lib/lorry-setup';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useTripTollsStore } from '../state/trip-tolls-store';
 import { FeetInchesInputs } from '../components/feet-inches-inputs';
@@ -134,6 +136,17 @@ function presetInBoxesOrTyped(values: VehicleProfileFormValues): boolean {
 
 export default function PlanRouteScreen() {
   const router = useRouter();
+  // From the guided set-up (`setup-lorry.tsx`): the vehicle, how it was chosen and where to start, so this opens on "where are you heading".
+  const params = useLocalSearchParams<{
+    profile?: string;
+    from?: string;
+    chosen?: string;
+    via?: string;
+  }>();
+  const viaSetup = param(params.via) === 'setup';
+  const setupProfile = param(params.profile);
+  const setupChoice = param(params.chosen);
+  const usualId = useUsualVehicleStore((s) => s.profileId);
   const location = useCurrentLocation();
   const { data: profiles, isLoading: profilesLoading } = useVehicleProfiles();
   const createVehicleProfile = useCreateVehicleProfile();
@@ -162,7 +175,7 @@ export default function PlanRouteScreen() {
   );
 
   const [vehicleMode, setVehicleMode] = useState<VehicleMode>('profile');
-  const [profileId, setProfileId] = useState<string | undefined>(undefined);
+  const [profileId, setProfileId] = useState<string | undefined>(setupProfile);
   const [dimensionValues, setDimensionValues] = useState(EMPTY_VEHICLE_PROFILE_FORM);
   const lengthUnit = useLengthUnitStore((s) => s.unit);
   const setLengthUnit = useLengthUnitStore((s) => s.setUnit);
@@ -171,7 +184,7 @@ export default function PlanRouteScreen() {
   const [manualMode, setManualMode] = useState<'presets' | 'type'>('presets');
   const [origin, setOrigin] = useState<MapPoint | undefined>(undefined);
   const [destination, setDestination] = useState<MapPoint | undefined>(undefined);
-  const [fromMode, setFromMode] = useState<FromMode>('here');
+  const [fromMode, setFromMode] = useState<FromMode>(fromParam(param(params.from)));
   const [toMode, setToMode] = useState<ToMode>('search');
   // Which end a map tap sets, when both are on Map.
   const [tapTarget, setTapTarget] = useState<PointEnd>('destination');
@@ -197,13 +210,16 @@ export default function PlanRouteScreen() {
   const shownHazards = routeHazards.shown;
   const mapCameras = useMemo(() => cameraMarkers(undefined, shownHazards), [shownHazards]);
 
-  // With exactly one saved vehicle there is nothing to choose, so it is already selected.
+  // The one picked, else the driver's usual lorry, else their only vehicle (with one there is nothing to choose).
   const selectedProfile =
-    profiles?.find((p) => p.id === profileId) ?? (profiles?.length === 1 ? profiles[0] : undefined);
+    profiles?.find((p) => p.id === profileId) ?? usualProfile(profiles, usualId);
   const noVehiclesYet = !profilesLoading && profiles !== undefined && profiles.length === 0;
 
   useEffect(() => {
-    trackFlow('plan_opened', 'where_to');
+    // The set-up already noted it when it opened.
+    if (!viaSetup) trackFlow('plan_opened', 'where_to');
+    // Only on opening.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const vehiclePromptShown = vehicleMode === 'profile' && noVehiclesYet;
   useEffect(() => {
@@ -223,11 +239,16 @@ export default function PlanRouteScreen() {
     vehicleMode === 'profile'
       ? selectedProfile !== undefined
       : presetInBoxesOrTyped(dimensionValues);
+  // Set up (a vehicle came from the set-up, or is the usual or only one): the lorry and load are one line with Change, and the
+  // panel asks only where to (the first-trip redesign's step 4).
+  const guided =
+    vehicleMode === 'profile' &&
+    selectedProfile !== undefined &&
+    !vehicleOpen &&
+    (viaSetup || hasUsual(profiles, usualId));
   const folded =
     routeOptions === undefined &&
-    (toMode === 'map' || fromMode === 'map') &&
-    vehicleChosen &&
-    !vehicleOpen;
+    (guided || ((toMode === 'map' || fromMode === 'map') && vehicleChosen && !vehicleOpen));
 
   // The one thing still needed before a route can be planned, in the order a first-time driver does
   // them, so the button is never just greyed out with no word on why.
@@ -440,7 +461,11 @@ export default function PlanRouteScreen() {
     // What the driver settled on, noted as they commit to it (never the places themselves: only how each was picked).
     trackFlow(
       'vehicle_chosen',
-      vehicleMode === 'profile' ? 'existing' : (presetInBoxes?.id ?? 'own_sizes'),
+      vehicleMode === 'profile'
+        ? viaSetup && setupChoice !== undefined && selectedProfile?.id === setupProfile
+          ? setupChoice
+          : 'existing'
+        : (presetInBoxes?.id ?? 'own_sizes'),
     );
     trackFlow('load_chosen', loaded ? 'hill_sensitive' : 'normal');
     trackFlow('start_chosen', fromMode === 'here' ? 'my_position' : fromMode);
@@ -561,13 +586,20 @@ export default function PlanRouteScreen() {
                 <View style={styles.summary} testID="vehicle-folded">
                   <Icon name="truck-outline" size={20} color={colors.accent} />
                   <Text style={styles.summaryText} numberOfLines={1}>
-                    {vehicleMode === 'profile'
-                      ? (selectedProfile?.name ?? 'Your vehicle')
-                      : 'The vehicle details you entered'}
-                    {loaded ? ' · hill-sensitive load' : ''}
+                    {guided && selectedProfile !== undefined
+                      ? lorrySummary(selectedProfile.name, loaded)
+                      : `${
+                          vehicleMode === 'profile'
+                            ? (selectedProfile?.name ?? 'Your vehicle')
+                            : 'The vehicle details you entered'
+                        }${loaded ? ' · hill-sensitive load' : ''}`}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => setVehicleOpen(true)}
+                    onPress={() =>
+                      guided
+                        ? router.replace({ pathname: '/setup-lorry', params: { entry: 'change' } })
+                        : setVehicleOpen(true)
+                    }
                     accessibilityRole="button"
                     style={styles.summaryAction}
                     testID="vehicle-folded-change"
@@ -759,6 +791,11 @@ export default function PlanRouteScreen() {
                 </TouchableOpacity>
               </PointPicker>
 
+              {guided && (
+                <Text style={styles.heading} accessibilityRole="header" testID="plan-heading">
+                  Where are you heading?
+                </Text>
+              )}
               <PointPicker
                 label="To"
                 options={TO_OPTIONS}
@@ -892,6 +929,7 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
     },
     summary: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 2 },
+    heading: { fontSize: 22, fontWeight: '800', color: colors.text },
     summaryText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.textSecondary },
     summaryAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
     editButton: { minHeight: 44, justifyContent: 'center' },

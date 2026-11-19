@@ -139,3 +139,9 @@ export function seconds(s: number | null): string {
   const rest = s % 60;
   return rest === 0 ? `${m} min` : `${m} min ${rest} s`;
 }
+
+/** "1.2.1 · 18 Nov" for an over-the-air update (its publish day), "1.2.1 · no date" for the store build's own code or an app too old
+ *  to say: the store version alone stays the same across over-the-air releases. */
+export function versionLabel(appVersion: string, updateDate: string | null | undefined): string {
+  return `${appVersion} · ${updateDate === null || updateDate === undefined ? 'no date' : shortDay(updateDate)}`;
+}

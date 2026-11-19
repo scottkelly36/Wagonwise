@@ -3,6 +3,7 @@ import {
   flowChoiceLabel,
   flowChoiceRows,
   seconds,
+  versionLabel,
   ago,
   barHeights,
   cohortShare,
@@ -134,4 +135,10 @@ describe('flow helpers', () => {
     expect(seconds(120)).toBe('2 min');
     expect(seconds(125)).toBe('2 min 5 s');
   });
+});
+
+it('labels a version with the day its over-the-air update was published', () => {
+  expect(versionLabel('1.2.1', '2026-11-18')).toBe('1.2.1 · 18 Nov');
+  expect(versionLabel('1.2.1', null)).toBe('1.2.1 · no date');
+  expect(versionLabel('1.3.0', undefined)).toBe('1.3.0 · no date');
 });

@@ -9,6 +9,8 @@ export interface FlowEvent {
   readonly choice?: string | undefined;
   readonly appVersion: string;
   readonly platform: 'ios' | 'android';
+  /** The day the over-the-air update the phone runs was published (YYYY-MM-DD); undefined for the store build's own code. */
+  readonly updateDate?: string | undefined;
   readonly at: Date;
 }
 

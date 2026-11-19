@@ -7,8 +7,10 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,6 +23,7 @@ import { ScreenHeader } from '../../components/ui/screen-header';
 import { VehicleProfileForm } from '../../components/vehicle-profile-form';
 import { routingErrorMessage } from '../../lib/error-messages';
 import { vehicleProfileFormValuesFrom } from '../../lib/vehicle-profile-form';
+import { useUsualVehicleStore } from '../../state/usual-vehicle-store';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
 
 export default function EditVehicleProfileScreen() {
@@ -30,6 +33,8 @@ export default function EditVehicleProfileScreen() {
   const updateMutation = useUpdateVehicleProfile();
   const deleteMutation = useDeleteVehicleProfile();
   const [deleteError, setDeleteError] = useState<string | undefined>(undefined);
+  const usualId = useUsualVehicleStore((s) => s.profileId);
+  const setUsual = useUsualVehicleStore((s) => s.setUsual);
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -73,6 +78,19 @@ export default function EditVehicleProfileScreen() {
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <ScreenHeader title={profile.name} subtitle="Edit this vehicle" />
+          {/* The same choice as the set-up's step 1: Where to? starts with this vehicle. */}
+          <View style={styles.usual}>
+            <View style={styles.flex}>
+              <Text style={styles.usualTitle}>My usual lorry</Text>
+              <Text style={styles.usualDetail}>Where to? starts with it.</Text>
+            </View>
+            <Switch
+              value={usualId === id}
+              onValueChange={(on) => void setUsual(on ? id : undefined)}
+              accessibilityLabel="My usual lorry"
+              testID="profile-usual-switch"
+            />
+          </View>
           <VehicleProfileForm
             initialValues={vehicleProfileFormValuesFrom(profile)}
             submitLabel="Save changes"
@@ -117,6 +135,17 @@ function createStyles(colors: ThemeColors) {
       padding: 16,
       gap: 8,
     },
+    usual: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 16,
+      backgroundColor: colors.accentSoft,
+    },
+    usualTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+    usualDetail: { fontSize: 13, color: colors.textMuted },
     loading: {
       marginTop: 48,
     },

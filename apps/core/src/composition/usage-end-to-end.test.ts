@@ -356,7 +356,16 @@ describe('usage end to end (real RLS, real scopes)', () => {
         ['load_chosen', 'hill_sensitive'],
       ]);
       expect(Object.keys(rows[0] ?? {}).sort()).toEqual(
-        ['app_version', 'at', 'choice', 'event', 'id', 'platform', 'session_id'].sort(),
+        [
+          'app_version',
+          'at',
+          'choice',
+          'event',
+          'id',
+          'platform',
+          'session_id',
+          'update_date',
+        ].sort(),
       );
     });
 
@@ -377,6 +386,29 @@ describe('usage end to end (real RLS, real scopes)', () => {
         `select id from usage.flow_events where session_id = '63000000-0000-4000-8000-000000000002'`,
       );
       expect(rows.map((r) => r.id)).toEqual([id(91)]);
+    });
+
+    it('keeps the day of the over-the-air update the phone runs, and refuses one that is not a date', async () => {
+      const session = '63000000-0000-4000-8000-000000000003';
+      const ok = await post({
+        ...batch([{ event: 'plan_opened', choice: 'where_to', at: hoursAgo(1) }]),
+        sessionId: session,
+        updateDate: '2026-11-18',
+      });
+      expect(ok.statusCode).toBe(200);
+      const { rows } = await ownerPool.query<{ day: string }>(
+        `select to_char(update_date, 'YYYY-MM-DD') as day from usage.flow_events where session_id = $1`,
+        [session],
+      );
+      expect(rows).toEqual([{ day: '2026-11-18' }]);
+      expect(
+        (
+          await post({
+            ...batch([{ event: 'route_shown', at: hoursAgo(1) }]),
+            updateDate: 'yesterday',
+          })
+        ).statusCode,
+      ).toBe(400);
     });
 
     it('refuses a choice that is not on the list, and anyone not signed in', async () => {
@@ -415,9 +447,17 @@ describe('usage end to end (real RLS, real scopes)', () => {
       await Promise.all(
         rows.map(([session, event, choice, version, ago], i) =>
           ownerPool.query(
-            `insert into usage.flow_events (id, session_id, event, choice, app_version, platform, at)
-             values ($1, $2, $3, $4, $5, 'android', $6)`,
-            [id(200 + i), session, event, choice, version, minutesAgo(ago)],
+            `insert into usage.flow_events (id, session_id, event, choice, app_version, platform, update_date, at)
+             values ($1, $2, $3, $4, $5, 'android', $6, $7)`,
+            [
+              id(200 + i),
+              session,
+              event,
+              choice,
+              version,
+              session === A ? '2026-11-18' : null,
+              minutesAgo(ago),
+            ],
           ),
         ),
       );
@@ -437,9 +477,15 @@ describe('usage end to end (real RLS, real scopes)', () => {
       ]);
       // Newest version first, compared as numbers (1.10.0 is after 1.2.1).
       expect(flows?.byVersion).toEqual([
-        { appVersion: '1.10.0', sessions: 1, planOpened: 1, tripStarted: 0 },
-        { appVersion: '1.2.1', sessions: 1, planOpened: 1, tripStarted: 1 },
-        { appVersion: '1.2.0', sessions: 1, planOpened: 1, tripStarted: 0 },
+        { appVersion: '1.10.0', updateDate: null, sessions: 1, planOpened: 1, tripStarted: 0 },
+        {
+          appVersion: '1.2.1',
+          updateDate: '2026-11-18',
+          sessions: 1,
+          planOpened: 1,
+          tripStarted: 1,
+        },
+        { appVersion: '1.2.0', updateDate: null, sessions: 1, planOpened: 1, tripStarted: 0 },
       ]);
       expect(flows?.medianSeconds).toEqual({ planToPress: 180, routeToStart: 60 });
       expect(flows?.choices).toEqual([

@@ -12,6 +12,7 @@ import {
   flowChoiceRows,
   percentOf,
   seconds,
+  versionLabel,
   barHeights,
   cohortShare,
   fromFirstJoin,
@@ -225,13 +226,16 @@ function Flows({ flows }: { flows: FlowsReportDto }) {
         <h2>Flows: by app version</h2>
         <HomeRows
           rows={flows.byVersion.map((v) => ({
-            label: v.appVersion,
+            label: versionLabel(v.appVersion, v.updateDate),
             value: `${v.sessions} sittings, ${v.planOpened} opened planning, ${v.tripStarted} started a trip (${percentOf(v.tripStarted, v.planOpened)})`,
             tone: 'quiet' as const,
           }))}
         />
         <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
           The newest five versions seen this week, so a release can be set against the one before.
+          The date is the day an over-the-air update was published (the version number only changes
+          for a store build); "no date" is the store build's own code, or an app from before 18
+          November.
         </p>
       </section>
     </>

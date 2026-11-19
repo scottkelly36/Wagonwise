@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useRef } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +12,8 @@ import { useThemeColors, type ThemeColors } from '../../theme/colors';
 
 export default function NewVehicleProfileScreen() {
   const router = useRouter();
+  // The set-up's "Type my own sizes" opens it on the boxes to type in, not the preset sizes the driver has just passed over.
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
   const createMutation = useCreateVehicleProfile();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -31,7 +33,8 @@ export default function NewVehicleProfileScreen() {
           <ScreenHeader title="Add a vehicle" />
           <VehicleProfileForm
             initialValues={EMPTY_VEHICLE_PROFILE_FORM}
-            initialMode="presets"
+            initialMode={mode === 'type' ? 'type' : 'presets'}
+            showPresets={mode !== 'type'}
             // After a preset is picked, take the driver down to the Add vehicle button.
             onPresetPicked={() => scrollRef.current?.scrollToEnd?.({ animated: true })}
             submitLabel="Add vehicle"

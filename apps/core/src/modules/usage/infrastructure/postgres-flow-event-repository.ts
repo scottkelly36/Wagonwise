@@ -11,10 +11,10 @@ export class PostgresFlowEventRepository implements FlowEventRepository {
     if (events.length === 0) return;
     const rows = events.map(
       (e) =>
-        sql`(${e.id}, ${e.sessionId}, ${e.event}, ${e.choice ?? null}, ${e.appVersion}, ${e.platform}, ${e.at})`,
+        sql`(${e.id}, ${e.sessionId}, ${e.event}, ${e.choice ?? null}, ${e.appVersion}, ${e.platform}, ${e.updateDate ?? null}::date, ${e.at})`,
     );
     await sql`
-      insert into usage.flow_events (id, session_id, event, choice, app_version, platform, at)
+      insert into usage.flow_events (id, session_id, event, choice, app_version, platform, update_date, at)
       values ${sql.join(rows)}
     `.execute(this.db);
   }
