@@ -29,7 +29,7 @@ import { type LengthUnit } from '../lib/units';
 import { useLengthUnitStore } from '../state/length-unit-store';
 import { useLoadStore } from '../state/load-store';
 import { useUsualVehicleStore } from '../state/usual-vehicle-store';
-import { fromParam, hasUsual, lorrySummary, param, usualProfile } from '../lib/lorry-setup';
+import { fromParam, hasUsual, param, usualProfile } from '../lib/lorry-setup';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { useTripTollsStore } from '../state/trip-tolls-store';
 import { FeetInchesInputs } from '../components/feet-inches-inputs';
@@ -587,7 +587,7 @@ export default function PlanRouteScreen() {
                   <Icon name="truck-outline" size={20} color={colors.accent} />
                   <Text style={styles.summaryText} numberOfLines={1}>
                     {guided && selectedProfile !== undefined
-                      ? lorrySummary(selectedProfile.name, loaded)
+                      ? selectedProfile.name
                       : `${
                           vehicleMode === 'profile'
                             ? (selectedProfile?.name ?? 'Your vehicle')
@@ -607,7 +607,23 @@ export default function PlanRouteScreen() {
                     <Text style={styles.linkText}>Change</Text>
                   </TouchableOpacity>
                 </View>
-              ) : (
+              ) : null}
+              {/* The load on its own line, changed in one tap without going back through the set-up (owner, 2026-11-19). */}
+              {folded && guided ? (
+                <View style={styles.loadRow} testID="load-row">
+                  <Text style={styles.loadRowLabel}>Load</Text>
+                  <View style={styles.flex}>
+                    <SegmentedControl
+                      options={LOAD_OPTIONS}
+                      value={loaded ? 'loaded' : 'empty'}
+                      onChange={handleSelectLoad}
+                      testIDPrefix="load"
+                      compact
+                    />
+                  </View>
+                </View>
+              ) : null}
+              {folded ? null : (
                 <>
                   <SegmentedControl
                     options={VEHICLE_MODE_OPTIONS}
@@ -930,6 +946,8 @@ function createStyles(colors: ThemeColors) {
     },
     summary: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 2 },
     heading: { fontSize: 22, fontWeight: '800', color: colors.text },
+    loadRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    loadRowLabel: { width: 44, fontSize: 15, fontWeight: '700', color: colors.text },
     summaryText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.textSecondary },
     summaryAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
     editButton: { minHeight: 44, justifyContent: 'center' },
