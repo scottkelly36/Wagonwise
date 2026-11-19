@@ -429,13 +429,18 @@ describe('room for the map on Plan route', () => {
 });
 
 describe('Plan route after the set-up, or with a usual lorry', () => {
-  it('opens on where you are heading, with the lorry and load in one line', async () => {
+  it('opens on where you are heading, with the lorry on one line and the load on its own', async () => {
     mockParams.current = { via: 'setup', profile: 'p1', from: 'here', chosen: 'artic-44' };
     useLoadStore.setState({ loaded: true });
     await open();
     expect(await screen.findByTestId('plan-heading')).toBeTruthy();
-    expect(screen.getByText('Artic 44 t · Hill-sensitive load')).toBeTruthy();
+    expect(screen.getByText('Artic 44 t')).toBeTruthy();
+    expect(screen.getByTestId('load-row')).toBeTruthy();
     expect(screen.queryByTestId('load-switch')).toBeNull();
+    // The load changes here in one tap, without going back through the set-up.
+    await fireEvent.press(screen.getByTestId('load-empty-button'));
+    expect(useLoadStore.getState().loaded).toBe(false);
+    expect(mockReplace).not.toHaveBeenCalled();
     expect(screen.queryByTestId('vehicle-mode-profile-button')).toBeNull();
   });
 
@@ -459,7 +464,8 @@ describe('Plan route after the set-up, or with a usual lorry', () => {
     useUsualVehicleStore.setState({ profileId: 'p1' });
     await open();
     expect(await screen.findByTestId('plan-heading')).toBeTruthy();
-    expect(screen.getByText('Artic 44 t · Normal load')).toBeTruthy();
+    expect(screen.getByText('Artic 44 t')).toBeTruthy();
+    expect(screen.getByTestId('load-row')).toBeTruthy();
   });
 
   it('is as before for a driver with no usual lorry', async () => {
