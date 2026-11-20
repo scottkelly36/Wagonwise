@@ -95,6 +95,7 @@ import { useMeasureUnitsStore } from '../state/measure-units-store';
 import { formatRouteDistance } from '../lib/units';
 import { trackFlow } from '../lib/flow-events';
 import { useGuidanceStore } from '../state/guidance-store';
+import { useReviewPromptStore } from '../state/review-prompt-store';
 import { Icon, type IconName } from '../components/ui/icon';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { cardStyle, radius } from '../theme/tokens';
@@ -545,6 +546,9 @@ export default function ActiveTripScreen() {
         clearTrip();
         clearPlan();
         router.replace('/home');
+        // Back on the map with the trip done: the moment to ask for a rating, if it is time (lib/review-prompt.ts). After a job's
+        // Arrived the driver goes on to proof of delivery, so it is not asked there.
+        setTimeout(() => void useReviewPromptStore.getState().tripEnded(), 1500);
       },
     });
   }
