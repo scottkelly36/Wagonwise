@@ -68,6 +68,12 @@ const PASSWORD_ROW: MenuRow = {
 const ROWS: readonly MenuRow[] = [
   { label: 'Your name', icon: 'account-outline', href: '/your-name', testID: 'your-name-button' },
   {
+    label: 'Recommend us to your boss, get £25',
+    icon: 'gift-outline',
+    href: '/refer',
+    testID: 'refer-button',
+  },
+  {
     label: 'Vehicle profiles',
     icon: 'truck-outline',
     href: '/profiles',

@@ -11,6 +11,10 @@ import {
   createAnnouncementsModule,
   type UntypedDb as AnnouncementsUntypedDb,
 } from '../modules/announcements/api.js';
+import {
+  createReferralsModule,
+  type UntypedDb as ReferralsUntypedDb,
+} from '../modules/referrals/api.js';
 import { createSalesModule, type UntypedDb as SalesUntypedDb } from '../modules/sales/api.js';
 import { createSignupsModule, type UntypedDb as SignupsUntypedDb } from '../modules/signups/api.js';
 import { createCostingModule, type UntypedDb as CostingUntypedDb } from '../modules/costing/api.js';
@@ -235,6 +239,7 @@ export function composeCore(
         await hours.eraseDriverData(driverId);
         await sos.eraseDriverData(driverId);
         await announcements.eraseDriverData(driverId);
+        await referrals.eraseDriverData(driverId);
       },
     },
   });
@@ -259,6 +264,7 @@ export function composeCore(
   const signupsDb: SignupsUntypedDb = identityDb;
   const salesDb: SalesUntypedDb = identityDb;
   const announcementsDb: AnnouncementsUntypedDb = identityDb;
+  const referralsDb: ReferralsUntypedDb = identityDb;
   const auditDb: AuditUntypedDb = identityDb;
   const usageDb: UsageUntypedDb = identityDb;
   const fleetDb: FleetUntypedDb = identityDb;
@@ -541,6 +547,17 @@ export function composeCore(
       listPushTargets: () => identity.listPushTargets(),
     },
     expoAccessToken: config.expoAccessToken,
+  });
+  // Drivers recommending WagonWise to the firm they drive for: a code each, recorded by WagonWise staff when a firm joins.
+  const referrals = createReferralsModule({
+    db: referralsDb,
+    ids,
+    clock,
+    callers: { getCaller: staffCaller },
+    driverLabels: {
+      label: async (driverId) =>
+        (await identity.getDriverName(driverId)) ?? (await identity.getDriverIdentifier(driverId)),
+    },
   });
   // Told by the driver BFF when Resend reports an email that did not get through: logged, and the owner is emailed (if an
   // alert address is set) through the same sender that carries sign-in codes.
@@ -993,6 +1010,7 @@ export function composeCore(
   signups.registerRoutes(app);
   sales.registerRoutes(app);
   announcements.registerRoutes(app);
+  referrals.registerRoutes(app);
   audit.registerRoutes(app);
   emailAlerts.registerRoutes(app);
   usage.registerRoutes(app);
