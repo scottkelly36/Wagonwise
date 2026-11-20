@@ -57,7 +57,9 @@ export const staffReferralSchema = z.object({
 });
 export type StaffReferralDto = z.infer<typeof staffReferralSchema>;
 
-export const staffReferralListResponseSchema = z.object({ referrals: z.array(staffReferralSchema) });
+export const staffReferralListResponseSchema = z.object({
+  referrals: z.array(staffReferralSchema),
+});
 export type StaffReferralListResponse = z.infer<typeof staffReferralListResponseSchema>;
 
 /** `POST /staff/referrals`: a firm has joined and named a driver's code. */

@@ -11,7 +11,10 @@ import {
   createAnnouncementsModule,
   type UntypedDb as AnnouncementsUntypedDb,
 } from '../modules/announcements/api.js';
-import { createReferralsModule, type UntypedDb as ReferralsUntypedDb } from '../modules/referrals/api.js';
+import {
+  createReferralsModule,
+  type UntypedDb as ReferralsUntypedDb,
+} from '../modules/referrals/api.js';
 import { createSalesModule, type UntypedDb as SalesUntypedDb } from '../modules/sales/api.js';
 import { createSignupsModule, type UntypedDb as SignupsUntypedDb } from '../modules/signups/api.js';
 import { createCostingModule, type UntypedDb as CostingUntypedDb } from '../modules/costing/api.js';
