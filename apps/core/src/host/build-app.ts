@@ -42,6 +42,7 @@ const DRIVER_AUTH_PREFIXES = [
   '/jobs/',
   '/hours/',
   '/announcements/',
+  '/referrals/',
   '/usage/',
   '/identity/devices/',
   '/identity/consent/',

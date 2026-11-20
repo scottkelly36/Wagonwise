@@ -74,6 +74,11 @@
       "import": "./dist/audit.js",
       "default": "./dist/audit.js"
     },
+    "./referrals": {
+      "types": "./dist/referrals.d.ts",
+      "import": "./dist/referrals.js",
+      "default": "./dist/referrals.js"
+    },
     "./announcements": {
       "types": "./dist/announcements.d.ts",
       "import": "./dist/announcements.js",

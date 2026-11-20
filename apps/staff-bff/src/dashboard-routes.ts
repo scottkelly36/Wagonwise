@@ -119,6 +119,12 @@ import {
   updateProspectRequestSchema,
 } from '@wagonwise/contracts/sales';
 import {
+  createReferralRequestSchema,
+  referralCodeParamsSchema,
+  referralIdParamsSchema,
+  setReferralStatusRequestSchema,
+} from '@wagonwise/contracts/referrals';
+import {
   announcementIdParamsSchema,
   createAnnouncementRequestSchema,
 } from '@wagonwise/contracts/announcements';
@@ -526,6 +532,16 @@ const FORWARDS: readonly Forward[] = [
   },
   { method: 'DELETE', path: '/staff/sales/entries/:id', params: entryIdParamsSchema },
   { method: 'POST', path: '/staff/sales/import', params: noParams, body: importRequestSchema },
+  // Drivers recommending WagonWise to their firm: the list, a code lookup, recording a firm, and moving one on (WagonWise staff only; core decides).
+  { method: 'GET', path: '/staff/referrals', params: noParams },
+  { method: 'GET', path: '/staff/referrals/codes/:code', params: referralCodeParamsSchema },
+  { method: 'POST', path: '/staff/referrals', params: noParams, body: createReferralRequestSchema },
+  {
+    method: 'PUT',
+    path: '/staff/referrals/:id/status',
+    params: referralIdParamsSchema,
+    body: setReferralStatusRequestSchema,
+  },
   // Notes to the drivers about what has changed in the app (WagonWise staff only; core decides).
   { method: 'GET', path: '/staff/announcements', params: noParams },
   {
