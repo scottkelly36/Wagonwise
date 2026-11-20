@@ -53,7 +53,7 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 8. **FORS-style records** (`fors-scope.md`, idea only): documents with expiry dates and an infringement log first. Never claim a firm is compliant.
 9. **Driver sign-in without invite codes** (`driver-sign-in-plan.md`): server, driver BFF and password screens are built behind switches;
    Google and Apple sign-in need a store build and the owner's set-up. Nothing is switched on.
-10. **Next native build (1.3.0)**, which also carries the Play quality fixes below, and Android Auto if it goes ahead.
+10. **Native build 1.3.0, prepared 2026-11-20** (`history/log.md`): Firebase for Android push, and R8. Waits on the owner's Firebase set-up; then Android by the `release` label and iPhone by hand. Not in it: the other two Play warnings, Google and Apple sign-in, Android Auto.
 11. **Small code left:** road tax by registration is
     **parked** (DVLA is not taking new Vehicle Enquiry Service keys); a tachograph source for driver hours waits on the pilot's lorries. Tachograph downloads are scoped, not built (`tachograph-download-scope.md`).
     Unscheduled ideas are in `ideas.md` and `phase-5-ideas.md`.

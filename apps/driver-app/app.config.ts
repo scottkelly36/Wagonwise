@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   slug: 'wagonwise-driver-app',
   // Store-build version, bumped by hand on each `eas build` (README: "Versions and updates").
   // OTA updates can't change it — it's baked into the binary.
-  version: '1.2.1',
+  version: '1.3.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'wagonwise',
@@ -49,6 +49,12 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'com.wagonwise.driverapp',
+    // Firebase, which Android needs for push notifications (docs/push-notification-test.md; added in 1.3.0, before which Android
+    // phones never got a push token). The file is an EAS "file" environment variable, GOOGLE_SERVICES_JSON, so it is not in the
+    // repository; a local development build without it still runs, just without Android push.
+    ...(process.env.GOOGLE_SERVICES_JSON === undefined
+      ? {}
+      : { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }),
     adaptiveIcon: {
       backgroundColor: '#111A27',
       foregroundImage: './assets/images/android-icon-foreground.png',
@@ -90,6 +96,17 @@ const config: ExpoConfig = {
       },
     ],
     'expo-notifications',
+    // R8 shrinking for the release build (Google Play's quality warning on 1.2.1, to fix by February 2027). Smaller app; maps and voice
+    // must be tried on a real phone from the internal testing track before promoting, in case shrinking removed something they need.
+    [
+      'expo-build-properties',
+      {
+        android: {
+          enableProguardInReleaseBuilds: true,
+          enableShrinkResourcesInReleaseBuilds: true,
+        },
+      },
+    ],
     [
       'expo-speech-recognition',
       {

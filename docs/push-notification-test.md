@@ -34,6 +34,8 @@ A ticket with `"status":"ok"` and the notification on the emulator means deliver
 
 ## 3. Fixing Android (needs the owner's accounts, and a new store build)
 
+**The code side is done in 1.3.0** (2026-11-20): `app.config.ts` reads the file from the EAS environment variable `GOOGLE_SERVICES_JSON` (type file, environment production), so it is never in the repository. Steps 1 and 3 below are the owner's; step 2 is replaced by `eas env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --environment production --visibility secret`.
+
 1. Firebase console: create a project, add an Android app with the package `com.wagonwise.driverapp`, download `google-services.json`.
 2. Put it in `apps/driver-app/` and add `googleServicesFile: './google-services.json'` under `android` in `app.config.ts`.
 3. Firebase: Project settings, Service accounts, generate a private key (FCM V1). Upload it to Expo: `eas credentials`, Android,
