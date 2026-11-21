@@ -6,6 +6,7 @@ import { pruneFlowEvents } from './application/flow-events.js';
 import type { CallerDirectory } from './application/usage.js';
 import { PostgresUsageReader, type UntypedDb } from './infrastructure/postgres-usage-reader.js';
 import { PostgresFlowEventRepository } from './infrastructure/postgres-flow-event-repository.js';
+import { PostgresSiteVisitRepository } from './infrastructure/postgres-site-visit-repository.js';
 import { registerUsageRoutes } from './interface/routes.js';
 
 // Re-exported so composition/ can type its wiring without reaching past this facade.
@@ -23,7 +24,7 @@ export interface UsageModuleDeps {
 
 export interface UsageModule {
   registerRoutes(app: FastifyInstance): void;
-  /** Deletes flow events older than 90 days; returns how many. Run on a timer by composition. */
+  /** Deletes flow events and website visits older than 90 days; returns how many. Run on a timer by composition. */
   pruneFlowEvents(): Promise<number>;
 }
 
@@ -34,6 +35,7 @@ export interface UsageModule {
 export function createUsageModule(deps: UsageModuleDeps): UsageModule {
   const reader = new PostgresUsageReader(deps.db);
   const flowEventRepo = new PostgresFlowEventRepository(deps.db);
+  const siteVisitRepo = new PostgresSiteVisitRepository(deps.db);
   return {
     registerRoutes(app: FastifyInstance): void {
       registerUsageRoutes(app, {
@@ -41,8 +43,11 @@ export function createUsageModule(deps: UsageModuleDeps): UsageModule {
         callerDirectory: deps.callers,
         dataScopes: deps.dataScopes,
         flowEvents: { repo: flowEventRepo, clock: deps.clock, ids: deps.ids },
+        siteVisits: { repo: siteVisitRepo, clock: deps.clock, ids: deps.ids },
       });
     },
-    pruneFlowEvents: () => pruneFlowEvents({ repo: flowEventRepo, clock: deps.clock }),
+    pruneFlowEvents: async () =>
+      (await pruneFlowEvents({ repo: flowEventRepo, clock: deps.clock })) +
+      (await pruneFlowEvents({ repo: siteVisitRepo, clock: deps.clock })),
   };
 }

@@ -57,3 +57,32 @@ describe('signups routes', () => {
     expect(coreClient.calls).toEqual([]);
   });
 });
+
+describe('website visits', () => {
+  it('forwards a visit on the website’s own address to core’s /site/visits, with no token', async () => {
+    const { app, coreClient } = buildApp();
+    coreClient.nextResponse = { status: 204, body: undefined };
+    const response = await app.inject({
+      method: 'POST',
+      url: '/signups/visits',
+      payload: { kind: 'view', page: '/for-hauliers/', source: 'facebook' },
+    });
+    expect(response.statusCode).toBe(204);
+    expect(coreClient.calls[0]).toMatchObject({
+      method: 'POST',
+      path: '/site/visits',
+      body: { kind: 'view', page: '/for-hauliers/', source: 'facebook' },
+    });
+  });
+
+  it('refuses a page that is not counted, without calling core', async () => {
+    const { app, coreClient } = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/signups/visits',
+      payload: { kind: 'view', page: '/anything' },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(coreClient.calls).toEqual([]);
+  });
+});

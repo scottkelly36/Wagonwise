@@ -1,4 +1,4 @@
-import { flowEventsRequestSchema } from '@wagonwise/contracts/usage';
+import { flowEventsRequestSchema, siteVisitRequestSchema } from '@wagonwise/contracts/usage';
 import type { FastifyInstance } from 'fastify';
 import type { DataScopes } from '../../../shared/ports/data-scope.js';
 import {
@@ -9,12 +9,14 @@ import {
   type UsageReport,
 } from '../application/usage.js';
 import { recordFlowEvents, type FlowEventDeps } from '../application/flow-events.js';
+import { recordSiteVisit, type SiteVisitDeps } from '../application/site-visits.js';
 
 export interface UsageRouteDeps {
   readonly usage: UsageDeps;
   readonly callerDirectory: CallerDirectory;
   readonly dataScopes: DataScopes;
   readonly flowEvents: FlowEventDeps;
+  readonly siteVisits: SiteVisitDeps;
 }
 
 const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString());
@@ -44,6 +46,7 @@ const toDto = (r: UsageReport) => ({
     lastActiveAt: iso(f.lastActiveAt),
   })),
   flows: r.flows,
+  site: r.site,
 });
 
 /** `GET /staff/usage`: how the app is being used, for WagonWise staff only (checked here and again in the use case). */
@@ -61,6 +64,17 @@ export function registerUsageRoutes(app: FastifyInstance, deps: UsageRouteDeps):
     );
     if (!result.ok) return reply.status(403).send({ ...result.error, requestId: request.id });
     return reply.status(200).send(toDto(result.value));
+  });
+
+  /** `POST /site/visits`: a visit to the website, forwarded by the driver BFF from `/signups/visits` on the website's own address. No
+   *  account and nothing that identifies the visitor (docs/modules.md, "Website visits"). Always 204, so a page never waits on it. */
+  app.post('/site/visits', async (request, reply) => {
+    const body = siteVisitRequestSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    await recordSiteVisit(deps.siteVisits, body.data);
+    return reply.status(204).send();
   });
 
   /** `POST /usage/flow-events`: a batch of steps and choices from one session of the app. Needs a signed-in driver, so strangers cannot

@@ -104,6 +104,17 @@ export interface FlowsSummary {
     readonly skipped: number;
   };
   readonly remindersOpened: number;
+  readonly referralOpened: number;
+  readonly referralShared: number;
+}
+
+/** The last 7 days of website visits, counted without cookies (docs/modules.md, "Website visits"). */
+export interface SiteSummary {
+  readonly windowDays: number;
+  readonly views: readonly { readonly page: string; readonly views: number }[];
+  readonly videoPlays: number;
+  readonly sources: readonly { readonly source: string; readonly views: number }[];
+  readonly campaigns: readonly { readonly campaign: string; readonly views: number }[];
 }
 
 export interface UsageReport {
@@ -122,6 +133,7 @@ export interface UsageReport {
   readonly testers: number;
   readonly firms: readonly UsageFirm[];
   readonly flows: FlowsSummary;
+  readonly site: SiteSummary;
 }
 
 /** Reads the figures across the app. Counts only: nothing here names a driver. */

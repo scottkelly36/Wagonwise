@@ -1,4 +1,5 @@
 import { removeSignupRequestSchema, signupRequestSchema } from '@wagonwise/contracts/signups';
+import { siteVisitRequestSchema } from '@wagonwise/contracts/usage';
 import type { FastifyInstance } from 'fastify';
 import type { CoreClient } from './core-client.js';
 
@@ -30,6 +31,19 @@ export function registerSignupsRoutes(app: FastifyInstance, deps: SignupsRouteDe
       return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
     }
     const core = await deps.coreClient.request('POST', '/signups/remove', request.id, {
+      body: parsed.data,
+    });
+    return reply.status(core.status).send(core.body);
+  });
+
+  /** A visit to the website, counted without cookies (docs/modules.md, "Website visits"). Under /signups because that prefix already
+   *  reaches this server from the website's own address (infra/digitalocean/app-spec.yaml), so no hosting change was needed. */
+  app.post('/signups/visits', async (request, reply) => {
+    const parsed = siteVisitRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const core = await deps.coreClient.request('POST', '/site/visits', request.id, {
       body: parsed.data,
     });
     return reply.status(core.status).send(core.body);

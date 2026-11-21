@@ -37,6 +37,8 @@ const mockData = {
   },
 };
 const mockClaim = jest.fn();
+const mockTrack = jest.fn();
+jest.mock('../lib/flow-events', () => ({ trackFlow: (...args: unknown[]) => mockTrack(...args) }));
 jest.mock('../api/use-referrals', () => ({
   useMyReferrals: () => ({ data: mockData.current, isLoading: false, isError: false }),
   useClaimReward: () => ({ mutate: mockClaim, isPending: false, isError: false }),
@@ -69,6 +71,8 @@ it('shows the code and sends the boss a message with it and the driver’s name'
   expect(share).toHaveBeenCalledWith({
     message: expect.stringMatching(/^Dave here\..*WW-K7Q2MX/s),
   });
+  // Counted anonymously for the Flows panel: the screen opening, then the share.
+  expect(mockTrack.mock.calls).toEqual([['referral_opened'], ['referral_shared']]);
 });
 
 it('asks for an email only once a reward is due, and claims it', async () => {
