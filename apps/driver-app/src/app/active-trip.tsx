@@ -83,6 +83,9 @@ import { routeProgress } from '../lib/route-progress';
 import { speedLimitHere } from '../lib/speed-limit';
 import { useRouteSpeedLimits } from '../api/use-route-speed-limits';
 import { SpeedLimitSignView } from '../components/speed-limit-sign';
+import { GpsSpeedBox } from '../components/gps-speed-box';
+import { gpsSpeedReading, speedUnitFor } from '../lib/gps-speed';
+import { useGpsSpeedStore } from '../state/gps-speed-store';
 import { useRouteCameras } from '../api/use-route-cameras';
 import { CameraWarningCard } from '../components/camera-warning-card';
 import { useCameraVoiceWarning } from '../hooks/use-camera-voice-warning';
@@ -315,6 +318,12 @@ export default function ActiveTripScreen() {
         progress.totalMetres,
         progress.offRouteMetres,
       )
+    : undefined;
+  // The phone's GPS speed beside the sign, in the sign's unit, when the driver has not turned it off. Nothing while the phone has
+  // no speed; shown even where the limit is not known.
+  const gpsSpeedOn = useGpsSpeedStore((s) => s.enabled);
+  const gpsSpeed = gpsSpeedOn
+    ? gpsSpeedReading(location.speedMps, speedUnitFor(speedSign))
     : undefined;
   // Cameras on the route: worked out once per route, then the next one is picked from the driver's progress along it.
   const routeCameras = useRouteCameras(plan?.id);
@@ -726,10 +735,15 @@ export default function ActiveTripScreen() {
         <View style={styles.micOverlay} pointerEvents="box-none">
           {/* The speed limit and the next camera sit in this stack, above the clock, so the clock opening or growing pushes them up
               instead of covering them. */}
-          {(speedSign || cameraAhead) && (
+          {(speedSign || cameraAhead || gpsSpeed) && (
             <View style={styles.bottomLeft} pointerEvents="none">
               {cameraAhead && <CameraWarningCard ahead={cameraAhead} />}
-              {speedSign && <SpeedLimitSignView sign={speedSign} />}
+              {(speedSign || gpsSpeed) && (
+                <View style={styles.speedRow}>
+                  {speedSign && <SpeedLimitSignView sign={speedSign} />}
+                  {gpsSpeed && <GpsSpeedBox reading={gpsSpeed} />}
+                </View>
+              )}
             </View>
           )}
           {/* The driving-hours clock, one tap from the map: what they are doing, the time left, and four big buttons to change it. */}
@@ -987,6 +1001,7 @@ function createStyles(colors: ThemeColors) {
     recenter: { position: 'absolute', right: 16, gap: 12 },
     turnBanner: { position: 'absolute', left: 16, right: 16 },
     bottomLeft: { alignSelf: 'flex-start', gap: 12, alignItems: 'flex-start' },
+    speedRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     etaCard: {
       ...cardStyle(colors),
       position: 'absolute',

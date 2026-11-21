@@ -32,6 +32,7 @@ import {
 import { PRODUCT_NAME } from '../../product';
 import { useAuthStore } from '../../state/auth-store';
 import { useFasterRouteStore } from '../../state/faster-route-store';
+import { useGpsSpeedStore } from '../../state/gps-speed-store';
 import { useFlowEventsStore } from '../../state/flow-events-store';
 import { useMeasureUnitsStore } from '../../state/measure-units-store';
 import { useStillThereStore } from '../../state/still-there-store';
@@ -114,6 +115,8 @@ export default function MoreScreen() {
   const setFasterRoutes = useFasterRouteStore((s) => s.setEnabled);
   const stillThere = useStillThereStore((s) => s.enabled);
   const setStillThere = useStillThereStore((s) => s.setEnabled);
+  const gpsSpeed = useGpsSpeedStore((s) => s.enabled);
+  const setGpsSpeed = useGpsSpeedStore((s) => s.setEnabled);
   const distanceUnit = useMeasureUnitsStore((s) => s.distance);
   const setDistanceUnit = useMeasureUnitsStore((s) => s.setDistance);
   const fuelUnit = useMeasureUnitsStore((s) => s.fuel);
@@ -342,6 +345,26 @@ export default function MoreScreen() {
           After you pass a hazard you were warned about, WagonWise asks out loud if it was still
           there and listens for yes or no. Up to three questions a trip, never over a turn
           instruction. Your answers keep the hazard list accurate for other drivers.
+        </Text>
+
+        <View style={styles.group}>
+          <View style={styles.row}>
+            <View style={styles.rowIcon}>
+              <Icon name="speedometer" size={26} color={colors.accent} />
+            </View>
+            <Text style={styles.rowLabel}>Show my speed</Text>
+            <Switch
+              value={gpsSpeed}
+              onValueChange={(on) => void setGpsSpeed(on)}
+              accessibilityLabel="Show my speed"
+              testID="gps-speed-switch"
+            />
+          </View>
+        </View>
+        <Text style={styles.settingNote}>
+          Shows your speed from the phone’s GPS in a box beside the speed limit on the trip screen.
+          It can differ from your speedometer by a few mph, so go by the speedometer and the road
+          signs.
         </Text>
 
         <Text style={styles.sectionLabel}>{PRODUCT_NAME}</Text>

@@ -28,6 +28,7 @@ import { useFuelChoiceStore } from '../state/fuel-choice-store';
 import { useLengthUnitStore } from '../state/length-unit-store';
 import { useLoadStore } from '../state/load-store';
 import { useMeasureUnitsStore } from '../state/measure-units-store';
+import { useGpsSpeedStore } from '../state/gps-speed-store';
 import { useStillThereStore } from '../state/still-there-store';
 import { useMapLayersStore } from '../state/map-layers-store';
 import { useHoursStartStore } from '../state/hours-start-store';
@@ -51,6 +52,7 @@ export default function RootLayout() {
   const restoreMeasureUnits = useMeasureUnitsStore((s) => s.restore);
   const restoreLoad = useLoadStore((s) => s.restore);
   const restoreStillThere = useStillThereStore((s) => s.restore);
+  const restoreGpsSpeed = useGpsSpeedStore((s) => s.restore);
   const restoreMapLayers = useMapLayersStore((s) => s.restore);
   const restoreUpdateNotice = useUpdateNoticeStore((s) => s.restore);
   const restoreWalkthrough = useWalkthroughStore((s) => s.restore);
@@ -71,6 +73,7 @@ export default function RootLayout() {
     void restoreMeasureUnits();
     void restoreLoad();
     void restoreStillThere();
+    void restoreGpsSpeed();
     void restoreMapLayers();
     void restoreUpdateNotice();
     void restoreWalkthrough();
@@ -93,6 +96,7 @@ export default function RootLayout() {
     restoreMeasureUnits,
     restoreLoad,
     restoreStillThere,
+    restoreGpsSpeed,
     restoreMapLayers,
     restoreUpdateNotice,
     restoreWalkthrough,

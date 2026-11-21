@@ -9,6 +9,7 @@ import {
   isMoving,
   smoothDegrees,
 } from '../lib/heading';
+import { SPEED_STALE_MS, speedAfterSilence } from '../lib/gps-speed';
 
 /** What the phone reports about its movement with a fix: the GPS course and speed. */
 export interface Motion {
@@ -79,12 +80,16 @@ export function useLiveLocation(options: { readonly fast?: boolean } = {}): {
    *  when stopped or crawling (so the map still turns as the phone does), undefined until either is known.
    *  Only worked out for the fast (trip screen) watch. */
   readonly bearing: number | undefined;
+  /** The phone's GPS speed in metres per second, for the speed box. Only worked out for the fast (trip screen) watch. Undefined
+   *  until the phone reports one, and again when fixes stop coming while the lorry was moving (see `speedAfterSilence`). */
+  readonly speedMps: number | undefined;
 } {
   const fast = options.fast ?? false;
   const [status, setStatus] = useState<LiveLocationStatus>('loading');
   const [point, setPoint] = useState<MapPoint | undefined>(undefined);
   const [course, setCourse] = useState<number | undefined>(undefined);
   const [bearing, setBearing] = useState<number | undefined>(undefined);
+  const [speedMps, setSpeedMps] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     let subscription: Location.LocationSubscription | undefined;
@@ -133,11 +138,23 @@ export function useLiveLocation(options: { readonly fast?: boolean } = {}): {
         .catch(() => undefined);
     }
 
+    // The speed box believes a speed for a few seconds after the fix that brought it. The phone sends no fixes while it stands
+    // still (and none in a tunnel), so with no new fix it is either stopped or has lost its signal.
+    let silence: ReturnType<typeof setTimeout> | undefined;
+    const showSpeed = (mps: number | null) => {
+      if (!fast) return;
+      clearTimeout(silence);
+      const known = mps !== null && Number.isFinite(mps) && mps >= 0 ? mps : undefined;
+      setSpeedMps(known);
+      silence = setTimeout(() => setSpeedMps(speedAfterSilence(known)), SPEED_STALE_MS);
+    };
+
     void startWatchingPosition((next, nextMotion) => {
       if (cancelled) return;
       setStatus('granted');
       setPoint(next);
       motion = nextMotion;
+      showSpeed(nextMotion.speedMps);
       refresh();
     }, fast).then((result) => {
       if (cancelled) {
@@ -153,10 +170,11 @@ export function useLiveLocation(options: { readonly fast?: boolean } = {}): {
 
     return () => {
       cancelled = true;
+      clearTimeout(silence);
       subscription?.remove();
       compass?.remove();
     };
   }, [fast]);
 
-  return { status, point, course, bearing };
+  return { status, point, course, bearing, speedMps };
 }
