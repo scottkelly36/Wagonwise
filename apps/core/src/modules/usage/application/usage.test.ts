@@ -41,7 +41,10 @@ const report: UsageReport = {
     choices: [],
     walkthrough: { started: 0, finished: 0, skipped: 0 },
     remindersOpened: 0,
+    referralOpened: 0,
+    referralShared: 0,
   },
+  site: { windowDays: 7, views: [], videoPlays: 0, sources: [], campaigns: [] },
 };
 const reader: UsageReader = { read: () => Promise.resolve(report) };
 const deps = { reader, clock: { now: () => now } };

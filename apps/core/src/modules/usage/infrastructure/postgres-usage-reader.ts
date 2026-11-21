@@ -1,5 +1,6 @@
 import { sql, type Kysely } from 'kysely';
 import {
+  type SiteSummary,
   FLOW_CHOICE_EVENTS,
   FLOW_FUNNEL_STEPS,
   type Activity,
@@ -197,6 +198,7 @@ export class PostgresUsageReader implements UsageReader {
       order by last_active desc nulls last, c.name`.execute(db);
 
     const flows = await this.readFlows(now);
+    const site = await this.readSite(now);
 
     const week = (rows: WeekRow[]) => rows.map((r) => ({ weekStart: r.week, count: r.count }));
     const c = counts.rows[0];
@@ -242,6 +244,7 @@ export class PostgresUsageReader implements UsageReader {
         lastActiveAt: r.last_active,
       })),
       flows,
+      site,
     };
   }
 
@@ -250,9 +253,17 @@ export class PostgresUsageReader implements UsageReader {
     const db = this.db;
     const since = sql`${now}::timestamptz - make_interval(days => ${FLOW_WINDOW_DAYS})`;
 
-    const totals = await sql<{ sessions: number; events: number; reminders: number }>`
+    const totals = await sql<{
+      sessions: number;
+      events: number;
+      reminders: number;
+      referral_opened: number;
+      referral_shared: number;
+    }>`
       select count(distinct session_id)::int as sessions, count(*)::int as events,
-             count(*) filter (where event = 'reminder_opened')::int as reminders
+             count(*) filter (where event = 'reminder_opened')::int as reminders,
+             count(*) filter (where event = 'referral_opened')::int as referral_opened,
+             count(*) filter (where event = 'referral_shared')::int as referral_shared
       from usage.flow_events where at >= ${since}`.execute(db);
 
     const steps = await sql<{ event: string; sessions: number }>`
@@ -338,6 +349,36 @@ export class PostgresUsageReader implements UsageReader {
         skipped: w?.skipped ?? 0,
       },
       remindersOpened: t?.reminders ?? 0,
+      referralOpened: t?.referral_opened ?? 0,
+      referralShared: t?.referral_shared ?? 0,
+    };
+  }
+
+  /** The website's visits of the last 7 days (migration 0098): views per page, video plays, and where views came from. */
+  private async readSite(now: Date): Promise<SiteSummary> {
+    const db = this.db;
+    const since = sql`${now}::timestamptz - make_interval(days => ${FLOW_WINDOW_DAYS})`;
+    const views = await sql<{ page: string; views: number }>`
+      select page, count(*)::int as views from usage.site_visits
+      where at >= ${since} and kind = 'view' group by page order by views desc, page`.execute(db);
+    const plays = await sql<{ plays: number }>`
+      select count(*)::int as plays from usage.site_visits
+      where at >= ${since} and kind = 'video_play'`.execute(db);
+    const sources = await sql<{ source: string; views: number }>`
+      select coalesce(source, 'direct') as source, count(*)::int as views from usage.site_visits
+      where at >= ${since} and kind = 'view' group by 1 order by views desc, source limit 10`.execute(
+      db,
+    );
+    const campaigns = await sql<{ campaign: string; views: number }>`
+      select campaign, count(*)::int as views from usage.site_visits
+      where at >= ${since} and kind = 'view' and campaign is not null
+      group by campaign order by views desc, campaign limit 10`.execute(db);
+    return {
+      windowDays: FLOW_WINDOW_DAYS,
+      views: views.rows,
+      videoPlays: plays.rows[0]?.plays ?? 0,
+      sources: sources.rows,
+      campaigns: campaigns.rows,
     };
   }
 }

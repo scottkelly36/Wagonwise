@@ -100,6 +100,9 @@ export const flowsReportSchema = z.object({
   choices: z.array(z.object({ event: z.string(), choice: z.string(), count })),
   walkthrough: z.object({ started: count, finished: count, skipped: count }),
   remindersOpened: count,
+  /** Optional: a core from before these were counted sends none. */
+  referralOpened: count.optional(),
+  referralShared: count.optional(),
 });
 export type FlowsReportDto = z.infer<typeof flowsReportSchema>;
 
@@ -107,6 +110,43 @@ export type FlowsReportDto = z.infer<typeof flowsReportSchema>;
  * `GET /staff/usage` (WagonWise staff only): how the app is being used. Counts only: no driver is named. "Active" means a
  * session was used (a sign-in or a refresh) in the window.
  */
+/** The website's pages that are counted; anything else is refused (docs/modules.md, "Website visits"). */
+export const SITE_PAGES = ['/', '/for-hauliers/', '/privacy/', '/delete-account/'] as const;
+
+/**
+ * `POST /signups/visits` from the website (no account, no cookie): a page was opened, or the For hauliers video was played. Where
+ * the visitor came from is only a short source name (a `utm_source`, or the referring site's host) and a campaign name; no address,
+ * no IP, nothing that identifies a person is kept.
+ */
+export const siteVisitRequestSchema = z.object({
+  kind: z.enum(['view', 'video_play']),
+  page: z.enum(SITE_PAGES),
+  source: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9._-]{1,60}$/)
+    .optional(),
+  campaign: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9._-]{1,60}$/)
+    .optional(),
+});
+export type SiteVisitRequest = z.infer<typeof siteVisitRequestSchema>;
+
+/** The last 7 days of website visits, for the usage page. */
+export const siteReportSchema = z.object({
+  windowDays: count,
+  views: z.array(z.object({ page: z.string(), views: count })),
+  videoPlays: count,
+  /** Most first; "direct" when there was no source. */
+  sources: z.array(z.object({ source: z.string(), views: count })),
+  campaigns: z.array(z.object({ campaign: z.string(), views: count })),
+});
+export type SiteReportDto = z.infer<typeof siteReportSchema>;
+
 export const usageReportSchema = z.object({
   generatedAt: z.string(),
   drivers: activitySchema,
@@ -129,6 +169,8 @@ export const usageReportSchema = z.object({
   firmList: z.array(usageFirmSchema),
   /** Optional: a core from before flow events sends none. */
   flows: flowsReportSchema.optional(),
+  /** Optional: a core from before website visits were counted sends none. */
+  site: siteReportSchema.optional(),
 });
 export type UsageReportDto = z.infer<typeof usageReportSchema>;
 
@@ -171,6 +213,9 @@ export const FLOW_EVENT_CHOICES = {
   trip_started: ['personal', 'job'],
   trip_ended: ['end_button', 'arrival_prompt', 'arrived_job', 'replan', 'offline_queue'],
   reminder_opened: null,
+  /** The "Recommend us to your boss" screen opened, and its Send it to your boss button tapped (docs/modules.md, "Referrals"). */
+  referral_opened: null,
+  referral_shared: null,
 } as const satisfies Record<string, readonly string[] | null>;
 
 export type FlowEventName = keyof typeof FLOW_EVENT_CHOICES;

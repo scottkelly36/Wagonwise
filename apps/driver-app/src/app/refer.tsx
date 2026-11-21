@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -18,6 +18,7 @@ import type { MyReferralDto } from '@wagonwise/contracts/referrals';
 import { useClaimReward, useMyReferrals } from '../api/use-referrals';
 import { Icon } from '../components/ui/icon';
 import { ScreenHeader } from '../components/ui/screen-header';
+import { trackFlow } from '../lib/flow-events';
 import { REFERRAL_TERMS_URL, STATUS_TEXT, shareMessage } from '../lib/referral-share';
 import { useAuthStore } from '../state/auth-store';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
@@ -38,6 +39,10 @@ export default function ReferScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [emails, setEmails] = useState<Record<string, string>>({});
+  // Anonymous counts for the Flows panel: the screen opened, and the message sent (docs/flow-tracking-plan.md).
+  useEffect(() => {
+    trackFlow('referral_opened');
+  }, []);
 
   const reward = mine.data?.rewardPounds ?? 25;
 
@@ -99,7 +104,10 @@ export default function ReferScreen() {
                 </Text>
                 <TouchableOpacity
                   style={styles.button}
-                  onPress={() => void Share.share({ message: shareMessage(mine.data.code, name) })}
+                  onPress={() => {
+                    trackFlow('referral_shared');
+                    void Share.share({ message: shareMessage(mine.data.code, name) });
+                  }}
                   accessibilityRole="button"
                   testID="refer-share-button"
                 >

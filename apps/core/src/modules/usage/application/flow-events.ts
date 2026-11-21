@@ -55,7 +55,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Deletes events older than the retention period; run on a timer by composition. */
 export function pruneFlowEvents(deps: {
-  readonly repo: FlowEventRepository;
+  /** Anything with a 90-day sweep: the flow events, and the website visits (the same retention). */
+  readonly repo: Pick<FlowEventRepository, 'deleteBefore'>;
   readonly clock: Clock;
 }): Promise<number> {
   return deps.repo.deleteBefore(

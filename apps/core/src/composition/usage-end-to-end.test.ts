@@ -496,6 +496,66 @@ describe('usage end to end (real RLS, real scopes)', () => {
       ]);
       expect(flows?.walkthrough).toEqual({ started: 1, finished: 1, skipped: 1 });
       expect(flows?.remindersOpened).toBe(1);
+      expect(flows?.referralOpened).toBe(0);
+    });
+  });
+
+  describe('website visits (no account, nothing that identifies the visitor)', () => {
+    const visit = (payload: object) => app.inject({ method: 'POST', url: '/site/visits', payload });
+
+    it('records views and video plays, reports them by page, source and campaign, and refuses anything off the lists', async () => {
+      await ownerPool.query(`delete from usage.site_visits`);
+      for (const p of [
+        { kind: 'view', page: '/for-hauliers/', source: 'Facebook', campaign: 'referral-nov' },
+        { kind: 'view', page: '/for-hauliers/', source: 'facebook' },
+        { kind: 'view', page: '/' },
+        { kind: 'video_play', page: '/for-hauliers/' },
+      ]) {
+        expect((await visit(p)).statusCode).toBe(204);
+      }
+      expect((await visit({ kind: 'view', page: '/admin/' })).statusCode).toBe(400);
+      expect(
+        (await visit({ kind: 'view', page: '/', source: 'someone@example.com' })).statusCode,
+      ).toBe(400);
+
+      const { rows } = await ownerPool.query<Record<string, unknown>>(
+        `select * from usage.site_visits limit 1`,
+      );
+      expect(Object.keys(rows[0] ?? {}).sort()).toEqual([
+        'at',
+        'campaign',
+        'id',
+        'kind',
+        'page',
+        'source',
+      ]);
+
+      const site = (await report()).site;
+      expect(site).toEqual({
+        windowDays: 7,
+        views: [
+          { page: '/for-hauliers/', views: 2 },
+          { page: '/', views: 1 },
+        ],
+        videoPlays: 1,
+        sources: [
+          { source: 'facebook', views: 2 },
+          { source: 'direct', views: 1 },
+        ],
+        campaigns: [{ campaign: 'referral-nov', views: 1 }],
+      });
+    });
+
+    it('deletes visits over 90 days old with the flow events', async () => {
+      await ownerPool.query(
+        `insert into usage.site_visits (id, kind, page, at) values ($1, 'view', '/', $2)`,
+        [id(95), hoursAgo(91 * 24)],
+      );
+      expect(await usage.pruneFlowEvents()).toBeGreaterThanOrEqual(1);
+      const { rows } = await ownerPool.query(`select id from usage.site_visits where id = $1`, [
+        id(95),
+      ]);
+      expect(rows).toEqual([]);
     });
   });
 });
