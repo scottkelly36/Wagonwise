@@ -122,6 +122,7 @@ Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those li
 - `history/p2-m1-organisations-auth.md`, `p2-m2-driver-links.md`, `p2-m4-portal-jobs.md`, `p2-m5-driver-app-jobs.md`,
   `p2-m6-live-map.md`, `p2-m7-moderation.md`, `p2-m8-reports.md`, `p2-m10-spoken-directions.md`: Phase 2 by milestone
 - `history/saved-places.md`: saved places, public places, Just me or My company, the review screen
+- `company-account-states-scope.md`: trial, active, overdue and paused firms (planned, not built), then self-service firm sign-up (owner's order, 2026-11-22)
 - `phase-3-scope.md`: Phase 3 scope, modules and what is built; `ideas.md`: field-testing ideas backlog
 - `history/deployment-first-deploy.md`: the first deployment (2026-09-25) and the four bugs found getting there
 - `history/log.md`: the dated change log, newest first; `history/log-archive.md`: entries to 2026-10-15 (the faster-route check, built 2026-10-10, is in here)
