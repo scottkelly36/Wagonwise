@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../config.js';
-import { OPEN_WHEN_PAUSED } from '../modules/companies/domain/account-state.js';
+import { OPEN_WHEN_PAUSED } from '../modules/companies/api.js';
 import { FakeClock } from '../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../shared/testing/sequential-id-generator.js';
 import { composeCore, type Core } from './compose-core.js';

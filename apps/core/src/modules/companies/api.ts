@@ -31,6 +31,8 @@ import { registerStaffRoutes } from './interface/staff-routes.js';
 // Re-exported so composition/ can type its overrides without reaching past this facade into
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
 export type { UntypedDb } from './infrastructure/db.js';
+// The requests a paused company may still make, so a composition test can check each is a real route.
+export { OPEN_WHEN_PAUSED } from './domain/account-state.js';
 export type { StaffCallerView } from './infrastructure/staff-callers.js';
 
 export interface CompaniesModuleDeps {
