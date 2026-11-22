@@ -18,43 +18,37 @@ D-U-N-S number and a fresh closed test. Not worth it unless the personal account
   (on the privacy page).
 - A **public page for deleting an account** (Play wants a web address as well as the in-app option). The app already has
   Delete account on the More tab; the page says how to ask for the same by email, and what is kept (see the consent screen).
-- A **reviewer login**: the app needs sign-in (a phone or email code, and an invite code), so Google's reviewers need a working
-  account and instructions in the App access section. Create a test driver and keep its invite code and email inbox usable.
+- A **reviewer login**: the app needs sign-in (an email and password, then a code emailed to that address), so Google's and Apple's reviewers
+  need a working account and instructions in the App access section. Create a test driver and keep its mailbox usable (see below).
 - A contact email shown on the listing.
 
-## App access instructions for Google's reviewers (draft)
+## App access instructions for Google's and Apple's reviewers
 
-Play's reviewers cannot read an inbox or a phone you control, and the app signs in with a one-time code. So the instructions
-must give them a way to get the code. **The simplest honest option is a mailbox the reviewers can open**: a dedicated address
-(for example reviewer@wagon-wise.co.uk), with its webmail address and password written in the App access form, and the password
-changed after review. Never put these in chat or in the repo; type them straight into Play Console.
+**Updated 2026-11-22: the sign-in changed after the first release.** The app now signs in with an **email address and a password**, then a **six-digit code emailed to that address**; there is no invite code any more. The live server says so (`GET /identity/sign-in-options` answers `passwordSignIn: true`, `inviteRequired: false`, `google: false`, `apple: false`), and a new driver creates an account in the app with an email, a password and the emailed code. The earlier text on this page ("there is no password", the invite-code step) was written before that and is replaced below. Google and Apple sign-in buttons do not exist yet, so Apple's rule about also offering Sign in with Apple does not apply.
 
-The alternative is a review account with a fixed code, which needs a small change in core (a setting that gives one named
-account a known code, off in normal use). It is more reliable for reviewers but it is a way past sign-in, so it needs your say-so
-and a security review before it is built.
+Reviewers cannot read an inbox or a phone you control, and the emailed code is a second step they cannot skip. So the instructions must give them a way to get the code. **The simplest honest option is a mailbox the reviewers can open**: a dedicated address (for example reviewer@wagon-wise.co.uk), with its webmail address and password written in the review form, **no two-step login on that mailbox itself**, and the mailbox password changed after review. Never put these in chat or in the repo; type them straight into Play Console and App Store Connect.
 
-Text for the form (fill the brackets):
+To make the account: install the app, tap Create an account, and sign up with the reviewer address and a password you choose (no invite code). Give the app password and the mailbox password to the reviewers; keep them different.
 
-> WagonWise needs sign-in. There is no password: you sign in with a one-time code sent to an email address, and a one-time
-> invite code is needed the first time.
+The alternative is a review account that skips the emailed code (a setting in core that gives one named account a known code, off in normal use). It is more reliable for reviewers but it is a way past sign-in, so it needs the owner's say-so and a security review before it is built. Try the mailbox first.
+
+Text for Google Play (App access) and for App Store Connect (App Review Information, Notes; put the app email and password in the sign-in fields as well). Fill the brackets:
+
+> WagonWise needs sign-in with an email address and password, plus a six-digit code emailed to that address.
 >
-> 1. Install the app and open it. On the sign-in screen, enter the email address **[reviewer email]**.
-> 2. Enter the invite code **[invite code]** and tap "Send me a code".
-> 3. A six-digit code is sent to that address. Open **[webmail address]** and sign in with **[reviewer email]** and the password
->    **[password]** to read it, then type the code into the app and tap Continue.
-> 4. A privacy screen ("Before you start") appears: read it and tap "I understand".
-> 5. A short four-screen tour appears: tap Skip (top right), or Next to read it. It shows once per phone and is under More > How it works.
-> 6. On the map you can: search for a place and plan a route (the app asks for location while it is open, and the camera and
->    microphone only if you use proof photos or voice reports); open More > Vehicle profiles to see a sample vehicle; tap the
->    hazard button to see how a report is made.
+> 1. Install the app and open it. On the sign-in screen enter **[reviewer email]** and **[app password]**, and tap Sign in.
+> 2. A six-digit code is sent to that address. Open **[webmail address]**, sign in as **[reviewer email]** with the password **[mailbox password]**, read the code, type it into the app and tap Continue.
+> 3. A privacy screen ("Before you start") appears: read it and tap "I understand".
+> 4. A short four-screen tour appears: tap Skip (top right), or Next to read it. It shows once per phone and is under More > How it works.
+> 5. Allow location when asked (used only while the app is open). The camera and microphone are asked for only if you use proof photos or voice reports, and notifications are optional.
+> 6. Routing covers Great Britain only. To try it, search for "Hexham", choose a destination and plan a route. You can also open More > Vehicle profiles to see a sample vehicle, and tap the hazard button to see how a report is made.
 > 7. To delete the account: More > Delete account. There is also a page at https://wagon-wise.co.uk/delete-account/.
 >
 > The account is for review only and holds no real data. If anything fails, contact support@wagon-wise.co.uk.
 
-**Order matters:** the app asks for the privacy screen after sign-in and before the tour (the earlier draft had them the wrong way round). If the password sign-in (PR 315) is ever released, this text changes: "There is no password" stops being true and the invite-code step goes.
+**Order matters:** the app asks for the privacy screen after sign-in and before the tour.
 
-Checks before you submit: make a fresh invite code (each works once), sign in yourself on a clean phone with exactly these steps,
-and make sure the mailbox receives the code within a minute.
+Checks before you submit: sign in yourself on a clean phone with exactly these steps (the password screens were only ever tested in automated tests, never on a phone), make sure the mailbox receives the code within a minute, and check the instructions again after any change to sign-in.
 
 ## Production access form: draft answers (for when the closed test reaches 14 days)
 
@@ -66,7 +60,7 @@ and a false answer is a worse risk than a plain one. Square brackets are yours t
 
 **Before you apply:** the answers say the walkthrough, Rate and Share rows, sign-out check and plainer wording are in the app. They are
 merged to main but reach phones only when the `release` label is put on a PR (over the air to 1.2.1). Do that first so the answers are true
-for anyone who installs the app. Do **not** merge PR 315 (password sign-in).
+for anyone who installs the app. (Written before password sign-in went live; it is live now, checked 2026-11-22, so the old "do not merge PR 315" warning no longer applies.)
 
 1. **How did you recruit users for your closed test?**
 
@@ -288,6 +282,6 @@ Do **not** use: the sign-in screen, the privacy notice, errors, empty states, or
 
 - At least 12 people who stay opted in for 14 days in a row; aim for 15 to 20.
 - Each needs an Android phone and a Google account, and to accept the invitation link.
-- Each needs an invite code to register in the app (the Invite codes page in the dashboard).
+- They create an account in the app with an email, a password and the emailed code. Invite codes are no longer needed (the server does not ask for one; checked 2026-11-22).
 - Tell them it is a test, what the app collects (the consent screen shows this), and how to leave.
 - Google asks how the testing went when you apply for production, so ask testers to actually use it and report problems.
