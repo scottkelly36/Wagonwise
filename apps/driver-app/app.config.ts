@@ -1,4 +1,5 @@
 import type { ExpoConfig } from 'expo/config';
+import { withAndroidManifest, type ConfigPlugin } from 'expo/config-plugins';
 
 import { PRODUCT_NAME } from './src/product';
 
@@ -121,4 +122,21 @@ const config: ExpoConfig = {
   },
 };
 
-export default config;
+/**
+ * The app is locked to portrait (`orientation` above), which makes Google Play treat a portrait screen as required hardware and
+ * hide the app from tablets, Chromebooks and Android XR. Play refused to send 1.3.0 for review over it (22 Nov 2026). Saying the
+ * portrait screen is optional keeps the lock as it is and lets those devices install the app.
+ */
+const withOptionalPortraitScreen: ConfigPlugin = (cfg) =>
+  withAndroidManifest(cfg, (mod) => {
+    const manifest = mod.modResults.manifest;
+    const name = 'android.hardware.screen.portrait';
+    const others = (manifest['uses-feature'] ?? []).filter((f) => f.$['android:name'] !== name);
+    manifest['uses-feature'] = [
+      ...others,
+      { $: { 'android:name': name, 'android:required': 'false' } },
+    ];
+    return mod;
+  });
+
+export default withOptionalPortraitScreen(config);
