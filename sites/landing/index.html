@@ -373,6 +373,27 @@
         gap: 12px;
         margin-top: 28px;
       }
+      .for-firms {
+        margin-top: 28px;
+        padding: 18px 20px;
+        max-width: 34em;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+      }
+      .for-firms b {
+        display: block;
+        font-size: 1.05rem;
+        color: var(--on-navy);
+      }
+      .for-firms p {
+        margin-top: 4px;
+        color: var(--on-navy-muted);
+        font-size: 0.98rem;
+      }
+      .for-firms .btn {
+        margin-top: 14px;
+      }
       .stores {
         display: flex;
         flex-wrap: wrap;
@@ -909,7 +930,9 @@
         </a>
         <nav aria-label="Main">
           <a class="plain" href="#driver-app">Driver app</a>
-          <a class="plain" href="/for-hauliers/">For haulage firms</a>
+          <a class="plain" href="/for-hauliers/?utm_source=home&amp;utm_campaign=nav"
+            >For haulage firms</a
+          >
           <a class="btn" href="#get-the-app">Get the app</a>
         </nav>
       </div>
@@ -926,10 +949,6 @@
                 Routes that fit your vehicle, warnings from other drivers about low bridges and
                 tight bends, safe parking, and jobs from your firm. All in one app.
               </p>
-              <div class="cta-row">
-                <a class="btn" href="#driver-app">See how it works</a>
-                <a class="btn ghost" href="/for-hauliers/">For haulage firms</a>
-              </div>
               <div class="stores" id="get-the-app" aria-label="Where to get the app">
                 <a
                   class="store"
@@ -950,6 +969,16 @@
                   </svg>
                   <span class="store-text"><small>Download on the</small><b>App Store</b></span>
                 </a>
+              </div>
+              <div class="for-firms" aria-labelledby="for-firms-title">
+                <b id="for-firms-title">Run a haulage firm?</b>
+                <p>
+                  Jobs, live positions, walk-round checks and maintenance dates in one place. It
+                  runs on your drivers’ own phones, so there is nothing to fit in the cab.
+                </p>
+                <a class="btn" href="/for-hauliers/?utm_source=home&amp;utm_campaign=hero"
+                  >See the fleet dashboard</a
+                >
               </div>
             </div>
             <div class="hero-phones">
