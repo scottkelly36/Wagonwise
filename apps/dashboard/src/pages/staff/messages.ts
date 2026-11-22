@@ -13,6 +13,8 @@ const MESSAGES: Record<string, string> = {
   PrivilegeNotHeld: 'You can only give privileges you have yourself.',
   NotAFleetUser: 'WagonWise staff accounts have no per-company privileges.',
   Forbidden: "You're not allowed to do that.",
+  AccountPaused:
+    'Your account is paused, so changes are switched off. You can still see everything. Contact support@wagon-wise.co.uk.',
   StaffNotFound: 'That person could not be found.',
   CodeNotSent: "We couldn't send the code just now. Please try again.",
   NotSignedIn: 'Please sign in again.',

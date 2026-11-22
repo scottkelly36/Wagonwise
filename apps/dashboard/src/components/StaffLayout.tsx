@@ -5,6 +5,7 @@ import { foldingSections, sectionForPath, toggled } from '../lib/nav';
 import { pageTitle } from '../lib/page-title';
 import { holds, isPlatform } from '../state/access';
 import { useStaffAuthStore } from '../state/staff-auth-store';
+import { AccountBanner } from './AccountBanner';
 import { FeedbackProvider } from './Feedback';
 import { SosBanner } from './SosBanner';
 import { TopBar } from './TopBar';
@@ -273,6 +274,7 @@ export function StaffLayout() {
         <div className="main-column">
           <TopBar navOpen={navOpen} onToggleNav={() => setNavOpen((o) => !o)} />
           <main id="main-content" className="content" tabIndex={-1}>
+            {staff !== undefined && !isPlatform(staff) && <AccountBanner />}
             <SosBanner />
             <WeatherBanner />
             <Outlet />

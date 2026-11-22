@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId, type Id } from '../../../shared/brand.js';
 import { createCompany, type CreateCompanyDeps } from '../application/create-company.js';
 import { listCompanies, type ListCompaniesDeps } from '../application/list-companies.js';
+import type { AccountState } from '../domain/account-state.js';
 import type { Company } from '../domain/company.js';
 
 /** Both use cases are admin-only (`application/company-authorization.ts`, P2-M1.8). */
@@ -11,8 +12,15 @@ export interface CompaniesRouteDeps {
   readonly listCompanies: ListCompaniesDeps;
 }
 
-function companyDto(company: Company) {
-  return { id: company.id, name: company.name, createdAt: company.createdAt.toISOString() };
+function companyDto(company: Company, state: AccountState | null = null) {
+  return {
+    id: company.id,
+    name: company.name,
+    createdAt: company.createdAt.toISOString(),
+    ...(state === null
+      ? {}
+      : { accountStatus: state.status, trialEndsOn: state.trialEndsOn, hold: state.hold }),
+  };
 }
 
 /** The signed-in staff member, from `host/staff-auth.ts` (P2-M1.12c: these routes moved from
@@ -55,6 +63,8 @@ export function registerCompaniesRoutes(app: FastifyInstance, deps: CompaniesRou
 
     const result = await listCompanies(deps.listCompanies, { callerId: staffId });
     if (!result.ok) return reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
-    return reply.status(200).send({ companies: result.value.map(companyDto) });
+    return reply
+      .status(200)
+      .send({ companies: result.value.map((entry) => companyDto(entry.company, entry.state)) });
   });
 }

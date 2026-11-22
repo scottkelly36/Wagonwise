@@ -128,6 +128,7 @@ describe('runMigrations', () => {
       '0096_flow_event_update_date.sql',
       '0097_referrals.sql',
       '0098_site_visits.sql',
+      '0099_company_account_state.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -201,6 +202,8 @@ describe('runMigrations', () => {
        where table_schema = 'companies' order by table_name`,
     );
     expect(companiesTables.map((row) => row.table_name)).toEqual([
+      'account_settings',
+      'account_state_log',
       'companies',
       'staff_accounts',
       'staff_audit',
@@ -335,6 +338,7 @@ describe('runMigrations', () => {
       '0096_flow_event_update_date.sql',
       '0097_referrals.sql',
       '0098_site_visits.sql',
+      '0099_company_account_state.sql',
     ]);
   });
 });

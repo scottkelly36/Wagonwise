@@ -1,3 +1,4 @@
+import { InMemoryAccountStateRepository } from './testing/in-memory-account-state-repository.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
@@ -59,6 +60,7 @@ beforeEach(async () => {
   deps = {
     accounts: new InMemoryStaffAccountRepository(),
     companies: new InMemoryCompanyRepository(),
+    states: new InMemoryAccountStateRepository(),
     invites: new InMemoryStaffInviteRepository(),
     sessions: new InMemoryStaffSessionRepository(),
     challenges: new InMemoryStaffChallengeRepository(),

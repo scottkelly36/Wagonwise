@@ -812,6 +812,9 @@ export function composeCore(
     accessTokenVerifier: overrides.accessTokenVerifier ?? accessTokenVerifier,
     staffAccessTokenVerifier:
       overrides.staffAccessTokenVerifier ?? lazyStaffVerifier(overrides.tokenSigner ?? tokenSigner),
+    // A paused company's staff can read but not change anything (docs/company-account-states-scope.md).
+    staffRequestGate: (staffId, method, path) =>
+      companies.isStaffRequestRefused(staffId, method, path),
   });
   // Housekeeping on timers, started once the app (and its logger) exists. Both passes are safe to
   // run twice, so a second core instance would do no harm.

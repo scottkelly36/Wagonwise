@@ -1,3 +1,4 @@
+import { InMemoryAccountStateRepository } from '../application/testing/in-memory-account-state-repository.js';
 import type {
   AcceptStaffInviteResponse,
   ConfirmStaffEnrolmentResponse,
@@ -65,6 +66,7 @@ beforeEach(async () => {
   deps = {
     accounts: new InMemoryStaffAccountRepository(),
     companies,
+    states: new InMemoryAccountStateRepository(),
     invites: new InMemoryStaffInviteRepository(),
     sessions: new InMemoryStaffSessionRepository(),
     challenges: new InMemoryStaffChallengeRepository(),

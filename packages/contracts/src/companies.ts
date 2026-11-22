@@ -4,10 +4,19 @@ import { brandedId } from './brand.js';
 export const companyIdSchema = brandedId<'CompanyId'>();
 export type CompanyId = z.infer<typeof companyIdSchema>;
 
+/** Whether a company may use WagonWise (docs/company-account-states-scope.md): on a free trial, paying, overdue (in the grace period) or
+ *  paused (staff can read but not change anything; the account and its data stay). */
+export const accountStatusSchema = z.enum(['trial', 'active', 'overdue', 'paused']);
+export type AccountStatusDto = z.infer<typeof accountStatusSchema>;
+
 export const companySchema = z.object({
   id: companyIdSchema,
   name: z.string(),
   createdAt: z.iso.datetime(),
+  /** For the admin list. Optional: a core from before account states sends none. */
+  accountStatus: accountStatusSchema.optional(),
+  trialEndsOn: z.string().nullable().optional(),
+  hold: z.boolean().optional(),
 });
 export type CompanyDto = z.infer<typeof companySchema>;
 
@@ -36,6 +45,46 @@ export type CompanySettingsDto = z.infer<typeof companySettingsSchema>;
 /** `PUT /staff/companies/:id/settings` takes the same fields. */
 export const updateCompanySettingsRequestSchema = companySettingsSchema;
 export const companySettingsParamsSchema = z.object({ id: companyIdSchema });
+
+/** A company's account state as WagonWise staff see it, with the owner's note and the "never pause" hold. */
+export const accountStateSchema = z.object({
+  companyId: companyIdSchema,
+  status: accountStatusSchema,
+  /** The UK day the free period ends (`YYYY-MM-DD`); null when not on a trial. */
+  trialEndsOn: z.string().nullable(),
+  overdueSince: z.iso.datetime().nullable(),
+  pausedAt: z.iso.datetime().nullable(),
+  note: z.string(),
+  hold: z.boolean(),
+});
+export type AccountStateDto = z.infer<typeof accountStateSchema>;
+
+/** What a company's own staff see of its state: no note and no hold, which are the owner's. `GET /staff/company/account-state`. */
+export const ownAccountStateSchema = accountStateSchema.omit({
+  note: true,
+  hold: true,
+  overdueSince: true,
+});
+export type OwnAccountStateDto = z.infer<typeof ownAccountStateSchema>;
+
+/**
+ * `PUT /staff/companies/:id/account-state` (WagonWise staff only): move a company to a state. A trial needs its end day; when it is
+ * left out the setting's default length from today is used. `hold` is left as it is when not sent.
+ */
+export const setAccountStateRequestSchema = z.object({
+  status: accountStatusSchema,
+  trialEndsOn: z.iso.date().nullable().optional(),
+  hold: z.boolean().optional(),
+  note: z.string().max(500).default(''),
+});
+export type SetAccountStateRequest = z.infer<typeof setAccountStateRequestSchema>;
+
+/** `GET/PUT /staff/account-settings` (WagonWise staff only): the free period for new companies and the grace period. */
+export const accountSettingsSchema = z.object({
+  defaultTrialDays: z.number().int().min(1).max(365),
+  graceDays: z.number().int().min(0).max(90),
+});
+export type AccountSettingsDto = z.infer<typeof accountSettingsSchema>;
 
 export const listCompaniesResponseSchema = z.object({
   companies: z.array(companySchema),

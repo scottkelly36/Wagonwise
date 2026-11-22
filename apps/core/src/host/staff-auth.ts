@@ -25,7 +25,17 @@ export const STAFF_PUBLIC_PATHS: readonly string[] = [
   '/staff/invites/confirm',
 ];
 
-export function registerStaffAuth(app: FastifyInstance, verifier: StaffAccessTokenVerifier): void {
+/**
+ * Asked once the token is good: is this request refused because the staff member's company is paused (docs/company-account-states-scope.md)?
+ * True answers 403 `account_paused`. Supplied by `companies`; reads and the few requests a paused company may still make never reach a lookup.
+ */
+export type StaffRequestGate = (staffId: string, method: string, path: string) => Promise<boolean>;
+
+export function registerStaffAuth(
+  app: FastifyInstance,
+  verifier: StaffAccessTokenVerifier,
+  gate?: StaffRequestGate,
+): void {
   app.decorateRequest('staffId', undefined);
   app.decorateRequest('staffSessionId', undefined);
 
@@ -42,12 +52,20 @@ export function registerStaffAuth(app: FastifyInstance, verifier: StaffAccessTok
       await reply.status(401).send({ error: 'missing_bearer_token', requestId: request.id });
       return;
     }
+    let staffId: string;
     try {
       const claims = await verifier.verify(token);
+      staffId = claims.staffId;
       request.staffId = claims.staffId;
       request.staffSessionId = claims.sessionId;
     } catch {
       await reply.status(401).send({ error: 'invalid_access_token', requestId: request.id });
+      return;
+    }
+    if (gate !== undefined && (await gate(staffId, request.method, path))) {
+      await reply
+        .status(403)
+        .send({ error: 'account_paused', tag: 'AccountPaused', requestId: request.id });
     }
   });
 }

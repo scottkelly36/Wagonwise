@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../config.js';
+import { OPEN_WHEN_PAUSED } from '../modules/companies/domain/account-state.js';
 import { FakeClock } from '../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../shared/testing/sequential-id-generator.js';
 import { composeCore, type Core } from './compose-core.js';
@@ -44,5 +45,13 @@ describe('composeCore', () => {
 
     expect(time).toBeGreaterThanOrEqual(before);
     expect(response.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('has every request a paused company may still make as a real route, so the list cannot go stale', async () => {
+    core = composeCore(config, fakeTokenSigner, fakeAccessTokenVerifier);
+    await core.app.ready();
+    for (const entry of OPEN_WHEN_PAUSED) {
+      expect(core.app.hasRoute({ method: entry.method, url: entry.route })).toBe(true);
+    }
   });
 });

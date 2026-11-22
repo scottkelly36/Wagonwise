@@ -75,8 +75,10 @@ import {
   updateBillingDetailsRequestSchema,
 } from '@wagonwise/contracts/billing';
 import {
+  accountSettingsSchema,
   companySettingsParamsSchema,
   createCompanyRequestSchema,
+  setAccountStateRequestSchema,
   updateCompanySettingsRequestSchema,
 } from '@wagonwise/contracts/companies';
 import {
@@ -161,6 +163,27 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/companies/:id/settings',
     params: companySettingsParamsSchema,
     body: updateCompanySettingsRequestSchema,
+  },
+  // Whether a company may use WagonWise (trial, active, overdue, paused). WagonWise staff read and move any company's; a company's own
+  // staff read their own for the banner. Core decides who may. A paused company's changes are refused by core with account_paused.
+  {
+    method: 'GET',
+    path: '/staff/companies/:id/account-state',
+    params: companySettingsParamsSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/companies/:id/account-state',
+    params: companySettingsParamsSchema,
+    body: setAccountStateRequestSchema,
+  },
+  { method: 'GET', path: '/staff/company/account-state', params: noParams },
+  { method: 'GET', path: '/staff/account-settings', params: noParams },
+  {
+    method: 'PUT',
+    path: '/staff/account-settings',
+    params: noParams,
+    body: accountSettingsSchema,
   },
   // Walk-round check lists a company builds for itself: its staff see them, fleet managers build them. Core decides.
   { method: 'GET', path: '/staff/checks/starter', params: noParams },

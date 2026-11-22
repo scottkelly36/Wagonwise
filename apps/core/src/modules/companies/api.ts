@@ -6,7 +6,9 @@ import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { IdentityModule } from '../identity/api.js';
 import type { UntypedDb } from './infrastructure/db.js';
+import { PostgresAccountStateRepository } from './infrastructure/postgres-account-state-repository.js';
 import { PostgresCompanyRepository } from './infrastructure/postgres-company-repository.js';
+import { createStaffRequestGate, type StaffRequestGate } from './application/staff-request-gate.js';
 import { registerCompaniesRoutes, type CompaniesRouteDeps } from './interface/routes.js';
 import { bootstrapFirstAdmin as bootstrapFirstAdminUseCase } from './application/bootstrap-first-admin.js';
 import type { StaffDeps } from './application/staff-deps.js';
@@ -60,6 +62,12 @@ export interface CompaniesModule {
   /** Company names by id, for screens in other modules that show who a link is with (fleet's
    *  driver links). Ids that match no company are simply absent. */
   getCompanyNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>>;
+  /**
+   * Is this staff request refused because the staff member's company is paused? True: answer `account_paused`. Reads and the few
+   * requests a paused company may still make cost nothing; WagonWise staff are never refused. Runs its own scope, so call it
+   * outside any `DataScopes.run`. `host/staff-auth.ts` calls it for every `/staff/*` request (docs/company-account-states-scope.md).
+   */
+  isStaffRequestRefused: StaffRequestGate;
   /** How many months each company keeps its proof-of-delivery photos, by company id, for the daily cleanup. */
   listPhotoRetention(): Promise<ReadonlyMap<string, number>>;
   /** Every company's id and name, for billing's admin screens. */
@@ -88,19 +96,28 @@ export interface CompaniesModule {
  */
 export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModule {
   const repo = new PostgresCompanyRepository(deps.db);
+  const accountStates = new PostgresAccountStateRepository(deps.db);
   const staffCallers = new StaffCallers(
     new PostgresStaffAccountRepository(deps.db),
     deps.dataScopes,
   );
 
+  const staffRequestGate = createStaffRequestGate({
+    callers: staffCallers,
+    states: accountStates,
+    scopes: deps.dataScopes,
+    clock: deps.clock,
+  });
+
   const routeDeps: CompaniesRouteDeps = {
-    createCompany: { repo, clock: deps.clock, admins: staffCallers },
-    listCompanies: { repo, admins: staffCallers },
+    createCompany: { repo, states: accountStates, clock: deps.clock, admins: staffCallers },
+    listCompanies: { repo, states: accountStates, admins: staffCallers },
   };
 
   const staffDeps: StaffDeps = {
     accounts: new PostgresStaffAccountRepository(deps.db),
     companies: repo,
+    states: accountStates,
     invites: new PostgresStaffInviteRepository(deps.db),
     sessions: new PostgresStaffSessionRepository(deps.db),
     challenges: new PostgresStaffChallengeRepository(deps.db),
@@ -136,6 +153,7 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     getStaffCaller(staffId: string) {
       return staffCallers.get(makeId<'StaffId'>(staffId));
     },
+    isStaffRequestRefused: staffRequestGate,
     async listFleetContacts(companyId: string) {
       const accounts = await deps.dataScopes.run({ kind: 'platform' }, () =>
         staffDeps.accounts.listByCompany(makeId<'CompanyId'>(companyId)),
