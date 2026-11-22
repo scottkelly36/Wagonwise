@@ -149,7 +149,10 @@ export type SiteReportDto = z.infer<typeof siteReportSchema>;
 
 export const usageReportSchema = z.object({
   generatedAt: z.string(),
+  /** Driver accounts that still exist: an account that was deleted is not counted. */
   drivers: activitySchema,
+  /** Driver accounts that were deleted. Optional: a core from before it was counted sends none. */
+  deletedDrivers: count.optional(),
   staff: activitySchema,
   firms: z.object({ total: count, activeThisWeek: count }),
   devices: z.object({ total: count }),

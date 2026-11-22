@@ -317,7 +317,7 @@ function Website({ site }: { site: SiteReportDto }) {
 
 const activityRows = (a: ActivityDto) =>
   [
-    { label: 'Accounts', value: String(a.total), tone: 'quiet' as const },
+    { label: 'Accounts (not deleted)', value: String(a.total), tone: 'quiet' as const },
     { label: 'Used in the last day', value: String(a.active24h), tone: 'quiet' as const },
     { label: 'Used in the last week', value: String(a.active7d), tone: 'quiet' as const },
     { label: 'Used in the last month', value: String(a.active30d), tone: 'quiet' as const },
@@ -406,7 +406,20 @@ export function AppUsage() {
 
       <div className="home-panels">
         <HomePanel title="Drivers" area="ops" to="/admin/companies" linkLabel="Companies">
-          <HomeRows rows={activityRows(u.drivers)} />
+          <HomeRows
+            rows={[
+              ...activityRows(u.drivers),
+              ...(u.deletedDrivers === undefined
+                ? []
+                : [
+                    {
+                      label: 'Deleted accounts (not counted above)',
+                      value: String(u.deletedDrivers),
+                      tone: 'quiet' as const,
+                    },
+                  ]),
+            ]}
+          />
         </HomePanel>
         <HomePanel title="Office staff" area="ops" to="/admin/companies" linkLabel="Companies">
           <HomeRows rows={activityRows(u.staff)} />

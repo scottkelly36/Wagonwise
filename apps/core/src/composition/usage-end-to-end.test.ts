@@ -76,6 +76,13 @@ describe('usage end to end (real RLS, real scopes)', () => {
       );
     await session(10, 1, hoursAgo(2));
     await session(11, 2, hoursAgo(72));
+    // A fourth driver who joined yesterday, used the app 3 hours ago and then deleted the account. Deleting keeps the row
+    // (anonymised, deleted_at set), so every count below must leave it out and only deletedDrivers counts it.
+    await q(
+      `insert into identity.drivers (id, identifier, created_at, deleted_at) values ($1, $2, $3, $4)`,
+      [id(4), 'deleted-account-4', hoursAgo(30), hoursAgo(1)],
+    );
+    await session(12, 4, hoursAgo(3));
     await q(`insert into identity.devices (id, driver_id, push_token) values ($1,$2,'t1')`, [
       id(20),
       id(1),
@@ -200,6 +207,9 @@ describe('usage end to end (real RLS, real scopes)', () => {
       active7d: 2,
       active30d: 2,
     });
+    // The deleted fourth driver is in none of those figures: only this count has it.
+    expect(body.deletedDrivers).toBe(1);
+    expect(body.funnel.accounts).toBe(3);
     expect(body.staff).toEqual({
       total: 1,
       neverSignedIn: 0,

@@ -55,7 +55,15 @@ export class PostgresUsageReader implements UsageReader {
              count(*) filter (where s.last >= ${now}::timestamptz - interval '30 days')::int as a30
       from identity.drivers d
       left join (select driver_id, max(last_used_at) as last from identity.sessions group by driver_id) s
-        on s.driver_id = d.id`.execute(db);
+        on s.driver_id = d.id
+      where d.deleted_at is null`.execute(db);
+
+    // Deleting an account keeps its row (anonymised, with deleted_at set), so every driver figure below leaves those rows out and
+    // this one counts them.
+    const deleted = await sql<{ deleted: number }>`
+      select count(*)::int as deleted from identity.drivers where deleted_at is not null`.execute(
+      db,
+    );
 
     const staff = await sql<ActivityRow>`
       select count(*)::int as total,
@@ -86,17 +94,20 @@ export class PostgresUsageReader implements UsageReader {
       with trip_days as (
         select t.driver_id, count(distinct (t.started_at at time zone 'Europe/London')::date) as days
         from routing.active_trips t
-        join identity.drivers d on d.id = t.driver_id
+        join identity.drivers d on d.id = t.driver_id and d.deleted_at is null
         group by t.driver_id
       )
       select
-        (select count(*) from identity.drivers)::int as accounts,
+        (select count(*) from identity.drivers where deleted_at is null)::int as accounts,
         (select count(*) from identity.drivers d
-           where exists (select 1 from identity.sessions s where s.driver_id = d.id and s.last_used_at is not null))::int as signed_in,
+           where d.deleted_at is null
+             and exists (select 1 from identity.sessions s where s.driver_id = d.id and s.last_used_at is not null))::int as signed_in,
         (select count(*) from identity.drivers d
-           where exists (select 1 from routing.vehicle_profiles v where v.driver_id = d.id))::int as has_vehicle,
+           where d.deleted_at is null
+             and exists (select 1 from routing.vehicle_profiles v where v.driver_id = d.id))::int as has_vehicle,
         (select count(*) from identity.drivers d
-           where exists (select 1 from routing.route_plans p where p.driver_id = d.id))::int as planned,
+           where d.deleted_at is null
+             and exists (select 1 from routing.route_plans p where p.driver_id = d.id))::int as planned,
         (select count(*) from trip_days)::int as trip,
         (select count(*) from trip_days where days >= 2)::int as trip_two_days`.execute(db);
 
@@ -118,7 +129,7 @@ export class PostgresUsageReader implements UsageReader {
                 select 1 from routing.active_trips t where t.driver_id = dr.id)))::int as trip
       from generate_series(${today}::date - 13, ${today}::date, interval '1 day') as d(day)
       left join identity.drivers dr
-        on (dr.created_at at time zone 'Europe/London')::date = d.day::date
+        on (dr.created_at at time zone 'Europe/London')::date = d.day::date and dr.deleted_at is null
       group by d.day order by d.day`.execute(db);
 
     // The drivers who joined in each of the last 8 UK weeks, and for each week from then to this one, how many of them started a
@@ -128,6 +139,7 @@ export class PostgresUsageReader implements UsageReader {
       cohort as (
         select d.id, date_trunc('week', d.created_at at time zone 'Europe/London')::date as week
         from identity.drivers d
+        where d.deleted_at is null
       )
       select to_char(w.week, 'YYYY-MM-DD') as week,
              (select count(*) from cohort c where c.week = w.week)::int as joined,
@@ -206,6 +218,7 @@ export class PostgresUsageReader implements UsageReader {
     return {
       generatedAt: now,
       drivers: toActivity(drivers.rows[0]),
+      deletedDrivers: deleted.rows[0]?.deleted ?? 0,
       staff: toActivity(staff.rows[0]),
       devices: c?.devices ?? 0,
       funnel: {
