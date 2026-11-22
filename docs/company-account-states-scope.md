@@ -75,11 +75,14 @@ walk-round records it must keep is a bad position for both sides.
    other than `GET`/`HEAD`, look up the firm's state (short cache, a few seconds, so a change takes effect almost at once) and answer
    `{ error: 'account_paused' }` when it is paused. An allow-list of paths stays open: sign out, change own password,
    second-factor routes, own billing, removing a person.
-3. **Exports**: they are reads, so the hook also refuses a paused firm's request to any route marked as an export (a flag on the
-   route, set where it is registered). Which routes download files is found by reading the code; the rule is that **every route that
-   returns a file or a full list for download is marked**.
-4. **The all-routes test**: it lists every staff route and checks each is, when the firm is paused, either blocked (writes, exports) or
-   on the open list (plain reads, the allow-list). A new route that is neither fails the test, so it cannot be added unguarded.
+3. **Exports cannot be told from views on the server.** The dashboard builds its CSV, print and audit-pack files in the browser from the same
+   reads the pages use, so the server cannot refuse a download without refusing the view. The rule "a paused firm cannot export" is
+   done in the dashboard: the download and print buttons are hidden while the company is paused (a separate change, **not in the first
+   build**). It is a nudge, not a security boundary: someone determined could still copy what they can see.
+4. **Default deny, with a test.** Every request that is not a read is refused for a paused company unless it is on the short open list
+   (removing a person, resolving an SOS alert), so a route added later is blocked without anyone remembering to. A test checks that each
+   entry on the open list is a real route, and an end-to-end test on real Postgres shows a paused company refused, reads working, another
+   company and WagonWise staff untouched.
 5. **Staff reads**: not blocked. The dashboard asks for the state with its first request and shows a banner.
 6. **Drivers**: the jobs, notices and hours-sharing code that links a driver to a firm checks the state through a small port
    (companies exposes it; jobs and hours do not import companies' internals). Exact routes to be chosen by reading `jobs` and `hours`.
@@ -175,9 +178,11 @@ work, after the states, and it needs a provider account that only the owner can 
 
 ## Order of work (each its own PR against `main`)
 
-1. **The state and the block.** Migration, the company state, the owner's buttons and settings on the admin page, the staff write
-   and export block with the all-routes test, and the driver-side switch-off. Existing firms are set `active` (the pilot firm with a
-   hold) by the migration so nothing changes for them.
+1. **The state and the block** (built, PR 429). Migration, the company state, the owner's buttons and settings on the admin page, a basic
+   banner, and the staff write block. Existing firms are set `active` by the migration so nothing changes for them; the owner sets the
+   pilot firm's hold by hand.
+   1b. **Drivers and downloads.** Switch off a paused company's jobs, live positions and hours sharing for its drivers (one line in the
+   app), and hide the dashboard's download and print buttons when paused.
 2. **Banners and emails.** The banner in the dashboard, the trial-ending, overdue and paused emails with their log, the owner's
    alerts, and the firm's own billing page showing the date and what is owed.
 3. **The periodic task.** Dates move a firm through `overdue` to `paused`, as the loop above, switched on by the owner once.
