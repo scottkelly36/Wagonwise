@@ -24,6 +24,7 @@ const iso = (d: Date | null): string | null => (d === null ? null : d.toISOStrin
 const toDto = (r: UsageReport) => ({
   generatedAt: r.generatedAt.toISOString(),
   drivers: r.drivers,
+  deletedDrivers: r.deletedDrivers,
   staff: r.staff,
   firms: { total: r.firms.length, activeThisWeek: firmsActiveThisWeek(r.firms, r.generatedAt) },
   devices: { total: r.devices },

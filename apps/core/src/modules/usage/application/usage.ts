@@ -119,7 +119,10 @@ export interface SiteSummary {
 
 export interface UsageReport {
   readonly generatedAt: Date;
+  /** Driver accounts that still exist: deleted ones (kept as an anonymised row) are left out of every driver figure. */
   readonly drivers: Activity;
+  /** How many driver accounts have been deleted. */
+  readonly deletedDrivers: number;
   readonly staff: Activity;
   readonly devices: number;
   readonly funnel: UsageFunnel;

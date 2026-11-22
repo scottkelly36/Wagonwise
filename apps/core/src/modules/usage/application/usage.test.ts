@@ -12,6 +12,7 @@ const none = { total: 0, neverSignedIn: 0, active24h: 0, active7d: 0, active30d:
 const report: UsageReport = {
   generatedAt: now,
   drivers: none,
+  deletedDrivers: 0,
   staff: none,
   devices: 0,
   funnel: {
