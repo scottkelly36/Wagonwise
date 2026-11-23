@@ -25,7 +25,7 @@ job follows along (status, live position during the job, proof of delivery). Wag
 the deal.
 
 How it grows: a haulier invites its subbies; each subbie gets a free firm that can receive work; the app offers them the rest of
-their own firm's tools (£10 a month after the trial); they work for other hauliers and bring them in (the referral reward). Loads
+their own firm's tools (£10 a month after the trial); a subbie can recommend WagonWise to a haulier they drive for (the referral reward, for firms of two lorries or more). Loads
 only appear because hauliers bring them, so hauliers come first and owner-drivers follow.
 
 ## What today's code means
@@ -202,9 +202,11 @@ payments) are in `phase-5-ideas.md` section 5 and are not reopened here.
   own jobs (+ New job), checks, maintenance and costing are the trial, then £10 a lorry a month. This needs a "receiving" allowance:
   today a firm with no capacity can add no vehicle (`CapacityReached`), so one vehicle is allowed for receiving work only.
 - **My subbies is part of the portal** for the haulier.
-- **Referrals:** today one-lorry firms do not count. Options: count them; give a haulier a credit when a subbie it invited starts
-  paying. Keep "only once the first bill is paid", one reward per Companies House number or payment card, so self-service sign-up
-  cannot be used to make firms for gift cards.
+- **Referrals: unchanged (the owner, 2026-11-23).** The reward exists to get drivers to bring in the firm they drive for, so it stays
+  for firms of two lorries or more, paid once the firm's first bill is paid (`modules.md`, "Referrals"). A subbie can still earn it
+  by recommending a haulier they work for. A one-lorry firm earns no reward, whoever recommends it: one owner-driver bringing in
+  another is £10 a month at most, not worth £25. No credit for a haulier whose invited subbies start paying. With self-service
+  sign-up, one reward per Companies House number or payment card, so firms cannot be made up for gift cards.
 
 ## Safeguards
 
@@ -252,9 +254,8 @@ Each stage is a few short sessions of one well-scoped task each, with tests alon
 3. An owner sees their own jobs' customer and price in the app? (Suggested: yes, it is their firm.)
 4. "Receiving work is free" for a one-lorry firm, and one vehicle allowed for it?
 5. First to accept wins, or the haulier chooses, as the default?
-6. The referral changes above.
-7. How long subbie documents are kept after a link ends.
-8. Is a solicitor available to read the documents wording before stage 2 ships?
+6. How long subbie documents are kept after a link ends.
+7. Is a solicitor available to read the documents wording before stage 2 ships?
 
 ## Not in this scope
 
