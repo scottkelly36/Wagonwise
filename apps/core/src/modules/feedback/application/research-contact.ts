@@ -94,14 +94,20 @@ export interface ResearchContactPerson {
 /**
  * The people WagonWise may contact for research: latest answer yes, given to the current wording, and the account still exists. WagonWise
  * staff only. Nobody else is on it, so nobody is contacted without having said yes.
+ *
+ * `readConsents` runs the consent read in the caller's data scope. Only that read is inside it: the name lookup that follows opens a scope of
+ * its own (scopes cannot nest), so it must run outside.
  */
 export async function listResearchContacts(
   deps: ResearchContactDeps,
   caller: StaffCaller,
+  readConsents: <T>(work: () => Promise<T>) => Promise<T>,
 ): Promise<Result<{ available: boolean; people: ResearchContactPerson[] }, Forbidden>> {
   if (caller.kind !== 'platform') return err({ tag: 'Forbidden' });
   if (!deps.enabled) return ok({ available: false, people: [] });
-  const agreed = (await deps.repo.latestAgreed()).filter((c) => mayContact(c, deps.wordingVersion));
+  const agreed = (await readConsents(() => deps.repo.latestAgreed())).filter((c) =>
+    mayContact(c, deps.wordingVersion),
+  );
   const labels = await deps.labels.describe(agreed.map((c) => c.staffId));
   const people = agreed.flatMap((c) => {
     const who = labels.get(c.staffId);

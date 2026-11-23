@@ -63,15 +63,18 @@ describe('market research contact end to end (real RLS, real scopes)', () => {
       driverLabels: { labelsFor: () => Promise.resolve(new Map()) },
       dataScopes: scopes,
       staffLabels: {
+        // Like the real one (companies' describeStaff), this opens a platform scope of its own: it must not be called inside another.
         describe: (ids) =>
-          Promise.resolve(
-            new Map(
-              ids.map((id) => [
-                id,
-                id === SAM
-                  ? { name: 'Sam Boss', email: 'sam@acme.test', companyName: 'Acme Haulage' }
-                  : { name: 'Pat Other', email: 'pat@beta.test', companyName: 'Beta Freight' },
-              ]),
+          scopes.run({ kind: 'platform' }, () =>
+            Promise.resolve(
+              new Map(
+                ids.map((id) => [
+                  id,
+                  id === SAM
+                    ? { name: 'Sam Boss', email: 'sam@acme.test', companyName: 'Acme Haulage' }
+                    : { name: 'Pat Other', email: 'pat@beta.test', companyName: 'Beta Freight' },
+                ]),
+              ),
             ),
           ),
       },
