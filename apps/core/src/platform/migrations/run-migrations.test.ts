@@ -128,6 +128,7 @@ describe('runMigrations', () => {
       '0096_flow_event_update_date.sql',
       '0097_referrals.sql',
       '0098_site_visits.sql',
+      '0102_portal_events.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -335,6 +336,7 @@ describe('runMigrations', () => {
       '0096_flow_event_update_date.sql',
       '0097_referrals.sql',
       '0098_site_visits.sql',
+      '0102_portal_events.sql',
     ]);
   });
 });

@@ -1,13 +1,22 @@
-import { flowEventsRequestSchema, siteVisitRequestSchema } from '@wagonwise/contracts/usage';
-import type { FastifyInstance } from 'fastify';
+import {
+  flowEventsRequestSchema,
+  portalEventsRequestSchema,
+  PORTAL_FORMS,
+  PORTAL_PAGES,
+  siteVisitRequestSchema,
+  usageSectionParamsSchema,
+} from '@wagonwise/contracts/usage';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { z } from 'zod';
 import type { DataScopes } from '../../../shared/ports/data-scope.js';
 import {
-  firmsActiveThisWeek,
-  getUsage,
+  getUsageSection,
   type CallerDirectory,
+  type StaffCaller,
   type UsageDeps,
-  type UsageReport,
 } from '../application/usage.js';
+import { getPortalReport, type PortalReportDeps } from '../application/portal-report.js';
+import { recordPortalEvents, type PortalEventDeps } from '../application/portal-events.js';
 import { recordFlowEvents, type FlowEventDeps } from '../application/flow-events.js';
 import { recordSiteVisit, type SiteVisitDeps } from '../application/site-visits.js';
 
@@ -17,54 +26,70 @@ export interface UsageRouteDeps {
   readonly dataScopes: DataScopes;
   readonly flowEvents: FlowEventDeps;
   readonly siteVisits: SiteVisitDeps;
+  readonly portalEvents: PortalEventDeps;
+  readonly portalReport: PortalReportDeps;
 }
 
 const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString());
 
-const toDto = (r: UsageReport) => ({
-  generatedAt: r.generatedAt.toISOString(),
-  drivers: r.drivers,
-  deletedDrivers: r.deletedDrivers,
-  staff: r.staff,
-  firms: { total: r.firms.length, activeThisWeek: firmsActiveThisWeek(r.firms, r.generatedAt) },
-  devices: { total: r.devices },
-  funnel: r.funnel,
-  newDriversByDay: r.newDriversByDay,
-  retentionByWeek: r.retentionByWeek,
-  tripsRunningNow: r.tripsRunningNow,
-  tripsPerDay: r.tripsPerDay,
-  jobsCreatedPerWeek: r.jobsCreatedPerWeek,
-  jobsDeliveredPerWeek: r.jobsDeliveredPerWeek,
-  checksPerWeek: r.checksPerWeek,
-  testers: { total: r.testers },
-  firmList: r.firms.map((f) => ({
-    id: f.id,
-    name: f.name,
-    drivers: f.drivers,
-    vehicles: f.vehicles,
-    staff: f.staff,
-    jobsThisMonth: f.jobsThisMonth,
-    lastActiveAt: iso(f.lastActiveAt),
-  })),
-  flows: r.flows,
-  site: r.site,
-});
+type Params = z.infer<typeof usageSectionParamsSchema>;
 
-/** `GET /staff/usage`: how the app is being used, for WagonWise staff only (checked here and again in the use case). */
+/** `GET /staff/usage/:section`: one view of how the app is being used, for WagonWise staff only (checked here and again in the use case).
+ *  Each section is its own set of queries and its own request, so the page only waits for the view it is showing. */
 export function registerUsageRoutes(app: FastifyInstance, deps: UsageRouteDeps): void {
-  app.get('/staff/usage', async (request, reply) => {
+  async function platformCaller(request: FastifyRequest, reply: FastifyReply) {
     if (request.staffId === undefined) {
-      return reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+      await reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+      return undefined;
     }
     const caller = await deps.callerDirectory.getCaller(request.staffId);
     if (caller === null || caller.kind !== 'platform') {
-      return reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
+      await reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
+      return undefined;
     }
-    const result = await deps.dataScopes.run({ kind: 'platform' }, () =>
-      getUsage(deps.usage, caller),
+    return caller;
+  }
+
+  app.get('/staff/usage/:section', async (request, reply) => {
+    const params = usageSectionParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const caller = await platformCaller(request, reply);
+    if (caller === undefined) return reply;
+    const started = Date.now();
+    const body = await deps.dataScopes.run({ kind: 'platform' }, () =>
+      sectionBody(deps, caller, params.data.section),
     );
-    if (!result.ok) return reply.status(403).send({ ...result.error, requestId: request.id });
-    return reply.status(200).send(toDto(result.value));
+    // How long each view took, so a slow one shows up in the log.
+    request.log.info({ section: params.data.section, ms: Date.now() - started }, 'usage section');
+    if (body === undefined)
+      return reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
+    return reply.status(200).send(body);
+  });
+
+  /** `POST /staff/usage/portal-events`: a batch of pages and form steps from one sitting in the portal. The company is the signed-in
+   *  person's own; the person is not kept (docs/company-account-states-scope.md, "Portal tracking"). Always `{ recorded }`. */
+  app.post('/staff/usage/portal-events', async (request, reply) => {
+    if (request.staffId === undefined) {
+      return reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+    }
+    const body = portalEventsRequestSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const caller = await deps.callerDirectory.getCaller(request.staffId);
+    if (caller === null) {
+      return reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+    }
+    // Written in the person's own scope, so the database itself lets a company add rows only for itself.
+    const recorded = await deps.dataScopes.run(
+      caller.kind === 'platform'
+        ? { kind: 'platform' }
+        : { kind: 'company', companyId: caller.companyId },
+      () => recordPortalEvents(deps.portalEvents, caller, body.data),
+    );
+    return reply.status(200).send({ recorded });
   });
 
   /** `POST /site/visits`: a visit to the website, forwarded by the driver BFF from `/signups/visits` on the website's own address. No
@@ -101,4 +126,94 @@ export function registerUsageRoutes(app: FastifyInstance, deps: UsageRouteDeps):
     });
     return reply.status(200).send({ recorded });
   });
+}
+
+/** The body of one section, or undefined when the caller may not read it. */
+async function sectionBody(
+  deps: UsageRouteDeps,
+  caller: StaffCaller,
+  section: Params['section'],
+): Promise<object | undefined> {
+  const generatedAt = (d: Date) => d.toISOString();
+  if (section === 'portal') {
+    const result = await getPortalReport(deps.portalReport, caller);
+    if (!result.ok) return undefined;
+    const r = result.value;
+    const seen = new Map(r.pages.map((p) => [p.page, p.sessions]));
+    return {
+      generatedAt: generatedAt(deps.portalReport.clock.now()),
+      windowDays: r.windowDays,
+      sessions: r.sessions,
+      firms: r.firms,
+      // Every page, so one nobody opened shows as a zero.
+      pages: PORTAL_PAGES.map((page) => ({ page, sessions: seen.get(page) ?? 0 })),
+      forms: PORTAL_FORMS.map((form) => {
+        const f = r.forms.find((x) => x.form === form);
+        return {
+          form,
+          opened: f?.opened ?? 0,
+          sent: f?.sent ?? 0,
+          left: f?.left ?? 0,
+          errors: f?.errors ?? 0,
+          medianSecondsToSend: f?.medianSecondsToSend ?? null,
+        };
+      }),
+      errorFields: r.errorFields,
+      settingUp: r.settingUp.map((f) => ({
+        ...f,
+        createdAt: f.createdAt.toISOString(),
+        lastSeenAt: iso(f.lastSeenAt),
+      })),
+    };
+  }
+  const usage = deps.usage;
+  switch (section) {
+    case 'overview': {
+      const result = await getUsageSection(usage, caller, 'overview');
+      return result.ok
+        ? { ...result.value, generatedAt: generatedAt(result.value.generatedAt) }
+        : undefined;
+    }
+    case 'drivers': {
+      const result = await getUsageSection(usage, caller, 'drivers');
+      return result.ok
+        ? { ...result.value, generatedAt: generatedAt(result.value.generatedAt) }
+        : undefined;
+    }
+    case 'activity': {
+      const result = await getUsageSection(usage, caller, 'activity');
+      return result.ok
+        ? { ...result.value, generatedAt: generatedAt(result.value.generatedAt) }
+        : undefined;
+    }
+    case 'firms': {
+      const result = await getUsageSection(usage, caller, 'firms');
+      if (!result.ok) return undefined;
+      return {
+        generatedAt: generatedAt(result.value.generatedAt),
+        firmList: result.value.firms.map((f) => ({
+          id: f.id,
+          name: f.name,
+          drivers: f.drivers,
+          vehicles: f.vehicles,
+          staff: f.staff,
+          jobsThisMonth: f.jobsThisMonth,
+          lastActiveAt: iso(f.lastActiveAt),
+        })),
+      };
+    }
+    // Flows and the website are counts over a window and carry no time of their own.
+    case 'flows': {
+      const result = await getUsageSection(usage, caller, 'flows');
+      return result.ok
+        ? { ...result.value, generatedAt: generatedAt(usage.clock.now()) }
+        : undefined;
+    }
+    case 'site': {
+      const result = await getUsageSection(usage, caller, 'site');
+      return result.ok
+        ? { ...result.value, generatedAt: generatedAt(usage.clock.now()) }
+        : undefined;
+    }
+  }
 }

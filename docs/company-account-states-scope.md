@@ -181,7 +181,7 @@ work, after the states, and it needs a provider account that only the owner can 
 2. **Banners and emails.** The banner in the dashboard, the trial-ending, overdue and paused emails with their log, the owner's
    alerts, and the firm's own billing page showing the date and what is owed.
 3. **The periodic task.** Dates move a firm through `overdue` to `paused`, as the loop above, switched on by the owner once.
-4. **Portal tracking.** Independent of 1 to 3; can go in beside them.
+4. **Portal tracking** (built, 2026-11-23; `docs/modules.md`, "Portal tracking"). Independent of 1 to 3. The company is kept on each event, as proposed. The privacy notice wording and the ICO check are still open (`privacy-review.md`).
 5. **Market research option.** The switch, the stored consent and the wording, off until the solicitor has seen it.
 6. **Payment provider.** After the owner opens the account: hosted page for payment details, webhooks, firms moving to `active`
    and back from `paused` by themselves.
