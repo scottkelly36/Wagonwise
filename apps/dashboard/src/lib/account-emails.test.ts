@@ -17,6 +17,7 @@ describe('canSendToCompany', () => {
       'overdue',
       'overdue_week',
       'paused',
+      'resumed',
     ]);
   });
 });

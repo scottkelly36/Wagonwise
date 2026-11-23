@@ -6,6 +6,7 @@ import { useState } from 'react';
 import * as billingApi from '../../api/billing';
 import * as companiesApi from '../../api/companies';
 import { DataTable, type Column } from '../../components/DataTable';
+import { PaymentDetails } from '../../components/PaymentDetails';
 import { accountStanding, amountDue } from '../../lib/account-banner';
 import { invoiceHtml, monthLabel } from '../../lib/invoice-print';
 import { formatPence, ukToday } from '../../lib/money';
@@ -115,6 +116,8 @@ export function PlanAndInvoices() {
           )}
         </section>
       )}
+
+      <PaymentDetails />
 
       {plan.isError && <ErrorNotice error={plan.error} />}
       {p !== undefined && (

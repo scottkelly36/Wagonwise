@@ -90,6 +90,12 @@ const MESSAGES: Record<string, string> = {
   NoRecipients:
     'Nobody at this company holds billing or user management, so there is nobody to write to.',
   EmailFailed: 'The email could not be sent just now. Nothing was logged, so you can try again.',
+  NotAvailable: 'Payment by card or Direct Debit is not set up yet.',
+  NoPaymentDetails: 'This company has not added payment details yet.',
+  AlreadyCollecting: 'A payment for this invoice has already been asked for and is still waiting.',
+  InvoiceNotDue: 'Only an invoice that has been issued and not yet paid can be collected.',
+  ProviderFailed:
+    'The payment provider could not be reached just now. Nothing was asked for, so you can try again.',
   ProofOfDeliveryNotFound: 'No photo has been received for that job yet.',
   SignatureNotFound: 'No signature has been received for that job yet.',
   HazardReportNotFound: 'That hazard report is not there any more.',

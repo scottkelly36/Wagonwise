@@ -3,6 +3,7 @@ import { makeId } from '../../shared/brand.js';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
+import { totalPence } from './domain/invoice.js';
 import { vehicleCapacityToday } from './application/plans.js';
 import type { CompanyDirectory } from './application/ports/company-directory.js';
 import type { CallerDirectory } from './application/ports/directories.js';
@@ -41,6 +42,26 @@ export interface BillingModule {
    * company can read its own plan, a WagonWise admin any.
    */
   vehicleCapacityFor(companyId: string): Promise<number>;
+  /**
+   * For `payments`: one invoice as far as collecting it matters. `null` for an unknown id. Runs in the caller's data scope, which must be
+   * WagonWise staff's.
+   */
+  findInvoiceForCollection(invoiceId: string): Promise<InvoiceForCollection | null>;
+  /** For `payments`: how many of a company's invoices are issued and not yet paid. Runs in the caller's data scope (WagonWise staff's). */
+  countUnpaidInvoices(companyId: string): Promise<number>;
+  /**
+   * For `payments`: records that an invoice was paid (money received), once. Safe to repeat: an invoice already paid answers
+   * `already_paid`. Runs in the caller's data scope (WagonWise staff's).
+   */
+  settleInvoice(invoiceId: string): Promise<'paid' | 'already_paid' | 'not_found' | 'not_issued'>;
+}
+
+export interface InvoiceForCollection {
+  readonly id: string;
+  readonly companyId: string;
+  readonly number: string | undefined;
+  readonly status: 'draft' | 'issued' | 'paid' | 'void';
+  readonly totalPence: number;
 }
 
 /**
@@ -81,5 +102,30 @@ export function createBillingModule(deps: BillingModuleDeps): BillingModule {
     },
     vehicleCapacityFor: (companyId) =>
       vehicleCapacityToday({ plans, clock: deps.clock }, makeId<'CompanyId'>(companyId)),
+    async findInvoiceForCollection(invoiceId) {
+      const invoice = await invoices.findById(makeId<'InvoiceId'>(invoiceId));
+      return invoice === null
+        ? null
+        : {
+            id: invoice.id,
+            companyId: invoice.companyId,
+            number: invoice.number,
+            status: invoice.status,
+            totalPence: totalPence(invoice.lines),
+          };
+    },
+    async countUnpaidInvoices(companyId) {
+      const issued = await invoices.listIssuedForCompany(makeId<'CompanyId'>(companyId));
+      return issued.filter((i) => i.status === 'issued').length;
+    },
+    async settleInvoice(invoiceId) {
+      const id = makeId<'InvoiceId'>(invoiceId);
+      const invoice = await invoices.findById(id);
+      if (invoice === null) return 'not_found';
+      if (invoice.status === 'paid') return 'already_paid';
+      if (invoice.status !== 'issued') return 'not_issued';
+      await invoices.markPaid(id, deps.clock.now());
+      return 'paid';
+    },
   };
 }

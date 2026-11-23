@@ -12,6 +12,7 @@ export const ACCOUNT_EMAIL_OPTIONS: readonly {
   { kind: 'overdue', label: 'Payment is overdue', state: 'overdue' },
   { kind: 'overdue_week', label: 'Payment is still overdue (a week on)', state: 'overdue' },
   { kind: 'paused', label: 'Account has been paused', state: 'paused' },
+  { kind: 'resumed', label: 'Account is active again', state: 'active' },
 ];
 
 /** Whether the real email can be sent to a company in this state. A test copy can always be sent. */

@@ -6,6 +6,7 @@ import { daysBetween, trialEndsOn as addDays } from './account-state.js';
  * - `trial_14`, `trial_7`: the free period ends in about two weeks, and in about one week.
  * - `overdue`, `overdue_week`: payment is overdue (nothing switched off yet); a reminder a week in.
  * - `paused`: the account has been paused, and how to get it back.
+ * - `resumed`: the account is active again because payment was received or payment details were added.
  */
 export const ACCOUNT_EMAIL_KINDS = [
   'trial_14',
@@ -13,12 +14,14 @@ export const ACCOUNT_EMAIL_KINDS = [
   'overdue',
   'overdue_week',
   'paused',
+  'resumed',
 ] as const;
 export type AccountEmailKind = (typeof ACCOUNT_EMAIL_KINDS)[number];
 
 /** The state a company must be in for an email of this kind to make sense. */
-export function stateFor(kind: AccountEmailKind): 'trial' | 'overdue' | 'paused' {
+export function stateFor(kind: AccountEmailKind): 'trial' | 'overdue' | 'paused' | 'active' {
   if (kind === 'trial_14' || kind === 'trial_7') return 'trial';
+  if (kind === 'resumed') return 'active';
   return kind === 'paused' ? 'paused' : 'overdue';
 }
 
@@ -29,6 +32,7 @@ export const ACCOUNT_EMAIL_LABEL: Record<AccountEmailKind, string> = {
   overdue: 'payment overdue',
   overdue_week: 'payment overdue (reminder)',
   paused: 'account paused',
+  resumed: 'account active again',
 };
 
 export const SUPPORT_EMAIL = 'support@wagon-wise.co.uk';
@@ -132,6 +136,22 @@ export function buildAccountEmail(input: AccountEmailInput): AccountEmail {
         `Nothing has been switched off. ${pause}`,
         '',
         'A paused account can still be signed in to and every record read, but nothing can be changed, and your drivers will no longer see your jobs. Nothing is deleted.',
+        ...planLine(input.dashboardUrl),
+        ...contactLine(),
+        ...sign,
+      ].join('\n'),
+    };
+  }
+
+  if (input.kind === 'resumed') {
+    return {
+      subject: `The WagonWise account for ${company} is active again`,
+      text: [
+        hello,
+        '',
+        `Thank you. The WagonWise account for ${company} is active again.`,
+        '',
+        'You and your colleagues can change things again, downloads and printing are back, and your drivers see your jobs as before. Nothing was deleted.',
         ...planLine(input.dashboardUrl),
         ...contactLine(),
         ...sign,

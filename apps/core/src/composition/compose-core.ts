@@ -80,6 +80,11 @@ import { createWeatherModule } from '../modules/weather/api.js';
 import { createSosModule, type UntypedDb as SosUntypedDb } from '../modules/sos/api.js';
 import { createWhat3wordsModule } from '../modules/what3words/api.js';
 import { createBillingModule, type UntypedDb as BillingUntypedDb } from '../modules/billing/api.js';
+import {
+  createPaymentsModule,
+  type PaymentsModule,
+  type UntypedDb as PaymentsUntypedDb,
+} from '../modules/payments/api.js';
 import { createPlacesModule, type UntypedDb as PlacesUntypedDb } from '../modules/places/api.js';
 import {
   createRoutingModule,
@@ -202,7 +207,7 @@ export function composeCore(
   // identity's code sender and token signer). Their staff-only admin screens (P2-M1.12c) ask
   // "who is this staff member?" per request, long after composition, so they get a function that
   // reaches `companies` once it exists, rather than a construction-order cycle.
-  const composed: { companies?: CompaniesModule } = {};
+  const composed: { companies?: CompaniesModule; payments?: PaymentsModule } = {};
   const staffCaller = (staffId: string) => {
     if (composed.companies === undefined) throw new Error('companies module not composed yet');
     return composed.companies.getStaffCaller(staffId);
@@ -257,6 +262,7 @@ export function composeCore(
   const closuresDb: ClosuresUntypedDb = identityDb;
   const placesDb: PlacesUntypedDb = identityDb;
   const billingDb: BillingUntypedDb = identityDb;
+  const paymentsDb: PaymentsUntypedDb = identityDb;
   const checksDb: ChecksUntypedDb = identityDb;
   const maintenanceDb: MaintenanceUntypedDb = identityDb;
   const hoursDb: HoursUntypedDb = identityDb;
@@ -372,6 +378,13 @@ export function composeCore(
         : {
             send: (subject, text) => identity.sendEmail(config.alertEmail as string, subject, text),
           },
+    // Whether a company has payment details on file; payments is built after billing, so this is read only when called.
+    payments: {
+      hasPaymentMethod: (companyId) => {
+        if (composed.payments === undefined) throw new Error('payments module not composed yet');
+        return composed.payments.hasPaymentMethod(companyId);
+      },
+    },
   });
   composed.companies = companies;
   const parking = createParkingModule({
@@ -396,6 +409,32 @@ export function composeCore(
     // fleet is built just below and needs billing for its capacity check, so this is read only when called.
     vehicles: { countFor: (companyId) => fleet.countVehicles(companyId) },
   });
+  // The payment provider's side of billing. No provider is connected yet (the owner opens the account first), so it is inert: nothing is
+  // offered in the portal and every message to the webhook is refused.
+  const payments = createPaymentsModule({
+    db: paymentsDb,
+    clock,
+    ids,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+    ledger: {
+      find: (invoiceId) => billing.findInvoiceForCollection(invoiceId),
+      countUnpaid: (companyId) => billing.countUnpaidInvoices(companyId),
+      settle: (invoiceId) => billing.settleInvoice(invoiceId),
+    },
+    accounts: { record: (companyId, fact) => companies.recordPaymentFact(companyId, fact) },
+    names: {
+      nameOf: async (companyId) => (await companies.getCompanyNames([companyId])).get(companyId),
+    },
+    dashboardUrl: config.dashboardUrl,
+    ownerNotice:
+      config.alertEmail === undefined
+        ? undefined
+        : {
+            send: (subject, text) => identity.sendEmail(config.alertEmail as string, subject, text),
+          },
+  });
+  composed.payments = payments;
   const fleet = createFleetModule({
     db: fleetDb,
     ids,
@@ -1031,6 +1070,7 @@ export function composeCore(
   jobs.registerRoutes(app);
   places.registerRoutes(app);
   billing.registerRoutes(app);
+  payments.registerRoutes(app);
   checks.registerRoutes(app);
   maintenance.registerRoutes(app);
   hours.registerRoutes(app);

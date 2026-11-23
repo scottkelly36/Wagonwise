@@ -13,6 +13,10 @@ import {
 } from '@wagonwise/contracts/costing';
 import { congestionIdParamsSchema } from '@wagonwise/contracts/congestion';
 import {
+  collectInvoiceRequestSchema,
+  paymentCompanyParamsSchema,
+} from '@wagonwise/contracts/payments';
+import {
   feedbackIdParamsSchema,
   listFeedbackQuerySchema,
   setFeedbackResolvedRequestSchema,
@@ -192,6 +196,17 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/companies/:id/account-history',
     params: companySettingsParamsSchema,
   },
+  // Payment details on the provider's hosted page (a company's billing people), and collecting an issued invoice (WagonWise staff).
+  // Core decides who may; with no provider connected core says so.
+  { method: 'GET', path: '/staff/payments/status', params: noParams },
+  { method: 'POST', path: '/staff/payments/setup', params: noParams },
+  {
+    method: 'POST',
+    path: '/staff/payments/collect',
+    params: noParams,
+    body: collectInvoiceRequestSchema,
+  },
+  { method: 'GET', path: '/staff/companies/:id/payments', params: paymentCompanyParamsSchema },
   { method: 'GET', path: '/staff/company/account-state', params: noParams },
   { method: 'GET', path: '/staff/account-settings', params: noParams },
   {

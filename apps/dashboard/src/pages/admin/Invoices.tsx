@@ -5,6 +5,7 @@ import type { InvoiceDto } from '@wagonwise/contracts/billing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as billingApi from '../../api/billing';
+import * as paymentsApi from '../../api/payments';
 import { DataTable, type Column } from '../../components/DataTable';
 import { invoiceHtml, monthLabel } from '../../lib/invoice-print';
 import { formatPence, parsePounds, ukToday } from '../../lib/money';
@@ -200,6 +201,21 @@ function InvoicePanel({
   const issue = useAction((token) => billingApi.issueInvoice(token, invoice.id));
   const paid = useAction((token) => billingApi.markInvoicePaid(token, invoice.id));
   const cancel = useAction((token) => billingApi.voidInvoice(token, invoice.id));
+  // Collecting from a payment method on file: only offered once a provider is connected and the company has added details.
+  const payments = useQuery({
+    queryKey: ['company-payments', invoice.companyId],
+    queryFn: () =>
+      withAccessToken((token) => paymentsApi.getCompanyPayments(token, invoice.companyId)),
+    enabled: invoice.status === 'issued',
+    retry: false,
+  });
+  const collect = useMutation({
+    mutationFn: () => withAccessToken((token) => paymentsApi.collectInvoice(token, invoice.id)),
+    onSuccess: () => {
+      notify('Payment asked for. This invoice is marked paid when the provider confirms it.');
+      void payments.refetch();
+    },
+  });
   const discard = useMutation({
     mutationFn: () => withAccessToken((token) => billingApi.deleteDraftInvoice(token, invoice.id)),
     onSuccess: () => {
@@ -208,7 +224,13 @@ function InvoicePanel({
     },
   });
 
-  const error = [addLine, removeLine, issue, paid, cancel, discard].find((m) => m.isError)?.error;
+  const error = [addLine, removeLine, issue, paid, cancel, discard, collect].find(
+    (m) => m.isError,
+  )?.error;
+  const canCollect = payments.data?.available === true && payments.data.detailsOnFile;
+  const waiting = payments.data?.collections.some(
+    (c) => c.invoiceId === invoice.id && c.status === 'requested',
+  );
 
   /** Opens the invoice in a new tab and offers it for printing or saving as a PDF. */
   function print(): void {
@@ -340,6 +362,24 @@ function InvoicePanel({
             >
               Mark as paid
             </button>
+            {canCollect && (
+              <button
+                type="button"
+                disabled={collect.isPending || waiting === true}
+                onClick={() => {
+                  void ask({
+                    message: `Collect ${formatPence(invoice.totalPence)} from ${invoice.companyName} now, from the payment details they added?`,
+                    confirmLabel: 'Collect payment',
+                    cancelLabel: 'Not now',
+                    tone: 'caution',
+                  }).then((ok) => {
+                    if (ok) collect.mutate();
+                  });
+                }}
+              >
+                {waiting === true ? 'Payment asked for, waiting' : 'Collect payment'}
+              </button>
+            )}
             <button
               className="btn-caution"
               type="button"
