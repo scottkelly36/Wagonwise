@@ -35,6 +35,13 @@ export interface ActiveJobs {
   driversOnJobs(companyId: CompanyId): Promise<readonly DriverId[]>;
 }
 
+/** Whether a company's account is paused. Supplied by composition over `companies`. A paused firm's drivers share nothing with it
+ *  (docs/company-account-states-scope.md). */
+export interface CompanyAccounts {
+  /** The company's name when it is paused, else `null`. */
+  pausedCompanyName(companyId: CompanyId): Promise<string | null>;
+}
+
 export interface SettingsRepository {
   isEnabled(companyId: CompanyId): Promise<boolean>;
   set(companyId: CompanyId, enabled: boolean, by: StaffId, at: Date): Promise<void>;

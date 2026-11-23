@@ -286,8 +286,8 @@ function AccountForm({
       </label>
       {status === 'paused' && (
         <p className="text-muted">
-          Its staff will be able to sign in and read their pages but not change anything. Nothing is
-          deleted. (Its drivers are not switched off yet.)
+          Its staff will be able to sign in and read their pages but not change anything, and its
+          drivers will no longer see its jobs. Nothing is deleted.
         </p>
       )}
       {save.isError && <ErrorNotice error={save.error} />}

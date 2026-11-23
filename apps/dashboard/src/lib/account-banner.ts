@@ -39,7 +39,7 @@ export function accountBanner(
   if (state.status === 'paused') {
     return {
       tone: 'bad',
-      text: `Your account is paused. You can still sign in and see everything, but you cannot change anything. To start it again, contact ${SUPPORT}.`,
+      text: `Your account is paused. You can still sign in and see everything, but you cannot change anything, and your drivers cannot see your jobs. To start it again, contact ${SUPPORT}.`,
     };
   }
   if (state.status === 'overdue') {

@@ -26,6 +26,13 @@ export interface DriverIdentityDirectory {
   getName(driverId: DriverId): Promise<string | null>;
 }
 
+/** Whether a company's account is paused, and its name when it is. Supplied by composition over `companies`. A paused company's
+ *  drivers see none of its jobs and share no position (docs/company-account-states-scope.md). */
+export interface CompanyAccounts {
+  /** The company's name when it is paused, else `null`. */
+  pausedCompanyName(companyId: CompanyId): Promise<string | null>;
+}
+
 /** What the walk-round checks say about sending a vehicle out: fine, its check is still to do, or it has a "do not
  *  drive" defect open. Supplied by composition over `checks`, which holds the company's settings. */
 export type StartVerdict = 'ok' | 'check_required' | 'vehicle_not_fit';

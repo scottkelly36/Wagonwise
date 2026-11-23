@@ -6,6 +6,7 @@ import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { IdentityModule } from '../identity/api.js';
 import type { UntypedDb } from './infrastructure/db.js';
+import { isPaused } from './domain/account-state.js';
 import { PostgresAccountStateRepository } from './infrastructure/postgres-account-state-repository.js';
 import { PostgresCompanyRepository } from './infrastructure/postgres-company-repository.js';
 import { createStaffRequestGate, type StaffRequestGate } from './application/staff-request-gate.js';
@@ -70,6 +71,12 @@ export interface CompaniesModule {
    * outside any `DataScopes.run`. `host/staff-auth.ts` calls it for every `/staff/*` request (docs/company-account-states-scope.md).
    */
   isStaffRequestRefused: StaffRequestGate;
+  /**
+   * The company's name when its account is paused, else `null` (also for an unknown company). Drivers' jobs and hours sharing ask
+   * it, so a paused firm's drivers are held back (docs/company-account-states-scope.md). Works in any data scope. A state change is
+   * seen within a few seconds.
+   */
+  pausedCompanyName(companyId: string): Promise<string | null>;
   /** How many months each company keeps its proof-of-delivery photos, by company id, for the daily cleanup. */
   listPhotoRetention(): Promise<ReadonlyMap<string, number>>;
   /** Every company's id and name, for billing's admin screens. */
@@ -110,6 +117,9 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     scopes: deps.dataScopes,
     clock: deps.clock,
   });
+
+  // A company's paused name, remembered a few seconds: a driver's phone reports a position every few seconds.
+  const pausedNames = new Map<string, { readonly name: string | null; readonly until: number }>();
 
   const routeDeps: CompaniesRouteDeps = {
     createCompany: { repo, states: accountStates, clock: deps.clock, admins: staffCallers },
@@ -156,6 +166,17 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
       return staffCallers.get(makeId<'StaffId'>(staffId));
     },
     isStaffRequestRefused: staffRequestGate,
+    pausedCompanyName: async (companyId: string) => {
+      const now = deps.clock.now().getTime();
+      const cached = pausedNames.get(companyId);
+      if (cached !== undefined && cached.until > now) return cached.name;
+      const id = makeId<'CompanyId'>(companyId);
+      const status = await accountStates.getStatus(id);
+      const name =
+        status !== null && isPaused(status) ? ((await repo.findById(id))?.name ?? null) : null;
+      pausedNames.set(companyId, { name, until: now + 5000 });
+      return name;
+    },
     async listFleetContacts(companyId: string) {
       const accounts = await deps.dataScopes.run({ kind: 'platform' }, () =>
         staffDeps.accounts.listByCompany(makeId<'CompanyId'>(companyId)),

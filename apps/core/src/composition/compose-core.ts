@@ -430,6 +430,10 @@ export function composeCore(
           name: c.name,
         })),
     },
+    // A paused company's drivers share no hours with it (docs/company-account-states-scope.md).
+    companyAccounts: {
+      pausedCompanyName: (companyId) => companies.pausedCompanyName(companyId),
+    },
     activeJobs: {
       companyOfActiveJob: async (driverId) => {
         const company = await jobs.activeCompanyFor(driverId);
@@ -713,6 +717,8 @@ export function composeCore(
       getIdentifier: (driverId) => identity.getDriverIdentifier(driverId),
       getName: (driverId) => identity.getDriverName(driverId),
     },
+    // A paused company's drivers see none of its jobs (docs/company-account-states-scope.md).
+    companyAccounts: { pausedCompanyName: (companyId) => companies.pausedCompanyName(companyId) },
     vehicleNames: {
       getName: async (vehicleId) => (await fleet.getVehicle(vehicleId))?.name ?? null,
     },
