@@ -5,6 +5,7 @@ import { AppState } from 'react-native';
 
 import { useAccessToken } from '../hooks/use-access-token';
 import { withPendingArrival } from '../lib/saved-trip';
+import { usePausedCompanyStore } from '../state/paused-company-store';
 import { usePendingArrivalsStore } from '../state/pending-arrivals-store';
 import * as jobsApi from './jobs';
 
@@ -21,7 +22,12 @@ export function useCurrentJob() {
   const advances = usePendingArrivalsStore((s) => s.advances);
   const query = useQuery({
     queryKey: CURRENT_JOB_KEY,
-    queryFn: () => jobsApi.getCurrentJob(accessToken),
+    queryFn: async () => {
+      const { job, pausedCompany } = await jobsApi.getCurrentJobState(accessToken);
+      // A paused firm hides its job; the home screen says why (`PausedCompanyNotice`).
+      usePausedCompanyStore.getState().set(pausedCompany);
+      return job;
+    },
     refetchInterval: CURRENT_JOB_POLL_MS,
     select: (job) => (job === null ? job : withPendingArrival(job, advances)),
   });

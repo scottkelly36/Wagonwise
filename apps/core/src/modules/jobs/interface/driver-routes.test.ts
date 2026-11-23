@@ -31,7 +31,7 @@ class FakeDriverIdentities implements DriverIdentityDirectory {
   }
 }
 
-function buildApp(): {
+function buildApp(pausedCompanies: readonly string[] = []): {
   app: FastifyInstance;
   repo: InMemoryJobRepository;
   positions: InMemoryJobPositionRepository;
@@ -49,6 +49,13 @@ function buildApp(): {
     navigationProfile: { repo, profiles: new FakeNavigationProfileProvisioner() },
     identities: new FakeDriverIdentities(),
     seen: { notices: new InMemoryNoticeRepository(), clock: new FakeClock() },
+    paused: {
+      repo,
+      accounts: {
+        pausedCompanyName: (companyId) =>
+          Promise.resolve(pausedCompanies.includes(companyId) ? 'Acme Haulage' : null),
+      },
+    },
     dataScopes: scopes,
   };
   const app = Fastify();
@@ -496,5 +503,66 @@ describe('POST /jobs/:id/signature', () => {
       (await post({ strokes: many })).statusCode,
     ];
     expect(codes).toEqual([400, 400, 400, 400]);
+  });
+});
+
+describe('a driver of a paused company', () => {
+  const PAUSED = [COMPANY];
+
+  it('sees no current job, and is told which firm is paused', async () => {
+    const { app, repo } = buildApp(PAUSED);
+    await repo.save(JOB);
+    const response = await app.inject({ method: 'GET', url: '/jobs/current', ...asDriver(DRIVER) });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ job: null, pausedCompany: 'Acme Haulage' });
+  });
+
+  it('can change nothing on a job: every driver write answers 403 CompanyPaused with the firm name', async () => {
+    const { app, repo } = buildApp(PAUSED);
+    await repo.save(JOB);
+    const calls: [string, object][] = [
+      ['status', { status: 'accepted' }],
+      ['fail', {}],
+      ['proof-of-delivery', { contentType: 'image/jpeg', dataBase64: 'YQ==' }],
+      [
+        'signature',
+        {
+          strokes: [
+            [
+              [10, 20],
+              [30, 40],
+            ],
+          ],
+        },
+      ],
+      ['navigation-profile', {}],
+      ['position', { location: { lat: 54.97, lon: -2.1 } }],
+    ];
+    for (const [path, payload] of calls) {
+      const response = await app.inject({
+        method: 'POST',
+        url: `/jobs/${JOB_ID}/${path}`,
+        payload,
+        ...asDriver(DRIVER),
+      });
+      expect([path, response.statusCode]).toEqual([path, 403]);
+      expect(response.json()).toMatchObject({ tag: 'CompanyPaused', companyName: 'Acme Haulage' });
+    }
+    // Nothing moved.
+    expect((await repo.findById(JOB_ID))?.status).toBe('assigned');
+  });
+
+  it('is unaffected when it is another company that is paused', async () => {
+    const { app, repo } = buildApp(['company-9']);
+    await repo.save(JOB);
+    const current = await app.inject({ method: 'GET', url: '/jobs/current', ...asDriver(DRIVER) });
+    expect(current.json()).toMatchObject({ job: { id: JOB_ID } });
+    const status = await app.inject({
+      method: 'POST',
+      url: `/jobs/${JOB_ID}/status`,
+      payload: { status: 'accepted' },
+      ...asDriver(DRIVER),
+    });
+    expect(status.statusCode).toBe(200);
   });
 });

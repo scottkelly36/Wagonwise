@@ -8,6 +8,7 @@ import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { CallerDirectory } from './application/ports/caller-directory.js';
 import type {
+  CompanyAccounts,
   DriverDirectory,
   DriverIdentityDirectory,
   JobStartGate,
@@ -38,6 +39,7 @@ export type {
 export { ExpoDriverNotifier, type DriverDevices } from './infrastructure/expo-driver-notifier.js';
 export type { DeliveryReport, DriverMessage, DriverNotifier } from './application/ports/notices.js';
 export type {
+  CompanyAccounts,
   DriverDirectory,
   DriverIdentityDirectory,
   VehicleDirectory,
@@ -58,6 +60,8 @@ export interface JobsModuleDeps {
   /** A driver's own identifier, for the `driver` data scope (P2-M5.1). Supplied by composition
    *  over identity's `getDriverIdentifier`, same as fleet's own driver routes. */
   readonly driverIdentities: DriverIdentityDirectory;
+  /** Whether a company's account is paused. Supplied by composition over `companies`; without it nothing is held back. */
+  readonly companyAccounts?: CompanyAccounts | undefined;
   /** A company vehicle's name, for the reports (P2-M8). Supplied by composition over fleet. */
   readonly vehicleNames: VehicleNameDirectory;
   /** Travel estimates for a company vehicle (P2-M6.4). Supplied by composition over `fleet`'s
@@ -166,6 +170,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
 
   const driverRouteDeps: JobsDriverRouteDeps = {
     currentJob: { repo },
+    paused: { repo, accounts: deps.companyAccounts },
     changeStatus: { repo, ids: deps.ids, clock: deps.clock, startGate: deps.startGate },
     attachProofOfDelivery: { repo },
     attachSignature: { repo },

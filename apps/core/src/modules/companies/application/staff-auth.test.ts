@@ -1,3 +1,5 @@
+import { InMemoryAccountEmailLog } from './testing/in-memory-account-email-log.js';
+import { InMemoryAccountStateRepository } from './testing/in-memory-account-state-repository.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
@@ -59,6 +61,9 @@ beforeEach(async () => {
   deps = {
     accounts: new InMemoryStaffAccountRepository(),
     companies: new InMemoryCompanyRepository(),
+    states: new InMemoryAccountStateRepository(),
+    emailLog: new InMemoryAccountEmailLog(),
+    mailer: { send: () => Promise.resolve() },
     invites: new InMemoryStaffInviteRepository(),
     sessions: new InMemoryStaffSessionRepository(),
     challenges: new InMemoryStaffChallengeRepository(),

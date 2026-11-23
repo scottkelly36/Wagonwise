@@ -1,5 +1,6 @@
 import type {
   CheckRequired,
+  CompanyPaused,
   DriverBusy,
   VehicleBusy,
   VehicleNotFit,
@@ -30,6 +31,7 @@ export type JobsError =
   | InvalidStops
   | InvalidTransition
   | Forbidden
+  | CompanyPaused
   | JobNotFound
   | NoRouteForVehicle
   | NoVehicleAssigned
@@ -59,6 +61,7 @@ export function statusFor(error: JobsError): number {
     case 'VehicleNotInCompany':
       return 400;
     case 'Forbidden':
+    case 'CompanyPaused':
       return 403;
     case 'JobNotFound':
     case 'ProofOfDeliveryNotFound':

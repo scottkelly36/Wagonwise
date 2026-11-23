@@ -13,6 +13,7 @@ import {
 } from '../domain/hours.js';
 import type {
   ActiveJobs,
+  CompanyAccounts,
   DriverCompanies,
   SettingsRepository,
   SharingRepository,
@@ -36,7 +37,18 @@ export interface HoursDeps {
   readonly statuses: StatusRepository;
   readonly companies: DriverCompanies;
   readonly jobs: ActiveJobs;
+  /** Without it nothing is held back; composition always supplies it. */
+  readonly accounts?: CompanyAccounts | undefined;
   readonly clock: Clock;
+}
+
+/** The firm has the feature on and its account is not paused: a paused firm's drivers share nothing with it. */
+async function firmSharingOn(
+  deps: Pick<HoursDeps, 'settings' | 'accounts'>,
+  companyId: CompanyId,
+): Promise<boolean> {
+  if (!(await deps.settings.isEnabled(companyId))) return false;
+  return deps.accounts === undefined || (await deps.accounts.pausedCompanyName(companyId)) === null;
 }
 
 export const canView = (caller: StaffCaller, companyId: CompanyId): boolean =>
@@ -93,7 +105,7 @@ export async function listMySharing(
     rows.push({
       companyId: company.id,
       companyName: company.name,
-      firmEnabled: await deps.settings.isEnabled(company.id),
+      firmEnabled: await firmSharingOn(deps, company.id),
       sharing: await deps.sharing.isSharing(company.id, driverId),
     });
   }
@@ -122,7 +134,7 @@ export async function setMySharing(
     }
     return err({ tag: 'CompanyNotFound' });
   }
-  if (sharing && !(await deps.settings.isEnabled(companyId))) {
+  if (sharing && !(await firmSharingOn(deps, companyId))) {
     return err({ tag: 'FirmNotEnabled' });
   }
   await deps.sharing.set(companyId, driverId, sharing, wordingVersion, deps.clock.now());
@@ -153,7 +165,7 @@ export async function reportStatus(
   if (bad !== undefined) return err(bad);
   const companyId = await deps.jobs.companyOfActiveJob(driverId);
   if (companyId === null) return err({ tag: 'NotOnAJob' });
-  if (!(await deps.settings.isEnabled(companyId))) return err({ tag: 'NotSharing' });
+  if (!(await firmSharingOn(deps, companyId))) return err({ tag: 'NotSharing' });
   if (!(await deps.sharing.isSharing(companyId, driverId))) return err({ tag: 'NotSharing' });
   await deps.statuses.upsert({
     companyId,
@@ -187,7 +199,7 @@ export async function listStatuses(
   companyId: CompanyId,
 ): Promise<Result<HoursStatus[], Forbidden>> {
   if (!canView(caller, companyId)) return err({ tag: 'Forbidden' });
-  if (!(await deps.settings.isEnabled(companyId))) return ok([]);
+  if (!(await firmSharingOn(deps, companyId))) return ok([]);
   const now = deps.clock.now();
   const onJobs = new Set(await deps.jobs.driversOnJobs(companyId));
   const all = await deps.statuses.listForCompany(companyId);

@@ -49,6 +49,7 @@ import { useCurrentActiveTripStore } from '../../state/current-active-trip-store
 import { useMapLayersStore } from '../../state/map-layers-store';
 import { useJobPositionReporting } from '../../hooks/use-job-position-reporting';
 import { useLiveLocation } from '../../hooks/use-live-location';
+import { PausedCompanyNotice } from '../../components/paused-company-notice';
 import { jobSubtitle, navigationTarget } from '../../lib/job-navigation';
 import { useThemeColors, type ThemeColors } from '../../theme/colors';
 import { cardStyle, radius } from '../../theme/tokens';
@@ -342,6 +343,7 @@ export default function HomeScreen() {
               testID="current-job-banner"
             />
           )}
+          {!currentJob.data && <PausedCompanyNotice />}
           <NoSignalChip style={styles.sharingChip} />
           {sharing && (
             <View style={styles.sharingChip}>

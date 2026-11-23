@@ -1,3 +1,4 @@
+import { InMemoryAccountStateRepository } from '../application/testing/in-memory-account-state-repository.js';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
@@ -13,9 +14,10 @@ function buildApp(): { app: FastifyInstance; repo: InMemoryCompanyRepository } {
   const repo = new InMemoryCompanyRepository();
   const clock = new FakeClock();
   const admins = new StubAdminDirectory(new Set([ADMIN_STAFF_ID]));
+  const states = new InMemoryAccountStateRepository();
   const deps: CompaniesRouteDeps = {
-    createCompany: { repo, clock, admins },
-    listCompanies: { repo, admins },
+    createCompany: { repo, states, clock, admins },
+    listCompanies: { repo, states, admins },
   };
   const app = Fastify();
   app.addHook('onRequest', (request, _reply, done) => {

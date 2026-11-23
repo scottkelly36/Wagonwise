@@ -4,11 +4,15 @@ import { DEFAULT_PHOTO_RETENTION_MONTHS, type Company, type CompanyId } from '..
 import type { StaffId } from '../domain/staff-account.js';
 import type { Forbidden } from '../domain/staff-policy.js';
 import { requireCompanyAdmin } from './company-authorization.js';
+import { newCompanyState } from './account-state.js';
+import type { AccountStateRepository } from './ports/account-state-repository.js';
 import type { AdminDirectory } from './ports/admin-directory.js';
 import type { CompanyRepository } from './ports/company-repository.js';
 
 export interface CreateCompanyDeps {
   readonly repo: Pick<CompanyRepository, 'save'>;
+  /** A new company starts on a free trial of the length in the settings. */
+  readonly states: Pick<AccountStateRepository, 'save' | 'getSettings'>;
   readonly clock: Clock;
   readonly admins: AdminDirectory;
 }
@@ -37,5 +41,6 @@ export async function createCompany(
     photoRetentionMonths: DEFAULT_PHOTO_RETENTION_MONTHS,
   };
   await deps.repo.save(company);
+  await deps.states.save(await newCompanyState(deps, company.id));
   return ok(company);
 }

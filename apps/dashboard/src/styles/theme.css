@@ -2095,3 +2095,22 @@ main:focus {
   border: 1px solid var(--border) !important;
   border-radius: 8px !important;
 }
+
+/* The account banner: paused, overdue, or the free period nearly over (company staff only) */
+.account-banner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 6px solid var(--info);
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow);
+}
+
+.account-banner-warn {
+  border-left-color: var(--warning);
+}
+
+.account-banner-bad {
+  border-left-color: var(--danger);
+}

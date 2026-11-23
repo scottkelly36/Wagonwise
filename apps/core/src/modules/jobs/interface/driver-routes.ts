@@ -29,6 +29,11 @@ import {
   recordJobPosition,
   type RecordJobPositionDeps,
 } from '../application/record-job-position.js';
+import {
+  pausedJobCompany,
+  pausedNameFor,
+  type PausedGuardDeps,
+} from '../application/paused-company.js';
 import { noteSeen, type NoticeDeps } from '../application/job-notices.js';
 import type { DriverIdentityDirectory } from '../application/ports/directories.js';
 import { jobDto } from './dto.js';
@@ -42,6 +47,8 @@ export interface JobsDriverRouteDeps {
   readonly recordPosition: RecordJobPositionDeps;
   readonly navigationProfile: GetNavigationProfileDeps;
   readonly identities: DriverIdentityDirectory;
+  /** Holds a paused company's drivers back: no current job, no change to one, no position. */
+  readonly paused: PausedGuardDeps;
   /** Notes when the driver first opens a job waiting for them. */
   readonly seen: Pick<NoticeDeps, 'notices' | 'clock'>;
   /** Row-Level Security scope per request (migration 0030). */
@@ -94,8 +101,12 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
   app.get('/jobs/current', (request, reply) =>
     asDriver(request, reply, async (actor) => {
       const job = await getCurrentJob(deps.currentJob, { driverId: actor.driverId });
-      if (job !== null) await noteSeen(deps.seen, job);
-      return { status: 200, body: { job: job === null ? null : jobDto(job) } };
+      if (job === null) return { status: 200, body: { job: null } };
+      // A paused company's job is switched off: the driver sees none, and the app shows one line saying why.
+      const pausedCompany = await pausedNameFor(deps.paused, job);
+      if (pausedCompany !== null) return { status: 200, body: { job: null, pausedCompany } };
+      await noteSeen(deps.seen, job);
+      return { status: 200, body: { job: jobDto(job) } };
     }),
   );
 
@@ -104,6 +115,8 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
       const params = jobIdParamsSchema.safeParse(request.params);
       const body = advanceJobStatusRequestSchema.safeParse(request.body);
       if (!params.success || !body.success) return INVALID;
+      const held = await pausedJobCompany(deps.paused, makeId<'JobId'>(params.data.id));
+      if (!held.ok) return failure(held.error);
       const result = await advanceJobStatus(deps.changeStatus, {
         actor,
         jobId: makeId<'JobId'>(params.data.id),
@@ -120,6 +133,8 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
       const params = jobIdParamsSchema.safeParse(request.params);
       const body = failJobRequestSchema.safeParse(request.body ?? {});
       if (!params.success || !body.success) return INVALID;
+      const held = await pausedJobCompany(deps.paused, makeId<'JobId'>(params.data.id));
+      if (!held.ok) return failure(held.error);
       const result = await failJob(deps.changeStatus, {
         actor,
         jobId: makeId<'JobId'>(params.data.id),
@@ -134,6 +149,8 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
       const params = jobIdParamsSchema.safeParse(request.params);
       const body = attachProofOfDeliveryRequestSchema.safeParse(request.body);
       if (!params.success || !body.success) return INVALID;
+      const held = await pausedJobCompany(deps.paused, makeId<'JobId'>(params.data.id));
+      if (!held.ok) return failure(held.error);
       const result = await attachProofOfDelivery(deps.attachProofOfDelivery, {
         actor,
         jobId: makeId<'JobId'>(params.data.id),
@@ -151,6 +168,8 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
       const params = jobIdParamsSchema.safeParse(request.params);
       const body = attachSignatureRequestSchema.safeParse(request.body);
       if (!params.success || !body.success) return INVALID;
+      const held = await pausedJobCompany(deps.paused, makeId<'JobId'>(params.data.id));
+      if (!held.ok) return failure(held.error);
       const result = await attachSignature(deps.attachSignature, {
         actor,
         jobId: makeId<'JobId'>(params.data.id),
@@ -171,6 +190,8 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
     asDriver(request, reply, async (actor) => {
       const params = jobIdParamsSchema.safeParse(request.params);
       if (!params.success) return INVALID;
+      const held = await pausedJobCompany(deps.paused, makeId<'JobId'>(params.data.id));
+      if (!held.ok) return failure(held.error);
       const result = await getNavigationProfile(deps.navigationProfile, {
         actor,
         jobId: makeId<'JobId'>(params.data.id),
@@ -186,6 +207,8 @@ export function registerJobsDriverRoutes(app: FastifyInstance, deps: JobsDriverR
       const params = jobIdParamsSchema.safeParse(request.params);
       const body = reportJobPositionRequestSchema.safeParse(request.body);
       if (!params.success || !body.success) return INVALID;
+      const held = await pausedJobCompany(deps.paused, makeId<'JobId'>(params.data.id));
+      if (!held.ok) return failure(held.error);
       const result = await recordJobPosition(deps.recordPosition, {
         actor,
         jobId: makeId<'JobId'>(params.data.id),

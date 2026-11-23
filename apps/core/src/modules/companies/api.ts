@@ -6,7 +6,12 @@ import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { IdentityModule } from '../identity/api.js';
 import type { UntypedDb } from './infrastructure/db.js';
+import { isPaused } from './domain/account-state.js';
+import { PostgresAccountEmailLog } from './infrastructure/postgres-account-email-log.js';
+import { PostgresAccountStateRepository } from './infrastructure/postgres-account-state-repository.js';
 import { PostgresCompanyRepository } from './infrastructure/postgres-company-repository.js';
+import { runAccountRules, type AccountRuleOutcome } from './application/run-account-rules.js';
+import { createStaffRequestGate, type StaffRequestGate } from './application/staff-request-gate.js';
 import { registerCompaniesRoutes, type CompaniesRouteDeps } from './interface/routes.js';
 import { bootstrapFirstAdmin as bootstrapFirstAdminUseCase } from './application/bootstrap-first-admin.js';
 import type { StaffDeps } from './application/staff-deps.js';
@@ -29,6 +34,8 @@ import { registerStaffRoutes } from './interface/staff-routes.js';
 // Re-exported so composition/ can type its overrides without reaching past this facade into
 // application/ or infrastructure/ directly (modules-reachable-only-through-api, decision 29).
 export type { UntypedDb } from './infrastructure/db.js';
+// The requests a paused company may still make, so a composition test can check each is a real route.
+export { OPEN_WHEN_PAUSED } from './domain/account-state.js';
 export type { StaffCallerView } from './infrastructure/staff-callers.js';
 
 export interface CompaniesModuleDeps {
@@ -44,6 +51,8 @@ export interface CompaniesModuleDeps {
   /** The dashboard's address (config's DASHBOARD_URL), so a staff invitation can be emailed as a link.
    *  Undefined: invitations are not emailed and the inviter shares the link. */
   readonly dashboardUrl?: string | undefined;
+  /** Where a line to the owner goes whenever WagonWise writes to a company about its account (config's ALERT_EMAIL). Undefined: none. */
+  readonly ownerNotice?: { send(subject: string, text: string): Promise<void> } | undefined;
   /** Base64 32-byte key for staff TOTP secrets (config's STAFF_SECRET_KEY). Undefined: a fresh
    *  key per boot, local dev only. */
   readonly staffSecretKey?: string | undefined;
@@ -60,6 +69,24 @@ export interface CompaniesModule {
   /** Company names by id, for screens in other modules that show who a link is with (fleet's
    *  driver links). Ids that match no company are simply absent. */
   getCompanyNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>>;
+  /**
+   * Is this staff request refused because the staff member's company is paused? True: answer `account_paused`. Reads and the few
+   * requests a paused company may still make cost nothing; WagonWise staff are never refused. Runs its own scope, so call it
+   * outside any `DataScopes.run`. `host/staff-auth.ts` calls it for every `/staff/*` request (docs/company-account-states-scope.md).
+   */
+  isStaffRequestRefused: StaffRequestGate;
+  /**
+   * The company's name when its account is paused, else `null` (also for an unknown company). Drivers' jobs and hours sharing ask
+   * it, so a paused firm's drivers are held back (docs/company-account-states-scope.md). Works in any data scope. A state change is
+   * seen within a few seconds.
+   */
+  pausedCompanyName(companyId: string): Promise<string | null>;
+  /**
+   * The automatic rules for company account states (the trial emails, trial to overdue, overdue to paused): see
+   * `application/run-account-rules.ts`. Runs in WagonWise staff's data scope, so call it outside any `DataScopes.run`. Does nothing while
+   * the setting is off or before 7am UK. Run hourly by composition.
+   */
+  runAccountRules(): Promise<AccountRuleOutcome>;
   /** How many months each company keeps its proof-of-delivery photos, by company id, for the daily cleanup. */
   listPhotoRetention(): Promise<ReadonlyMap<string, number>>;
   /** Every company's id and name, for billing's admin screens. */
@@ -88,19 +115,34 @@ export interface CompaniesModule {
  */
 export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModule {
   const repo = new PostgresCompanyRepository(deps.db);
+  const accountStates = new PostgresAccountStateRepository(deps.db);
   const staffCallers = new StaffCallers(
     new PostgresStaffAccountRepository(deps.db),
     deps.dataScopes,
   );
 
+  const staffRequestGate = createStaffRequestGate({
+    callers: staffCallers,
+    states: accountStates,
+    scopes: deps.dataScopes,
+    clock: deps.clock,
+  });
+
+  // A company's paused name, remembered a few seconds: a driver's phone reports a position every few seconds.
+  const pausedNames = new Map<string, { readonly name: string | null; readonly until: number }>();
+
   const routeDeps: CompaniesRouteDeps = {
-    createCompany: { repo, clock: deps.clock, admins: staffCallers },
-    listCompanies: { repo, admins: staffCallers },
+    createCompany: { repo, states: accountStates, clock: deps.clock, admins: staffCallers },
+    listCompanies: { repo, states: accountStates, admins: staffCallers },
   };
 
   const staffDeps: StaffDeps = {
     accounts: new PostgresStaffAccountRepository(deps.db),
     companies: repo,
+    states: accountStates,
+    emailLog: new PostgresAccountEmailLog(deps.db),
+    mailer: { send: (to, subject, text) => deps.identity.sendEmail(to, subject, text) },
+    ownerNotice: deps.ownerNotice,
     invites: new PostgresStaffInviteRepository(deps.db),
     sessions: new PostgresStaffSessionRepository(deps.db),
     challenges: new PostgresStaffChallengeRepository(deps.db),
@@ -128,13 +170,40 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     ids: deps.ids,
   };
 
+  const rulesPass = () =>
+    runAccountRules({
+      states: accountStates,
+      companies: repo,
+      accounts: staffDeps.accounts,
+      emailLog: staffDeps.emailLog,
+      mailer: staffDeps.mailer,
+      ownerNotice: deps.ownerNotice,
+      dashboardUrl: deps.dashboardUrl,
+      clock: deps.clock,
+      ids: deps.ids,
+      scoped: (work) => deps.dataScopes.run({ kind: 'platform' }, work),
+    });
+
   return {
     registerRoutes(app: FastifyInstance): void {
       registerCompaniesRoutes(app, routeDeps);
-      registerStaffRoutes(app, staffDeps, deps.dataScopes);
+      registerStaffRoutes(app, staffDeps, deps.dataScopes, rulesPass);
     },
     getStaffCaller(staffId: string) {
       return staffCallers.get(makeId<'StaffId'>(staffId));
+    },
+    isStaffRequestRefused: staffRequestGate,
+    runAccountRules: rulesPass,
+    pausedCompanyName: async (companyId: string) => {
+      const now = deps.clock.now().getTime();
+      const cached = pausedNames.get(companyId);
+      if (cached !== undefined && cached.until > now) return cached.name;
+      const id = makeId<'CompanyId'>(companyId);
+      const status = await accountStates.getStatus(id);
+      const name =
+        status !== null && isPaused(status) ? ((await repo.findById(id))?.name ?? null) : null;
+      pausedNames.set(companyId, { name, until: now + 5000 });
+      return name;
     },
     async listFleetContacts(companyId: string) {
       const accounts = await deps.dataScopes.run({ kind: 'platform' }, () =>
