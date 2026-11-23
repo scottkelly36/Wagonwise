@@ -12,6 +12,8 @@ import { FieldError } from '../../components/FieldError';
 import { VehicleEditor } from '../../components/VehicleEditor';
 import { VehicleMaintenance } from '../../components/VehicleMaintenance';
 import { focusFirstInvalid, hasErrors, type FieldErrors } from '../../lib/forms';
+import { useFormTracking } from '../../hooks/use-form-tracking';
+import { vehicleProblems } from '../../lib/portal-forms';
 import { euroVIFromChoice, topSpeedKphFromMph } from '../../lib/vehicle-speed';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -46,6 +48,7 @@ export function VehicleProfiles() {
   const everyCompany = isPlatform(me);
   const canManage = holds(me, 'manage_fleet');
   const queryClient = useQueryClient();
+  const track = useFormTracking('add_vehicle');
 
   const companies = useQuery({
     queryKey: COMPANIES_KEY,
@@ -89,7 +92,9 @@ export function VehicleProfiles() {
           },
         }),
       ),
+    onError: (error) => track.failed(error),
     onSuccess: () => {
+      track.sent();
       notify('Vehicle added');
       setForm(EMPTY_FORM);
       setShowErrors(false);
@@ -119,6 +124,7 @@ export function VehicleProfiles() {
   function handleSubmit(): void {
     if (companyId === undefined) return;
     if (hasErrors(errors)) {
+      track.problems(vehicleProblems(Object.keys(errors), form));
       setShowErrors(true);
       focusFirstInvalid(formRef.current);
       return;
@@ -245,6 +251,7 @@ export function VehicleProfiles() {
           <form
             ref={formRef}
             noValidate
+            onChange={track.touched}
             onSubmit={(e) => {
               e.preventDefault();
               handleSubmit();

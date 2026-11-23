@@ -1,4 +1,6 @@
 import { ErrorNotice } from '../../components/ErrorNotice';
+import { useFormTracking } from '../../hooks/use-form-tracking';
+import { inviteDriverProblems } from '../../lib/portal-forms';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import type { DriverLinkDto } from '@wagonwise/contracts/fleet';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -53,6 +55,7 @@ export function Drivers() {
 
   const refreshLinks = () => void queryClient.invalidateQueries({ queryKey: linksKey });
 
+  const track = useFormTracking('invite_driver');
   const [identifier, setIdentifier] = useState('');
   const [showIdentifierError, setShowIdentifierError] = useState(false);
   const driverError = identifierError(identifier);
@@ -62,7 +65,9 @@ export function Drivers() {
       withAccessToken((token) =>
         fleetApi.inviteDriver(token, companyId as string, { identifier: who.trim() }),
       ),
+    onError: (error) => track.failed(error),
     onSuccess: () => {
+      track.sent();
       notify('Invitation sent');
       setIdentifier('');
       refreshLinks();
@@ -315,9 +320,11 @@ export function Drivers() {
             <section className="mb-24">
               <h2>Invite a driver</h2>
               <form
+                onChange={track.touched}
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (driverError !== undefined) {
+                    track.problems(inviteDriverProblems(identifier, true));
                     setShowIdentifierError(true);
                     return;
                   }

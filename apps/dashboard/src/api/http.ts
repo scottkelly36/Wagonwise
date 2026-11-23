@@ -6,6 +6,8 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export interface RequestOptions {
   readonly body?: unknown;
   readonly authorization?: string;
+  /** Lets the request finish after the page is closed or left: for a short message sent as the page goes. */
+  readonly keepalive?: boolean;
 }
 
 interface JsonResponse {
@@ -26,6 +28,7 @@ export async function requestJson(
     headers.authorization = options.authorization;
   }
   const init: RequestInit = { method, headers };
+  if (options.keepalive === true) init.keepalive = true;
   if (options.body !== undefined) {
     headers['content-type'] = 'application/json';
     init.body = JSON.stringify(options.body);

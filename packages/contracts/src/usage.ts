@@ -106,10 +106,6 @@ export const flowsReportSchema = z.object({
 });
 export type FlowsReportDto = z.infer<typeof flowsReportSchema>;
 
-/**
- * `GET /staff/usage` (WagonWise staff only): how the app is being used. Counts only: no driver is named. "Active" means a
- * session was used (a sign-in or a refresh) in the window.
- */
 /** The website's pages that are counted; anything else is refused (docs/modules.md, "Website visits"). */
 export const SITE_PAGES = ['/', '/for-hauliers/', '/privacy/', '/delete-account/'] as const;
 
@@ -147,35 +143,72 @@ export const siteReportSchema = z.object({
 });
 export type SiteReportDto = z.infer<typeof siteReportSchema>;
 
-export const usageReportSchema = z.object({
-  generatedAt: z.string(),
+/**
+ * `GET /staff/usage/:section` (WagonWise staff only): how the app is being used, one view at a time so the page only waits for the
+ * view it is showing (the sections are separate sets of queries and separate requests). Counts only: no driver is named. "Active"
+ * means a session was used (a sign-in or a refresh) in the window.
+ */
+export const USAGE_SECTIONS = [
+  'overview',
+  'drivers',
+  'activity',
+  'firms',
+  'flows',
+  'site',
+  'portal',
+] as const;
+export type UsageSectionName = (typeof USAGE_SECTIONS)[number];
+export const usageSectionParamsSchema = z.object({ section: z.enum(USAGE_SECTIONS) });
+
+const generated = { generatedAt: z.string() };
+
+/** The headline figures. */
+export const usageOverviewSchema = z.object({
+  ...generated,
   /** Driver accounts that still exist: an account that was deleted is not counted. */
   drivers: activitySchema,
-  /** Driver accounts that were deleted. Optional: a core from before it was counted sends none. */
-  deletedDrivers: count.optional(),
+  /** Driver accounts that were deleted. */
+  deletedDrivers: count,
   staff: activitySchema,
   firms: z.object({ total: count, activeThisWeek: count }),
-  devices: z.object({ total: count }),
+  devices: count,
+  testers: count,
+  tripsRunningNow: count,
+  tripsToday: count,
   funnel: funnelSchema,
+});
+export type UsageOverviewDto = z.infer<typeof usageOverviewSchema>;
+
+/** New drivers and whether they come back. */
+export const usageDriversSchema = z.object({
+  ...generated,
   /** The last 14 UK days, oldest first, by the day an account was made. Days with no new drivers are included. */
   newDriversByDay: z.array(cohortDaySchema),
-  /** The last 8 UK weeks of new drivers, oldest first, weeks with none included. Optional: a core from before it sends none. */
-  retentionByWeek: z.array(retentionWeekSchema).optional(),
-  tripsRunningNow: count,
+  /** The last 8 UK weeks of new drivers, oldest first, weeks with none included. */
+  retentionByWeek: z.array(retentionWeekSchema),
+});
+export type UsageDriversDto = z.infer<typeof usageDriversSchema>;
+
+/** Trips, jobs and checks over the last weeks. */
+export const usageActivitySchema = z.object({
+  ...generated,
   /** The last 14 UK days, oldest first, days with none included. */
   tripsPerDay: z.array(dayCountSchema),
   /** The last 8 UK weeks (Monday starts), oldest first. */
   jobsCreatedPerWeek: z.array(weekCountSchema),
   jobsDeliveredPerWeek: z.array(weekCountSchema),
   checksPerWeek: z.array(weekCountSchema),
-  testers: z.object({ total: count }),
-  firmList: z.array(usageFirmSchema),
-  /** Optional: a core from before flow events sends none. */
-  flows: flowsReportSchema.optional(),
-  /** Optional: a core from before website visits were counted sends none. */
-  site: siteReportSchema.optional(),
 });
-export type UsageReportDto = z.infer<typeof usageReportSchema>;
+export type UsageActivityDto = z.infer<typeof usageActivitySchema>;
+
+export const usageFirmsSchema = z.object({ ...generated, firmList: z.array(usageFirmSchema) });
+export type UsageFirmsDto = z.infer<typeof usageFirmsSchema>;
+
+export const usageFlowsSchema = flowsReportSchema.extend(generated);
+export type UsageFlowsDto = z.infer<typeof usageFlowsSchema>;
+
+export const usageSiteSchema = siteReportSchema.extend(generated);
+export type UsageSiteDto = z.infer<typeof usageSiteSchema>;
 
 // ---------------------------------------------------------------------------------------------
 // Flow events (docs/flow-tracking-plan.md): which steps drivers reach and which fixed choices they make, so screens can be judged on
@@ -270,3 +303,145 @@ export type FlowEventsRequest = z.infer<typeof flowEventsRequestSchema>;
 
 export const flowEventsResponseSchema = z.object({ recorded: z.number().int().min(0) });
 export type FlowEventsResponse = z.infer<typeof flowEventsResponseSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// Portal events (docs/company-account-states-scope.md, "Portal tracking"): which pages a company's staff open and where the forms in the
+// dashboard trip them up, so the portal can be improved and a firm that has stopped part-way can be rung. First party only. Names, never
+// content: every page, form, field and kind of problem is from the fixed lists below, so anything else (a registration, a name, an address,
+// a note, an email) is refused rather than stored. The company is kept; the person is not.
+
+/** The pages of the portal a company's staff use (not WagonWise's own admin pages). */
+export const PORTAL_PAGES = [
+  'fleet_overview',
+  'jobs',
+  'live_trips',
+  'fuel',
+  'costs',
+  'job_costs',
+  'outlook',
+  'places',
+  'checks',
+  'maintenance',
+  'check_results',
+  'defects',
+  'audit_pack',
+  'reports',
+  'drivers',
+  'vehicle_profiles',
+  'guide',
+  'users',
+  'activity',
+  'settings',
+  'plan',
+] as const;
+export type PortalPage = (typeof PORTAL_PAGES)[number];
+
+/** The forms that are tracked, and the fields of each that a problem can be about (`form`: the whole form, such as the server refusing it). */
+export const PORTAL_FORM_FIELDS = {
+  add_vehicle: ['name', 'height', 'width', 'length', 'weight', 'top_speed', 'form'],
+  create_job: ['reference', 'stops', 'price', 'form'],
+  invite_person: ['name', 'email', 'company', 'form'],
+  invite_driver: ['identifier', 'form'],
+} as const satisfies Record<string, readonly string[]>;
+export type PortalForm = keyof typeof PORTAL_FORM_FIELDS;
+export const PORTAL_FORMS = Object.keys(PORTAL_FORM_FIELDS) as [PortalForm, ...PortalForm[]];
+
+/** What was wrong: never what was typed. */
+export const PORTAL_PROBLEMS = [
+  'required',
+  'too_long',
+  'not_a_number',
+  'invalid',
+  'capacity_reached',
+  'not_allowed',
+  'other',
+] as const;
+export type PortalProblem = (typeof PORTAL_PROBLEMS)[number];
+
+const portalAt = z.iso.datetime();
+
+export const portalEventSchema = z
+  .discriminatedUnion('event', [
+    z.object({ event: z.literal('page_viewed'), page: z.enum(PORTAL_PAGES), at: portalAt }),
+    z.object({ event: z.literal('form_opened'), form: z.enum(PORTAL_FORMS), at: portalAt }),
+    z.object({ event: z.literal('form_sent'), form: z.enum(PORTAL_FORMS), at: portalAt }),
+    /** The form was left (the page changed or closed) after something was typed into it, and it was not sent. */
+    z.object({ event: z.literal('form_left'), form: z.enum(PORTAL_FORMS), at: portalAt }),
+    z.object({
+      event: z.literal('form_error'),
+      form: z.enum(PORTAL_FORMS),
+      field: z.string().max(20),
+      problem: z.enum(PORTAL_PROBLEMS),
+      at: portalAt,
+    }),
+  ])
+  .superRefine((value, ctx) => {
+    if (value.event !== 'form_error') return;
+    const allowed: readonly string[] = PORTAL_FORM_FIELDS[value.form];
+    if (!allowed.includes(value.field)) {
+      ctx.addIssue({ code: 'custom', message: `not a field of ${value.form}`, path: ['field'] });
+    }
+  });
+export type PortalEventDto = z.infer<typeof portalEventSchema>;
+
+/** The most events one request may carry; the portal sends in batches. */
+export const MAX_PORTAL_EVENTS_PER_REQUEST = 50;
+
+/**
+ * `POST /staff/usage/portal-events` (a signed-in staff member of a company; the company comes from who is signed in, never from the
+ * request, and the person is not kept). Always answers `{ recorded }`. WagonWise's own staff are accepted and nothing is kept.
+ */
+export const portalEventsRequestSchema = z.object({
+  /** Random, made in the browser when the portal opens, so one sitting can be followed. */
+  sessionId: z.uuid(),
+  events: z.array(portalEventSchema).min(1).max(MAX_PORTAL_EVENTS_PER_REQUEST),
+});
+export type PortalEventsRequest = z.infer<typeof portalEventsRequestSchema>;
+
+export const portalEventsResponseSchema = z.object({ recorded: z.number().int().min(0) });
+export type PortalEventsResponse = z.infer<typeof portalEventsResponseSchema>;
+
+/** The portal's own usage (the `portal` section), from the events of the last 30 days. */
+export const portalReportSchema = z.object({
+  windowDays: z.number().int().min(0),
+  /** Sittings (sessions) and the companies they came from. */
+  sessions: z.number().int().min(0),
+  firms: z.number().int().min(0),
+  /** Every page, even one nobody opened (sessions that opened it). */
+  pages: z.array(z.object({ page: z.enum(PORTAL_PAGES), sessions: z.number().int().min(0) })),
+  /** Each tracked form: times opened, sent, left part-way, times it showed a problem, and the median seconds from opening to sending. */
+  forms: z.array(
+    z.object({
+      form: z.enum(PORTAL_FORMS),
+      opened: z.number().int().min(0),
+      sent: z.number().int().min(0),
+      left: z.number().int().min(0),
+      errors: z.number().int().min(0),
+      medianSecondsToSend: z.number().nullable(),
+    }),
+  ),
+  /** The fields that cause the most problems, most first. */
+  errorFields: z.array(
+    z.object({
+      form: z.enum(PORTAL_FORMS),
+      field: z.string(),
+      problem: z.enum(PORTAL_PROBLEMS),
+      count: z.number().int().min(0),
+    }),
+  ),
+  /** Companies made in the last 90 days that have not yet had a job: how far each got, and when they were last seen in the portal. */
+  settingUp: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      createdAt: z.string(),
+      vehicles: z.number().int().min(0),
+      drivers: z.number().int().min(0),
+      jobs: z.number().int().min(0),
+      lastSeenAt: z.string().nullable(),
+    }),
+  ),
+});
+export type PortalReportDto = z.infer<typeof portalReportSchema>;
+export const usagePortalSchema = portalReportSchema.extend(generated);
+export type UsagePortalDto = z.infer<typeof usagePortalSchema>;

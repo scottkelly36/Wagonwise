@@ -24,6 +24,16 @@ function buildApp(): { app: FastifyInstance; core: FakeCoreClient } {
 
 const VALID = [
   ['GET', '/staff/companies', undefined],
+  ['GET', '/staff/usage/overview', undefined],
+  ['GET', '/staff/usage/portal', undefined],
+  [
+    'POST',
+    '/staff/usage/portal-events',
+    {
+      sessionId: '64000000-0000-4000-8000-000000000001',
+      events: [{ event: 'page_viewed', page: 'jobs', at: '2026-11-23T10:00:00.000Z' }],
+    },
+  ],
   ['GET', '/staff/research-contact', undefined],
   ['PUT', '/staff/research-contact', { agreed: true, version: 1 }],
   ['GET', '/staff/research-contacts', undefined],
@@ -82,6 +92,23 @@ const VALID = [
   ['GET', `/staff/jobs/companies/${ACME}/etas`, undefined],
   ['GET', `/staff/companies/${ID}/settings`, undefined],
   ['PUT', `/staff/companies/${ID}/settings`, { photoRetentionMonths: 6 }],
+  ['GET', `/staff/companies/${ID}/account-state`, undefined],
+  ['PUT', `/staff/companies/${ID}/account-state`, { status: 'paused', note: 'no payment details' }],
+  [
+    'PUT',
+    `/staff/companies/${ID}/account-state`,
+    { status: 'trial', trialEndsOn: '2027-01-31', hold: true, note: '' },
+  ],
+  ['POST', `/staff/companies/${ID}/account-emails`, { kind: 'paused', to: 'me' }],
+  ['GET', `/staff/companies/${ID}/account-history`, undefined],
+  ['POST', '/staff/account-rules/run', undefined],
+  ['GET', '/staff/company/account-state', undefined],
+  ['GET', '/staff/account-settings', undefined],
+  [
+    'PUT',
+    '/staff/account-settings',
+    { defaultTrialDays: 30, graceDays: 14, automation: 'no_pause' },
+  ],
   ['GET', `/staff/jobs/${ID}`, undefined],
   ['GET', `/staff/jobs/${ID}/proof-of-delivery`, undefined],
   ['GET', `/staff/jobs/${ID}/signature`, undefined],
@@ -164,6 +191,31 @@ describe('the moved dashboard pages (P2-M1.12c)', () => {
       { ...VEHICLE, dimensions: { ...DIMENSIONS, heightM: -1 } },
     ],
     ['POST', '/staff/companies', { name: 'No id' }],
+    ['PUT', `/staff/companies/${ID}/account-state`, { status: 'frozen', note: '' }],
+    [
+      'PUT',
+      `/staff/companies/${ID}/account-state`,
+      { status: 'trial', trialEndsOn: 'soon', note: '' },
+    ],
+    ['PUT', '/staff/account-settings', { defaultTrialDays: 0, graceDays: 14, automation: 'off' }],
+    [
+      'PUT',
+      '/staff/account-settings',
+      { defaultTrialDays: 30, graceDays: 14, automation: 'sometimes' },
+    ],
+    ['POST', `/staff/companies/${ID}/account-emails`, { kind: 'free_beer', to: 'company' }],
+    ['POST', `/staff/companies/${ID}/account-emails`, { kind: 'paused', to: 'everyone' }],
+    ['GET', '/staff/usage/everything', undefined],
+    [
+      'POST',
+      '/staff/usage/portal-events',
+      {
+        sessionId: '64000000-0000-4000-8000-000000000001',
+        events: [
+          { event: 'page_viewed', page: '/fleet/jobs?reg=AB12CDE', at: '2026-11-23T10:00:00.000Z' },
+        ],
+      },
+    ],
     ['PUT', '/staff/research-contact', { agreed: 'yes', version: 1 }],
     ['PUT', '/staff/research-contact', { agreed: true }],
     ['GET', '/staff/jobs/companies/acme/jobs', undefined],

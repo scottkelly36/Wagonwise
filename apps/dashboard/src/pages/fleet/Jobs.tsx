@@ -30,6 +30,8 @@ import { resolvePostcode } from '../../hooks/use-postcode';
 import { resolveWords } from '../../hooks/use-words';
 import { driverDisplayName, driverNamesById } from '../../lib/driver-name';
 import { focusFirstInvalid, hasErrors, type FieldErrors } from '../../lib/forms';
+import { useFormTracking } from '../../hooks/use-form-tracking';
+import { jobProblems } from '../../lib/portal-forms';
 import { formatDuration, formatMiles } from '../../lib/live-map';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -55,6 +57,7 @@ import {
 import { formatPence, parsePounds } from '../../lib/money';
 import { staffErrorMessage } from '../staff/messages';
 import { useWorkingCompany } from '../../state/working-company-store';
+import { useExportsHeld } from '../../hooks/use-exports-held';
 
 const COMPANIES_KEY = ['companies'] as const;
 const TERMINAL: readonly JobDto['status'][] = ['delivered', 'cancelled', 'failed'];
@@ -75,6 +78,7 @@ const EMPTY_FORM = {
  *  creation — core refuses the job's `delivered` step until the driver attaches a photo when it's
  *  set; this page only shows whether one's arrived, it doesn't view the photo itself. */
 export function Jobs() {
+  const track = useFormTracking('create_job');
   const me = useStaffAuthStore((s) => s.session?.staff);
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
   const everyCompany = isPlatform(me);
@@ -239,7 +243,9 @@ export function Jobs() {
         void queryClient.invalidateQueries({ queryKey: ['places', companyId] });
       return job;
     },
+    onError: (error) => track.failed(error),
     onSuccess: () => {
+      track.sent();
       notify('Job created');
       // Keep the shape of the job just made (a firm that never has a collection should not have to remove it
       // every time), with the stops emptied.
@@ -324,6 +330,7 @@ export function Jobs() {
   function handleCreate(): void {
     if (companyId === undefined) return;
     if (hasErrors(errors)) {
+      track.problems(jobProblems(Object.keys(errors), { price: form.price }));
       setShowErrors(true);
       focusFirstInvalid(formRef.current);
       return;
@@ -378,6 +385,7 @@ export function Jobs() {
   );
 
   const [recordError, setRecordError] = useState<string | undefined>(undefined);
+  const exportsHeld = useExportsHeld();
 
   /** Opens a delivery record in a new tab and offers it for printing or saving as a PDF. The tab is opened first,
    *  on the click, so a pop-up blocker allows it; the photos are fetched one at a time (they are large). */
@@ -566,7 +574,9 @@ export function Jobs() {
       key: 'record',
       header: 'Delivery record',
       cell: (job) =>
-        job.status === 'delivered' ? (
+        job.status === 'delivered' && exportsHeld ? (
+          <span className="text-muted">Switched off while paused</span>
+        ) : job.status === 'delivered' ? (
           <div className="job-actions job-record-actions">
             <button
               type="button"
@@ -827,6 +837,7 @@ export function Jobs() {
               <form
                 ref={formRef}
                 noValidate
+                onChange={track.touched}
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleCreate();

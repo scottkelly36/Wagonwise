@@ -1,3 +1,5 @@
+import { InMemoryAccountEmailLog } from '../application/testing/in-memory-account-email-log.js';
+import { InMemoryAccountStateRepository } from '../application/testing/in-memory-account-state-repository.js';
 import type {
   AcceptStaffInviteResponse,
   ConfirmStaffEnrolmentResponse,
@@ -65,6 +67,9 @@ beforeEach(async () => {
   deps = {
     accounts: new InMemoryStaffAccountRepository(),
     companies,
+    states: new InMemoryAccountStateRepository(),
+    emailLog: new InMemoryAccountEmailLog(),
+    mailer: { send: () => Promise.resolve() },
     invites: new InMemoryStaffInviteRepository(),
     sessions: new InMemoryStaffSessionRepository(),
     challenges: new InMemoryStaffChallengeRepository(),

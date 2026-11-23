@@ -23,6 +23,7 @@ import {
   sendLaunchEmailsRequestSchema,
   testerIdParamsSchema,
 } from '@wagonwise/contracts/signups';
+import { portalEventsRequestSchema, usageSectionParamsSchema } from '@wagonwise/contracts/usage';
 import { hoursCompanyParamsSchema, hoursSettingsSchema } from '@wagonwise/contracts/hours';
 import {
   listParkingSpotsQuerySchema,
@@ -76,8 +77,11 @@ import {
   updateBillingDetailsRequestSchema,
 } from '@wagonwise/contracts/billing';
 import {
+  accountSettingsSchema,
   companySettingsParamsSchema,
   createCompanyRequestSchema,
+  sendAccountEmailRequestSchema,
+  setAccountStateRequestSchema,
   updateCompanySettingsRequestSchema,
 } from '@wagonwise/contracts/companies';
 import {
@@ -162,6 +166,41 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/companies/:id/settings',
     params: companySettingsParamsSchema,
     body: updateCompanySettingsRequestSchema,
+  },
+  // Whether a company may use WagonWise (trial, active, overdue, paused). WagonWise staff read and move any company's; a company's own
+  // staff read their own for the banner. Core decides who may. A paused company's changes are refused by core with account_paused.
+  {
+    method: 'GET',
+    path: '/staff/companies/:id/account-state',
+    params: companySettingsParamsSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/companies/:id/account-state',
+    params: companySettingsParamsSchema,
+    body: setAccountStateRequestSchema,
+  },
+  // Writing to a company about its account by hand, or sending oneself a test copy. WagonWise staff only; core decides.
+  {
+    method: 'POST',
+    path: '/staff/companies/:id/account-emails',
+    params: companySettingsParamsSchema,
+    body: sendAccountEmailRequestSchema,
+  },
+  // One pass of the automatic account rules now. WagonWise staff only; core decides.
+  { method: 'POST', path: '/staff/account-rules/run', params: noParams },
+  {
+    method: 'GET',
+    path: '/staff/companies/:id/account-history',
+    params: companySettingsParamsSchema,
+  },
+  { method: 'GET', path: '/staff/company/account-state', params: noParams },
+  { method: 'GET', path: '/staff/account-settings', params: noParams },
+  {
+    method: 'PUT',
+    path: '/staff/account-settings',
+    params: noParams,
+    body: accountSettingsSchema,
   },
   // Walk-round check lists a company builds for itself: its staff see them, fleet managers build them. Core decides.
   { method: 'GET', path: '/staff/checks/starter', params: noParams },
@@ -496,8 +535,15 @@ const FORWARDS: readonly Forward[] = [
   { method: 'GET', path: '/staff/congestion/reports', params: noParams },
   { method: 'DELETE', path: '/staff/congestion/reports/:id', params: congestionIdParamsSchema },
   { method: 'POST', path: '/staff/congestion/reports/clear-expired', params: noParams },
-  // How the app is being used (WagonWise staff only; core decides).
-  { method: 'GET', path: '/staff/usage', params: noParams },
+  // How the app is being used, one view at a time (WagonWise staff only; core decides).
+  { method: 'GET', path: '/staff/usage/:section', params: usageSectionParamsSchema },
+  // Pages and form steps from a company's staff in the portal. The company is taken from who is signed in; core decides.
+  {
+    method: 'POST',
+    path: '/staff/usage/portal-events',
+    params: noParams,
+    body: portalEventsRequestSchema,
+  },
   // The landing page's tester list (WagonWise staff only; core decides).
   { method: 'GET', path: '/staff/signups', params: noParams },
   {

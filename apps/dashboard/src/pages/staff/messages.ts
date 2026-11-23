@@ -13,6 +13,8 @@ const MESSAGES: Record<string, string> = {
   PrivilegeNotHeld: 'You can only give privileges you have yourself.',
   NotAFleetUser: 'WagonWise staff accounts have no per-company privileges.',
   Forbidden: "You're not allowed to do that.",
+  AccountPaused:
+    'Your account is paused, so changes are switched off. You can still see everything. Contact support@wagon-wise.co.uk.',
   StaffNotFound: 'That person could not be found.',
   CodeNotSent: "We couldn't send the code just now. Please try again.",
   NotSignedIn: 'Please sign in again.',
@@ -84,6 +86,10 @@ const MESSAGES: Record<string, string> = {
   InvalidLine: 'Enter a description and an amount in pounds and pence.',
   InvalidDay: 'Pick a valid date.',
   CompanyNotFound: 'That company could not be found.',
+  WrongState: 'That email is about a state this company is not in.',
+  NoRecipients:
+    'Nobody at this company holds billing or user management, so there is nobody to write to.',
+  EmailFailed: 'The email could not be sent just now. Nothing was logged, so you can try again.',
   ProofOfDeliveryNotFound: 'No photo has been received for that job yet.',
   SignatureNotFound: 'No signature has been received for that job yet.',
   HazardReportNotFound: 'That hazard report is not there any more.',

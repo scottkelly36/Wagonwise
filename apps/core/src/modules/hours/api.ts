@@ -6,6 +6,7 @@ import { pruneStale, type HoursDeps } from './application/hours.js';
 import type {
   ActiveJobs,
   CallerDirectory,
+  CompanyAccounts,
   DriverCompanies,
   DriverIdentityDirectory,
 } from './application/ports.js';
@@ -22,6 +23,7 @@ export type { UntypedDb } from './infrastructure/db.js';
 export type {
   ActiveJobs,
   CallerDirectory,
+  CompanyAccounts,
   DriverCompanies,
   DriverIdentityDirectory,
   StaffCaller,
@@ -39,6 +41,8 @@ export interface HoursModuleDeps {
   readonly driverCompanies: DriverCompanies;
   /** Who is on a job now. Supplied by composition over `jobs`. */
   readonly activeJobs: ActiveJobs;
+  /** Whether a company's account is paused. Supplied by composition over `companies`; without it nothing is held back. */
+  readonly companyAccounts?: CompanyAccounts | undefined;
 }
 
 export interface HoursModule {
@@ -65,6 +69,7 @@ export function createHoursModule(deps: HoursModuleDeps): HoursModule {
     statuses,
     companies: deps.driverCompanies,
     jobs: deps.activeJobs,
+    accounts: deps.companyAccounts,
     clock: deps.clock,
   };
   return {

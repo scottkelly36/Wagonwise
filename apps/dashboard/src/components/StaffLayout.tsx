@@ -1,10 +1,12 @@
 import type { StaffAccountDto } from '@wagonwise/contracts/staff';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { usePortalTracking } from '../hooks/use-portal-tracking';
 import { foldingSections, sectionForPath, toggled } from '../lib/nav';
 import { pageTitle } from '../lib/page-title';
 import { holds, isPlatform } from '../state/access';
 import { useStaffAuthStore } from '../state/staff-auth-store';
+import { AccountBanner } from './AccountBanner';
 import { FeedbackProvider } from './Feedback';
 import { SosBanner } from './SosBanner';
 import { TopBar } from './TopBar';
@@ -155,6 +157,8 @@ export function StaffLayout() {
   const { pathname } = useLocation();
   const session = useStaffAuthStore((s) => s.session);
   const staff = session?.staff;
+  // Which pages a company's staff open, for improving the portal (not WagonWise's own staff).
+  usePortalTracking();
 
   // On a phone the menu is a drawer. It closes when a page is chosen, and on Escape.
   const [navOpen, setNavOpen] = useState(false);
@@ -273,6 +277,7 @@ export function StaffLayout() {
         <div className="main-column">
           <TopBar navOpen={navOpen} onToggleNav={() => setNavOpen((o) => !o)} />
           <main id="main-content" className="content" tabIndex={-1}>
+            {staff !== undefined && !isPlatform(staff) && <AccountBanner />}
             <SosBanner />
             <WeatherBanner />
             <Outlet />

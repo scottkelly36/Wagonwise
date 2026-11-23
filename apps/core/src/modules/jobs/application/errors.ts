@@ -45,3 +45,8 @@ export type CheckRequired = TaggedError<'CheckRequired'>;
 
 /** The company has asked that a vehicle with a "do not drive" defect still open is not sent out, and this one has. */
 export type VehicleNotFit = TaggedError<'VehicleNotFit'>;
+
+/** The company's account is paused, so its jobs are switched off for its drivers. Nothing is changed; the app shows `companyName`. */
+export interface CompanyPaused extends TaggedError<'CompanyPaused'> {
+  readonly companyName: string;
+}

@@ -1,3 +1,4 @@
+import { InMemoryAccountStateRepository } from './testing/in-memory-account-state-repository.js';
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
@@ -12,6 +13,7 @@ const DRIVER = makeId<'StaffId'>('fleet-user');
 function setUp() {
   return {
     repo: new InMemoryCompanyRepository(),
+    states: new InMemoryAccountStateRepository(),
     clock: new FakeClock(),
     admins: new StubAdminDirectory(new Set([ADMIN])),
   };
@@ -54,7 +56,7 @@ describe('listCompanies', () => {
     await createCompany(deps, { callerId: ADMIN, id: makeId<'CompanyId'>('c-1'), name: 'Acme' });
 
     const forAdmin = await listCompanies(deps, { callerId: ADMIN });
-    expect(forAdmin.ok && forAdmin.value.map((c) => c.name)).toEqual(['Acme']);
+    expect(forAdmin.ok && forAdmin.value.map((entry) => entry.company.name)).toEqual(['Acme']);
     expect(await listCompanies(deps, { callerId: DRIVER })).toEqual({
       ok: false,
       error: { tag: 'Forbidden' },

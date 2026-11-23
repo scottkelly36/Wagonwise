@@ -3,6 +3,7 @@ import {
   attachProofOfDelivery,
   attachSignature,
   getCurrentJob,
+  getCurrentJobState,
   getNavigationProfile,
   reportJobPosition,
 } from './jobs';
@@ -204,5 +205,22 @@ describe('getNavigationProfile', () => {
       tag: 'NoVehicleAssigned',
       status: 409,
     });
+  });
+});
+
+describe('getCurrentJobState', () => {
+  it('carries the name of a firm whose paused account hides the job', async () => {
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { job: null, pausedCompany: 'Acme Haulage' }));
+    expect(await getCurrentJobState('token-1')).toEqual({
+      job: null,
+      pausedCompany: 'Acme Haulage',
+    });
+  });
+
+  it('has no paused firm when the answer names none (an older core, or a firm that is not paused)', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue(jsonResponse(200, { job: null }));
+    expect(await getCurrentJobState('token-1')).toEqual({ job: null, pausedCompany: undefined });
   });
 });

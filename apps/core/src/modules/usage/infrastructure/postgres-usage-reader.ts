@@ -6,8 +6,11 @@ import {
   type Activity,
   type FlowsSummary,
   type UsageFirm,
+  type UsageActivity,
+  type UsageDrivers,
+  type UsageFirms,
+  type UsageOverview,
   type UsageReader,
-  type UsageReport,
 } from '../application/usage.js';
 
 const FLOW_WINDOW_DAYS = 7;
@@ -43,7 +46,8 @@ type WeekRow = { week: string; count: number };
 export class PostgresUsageReader implements UsageReader {
   constructor(private readonly db: UntypedDb) {}
 
-  async read(now: Date): Promise<UsageReport> {
+  /** The headline figures: who uses the app, how far drivers get, and how many firms. The cheap view the page opens on. */
+  async overview(now: Date): Promise<UsageOverview> {
     const db = this.db;
     const today = ukDay(now);
 
@@ -111,6 +115,55 @@ export class PostgresUsageReader implements UsageReader {
         (select count(*) from trip_days)::int as trip,
         (select count(*) from trip_days where days >= 2)::int as trip_two_days`.execute(db);
 
+    const tripsToday = await sql<{ count: number }>`
+      select count(*)::int as count from routing.active_trips
+      where (started_at at time zone 'Europe/London')::date = ${today}::date`.execute(db);
+
+    // Only how many firms there are and how many were used in the last week; the list with the detail is its own view.
+    const firmCounts = await sql<{ total: number; active: number }>`
+      select count(*)::int as total,
+             count(*) filter (where last_active >= ${now}::timestamptz - interval '7 days')::int as active
+      from (
+        select greatest(
+          (select max(ss.last_used_at) from companies.staff_sessions ss
+             join companies.staff_accounts s on s.id = ss.staff_id where s.company_id = c.id),
+          (select max(ds.last_used_at) from identity.sessions ds
+             join fleet.driver_links l on l.driver_id = ds.driver_id and l.company_id = c.id and l.status = 'active')
+        ) as last_active
+        from companies.companies c
+      ) f`.execute(db);
+
+    const c = counts.rows[0];
+    const f = funnel.rows[0];
+    return {
+      generatedAt: now,
+      drivers: toActivity(drivers.rows[0]),
+      deletedDrivers: deleted.rows[0]?.deleted ?? 0,
+      staff: toActivity(staff.rows[0]),
+      devices: c?.devices ?? 0,
+      testers: c?.testers ?? 0,
+      tripsRunningNow: c?.running ?? 0,
+      tripsToday: tripsToday.rows[0]?.count ?? 0,
+      firms: {
+        total: firmCounts.rows[0]?.total ?? 0,
+        activeThisWeek: firmCounts.rows[0]?.active ?? 0,
+      },
+      funnel: {
+        accounts: f?.accounts ?? 0,
+        signedIn: f?.signed_in ?? 0,
+        hasVehicle: f?.has_vehicle ?? 0,
+        plannedRoute: f?.planned ?? 0,
+        startedTrip: f?.trip ?? 0,
+        startedTripOnTwoDays: f?.trip_two_days ?? 0,
+      },
+    };
+  }
+
+  /** New drivers by day and how many come back week by week. */
+  async drivers(now: Date): Promise<UsageDrivers> {
+    const db = this.db;
+    const today = ukDay(now);
+
     // The drivers who joined on each of the last 14 UK days, and how far each day's drivers have got so far.
     const cohorts = await sql<{
       day: string;
@@ -152,6 +205,28 @@ export class PostgresUsageReader implements UsageReader {
       from generate_series((select week from this_week) - 49, (select week from this_week), interval '7 days') as w(week)
       order by w.week`.execute(db);
 
+    return {
+      generatedAt: now,
+      newDriversByDay: cohorts.rows.map((row) => ({
+        day: row.day,
+        joined: row.joined,
+        hasVehicle: row.has_vehicle,
+        plannedRoute: row.planned,
+        startedTrip: row.trip,
+      })),
+      retentionByWeek: retention.rows.map((row) => ({
+        weekStart: row.week,
+        joined: row.joined,
+        startedTripInWeek: row.active,
+      })),
+    };
+  }
+
+  /** Trips, jobs and checks over the last weeks. */
+  async activity(now: Date): Promise<UsageActivity> {
+    const db = this.db;
+    const today = ukDay(now);
+
     const tripsPerDay = await sql<{ day: string; count: number }>`
       select to_char(d.day, 'YYYY-MM-DD') as day, count(t.id)::int as count
       from generate_series(${today}::date - 13, ${today}::date, interval '1 day') as d(day)
@@ -185,6 +260,20 @@ export class PostgresUsageReader implements UsageReader {
         on date_trunc('week', c.check_day::timestamp)::date = w.week::date
       group by w.week order by w.week`.execute(db);
 
+    const week = (rows: WeekRow[]) => rows.map((r) => ({ weekStart: r.week, count: r.count }));
+    return {
+      generatedAt: now,
+      tripsPerDay: tripsPerDay.rows,
+      jobsCreatedPerWeek: week(created.rows),
+      jobsDeliveredPerWeek: week(delivered.rows),
+      checksPerWeek: week(checks.rows),
+    };
+  }
+
+  /** Every firm with how much it has set up and when it was last used. */
+  async firms(now: Date): Promise<UsageFirms> {
+    const db = this.db;
+
     const firms = await sql<{
       id: string;
       name: string;
@@ -209,44 +298,8 @@ export class PostgresUsageReader implements UsageReader {
       from companies.companies c
       order by last_active desc nulls last, c.name`.execute(db);
 
-    const flows = await this.readFlows(now);
-    const site = await this.readSite(now);
-
-    const week = (rows: WeekRow[]) => rows.map((r) => ({ weekStart: r.week, count: r.count }));
-    const c = counts.rows[0];
-    const f = funnel.rows[0];
     return {
       generatedAt: now,
-      drivers: toActivity(drivers.rows[0]),
-      deletedDrivers: deleted.rows[0]?.deleted ?? 0,
-      staff: toActivity(staff.rows[0]),
-      devices: c?.devices ?? 0,
-      funnel: {
-        accounts: f?.accounts ?? 0,
-        signedIn: f?.signed_in ?? 0,
-        hasVehicle: f?.has_vehicle ?? 0,
-        plannedRoute: f?.planned ?? 0,
-        startedTrip: f?.trip ?? 0,
-        startedTripOnTwoDays: f?.trip_two_days ?? 0,
-      },
-      newDriversByDay: cohorts.rows.map((row) => ({
-        day: row.day,
-        joined: row.joined,
-        hasVehicle: row.has_vehicle,
-        plannedRoute: row.planned,
-        startedTrip: row.trip,
-      })),
-      retentionByWeek: retention.rows.map((row) => ({
-        weekStart: row.week,
-        joined: row.joined,
-        startedTripInWeek: row.active,
-      })),
-      tripsRunningNow: c?.running ?? 0,
-      tripsPerDay: tripsPerDay.rows,
-      jobsCreatedPerWeek: week(created.rows),
-      jobsDeliveredPerWeek: week(delivered.rows),
-      checksPerWeek: week(checks.rows),
-      testers: c?.testers ?? 0,
       firms: firms.rows.map((r): UsageFirm => ({
         id: r.id,
         name: r.name,
@@ -256,13 +309,11 @@ export class PostgresUsageReader implements UsageReader {
         jobsThisMonth: r.jobs,
         lastActiveAt: r.last_active,
       })),
-      flows,
-      site,
     };
   }
 
   /** The anonymous flow events of the last 7 days, counted by session. No driver is in the table, so none can be named here. */
-  private async readFlows(now: Date): Promise<FlowsSummary> {
+  async flows(now: Date): Promise<FlowsSummary> {
     const db = this.db;
     const since = sql`${now}::timestamptz - make_interval(days => ${FLOW_WINDOW_DAYS})`;
 
@@ -368,7 +419,7 @@ export class PostgresUsageReader implements UsageReader {
   }
 
   /** The website's visits of the last 7 days (migration 0098): views per page, video plays, and where views came from. */
-  private async readSite(now: Date): Promise<SiteSummary> {
+  async site(now: Date): Promise<SiteSummary> {
     const db = this.db;
     const since = sql`${now}::timestamptz - make_interval(days => ${FLOW_WINDOW_DAYS})`;
     const views = await sql<{ page: string; views: number }>`
