@@ -10,6 +10,7 @@ import { isPaused } from './domain/account-state.js';
 import { PostgresAccountEmailLog } from './infrastructure/postgres-account-email-log.js';
 import { PostgresAccountStateRepository } from './infrastructure/postgres-account-state-repository.js';
 import { PostgresCompanyRepository } from './infrastructure/postgres-company-repository.js';
+import { runAccountRules, type AccountRuleOutcome } from './application/run-account-rules.js';
 import { createStaffRequestGate, type StaffRequestGate } from './application/staff-request-gate.js';
 import { registerCompaniesRoutes, type CompaniesRouteDeps } from './interface/routes.js';
 import { bootstrapFirstAdmin as bootstrapFirstAdminUseCase } from './application/bootstrap-first-admin.js';
@@ -80,6 +81,12 @@ export interface CompaniesModule {
    * seen within a few seconds.
    */
   pausedCompanyName(companyId: string): Promise<string | null>;
+  /**
+   * The automatic rules for company account states (the trial emails, trial to overdue, overdue to paused): see
+   * `application/run-account-rules.ts`. Runs in WagonWise staff's data scope, so call it outside any `DataScopes.run`. Does nothing while
+   * the setting is off or before 7am UK. Run hourly by composition.
+   */
+  runAccountRules(): Promise<AccountRuleOutcome>;
   /** How many months each company keeps its proof-of-delivery photos, by company id, for the daily cleanup. */
   listPhotoRetention(): Promise<ReadonlyMap<string, number>>;
   /** Every company's id and name, for billing's admin screens. */
@@ -163,15 +170,30 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     ids: deps.ids,
   };
 
+  const rulesPass = () =>
+    runAccountRules({
+      states: accountStates,
+      companies: repo,
+      accounts: staffDeps.accounts,
+      emailLog: staffDeps.emailLog,
+      mailer: staffDeps.mailer,
+      ownerNotice: deps.ownerNotice,
+      dashboardUrl: deps.dashboardUrl,
+      clock: deps.clock,
+      ids: deps.ids,
+      scoped: (work) => deps.dataScopes.run({ kind: 'platform' }, work),
+    });
+
   return {
     registerRoutes(app: FastifyInstance): void {
       registerCompaniesRoutes(app, routeDeps);
-      registerStaffRoutes(app, staffDeps, deps.dataScopes);
+      registerStaffRoutes(app, staffDeps, deps.dataScopes, rulesPass);
     },
     getStaffCaller(staffId: string) {
       return staffCallers.get(makeId<'StaffId'>(staffId));
     },
     isStaffRequestRefused: staffRequestGate,
+    runAccountRules: rulesPass,
     pausedCompanyName: async (companyId: string) => {
       const now = deps.clock.now().getTime();
       const cached = pausedNames.get(companyId);

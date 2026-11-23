@@ -16,6 +16,17 @@ export class InMemoryAccountEmailLog implements AccountEmailLog {
     return Promise.resolve(true);
   }
 
+  list(companyId: CompanyId, limit: number) {
+    const found = [...this.rows.entries()]
+      .filter(([key]) => key.startsWith(`${companyId}|`))
+      .map(([key, row]) => {
+        const [, kind, periodKey] = key.split('|') as [string, AccountEmailKind, string];
+        return { kind, periodKey, sentAt: row.at, recipients: row.recipients };
+      })
+      .sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
+    return Promise.resolve(found.slice(0, limit));
+  }
+
   release(companyId: CompanyId, kind: AccountEmailKind, periodKey: string) {
     this.rows.delete(this.key(companyId, kind, periodKey));
     return Promise.resolve();

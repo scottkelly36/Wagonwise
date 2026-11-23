@@ -15,6 +15,8 @@ export interface AccountEmailLog {
   ): Promise<boolean>;
   /** The email did not go out: give the row back so the next pass tries again. */
   release(companyId: CompanyId, kind: AccountEmailKind, periodKey: string): Promise<void>;
+  /** The latest emails sent to one company, newest first. */
+  list(companyId: CompanyId, limit: number): Promise<readonly AccountEmailRecord[]>;
   /** Once it has gone: how many people it went to. */
   recordSent(
     companyId: CompanyId,
@@ -22,6 +24,13 @@ export interface AccountEmailLog {
     periodKey: string,
     recipients: number,
   ): Promise<void>;
+}
+
+export interface AccountEmailRecord {
+  readonly kind: AccountEmailKind;
+  readonly periodKey: string;
+  readonly sentAt: Date;
+  readonly recipients: number;
 }
 
 /** Sends one email, through identity's sender (the same account that carries sign-in codes). */

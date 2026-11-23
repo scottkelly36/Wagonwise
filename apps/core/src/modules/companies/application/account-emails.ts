@@ -101,7 +101,8 @@ export async function deliverAccountEmail(
       trialEndsOn: state.trialEndsOn,
       overdueSince: state.overdueSince === null ? null : ukDay(state.overdueSince),
       graceDays: settings.graceDays,
-      hold: state.hold,
+      // Without automatic pausing, or with the hold, no day for a pause is promised.
+      hold: state.hold || settings.automation !== 'full',
       dashboardUrl: deps.dashboardUrl,
     });
     try {

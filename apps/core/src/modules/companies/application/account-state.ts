@@ -2,6 +2,7 @@ import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import { err, ok, type Result, type TaggedError } from '../../../shared/result.js';
 import {
+  ACCOUNT_AUTOMATION_MODES,
   MAX_GRACE_DAYS,
   MAX_NOTE_LENGTH,
   MAX_TRIAL_DAYS,
@@ -149,7 +150,8 @@ export async function setAccountSettings(
     Number.isInteger(settings.graceDays) &&
     settings.graceDays >= 0 &&
     settings.graceDays <= MAX_GRACE_DAYS;
-  if (!trialOk || !graceOk) return err({ tag: 'InvalidSetting' });
+  const modeOk = ACCOUNT_AUTOMATION_MODES.includes(settings.automation);
+  if (!trialOk || !graceOk || !modeOk) return err({ tag: 'InvalidSetting' });
   await deps.states.saveSettings(settings, actor.staffId, deps.clock.now());
   return ok(settings);
 }

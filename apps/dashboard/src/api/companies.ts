@@ -1,4 +1,6 @@
 import {
+  accountHistorySchema,
+  accountRulesRunSchema,
   accountSettingsSchema,
   accountStateSchema,
   companySchema,
@@ -9,6 +11,8 @@ import {
   sendAccountEmailResponseSchema,
   setAccountStateRequestSchema,
   ownAccountStateSchema,
+  type AccountHistoryDto,
+  type AccountRulesRunDto,
   type AccountSettingsDto,
   type AccountStateDto,
   type CompanyDto,
@@ -116,6 +120,29 @@ export async function sendAccountEmail(
   );
   throwUnlessSuccess(status, json, [200]);
   return sendAccountEmailResponseSchema.parse(json);
+}
+
+/** WagonWise staff: the latest moves between states (by a person or by the rules) and emails sent to a company. */
+export async function getAccountHistory(
+  accessToken: string,
+  companyId: string,
+): Promise<AccountHistoryDto> {
+  const { status, json } = await requestJson(
+    'GET',
+    `/staff/companies/${companyId}/account-history`,
+    { authorization: `Bearer ${accessToken}` },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return accountHistorySchema.parse(json);
+}
+
+/** WagonWise staff: one pass of the automatic rules now (what the hourly task does). */
+export async function runAccountRules(accessToken: string): Promise<AccountRulesRunDto> {
+  const { status, json } = await requestJson('POST', '/staff/account-rules/run', {
+    authorization: `Bearer ${accessToken}`,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return accountRulesRunSchema.parse(json);
 }
 
 /** A company's own staff: the state of their own company, for the banner. */

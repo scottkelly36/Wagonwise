@@ -48,16 +48,28 @@ describe('newCompanyState', () => {
   });
 
   it('uses the settings: a one month trial once the owner shortens it', async () => {
-    await setAccountSettings(deps, platform, { defaultTrialDays: 30, graceDays: 14 });
+    await setAccountSettings(deps, platform, {
+      defaultTrialDays: 30,
+      graceDays: 14,
+      automation: 'off',
+    });
     const short = await newCompanyState(deps, OTHER);
-    await setAccountSettings(deps, platform, { defaultTrialDays: 90, graceDays: 14 });
+    await setAccountSettings(deps, platform, {
+      defaultTrialDays: 90,
+      graceDays: 14,
+      automation: 'off',
+    });
     const long = await newCompanyState(deps, OTHER);
     expect(short.trialEndsOn! < long.trialEndsOn!).toBe(true);
   });
 
   it('leaves a company already on a trial with the day it was given when the setting changes', async () => {
     const before = (await states.get(COMPANY))?.trialEndsOn;
-    await setAccountSettings(deps, platform, { defaultTrialDays: 30, graceDays: 14 });
+    await setAccountSettings(deps, platform, {
+      defaultTrialDays: 30,
+      graceDays: 14,
+      automation: 'off',
+    });
     expect((await states.get(COMPANY))?.trialEndsOn).toBe(before);
   });
 });
@@ -185,39 +197,47 @@ describe('account settings', () => {
   it('are read and changed by WagonWise staff only', async () => {
     expect(await getAccountSettings(deps, platform)).toEqual({
       ok: true,
-      value: { defaultTrialDays: 90, graceDays: 14 },
+      value: { defaultTrialDays: 90, graceDays: 14, automation: 'off' as const },
     });
     expect(await getAccountSettings(deps, fleet)).toEqual({
       ok: false,
       error: { tag: 'Forbidden' },
     });
-    expect(await setAccountSettings(deps, fleet, { defaultTrialDays: 30, graceDays: 7 })).toEqual({
+    expect(
+      await setAccountSettings(deps, fleet, {
+        defaultTrialDays: 30,
+        graceDays: 7,
+        automation: 'off',
+      }),
+    ).toEqual({
       ok: false,
       error: { tag: 'Forbidden' },
     });
-    expect(states.settings).toEqual({ defaultTrialDays: 90, graceDays: 14 });
+    expect(states.settings).toEqual({ defaultTrialDays: 90, graceDays: 14, automation: 'off' });
   });
 
   it('refuse values out of range', async () => {
     for (const bad of [
-      { defaultTrialDays: 0, graceDays: 14 },
-      { defaultTrialDays: 366, graceDays: 14 },
-      { defaultTrialDays: 30, graceDays: -1 },
-      { defaultTrialDays: 30, graceDays: 91 },
-      { defaultTrialDays: 1.5, graceDays: 14 },
+      { defaultTrialDays: 0, graceDays: 14, automation: 'off' as const },
+      { defaultTrialDays: 366, graceDays: 14, automation: 'off' as const },
+      { defaultTrialDays: 30, graceDays: -1, automation: 'off' as const },
+      { defaultTrialDays: 30, graceDays: 14, automation: 'sometimes' as never },
+      { defaultTrialDays: 30, graceDays: 91, automation: 'off' as const },
+      { defaultTrialDays: 1.5, graceDays: 14, automation: 'off' as const },
     ]) {
       expect(await setAccountSettings(deps, platform, bad)).toEqual({
         ok: false,
         error: { tag: 'InvalidSetting' },
       });
     }
-    expect(states.settings).toEqual({ defaultTrialDays: 90, graceDays: 14 });
+    expect(states.settings).toEqual({ defaultTrialDays: 90, graceDays: 14, automation: 'off' });
   });
 
   it('can be set to a one month trial', async () => {
     const result = await setAccountSettings(deps, platform, {
       defaultTrialDays: 30,
       graceDays: 14,
+      automation: 'off',
     });
     expect(result.ok && result.value.defaultTrialDays).toBe(30);
   });

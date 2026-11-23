@@ -25,13 +25,25 @@ export interface AccountState {
   readonly hold: boolean;
 }
 
-/** Settings for every company: how long a new company's free period is, and how long it is overdue before it is paused. */
+/**
+ * Whether the automatic rules run: `off` (nothing by itself), `no_pause` (emails, and a finished free period moves to overdue, but
+ * nothing is paused) or `full` (an overdue company is paused when its grace period has passed). It starts off.
+ */
+export const ACCOUNT_AUTOMATION_MODES = ['off', 'no_pause', 'full'] as const;
+export type AccountAutomation = (typeof ACCOUNT_AUTOMATION_MODES)[number];
+
+/** Settings for every company: how long a new company's free period is, how long it is overdue before it is paused, and whether the rules run. */
 export interface AccountSettings {
   readonly defaultTrialDays: number;
   readonly graceDays: number;
+  readonly automation: AccountAutomation;
 }
 
-export const DEFAULT_ACCOUNT_SETTINGS: AccountSettings = { defaultTrialDays: 90, graceDays: 14 };
+export const DEFAULT_ACCOUNT_SETTINGS: AccountSettings = {
+  defaultTrialDays: 90,
+  graceDays: 14,
+  automation: 'off',
+};
 export const MAX_TRIAL_DAYS = 365;
 export const MAX_GRACE_DAYS = 90;
 export const MAX_NOTE_LENGTH = 500;
@@ -60,6 +72,25 @@ export function trialEndsOn(today: string, days: number): string {
   const start = new Date(`${today}T00:00:00.000Z`);
   start.setUTCDate(start.getUTCDate() + days);
   return start.toISOString().slice(0, 10);
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Whole days from one UK day to another (`YYYY-MM-DD`); negative when `to` is earlier. Plain calendar arithmetic. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round(
+    (new Date(`${to}T00:00:00Z`).getTime() - new Date(`${from}T00:00:00Z`).getTime()) / DAY_MS,
+  );
+}
+
+/** The hour (0 to 23) of an instant in UK time. */
+export function ukHour(at: Date): number {
+  const hour = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: 'numeric',
+    hourCycle: 'h23',
+  }).format(at);
+  return Number(hour);
 }
 
 /** The UK day for an instant, as `YYYY-MM-DD`. */

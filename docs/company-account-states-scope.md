@@ -187,7 +187,9 @@ work, after the states, and it needs a provider account that only the owner can 
    7 days, overdue and a week on, paused) with their log and a notice to the owner of each, a way to send them by hand or send oneself
    a test copy, and the firm's own billing page showing where its account stands and what is due. **Nothing sends them by itself
    until item 3.** The wording names no price: there is no payment page yet, so it says to reply or write to support.
-3. **The periodic task.** Dates move a firm through `overdue` to `paused`, as the loop above, switched on by the owner once.
+3. **The periodic task** (built, 2026-11-23). Dates move a firm through `overdue` to `paused`, as the loop above. It ships **off**; the owner’s
+   setting has three positions (off; emails and overdue only; everything including pausing) and a "Run the rules now" button. A finished free
+   period becomes overdue the day after its last free day. Un-pausing on payment waits for the payment provider (item 6).
 4. **Portal tracking.** Independent of 1 to 3; can go in beside them.
 5. **Market research option.** The switch, the stored consent and the wording, off until the solicitor has seen it.
 6. **Payment provider.** After the owner opens the account: hosted page for payment details, webhooks, firms moving to `active`

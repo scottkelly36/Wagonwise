@@ -16,6 +16,8 @@ export interface AccountStateRepository {
   getAll(): Promise<readonly AccountState[]>;
   save(state: AccountState): Promise<void>;
   appendMove(move: AccountStateMove): Promise<void>;
+  /** The latest moves of one company, newest first. */
+  listMoves(companyId: CompanyId, limit: number): Promise<readonly AccountStateMove[]>;
   getSettings(): Promise<AccountSettings>;
   saveSettings(settings: AccountSettings, byStaffId: string, at: Date): Promise<void>;
 }

@@ -181,6 +181,7 @@ describe('deliverAccountEmail', () => {
   });
 
   it('says the pause day in the overdue email, from the grace period', async () => {
+    states.settings = { ...states.settings, automation: 'full' };
     await states.save({
       companyId: ACME,
       status: 'overdue',
@@ -192,6 +193,21 @@ describe('deliverAccountEmail', () => {
     });
     await deliverAccountEmail(deps, ACME, 'overdue');
     expect(sent[0]?.text).toContain('15 December 2026');
+  });
+
+  it('promises no pause day while automatic pausing is off', async () => {
+    await states.save({
+      companyId: ACME,
+      status: 'overdue',
+      trialEndsOn: null,
+      overdueSince: new Date('2026-12-01T00:00:00Z'),
+      pausedAt: null,
+      note: '',
+      hold: false,
+    });
+    await deliverAccountEmail(deps, ACME, 'overdue');
+    expect(sent[0]?.text).toContain('may be paused');
+    expect(sent[0]?.text).not.toContain('15 December 2026');
   });
 
   it('gives the claim back when every send fails, so it is tried again', async () => {

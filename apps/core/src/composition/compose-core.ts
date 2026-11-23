@@ -977,6 +977,18 @@ export function composeCore(
   });
 
   periodicTasks.start({
+    name: 'company-account-rules',
+    intervalMs: 60 * 60 * 1000,
+    run: async () => {
+      // Trial emails, trial to overdue, overdue to paused: does nothing until the owner switches it on in the settings.
+      const done = await companies.runAccountRules();
+      if (done.moved > 0 || done.emailed > 0 || done.nobodyToWrite > 0 || done.failed > 0) {
+        app.log.info(done, 'company account rules');
+      }
+    },
+  });
+
+  periodicTasks.start({
     name: 'prune-flow-events',
     intervalMs: config.positionSweepIntervalMs,
     run: async () => {

@@ -20,6 +20,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId } from '../../../shared/brand.js';
 import type { DataScope, DataScopes } from '../../../shared/ports/data-scope.js';
 import { sendAccountEmailByHand } from '../application/account-emails.js';
+import { getAccountHistory } from '../application/account-history.js';
+import type { AccountRuleOutcome } from '../application/run-account-rules.js';
 import {
   getAccountSettings,
   getAccountState,
@@ -137,6 +139,9 @@ export function registerStaffRoutes(
   app: FastifyInstance,
   deps: StaffDeps,
   scopes: DataScopes,
+  /** One pass of the automatic account rules. It opens its own data scope, so it is called outside the handler's. */
+  runAccountRules: () => Promise<AccountRuleOutcome> = () =>
+    Promise.resolve({ moved: 0, emailed: 0, nobodyToWrite: 0, failed: 0 }),
 ): void {
   /** Loads the signed-in account (401 if it's gone), then runs `work` in that account's scope. */
   async function asActor(
@@ -382,6 +387,46 @@ export function registerStaffRoutes(
         body.data.to,
       );
       return result.ok ? ok(200, result.value) : fail(result.error);
+    });
+    return send(request, reply, outcome);
+  });
+
+  // Run the automatic account rules now (WagonWise staff only): the hourly task's pass, for seeing what they would do and for testing.
+  // It is the same pass, so it still waits for 7am UK and does nothing while the setting is off.
+  app.post('/staff/account-rules/run', async (request, reply) => {
+    const staffId = request.staffId;
+    const staff =
+      staffId === undefined
+        ? null
+        : await scopes.run(STAFF_AUTH, () => deps.accounts.findById(makeId<'StaffId'>(staffId)));
+    if (!staff)
+      return send(request, reply, { status: 401, body: { error: 'invalid_access_token' } });
+    if (staff.kind !== 'platform') return send(request, reply, fail({ tag: 'Forbidden' }));
+    return send(request, reply, ok(200, await runAccountRules()));
+  });
+
+  // What has happened to a company's account, for WagonWise staff: moves (by a person or by the rules) and the emails sent.
+  app.get('/staff/companies/:id/account-history', async (request, reply) => {
+    const outcome = await asActor(request, async ({ actor }) => {
+      const params = companySettingsParamsSchema.safeParse(request.params);
+      if (!params.success) return badRequest();
+      const result = await getAccountHistory(deps, actor, makeId<'CompanyId'>(params.data.id));
+      if (!result.ok) return fail(result.error);
+      return ok(200, {
+        moves: result.value.moves.map((m) => ({
+          from: m.from,
+          to: m.to,
+          automatic: m.byStaffId === null,
+          note: m.note,
+          at: m.at.toISOString(),
+        })),
+        emails: result.value.emails.map((e) => ({
+          kind: e.kind,
+          occasion: e.periodKey,
+          at: e.sentAt.toISOString(),
+          recipients: e.recipients,
+        })),
+      });
     });
     return send(request, reply, outcome);
   });

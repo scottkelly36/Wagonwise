@@ -3,6 +3,7 @@ import { makeId } from '../../../shared/brand.js';
 import type { AccountStateRepository } from '../application/ports/account-state-repository.js';
 import {
   ACCOUNT_STATUSES,
+  ACCOUNT_AUTOMATION_MODES,
   DEFAULT_ACCOUNT_SETTINGS,
   type AccountSettings,
   type AccountState,
@@ -86,6 +87,30 @@ export class PostgresAccountStateRepository implements AccountStateRepository {
     `.execute(this.db);
   }
 
+  async listMoves(companyId: CompanyId, limit: number): Promise<readonly AccountStateMove[]> {
+    const { rows } = await sql<{
+      id: string;
+      from_status: string | null;
+      to_status: string;
+      by_staff_id: string | null;
+      note: string;
+      at: Date;
+    }>`
+      select id, from_status, to_status, by_staff_id, note, at
+      from companies.account_state_log where company_id = ${companyId}
+      order by at desc limit ${limit}
+    `.execute(this.db);
+    return rows.map((r) => ({
+      id: r.id,
+      companyId,
+      from: r.from_status === null ? null : asStatus(r.from_status),
+      to: asStatus(r.to_status),
+      byStaffId: r.by_staff_id,
+      note: r.note,
+      at: r.at,
+    }));
+  }
+
   async appendMove(move: AccountStateMove): Promise<void> {
     await sql`
       insert into companies.account_state_log (id, company_id, from_status, to_status, by_staff_id, note, at)
@@ -94,13 +119,21 @@ export class PostgresAccountStateRepository implements AccountStateRepository {
   }
 
   async getSettings(): Promise<AccountSettings> {
-    const { rows } = await sql<{ default_trial_days: number; grace_days: number }>`
-      select default_trial_days, grace_days from companies.account_settings where only_row
+    const { rows } = await sql<{
+      default_trial_days: number;
+      grace_days: number;
+      automation: string;
+    }>`
+      select default_trial_days, grace_days, automation from companies.account_settings where only_row
     `.execute(this.db);
     const row = rows[0];
     return row === undefined
       ? DEFAULT_ACCOUNT_SETTINGS
-      : { defaultTrialDays: row.default_trial_days, graceDays: row.grace_days };
+      : {
+          defaultTrialDays: row.default_trial_days,
+          graceDays: row.grace_days,
+          automation: ACCOUNT_AUTOMATION_MODES.find((m) => m === row.automation) ?? 'off',
+        };
   }
 
   async saveSettings(settings: AccountSettings, byStaffId: string, at: Date): Promise<void> {
@@ -108,6 +141,7 @@ export class PostgresAccountStateRepository implements AccountStateRepository {
       update companies.account_settings set
         default_trial_days = ${settings.defaultTrialDays},
         grace_days = ${settings.graceDays},
+        automation = ${settings.automation},
         updated_at = ${at},
         updated_by = ${byStaffId}
       where only_row

@@ -2,6 +2,7 @@ import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import {
   companyIdSchema,
+  type AccountAutomationDto,
   type AccountEmailKindDto,
   type AccountStatusDto,
   type CompanyDto,
@@ -12,6 +13,12 @@ import * as companiesApi from '../../api/companies';
 import { Badge, type BadgeTone } from '../../components/Badge';
 import { DataTable, type Column } from '../../components/DataTable';
 import { FieldError } from '../../components/FieldError';
+import {
+  AUTOMATION_OPTIONS,
+  FULL_AUTOMATION_WARNING,
+  historyLines,
+  runSummary,
+} from '../../lib/account-automation';
 import { ACCOUNT_EMAIL_OPTIONS, canSendToCompany, sentMessage } from '../../lib/account-emails';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
@@ -212,7 +219,35 @@ function AccountEditor({ company, onClose }: { company: CompanyDto; onClose: () 
         companyName={company.name}
         status={current.data.status}
       />
+      <AccountHistory companyId={company.id} />
     </>
+  );
+}
+
+/** What has happened to one company's account: moves between states (by a person or by the rules) and the emails sent, newest first. */
+function AccountHistory({ companyId }: { companyId: string }) {
+  const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
+  const history = useQuery({
+    queryKey: ['account-history', companyId],
+    queryFn: () => withAccessToken((token) => companiesApi.getAccountHistory(token, companyId)),
+  });
+
+  if (history.isPending) return null;
+  if (history.isError) return <ErrorNotice error={history.error} />;
+  const lines = historyLines(history.data);
+  return (
+    <div style={{ maxWidth: 720, padding: '0 0 16px' }}>
+      <strong>History</strong>
+      {lines.length === 0 ? (
+        <p className="text-muted">Nothing yet.</p>
+      ) : (
+        <ul style={{ margin: '4px 0 0', paddingLeft: 20 }}>
+          {lines.map((line) => (
+            <li key={line.text}>{line.text}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -397,7 +432,7 @@ function AccountSettings() {
   if (settings.isError) return <ErrorNotice error={settings.error} />;
   return (
     <SettingsForm
-      key={`${settings.data.defaultTrialDays}-${settings.data.graceDays}`}
+      key={`${settings.data.defaultTrialDays}-${settings.data.graceDays}-${settings.data.automation}`}
       initial={settings.data}
       onSaved={() => void queryClient.invalidateQueries({ queryKey: SETTINGS_KEY })}
       save={(next) => withAccessToken((token) => companiesApi.updateAccountSettings(token, next))}
@@ -410,12 +445,23 @@ function SettingsForm({
   onSaved,
   save,
 }: {
-  initial: { defaultTrialDays: number; graceDays: number };
+  initial: { defaultTrialDays: number; graceDays: number; automation: AccountAutomationDto };
   onSaved: () => void;
-  save: (next: { defaultTrialDays: number; graceDays: number }) => Promise<unknown>;
+  save: (next: {
+    defaultTrialDays: number;
+    graceDays: number;
+    automation: AccountAutomationDto;
+  }) => Promise<unknown>;
 }) {
+  const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
+  const queryClient = useQueryClient();
+  const runNow = useMutation({
+    mutationFn: () => withAccessToken((token) => companiesApi.runAccountRules(token)),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['account-history'] }),
+  });
   const [trialDays, setTrialDays] = useState(String(initial.defaultTrialDays));
   const [graceDays, setGraceDays] = useState(String(initial.graceDays));
+  const [automation, setAutomation] = useState<AccountAutomationDto>(initial.automation);
   const trial = Number(trialDays);
   const grace = Number(graceDays);
   const valid =
@@ -427,7 +473,7 @@ function SettingsForm({
     grace <= 90;
 
   const mutation = useMutation({
-    mutationFn: () => save({ defaultTrialDays: trial, graceDays: grace }),
+    mutationFn: () => save({ defaultTrialDays: trial, graceDays: grace, automation }),
     onSuccess: onSaved,
   });
 
@@ -435,7 +481,16 @@ function SettingsForm({
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (valid) mutation.mutate();
+        if (!valid) return;
+        // Switching on pausing by itself is the one setting that can hurt a company, so it is asked about once.
+        if (
+          automation === 'full' &&
+          initial.automation !== 'full' &&
+          !window.confirm(FULL_AUTOMATION_WARNING)
+        ) {
+          return;
+        }
+        mutation.mutate();
       }}
       style={{ display: 'grid', gap: 12, maxWidth: 520, marginTop: 32 }}
     >
@@ -464,6 +519,25 @@ function SettingsForm({
           onChange={(e) => setGraceDays(e.target.value)}
         />
       </label>
+      <label>
+        Automatic rules{' '}
+        <select
+          value={automation}
+          onChange={(e) => setAutomation(e.target.value as AccountAutomationDto)}
+        >
+          {AUTOMATION_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="text-muted">
+        The rules email a company as its free period nears its end, make it overdue the day after,
+        remind it a week on, and pause it once the grace period has passed. They run in the morning
+        (after 7am), skip any company with "Never pause" ticked, and email you each move. Nothing is
+        deleted by a pause.
+      </p>
       {!valid && (
         <p className="error" role="alert">
           Trial: 1 to 365 days. Grace: 0 to 90 days.
@@ -471,11 +545,20 @@ function SettingsForm({
       )}
       {mutation.isError && <ErrorNotice error={mutation.error} />}
       {mutation.isSuccess && <p role="status">Saved.</p>}
-      <div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="submit" disabled={!valid || mutation.isPending}>
           {mutation.isPending ? 'Saving…' : 'Save'}
         </button>
+        <button type="button" disabled={runNow.isPending} onClick={() => runNow.mutate()}>
+          {runNow.isPending ? 'Running…' : 'Run the rules now'}
+        </button>
       </div>
+      <p className="text-muted">
+        The rules also run by themselves every hour. "Run the rules now" does the same pass straight
+        away, using the saved setting.
+      </p>
+      {runNow.isError && <ErrorNotice error={runNow.error} />}
+      {runNow.isSuccess && <p role="status">{runSummary(runNow.data)}</p>}
     </form>
   );
 }

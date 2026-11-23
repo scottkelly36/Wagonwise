@@ -21,6 +21,8 @@ const BETA_MANAGER = '70000000-0000-4000-8000-000000000003';
 const ACME = '71000000-0000-4000-8000-000000000001';
 const BETA = '71000000-0000-4000-8000-000000000002';
 const NEW_FIRM = '71000000-0000-4000-8000-000000000003';
+const RULES_FIRM = '71000000-0000-4000-8000-000000000005';
+const RULES_BOSS = '70000000-0000-4000-8000-000000000005';
 
 /**
  * A paused company on real Postgres, with the real staff-auth hook and the real companies module (docs/company-account-states-scope.md):
@@ -262,7 +264,7 @@ describe('company account states end to end (real RLS, real hook)', () => {
     const set = await app.inject({
       method: 'PUT',
       url: '/staff/account-settings',
-      payload: { defaultTrialDays: 30, graceDays: 14 },
+      payload: { defaultTrialDays: 30, graceDays: 14, automation: 'off' },
       ...as(ADMIN),
     });
     expect(set.statusCode).toBe(200);
@@ -366,6 +368,125 @@ describe('company account states end to end (real RLS, real hook)', () => {
 
     it('a bad body is a 400', async () => {
       expect((await send(ADMIN, ACME, { kind: 'free_beer', to: 'company' })).statusCode).toBe(400);
+    });
+  });
+  describe('the automatic rules', () => {
+    const setAutomation = (automation: string) =>
+      app.inject({
+        method: 'PUT',
+        url: '/staff/account-settings',
+        payload: { defaultTrialDays: 30, graceDays: 14, automation },
+        ...as(ADMIN),
+      });
+    const status = async () => {
+      const { rows } = await ownerPool.query<{ account_status: string }>(
+        `select account_status from companies.companies where id = $1`,
+        [RULES_FIRM],
+      );
+      return rows[0]?.account_status;
+    };
+    const rulesEmails = () => emails.filter((e) => e.to === 'boss@rules.test');
+
+    it('does nothing while the setting is off', async () => {
+      await ownerPool.query(
+        `insert into companies.companies (id, name, created_at, account_status, trial_ends_on)
+         values ($1, 'Rules Ltd', now(), 'trial', '2026-11-30')`,
+        [RULES_FIRM],
+      );
+      await ownerPool.query(
+        `insert into companies.staff_accounts (id, kind, company_id, email, name, privileges, created_at, password_hash, second_factor_method)
+         values ($1, 'fleet', $2, 'boss@rules.test', 'Rules Boss', '["manage_billing","manage_users"]', now(), 'x', 'email')`,
+        [RULES_BOSS, RULES_FIRM],
+      );
+      expect((await companies.runAccountRules()).moved).toBe(0);
+      expect(await status()).toBe('trial');
+      expect(rulesEmails()).toEqual([]);
+    });
+
+    it('moves a company whose free period has ended to overdue, writes to it, and logs it as the system', async () => {
+      expect((await setAutomation('full')).statusCode).toBe(200);
+      clock.advance(24 * 60 * 60 * 1000); // 23 November: the free period ended on 30 November, so go forward past it
+      clock.advance(8 * 24 * 60 * 60 * 1000); // 1 December
+      const done = await companies.runAccountRules();
+      expect(done).toMatchObject({ failed: 0 });
+      expect(await status()).toBe('overdue');
+      expect(rulesEmails().map((e) => e.subject)).toEqual([
+        'Payment for Rules Ltd on WagonWise is overdue',
+      ]);
+      const moves = await ownerPool.query(
+        `select from_status, to_status, by_staff_id from companies.account_state_log where company_id = $1`,
+        [RULES_FIRM],
+      );
+      expect(moves.rows).toEqual([
+        { from_status: 'trial', to_status: 'overdue', by_staff_id: null },
+      ]);
+      expect(notices).toContain('WagonWise moved Rules Ltd to overdue by itself');
+    });
+
+    it('does not write the same email twice on the next pass', async () => {
+      await companies.runAccountRules();
+      expect(rulesEmails()).toHaveLength(1);
+    });
+
+    it('pauses it once the grace period has passed, tells it, and then the gate refuses its changes', async () => {
+      clock.advance(15 * 24 * 60 * 60 * 1000);
+      await companies.runAccountRules();
+      expect(await status()).toBe('paused');
+      expect(rulesEmails().map((e) => e.subject)).toContain(
+        'The WagonWise account for Rules Ltd has been paused',
+      );
+      const refused = await app.inject({
+        method: 'PUT',
+        url: `/staff/companies/${RULES_FIRM}/settings`,
+        payload: { photoRetentionMonths: 6 },
+        ...as(RULES_BOSS),
+      });
+      expect(refused.statusCode).toBe(403);
+      expect(refused.json()).toMatchObject({ error: 'account_paused' });
+    });
+
+    it('shows WagonWise staff what happened, and nobody else', async () => {
+      const history = await app.inject({
+        method: 'GET',
+        url: `/staff/companies/${RULES_FIRM}/account-history`,
+        ...as(ADMIN),
+      });
+      expect(history.statusCode).toBe(200);
+      const body = history.json<{
+        moves: { from: string; to: string; automatic: boolean }[];
+        emails: { kind: string; recipients: number }[];
+      }>();
+      expect(body.moves.map((m) => [m.from, m.to, m.automatic])).toEqual([
+        ['overdue', 'paused', true],
+        ['trial', 'overdue', true],
+      ]);
+      expect(body.emails.map((e) => e.kind).sort()).toEqual(['overdue', 'paused']);
+      const own = await app.inject({
+        method: 'GET',
+        url: `/staff/companies/${RULES_FIRM}/account-history`,
+        ...as(RULES_BOSS),
+      });
+      expect(own.statusCode).toBe(403);
+    });
+
+    it('can be run from the admin page, by WagonWise staff only', async () => {
+      const run = (staffId: string) =>
+        app.inject({ method: 'POST', url: '/staff/account-rules/run', ...as(staffId) });
+      const done = await run(ADMIN);
+      expect(done.statusCode).toBe(200);
+      expect(done.json()).toMatchObject({ moved: 0, emailed: 0, failed: 0 });
+      const refused = await run(BETA_MANAGER);
+      expect(refused.statusCode).toBe(403);
+      expect(refused.json()).toMatchObject({ tag: 'Forbidden' });
+    });
+
+    it('leaves a company with the hold alone', async () => {
+      await ownerPool.query(
+        `update companies.companies set account_status = 'overdue', overdue_since = $2, paused_at = null, status_hold = true where id = $1`,
+        [RULES_FIRM, new Date('2026-11-01T09:00:00Z')],
+      );
+      await companies.runAccountRules();
+      expect(await status()).toBe('overdue');
     });
   });
 });

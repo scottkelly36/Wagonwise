@@ -35,6 +35,15 @@ export class InMemoryAccountStateRepository implements AccountStateRepository {
     return Promise.resolve();
   }
 
+  listMoves(companyId: CompanyId, limit: number): Promise<readonly AccountStateMove[]> {
+    return Promise.resolve(
+      this.moves
+        .filter((m) => m.companyId === companyId)
+        .sort((a, b) => b.at.getTime() - a.at.getTime())
+        .slice(0, limit),
+    );
+  }
+
   getSettings(): Promise<AccountSettings> {
     return Promise.resolve(this.settings);
   }

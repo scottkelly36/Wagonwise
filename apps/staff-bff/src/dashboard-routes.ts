@@ -185,6 +185,13 @@ const FORWARDS: readonly Forward[] = [
     params: companySettingsParamsSchema,
     body: sendAccountEmailRequestSchema,
   },
+  // One pass of the automatic account rules now. WagonWise staff only; core decides.
+  { method: 'POST', path: '/staff/account-rules/run', params: noParams },
+  {
+    method: 'GET',
+    path: '/staff/companies/:id/account-history',
+    params: companySettingsParamsSchema,
+  },
   { method: 'GET', path: '/staff/company/account-state', params: noParams },
   { method: 'GET', path: '/staff/account-settings', params: noParams },
   {

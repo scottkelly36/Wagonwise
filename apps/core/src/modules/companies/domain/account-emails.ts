@@ -1,4 +1,4 @@
-import { trialEndsOn as addDays } from './account-state.js';
+import { daysBetween, trialEndsOn as addDays } from './account-state.js';
 
 /**
  * The emails a company is sent about its account (docs/company-account-states-scope.md):
@@ -33,14 +33,6 @@ export const ACCOUNT_EMAIL_LABEL: Record<AccountEmailKind, string> = {
 
 export const SUPPORT_EMAIL = 'support@wagon-wise.co.uk';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function daysBetween(from: string, to: string): number {
-  return Math.round(
-    (new Date(`${to}T00:00:00Z`).getTime() - new Date(`${from}T00:00:00Z`).getTime()) / DAY_MS,
-  );
-}
-
 function longDay(day: string): string {
   return new Date(`${day}T12:00:00Z`).toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -61,7 +53,7 @@ export interface AccountEmailInput {
   /** The UK day the company went overdue. Used with the grace days to say when the pause would come. */
   readonly overdueSince: string | null;
   readonly graceDays: number;
-  /** "Never pause" is set: no day for a pause is promised. */
+  /** "Never pause" is set, or automatic pausing is off: no day for a pause is promised. */
   readonly hold: boolean;
   /** The portal's address, for the link to the plan page; none if it is not known. */
   readonly dashboardUrl: string | undefined;

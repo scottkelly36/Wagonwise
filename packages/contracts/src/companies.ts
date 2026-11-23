@@ -107,12 +107,53 @@ export const sendAccountEmailResponseSchema = z.object({
 });
 export type SendAccountEmailResponse = z.infer<typeof sendAccountEmailResponseSchema>;
 
-/** `GET/PUT /staff/account-settings` (WagonWise staff only): the free period for new companies and the grace period. */
+/** Whether the automatic rules run: not at all, emails and "overdue" only (nothing is ever paused), or in full (an overdue company is paused after its grace period). */
+export const accountAutomationSchema = z.enum(['off', 'no_pause', 'full']);
+export type AccountAutomationDto = z.infer<typeof accountAutomationSchema>;
+
+/** `POST /staff/account-rules/run` (WagonWise staff only): what one pass of the automatic rules did. */
+export const accountRulesRunSchema = z.object({
+  moved: z.number().int().min(0),
+  emailed: z.number().int().min(0),
+  nobodyToWrite: z.number().int().min(0),
+  failed: z.number().int().min(0),
+});
+export type AccountRulesRunDto = z.infer<typeof accountRulesRunSchema>;
+
+/** `GET/PUT /staff/account-settings` (WagonWise staff only): the free period for new companies, the grace period, and whether the automatic rules run. */
 export const accountSettingsSchema = z.object({
   defaultTrialDays: z.number().int().min(1).max(365),
   graceDays: z.number().int().min(0).max(90),
+  automation: accountAutomationSchema,
 });
 export type AccountSettingsDto = z.infer<typeof accountSettingsSchema>;
+
+/**
+ * `GET /staff/companies/:id/account-history` (WagonWise staff only): the latest moves between states (by a person, or automatically) and
+ * the latest emails sent to the company, newest first.
+ */
+export const accountHistorySchema = z.object({
+  moves: z.array(
+    z.object({
+      from: accountStatusSchema.nullable(),
+      to: accountStatusSchema,
+      /** True when the rules made the move, false when a person did. */
+      automatic: z.boolean(),
+      note: z.string(),
+      at: z.iso.datetime(),
+    }),
+  ),
+  emails: z.array(
+    z.object({
+      kind: accountEmailKindSchema,
+      /** The occasion: the day the free period ends, or the day it went overdue or was paused. */
+      occasion: z.string(),
+      at: z.iso.datetime(),
+      recipients: z.number().int().min(0),
+    }),
+  ),
+});
+export type AccountHistoryDto = z.infer<typeof accountHistorySchema>;
 
 export const listCompaniesResponseSchema = z.object({
   companies: z.array(companySchema),

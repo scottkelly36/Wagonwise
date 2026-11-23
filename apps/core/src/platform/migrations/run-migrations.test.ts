@@ -130,6 +130,7 @@ describe('runMigrations', () => {
       '0098_site_visits.sql',
       '0099_company_account_state.sql',
       '0100_company_account_emails.sql',
+      '0101_account_automation.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -342,6 +343,7 @@ describe('runMigrations', () => {
       '0098_site_visits.sql',
       '0099_company_account_state.sql',
       '0100_company_account_emails.sql',
+      '0101_account_automation.sql',
     ]);
   });
 });
