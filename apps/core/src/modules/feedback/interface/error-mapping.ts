@@ -1,7 +1,9 @@
 import type { FeedbackNotFound, Forbidden } from '../application/review-feedback.js';
+import type { NotAvailable, WordingChanged } from '../application/research-contact.js';
 import type { InvalidMessage } from '../domain/feedback-note.js';
 
-export type FeedbackError = InvalidMessage | Forbidden | FeedbackNotFound;
+export type FeedbackError =
+  InvalidMessage | Forbidden | FeedbackNotFound | NotAvailable | WordingChanged;
 
 /** Tag -> HTTP status, in exactly one table (AGENTS.md rule 13), mirroring every other module's
  *  error-mapping.ts. `switch-exhaustiveness-check` means a new domain error tag breaks
@@ -14,5 +16,8 @@ export function statusFor(error: FeedbackError): number {
       return 403;
     case 'FeedbackNotFound':
       return 404;
+    case 'NotAvailable':
+    case 'WordingChanged':
+      return 409;
   }
 }

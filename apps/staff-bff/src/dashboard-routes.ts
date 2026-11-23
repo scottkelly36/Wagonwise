@@ -16,6 +16,7 @@ import {
   feedbackIdParamsSchema,
   listFeedbackQuerySchema,
   setFeedbackResolvedRequestSchema,
+  setResearchContactRequestSchema,
 } from '@wagonwise/contracts/feedback';
 import {
   sendInvitesRequestSchema,
@@ -520,6 +521,16 @@ const FORWARDS: readonly Forward[] = [
     params: feedbackIdParamsSchema,
     body: setFeedbackResolvedRequestSchema,
   },
+  // Market research contact: a company's staff say whether WagonWise may ask them for feedback (their own answer only); WagonWise staff
+  // read the people who said yes. Core decides who may.
+  { method: 'GET', path: '/staff/research-contact', params: noParams },
+  {
+    method: 'PUT',
+    path: '/staff/research-contact',
+    params: noParams,
+    body: setResearchContactRequestSchema,
+  },
+  { method: 'GET', path: '/staff/research-contacts', params: noParams },
   // Congestion reports: see them all, remove one, clear the ones whose time has run out (WagonWise staff only; core decides).
   { method: 'GET', path: '/staff/congestion/reports', params: noParams },
   { method: 'DELETE', path: '/staff/congestion/reports/:id', params: congestionIdParamsSchema },

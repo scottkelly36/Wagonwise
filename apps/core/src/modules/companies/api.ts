@@ -103,6 +103,18 @@ export interface CompaniesModule {
       readonly privileges: readonly string[];
     }[]
   >;
+  /**
+   * Who these staff members are, for WagonWise staff reading a list (the people who agreed to be asked for research): name, sign-in
+   * address and company name. Removed accounts, and WagonWise's own staff, are left out. Opens its own platform scope.
+   */
+  describeStaff(
+    staffIds: readonly string[],
+  ): Promise<
+    ReadonlyMap<
+      string,
+      { readonly name: string; readonly email: string; readonly companyName: string }
+    >
+  >;
 }
 
 /**
@@ -221,6 +233,22 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
             ]
           : [],
       );
+    },
+    async describeStaff(staffIds: readonly string[]) {
+      return deps.dataScopes.run({ kind: 'platform' }, async () => {
+        const found = new Map<string, { name: string; email: string; companyName: string }>();
+        for (const id of staffIds) {
+          const account = await staffDeps.accounts.findById(makeId<'StaffId'>(id));
+          if (account?.kind !== 'fleet') continue;
+          const company = await repo.findById(account.companyId);
+          found.set(id, {
+            name: account.name,
+            email: account.email,
+            companyName: company?.name ?? '',
+          });
+        }
+        return found;
+      });
     },
     async listCompanyNames() {
       const all = await repo.findAll();

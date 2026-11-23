@@ -191,7 +191,7 @@ work, after the states, and it needs a provider account that only the owner can 
    setting has three positions (off; emails and overdue only; everything including pausing) and a "Run the rules now" button. A finished free
    period becomes overdue the day after its last free day. Un-pausing on payment waits for the payment provider (item 6).
 4. **Portal tracking** (built, 2026-11-23; `docs/modules.md`, "Portal tracking"). Independent of 1 to 3. The company is kept on each event, as proposed. The privacy notice wording and the ICO check are still open (`privacy-review.md`).
-5. **Market research option.** The switch, the stored consent and the wording, off until the solicitor has seen it.
+5. **Market research option** (built, 2026-11-23; `docs/modules.md`, "Market research contact"). The switch, the stored consent (with the wording version) and the list for the owner, **off** until `RESEARCH_CONTACT_ENABLED` is set once the solicitor has seen the wording. The sign-up box waits for self-service sign-up.
 6. **Payment provider.** After the owner opens the account: hosted page for payment details, webhooks, firms moving to `active`
    and back from `paused` by themselves.
 7. **Self-service sign-up** (below), only when the owner says.
