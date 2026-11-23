@@ -1,6 +1,7 @@
 import type { StaffAccountDto } from '@wagonwise/contracts/staff';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { usePortalTracking } from '../hooks/use-portal-tracking';
 import { foldingSections, sectionForPath, toggled } from '../lib/nav';
 import { pageTitle } from '../lib/page-title';
 import { holds, isPlatform } from '../state/access';
@@ -156,6 +157,8 @@ export function StaffLayout() {
   const { pathname } = useLocation();
   const session = useStaffAuthStore((s) => s.session);
   const staff = session?.staff;
+  // Which pages a company's staff open, for improving the portal (not WagonWise's own staff).
+  usePortalTracking();
 
   // On a phone the menu is a drawer. It closes when a page is chosen, and on Escape.
   const [navOpen, setNavOpen] = useState(false);

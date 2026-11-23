@@ -24,6 +24,16 @@ function buildApp(): { app: FastifyInstance; core: FakeCoreClient } {
 
 const VALID = [
   ['GET', '/staff/companies', undefined],
+  ['GET', '/staff/usage/overview', undefined],
+  ['GET', '/staff/usage/portal', undefined],
+  [
+    'POST',
+    '/staff/usage/portal-events',
+    {
+      sessionId: '64000000-0000-4000-8000-000000000001',
+      events: [{ event: 'page_viewed', page: 'jobs', at: '2026-11-23T10:00:00.000Z' }],
+    },
+  ],
   ['POST', '/staff/companies', { id: ACME, name: 'Acme' }],
   ['GET', '/staff/invite-codes', undefined],
   ['POST', '/staff/invite-codes', undefined],
@@ -192,6 +202,17 @@ describe('the moved dashboard pages (P2-M1.12c)', () => {
     ],
     ['POST', `/staff/companies/${ID}/account-emails`, { kind: 'free_beer', to: 'company' }],
     ['POST', `/staff/companies/${ID}/account-emails`, { kind: 'paused', to: 'everyone' }],
+    ['GET', '/staff/usage/everything', undefined],
+    [
+      'POST',
+      '/staff/usage/portal-events',
+      {
+        sessionId: '64000000-0000-4000-8000-000000000001',
+        events: [
+          { event: 'page_viewed', page: '/fleet/jobs?reg=AB12CDE', at: '2026-11-23T10:00:00.000Z' },
+        ],
+      },
+    ],
     ['GET', '/staff/jobs/companies/acme/jobs', undefined],
     ['POST', `/staff/jobs/companies/${ACME}/jobs`, { ...JOB, stops: [] }],
     ['POST', '/staff/jobs/not-a-uuid/assign', undefined],

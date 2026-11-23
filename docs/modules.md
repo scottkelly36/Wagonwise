@@ -589,9 +589,9 @@ Search and sharing (2026-10-19): the page has a canonical address, Open Graph an
 
 ## App usage (admin)
 
-`apps/core/src/modules/usage`: read-only. `GET /staff/usage` (platform staff only, checked in the route and the use case) runs in
+`apps/core/src/modules/usage`: read-only apart from the tracking tables. **One view at a time (2026-11-23):** `GET /staff/usage/:section` (`overview`, `drivers`, `activity`, `firms`, `flows`, `site`, `portal`; platform staff only, checked in the route and the use case) runs in
 the platform scope and reads counts across identity, companies, fleet, jobs, checks, routing and signups through
-`PostgresUsageReader` (the read-model adapter, AGENTS.md rule 7). Dashboard page `/admin/usage`. Real-RLS test:
+`PostgresUsageReader` (the read-model adapter, AGENTS.md rule 7), one set of queries per section. It used to be a single request that ran about 25 queries one after another, so the page got slower as the data grew; now the dashboard page `/admin/usage` is a set of tabs (`?view=portal` and so on; `pages/admin/AppUsage.tsx`, one file per view under `pages/admin/usage/`) and **only the open tab asks for its figures** (`hooks/use-usage-section.ts`: a view already seen is shown at once and refreshed in the background, every five minutes). Each request logs its section and milliseconds (`usage section` in core's log), so a slow view shows up. Charts are plain HTML and CSS (`components/charts`: `ColumnChart`, `BarList`, `HeatGrid`; helpers in `lib/charts.ts`), one blue, a tooltip on hover and focus, and a table behind each column chart. Real-RLS test:
 `composition/usage-end-to-end.test.ts`. **Funnel (2026-11-08):** the report has a `funnel` of different drivers at each stage (account,
 signed in, chose a vehicle, planned a route, started a trip, started trips on two or more UK days), read from tables that
 already exist, so the app sends nothing extra. Trips are deleted after `ROUTE_RETENTION_DAYS` (30), so the trip stages cover
@@ -712,6 +712,19 @@ keyless demo style: coloured country outlines with no roads or towns, so it look
 fleet scale. Set `VITE_MAPTILER_API_KEY` for a usable map; it switches the page to real MapTiler
 street tiles. Set it in `apps/dashboard/.env` locally and as a `BUILD_TIME` variable on the
 dashboard in DigitalOcean.
+
+## Portal tracking (2026-11-23)
+
+Plan in `docs/company-account-states-scope.md` ("Portal tracking"), rules copied from the driver app's flow tracking (`docs/flow-tracking-plan.md`). Why: to see whether firms use the portal's pages and forms, where they get stuck, and which new firms stopped before a first job.
+
+- **What is recorded** (`packages/contracts/src/usage.ts`): `page_viewed` (a page from `PORTAL_PAGES`), `form_opened`, `form_sent`, `form_left` (a form from `PORTAL_FORM_FIELDS`) and `form_error` (the form, a field from that form's own list, and a kind of problem from `PORTAL_PROBLEMS`: required, too_long, not_a_number, invalid, capacity_reached, not_allowed, other). All zod enums, so anything else is refused with a 400: **never a value anyone typed** (no registration, name, address, note or email). Forms tracked: add a vehicle, make a job, invite a colleague, invite a driver. A form counts as **opened on the first thing typed**, sent on success, and **left part-way** when the page changes or the tab closes with it started and not sent.
+- **Who it is about:** a random session id made in the browser when the portal opens (in memory, gone when the tab closes) and **the company, never the person**. The company comes from who is signed in, not from the request. WagonWise's own staff are accepted and nothing is kept. The owner's decision 3 (keep the company or go fully anonymous) was taken as proposed: keep the company, and say so in the privacy notice.
+- **Server:** migration 0102 `usage.portal_events` (company, session, event, page, form, field, problem, time) with Row-Level Security: WagonWise staff read everything, and a company can only **add** rows for itself. `POST /staff/usage/portal-events` (`application/portal-events.ts`) writes in the signed-in person's own scope and leaves out an event whose time is not believable (a day old or more, or ahead of the server's clock). The hourly flow-event sweep also deletes portal events over **90 days** old (as WagonWise staff).
+- **Portal side:** `lib/portal-tracker.ts` (`PortalTracker`: an in-memory queue, at most 50 events a request, 200 held when offline, a refused batch is dropped, a failed one is retried; sending never shows an error), mounted once in `StaffLayout` through `hooks/use-portal-tracking.ts` (page views from the route, a flush every 30 seconds and when the tab is hidden), and `hooks/use-form-tracking.ts` in the four forms (`lib/portal-forms.ts` turns each form's validation errors into a field and a kind of problem). Only the error's tag is read from a refused request, never its message.
+- **What the owner sees:** the **Portal** tab on the usage page (`GET /staff/usage/portal`, last 30 days): sittings and firms seen; every page with the sittings that opened it (a page nobody opened shows an empty bar); each form's opened, sent, left part-way, problems shown and median seconds to send; the fields that cause the most problems; and **firms still setting up** (made in the last 90 days, no job yet: what they have set up, and when someone was last in the portal).
+- **Tests:** `composition/usage-end-to-end.test.ts` (real Postgres and RLS: stored against the company with no person or value, off-list values refused, a company cannot add rows for another or read any, the report, the sweep), `lib/portal-tracker.test.ts`, `lib/portal-forms.test.ts`, the BFF forwards.
+- **Paused companies:** once company account states are merged, a paused company's staff cannot POST, so their events simply stop (the portal ignores the refusal). That is fine; add the route to the open list in `domain/account-state.ts` if a paused company's clicks are ever wanted.
+- **Still open:** the privacy notice wording and the ICO's current analytics guidance (`privacy-review.md`).
 
 ## Website visits (2026-11-21)
 

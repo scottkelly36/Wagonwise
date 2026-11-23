@@ -22,6 +22,7 @@ import {
   sendLaunchEmailsRequestSchema,
   testerIdParamsSchema,
 } from '@wagonwise/contracts/signups';
+import { portalEventsRequestSchema, usageSectionParamsSchema } from '@wagonwise/contracts/usage';
 import { hoursCompanyParamsSchema, hoursSettingsSchema } from '@wagonwise/contracts/hours';
 import {
   listParkingSpotsQuerySchema,
@@ -523,8 +524,15 @@ const FORWARDS: readonly Forward[] = [
   { method: 'GET', path: '/staff/congestion/reports', params: noParams },
   { method: 'DELETE', path: '/staff/congestion/reports/:id', params: congestionIdParamsSchema },
   { method: 'POST', path: '/staff/congestion/reports/clear-expired', params: noParams },
-  // How the app is being used (WagonWise staff only; core decides).
-  { method: 'GET', path: '/staff/usage', params: noParams },
+  // How the app is being used, one view at a time (WagonWise staff only; core decides).
+  { method: 'GET', path: '/staff/usage/:section', params: usageSectionParamsSchema },
+  // Pages and form steps from a company's staff in the portal. The company is taken from who is signed in; core decides.
+  {
+    method: 'POST',
+    path: '/staff/usage/portal-events',
+    params: noParams,
+    body: portalEventsRequestSchema,
+  },
   // The landing page's tester list (WagonWise staff only; core decides).
   { method: 'GET', path: '/staff/signups', params: noParams },
   {

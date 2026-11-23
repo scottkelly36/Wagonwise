@@ -81,6 +81,14 @@ or another third party by the company; the notice does not need to change for th
   optional. Apple: "Usage data: product interaction", **not linked** to the user, for analytics; still not tracking (first party, no
   advertising). Change both before the app release that sends them.
 
+## Portal tracking (added 2026-11-23)
+
+- **What:** which portal pages a company's staff open, and for four forms (add a vehicle, make a job, invite a colleague, invite a driver) when one is started, sent or left part-way and which field showed what kind of problem (the lists are `PORTAL_PAGES`, `PORTAL_FORM_FIELDS` and `PORTAL_PROBLEMS` in `packages/contracts`). **Never anything typed.** A random session id made in the browser when the portal opens, and **the company; not the person**. WagonWise's own staff are not tracked. 90 days at most.
+- **Why the company is kept:** so a firm that tried to add a vehicle three times and stopped can be rung, which is the point for a firm on a trial (the owner's decision, 2026-11-23, as proposed).
+- **Basis:** legitimate interests (improving the portal and helping firms set up). No opt-out is built: the people are staff using a business tool, nothing is stored on their computer (the session id is in memory only) and nothing identifies them. **For the solicitor:** is that enough, or should there be an opt-out as the app has? And check the ICO's current analytics guidance (PECR as amended by the Data (Use and Access) Act 2025): not checked against the Act's text here.
+- **Privacy notice, a paragraph to add:** "When your staff use the WagonWise portal we record which pages they open and, for a few forms, when a form is started, sent or left and which field showed a problem, such as 'left empty'. We never record what is typed. We link this to your company, not to the person, and keep it for 90 days. We use it to improve the portal and to help new customers get set up."
+- **DPIA:** a short row: low risk; the main risk is the fixed lists growing to include something identifying, which the contract test guards against.
+
 ## Flow events (added 2026-11-17)
 
 - **What:** which steps a driver reaches and the fixed choices made on them (`FLOW_EVENT_CHOICES` in `packages/contracts`). No position,

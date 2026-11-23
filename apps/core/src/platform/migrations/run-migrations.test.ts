@@ -131,6 +131,7 @@ describe('runMigrations', () => {
       '0099_company_account_state.sql',
       '0100_company_account_emails.sql',
       '0101_account_automation.sql',
+      '0102_portal_events.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -344,6 +345,7 @@ describe('runMigrations', () => {
       '0099_company_account_state.sql',
       '0100_company_account_emails.sql',
       '0101_account_automation.sql',
+      '0102_portal_events.sql',
     ]);
   });
 });
