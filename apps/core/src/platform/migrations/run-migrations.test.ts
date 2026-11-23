@@ -133,6 +133,7 @@ describe('runMigrations', () => {
       '0101_account_automation.sql',
       '0102_portal_events.sql',
       '0103_research_contact.sql',
+      '0104_payments.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -348,6 +349,7 @@ describe('runMigrations', () => {
       '0101_account_automation.sql',
       '0102_portal_events.sql',
       '0103_research_contact.sql',
+      '0104_payments.sql',
     ]);
   });
 });

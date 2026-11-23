@@ -109,6 +109,7 @@ export function ukDay(at: Date): string {
  *
  * - removing a person: so a paused company can still take someone's access away;
  * - resolving an SOS alert: a safety alert from a driver must never be stuck because of what a firm owes;
+ * - adding payment details: that is how a paused company pays its way back;
  * - answering the market research question: a person must always be able to withdraw their agreement to be contacted;
  * - signing out and signing in are not listed: those routes are public and never reach this rule.
  */
@@ -120,6 +121,7 @@ export const OPEN_WHEN_PAUSED: readonly {
 }[] = [
   { method: 'DELETE', pattern: /^\/staff\/members\/[^/]+$/, route: '/staff/members/:id' },
   { method: 'POST', pattern: /^\/staff\/sos\/[^/]+\/resolve$/, route: '/staff/sos/:id/resolve' },
+  { method: 'POST', pattern: /^\/staff\/payments\/setup$/, route: '/staff/payments/setup' },
   { method: 'PUT', pattern: /^\/staff\/research-contact$/, route: '/staff/research-contact' },
 ];
 

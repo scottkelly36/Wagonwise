@@ -3,11 +3,14 @@ import { FIRST_RULE_HOUR, nextAction, type RuleAction } from '../domain/account-
 import { ukDay, ukHour, type AccountState } from '../domain/account-state.js';
 import type { CompanyId } from '../domain/company.js';
 import type { AccountStateRepository } from './ports/account-state-repository.js';
+import type { PaymentFacts } from './ports/payment-facts.js';
 import { deliverAccountEmail, type AccountEmailDeps } from './account-emails.js';
 
 export interface AccountRuleDeps extends AccountEmailDeps {
   readonly states: AccountStateRepository;
   readonly ids: IdGenerator;
+  /** Whether a company has payment details on file, so a finished free period becomes active rather than overdue. Absent: none do. */
+  readonly payments?: PaymentFacts | undefined;
   /** Runs one company's work in its own data scope (WagonWise staff's), so one company's failure does not undo another's. */
   readonly scoped: <T>(work: () => Promise<T>) => Promise<T>;
 }
@@ -79,7 +82,12 @@ async function processCompany(
   for (let step = 0; step < 4; step += 1) {
     const state = await deps.states.get(companyId);
     if (state === null) break;
-    const action = nextAction(state, settings, today);
+    // Only a trial that has run out cares whether payment details are on file.
+    const hasDetails =
+      state.status === 'trial' && deps.payments !== undefined
+        ? await deps.payments.hasPaymentMethod(companyId)
+        : false;
+    const action = nextAction(state, settings, today, hasDetails);
     if (action === null) break;
 
     if (action.type === 'email') {
@@ -95,6 +103,8 @@ async function processCompany(
 
     await applyMove(deps, state, action);
     moved += 1;
+    // A trial that became active (billing starts) has nothing more to do this pass.
+    if (action.to === 'active') break;
     if (action.to === 'paused') {
       const result = await deliverAccountEmail(deps, companyId, 'paused');
       if (result.ok && !result.value.alreadySent) emailed += 1;
@@ -105,8 +115,9 @@ async function processCompany(
   return { moved, emailed, nobodyToWrite };
 }
 
-async function applyMove(
-  deps: AccountRuleDeps,
+/** Moves a company as the system, not a person: saved, logged with no staff member, and the owner told. Shared with the payment facts. */
+export async function applyMove(
+  deps: Pick<AccountRuleDeps, 'states' | 'ids' | 'clock' | 'companies' | 'ownerNotice'>,
   state: AccountState,
   action: Extract<RuleAction, { type: 'move' }>,
 ): Promise<void> {

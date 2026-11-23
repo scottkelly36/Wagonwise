@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as companiesApi from '../../api/companies';
 import { Badge, type BadgeTone } from '../../components/Badge';
+import { CompanyPayments } from '../../components/CompanyPayments';
 import { DataTable, type Column } from '../../components/DataTable';
 import { FieldError } from '../../components/FieldError';
 import {
@@ -219,6 +220,7 @@ function AccountEditor({ company, onClose }: { company: CompanyDto; onClose: () 
         companyName={company.name}
         status={current.data.status}
       />
+      <CompanyPayments companyId={company.id} />
       <AccountHistory companyId={company.id} />
     </>
   );

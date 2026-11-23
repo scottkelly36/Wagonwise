@@ -106,6 +106,38 @@ export function registerWebhooksRoutes(app: FastifyInstance, deps: WebhooksRoute
       return reply.status(204).send();
     });
 
+    /**
+     * `POST /webhooks/payments`: the payment provider tells us a company added payment details, or an invoice was paid or failed. Public
+     * on purpose (the provider has no login), and this route knows nothing about the provider: it passes the exact text and the
+     * signature header to core, whose provider adapter checks it (and refuses with 401 if it is not genuine). With no provider connected
+     * core refuses everything. 502 only when core could not be reached, so the provider tries again.
+     */
+    scope.post('/webhooks/payments', async (request, reply) => {
+      const body = typeof request.body === 'string' ? request.body : '';
+      const header = (name: string): string | undefined => {
+        const value = request.headers[name];
+        return typeof value === 'string' ? value : undefined;
+      };
+      const signature = header('stripe-signature') ?? header('x-wagonwise-signature');
+      try {
+        const core = await deps.coreClient.request('POST', '/payments/webhook', request.id, {
+          body: { body, ...(signature === undefined ? {} : { signature }) },
+        });
+        if (core.status >= 500) {
+          return reply.status(502).send({ error: 'core_unavailable', requestId: request.id });
+        }
+        if (core.status === 401) {
+          return reply.status(401).send({ error: 'invalid_signature', requestId: request.id });
+        }
+        if (core.status >= 400) {
+          return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+        }
+      } catch {
+        return reply.status(502).send({ error: 'core_unavailable', requestId: request.id });
+      }
+      return reply.status(204).send();
+    });
+
     done();
   });
 }

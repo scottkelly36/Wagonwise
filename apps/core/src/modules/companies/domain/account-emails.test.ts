@@ -91,9 +91,9 @@ describe('account emails', () => {
     expect(pauseDay({ overdueSince: null, graceDays: 14, hold: false })).toBeNull();
   });
 
-  it('every kind belongs to one of the three states a company can be written to about', () => {
+  it('every kind belongs to one of the states a company can be written to about', () => {
     for (const kind of ACCOUNT_EMAIL_KINDS) {
-      expect(['trial', 'overdue', 'paused']).toContain(stateFor(kind));
+      expect(['trial', 'overdue', 'paused', 'active']).toContain(stateFor(kind));
     }
   });
 });

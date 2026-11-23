@@ -44,6 +44,11 @@
       "import": "./dist/checks.js",
       "default": "./dist/checks.js"
     },
+    "./payments": {
+      "types": "./dist/payments.d.ts",
+      "import": "./dist/payments.js",
+      "default": "./dist/payments.js"
+    },
     "./usage": {
       "types": "./dist/usage.d.ts",
       "import": "./dist/usage.js",

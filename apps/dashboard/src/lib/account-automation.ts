@@ -42,6 +42,7 @@ const EMAIL_LABEL: Record<AccountEmailKindDto, string> = {
   overdue: 'Payment overdue',
   overdue_week: 'Payment overdue (reminder)',
   paused: 'Account paused',
+  resumed: 'Account active again',
 };
 
 const dayTime = (iso: string) =>

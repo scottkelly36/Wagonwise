@@ -77,10 +77,13 @@ export async function deliverAccountEmail(
 
   const now = deps.clock.now();
   const today = ukDay(now);
+  // An active company has no start of its own: "active again" is once a day at most.
   const occasion =
     state.status === 'trial'
       ? state.trialEndsOn
-      : ukDay(state.status === 'overdue' ? (state.overdueSince ?? now) : (state.pausedAt ?? now));
+      : state.status === 'active'
+        ? today
+        : ukDay(state.status === 'overdue' ? (state.overdueSince ?? now) : (state.pausedAt ?? now));
   if (occasion === null) return err({ tag: 'WrongState' });
 
   const recipients = recipientsOf(await deps.accounts.listByCompany(companyId));
@@ -150,6 +153,7 @@ function sampleDays(kind: AccountEmailKind, today: string) {
     case 'overdue_week':
       return { trialEndsOn: null, overdueSince: addDays(today, -7) };
     case 'paused':
+    case 'resumed':
       return { trialEndsOn: null, overdueSince: null };
   }
 }

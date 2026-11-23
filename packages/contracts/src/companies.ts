@@ -86,6 +86,7 @@ export const accountEmailKindSchema = z.enum([
   'overdue',
   'overdue_week',
   'paused',
+  'resumed',
 ]);
 export type AccountEmailKindDto = z.infer<typeof accountEmailKindSchema>;
 

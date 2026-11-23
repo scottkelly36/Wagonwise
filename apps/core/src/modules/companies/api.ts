@@ -10,7 +10,14 @@ import { isPaused } from './domain/account-state.js';
 import { PostgresAccountEmailLog } from './infrastructure/postgres-account-email-log.js';
 import { PostgresAccountStateRepository } from './infrastructure/postgres-account-state-repository.js';
 import { PostgresCompanyRepository } from './infrastructure/postgres-company-repository.js';
-import { runAccountRules, type AccountRuleOutcome } from './application/run-account-rules.js';
+import { applyPaymentFact, type PaymentFactOutcome } from './application/payment-facts.js';
+import type { PaymentFact } from './domain/account-rules.js';
+import type { PaymentFacts } from './application/ports/payment-facts.js';
+import {
+  runAccountRules,
+  type AccountRuleDeps,
+  type AccountRuleOutcome,
+} from './application/run-account-rules.js';
 import { createStaffRequestGate, type StaffRequestGate } from './application/staff-request-gate.js';
 import { registerCompaniesRoutes, type CompaniesRouteDeps } from './interface/routes.js';
 import { bootstrapFirstAdmin as bootstrapFirstAdminUseCase } from './application/bootstrap-first-admin.js';
@@ -36,6 +43,9 @@ import { registerStaffRoutes } from './interface/staff-routes.js';
 export type { UntypedDb } from './infrastructure/db.js';
 // The requests a paused company may still make, so a composition test can check each is a real route.
 export { OPEN_WHEN_PAUSED } from './domain/account-state.js';
+export type { PaymentFact } from './domain/account-rules.js';
+export type { PaymentFactOutcome } from './application/payment-facts.js';
+export type { PaymentFacts } from './application/ports/payment-facts.js';
 export type { StaffCallerView } from './infrastructure/staff-callers.js';
 
 export interface CompaniesModuleDeps {
@@ -53,6 +63,9 @@ export interface CompaniesModuleDeps {
   readonly dashboardUrl?: string | undefined;
   /** Where a line to the owner goes whenever WagonWise writes to a company about its account (config's ALERT_EMAIL). Undefined: none. */
   readonly ownerNotice?: { send(subject: string, text: string): Promise<void> } | undefined;
+  /** Whether a company has payment details on file, so a finished free period becomes active rather than overdue. Supplied by
+   *  composition over `payments`; undefined: none have. */
+  readonly payments?: PaymentFacts | undefined;
   /** Base64 32-byte key for staff TOTP secrets (config's STAFF_SECRET_KEY). Undefined: a fresh
    *  key per boot, local dev only. */
   readonly staffSecretKey?: string | undefined;
@@ -87,6 +100,13 @@ export interface CompaniesModule {
    * the setting is off or before 7am UK. Run hourly by composition.
    */
   runAccountRules(): Promise<AccountRuleOutcome>;
+  /**
+   * What the payment provider has told us about a company: payment details were added, everything is paid, or a payment failed. It moves
+   * the company (or not), logs the move as the system's, tells the owner and writes to the company. Safe to repeat. **Runs in the
+   * caller's data scope, which must be WagonWise staff's**, so the payments webhook can settle an invoice and move the company in one
+   * transaction.
+   */
+  recordPaymentFact(companyId: string, fact: PaymentFact): Promise<PaymentFactOutcome>;
   /** How many months each company keeps its proof-of-delivery photos, by company id, for the daily cleanup. */
   listPhotoRetention(): Promise<ReadonlyMap<string, number>>;
   /** Every company's id and name, for billing's admin screens. */
@@ -182,19 +202,20 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     ids: deps.ids,
   };
 
-  const rulesPass = () =>
-    runAccountRules({
-      states: accountStates,
-      companies: repo,
-      accounts: staffDeps.accounts,
-      emailLog: staffDeps.emailLog,
-      mailer: staffDeps.mailer,
-      ownerNotice: deps.ownerNotice,
-      dashboardUrl: deps.dashboardUrl,
-      clock: deps.clock,
-      ids: deps.ids,
-      scoped: (work) => deps.dataScopes.run({ kind: 'platform' }, work),
-    });
+  const ruleDeps: AccountRuleDeps = {
+    states: accountStates,
+    companies: repo,
+    accounts: staffDeps.accounts,
+    emailLog: staffDeps.emailLog,
+    mailer: staffDeps.mailer,
+    ownerNotice: deps.ownerNotice,
+    dashboardUrl: deps.dashboardUrl,
+    payments: deps.payments,
+    clock: deps.clock,
+    ids: deps.ids,
+    scoped: (work) => deps.dataScopes.run({ kind: 'platform' }, work),
+  };
+  const rulesPass = () => runAccountRules(ruleDeps);
 
   return {
     registerRoutes(app: FastifyInstance): void {
@@ -206,6 +227,8 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     },
     isStaffRequestRefused: staffRequestGate,
     runAccountRules: rulesPass,
+    recordPaymentFact: (companyId, fact) =>
+      applyPaymentFact(ruleDeps, makeId<'CompanyId'>(companyId), fact),
     pausedCompanyName: async (companyId: string) => {
       const now = deps.clock.now().getTime();
       const cached = pausedNames.get(companyId);

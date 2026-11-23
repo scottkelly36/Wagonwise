@@ -102,6 +102,10 @@ const VALID = [
   ['POST', `/staff/companies/${ID}/account-emails`, { kind: 'paused', to: 'me' }],
   ['GET', `/staff/companies/${ID}/account-history`, undefined],
   ['POST', '/staff/account-rules/run', undefined],
+  ['GET', '/staff/payments/status', undefined],
+  ['POST', '/staff/payments/setup', undefined],
+  ['POST', '/staff/payments/collect', { invoiceId: ID }],
+  ['GET', `/staff/companies/${ID}/payments`, undefined],
   ['GET', '/staff/company/account-state', undefined],
   ['GET', '/staff/account-settings', undefined],
   [
@@ -205,6 +209,8 @@ describe('the moved dashboard pages (P2-M1.12c)', () => {
     ],
     ['POST', `/staff/companies/${ID}/account-emails`, { kind: 'free_beer', to: 'company' }],
     ['POST', `/staff/companies/${ID}/account-emails`, { kind: 'paused', to: 'everyone' }],
+    ['POST', '/staff/payments/collect', { invoiceId: 'not-a-uuid' }],
+    ['GET', '/staff/companies/not-a-uuid/payments', undefined],
     ['GET', '/staff/usage/everything', undefined],
     [
       'POST',
