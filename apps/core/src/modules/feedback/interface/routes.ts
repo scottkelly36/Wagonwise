@@ -186,8 +186,8 @@ export function registerFeedbackRoutes(app: FastifyInstance, deps: FeedbackRoute
   app.get('/staff/research-contacts', async (request, reply) => {
     const caller = await staffCaller(request, reply);
     if (caller === undefined) return reply;
-    const result = await deps.dataScopes.run({ kind: 'platform' }, () =>
-      listResearchContacts(deps.research, caller),
+    const result = await listResearchContacts(deps.research, caller, (work) =>
+      deps.dataScopes.run({ kind: 'platform' }, work),
     );
     if (!result.ok) {
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
