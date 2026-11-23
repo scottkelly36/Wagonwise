@@ -50,6 +50,7 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 7. **Charges, stages 3 and 4** (`charges-routing-scope.md`). Zones: the vehicle field, Scotland, seven English zones and London are built, on cards and on the live map
    (2026-11-11; four of the boundaries have no stated licence, the owner's call). Next a total and a Cheapest card. Toll prices and zone rates need a dated review. The toll choice now carries into re-plans and the faster-route check (2026-11-11).
    (2026-11-11; four of the boundaries have no stated licence, the owner's call). A total cost and a Cheapest label are built on the cards (2026-11-11). Next: the toll choice carried into re-plans, job stops and the faster-route check. Toll prices and zone rates need a dated review.
+   7b. **Owner-drivers and My subbies, scope only** (`subbies-scope.md`, 2026-11-23): owner-drivers as one-lorry firms making jobs in the app, and hauliers offering overflow to their own subbies as two linked jobs. Seven questions for the owner at the end (referrals decided: unchanged); stage 0 (phone the 18 firms, ask app users about O-licences) comes before any code.
 8. **FORS-style records** (`fors-scope.md`, idea only): documents with expiry dates and an infringement log first. Never claim a firm is compliant.
 9. **Driver sign-in without invite codes** (`driver-sign-in-plan.md`): server, driver BFF and password screens are built behind switches;
    Google and Apple sign-in need a store build and the owner's set-up. Nothing is switched on.
