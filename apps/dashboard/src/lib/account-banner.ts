@@ -66,3 +66,8 @@ export function accountBanner(
   }
   return undefined;
 }
+
+/** What stands in place of a download or print button while the company is paused: the records are still there, and how to get them. */
+export function exportsPausedMessage(): string {
+  return `Downloads and printing are switched off while your account is paused. Email ${SUPPORT} and we will send you what you need.`;
+}

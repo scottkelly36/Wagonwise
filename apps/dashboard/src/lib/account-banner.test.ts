@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accountBanner, daysBetween } from './account-banner';
+import { accountBanner, daysBetween, exportsPausedMessage } from './account-banner';
 
 const company = '71000000-0000-4000-8000-000000000001';
 const state = (status: 'trial' | 'active' | 'overdue' | 'paused', trialEndsOn: string | null) => ({
@@ -53,5 +53,13 @@ describe('accountBanner', () => {
     const ended = accountBanner(state('trial', '2026-11-20'), '2026-11-22');
     expect(ended?.tone).toBe('warn');
     expect(ended?.text).toContain('ended on 20 November 2026');
+  });
+});
+
+describe('exportsPausedMessage', () => {
+  it('says downloads are off, and how to get the records', () => {
+    const text = exportsPausedMessage();
+    expect(text).toContain('Downloads and printing are switched off');
+    expect(text).toContain('support@wagon-wise.co.uk');
   });
 });

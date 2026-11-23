@@ -31,6 +31,8 @@ import {
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { useWorkingCompany } from '../../state/working-company-store';
+import { ExportsPausedNote } from '../../components/ExportsPausedNote';
+import { useExportsHeld } from '../../hooks/use-exports-held';
 
 const PRESETS: readonly RangePreset[] = ['last3', 'last12', 'last24', 'custom'];
 
@@ -226,6 +228,7 @@ export function AuditPack() {
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [printError, setPrintError] = useState<string | undefined>(undefined);
+  const exportsHeld = useExportsHeld();
 
   const vehicles = useQuery({
     queryKey: ['fleet-vehicles', companyId],
@@ -381,14 +384,21 @@ export function AuditPack() {
               <li key={line}>{line}</li>
             ))}
           </ul>
-          <div className="flex gap-8 wrap mb-16">
-            <button type="button" className="btn-primary" onClick={() => print(data)}>
-              Print or save as PDF
-            </button>
-            <button type="button" onClick={() => download(auditCsvFileName(data), auditCsv(data))}>
-              Download as a spreadsheet
-            </button>
-          </div>
+          {exportsHeld ? (
+            <ExportsPausedNote />
+          ) : (
+            <div className="flex gap-8 wrap mb-16">
+              <button type="button" className="btn-primary" onClick={() => print(data)}>
+                Print or save as PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => download(auditCsvFileName(data), auditCsv(data))}
+              >
+                Download as a spreadsheet
+              </button>
+            </div>
+          )}
           {printError !== undefined && <p className="text-danger">{printError}</p>}
 
           <h3>Walk-round checks</h3>

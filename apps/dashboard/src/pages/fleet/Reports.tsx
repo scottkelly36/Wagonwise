@@ -23,6 +23,8 @@ import { formatDuration } from '../../lib/live-map';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { useWorkingCompany } from '../../state/working-company-store';
+import { ExportsPausedNote } from '../../components/ExportsPausedNote';
+import { useExportsHeld } from '../../hooks/use-exports-held';
 
 const PRESETS = Object.keys(PRESET_LABELS) as ReportPreset[];
 
@@ -128,6 +130,7 @@ const columns: readonly Column<JobReportRowDto>[] = [
  */
 export function Reports() {
   const me = useStaffAuthStore((s) => s.session?.staff);
+  const exportsHeld = useExportsHeld();
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
   const everyCompany = isPlatform(me);
   const allowed = everyCompany || holds(me, 'view_reports');
@@ -224,14 +227,18 @@ export function Reports() {
             </label>
           </>
         )}
-        <button
-          className="btn-primary"
-          type="button"
-          disabled={range === undefined || rows.length === 0}
-          onClick={() => range && download(csvFileName(range), toCsv(rows))}
-        >
-          Download CSV
-        </button>
+        {exportsHeld ? (
+          <ExportsPausedNote />
+        ) : (
+          <button
+            className="btn-primary"
+            type="button"
+            disabled={range === undefined || rows.length === 0}
+            onClick={() => range && download(csvFileName(range), toCsv(rows))}
+          >
+            Download CSV
+          </button>
+        )}
       </div>
 
       {preset === 'custom' && range === undefined && (

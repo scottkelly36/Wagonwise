@@ -181,8 +181,8 @@ work, after the states, and it needs a provider account that only the owner can 
 1. **The state and the block** (built, PR 429). Migration, the company state, the owner's buttons and settings on the admin page, a basic
    banner, and the staff write block. Existing firms are set `active` by the migration so nothing changes for them; the owner sets the
    pilot firm's hold by hand.
-   1b. **Drivers** (built, 2026-11-23). A paused company's jobs, live positions and hours sharing are switched off for its drivers, with
-   one line in the app. **Downloads** (hiding the dashboard's download and print buttons when paused) are still to do.
+   1b. **Drivers and downloads** (built, 2026-11-23). A paused company's jobs, live positions and hours sharing are switched off for its drivers, with
+   one line in the app. **Downloads** (built, 2026-11-23): the dashboard's download and print buttons are replaced by a note while the company is paused.
 2. **Banners and emails.** The banner in the dashboard, the trial-ending, overdue and paused emails with their log, the owner's
    alerts, and the firm's own billing page showing the date and what is owed.
 3. **The periodic task.** Dates move a firm through `overdue` to `paused`, as the loop above, switched on by the owner once.
