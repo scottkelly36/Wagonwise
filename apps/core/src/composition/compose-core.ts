@@ -43,6 +43,7 @@ import {
   createCongestionModule,
   type UntypedDb as CongestionUntypedDb,
 } from '../modules/congestion/api.js';
+import { RESEARCH_CONTACT_WORDING } from '@wagonwise/contracts/feedback';
 import {
   createFeedbackModule,
   type UntypedDb as FeedbackUntypedDb,
@@ -348,6 +349,15 @@ export function composeCore(
     clock,
     ids,
     callers: { getCaller: staffCaller },
+    dataScopes,
+    researchContactEnabled: config.researchContactEnabled,
+    researchWordingVersion: RESEARCH_CONTACT_WORDING.version,
+    staffLabels: {
+      describe: (staffIds) => {
+        if (composed.companies === undefined) throw new Error('companies module not composed yet');
+        return composed.companies.describeStaff(staffIds);
+      },
+    },
     driverLabels: {
       labelsFor: async (driverIds) => {
         const entries = await Promise.all(

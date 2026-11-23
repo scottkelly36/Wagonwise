@@ -2,9 +2,17 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import Fastify, { type FastifyInstance } from 'fastify';
 import { fileURLToPath } from 'node:url';
 import { Kysely, PostgresDialect } from 'kysely';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { UsageReportDto } from '@wagonwise/contracts/usage';
+import type {
+  UsageActivityDto,
+  UsageDriversDto,
+  UsageFirmsDto,
+  UsageFlowsDto,
+  UsageOverviewDto,
+  UsagePortalDto,
+  UsageSiteDto,
+} from '@wagonwise/contracts/usage';
 import { createUsageModule, type StaffCaller } from '../modules/usage/api.js';
 import { runMigrations } from '../platform/migrations/run-migrations.js';
 import { attachPoolErrorHandler } from '../platform/db.js';
@@ -187,19 +195,26 @@ describe('usage end to end (real RLS, real scopes)', () => {
     await container.stop();
   });
 
-  const report = async () => (await get(ADMIN)).json<UsageReportDto>();
+  const section = async <T>(name: string): Promise<T> => (await get(ADMIN, name)).json<T>();
+  /** The four sections the page opens, put back together so the figures can be checked as one report. */
+  const report = async () => ({
+    ...(await section<UsageOverviewDto>('overview')),
+    ...(await section<UsageDriversDto>('drivers')),
+    ...(await section<UsageActivityDto>('activity')),
+    ...(await section<UsageFirmsDto>('firms')),
+  });
 
-  const get = (who?: string) =>
+  const get = (who?: string, name = 'overview') =>
     app.inject({
       method: 'GET',
-      url: '/staff/usage',
+      url: `/staff/usage/${name}`,
       ...(who === undefined ? {} : { headers: { 'x-test-staff-id': who } }),
     });
 
   it('counts drivers by when they were last seen, and those who never signed in', async () => {
     const response = await get(ADMIN);
     expect(response.statusCode).toBe(200);
-    const body = response.json<UsageReportDto>();
+    const body = await report();
     expect(body.drivers).toEqual({
       total: 3,
       neverSignedIn: 1,
@@ -217,9 +232,9 @@ describe('usage end to end (real RLS, real scopes)', () => {
       active7d: 1,
       active30d: 1,
     });
-    expect(body.devices).toEqual({ total: 1 });
+    expect(body.devices).toBe(1);
     expect(body.tripsRunningNow).toBe(1);
-    expect(body.testers).toEqual({ total: 0 });
+    expect(body.testers).toBe(0);
     // The first request in this file pays for a cold server and database, and under the whole suite running at once it has taken
     // just over the default 5 seconds (2026-11-16, 5016 ms on a push). The later tests reuse the warm connections.
   }, 30_000);
@@ -472,7 +487,7 @@ describe('usage end to end (real RLS, real scopes)', () => {
         ),
       );
 
-      const flows = (await report()).flows;
+      const flows = await section<UsageFlowsDto>('flows');
       expect(flows).toBeDefined();
       expect(flows?.windowDays).toBe(7);
       expect(flows?.sessions).toBe(3);
@@ -540,8 +555,9 @@ describe('usage end to end (real RLS, real scopes)', () => {
         'source',
       ]);
 
-      const site = (await report()).site;
+      const site = await section<UsageSiteDto>('site');
       expect(site).toEqual({
+        generatedAt: NOW,
         windowDays: 7,
         views: [
           { page: '/for-hauliers/', views: 2 },
@@ -566,6 +582,219 @@ describe('usage end to end (real RLS, real scopes)', () => {
         id(95),
       ]);
       expect(rows).toEqual([]);
+    });
+  });
+  describe("portal events (a company's staff, as the restricted app role)", () => {
+    const SESSION = '64000000-0000-4000-8000-000000000001';
+    const post = (who: string, events: unknown[], sessionId = SESSION) =>
+      app.inject({
+        method: 'POST',
+        url: '/staff/usage/portal-events',
+        payload: { sessionId, events },
+        headers: { 'x-test-staff-id': who },
+      });
+    const at = (hours: number) => hoursAgo(hours);
+    const rows = async () =>
+      (
+        await ownerPool.query<Record<string, unknown>>(
+          `select * from usage.portal_events order by at, event`,
+        )
+      ).rows;
+
+    it("stores a company's events against that company, with no person and no value, and leaves out a time that is not believable", async () => {
+      const response = await post(FLEET, [
+        { event: 'page_viewed', page: 'jobs', at: at(5) },
+        { event: 'form_opened', form: 'add_vehicle', at: at(4) },
+        {
+          event: 'form_error',
+          form: 'add_vehicle',
+          field: 'height',
+          problem: 'required',
+          at: at(3.9),
+        },
+        { event: 'form_sent', form: 'add_vehicle', at: at(3.5) },
+        { event: 'page_viewed', page: 'jobs', at: at(30) },
+      ]);
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ recorded: 4 });
+      const stored = await rows();
+      expect(stored.map((r) => [r.event, r.page, r.form, r.field, r.problem])).toEqual([
+        ['page_viewed', 'jobs', null, null, null],
+        ['form_opened', null, 'add_vehicle', null, null],
+        ['form_error', null, 'add_vehicle', 'height', 'required'],
+        ['form_sent', null, 'add_vehicle', null, null],
+      ]);
+      expect(new Set(stored.map((r) => r.company_id))).toEqual(new Set([ACME]));
+      // Nothing that could name a person or hold a typed value.
+      expect(Object.keys(stored[0] ?? {}).sort()).toEqual(
+        [
+          'at',
+          'company_id',
+          'event',
+          'field',
+          'form',
+          'id',
+          'page',
+          'problem',
+          'session_id',
+        ].sort(),
+      );
+    });
+
+    it('refuses a page, form, field or problem that is not on the fixed lists, so nothing typed can be stored', async () => {
+      const before = (await rows()).length;
+      for (const bad of [
+        { event: 'page_viewed', page: '/fleet/jobs?reg=AB12CDE', at: at(1) },
+        { event: 'form_opened', form: 'secret_form', at: at(1) },
+        {
+          event: 'form_error',
+          form: 'add_vehicle',
+          field: 'registration',
+          problem: 'required',
+          at: at(1),
+        },
+        {
+          event: 'form_error',
+          form: 'add_vehicle',
+          field: 'name',
+          problem: 'AB12 CDE is wrong',
+          at: at(1),
+        },
+        {
+          event: 'form_error',
+          form: 'invite_person',
+          field: 'height',
+          problem: 'required',
+          at: at(1),
+        },
+      ]) {
+        expect((await post(FLEET, [bad])).statusCode).toBe(400);
+      }
+      expect((await rows()).length).toBe(before);
+    });
+
+    it("keeps nothing for WagonWise's own staff, and needs someone signed in", async () => {
+      const before = (await rows()).length;
+      const response = await post(ADMIN, [{ event: 'page_viewed', page: 'jobs', at: at(1) }]);
+      expect(response.json()).toEqual({ recorded: 0 });
+      expect((await rows()).length).toBe(before);
+      const anonymous = await app.inject({
+        method: 'POST',
+        url: '/staff/usage/portal-events',
+        payload: {
+          sessionId: SESSION,
+          events: [{ event: 'page_viewed', page: 'jobs', at: at(1) }],
+        },
+      });
+      expect(anonymous.statusCode).toBe(401);
+    });
+
+    it('row-level security: a company cannot add rows for another company, or read any', async () => {
+      const asCompany = async (work: (c: PoolClient) => Promise<void>) => {
+        const client = await appPool.connect();
+        try {
+          await client.query('begin');
+          await client.query('select set_config($1, $2, true)', ['app.company_id', ACME]);
+          await work(client);
+        } finally {
+          await client.query('rollback');
+          client.release();
+        }
+      };
+      await asCompany(async (c) => {
+        await expect(
+          c.query(
+            `insert into usage.portal_events (id, company_id, session_id, event, page, at) values ($1, $2, $3, 'page_viewed', 'jobs', now())`,
+            [id(300), IDLE, SESSION],
+          ),
+        ).rejects.toThrow();
+      });
+      await asCompany(async (c) => {
+        const seen = await c.query('select count(*)::int as n from usage.portal_events');
+        expect((seen.rows[0] as { n: number }).n).toBe(0);
+      });
+    });
+
+    it('reports pages (including ones nobody opened), forms, the fields that trip people up and the firms still setting up', async () => {
+      const second = '64000000-0000-4000-8000-000000000002';
+      const third = '64000000-0000-4000-8000-000000000003';
+      // A second sitting opens the form, trips on a field, and sends it 90 seconds later; a third opens it and leaves.
+      await post(
+        FLEET,
+        [
+          { event: 'form_opened', form: 'create_job', at: at(2) },
+          {
+            event: 'form_error',
+            form: 'create_job',
+            field: 'reference',
+            problem: 'required',
+            at: at(1.99),
+          },
+          {
+            event: 'form_sent',
+            form: 'create_job',
+            at: new Date(new Date(at(2)).getTime() + 90_000).toISOString(),
+          },
+        ],
+        second,
+      );
+      await post(
+        FLEET,
+        [
+          { event: 'form_opened', form: 'create_job', at: at(1) },
+          { event: 'form_left', form: 'create_job', at: at(0.9) },
+        ],
+        third,
+      );
+
+      const report = await section<UsagePortalDto>('portal');
+      expect(report.windowDays).toBe(30);
+      expect(report.sessions).toBe(3);
+      expect(report.firms).toBe(1);
+      expect(report.pages.find((p) => p.page === 'jobs')).toEqual({ page: 'jobs', sessions: 1 });
+      expect(report.pages.find((p) => p.page === 'reports')).toEqual({
+        page: 'reports',
+        sessions: 0,
+      });
+      expect(report.forms.find((f) => f.form === 'create_job')).toEqual({
+        form: 'create_job',
+        opened: 2,
+        sent: 1,
+        left: 1,
+        errors: 1,
+        medianSecondsToSend: 90,
+      });
+      expect(report.forms.find((f) => f.form === 'invite_driver')).toMatchObject({
+        opened: 0,
+        medianSecondsToSend: null,
+      });
+      expect(report.errorFields).toEqual(
+        expect.arrayContaining([
+          { form: 'add_vehicle', field: 'height', problem: 'required', count: 1 },
+          { form: 'create_job', field: 'reference', problem: 'required', count: 1 },
+        ]),
+      );
+      // Idle Ltd was made recently and has no job; Acme has one.
+      expect(
+        report.settingUp.map((f) => [f.name, f.vehicles, f.drivers, f.jobs, f.lastSeenAt !== null]),
+      ).toEqual([['Idle Ltd', 0, 0, 0, false]]);
+    });
+
+    it('is for WagonWise staff only', async () => {
+      expect((await get(FLEET, 'portal')).statusCode).toBe(403);
+    });
+
+    it('deletes portal events over 90 days old with the other tracking', async () => {
+      await ownerPool.query(
+        `insert into usage.portal_events (id, company_id, session_id, event, page, at) values ($1, $2, $3, 'page_viewed', 'jobs', $4)`,
+        [id(310), ACME, SESSION, hoursAgo(91 * 24)],
+      );
+      expect(await usage.pruneFlowEvents()).toBeGreaterThanOrEqual(1);
+      const { rows: left } = await ownerPool.query(
+        `select id from usage.portal_events where id = $1`,
+        [id(310)],
+      );
+      expect(left).toEqual([]);
     });
   });
 });

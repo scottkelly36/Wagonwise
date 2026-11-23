@@ -2,7 +2,10 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
+import { RESEARCH_CONTACT_WORDING } from '@wagonwise/contracts/feedback';
+import { RecordingDataScopes } from '../../../shared/testing/recording-data-scopes.js';
 import { InMemoryFeedbackNoteRepository } from '../application/testing/in-memory-feedback-note-repository.js';
+import { InMemoryResearchConsentRepository } from '../application/testing/in-memory-research-consent-repository.js';
 import { registerFeedbackRoutes, type FeedbackRouteDeps } from './routes.js';
 
 const now = new Date('2026-06-15T08:00:00.000Z');
@@ -13,8 +16,23 @@ const now = new Date('2026-06-15T08:00:00.000Z');
 const DRIVER_HEADER = 'x-test-driver-id';
 const ADMIN = 'staff-admin';
 
-function buildApp(): { app: FastifyInstance; deps: FeedbackRouteDeps } {
+const BOSS = 'staff-boss';
+const OTHER_BOSS = 'staff-other';
+const ACME = 'company-acme';
+const research = new Map([
+  [BOSS, { name: 'Sam Boss', email: 'sam@acme.test', companyName: 'Acme Haulage' }],
+  [OTHER_BOSS, { name: 'Pat Other', email: 'pat@beta.test', companyName: 'Beta Freight' }],
+]);
+
+function buildApp(researchEnabled = true): {
+  app: FastifyInstance;
+  deps: FeedbackRouteDeps;
+  consent: InMemoryResearchConsentRepository;
+  scopes: RecordingDataScopes;
+} {
   const repo = new InMemoryFeedbackNoteRepository();
+  const consent = new InMemoryResearchConsentRepository();
+  const scopes = new RecordingDataScopes();
   const deps: FeedbackRouteDeps = {
     submitFeedback: { repo, clock: new FakeClock(now), ids: new SequentialIdGenerator() },
     review: {
@@ -28,7 +46,32 @@ function buildApp(): { app: FastifyInstance; deps: FeedbackRouteDeps } {
       },
     },
     callerDirectory: {
-      getCaller: (id) => Promise.resolve(id === ADMIN ? { kind: 'platform' } : null),
+      getCaller: (id) =>
+        Promise.resolve(
+          id === ADMIN
+            ? { kind: 'platform' }
+            : id === BOSS
+              ? { kind: 'fleet', companyId: ACME, privileges: ['manage_users'] }
+              : id === OTHER_BOSS
+                ? { kind: 'fleet', companyId: 'company-beta', privileges: ['manage_users'] }
+                : null,
+        ),
+    },
+    dataScopes: scopes,
+    research: {
+      repo: consent,
+      labels: {
+        describe: (ids) =>
+          Promise.resolve(
+            new Map(
+              ids.flatMap((id) => (research.has(id) ? [[id, research.get(id)!] as const] : [])),
+            ),
+          ),
+      },
+      clock: new FakeClock(now),
+      ids: new SequentialIdGenerator(),
+      enabled: researchEnabled,
+      wordingVersion: RESEARCH_CONTACT_WORDING.version,
     },
   };
   const app = Fastify();
@@ -44,7 +87,7 @@ function buildApp(): { app: FastifyInstance; deps: FeedbackRouteDeps } {
     done();
   });
   registerFeedbackRoutes(app, deps);
-  return { app, deps };
+  return { app, deps, consent, scopes };
 }
 
 function asDriver(driverId: string): { headers: Record<string, string> } {

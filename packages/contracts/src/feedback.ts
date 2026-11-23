@@ -67,3 +67,50 @@ export const setFeedbackResolvedRequestSchema = z.object({ resolved: z.boolean()
 export type SetFeedbackResolvedRequest = z.infer<typeof setFeedbackResolvedRequestSchema>;
 
 export const feedbackIdParamsSchema = z.object({ id: z.uuid() });
+
+// ---------------------------------------------------------------------------------------------
+// Market research contact (docs/company-account-states-scope.md): a person at a company may say WagonWise can contact them from time to
+// time to ask for feedback. An option, never a condition of using WagonWise. The wording is here so the portal shows it and the server
+// records which version the person saw; change the text and raise `version`, and nobody's earlier answer counts as agreeing to the new words.
+
+export const RESEARCH_CONTACT_WORDING = {
+  version: 1,
+  text: 'WagonWise may contact me from time to time to ask for feedback, to help improve the system.',
+  note: 'This is optional. Using WagonWise does not depend on it, and you can change your mind here at any time.',
+} as const;
+
+/** `GET /staff/research-contact` (a company's staff): their own answer, and the wording to show. `available` is false while the option is switched off. */
+export const researchContactSchema = z.object({
+  available: z.boolean(),
+  /** Their latest answer to the current wording; null if they have never answered it (an answer to older wording does not count). */
+  agreed: z.boolean().nullable(),
+  /** When they answered, for the latest answer; null if never. */
+  at: z.iso.datetime().nullable(),
+  /** The wording that applies now. */
+  version: z.number().int().min(1),
+  text: z.string(),
+  note: z.string(),
+});
+export type ResearchContactDto = z.infer<typeof researchContactSchema>;
+
+/** `PUT /staff/research-contact`: `version` is the wording they were shown, so what is stored is what they saw. */
+export const setResearchContactRequestSchema = z.object({
+  agreed: z.boolean(),
+  version: z.number().int().min(1),
+});
+export type SetResearchContactRequest = z.infer<typeof setResearchContactRequestSchema>;
+
+/** `GET /staff/research-contacts` (WagonWise staff): the people whose latest answer, to the current wording, is yes. */
+export const researchContactsResponseSchema = z.object({
+  available: z.boolean(),
+  version: z.number().int().min(1),
+  people: z.array(
+    z.object({
+      name: z.string(),
+      email: z.string(),
+      company: z.string(),
+      at: z.iso.datetime(),
+    }),
+  ),
+});
+export type ResearchContactsResponse = z.infer<typeof researchContactsResponseSchema>;

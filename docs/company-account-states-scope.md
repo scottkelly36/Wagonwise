@@ -190,8 +190,8 @@ work, after the states, and it needs a provider account that only the owner can 
 3. **The periodic task** (built, 2026-11-23). Dates move a firm through `overdue` to `paused`, as the loop above. It ships **off**; the owner’s
    setting has three positions (off; emails and overdue only; everything including pausing) and a "Run the rules now" button. A finished free
    period becomes overdue the day after its last free day. Un-pausing on payment waits for the payment provider (item 6).
-4. **Portal tracking.** Independent of 1 to 3; can go in beside them.
-5. **Market research option.** The switch, the stored consent and the wording, off until the solicitor has seen it.
+4. **Portal tracking** (built, 2026-11-23; `docs/modules.md`, "Portal tracking"). Independent of 1 to 3. The company is kept on each event, as proposed. The privacy notice wording and the ICO check are still open (`privacy-review.md`).
+5. **Market research option** (built, 2026-11-23; `docs/modules.md`, "Market research contact"). The switch, the stored consent (with the wording version) and the list for the owner, **off** until `RESEARCH_CONTACT_ENABLED` is set once the solicitor has seen the wording. The sign-up box waits for self-service sign-up.
 6. **Payment provider.** **Groundwork built, 2026-11-23** (`docs/modules.md`, "Payments"): everything around the provider that needs no
    account: the provider port with a stand-in for tests, payment details on file, "add payment details" for a company's billing people,
    collecting an issued invoice (a button, never by itself), the webhook, a finished free period with details on file becoming active, and

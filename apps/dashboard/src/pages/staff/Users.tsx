@@ -11,6 +11,8 @@ import { CompanySelect } from '../../components/CompanySelect';
 import { FieldError } from '../../components/FieldError';
 import { useCompanies } from '../../hooks/use-companies';
 import { focusFirstInvalid, hasErrors, isEmail, type FieldErrors } from '../../lib/forms';
+import { useFormTracking } from '../../hooks/use-form-tracking';
+import { invitePersonProblems } from '../../lib/portal-forms';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from './messages';
 import { PRESET_LABELS, PRIVILEGE_LABELS, PRIVILEGE_PRESETS, PRIVILEGES } from './privileges';
@@ -267,6 +269,7 @@ function InviteForm(props: {
   const [privileges, setPrivileges] = useState<readonly Privilege[]>(
     PRIVILEGE_PRESETS.viewer.filter((p) => props.myPrivileges.includes(p)),
   );
+  const track = useFormTracking('invite_person');
   const [link, setLink] = useState<string | undefined>(undefined);
   // The address the invitation was emailed to; undefined when it was not (so the link is shared by hand).
   const [emailedTo, setEmailedTo] = useState<string | undefined>(undefined);
@@ -289,7 +292,9 @@ function InviteForm(props: {
               },
         ),
       ),
+    onError: (error) => track.failed(error),
     onSuccess: (result) => {
+      track.sent();
       setLink(`${window.location.origin}/join?token=${encodeURIComponent(result.inviteToken)}`);
       setEmailedTo(result.emailed ? result.invite.email : undefined);
       setName('');
@@ -319,9 +324,11 @@ function InviteForm(props: {
       <form
         ref={formRef}
         noValidate
+        onChange={track.touched}
         onSubmit={(e) => {
           e.preventDefault();
           if (hasErrors(errors)) {
+            track.problems(invitePersonProblems(Object.keys(errors), { name, email, companyId }));
             setShowErrors(true);
             focusFirstInvalid(formRef.current);
             return;

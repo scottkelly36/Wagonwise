@@ -131,6 +131,8 @@ describe('runMigrations', () => {
       '0099_company_account_state.sql',
       '0100_company_account_emails.sql',
       '0101_account_automation.sql',
+      '0102_portal_events.sql',
+      '0103_research_contact.sql',
       '0104_payments.sql',
     ]);
 
@@ -192,7 +194,7 @@ describe('runMigrations', () => {
       `select table_name from information_schema.tables
        where table_schema = 'feedback' order by table_name`,
     );
-    expect(feedbackTables.map((row) => row.table_name)).toEqual(['notes']);
+    expect(feedbackTables.map((row) => row.table_name)).toEqual(['notes', 'research_consent']);
 
     const { rows: congestionTables } = await pool.query<{ table_name: string }>(
       `select table_name from information_schema.tables
@@ -345,6 +347,8 @@ describe('runMigrations', () => {
       '0099_company_account_state.sql',
       '0100_company_account_emails.sql',
       '0101_account_automation.sql',
+      '0102_portal_events.sql',
+      '0103_research_contact.sql',
       '0104_payments.sql',
     ]);
   });

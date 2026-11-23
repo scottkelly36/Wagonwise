@@ -117,7 +117,8 @@ export interface SiteSummary {
   readonly campaigns: readonly { readonly campaign: string; readonly views: number }[];
 }
 
-export interface UsageReport {
+/** The headline figures: who uses the app, how far drivers get, and how many firms. */
+export interface UsageOverview {
   readonly generatedAt: Date;
   /** Driver accounts that still exist: deleted ones (kept as an anonymised row) are left out of every driver figure. */
   readonly drivers: Activity;
@@ -125,23 +126,45 @@ export interface UsageReport {
   readonly deletedDrivers: number;
   readonly staff: Activity;
   readonly devices: number;
+  readonly testers: number;
+  readonly tripsRunningNow: number;
+  readonly tripsToday: number;
+  readonly firms: { readonly total: number; readonly activeThisWeek: number };
   readonly funnel: UsageFunnel;
+}
+
+/** New drivers by day and how many come back week by week. */
+export interface UsageDrivers {
+  readonly generatedAt: Date;
   readonly newDriversByDay: readonly CohortDay[];
   readonly retentionByWeek: readonly RetentionWeek[];
-  readonly tripsRunningNow: number;
+}
+
+/** Trips, jobs and checks over the last weeks. */
+export interface UsageActivity {
+  readonly generatedAt: Date;
   readonly tripsPerDay: readonly { day: string; count: number }[];
   readonly jobsCreatedPerWeek: readonly { weekStart: string; count: number }[];
   readonly jobsDeliveredPerWeek: readonly { weekStart: string; count: number }[];
   readonly checksPerWeek: readonly { weekStart: string; count: number }[];
-  readonly testers: number;
-  readonly firms: readonly UsageFirm[];
-  readonly flows: FlowsSummary;
-  readonly site: SiteSummary;
 }
 
-/** Reads the figures across the app. Counts only: nothing here names a driver. */
+export interface UsageFirms {
+  readonly generatedAt: Date;
+  readonly firms: readonly UsageFirm[];
+}
+
+/**
+ * The usage figures, one view at a time so the page only pays for the view it is showing: each section is its own set of queries and
+ * its own request. Counts only: nothing here names a driver.
+ */
 export interface UsageReader {
-  read(now: Date): Promise<UsageReport>;
+  overview(now: Date): Promise<UsageOverview>;
+  drivers(now: Date): Promise<UsageDrivers>;
+  activity(now: Date): Promise<UsageActivity>;
+  firms(now: Date): Promise<UsageFirms>;
+  flows(now: Date): Promise<FlowsSummary>;
+  site(now: Date): Promise<SiteSummary>;
 }
 
 export interface UsageDeps {
@@ -149,18 +172,33 @@ export interface UsageDeps {
   readonly clock: { now(): Date };
 }
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+/** The sections of the usage page that come from this reader (the portal report has its own). */
+export const USAGE_SECTIONS = [
+  'overview',
+  'drivers',
+  'activity',
+  'firms',
+  'flows',
+  'site',
+] as const;
+export type UsageSection = (typeof USAGE_SECTIONS)[number];
 
-/** How many firms were active in the last week. */
-export const firmsActiveThisWeek = (firms: readonly UsageFirm[], now: Date): number =>
-  firms.filter((f) => f.lastActiveAt !== null && now.getTime() - f.lastActiveAt.getTime() < WEEK_MS)
-    .length;
+interface UsageSectionData {
+  readonly overview: UsageOverview;
+  readonly drivers: UsageDrivers;
+  readonly activity: UsageActivity;
+  readonly firms: UsageFirms;
+  readonly flows: FlowsSummary;
+  readonly site: SiteSummary;
+}
 
-/** The usage report, for WagonWise staff only. */
-export async function getUsage(
+/** One section of the usage report, for WagonWise staff only. */
+export async function getUsageSection<S extends UsageSection>(
   deps: UsageDeps,
   caller: StaffCaller,
-): Promise<Result<UsageReport, Forbidden>> {
+  section: S,
+): Promise<Result<UsageSectionData[S], Forbidden>> {
   if (caller.kind !== 'platform') return err({ tag: 'Forbidden' });
-  return ok(await deps.reader.read(deps.clock.now()));
+  const data = await deps.reader[section](deps.clock.now());
+  return ok(data as UsageSectionData[S]);
 }

@@ -81,6 +81,22 @@ or another third party by the company; the notice does not need to change for th
   optional. Apple: "Usage data: product interaction", **not linked** to the user, for analytics; still not tracking (first party, no
   advertising). Change both before the app release that sends them.
 
+## Portal tracking (added 2026-11-23)
+
+- **What:** which portal pages a company's staff open, and for four forms (add a vehicle, make a job, invite a colleague, invite a driver) when one is started, sent or left part-way and which field showed what kind of problem (the lists are `PORTAL_PAGES`, `PORTAL_FORM_FIELDS` and `PORTAL_PROBLEMS` in `packages/contracts`). **Never anything typed.** A random session id made in the browser when the portal opens, and **the company; not the person**. WagonWise's own staff are not tracked. 90 days at most.
+- **Why the company is kept:** so a firm that tried to add a vehicle three times and stopped can be rung, which is the point for a firm on a trial (the owner's decision, 2026-11-23, as proposed).
+- **Basis:** legitimate interests (improving the portal and helping firms set up). No opt-out is built: the people are staff using a business tool, nothing is stored on their computer (the session id is in memory only) and nothing identifies them. **For the solicitor:** is that enough, or should there be an opt-out as the app has? And check the ICO's current analytics guidance (PECR as amended by the Data (Use and Access) Act 2025): not checked against the Act's text here.
+- **Privacy notice, a paragraph to add:** "When your staff use the WagonWise portal we record which pages they open and, for a few forms, when a form is started, sent or left and which field showed a problem, such as 'left empty'. We never record what is typed. We link this to your company, not to the person, and keep it for 90 days. We use it to improve the portal and to help new customers get set up."
+- **DPIA:** a short row: low risk; the main risk is the fixed lists growing to include something identifying, which the contract test guards against.
+
+## Market research contact (added 2026-11-23)
+
+- **What:** an optional switch in the portal's Settings: "WagonWise may contact me from time to time to ask for feedback, to help improve the system." Stored per person: yes or no, the date, the version of the wording shown, and the company. Append-only, so it can be shown what a person agreed to and when they changed their mind.
+- **Never a condition:** unticked until the person ticks it; using WagonWise does not depend on it; one click withdraws it; nobody is contacted for research unless their latest answer is yes to the current wording. Existing customers' staff are **not emailed to ask**: they see the switch in Settings and a one-time note on the Overview.
+- **Off until you say:** `RESEARCH_CONTACT_ENABLED` is false, so the switch is hidden and answers are refused. **For the solicitor:** the wording; how it sits beside the privacy notice and the terms (it should not be part of the terms checkbox); what basis to give for contacting (consent is what is recorded); and whether a withdrawal link is needed in every research email once any are sent. This file is not legal advice.
+- **Privacy notice, a paragraph to add:** "If you tick the box in your Settings, we may contact you from time to time to ask for feedback and to help improve WagonWise. We keep your answer, the date and the wording you saw. You can change your mind at any time in Settings and we will not contact you for this again. Using WagonWise does not depend on it."
+- **Withdrawal records:** the rows are kept (they are the evidence of what was agreed and when it was withdrawn); a person who leaves a company drops off the list because their account no longer exists. Say how long the rows are kept once the retention schedule is settled.
+
 ## Flow events (added 2026-11-17)
 
 - **What:** which steps a driver reaches and the fixed choices made on them (`FLOW_EVENT_CHOICES` in `packages/contracts`). No position,
