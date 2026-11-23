@@ -1,3 +1,4 @@
+import { ResearchNote } from '../../components/ResearchContact';
 import { isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { ManagerHome } from '../home/ManagerHome';
@@ -9,5 +10,10 @@ export function FleetOverview() {
   if (me === undefined) return null;
   if (isPlatform(me)) return <PlatformHome />;
   if (me.companyId === undefined) return null;
-  return <ManagerHome companyId={me.companyId} />;
+  return (
+    <>
+      <ResearchNote />
+      <ManagerHome companyId={me.companyId} />
+    </>
+  );
 }

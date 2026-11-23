@@ -81,6 +81,14 @@ or another third party by the company; the notice does not need to change for th
   optional. Apple: "Usage data: product interaction", **not linked** to the user, for analytics; still not tracking (first party, no
   advertising). Change both before the app release that sends them.
 
+## Market research contact (added 2026-11-23)
+
+- **What:** an optional switch in the portal's Settings: "WagonWise may contact me from time to time to ask for feedback, to help improve the system." Stored per person: yes or no, the date, the version of the wording shown, and the company. Append-only, so it can be shown what a person agreed to and when they changed their mind.
+- **Never a condition:** unticked until the person ticks it; using WagonWise does not depend on it; one click withdraws it; nobody is contacted for research unless their latest answer is yes to the current wording. Existing customers' staff are **not emailed to ask**: they see the switch in Settings and a one-time note on the Overview.
+- **Off until you say:** `RESEARCH_CONTACT_ENABLED` is false, so the switch is hidden and answers are refused. **For the solicitor:** the wording; how it sits beside the privacy notice and the terms (it should not be part of the terms checkbox); what basis to give for contacting (consent is what is recorded); and whether a withdrawal link is needed in every research email once any are sent. This file is not legal advice.
+- **Privacy notice, a paragraph to add:** "If you tick the box in your Settings, we may contact you from time to time to ask for feedback and to help improve WagonWise. We keep your answer, the date and the wording you saw. You can change your mind at any time in Settings and we will not contact you for this again. Using WagonWise does not depend on it."
+- **Withdrawal records:** the rows are kept (they are the evidence of what was agreed and when it was withdrawn); a person who leaves a company drops off the list because their account no longer exists. Say how long the rows are kept once the retention schedule is settled.
+
 ## Flow events (added 2026-11-17)
 
 - **What:** which steps a driver reaches and the fixed choices made on them (`FLOW_EVENT_CHOICES` in `packages/contracts`). No position,

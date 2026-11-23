@@ -103,6 +103,8 @@ const envSchema = z.object({
   APPLE_CLIENT_IDS: z.string().optional(),
   // Registers the password and emailed-code sign-in routes (docs/driver-sign-in-plan.md). Off until the app can use them.
   DRIVER_PASSWORD_SIGN_IN: z.enum(['true', 'false']).default('false'),
+  // Market research contact: the switch in the portal that lets WagonWise ask a person for feedback. Off until the solicitor has seen the wording.
+  RESEARCH_CONTACT_ENABLED: z.enum(['true', 'false']).default('false'),
   // Where to email the owner when Resend reports a sign-in email that did not get through. Unset: the problem is only logged.
   ALERT_EMAIL: z.string().trim().email().optional(),
   // Optional: the DVLA Vehicle Enquiry Service key (MOT and road tax dates by registration). Unset means the portal does not
@@ -213,6 +215,8 @@ export interface Config {
   readonly driverInviteRequired: boolean;
   /** True registers the password sign-in routes. */
   readonly driverPasswordSignIn: boolean;
+  /** True shows the market research contact switch in the portal and takes answers. */
+  readonly researchContactEnabled: boolean;
   readonly googleOauthClientIds: readonly string[];
   readonly appleClientIds: readonly string[];
   readonly dvlaVesApiKey: string | undefined;
@@ -314,6 +318,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     alertEmail: values.ALERT_EMAIL,
     driverInviteRequired: values.DRIVER_INVITE_REQUIRED === 'true',
     driverPasswordSignIn: values.DRIVER_PASSWORD_SIGN_IN === 'true',
+    researchContactEnabled: values.RESEARCH_CONTACT_ENABLED === 'true',
     googleOauthClientIds: commaList(values.GOOGLE_OAUTH_CLIENT_IDS),
     appleClientIds: commaList(values.APPLE_CLIENT_IDS),
     dvlaVesApiKey: values.DVLA_VES_API_KEY,

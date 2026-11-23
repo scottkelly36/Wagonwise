@@ -24,6 +24,9 @@ function buildApp(): { app: FastifyInstance; core: FakeCoreClient } {
 
 const VALID = [
   ['GET', '/staff/companies', undefined],
+  ['GET', '/staff/research-contact', undefined],
+  ['PUT', '/staff/research-contact', { agreed: true, version: 1 }],
+  ['GET', '/staff/research-contacts', undefined],
   ['POST', '/staff/companies', { id: ACME, name: 'Acme' }],
   ['GET', '/staff/invite-codes', undefined],
   ['POST', '/staff/invite-codes', undefined],
@@ -161,6 +164,8 @@ describe('the moved dashboard pages (P2-M1.12c)', () => {
       { ...VEHICLE, dimensions: { ...DIMENSIONS, heightM: -1 } },
     ],
     ['POST', '/staff/companies', { name: 'No id' }],
+    ['PUT', '/staff/research-contact', { agreed: 'yes', version: 1 }],
+    ['PUT', '/staff/research-contact', { agreed: true }],
     ['GET', '/staff/jobs/companies/acme/jobs', undefined],
     ['POST', `/staff/jobs/companies/${ACME}/jobs`, { ...JOB, stops: [] }],
     ['POST', '/staff/jobs/not-a-uuid/assign', undefined],

@@ -128,6 +128,7 @@ describe('runMigrations', () => {
       '0096_flow_event_update_date.sql',
       '0097_referrals.sql',
       '0098_site_visits.sql',
+      '0103_research_contact.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -188,7 +189,7 @@ describe('runMigrations', () => {
       `select table_name from information_schema.tables
        where table_schema = 'feedback' order by table_name`,
     );
-    expect(feedbackTables.map((row) => row.table_name)).toEqual(['notes']);
+    expect(feedbackTables.map((row) => row.table_name)).toEqual(['notes', 'research_consent']);
 
     const { rows: congestionTables } = await pool.query<{ table_name: string }>(
       `select table_name from information_schema.tables
@@ -335,6 +336,7 @@ describe('runMigrations', () => {
       '0096_flow_event_update_date.sql',
       '0097_referrals.sql',
       '0098_site_visits.sql',
+      '0103_research_contact.sql',
     ]);
   });
 });

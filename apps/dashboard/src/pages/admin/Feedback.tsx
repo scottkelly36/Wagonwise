@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as feedbackApi from '../../api/feedback';
 import { DataTable, type Column } from '../../components/DataTable';
+import { ResearchContactList } from '../../components/ResearchContactList';
 import { feedbackSearchText, isResolved, sentFrom } from '../../lib/feedback';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
@@ -125,6 +126,8 @@ export function Feedback() {
           }
         />
       )}
+
+      <ResearchContactList />
     </div>
   );
 }

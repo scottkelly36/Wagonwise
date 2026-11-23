@@ -1,7 +1,9 @@
 import {
+  RESEARCH_CONTACT_WORDING,
   feedbackIdParamsSchema,
   listFeedbackQuerySchema,
   setFeedbackResolvedRequestSchema,
+  setResearchContactRequestSchema,
   submitFeedbackRequestSchema,
 } from '@wagonwise/contracts/feedback';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -12,13 +14,22 @@ import {
   type CallerDirectory,
   type ReviewFeedbackDeps,
 } from '../application/review-feedback.js';
+import {
+  getMyResearchContact,
+  listResearchContacts,
+  setMyResearchContact,
+  type ResearchContactDeps,
+} from '../application/research-contact.js';
 import { submitFeedback, type SubmitFeedbackDeps } from '../application/submit-feedback.js';
+import type { DataScope, DataScopes } from '../../../shared/ports/data-scope.js';
 import { statusFor } from './error-mapping.js';
 
 export interface FeedbackRouteDeps {
   readonly submitFeedback: SubmitFeedbackDeps;
   readonly review: ReviewFeedbackDeps;
   readonly callerDirectory: CallerDirectory;
+  readonly research: ResearchContactDeps;
+  readonly dataScopes: DataScopes;
 }
 
 /**
@@ -113,5 +124,78 @@ export function registerFeedbackRoutes(app: FastifyInstance, deps: FeedbackRoute
       return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
     }
     return reply.status(204).send();
+  });
+
+  // Market research contact (docs/company-account-states-scope.md): a person at a company may say WagonWise can ask them for feedback.
+  // Their own answer is read and written in their company's scope; WagonWise staff read the list of people who said yes.
+  const wording = RESEARCH_CONTACT_WORDING;
+  const researchBody = (mine: { available: boolean; agreed: boolean | null; at: Date | null }) => ({
+    available: mine.available,
+    agreed: mine.agreed,
+    at: mine.at?.toISOString() ?? null,
+    version: wording.version,
+    text: wording.text,
+    note: wording.note,
+  });
+  async function fleetScope(request: FastifyRequest, reply: FastifyReply) {
+    if (request.staffId === undefined) {
+      void reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+      return undefined;
+    }
+    const caller = await deps.callerDirectory.getCaller(request.staffId);
+    if (caller === null) {
+      void reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+      return undefined;
+    }
+    if (caller.kind !== 'fleet') {
+      void reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
+      return undefined;
+    }
+    const scope: DataScope = { kind: 'company', companyId: caller.companyId };
+    return { staffId: request.staffId, caller, scope };
+  }
+
+  app.get('/staff/research-contact', async (request, reply) => {
+    const who = await fleetScope(request, reply);
+    if (who === undefined) return reply;
+    const result = await deps.dataScopes.run(who.scope, () =>
+      getMyResearchContact(deps.research, who.caller, who.staffId),
+    );
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send(researchBody(result.value));
+  });
+
+  app.put('/staff/research-contact', async (request, reply) => {
+    const who = await fleetScope(request, reply);
+    if (who === undefined) return reply;
+    const body = setResearchContactRequestSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await deps.dataScopes.run(who.scope, () =>
+      setMyResearchContact(deps.research, who.caller, who.staffId, body.data),
+    );
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send(researchBody(result.value));
+  });
+
+  app.get('/staff/research-contacts', async (request, reply) => {
+    const caller = await staffCaller(request, reply);
+    if (caller === undefined) return reply;
+    const result = await deps.dataScopes.run({ kind: 'platform' }, () =>
+      listResearchContacts(deps.research, caller),
+    );
+    if (!result.ok) {
+      return reply.status(statusFor(result.error)).send({ ...result.error, requestId: request.id });
+    }
+    return reply.status(200).send({
+      available: result.value.available,
+      version: wording.version,
+      people: result.value.people.map((p) => ({ ...p, at: p.at.toISOString() })),
+    });
   });
 }

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as companiesApi from '../../api/companies';
 import { CompanySelect } from '../../components/CompanySelect';
+import { ResearchContactSwitch } from '../../components/ResearchContact';
 import { retentionChoices } from '../../lib/retention';
 import { holds, isPlatform } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -118,6 +119,8 @@ export function Settings() {
           )}
         </section>
       )}
+
+      {!everyCompany && <ResearchContactSwitch />}
     </div>
   );
 }

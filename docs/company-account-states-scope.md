@@ -182,7 +182,7 @@ work, after the states, and it needs a provider account that only the owner can 
    alerts, and the firm's own billing page showing the date and what is owed.
 3. **The periodic task.** Dates move a firm through `overdue` to `paused`, as the loop above, switched on by the owner once.
 4. **Portal tracking.** Independent of 1 to 3; can go in beside them.
-5. **Market research option.** The switch, the stored consent and the wording, off until the solicitor has seen it.
+5. **Market research option** (built, 2026-11-23; `docs/modules.md`, "Market research contact"). The switch, the stored consent (with the wording version) and the list for the owner, **off** until `RESEARCH_CONTACT_ENABLED` is set once the solicitor has seen the wording. The sign-up box waits for self-service sign-up.
 6. **Payment provider.** After the owner opens the account: hosted page for payment details, webhooks, firms moving to `active`
    and back from `paused` by themselves.
 7. **Self-service sign-up** (below), only when the owner says.
