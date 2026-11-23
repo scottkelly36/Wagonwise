@@ -7,7 +7,7 @@ import { registerDriverAuth } from './driver-auth.js';
 import { registerErrorHandling } from './error-handler.js';
 import { registerHealthRoute } from './health-route.js';
 import { registerInternalAuth } from './internal-auth.js';
-import { registerStaffAuth } from './staff-auth.js';
+import { registerStaffAuth, type StaffRequestGate } from './staff-auth.js';
 
 export interface AppDeps {
   readonly config: Config;
@@ -17,6 +17,8 @@ export interface AppDeps {
   /** Staff (dashboard) tokens, for `/staff/` (P2-M1.6). Separate from drivers': each side
    *  refuses the other's tokens. */
   readonly staffAccessTokenVerifier: StaffAccessTokenVerifier;
+  /** Refuses a paused company's changes (`companies`' `isStaffRequestRefused`). Left out: nothing is refused. */
+  readonly staffRequestGate?: StaffRequestGate | undefined;
 }
 
 // Routing gated as of M4.2, hazards as of M4.3, feedback as of M5.9 — each reads
@@ -62,6 +64,7 @@ export function buildApp({
   ids,
   accessTokenVerifier,
   staffAccessTokenVerifier,
+  staffRequestGate,
 }: AppDeps): FastifyInstance {
   const app = Fastify({
     logger: { level: config.logLevel },
@@ -82,7 +85,7 @@ export function buildApp({
   registerErrorHandling(app);
   registerInternalAuth(app, config.internalKeys);
   registerDriverAuth(app, accessTokenVerifier, DRIVER_AUTH_PREFIXES);
-  registerStaffAuth(app, staffAccessTokenVerifier);
+  registerStaffAuth(app, staffAccessTokenVerifier, staffRequestGate);
   registerHealthRoute(app, { clock });
 
   return app;

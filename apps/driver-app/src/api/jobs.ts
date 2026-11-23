@@ -19,13 +19,22 @@ function bearer(accessToken: string): string {
   return `Bearer ${accessToken}`;
 }
 
-/** The one job a driver is on right now, or `null` (P2-M5.2's job screen). */
-export async function getCurrentJob(accessToken: string): Promise<JobDto | null> {
+/** The one job a driver is on right now (`job`), or `null`. `pausedCompany` is the firm's name when the job is hidden
+ *  because the firm's account is paused (docs/company-account-states-scope.md). */
+export async function getCurrentJobState(
+  accessToken: string,
+): Promise<{ job: JobDto | null; pausedCompany: string | undefined }> {
   const { status, json } = await requestJson('GET', '/jobs/current', {
     authorization: bearer(accessToken),
   });
   throwUnlessSuccess(status, json, [200]);
-  return currentJobResponseSchema.parse(json).job;
+  const parsed = currentJobResponseSchema.parse(json);
+  return { job: parsed.job, pausedCompany: parsed.pausedCompany };
+}
+
+/** The one job a driver is on right now, or `null` (P2-M5.2's job screen). */
+export async function getCurrentJob(accessToken: string): Promise<JobDto | null> {
+  return (await getCurrentJobState(accessToken)).job;
 }
 
 /** One step forward (design doc §5: "Arrived at pickup" → "Loaded" → "Set off" → "Arrived" →

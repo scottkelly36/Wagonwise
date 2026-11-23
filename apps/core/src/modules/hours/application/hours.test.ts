@@ -262,3 +262,60 @@ describe('showing the office', () => {
     expect(s.statuses.rows.size).toBe(0);
   });
 });
+
+describe('a paused company', () => {
+  function paused(s: ReturnType<typeof setup>, names: readonly string[] = [acme]) {
+    return {
+      ...s.deps,
+      accounts: {
+        pausedCompanyName: (companyId: string) =>
+          Promise.resolve(names.includes(companyId) ? 'Acme Haulage' : null),
+      },
+    };
+  }
+
+  it('shows its drivers the feature as off, and takes no new agreement to share', async () => {
+    const s = setup();
+    await setFirmSetting(s.deps, manager, staffId, acme, true);
+    await setMySharing(s.deps, sam, 'sam@x', acme, true);
+    const held = paused(s);
+    expect((await listMySharing(held, sam, 'sam@x'))[0]).toMatchObject({
+      firmEnabled: false,
+      sharing: true,
+    });
+    expect(await setMySharing(held, kim, 'kim@x', acme, true)).toEqual({
+      ok: false,
+      error: { tag: 'FirmNotEnabled' },
+    });
+  });
+
+  it('stores no status, and shows the office none', async () => {
+    const s = setup();
+    await setFirmSetting(s.deps, manager, staffId, acme, true);
+    await setMySharing(s.deps, sam, 'sam@x', acme, true);
+    await reportStatus(s.deps, sam, live);
+    const held = paused(s);
+    expect(await reportStatus(held, sam, live)).toEqual({
+      ok: false,
+      error: { tag: 'NotSharing' },
+    });
+    expect(await listStatuses(held, manager, acme)).toEqual({ ok: true, value: [] });
+    // Nothing is deleted: the earlier status is back once the firm is.
+    expect((await listStatuses(s.deps, manager, acme)).ok).toBe(true);
+    expect(s.statuses.rows.size).toBe(1);
+  });
+
+  it('lets a driver stop sharing, and is not paused when it is another company', async () => {
+    const s = setup();
+    await setFirmSetting(s.deps, manager, staffId, acme, true);
+    await setMySharing(s.deps, sam, 'sam@x', acme, true);
+    expect(await setMySharing(paused(s), sam, 'sam@x', acme, false)).toEqual({
+      ok: true,
+      value: false,
+    });
+    expect(await setMySharing(paused(s, [beta]), sam, 'sam@x', acme, true)).toEqual({
+      ok: true,
+      value: true,
+    });
+  });
+});

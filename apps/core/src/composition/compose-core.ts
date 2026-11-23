@@ -365,6 +365,13 @@ export function composeCore(
     dataScopes,
     staffSecretKey: config.staffSecretKey,
     dashboardUrl: config.dashboardUrl,
+    // Each email to a company about its account is copied to the owner as a short notice, when an alert address is set.
+    ownerNotice:
+      config.alertEmail === undefined
+        ? undefined
+        : {
+            send: (subject, text) => identity.sendEmail(config.alertEmail as string, subject, text),
+          },
   });
   composed.companies = companies;
   const parking = createParkingModule({
@@ -429,6 +436,10 @@ export function composeCore(
           id: makeId<'CompanyId'>(c.id),
           name: c.name,
         })),
+    },
+    // A paused company's drivers share no hours with it (docs/company-account-states-scope.md).
+    companyAccounts: {
+      pausedCompanyName: (companyId) => companies.pausedCompanyName(companyId),
     },
     activeJobs: {
       companyOfActiveJob: async (driverId) => {
@@ -713,6 +724,8 @@ export function composeCore(
       getIdentifier: (driverId) => identity.getDriverIdentifier(driverId),
       getName: (driverId) => identity.getDriverName(driverId),
     },
+    // A paused company's drivers see none of its jobs (docs/company-account-states-scope.md).
+    companyAccounts: { pausedCompanyName: (companyId) => companies.pausedCompanyName(companyId) },
     vehicleNames: {
       getName: async (vehicleId) => (await fleet.getVehicle(vehicleId))?.name ?? null,
     },
@@ -812,6 +825,9 @@ export function composeCore(
     accessTokenVerifier: overrides.accessTokenVerifier ?? accessTokenVerifier,
     staffAccessTokenVerifier:
       overrides.staffAccessTokenVerifier ?? lazyStaffVerifier(overrides.tokenSigner ?? tokenSigner),
+    // A paused company's staff can read but not change anything (docs/company-account-states-scope.md).
+    staffRequestGate: (staffId, method, path) =>
+      companies.isStaffRequestRefused(staffId, method, path),
   });
   // Housekeeping on timers, started once the app (and its logger) exists. Both passes are safe to
   // run twice, so a second core instance would do no harm.
@@ -956,6 +972,18 @@ export function composeCore(
       const { sent, failed } = await maintenance.sendDueReminders(recipients);
       if (sent > 0 || failed > 0) {
         app.log.info({ sent, failed }, 'maintenance reminders');
+      }
+    },
+  });
+
+  periodicTasks.start({
+    name: 'company-account-rules',
+    intervalMs: 60 * 60 * 1000,
+    run: async () => {
+      // Trial emails, trial to overdue, overdue to paused: does nothing until the owner switches it on in the settings.
+      const done = await companies.runAccountRules();
+      if (done.moved > 0 || done.emailed > 0 || done.nobodyToWrite > 0 || done.failed > 0) {
+        app.log.info(done, 'company account rules');
       }
     },
   });

@@ -179,9 +179,11 @@ export const jobReportResponseSchema = z.object({
 });
 export type JobReportResponse = z.infer<typeof jobReportResponseSchema>;
 
-/** `GET /jobs/current` (P2-M5.1): the one job a driver is on right now, or `null`. */
+/** `GET /jobs/current` (P2-M5.1): the one job a driver is on right now, or `null`. `pausedCompany` is the firm's name when the job is
+ *  hidden because the firm's account is paused (docs/company-account-states-scope.md); the app then shows one line saying so. */
 export const currentJobResponseSchema = z.object({
   job: jobSchema.nullable(),
+  pausedCompany: z.string().optional(),
 });
 export type CurrentJobResponse = z.infer<typeof currentJobResponseSchema>;
 

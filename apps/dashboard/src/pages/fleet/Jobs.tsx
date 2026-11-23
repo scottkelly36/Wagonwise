@@ -57,6 +57,7 @@ import {
 import { formatPence, parsePounds } from '../../lib/money';
 import { staffErrorMessage } from '../staff/messages';
 import { useWorkingCompany } from '../../state/working-company-store';
+import { useExportsHeld } from '../../hooks/use-exports-held';
 
 const COMPANIES_KEY = ['companies'] as const;
 const TERMINAL: readonly JobDto['status'][] = ['delivered', 'cancelled', 'failed'];
@@ -384,6 +385,7 @@ export function Jobs() {
   );
 
   const [recordError, setRecordError] = useState<string | undefined>(undefined);
+  const exportsHeld = useExportsHeld();
 
   /** Opens a delivery record in a new tab and offers it for printing or saving as a PDF. The tab is opened first,
    *  on the click, so a pop-up blocker allows it; the photos are fetched one at a time (they are large). */
@@ -572,7 +574,9 @@ export function Jobs() {
       key: 'record',
       header: 'Delivery record',
       cell: (job) =>
-        job.status === 'delivered' ? (
+        job.status === 'delivered' && exportsHeld ? (
+          <span className="text-muted">Switched off while paused</span>
+        ) : job.status === 'delivered' ? (
           <div className="job-actions job-record-actions">
             <button
               type="button"

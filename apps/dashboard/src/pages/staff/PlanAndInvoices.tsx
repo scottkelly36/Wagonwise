@@ -4,9 +4,11 @@ import type { InvoiceDto } from '@wagonwise/contracts/billing';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as billingApi from '../../api/billing';
+import * as companiesApi from '../../api/companies';
 import { DataTable, type Column } from '../../components/DataTable';
+import { accountStanding, amountDue } from '../../lib/account-banner';
 import { invoiceHtml, monthLabel } from '../../lib/invoice-print';
-import { formatPence } from '../../lib/money';
+import { formatPence, ukToday } from '../../lib/money';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
 const STATUS_TEXT: Record<InvoiceDto['status'], string> = {
@@ -35,6 +37,15 @@ export function PlanAndInvoices() {
     queryKey: ['own-invoices'],
     queryFn: () => withAccessToken((token) => billingApi.listOwnInvoices(token)),
   });
+  // The same query as the banner above every page, so it costs no extra request.
+  const account = useQuery({
+    queryKey: ['own-account-state'],
+    queryFn: () => withAccessToken((token) => companiesApi.getOwnAccountState(token)),
+    retry: false,
+  });
+  const standing =
+    account.data === undefined ? undefined : accountStanding(account.data, ukToday());
+  const due = amountDue(invoices.data ?? []);
 
   function print(invoice: InvoiceDto): void {
     setPrintError(undefined);
@@ -87,6 +98,23 @@ export function PlanAndInvoices() {
   return (
     <div>
       <h1>Plan and invoices</h1>
+
+      {standing !== undefined && (
+        <section className="mb-24 box" aria-label="Your account">
+          <h2 className="mt-0">Your account</h2>
+          <p style={{ fontSize: 18, margin: '4px 0' }}>
+            <strong>{standing.headline}</strong>
+          </p>
+          {standing.detail !== undefined && <p style={{ margin: '4px 0' }}>{standing.detail}</p>}
+          {!invoices.isPending && !invoices.isError && (
+            <p style={{ margin: '4px 0' }}>
+              {due.count === 0
+                ? 'Nothing is due.'
+                : `Due now: ${formatPence(due.pence)} across ${due.count} invoice${due.count === 1 ? '' : 's'}.`}
+            </p>
+          )}
+        </section>
+      )}
 
       {plan.isError && <ErrorNotice error={plan.error} />}
       {p !== undefined && (
