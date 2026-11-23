@@ -2113,6 +2113,8 @@ main:focus {
 
 .account-banner-bad {
   border-left-color: var(--danger);
+}
+
 /* Charts on the usage page: thin marks, recessive grid, one blue. Text wears text colours, never the data colour. */
 .chart {
   margin-top: 10px;
