@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { accountBanner, daysBetween, exportsPausedMessage } from './account-banner';
+import {
+  accountBanner,
+  accountStanding,
+  amountDue,
+  daysBetween,
+  exportsPausedMessage,
+} from './account-banner';
 
 const company = '71000000-0000-4000-8000-000000000001';
 const state = (status: 'trial' | 'active' | 'overdue' | 'paused', trialEndsOn: string | null) => ({
@@ -61,5 +67,60 @@ describe('exportsPausedMessage', () => {
     const text = exportsPausedMessage();
     expect(text).toContain('Downloads and printing are switched off');
     expect(text).toContain('support@wagon-wise.co.uk');
+  });
+});
+
+describe('accountStanding', () => {
+  it('always says where the account stands, even when the banner is quiet', () => {
+    expect(accountBanner(state('active', null), '2026-11-22')).toBeUndefined();
+    expect(accountStanding(state('active', null), '2026-11-22')).toMatchObject({
+      tone: 'ok',
+      headline: 'Your account is active.',
+    });
+    expect(accountStanding(state('trial', '2027-02-20'), '2026-11-22').headline).toBe(
+      'Your free period ends in 90 days, on 20 February 2027.',
+    );
+  });
+
+  it('says tomorrow and today, and when the free period is over', () => {
+    expect(accountStanding(state('trial', '2026-11-23'), '2026-11-22').headline).toContain(
+      'ends tomorrow',
+    );
+    expect(accountStanding(state('trial', '2026-11-22'), '2026-11-22').headline).toContain(
+      'ends today',
+    );
+    expect(accountStanding(state('trial', '2026-11-20'), '2026-11-22')).toMatchObject({
+      tone: 'warn',
+      headline: 'Your free period ended on 20 November 2026.',
+    });
+  });
+
+  it('says what an overdue and a paused account mean', () => {
+    expect(accountStanding(state('overdue', null), '2026-11-22')).toMatchObject({
+      tone: 'warn',
+      headline: 'Payment is overdue.',
+    });
+    const paused = accountStanding(state('paused', null), '2026-11-22');
+    expect(paused.tone).toBe('bad');
+    expect(paused.detail).toContain('cannot change anything');
+    expect(paused.detail).toContain('support@wagon-wise.co.uk');
+  });
+});
+
+describe('amountDue', () => {
+  it('adds up the issued invoices and nothing else', () => {
+    expect(
+      amountDue([
+        { status: 'issued', totalPence: 1500 },
+        { status: 'issued', totalPence: 2500 },
+        { status: 'paid', totalPence: 9900 },
+        { status: 'draft', totalPence: 700 },
+        { status: 'void', totalPence: 300 },
+      ]),
+    ).toEqual({ pence: 4000, count: 2 });
+  });
+
+  it('is nothing when nothing is due', () => {
+    expect(amountDue([])).toEqual({ pence: 0, count: 0 });
   });
 });

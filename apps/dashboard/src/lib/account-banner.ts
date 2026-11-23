@@ -67,6 +67,67 @@ export function accountBanner(
   return undefined;
 }
 
+export interface AccountStanding {
+  readonly tone: 'ok' | 'info' | 'warn' | 'bad';
+  /** One line: where the account stands. */
+  readonly headline: string;
+  /** What follows from it, or nothing to add. */
+  readonly detail: string | undefined;
+}
+
+/**
+ * Where the account stands, for the firm's own billing page (the banner above says nothing for an active account and for a trial
+ * that is far from ending, but a page about billing should always say). `today` is the UK day.
+ */
+export function accountStanding(
+  state: Pick<OwnAccountStateDto, 'status' | 'trialEndsOn'>,
+  today: string,
+): AccountStanding {
+  if (state.status === 'paused') {
+    return {
+      tone: 'bad',
+      headline: 'Your account is paused.',
+      detail: `You can still sign in and see everything, but you cannot change anything, and your drivers cannot see your jobs. To start it again, contact ${SUPPORT}.`,
+    };
+  }
+  if (state.status === 'overdue') {
+    return {
+      tone: 'warn',
+      headline: 'Payment is overdue.',
+      detail: `Nothing has been switched off. Please get in touch so it stays that way: ${SUPPORT}.`,
+    };
+  }
+  if (state.status === 'trial' && state.trialEndsOn !== null) {
+    const left = daysBetween(today, state.trialEndsOn);
+    if (left < 0) {
+      return {
+        tone: 'warn',
+        headline: `Your free period ended on ${longDay(state.trialEndsOn)}.`,
+        detail: `Please get in touch about what happens next: ${SUPPORT}.`,
+      };
+    }
+    const when = left === 0 ? 'today' : left === 1 ? 'tomorrow' : `in ${left} days`;
+    return {
+      tone: 'info',
+      headline: `Your free period ends ${when}, on ${longDay(state.trialEndsOn)}.`,
+      detail: undefined,
+    };
+  }
+  if (state.status === 'trial') {
+    return { tone: 'info', headline: 'You are on a free trial.', detail: undefined };
+  }
+  return { tone: 'ok', headline: 'Your account is active.', detail: undefined };
+}
+
+/** What the company owes now: its issued invoices that are not paid. A draft or a cancelled invoice is not owed. */
+export function amountDue(invoices: readonly { status: string; totalPence: number }[]): {
+  readonly pence: number;
+  readonly count: number;
+} {
+  const due = invoices.filter((i) => i.status === 'issued');
+  return { pence: due.reduce((sum, i) => sum + i.totalPence, 0), count: due.length };
+}
+
 /** What stands in place of a download or print button while the company is paused: the records are still there, and how to get them. */
 export function exportsPausedMessage(): string {
   return `Downloads and printing are switched off while your account is paused. Email ${SUPPORT} and we will send you what you need.`;

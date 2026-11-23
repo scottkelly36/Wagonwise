@@ -2,6 +2,7 @@ import { ErrorNotice } from '../../components/ErrorNotice';
 import { Loading } from '../../components/Loading';
 import {
   companyIdSchema,
+  type AccountEmailKindDto,
   type AccountStatusDto,
   type CompanyDto,
 } from '@wagonwise/contracts/companies';
@@ -11,6 +12,7 @@ import * as companiesApi from '../../api/companies';
 import { Badge, type BadgeTone } from '../../components/Badge';
 import { DataTable, type Column } from '../../components/DataTable';
 import { FieldError } from '../../components/FieldError';
+import { ACCOUNT_EMAIL_OPTIONS, canSendToCompany, sentMessage } from '../../lib/account-emails';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
 const COMPANIES_KEY = ['companies'] as const;
@@ -194,16 +196,94 @@ function AccountEditor({ company, onClose }: { company: CompanyDto; onClose: () 
   if (current.isError) return <ErrorNotice error={current.error} />;
 
   return (
-    <AccountForm
-      companyId={company.id}
-      companyName={company.name}
-      initial={current.data}
-      onSaved={() => {
-        void queryClient.invalidateQueries({ queryKey: COMPANIES_KEY });
-        void queryClient.invalidateQueries({ queryKey: ['account-state', company.id] });
-      }}
-      onClose={onClose}
-    />
+    <>
+      <AccountForm
+        companyId={company.id}
+        companyName={company.name}
+        initial={current.data}
+        onSaved={() => {
+          void queryClient.invalidateQueries({ queryKey: COMPANIES_KEY });
+          void queryClient.invalidateQueries({ queryKey: ['account-state', company.id] });
+        }}
+        onClose={onClose}
+      />
+      <AccountEmails
+        companyId={company.id}
+        companyName={company.name}
+        status={current.data.status}
+      />
+    </>
+  );
+}
+
+/**
+ * Write to a company about its account by hand: the free period ending, payment overdue, the account paused. The real email goes to the
+ * people at the company who hold billing (or, if nobody does, who manage its users), only while the company is in the state the
+ * email is about, and never twice for the same occasion. A test copy goes to the signed-in staff member only, so the wording can be read
+ * first. Nothing is sent by itself yet.
+ */
+function AccountEmails({
+  companyId,
+  companyName,
+  status,
+}: {
+  companyId: string;
+  companyName: string;
+  status: AccountStatusDto;
+}) {
+  const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
+  const [kind, setKind] = useState<AccountEmailKindDto>('paused');
+
+  const send = useMutation({
+    mutationFn: (target: 'company' | 'me') =>
+      withAccessToken((token) =>
+        companiesApi.sendAccountEmail(token, companyId, { kind, to: target }),
+      ),
+  });
+  const real = canSendToCompany(kind, status);
+
+  return (
+    <div style={{ display: 'grid', gap: 8, maxWidth: 520, padding: '8px 0 16px' }}>
+      <strong>Write to {companyName} about its account</strong>
+      <label>
+        Email{' '}
+        <select
+          value={kind}
+          onChange={(e) => {
+            setKind(e.target.value as AccountEmailKindDto);
+            send.reset();
+          }}
+        >
+          {ACCOUNT_EMAIL_OPTIONS.map((o) => (
+            <option key={o.kind} value={o.kind}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" disabled={send.isPending} onClick={() => send.mutate('me')}>
+          Send me a test copy
+        </button>
+        <button
+          type="button"
+          disabled={send.isPending || !real}
+          onClick={() => {
+            if (window.confirm(`Send this email to ${companyName} now?`)) send.mutate('company');
+          }}
+        >
+          Send to the company
+        </button>
+      </div>
+      {!real && (
+        <p className="text-muted">
+          The real email can only go while the company is in the state it is about (now:{' '}
+          {STATUS_LABEL[status]}). A test copy can always be sent.
+        </p>
+      )}
+      {send.isError && <ErrorNotice error={send.error} />}
+      {send.isSuccess && <p role="status">{sentMessage(send.variables, send.data)}</p>}
+    </div>
   );
 }
 

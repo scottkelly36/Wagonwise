@@ -78,6 +78,7 @@ import {
   accountSettingsSchema,
   companySettingsParamsSchema,
   createCompanyRequestSchema,
+  sendAccountEmailRequestSchema,
   setAccountStateRequestSchema,
   updateCompanySettingsRequestSchema,
 } from '@wagonwise/contracts/companies';
@@ -176,6 +177,13 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/companies/:id/account-state',
     params: companySettingsParamsSchema,
     body: setAccountStateRequestSchema,
+  },
+  // Writing to a company about its account by hand, or sending oneself a test copy. WagonWise staff only; core decides.
+  {
+    method: 'POST',
+    path: '/staff/companies/:id/account-emails',
+    params: companySettingsParamsSchema,
+    body: sendAccountEmailRequestSchema,
   },
   { method: 'GET', path: '/staff/company/account-state', params: noParams },
   { method: 'GET', path: '/staff/account-settings', params: noParams },

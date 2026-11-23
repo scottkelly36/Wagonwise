@@ -5,12 +5,16 @@ import {
   companySettingsSchema,
   createCompanyRequestSchema,
   listCompaniesResponseSchema,
+  sendAccountEmailRequestSchema,
+  sendAccountEmailResponseSchema,
   setAccountStateRequestSchema,
   ownAccountStateSchema,
   type AccountSettingsDto,
   type AccountStateDto,
   type CompanyDto,
   type OwnAccountStateDto,
+  type SendAccountEmailRequest,
+  type SendAccountEmailResponse,
   type SetAccountStateRequest,
   type CompanySettingsDto,
   type CreateCompanyRequest,
@@ -90,6 +94,28 @@ export async function setAccountState(
   });
   throwUnlessSuccess(status, json, [200]);
   return accountStateSchema.parse(json);
+}
+
+/**
+ * WagonWise staff: write to a company's billing people about its account now (only while it is in the state the email is about), or
+ * send oneself a test copy of the wording.
+ */
+export async function sendAccountEmail(
+  accessToken: string,
+  companyId: string,
+  input: SendAccountEmailRequest,
+): Promise<SendAccountEmailResponse> {
+  const body = sendAccountEmailRequestSchema.parse(input);
+  const { status, json } = await requestJson(
+    'POST',
+    `/staff/companies/${companyId}/account-emails`,
+    {
+      body,
+      authorization: `Bearer ${accessToken}`,
+    },
+  );
+  throwUnlessSuccess(status, json, [200]);
+  return sendAccountEmailResponseSchema.parse(json);
 }
 
 /** A company's own staff: the state of their own company, for the banner. */

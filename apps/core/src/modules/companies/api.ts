@@ -7,6 +7,7 @@ import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import type { IdentityModule } from '../identity/api.js';
 import type { UntypedDb } from './infrastructure/db.js';
 import { isPaused } from './domain/account-state.js';
+import { PostgresAccountEmailLog } from './infrastructure/postgres-account-email-log.js';
 import { PostgresAccountStateRepository } from './infrastructure/postgres-account-state-repository.js';
 import { PostgresCompanyRepository } from './infrastructure/postgres-company-repository.js';
 import { createStaffRequestGate, type StaffRequestGate } from './application/staff-request-gate.js';
@@ -49,6 +50,8 @@ export interface CompaniesModuleDeps {
   /** The dashboard's address (config's DASHBOARD_URL), so a staff invitation can be emailed as a link.
    *  Undefined: invitations are not emailed and the inviter shares the link. */
   readonly dashboardUrl?: string | undefined;
+  /** Where a line to the owner goes whenever WagonWise writes to a company about its account (config's ALERT_EMAIL). Undefined: none. */
+  readonly ownerNotice?: { send(subject: string, text: string): Promise<void> } | undefined;
   /** Base64 32-byte key for staff TOTP secrets (config's STAFF_SECRET_KEY). Undefined: a fresh
    *  key per boot, local dev only. */
   readonly staffSecretKey?: string | undefined;
@@ -130,6 +133,9 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     accounts: new PostgresStaffAccountRepository(deps.db),
     companies: repo,
     states: accountStates,
+    emailLog: new PostgresAccountEmailLog(deps.db),
+    mailer: { send: (to, subject, text) => deps.identity.sendEmail(to, subject, text) },
+    ownerNotice: deps.ownerNotice,
     invites: new PostgresStaffInviteRepository(deps.db),
     sessions: new PostgresStaffSessionRepository(deps.db),
     challenges: new PostgresStaffChallengeRepository(deps.db),

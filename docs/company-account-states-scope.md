@@ -183,8 +183,10 @@ work, after the states, and it needs a provider account that only the owner can 
    pilot firm's hold by hand.
    1b. **Drivers and downloads** (built, 2026-11-23). A paused company's jobs, live positions and hours sharing are switched off for its drivers, with
    one line in the app. **Downloads** (built, 2026-11-23): the dashboard's download and print buttons are replaced by a note while the company is paused.
-2. **Banners and emails.** The banner in the dashboard, the trial-ending, overdue and paused emails with their log, the owner's
-   alerts, and the firm's own billing page showing the date and what is owed.
+2. **Banners and emails** (built, 2026-11-23). The banner (with a link to the plan page), the five emails (free period ending at 14 and
+   7 days, overdue and a week on, paused) with their log and a notice to the owner of each, a way to send them by hand or send oneself
+   a test copy, and the firm's own billing page showing where its account stands and what is due. **Nothing sends them by itself
+   until item 3.** The wording names no price: there is no payment page yet, so it says to reply or write to support.
 3. **The periodic task.** Dates move a firm through `overdue` to `paused`, as the loop above, switched on by the owner once.
 4. **Portal tracking.** Independent of 1 to 3; can go in beside them.
 5. **Market research option.** The switch, the stored consent and the wording, off until the solicitor has seen it.

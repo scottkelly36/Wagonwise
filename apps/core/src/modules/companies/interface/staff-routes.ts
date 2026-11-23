@@ -1,6 +1,7 @@
 import {
   accountSettingsSchema,
   companySettingsParamsSchema,
+  sendAccountEmailRequestSchema,
   setAccountStateRequestSchema,
   updateCompanySettingsRequestSchema,
 } from '@wagonwise/contracts/companies';
@@ -18,6 +19,7 @@ import {
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { makeId } from '../../../shared/brand.js';
 import type { DataScope, DataScopes } from '../../../shared/ports/data-scope.js';
+import { sendAccountEmailByHand } from '../application/account-emails.js';
 import {
   getAccountSettings,
   getAccountState,
@@ -362,6 +364,24 @@ export function registerStaffRoutes(
         body.data,
       );
       return result.ok ? ok(200, accountStateDto(result.value)) : fail(result.error);
+    });
+    return send(request, reply, outcome);
+  });
+
+  // Write to a company about its account by hand (WagonWise staff only): the real email to its billing people, or a test copy to oneself.
+  app.post('/staff/companies/:id/account-emails', async (request, reply) => {
+    const outcome = await asActor(request, async ({ actor }) => {
+      const params = companySettingsParamsSchema.safeParse(request.params);
+      const body = sendAccountEmailRequestSchema.safeParse(request.body);
+      if (!params.success || !body.success) return badRequest();
+      const result = await sendAccountEmailByHand(
+        deps,
+        actor,
+        makeId<'CompanyId'>(params.data.id),
+        body.data.kind,
+        body.data.to,
+      );
+      return result.ok ? ok(200, result.value) : fail(result.error);
     });
     return send(request, reply, outcome);
   });

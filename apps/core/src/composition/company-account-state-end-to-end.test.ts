@@ -34,6 +34,8 @@ describe('company account states end to end (real RLS, real hook)', () => {
   let appPool: Pool;
   let companies: CompaniesModule;
   let app: FastifyInstance;
+  const emails: { to: string; subject: string }[] = [];
+  const notices: string[] = [];
   // A clock in the future of the gate's cache, so a state change is seen on the next request.
   const clock = new FakeClock('2026-11-22T12:00:00.000Z');
 
@@ -74,9 +76,18 @@ describe('company account states end to end (real RLS, real hook)', () => {
       dataScopes: scopes,
       identity: {
         sendOneTimeCode: () => Promise.resolve(),
-        sendEmail: () => Promise.resolve(),
+        sendEmail: (to: string, subject: string) => {
+          emails.push({ to, subject });
+          return Promise.resolve();
+        },
         signStaffAccessToken: () => Promise.resolve({ token: 't', expiresAt: new Date() }),
       } as never,
+      ownerNotice: {
+        send: (subject: string) => {
+          notices.push(subject);
+          return Promise.resolve();
+        },
+      },
     });
 
     app = Fastify();
@@ -275,5 +286,86 @@ describe('company account states end to end (real RLS, real hook)', () => {
       ...as(ADMIN),
     });
     expect(first.json()).toMatchObject({ trialEndsOn: '2027-02-20' });
+  });
+
+  describe('writing to a company about its account', () => {
+    const send = (staffId: string, company: string, payload: object) =>
+      app.inject({
+        method: 'POST',
+        url: `/staff/companies/${company}/account-emails`,
+        payload,
+        ...as(staffId),
+      });
+    const acmeEmails = () => emails.filter((e) => e.to === 'boss@acme.test');
+
+    it('writes to a paused company once, by hand, and tells the owner', async () => {
+      expect(
+        (await setState(ADMIN, ACME, { status: 'paused', note: 'no payment' })).statusCode,
+      ).toBe(200);
+      const first = await send(ADMIN, ACME, { kind: 'paused', to: 'company' });
+      expect(first.statusCode).toBe(200);
+      expect(first.json()).toEqual({ sent: 1, alreadySent: false });
+      // Nobody at Acme holds billing, so it goes to the person who manages its users.
+      expect(acmeEmails().map((e) => e.subject)).toEqual([
+        'The WagonWise account for Acme Haulage has been paused',
+      ]);
+      expect(notices).toEqual(['WagonWise wrote to Acme Haulage: account paused']);
+
+      const again = await send(ADMIN, ACME, { kind: 'paused', to: 'company' });
+      expect(again.json()).toEqual({ sent: 0, alreadySent: true });
+      expect(acmeEmails()).toHaveLength(1);
+    });
+
+    it('keeps the log from a company and shows it to WagonWise staff', async () => {
+      const { rows } = await ownerPool.query(
+        `select kind, period_key, recipients from companies.account_email_log where company_id = $1`,
+        [ACME],
+      );
+      expect(rows).toEqual([{ kind: 'paused', period_key: '2026-11-22', recipients: 1 }]);
+      const count = async (settings: Record<string, string>) => {
+        const client = await appPool.connect();
+        try {
+          await client.query('begin');
+          for (const [name, value] of Object.entries(settings)) {
+            await client.query('select set_config($1, $2, true)', [name, value]);
+          }
+          const seen = await client.query(
+            'select count(*)::int as n from companies.account_email_log',
+          );
+          await client.query('rollback');
+          return (seen.rows[0] as { n: number }).n;
+        } finally {
+          client.release();
+        }
+      };
+      expect(await count({ 'app.company_id': ACME })).toBe(0);
+      expect(await count({ 'app.platform_staff': 'on' })).toBe(1);
+    });
+
+    it('is for WagonWise staff only, and refuses an email about a state the company is not in', async () => {
+      const byFirm = await send(BETA_MANAGER, BETA, { kind: 'paused', to: 'me' });
+      expect(byFirm.statusCode).toBe(403);
+      expect(byFirm.json()).toMatchObject({ tag: 'Forbidden' });
+      const wrong = await send(ADMIN, BETA, { kind: 'paused', to: 'company' });
+      expect(wrong.statusCode).toBe(409);
+      expect(wrong.json()).toMatchObject({ tag: 'WrongState' });
+      expect(emails.filter((e) => e.to === 'boss@beta.test')).toEqual([]);
+    });
+
+    it('sends a test copy to the signed-in member and nobody else', async () => {
+      const before = emails.length;
+      const copy = await send(ADMIN, BETA, { kind: 'trial_7', to: 'me' });
+      expect(copy.statusCode).toBe(200);
+      expect(emails.slice(before)).toEqual([
+        {
+          to: 'admin@wagonwise.test',
+          subject: '[Test] The free period for Beta Freight on WagonWise ends on 29 November 2026',
+        },
+      ]);
+    });
+
+    it('a bad body is a 400', async () => {
+      expect((await send(ADMIN, ACME, { kind: 'free_beer', to: 'company' })).statusCode).toBe(400);
+    });
   });
 });

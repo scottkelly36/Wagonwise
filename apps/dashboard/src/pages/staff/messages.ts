@@ -86,6 +86,10 @@ const MESSAGES: Record<string, string> = {
   InvalidLine: 'Enter a description and an amount in pounds and pence.',
   InvalidDay: 'Pick a valid date.',
   CompanyNotFound: 'That company could not be found.',
+  WrongState: 'That email is about a state this company is not in.',
+  NoRecipients:
+    'Nobody at this company holds billing or user management, so there is nobody to write to.',
+  EmailFailed: 'The email could not be sent just now. Nothing was logged, so you can try again.',
   ProofOfDeliveryNotFound: 'No photo has been received for that job yet.',
   SignatureNotFound: 'No signature has been received for that job yet.',
   HazardReportNotFound: 'That hazard report is not there any more.',

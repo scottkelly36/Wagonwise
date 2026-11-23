@@ -1,5 +1,6 @@
 import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
+import type { AccountEmailLog, AccountMailer, OwnerNotice } from './ports/account-emails.js';
 import type { AccountStateRepository } from './ports/account-state-repository.js';
 import type { CodeSender } from './ports/code-sender.js';
 import type { CompanyRepository } from './ports/company-repository.js';
@@ -27,6 +28,12 @@ export interface StaffDeps {
   readonly companies: Pick<CompanyRepository, 'findById' | 'setPhotoRetention'>;
   /** A company's account state (trial, active, overdue, paused) and the settings for every company. */
   readonly states: AccountStateRepository;
+  /** Which account emails (free period ending, overdue, paused) have gone to which company. */
+  readonly emailLog: AccountEmailLog;
+  /** Sends those emails. */
+  readonly mailer: AccountMailer;
+  /** A line to the owner for each email sent to a company; absent when no alert address is set. */
+  readonly ownerNotice?: OwnerNotice | undefined;
   readonly invites: StaffInviteRepository;
   readonly sessions: StaffSessionRepository;
   readonly challenges: StaffChallengeRepository;

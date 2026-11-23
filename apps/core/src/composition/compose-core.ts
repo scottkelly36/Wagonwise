@@ -365,6 +365,13 @@ export function composeCore(
     dataScopes,
     staffSecretKey: config.staffSecretKey,
     dashboardUrl: config.dashboardUrl,
+    // Each email to a company about its account is copied to the owner as a short notice, when an alert address is set.
+    ownerNotice:
+      config.alertEmail === undefined
+        ? undefined
+        : {
+            send: (subject, text) => identity.sendEmail(config.alertEmail as string, subject, text),
+          },
   });
   composed.companies = companies;
   const parking = createParkingModule({

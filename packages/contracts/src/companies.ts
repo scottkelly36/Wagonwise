@@ -79,6 +79,34 @@ export const setAccountStateRequestSchema = z.object({
 });
 export type SetAccountStateRequest = z.infer<typeof setAccountStateRequestSchema>;
 
+/** The emails a company is sent about its account: the free period ending (about 14 and 7 days out), payment overdue (and a reminder), paused. */
+export const accountEmailKindSchema = z.enum([
+  'trial_14',
+  'trial_7',
+  'overdue',
+  'overdue_week',
+  'paused',
+]);
+export type AccountEmailKindDto = z.infer<typeof accountEmailKindSchema>;
+
+/**
+ * `POST /staff/companies/:id/account-emails` (WagonWise staff only). `company`: write to the company's billing people now, if it is in the
+ * state the email is about. `me`: a test copy of the wording to the signed-in staff member, nothing logged, nobody else written to.
+ */
+export const sendAccountEmailRequestSchema = z.object({
+  kind: accountEmailKindSchema,
+  to: z.enum(['company', 'me']),
+});
+export type SendAccountEmailRequest = z.infer<typeof sendAccountEmailRequestSchema>;
+
+export const sendAccountEmailResponseSchema = z.object({
+  /** People written to. */
+  sent: z.number().int().min(0),
+  /** True when that email had already gone for this occasion, so nothing was sent now. */
+  alreadySent: z.boolean(),
+});
+export type SendAccountEmailResponse = z.infer<typeof sendAccountEmailResponseSchema>;
+
 /** `GET/PUT /staff/account-settings` (WagonWise staff only): the free period for new companies and the grace period. */
 export const accountSettingsSchema = z.object({
   defaultTrialDays: z.number().int().min(1).max(365),
