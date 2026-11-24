@@ -1,5 +1,6 @@
 import { makeId } from '../shared/brand.js';
 import { err, ok } from '../shared/result.js';
+import { trialFirmStarter } from './trial-firm.js';
 import type { FastifyInstance } from 'fastify';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
@@ -571,7 +572,7 @@ export function composeCore(
       newInviteCode: () => identity.newInviteCode(),
       sendEmail: (to, subject, text, html) => identity.sendEmail(to, subject, text, html),
     },
-    firms: { startTrialFirm: (input) => companies.startTrialFirm(input) },
+    firms: trialFirmStarter(companies, billing),
   });
   // A vehicle's checks, defects, repairs and maintenance for a period in one report (read-only; reads those contexts' tables).
   const audit = createAuditModule({

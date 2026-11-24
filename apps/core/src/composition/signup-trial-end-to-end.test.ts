@@ -5,7 +5,9 @@ import { Kysely, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createCompaniesModule, type CompaniesModule } from '../modules/companies/api.js';
+import { createBillingModule, type BillingModule } from '../modules/billing/api.js';
 import { createSignupsModule } from '../modules/signups/api.js';
+import { TRIAL_VEHICLES, trialFirmStarter } from './trial-firm.js';
 import { registerStaffAuth } from '../host/staff-auth.js';
 import { registerErrorHandling } from '../host/error-handler.js';
 import { runMigrations } from '../platform/migrations/run-migrations.js';
@@ -27,9 +29,11 @@ const BOSS = '80000000-0000-4000-8000-000000000002';
  */
 describe('start a trial from a website sign-up (real RLS, real scopes)', () => {
   let container: StartedPostgreSqlContainer;
+  let scopes: PostgresDataScopes;
   let ownerPool: Pool;
   let appPool: Pool;
   let companies: CompaniesModule;
+  let billing: BillingModule;
   let app: FastifyInstance;
   const emails: { to: string; subject: string; text: string }[] = [];
   let failEmails = false;
@@ -45,7 +49,7 @@ describe('start a trial from a website sign-up (real RLS, real scopes)', () => {
     url.password = 'app-password';
     appPool = new Pool({ connectionString: url.toString(), max: 1 });
     attachPoolErrorHandler(appPool, () => undefined);
-    const scopes = new PostgresDataScopes(appPool);
+    scopes = new PostgresDataScopes(appPool);
     const db = new Kysely<Record<string, unknown>>({
       dialect: new PostgresDialect({ pool: scopes.pool }),
     });
@@ -74,6 +78,15 @@ describe('start a trial from a website sign-up (real RLS, real scopes)', () => {
         signStaffAccessToken: () => Promise.resolve({ token: 't', expiresAt: new Date() }),
       } as never,
     });
+    billing = createBillingModule({
+      db,
+      clock,
+      ids,
+      dataScopes: scopes,
+      callers: { getCaller: (id) => companies.getStaffCaller(id) },
+      companies: { list: () => Promise.resolve([]) },
+      vehicles: { countFor: () => Promise.resolve(0) },
+    });
     const signups = createSignupsModule({
       db,
       ids,
@@ -81,7 +94,7 @@ describe('start a trial from a website sign-up (real RLS, real scopes)', () => {
       dataScopes: scopes,
       callers: { getCaller: (id) => companies.getStaffCaller(id) },
       invites: { newInviteCode: () => Promise.resolve('X'), sendEmail: () => Promise.resolve() },
-      firms: { startTrialFirm: (input) => companies.startTrialFirm(input) },
+      firms: trialFirmStarter(companies, billing),
     });
 
     app = Fastify();
@@ -135,7 +148,7 @@ describe('start a trial from a website sign-up (real RLS, real scopes)', () => {
     const response = await start(id, { firmName: 'Acme Haulage Ltd' });
     expect(response.statusCode).toBe(200);
     const body = response.json<{ status: string; companyId: string; emailed: boolean }>();
-    expect(body).toMatchObject({ status: 'started', emailed: true });
+    expect(body).toMatchObject({ status: 'started', emailed: true, vehicles: TRIAL_VEHICLES });
     expect(body).not.toHaveProperty('inviteToken');
 
     const company = await ownerPool.query<{
@@ -148,6 +161,11 @@ describe('start a trial from a website sign-up (real RLS, real scopes)', () => {
     );
     expect(company.rows[0]).toMatchObject({ name: 'Acme Haulage Ltd', status: 'trial' });
     expect(company.rows[0]?.trial_ends_on).not.toBeNull();
+
+    // The plan has room for the firm's first vehicles: a company with no plan covers none, and fleet refuses its first.
+    expect(
+      await scopes.run({ kind: 'platform' }, () => billing.vehicleCapacityFor(body.companyId)),
+    ).toBe(TRIAL_VEHICLES);
 
     const invite = await ownerPool.query<{
       email: string;

@@ -229,7 +229,13 @@ export interface FirmStarter {
     readonly contactEmail: string;
   }): Promise<
     Result<
-      { readonly companyId: string; readonly emailed: boolean; readonly inviteToken: string },
+      {
+        readonly companyId: string;
+        readonly emailed: boolean;
+        readonly inviteToken: string;
+        /** How many vehicles the new company's plan covers (0 when none could be set: raise it on the Plans page). */
+        readonly vehicles: number;
+      },
       Forbidden | TaggedError<'EmailAlreadyInUse'>
     >
   >;
@@ -239,6 +245,7 @@ export type StartTrialOutcome =
   | {
       readonly status: 'started';
       readonly companyId: string;
+      readonly vehicles: number;
       /** Whether the email with the join link went. When it did not, `inviteToken` is given so the owner can send the link. */
       readonly emailed: boolean;
       readonly inviteToken?: string | undefined;
@@ -283,6 +290,7 @@ export async function startTrial(
   return ok({
     status: 'started',
     companyId: made.value.companyId,
+    vehicles: made.value.vehicles,
     emailed: made.value.emailed,
     ...(made.value.emailed ? {} : { inviteToken: made.value.inviteToken }),
   });

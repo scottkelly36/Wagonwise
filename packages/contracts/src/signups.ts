@@ -105,6 +105,8 @@ export const START_TRIAL_STATUSES = [
 export const startTrialResponseSchema = z.object({
   status: z.enum(START_TRIAL_STATUSES),
   companyId: z.string().optional(),
+  /** How many vehicles the new company's plan covers; 0 when none could be set (raise it on the Plans page). */
+  vehicles: z.number().int().optional(),
   /** False when the email with the join link could not be sent; `inviteToken` is then given so the owner can send the link. */
   emailed: z.boolean().optional(),
   inviteToken: z.string().optional(),

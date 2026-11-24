@@ -148,3 +148,25 @@ describe('starting a trial', () => {
     );
   });
 });
+
+describe('starting a trial: room for vehicles', () => {
+  const origin = 'https://dashboard.example.com';
+  it('says how many vehicles the plan has room for, and warns when there is none', () => {
+    expect(
+      startTrialSummary(
+        { status: 'started', emailed: true, companyId: 'c', vehicles: 5 },
+        'a@b.com',
+        origin,
+      ),
+    ).toBe(
+      'The trial is made and a@b.com has been emailed a link to set up their sign-in. Their plan has room for 5 vehicles (change it on the Plans page).',
+    );
+    expect(
+      startTrialSummary(
+        { status: 'started', emailed: true, companyId: 'c', vehicles: 0 },
+        'a@b.com',
+        origin,
+      ),
+    ).toContain('no room for vehicles yet');
+  });
+});
