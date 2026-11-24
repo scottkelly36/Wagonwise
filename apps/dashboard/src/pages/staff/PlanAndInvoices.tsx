@@ -7,7 +7,7 @@ import * as billingApi from '../../api/billing';
 import * as companiesApi from '../../api/companies';
 import { DataTable, type Column } from '../../components/DataTable';
 import { PaymentDetails } from '../../components/PaymentDetails';
-import { accountStanding, amountDue } from '../../lib/account-banner';
+import { accountStanding, amountDue, trialPlanText } from '../../lib/account-banner';
 import { invoiceHtml, monthLabel } from '../../lib/invoice-print';
 import { formatPence, ukToday } from '../../lib/money';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -47,6 +47,10 @@ export function PlanAndInvoices() {
   const standing =
     account.data === undefined ? undefined : accountStanding(account.data, ukToday());
   const due = amountDue(invoices.data ?? []);
+  const trialText =
+    account.data === undefined || plan.data === undefined
+      ? undefined
+      : trialPlanText(account.data, plan.data);
 
   function print(invoice: InvoiceDto): void {
     setPrintError(undefined);
@@ -123,11 +127,20 @@ export function PlanAndInvoices() {
       {p !== undefined && (
         <section className="mb-24 box">
           <h2 className="mt-0">Your plan</h2>
-          <p style={{ fontSize: 18, margin: '4px 0' }}>
-            Covers <strong>{p.capacityToday}</strong> vehicle{p.capacityToday === 1 ? '' : 's'} at{' '}
-            {formatPence(p.pricePerVehiclePence)} each:{' '}
-            <strong>{formatPence(p.monthlyPence)} a month</strong>.
-          </p>
+          {trialText === undefined ? (
+            <p style={{ fontSize: 18, margin: '4px 0' }}>
+              Covers <strong>{p.capacityToday}</strong> vehicle{p.capacityToday === 1 ? '' : 's'} at{' '}
+              {formatPence(p.pricePerVehiclePence)} each:{' '}
+              <strong>{formatPence(p.monthlyPence)} a month</strong>.
+            </p>
+          ) : (
+            <>
+              <p style={{ fontSize: 18, margin: '4px 0' }}>
+                <strong>{trialText.headline}</strong>
+              </p>
+              <p style={{ margin: '4px 0' }}>{trialText.afterwards}</p>
+            </>
+          )}
           <p style={{ margin: '4px 0' }}>
             You have {p.vehiclesInUse} vehicle{p.vehiclesInUse === 1 ? '' : 's'} set up
             {p.capacityToday > p.vehiclesInUse

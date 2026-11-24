@@ -1,4 +1,5 @@
 import type { OwnAccountStateDto } from '@wagonwise/contracts/companies';
+import { formatPence } from './money';
 
 export interface AccountBannerContent {
   readonly tone: 'warn' | 'bad' | 'info';
@@ -117,6 +118,31 @@ export function accountStanding(
     return { tone: 'info', headline: 'You are on a free trial.', detail: undefined };
   }
   return { tone: 'ok', headline: 'Your account is active.', detail: undefined };
+}
+
+/**
+ * What the Plan page says about the plan to a company still in its free period: that nothing is charged yet, and what it costs when
+ * the period ends. `undefined` for any other state, where the page states the monthly amount as it is.
+ */
+export function trialPlanText(
+  state: Pick<OwnAccountStateDto, 'status' | 'trialEndsOn'>,
+  plan: {
+    readonly capacityToday: number;
+    readonly pricePerVehiclePence: number;
+    readonly monthlyPence: number;
+  },
+): { readonly headline: string; readonly afterwards: string } | undefined {
+  if (state.status !== 'trial') return undefined;
+  const vehicles = `${plan.capacityToday} vehicle${plan.capacityToday === 1 ? '' : 's'}`;
+  const ends = state.trialEndsOn === null ? '' : ` (it ends on ${longDay(state.trialEndsOn)})`;
+  const price = `${formatPence(plan.pricePerVehiclePence)} per vehicle a month`;
+  return {
+    headline: `Room for ${vehicles}. Free during your free period.`,
+    afterwards:
+      plan.capacityToday > 0
+        ? `After your free period${ends} it is ${price}: ${formatPence(plan.monthlyPence)} a month for the ${vehicles} on your plan.`
+        : `After your free period${ends} it is ${price} for the vehicles on your plan.`,
+  };
 }
 
 /** What the company owes now: its issued invoices that are not paid. A draft or a cancelled invoice is not owed. */
