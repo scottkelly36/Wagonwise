@@ -571,6 +571,15 @@ export function composeCore(
       newInviteCode: () => identity.newInviteCode(),
       sendEmail: (to, subject, text, html) => identity.sendEmail(to, subject, text, html),
     },
+    // A firm that registers on the website: a line to the owner (when an alert address is set) and a thank-you to them.
+    notify: {
+      toOwner: (subject, text) =>
+        config.alertEmail === undefined
+          ? Promise.resolve()
+          : identity.sendEmail(config.alertEmail, subject, text),
+      toRegistrant: (to, subject, text) => identity.sendEmail(to, subject, text),
+      portalAddress: config.dashboardUrl,
+    },
   });
   // A vehicle's checks, defects, repairs and maintenance for a period in one report (read-only; reads those contexts' tables).
   const audit = createAuditModule({

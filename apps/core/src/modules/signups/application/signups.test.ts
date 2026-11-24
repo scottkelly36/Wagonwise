@@ -404,3 +404,79 @@ describe('sendLaunchEmails', () => {
     expect(result.ok && result.value).toHaveLength(MAX_INVITES_PER_SEND);
   });
 });
+
+describe('telling the owner, and thanking a firm that registers', () => {
+  function withNotifier() {
+    const { deps, testers, clock } = setup();
+    const owner: { subject: string; text: string }[] = [];
+    const registrant: { to: string; subject: string; text: string }[] = [];
+    const notify = {
+      toOwner: (subject: string, text: string) => {
+        owner.push({ subject, text });
+        return Promise.resolve();
+      },
+      toRegistrant: (to: string, subject: string, text: string) => {
+        registrant.push({ to, subject, text });
+        return Promise.resolve();
+      },
+      portalAddress: 'https://dashboard.example.com/',
+    };
+    return { deps: { ...deps, notify }, testers, clock, owner, registrant };
+  }
+  const firm = {
+    email: 'sam@carter-haulage.example.com',
+    name: 'Sam Carter',
+    role: 'company',
+    company: 'Carter Haulage',
+    fleetSize: '6-15',
+    consent: true,
+  };
+
+  it('tells the owner who registered and where to start a trial, and thanks the firm', async () => {
+    const { deps, owner, registrant } = withNotifier();
+    expect((await signUp(deps, firm)).ok).toBe(true);
+    expect(owner).toHaveLength(1);
+    expect(owner[0]?.subject).toBe('New firm registered: Carter Haulage');
+    expect(owner[0]?.text).toContain('sam@carter-haulage.example.com');
+    expect(owner[0]?.text).toContain('Vehicles: 6-15');
+    expect(owner[0]?.text).toContain('https://dashboard.example.com/admin/testers');
+    expect(registrant).toHaveLength(1);
+    expect(registrant[0]?.to).toBe('sam@carter-haulage.example.com');
+    expect(registrant[0]?.text).toContain('usually within one working day');
+    expect(registrant[0]?.text).toContain('Remove my email');
+  });
+
+  it('sends nothing for a driver, and nothing again for an address already registered', async () => {
+    const { deps, owner, registrant } = withNotifier();
+    await signUp(deps, { email: 'dan@example.com', role: 'driver', consent: true });
+    expect(owner).toHaveLength(0);
+    expect(registrant).toHaveLength(0);
+    await signUp(deps, firm);
+    await signUp(deps, firm);
+    expect(owner).toHaveLength(1);
+    expect(registrant).toHaveLength(1);
+  });
+
+  it('is not held up or turned down by a failing email, and works with no notifier at all', async () => {
+    const { deps } = withNotifier();
+    const failing = {
+      ...deps,
+      notify: {
+        toOwner: () => Promise.reject(new Error('mail down')),
+        toRegistrant: () => Promise.reject(new Error('mail down')),
+      },
+    };
+    expect((await signUp(failing, firm)).ok).toBe(true);
+    expect((await signUp(setup().deps, { ...firm, email: 'lee@carter.example.com' })).ok).toBe(
+      true,
+    );
+  });
+
+  it('asks for nothing it was not given: a firm with only an email still gets a sensible message', async () => {
+    const { deps, owner, registrant } = withNotifier();
+    await signUp(deps, { email: 'zed@example.com', role: 'company', consent: true });
+    expect(owner[0]?.subject).toBe('New firm registered: zed@example.com');
+    expect(registrant[0]?.text.startsWith('Hello,')).toBe(true);
+    expect(registrant[0]?.text).toContain('your firm');
+  });
+});
