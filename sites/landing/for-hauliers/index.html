@@ -1085,6 +1085,70 @@
           </li>
         </ol>
 
+        <div class="section-head" id="own-lorry">
+          <span class="tag">One lorry</span>
+          <h2>Run it and drive it yourself?</h2>
+        </div>
+        <ol class="steps">
+          <li>
+            <b>We set up your firm</b>
+            <span
+              >Register below. We set up your firm and email you a link to sign in to the
+              dashboard.</span
+            >
+          </li>
+          <li>
+            <b>Put in your lorry once</b>
+            <span
+              >Its height, width, length and weight. The same measurements plan every route you
+              drive, and the dashboard keeps its walk-round checks and its MOT and service
+              dates.</span
+            >
+          </li>
+          <li>
+            <b>Add yourself as the driver</b>
+            <span
+              >One button on the Drivers page sends you an invitation. Accept it in the driver app
+              and you can be given jobs, do your walk-round check and take delivery photos like any
+              other driver. If the app asks for an invite code, we send it.</span
+            >
+          </li>
+        </ol>
+
+        <div class="section-head" id="bigger-fleets">
+          <span class="tag">Bigger fleets</span>
+          <h2>Running twenty lorries or more?</h2>
+        </div>
+        <div class="trust">
+          <div>
+            <b>A second check at every sign-in</b>
+            <span
+              >Everyone signs in with a password and a second check: an authenticator app, or a code
+              by text or email. Recovery codes cover a lost phone.</span
+            >
+          </div>
+          <div>
+            <b>Each person sees what they need</b>
+            <span
+              >Give people only what their job needs: dispatching, the live map, reports, billing,
+              maintenance, vehicles and drivers, or managing users. An activity log records sign-ins
+              and every change to who can do what.</span
+            >
+          </div>
+          <div>
+            <b>Your records, your rules</b>
+            <span
+              >You choose how long job photos and check records are kept, and a driver’s position
+              reaches you only while they are on one of your jobs.</span
+            >
+          </div>
+        </div>
+        <p style="max-width: 46rem; margin: 20px auto 0; text-align: center">
+          WagonWise is young, and we set up each firm closely. We tell you plainly what it does and
+          does not do yet, and we put the terms in writing before you start. A few vehicles first is
+          the best way to see whether it fits: tell us your fleet size below.
+        </p>
+
         <div class="section-head">
           <span class="tag">Your drivers’ data</span>
           <h2>Fair to your drivers, and to you</h2>
@@ -1295,10 +1359,11 @@
               "
               >For haulage firms</span
             >
-            <h2 style="margin-top: 10px">Ask for a demo</h2>
+            <h2 style="margin-top: 10px">Ask for a demo, or to get started</h2>
             <p>
-              Tell us about your firm and we will get in touch to show you the dashboard, using
-              example data. No charge and no obligation.
+              Tell us about your firm and we will email you, usually within one working day. We can
+              show you the dashboard with example data, or set up your firm if you would rather try
+              it yourself. No charge and no obligation.
             </p>
             <ul>
               <li>Launch offer: £10 per vehicle, per month, for your first three years.</li>
@@ -1313,7 +1378,7 @@
           </div>
 
           <form id="signup" novalidate>
-            <h3>Register your firm</h3>
+            <h3>Tell us about your firm</h3>
             <label for="email">Email</label>
             <input
               id="email"
@@ -1361,7 +1426,7 @@
                 be removed at any time.
               </span>
             </label>
-            <button id="submit" class="btn" type="submit">Register my firm</button>
+            <button id="submit" class="btn" type="submit">Send my details</button>
             <p id="result" class="msg" role="status" hidden></p>
           </form>
         </section>
@@ -1516,7 +1581,7 @@
           if (response.status === 204) {
             $('signup').reset();
             $('firm').hidden = !['company', 'both'].includes($('role').value);
-            show(result, 'Thank you. You are on the list and we will be in touch.', true);
+            show(result, 'Thank you. We will email you, usually within one working day.', true);
           } else if (response.status === 429) {
             show(
               result,
