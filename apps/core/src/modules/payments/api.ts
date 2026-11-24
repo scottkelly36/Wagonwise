@@ -11,6 +11,7 @@ import type {
   OwnerNotice,
 } from './application/ports/directories.js';
 import type { PaymentProvider } from './application/ports/payment-provider.js';
+import { StripePaymentProvider } from './infrastructure/stripe-payment-provider.js';
 import { NotConfiguredPaymentProvider } from './infrastructure/not-configured-payment-provider.js';
 import {
   PostgresCollectionRepository,
@@ -30,6 +31,8 @@ export type {
   OwnerNotice,
   StaffCaller,
 } from './application/ports/directories.js';
+// The real provider, built by composition from config (the keys are the owner's to add).
+export { StripePaymentProvider };
 export type { PaymentProvider } from './application/ports/payment-provider.js';
 
 export interface PaymentsModuleDeps {
