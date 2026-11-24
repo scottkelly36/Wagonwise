@@ -2,7 +2,10 @@ import {
   acceptStaffInviteRequestSchema,
   confirmStaffEnrolmentRequestSchema,
   createStaffInviteRequestSchema,
+  forgotPasswordRequestSchema,
   listStaffQuerySchema,
+  previewStaffInviteRequestSchema,
+  resetPasswordRequestSchema,
   setStaffPrivilegesRequestSchema,
   staffIdParamsSchema,
   staffRefreshTokenRequestSchema,
@@ -35,6 +38,9 @@ const PUBLIC_POSTS: ReadonlyArray<readonly [path: string, schema: z.ZodType]> = 
   ['/staff/auth/refresh', staffRefreshTokenRequestSchema],
   ['/staff/auth/sign-out', staffRefreshTokenRequestSchema],
   ['/staff/invites/accept', acceptStaffInviteRequestSchema],
+  ['/staff/invites/preview', previewStaffInviteRequestSchema],
+  ['/staff/auth/forgot-password', forgotPasswordRequestSchema],
+  ['/staff/auth/reset-password', resetPasswordRequestSchema],
   ['/staff/invites/confirm', confirmStaffEnrolmentRequestSchema],
 ];
 

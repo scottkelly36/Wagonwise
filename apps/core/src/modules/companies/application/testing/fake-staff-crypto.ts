@@ -2,6 +2,7 @@ import type { CodeSender } from '../ports/code-sender.js';
 import type { InviteMailer } from '../ports/invite-mailer.js';
 import type { PasswordHasher } from '../ports/password-hasher.js';
 import type { RandomCodes } from '../ports/random-codes.js';
+import type { ResetMailer } from '../ports/reset-mailer.js';
 import type { SecretBox } from '../ports/secret-box.js';
 import type { StaffTokenIssuer } from '../ports/staff-token-issuer.js';
 import type { Totp } from '../ports/totp.js';
@@ -71,6 +72,17 @@ export class RecordingInviteMailer implements InviteMailer {
   send(invite: { to: string; name: string; link: string; expiresAt: Date }): Promise<void> {
     if (this.fail) return Promise.reject(new Error('delivery failed'));
     this.sent.push(invite);
+    return Promise.resolve();
+  }
+}
+
+export class RecordingResetMailer implements ResetMailer {
+  readonly sent: { to: string; name: string; link: string; expiresAt: Date }[] = [];
+  fail = false;
+
+  send(reset: { to: string; name: string; link: string; expiresAt: Date }): Promise<void> {
+    if (this.fail) return Promise.reject(new Error('delivery failed'));
+    this.sent.push(reset);
     return Promise.resolve();
   }
 }

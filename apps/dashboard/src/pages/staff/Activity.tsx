@@ -40,6 +40,10 @@ function describe(entry: StaffAuditEntryDto, who: (id: string | undefined) => st
       )} to ${privilegeList(d.after)}`;
     case 'staff_removed':
       return `${who(entry.actorId)} removed ${String(d.email)}`;
+    case 'password_reset_requested':
+      return `A link to choose a new password was emailed to ${who(entry.targetId)}`;
+    case 'password_reset':
+      return `${who(entry.targetId)} chose a new password (and was signed out everywhere)`;
     case 'company_settings_changed':
       return `${who(entry.actorId)} changed how long delivery photos are kept, from ${String(
         d.photoRetentionMonthsBefore,

@@ -4,11 +4,13 @@ import type { StaffChallenge, StaffChallengeId } from '../../domain/staff-challe
 import type { StaffAuditAction, StaffAuditEntry } from '../../domain/staff-audit.js';
 import type { StaffCredentials } from '../../domain/staff-credentials.js';
 import type { StaffInvite, StaffInviteId } from '../../domain/staff-invite.js';
+import type { StaffPasswordReset } from '../../domain/staff-password-reset.js';
 import type { StaffSession, StaffSessionId } from '../../domain/staff-session.js';
 import type { StaffAccountRepository } from '../ports/staff-account-repository.js';
 import type { StaffAuditLog } from '../ports/staff-audit-log.js';
 import type { StaffChallengeRepository } from '../ports/staff-challenge-repository.js';
 import type { StaffInviteRepository } from '../ports/staff-invite-repository.js';
+import type { StaffPasswordResetRepository } from '../ports/staff-password-reset-repository.js';
 import type { StaffRecoveryCodeRepository } from '../ports/staff-recovery-code-repository.js';
 import type { StaffSessionRepository } from '../ports/staff-session-repository.js';
 
@@ -110,6 +112,32 @@ export class InMemoryStaffInviteRepository implements StaffInviteRepository {
       [...this.#byId.values()]
         .filter((i) => i.companyId === companyId)
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+    );
+  }
+}
+
+export class InMemoryStaffPasswordResetRepository implements StaffPasswordResetRepository {
+  readonly rows = new Map<string, StaffPasswordReset>();
+
+  save(reset: StaffPasswordReset): Promise<void> {
+    this.rows.set(reset.id, reset);
+    return Promise.resolve();
+  }
+
+  findByTokenHash(tokenHash: string): Promise<StaffPasswordReset | null> {
+    return Promise.resolve([...this.rows.values()].find((r) => r.tokenHash === tokenHash) ?? null);
+  }
+
+  markUsed(id: StaffPasswordReset['id'], at: Date): Promise<boolean> {
+    const row = this.rows.get(id);
+    if (row === undefined || row.usedAt !== null) return Promise.resolve(false);
+    this.rows.set(id, { ...row, usedAt: at });
+    return Promise.resolve(true);
+  }
+
+  countSince(staffId: StaffId, since: Date): Promise<number> {
+    return Promise.resolve(
+      [...this.rows.values()].filter((r) => r.staffId === staffId && r.createdAt >= since).length,
     );
   }
 }

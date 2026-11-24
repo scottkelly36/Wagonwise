@@ -26,6 +26,8 @@ import { AesGcmSecretBox } from './infrastructure/aes-gcm-secret-box.js';
 import { CryptoRandomCodes } from './infrastructure/crypto-random-codes.js';
 import { IdentityCodeSender } from './infrastructure/identity-code-sender.js';
 import { IdentityInviteMailer } from './infrastructure/identity-invite-mailer.js';
+import { IdentityResetMailer } from './infrastructure/identity-reset-mailer.js';
+import { PostgresStaffPasswordResetRepository } from './infrastructure/postgres-staff-password-reset-repository.js';
 import { IdentityStaffTokenIssuer } from './infrastructure/identity-staff-token-issuer.js';
 import { PostgresStaffAccountRepository } from './infrastructure/postgres-staff-account-repository.js';
 import { PostgresStaffAuditLog } from './infrastructure/postgres-staff-audit-log.js';
@@ -191,6 +193,10 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
       deps.identity.sendOneTimeCode(destination, code),
     ),
     inviteMailer: new IdentityInviteMailer((to, subject, text) =>
+      deps.identity.sendEmail(to, subject, text),
+    ),
+    passwordResets: new PostgresStaffPasswordResetRepository(deps.db),
+    resetMailer: new IdentityResetMailer((to, subject, text) =>
       deps.identity.sendEmail(to, subject, text),
     ),
     dashboardUrl: deps.dashboardUrl,

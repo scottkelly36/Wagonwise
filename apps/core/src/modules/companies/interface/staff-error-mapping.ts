@@ -9,6 +9,7 @@ const STATUS_BY_TAG: Record<string, number> = {
   ChallengeNotUsable: 410,
   EnrolmentNotUsable: 410,
   InviteNotUsable: 410,
+  ResetNotUsable: 410,
   EmailAlreadyInUse: 409,
   CompanyNotFound: 404,
   InvalidSetting: 400,
