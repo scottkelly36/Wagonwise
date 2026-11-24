@@ -216,6 +216,7 @@ describe('runMigrations', () => {
       'staff_audit',
       'staff_challenges',
       'staff_invites',
+      'staff_password_resets',
       'staff_recovery_codes',
       'staff_sessions',
     ]);
