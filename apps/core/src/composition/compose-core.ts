@@ -571,6 +571,7 @@ export function composeCore(
       newInviteCode: () => identity.newInviteCode(),
       sendEmail: (to, subject, text, html) => identity.sendEmail(to, subject, text, html),
     },
+    firms: { startTrialFirm: (input) => companies.startTrialFirm(input) },
   });
   // A vehicle's checks, defects, repairs and maintenance for a period in one report (read-only; reads those contexts' tables).
   const audit = createAuditModule({

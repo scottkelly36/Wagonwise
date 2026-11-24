@@ -7,6 +7,8 @@ import {
   playTesterEmailsCsv,
   roleLabel,
   testersCsv,
+  canStartTrial,
+  startTrialSummary,
 } from './testers';
 
 describe('testersCsv', () => {
@@ -106,5 +108,43 @@ describe('the "out now" email', () => {
     };
     expect(canLaunchEmail(base)).toBe(true);
     expect(canLaunchEmail({ ...base, launchEmailedAt: '2026-11-01T09:00:00.000Z' })).toBe(false);
+  });
+});
+
+describe('starting a trial', () => {
+  const tester = (over: object) =>
+    ({
+      id: '1',
+      email: 'a@b.com',
+      role: 'company',
+      createdAt: '2026-11-24T00:00:00.000Z',
+      ...over,
+    }) as never;
+
+  it('is offered for a firm that has not had one, and not for a driver or a second time', () => {
+    expect(canStartTrial(tester({}))).toBe(true);
+    expect(canStartTrial(tester({ role: 'both' }))).toBe(true);
+    expect(canStartTrial(tester({ role: 'driver' }))).toBe(false);
+    expect(canStartTrial(tester({ trialStartedAt: '2026-11-24T10:00:00.000Z' }))).toBe(false);
+  });
+
+  it('says what happened, and gives the link only when the email could not be sent', () => {
+    const origin = 'https://dashboard.example.com';
+    expect(
+      startTrialSummary({ status: 'started', emailed: true, companyId: 'c' }, 'a@b.com', origin),
+    ).toBe('The trial is made and a@b.com has been emailed a link to set up their sign-in.');
+    const unsent = startTrialSummary(
+      { status: 'started', emailed: false, companyId: 'c', inviteToken: 't k' },
+      'a@b.com',
+      origin,
+    );
+    expect(unsent).toContain('could not be sent');
+    expect(unsent).toContain('https://dashboard.example.com/join?token=t%20k');
+    expect(startTrialSummary({ status: 'email_in_use' }, 'a@b.com', origin)).toContain(
+      'already has a WagonWise account',
+    );
+    expect(startTrialSummary({ status: 'already_started' }, 'a@b.com', origin)).toContain(
+      'already',
+    );
   });
 });

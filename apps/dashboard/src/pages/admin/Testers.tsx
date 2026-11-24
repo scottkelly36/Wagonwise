@@ -9,10 +9,12 @@ import { DataTable, type Column } from '../../components/DataTable';
 import {
   canInvite,
   canLaunchEmail,
+  canStartTrial,
   inviteSummary,
   launchEmailSummary,
   playTesterEmailsCsv,
   roleLabel,
+  startTrialSummary,
   testersCsv,
 } from '../../lib/testers';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -104,6 +106,32 @@ export function Testers() {
       void queryClient.invalidateQueries({ queryKey: TESTERS_KEY });
     },
   });
+  // Starting a trial: the sign-up being turned into a firm, and what the person typed for it.
+  const [trialFor, setTrialFor] = useState<TesterDto | undefined>();
+  const [firmName, setFirmName] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [trialOutcome, setTrialOutcome] = useState<string | undefined>();
+  const startTrial = useMutation({
+    mutationFn: (input: { tester: TesterDto; firmName: string; contactName: string }) =>
+      withAccessToken((token) =>
+        signupsApi.startTrial(token, input.tester.id, {
+          firmName: input.firmName,
+          ...(input.contactName === '' ? {} : { contactName: input.contactName }),
+        }),
+      ),
+    onSuccess: (response, input) => {
+      setTrialOutcome(startTrialSummary(response, input.tester.email, window.location.origin));
+      setTrialFor(undefined);
+      void queryClient.invalidateQueries({ queryKey: TESTERS_KEY });
+      void queryClient.invalidateQueries({ queryKey: ['companies'] });
+    },
+  });
+  const openTrial = (t: TesterDto) => {
+    setTrialFor(t);
+    setFirmName(t.company ?? '');
+    setContactName(t.name ?? '');
+    setTrialOutcome(undefined);
+  };
   const toggle = (id: string) =>
     setPicked((current) => {
       const next = new Set(current);
@@ -161,6 +189,19 @@ export function Testers() {
           : new Date(t.launchEmailedAt).toLocaleDateString('en-GB'),
     },
     {
+      key: 'trial',
+      header: 'Trial',
+      sortValue: (t) => t.trialStartedAt ?? '',
+      cell: (t) =>
+        t.trialStartedAt !== undefined ? (
+          `Started ${new Date(t.trialStartedAt).toLocaleDateString('en-GB')}`
+        ) : canStartTrial(t) ? (
+          <button className="btn-secondary" onClick={() => openTrial(t)}>
+            Start trial
+          </button>
+        ) : null,
+    },
+    {
       key: 'remove',
       header: '',
       align: 'right',
@@ -183,7 +224,7 @@ export function Testers() {
     },
   ];
 
-  const error = testers.error ?? remove.error ?? invite.error ?? launch.error;
+  const error = testers.error ?? remove.error ?? invite.error ?? launch.error ?? startTrial.error;
   const data = testers.data;
   const toInvite = data?.testers.filter((t) => picked.has(t.id) && canInvite(t)) ?? [];
   const toLaunch = data?.testers.filter((t) => picked.has(t.id) && canLaunchEmail(t)) ?? [];
@@ -354,6 +395,60 @@ export function Testers() {
             )}
             {launchOutcome !== undefined && <p>{launchOutcome}</p>}
           </section>
+          {trialOutcome !== undefined && (
+            <p role="status" className="card mb-16">
+              {trialOutcome}
+            </p>
+          )}
+          {trialFor !== undefined && (
+            <section className="card mb-16" aria-label="Start a trial">
+              <h2 className="mt-0">Start a free trial for {trialFor.email}</h2>
+              <p className="text-muted">
+                Makes the company on a free trial (the length is in the account settings on the
+                Companies page) and emails {trialFor.email} a link to set up their sign-in as the
+                company&apos;s manager, able to do everything for that company. It can only be done
+                once for this sign-up.
+              </p>
+              <p>
+                <label>
+                  Company name{' '}
+                  <input
+                    value={firmName}
+                    maxLength={120}
+                    style={{ width: 'min(100%, 360px)' }}
+                    onChange={(event) => setFirmName(event.target.value)}
+                  />
+                </label>{' '}
+                <label>
+                  Their name{' '}
+                  <input
+                    value={contactName}
+                    maxLength={80}
+                    style={{ width: 'min(100%, 260px)' }}
+                    onChange={(event) => setContactName(event.target.value)}
+                  />
+                </label>
+              </p>
+              <p>
+                <button
+                  className="btn-primary"
+                  disabled={firmName.trim() === '' || startTrial.isPending}
+                  onClick={() =>
+                    startTrial.mutate({
+                      tester: trialFor,
+                      firmName: firmName.trim(),
+                      contactName: contactName.trim(),
+                    })
+                  }
+                >
+                  {startTrial.isPending ? 'Making the trial…' : 'Make the trial and email the link'}
+                </button>{' '}
+                <button className="btn-secondary" onClick={() => setTrialFor(undefined)}>
+                  Cancel
+                </button>
+              </p>
+            </section>
+          )}
           <DataTable
             columns={columns}
             rows={data.testers}

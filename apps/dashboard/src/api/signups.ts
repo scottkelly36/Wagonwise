@@ -2,11 +2,14 @@ import {
   listTestersResponseSchema,
   sendInvitesResponseSchema,
   sendLaunchEmailsResponseSchema,
+  startTrialResponseSchema,
   type ListTestersResponse,
   type SendInvitesRequest,
   type SendInvitesResponse,
   type SendLaunchEmailsRequest,
   type SendLaunchEmailsResponse,
+  type StartTrialRequest,
+  type StartTrialResponse,
 } from '@wagonwise/contracts/signups';
 
 import { requestJson, throwUnlessSuccess } from './http';
@@ -48,4 +51,17 @@ export async function sendLaunchEmails(
   });
   throwUnlessSuccess(status, json, [200]);
   return sendLaunchEmailsResponseSchema.parse(json);
+}
+
+export async function startTrial(
+  accessToken: string,
+  id: string,
+  request: StartTrialRequest,
+): Promise<StartTrialResponse> {
+  const { status, json } = await requestJson('POST', `/staff/signups/${id}/start-trial`, {
+    authorization: `Bearer ${accessToken}`,
+    body: request,
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return startTrialResponseSchema.parse(json);
 }
