@@ -1,5 +1,14 @@
-import { monthName } from './invoice.js';
-import type { MonthlyRunSummary } from '../application/monthly-run.js';
+import { monthName, type MonthString } from './invoice.js';
+
+/** What a monthly run did, for the owner's email. */
+export interface MonthlyRunSummary {
+  readonly month: MonthString;
+  readonly drafts: readonly { readonly company: string; readonly totalPence: number }[];
+  readonly totalPence: number;
+  readonly onTrial: number;
+  /** WagonWise's own billing details still hold [brackets], so nothing can be issued until they are filled in. */
+  readonly detailsIncomplete: boolean;
+}
 
 const pounds = (pence: number): string => `£${(pence / 100).toFixed(2)}`;
 

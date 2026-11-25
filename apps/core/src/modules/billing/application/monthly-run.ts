@@ -1,20 +1,12 @@
 import { placeholderFields } from '../domain/billing-details.js';
-import { previousMonth, totalPence, type MonthString } from '../domain/invoice.js';
+import { previousMonth, totalPence } from '../domain/invoice.js';
+import type { MonthlyRunSummary } from '../domain/monthly-run-email.js';
 import { ukDay } from '../domain/plan.js';
 import { draftMonth, type InvoiceDeps } from './invoices.js';
 import type { DraftRunRepository } from './ports/draft-run-repository.js';
 
 export interface MonthlyRunDeps extends InvoiceDeps {
   readonly runs: DraftRunRepository;
-}
-
-export interface MonthlyRunSummary {
-  readonly month: MonthString;
-  readonly drafts: readonly { readonly company: string; readonly totalPence: number }[];
-  readonly totalPence: number;
-  readonly onTrial: number;
-  /** WagonWise's own billing details still hold [brackets], so nothing can be issued until they are filled in. */
-  readonly detailsIncomplete: boolean;
 }
 
 export type MonthlyRunOutcome =
