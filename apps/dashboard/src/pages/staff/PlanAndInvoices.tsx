@@ -5,11 +5,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as billingApi from '../../api/billing';
 import * as companiesApi from '../../api/companies';
+import * as paymentsApi from '../../api/payments';
 import { DataTable, type Column } from '../../components/DataTable';
 import { PaymentDetails } from '../../components/PaymentDetails';
 import { accountStanding, amountDue, trialPlanText } from '../../lib/account-banner';
 import { invoiceHtml, monthLabel } from '../../lib/invoice-print';
 import { formatPence, ukToday } from '../../lib/money';
+import { vehicleLimitText } from '../../lib/vehicle-limit';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
 const STATUS_TEXT: Record<InvoiceDto['status'], string> = {
@@ -47,6 +49,21 @@ export function PlanAndInvoices() {
   const standing =
     account.data === undefined ? undefined : accountStanding(account.data, ukToday());
   const due = amountDue(invoices.data ?? []);
+  // The same query as the Payment details box below: whether details are on file decides whether there is a vehicle limit.
+  const payment = useQuery({
+    queryKey: ['payment-status'],
+    queryFn: () => withAccessToken((token) => paymentsApi.getPaymentStatus(token)),
+    retry: false,
+  });
+  const limit =
+    plan.data === undefined || payment.data === undefined
+      ? undefined
+      : vehicleLimitText({
+          capacityToday: plan.data.capacityToday,
+          vehiclesInUse: plan.data.vehiclesInUse,
+          detailsOnFile: payment.data.detailsOnFile,
+          paymentsAvailable: payment.data.available,
+        });
   const trialText =
     account.data === undefined || plan.data === undefined
       ? undefined
@@ -147,17 +164,14 @@ export function PlanAndInvoices() {
               <p style={{ margin: '4px 0' }}>{trialText.afterwards}</p>
             </>
           )}
-          <p style={{ margin: '4px 0' }}>
-            Your plan lets you set up to <strong>{p.capacityToday}</strong> vehicle
-            {p.capacityToday === 1 ? '' : 's'}, so at most{' '}
-            <strong>{formatPence(p.monthlyPence)} a month</strong>. You have {p.vehiclesInUse}{' '}
-            vehicle{p.vehiclesInUse === 1 ? '' : 's'} set up
-            {p.capacityToday > p.vehiclesInUse
-              ? `, so you can add ${p.capacityToday - p.vehiclesInUse} more.`
-              : p.vehiclesInUse > p.capacityToday
-                ? ', more than the plan covers. You can’t add any more until it is raised.'
-                : ', all that the plan covers. To add another, ask WagonWise to raise your plan.'}
-          </p>
+          {limit !== undefined && limit.limited && (
+            <p style={{ margin: '4px 0' }}>
+              Until you add payment details your plan lets you set up to{' '}
+              <strong>{p.capacityToday}</strong> vehicle{p.capacityToday === 1 ? '' : 's'}, so at
+              most <strong>{formatPence(p.monthlyPence)} a month</strong>.
+            </p>
+          )}
+          {limit !== undefined && <p style={{ margin: '4px 0' }}>{limit.text}</p>}
           {p.next !== undefined && (
             <p style={{ margin: '4px 0', color: 'var(--text-muted)' }}>
               From {formatDay(p.next.effectiveFrom)} your plan covers {p.next.capacity} vehicle
