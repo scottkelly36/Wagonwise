@@ -128,6 +128,35 @@ describe('loadConfig', () => {
     });
   });
 
+  describe('Stripe settings', () => {
+    const both = { STRIPE_SECRET_KEY: 'sk_test_abc123', STRIPE_WEBHOOK_SECRET: 'whsec_abc123' };
+
+    it('is off when neither is set, on when both are', () => {
+      expect(loadConfig({}).stripe).toBeUndefined();
+      expect(loadConfig(both).stripe).toEqual({
+        secretKey: 'sk_test_abc123',
+        webhookSecret: 'whsec_abc123',
+      });
+    });
+
+    it('stops the boot when only one is set, naming the one missing and never printing a value', () => {
+      expect(() => loadConfig({ STRIPE_SECRET_KEY: 'sk_test_abc123' })).toThrow(
+        /missing: STRIPE_WEBHOOK_SECRET/,
+      );
+      expect(() => loadConfig({ STRIPE_WEBHOOK_SECRET: 'whsec_abc123' })).toThrow(
+        /missing: STRIPE_SECRET_KEY/,
+      );
+      expect(() => loadConfig({ STRIPE_SECRET_KEY: 'sk_test_abc123' })).not.toThrow(/abc123/);
+    });
+
+    it('refuses a value that is not the right kind of key, such as the publishable key', () => {
+      expect(() => loadConfig({ ...both, STRIPE_SECRET_KEY: 'pk_test_abc123' })).toThrow(
+        ConfigError,
+      );
+      expect(() => loadConfig({ ...both, STRIPE_WEBHOOK_SECRET: 'abc123' })).toThrow(ConfigError);
+    });
+  });
+
   describe('Fuel Finder settings', () => {
     const both = { FUEL_FINDER_ID: 'the-id', FUEL_FINDER_SECRET: 'the-secret' };
 

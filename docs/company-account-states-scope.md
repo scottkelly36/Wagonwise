@@ -195,8 +195,7 @@ work, after the states, and it needs a provider account that only the owner can 
 6. **Payment provider.** **Groundwork built, 2026-11-23** (`docs/modules.md`, "Payments"): everything around the provider that needs no
    account: the provider port with a stand-in for tests, payment details on file, "add payment details" for a company's billing people,
    collecting an issued invoice (a button, never by itself), the webhook, a finished free period with details on file becoming active, and
-   a firm coming back from paused or overdue when it has paid. **Still to do once the owner opens the account:** the real Stripe adapter
-   (hosted setup page, the charge, checking Stripe's signature), the keys, and a test-mode run end to end.
+   a firm coming back from paused or overdue when it has paid. **Stripe adapter built 2026-11-24** (hosted setup page, the charge, checking Stripe's signature). **Still to do (owner):** the test keys and a test-mode run end to end (`docs/stripe-test-run.md`), then live keys when ready.
 7. **Self-service sign-up** (below), only when the owner says.
 
 Each PR ships with tests that run the real thing (the end-to-end tests under `composition/` show the pattern): a paused firm cannot

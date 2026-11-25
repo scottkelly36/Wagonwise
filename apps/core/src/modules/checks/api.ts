@@ -14,6 +14,10 @@ import { PostgresCheckRepository } from './infrastructure/postgres-check-reposit
 import { PostgresOfficeCheckRepository } from './infrastructure/postgres-office-check-repository.js';
 import { PostgresSettingsRepository } from './infrastructure/postgres-settings-repository.js';
 import { PostgresTemplateRepository } from './infrastructure/postgres-template-repository.js';
+import {
+  PostgresVehicleCheckActivity,
+  type VehicleCheckDays,
+} from './infrastructure/postgres-vehicle-activity.js';
 import { registerChecksDriverRoutes } from './interface/driver-routes.js';
 import { registerChecksOfficeRoutes } from './interface/office-routes.js';
 import { jobStartVerdict, pruneOldChecks } from './application/check-rules.js';
@@ -65,6 +69,12 @@ export interface ChecksModule {
    */
   pruneOldChecks(companyIds: readonly string[]): Promise<number>;
   /**
+   * Each of a company's vehicles that has had a walk-round check: the UK day of its first check on record, and whether it
+   * had one from `fromDay` (inclusive) to `toDay` (exclusive), as `YYYY-MM-DD`. For `billing`, supplied by composition. Reads in
+   * the caller's own data scope, so call it inside a request.
+   */
+  vehicleCheckDays(companyId: string, fromDay: string, toDay: string): Promise<VehicleCheckDays[]>;
+  /**
    * A defect as another module needs it to book a repair, or null. Reads in the caller's own data scope, so call it inside
    * a request; supplied to maintenance by composition.
    */
@@ -101,6 +111,7 @@ export function createChecksModule(deps: ChecksModuleDeps): ChecksModule {
   const checks = new PostgresCheckRepository(deps.db);
   const office = new PostgresOfficeCheckRepository(deps.db);
   const settings = new PostgresSettingsRepository(deps.db);
+  const vehicleActivity = new PostgresVehicleCheckActivity(deps.db);
   const rules = { settings, templates, checks, office, clock: deps.clock };
   return {
     async findDefect(defectId) {
@@ -127,6 +138,8 @@ export function createChecksModule(deps: ChecksModuleDeps): ChecksModule {
           companyIds.map((id) => makeId<'CompanyId'>(id)),
         ),
       ),
+    vehicleCheckDays: (companyId, fromDay, toDay) =>
+      vehicleActivity.forCompany(companyId, fromDay, toDay),
     jobStartVerdict: (companyId, vehicleId) =>
       jobStartVerdict(rules, makeId<'CompanyId'>(companyId), makeId<'FleetVehicleId'>(vehicleId)),
     registerRoutes(app: FastifyInstance): void {

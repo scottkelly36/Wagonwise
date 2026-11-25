@@ -134,6 +134,7 @@ describe('runMigrations', () => {
       '0102_portal_events.sql',
       '0103_research_contact.sql',
       '0104_payments.sql',
+      '0105_signup_trial.sql',
       '0106_password_resets.sql',
     ]);
 
@@ -352,6 +353,7 @@ describe('runMigrations', () => {
       '0102_portal_events.sql',
       '0103_research_contact.sql',
       '0104_payments.sql',
+      '0105_signup_trial.sql',
       '0106_password_resets.sql',
     ]);
   });

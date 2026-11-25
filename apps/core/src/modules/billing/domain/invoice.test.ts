@@ -1,97 +1,105 @@
 import { describe, expect, it } from 'vitest';
-import { makeId } from '../../../shared/brand.js';
 import {
-  buildPlanLines,
+  billableVehicles,
+  buildUsageLines,
   daysInMonth,
+  graceStart,
   monthName,
+  nextMonthStart,
   totalPence,
   validateManualLine,
   validateMonth,
+  type VehicleUse,
 } from './invoice.js';
-import type { CapacityChange } from './plan.js';
 
-const company = makeId<'CompanyId'>('c1');
-const change = (effectiveFrom: string, capacity: number): CapacityChange => ({
-  companyId: company,
-  effectiveFrom,
-  capacity,
+// A vehicle as the month's records show it: when it was first used, and whether it was used in the month.
+const veh = (id: string, firstDay: string, usedInMonth = true): VehicleUse => ({
+  vehicleId: id,
+  firstDay,
+  usedInMonth,
 });
+const fleet = (n: number, firstDay = '2026-01-01'): VehicleUse[] =>
+  Array.from({ length: n }, (_, i) => veh(`v${i}`, firstDay));
 
-describe('buildPlanLines', () => {
-  it('bills a steady capacity as one whole-month line', () => {
-    const lines = buildPlanLines([change('2026-09-15', 5)], 1000, '2026-10');
-    expect(lines).toEqual([
+describe('buildUsageLines', () => {
+  it('bills each vehicle used in the month as one whole-month line', () => {
+    expect(buildUsageLines(fleet(5), 1000, '2026-10')).toEqual([
       {
-        description: '5 vehicles covered, October 2026',
+        description: '5 vehicles used, October 2026',
         quantity: 5,
         unitPence: 1000,
         amountPence: 5000,
       },
     ]);
-  });
-
-  it('uses the capacity in force on the 1st, even when it was set long before', () => {
-    expect(totalPence(buildPlanLines([change('2026-01-01', 3)], 1500, '2026-10'))).toBe(4500);
-  });
-
-  it('bills nothing for a company with no capacity yet', () => {
-    expect(buildPlanLines([], 1000, '2026-10')).toEqual([]);
-    expect(buildPlanLines([change('2026-11-01', 5)], 1000, '2026-10')).toEqual([]);
-  });
-
-  it('bills the extra vehicles pro rata from the day capacity rises', () => {
-    // October has 31 days; from the 17th is 15 days. 3 extra at £10: 3 × 1000 × 15 / 31 = 1451.61…
-    const lines = buildPlanLines(
-      [change('2026-09-01', 5), change('2026-10-17', 8)],
-      1000,
-      '2026-10',
+    expect(buildUsageLines(fleet(1), 1000, '2026-10')[0]?.description).toBe(
+      '1 vehicle used, October 2026',
     );
-    expect(lines).toHaveLength(2);
-    expect(lines[1]).toEqual({
-      description: '3 vehicles added from 17 October 2026 (15 of 31 days)',
-      quantity: 3,
-      unitPence: 1000,
-      amountPence: 1452,
-    });
-    expect(totalPence(lines)).toBe(5000 + 1452);
   });
 
-  it('bills a rise on the 1st as part of the base, not as an extra', () => {
-    const lines = buildPlanLines([change('2026-10-01', 8)], 1000, '2026-10');
-    expect(lines).toHaveLength(1);
-    expect(totalPence(lines)).toBe(8000);
+  it('bills a vehicle that sat idle all month nothing', () => {
+    const use = [...fleet(2), veh('idle', '2026-03-01', false)];
+    expect(totalPence(buildUsageLines(use, 1000, '2026-10'))).toBe(2000);
   });
 
-  it('does not reduce the bill for a fall part-way through; it takes effect next month', () => {
-    const changes = [change('2026-09-01', 8), change('2026-10-10', 3)];
-    expect(totalPence(buildPlanLines(changes, 1000, '2026-10'))).toBe(8000);
-    expect(totalPence(buildPlanLines(changes, 1000, '2026-11'))).toBe(3000);
+  it('bills nothing when nothing was used, or when the price is nothing', () => {
+    expect(buildUsageLines([], 1000, '2026-10')).toEqual([]);
+    expect(buildUsageLines([veh('a', '2026-01-01', false)], 1000, '2026-10')).toEqual([]);
+    expect(buildUsageLines(fleet(5), 0, '2026-10')).toEqual([]);
   });
 
-  it('bills a rise only above the level already billed for the month', () => {
-    // 5 at the start, a fall to 3 (ignored), then a rise to 4 (still under the 5 already billed), then 7.
-    const changes = [
-      change('2026-09-01', 5),
-      change('2026-10-05', 3),
-      change('2026-10-10', 4),
-      change('2026-10-21', 7),
+  it('does not pro-rate: a vehicle used on the 2nd of the month costs the same as one used all month', () => {
+    // Both were first used before the month, so both are a whole month. There is no part-month rate to game.
+    expect(
+      totalPence(
+        buildUsageLines([veh('a', '2026-01-01'), veh('b', '2026-09-30')], 1000, '2026-10'),
+      ),
+    ).toBe(2000);
+  });
+
+  it('cannot be dodged by removing vehicles before the invoice: it reads what was used, not what is there', () => {
+    // Five vehicles worked all October. Whatever the company has on 1 November, the October use is what it is.
+    expect(totalPence(buildUsageLines(fleet(5), 1000, '2026-10'))).toBe(5000);
+  });
+});
+
+describe("a new vehicle's first week", () => {
+  it('starts the grace window 7 days before the end of the month', () => {
+    expect(graceStart('2026-10')).toBe('2026-10-25'); // 31 days: the last 7 are 25 to 31
+    expect(graceStart('2026-11')).toBe('2026-11-24'); // 30 days: 24 to 30
+    expect(graceStart('2026-02')).toBe('2026-02-22'); // 28 days: 22 to 28
+    expect(graceStart('2028-02')).toBe('2028-02-23'); // a leap year: 23 to 29
+  });
+
+  it('leaves a vehicle first used in the last 7 days of a month for the next month', () => {
+    const use = [veh('old', '2026-01-01'), veh('new', '2026-10-25'), veh('later', '2026-10-31')];
+    expect(billableVehicles(use, '2026-10')).toBe(1);
+  });
+
+  it('bills a vehicle first used on the day before the window, and from the next month on the one that was in it', () => {
+    expect(billableVehicles([veh('a', '2026-10-24')], '2026-10')).toBe(1);
+    // The vehicle first used on 28 October is a whole month in November.
+    expect(billableVehicles([veh('a', '2026-10-28')], '2026-10')).toBe(0);
+    expect(billableVehicles([veh('a', '2026-10-28')], '2026-11')).toBe(1);
+  });
+
+  it('does not let adding wagons at the end of the month, or taking them away, change what was used earlier', () => {
+    // Three vehicles worked from August. Five more were added and used for the first time on 29 October: free for October only.
+    const use = [
+      ...fleet(3, '2026-08-01'),
+      ...['x', 'y', 'z', 'p', 'q'].map((id) => veh(id, '2026-10-29')),
     ];
-    const lines = buildPlanLines(changes, 1000, '2026-10');
-    expect(lines.map((l) => l.quantity)).toEqual([5, 2]);
-    expect(lines[1]?.amountPence).toBe(Math.round((2 * 1000 * 11) / 31));
+    expect(totalPence(buildUsageLines(use, 1000, '2026-10'))).toBe(3000);
+    // In November every one that is used is a whole month.
+    const november = use.map((v) => ({ ...v, usedInMonth: true }));
+    expect(totalPence(buildUsageLines(november, 1000, '2026-11'))).toBe(8000);
   });
+});
 
-  it('ignores changes in other months and handles a short month', () => {
-    const changes = [change('2026-01-01', 4), change('2026-03-20', 6), change('2026-12-01', 99)];
-    // February 2026 has 28 days; the rise on 20 March is not this month's.
-    expect(totalPence(buildPlanLines(changes, 1000, '2026-02'))).toBe(4000);
-    // 28 days, from the 15th is 14 days: 2 extra × 1000 × 14 / 28 = 1000.
-    const feb = buildPlanLines([change('2026-01-01', 4), change('2026-02-15', 6)], 1000, '2026-02');
-    expect(feb[1]?.amountPence).toBe(1000);
-  });
-
-  it('bills a price of nothing as nothing', () => {
-    expect(totalPence(buildPlanLines([change('2026-01-01', 5)], 0, '2026-10'))).toBe(0);
+describe('where a month ends', () => {
+  it('gives the first day of the next month, across a year end', () => {
+    expect(nextMonthStart('2026-10')).toBe('2026-11-01');
+    expect(nextMonthStart('2026-12')).toBe('2027-01-01');
+    expect(nextMonthStart('2026-09')).toBe('2026-10-01');
   });
 });
 

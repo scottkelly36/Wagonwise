@@ -60,6 +60,12 @@ class InMemoryTesters implements TesterRepository {
     return Promise.resolve();
   }
 
+  markTrialStarted(id: TesterId, companyId: string, at: Date): Promise<void> {
+    const t = this.rows.get(id);
+    if (t !== undefined) this.rows.set(id, { ...t, trialStartedAt: at, trialCompanyId: companyId });
+    return Promise.resolve();
+  }
+
   delete(id: TesterId): Promise<boolean> {
     return Promise.resolve(this.rows.delete(id));
   }

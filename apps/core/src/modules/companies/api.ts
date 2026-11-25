@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { makeId } from '../../shared/brand.js';
+import type { Result } from '../../shared/result.js';
 import type { Clock } from '../../shared/ports/clock.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
@@ -20,6 +21,9 @@ import {
 } from './application/run-account-rules.js';
 import { createStaffRequestGate, type StaffRequestGate } from './application/staff-request-gate.js';
 import { registerCompaniesRoutes, type CompaniesRouteDeps } from './interface/routes.js';
+import type { Forbidden } from './domain/staff-policy.js';
+import type { EmailAlreadyInUse } from './application/start-trial-firm.js';
+import { startTrialFirm as startTrialFirmUseCase } from './application/start-trial-firm.js';
 import { bootstrapFirstAdmin as bootstrapFirstAdminUseCase } from './application/bootstrap-first-admin.js';
 import type { StaffDeps } from './application/staff-deps.js';
 import { AesGcmSecretBox } from './infrastructure/aes-gcm-secret-box.js';
@@ -129,6 +133,21 @@ export interface CompaniesModule {
    * Who these staff members are, for WagonWise staff reading a list (the people who agreed to be asked for research): name, sign-in
    * address and company name. Removed accounts, and WagonWise's own staff, are left out. Opens its own platform scope.
    */
+  /**
+   * A firm that registered on the website becomes a company on a free trial, and its first person is invited as the manager (see
+   * `application/start-trial-firm.ts`). WagonWise staff only. Opens its own platform scope, so call it outside any `DataScopes.run`.
+   */
+  startTrialFirm(input: {
+    readonly staffId: string;
+    readonly firmName: string;
+    readonly contactName: string;
+    readonly contactEmail: string;
+  }): Promise<
+    Result<
+      { readonly companyId: string; readonly emailed: boolean; readonly inviteToken: string },
+      Forbidden | EmailAlreadyInUse
+    >
+  >;
   describeStaff(
     staffIds: readonly string[],
   ): Promise<
@@ -279,6 +298,10 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
         return found;
       });
     },
+    startTrialFirm: (input) =>
+      deps.dataScopes.run({ kind: 'platform' }, () =>
+        startTrialFirmUseCase({ company: routeDeps.createCompany, staff: staffDeps }, input),
+      ),
     async listCompanyNames() {
       const all = await repo.findAll();
       return all.map((c) => ({ id: c.id, name: c.name }));

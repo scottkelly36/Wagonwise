@@ -82,7 +82,8 @@ const MESSAGES: Record<string, string> = {
     "Fill in WagonWise's billing details first (Billing details page): invoices can't be issued while any are in [brackets].",
   EmptyInvoice: 'An invoice needs at least one line.',
   NegativeTotal: "An invoice can't total less than nothing. Remove the credit or add a charge.",
-  MonthNotStarted: "That month hasn't started yet.",
+  MonthNotFinished:
+    "That month isn't over yet. Invoices are for a finished month, because each vehicle is billed if it was used in it.",
   InvalidMonth: 'Pick a valid month.',
   InvalidLine: 'Enter a description and an amount in pounds and pence.',
   InvalidDay: 'Pick a valid date.',
