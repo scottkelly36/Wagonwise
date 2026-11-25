@@ -20,6 +20,8 @@ export interface PaymentProvider {
     readonly companyId: string;
     readonly companyName: string;
     readonly returnUrl: string;
+    /** The provider's id for this company if it already has one (from an earlier visit), so it is reused, not made again. */
+    readonly existingRef?: string | null | undefined;
   }): Promise<{ readonly url: string; readonly providerRef?: string | undefined }>;
   /** Asks the provider to collect an issued invoice's total from the company's payment method. The outcome arrives by message. */
   collect(input: {
@@ -27,6 +29,10 @@ export interface PaymentProvider {
     readonly invoiceId: string;
     readonly invoiceNumber: string | undefined;
     readonly amountPence: number;
+    /** WagonWise's id for this attempt: asking twice with the same one must not charge twice. */
+    readonly attemptId: string;
+    /** The provider's id for the company, as kept when its details were added. */
+    readonly customerRef: string | null;
   }): Promise<{ readonly providerRef?: string | undefined }>;
   /** Checks a message the provider sent (`body` is the exact text received, `signature` its signature header) and says what it is. */
   readEvent(input: {

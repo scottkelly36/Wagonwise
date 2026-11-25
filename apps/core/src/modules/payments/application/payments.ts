@@ -115,6 +115,7 @@ export async function startPaymentSetup(
   if (!deps.provider.available) return err({ tag: 'NotAvailable' });
   const base = (deps.dashboardUrl ?? '').replace(/\/+$/, '');
   const session = await deps.provider.createSetupSession({
+    existingRef: (await deps.customers.get(companyId))?.providerRef ?? null,
     companyId,
     companyName: (await deps.names.nameOf(companyId)) ?? 'your company',
     returnUrl: `${base}/staff/plan?payment=done`,
@@ -159,8 +160,9 @@ export async function collectInvoice(
 
   const now = deps.clock.now();
   // Recorded first: the unique open attempt per invoice is what stops two presses charging twice.
+  const attemptId = deps.ids.newId();
   const opened = await deps.collections.open({
-    id: deps.ids.newId(),
+    id: attemptId,
     companyId: invoice.companyId,
     invoiceId: invoice.id,
     amountPence: invoice.totalPence,
@@ -178,6 +180,8 @@ export async function collectInvoice(
       invoiceId: invoice.id,
       invoiceNumber: invoice.number,
       amountPence: invoice.totalPence,
+      attemptId,
+      customerRef: (await deps.customers.get(invoice.companyId))?.providerRef ?? null,
     });
   } catch {
     // Not asked: give the attempt back as failed so it can be tried again, and say so.

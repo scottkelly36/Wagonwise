@@ -103,6 +103,12 @@ describe('payment status and adding payment details', () => {
     });
   });
 
+  it('a second visit hands back the customer the provider already has, so none is made twice', async () => {
+    await startPaymentSetup(deps, billing);
+    await startPaymentSetup(deps, billing);
+    expect(provider.existingRefs).toEqual([null, `cus_${ACME}`]);
+  });
+
   it("starts the provider's hosted page, coming back to the plan page, and charges nothing", async () => {
     const result = await startPaymentSetup(deps, billing);
     expect(result).toEqual({ ok: true, value: { url: `https://pay.example.test/setup/${ACME}` } });
@@ -140,6 +146,7 @@ describe('collecting an invoice', () => {
     await customers.upsert({
       companyId: ACME,
       provider: 'fake',
+      providerRef: `cus_${ACME}`,
       detailsOnFile: true,
       at: new Date(),
     });
@@ -153,6 +160,13 @@ describe('collecting an invoice', () => {
     expect(provider.collected).toEqual([{ invoiceId: INV, amountPence: 1500 }]);
     expect(collections.rows).toHaveLength(1);
     expect(collections.rows[0]).toMatchObject({ status: 'requested', requestedBy: 'admin' });
+  });
+
+  it('tells the provider which attempt this is and which customer it is for, so a repeat cannot charge twice', async () => {
+    await collectInvoice(deps, platform, INV);
+    expect(provider.attempts).toEqual([
+      { attemptId: collections.rows[0]?.id, customerRef: `cus_${ACME}` },
+    ]);
   });
 
   it('will not collect twice while an attempt is open: pressing the button twice cannot charge twice', async () => {

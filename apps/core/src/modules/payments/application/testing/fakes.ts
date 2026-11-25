@@ -20,8 +20,17 @@ export class FakePaymentProvider implements PaymentProvider {
   failCollect = false;
   readonly setups: { companyId: string; returnUrl: string }[] = [];
   readonly collected: { invoiceId: string; amountPence: number }[] = [];
+  /** What else the provider was told, kept apart so the simple lists above stay simple. */
+  readonly existingRefs: (string | null | undefined)[] = [];
+  readonly attempts: { attemptId: string; customerRef: string | null }[] = [];
 
-  createSetupSession(input: { companyId: string; companyName: string; returnUrl: string }) {
+  createSetupSession(input: {
+    companyId: string;
+    companyName: string;
+    returnUrl: string;
+    existingRef?: string | null | undefined;
+  }) {
+    this.existingRefs.push(input.existingRef);
     this.setups.push({ companyId: input.companyId, returnUrl: input.returnUrl });
     return Promise.resolve({
       url: `https://pay.example.test/setup/${input.companyId}`,
@@ -29,9 +38,15 @@ export class FakePaymentProvider implements PaymentProvider {
     });
   }
 
-  collect(input: { invoiceId: string; amountPence: number }) {
+  collect(input: {
+    invoiceId: string;
+    amountPence: number;
+    attemptId: string;
+    customerRef: string | null;
+  }) {
     if (this.failCollect) return Promise.reject(new Error('provider down'));
     this.collected.push({ invoiceId: input.invoiceId, amountPence: input.amountPence });
+    this.attempts.push({ attemptId: input.attemptId, customerRef: input.customerRef });
     return Promise.resolve({ providerRef: `pi_${input.invoiceId}` });
   }
 
