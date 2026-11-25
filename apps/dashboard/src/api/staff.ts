@@ -4,6 +4,7 @@ import {
   createStaffInviteResponseSchema,
   listStaffAuditResponseSchema,
   listStaffResponseSchema,
+  previewStaffInviteResponseSchema,
   staffAccountSchema,
   staffMeSchema,
   staffRefreshTokenResponseSchema,
@@ -15,6 +16,7 @@ import {
   type CreateStaffInviteRequest,
   type CreateStaffInviteResponse,
   type Privilege,
+  type PreviewStaffInviteResponse,
   type StaffAuditEntryDto,
   type StaffAccountDto,
   type StaffMeDto,
@@ -57,6 +59,24 @@ export async function refresh(refreshToken: string): Promise<StaffRefreshTokenRe
 export async function signOut(refreshToken: string): Promise<void> {
   const { status, json } = await call('POST', '/staff/auth/sign-out', { refreshToken });
   throwUnlessSuccess(status, json, [204]);
+}
+
+/** "Forgot your password": always succeeds from the caller's side, whether or not the address has an account. */
+export async function forgotPassword(email: string): Promise<void> {
+  const { status, json } = await call('POST', '/staff/auth/forgot-password', { email });
+  throwUnlessSuccess(status, json, [204]);
+}
+
+export async function resetPassword(token: string, password: string): Promise<void> {
+  const { status, json } = await call('POST', '/staff/auth/reset-password', { token, password });
+  throwUnlessSuccess(status, json, [204]);
+}
+
+/** Whose invitation a join link is, and which company it is for. */
+export async function previewInvite(inviteToken: string): Promise<PreviewStaffInviteResponse> {
+  const { status, json } = await call('POST', '/staff/invites/preview', { inviteToken });
+  throwUnlessSuccess(status, json, [200]);
+  return previewStaffInviteResponseSchema.parse(json);
 }
 
 export async function acceptInvite(

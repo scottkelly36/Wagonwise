@@ -8,6 +8,7 @@ const MESSAGES: Record<string, string> = {
   ChallengeNotUsable: 'That sign-in has expired or had too many tries. Please start again.',
   EnrolmentNotUsable: 'That set-up has expired or had too many tries. Open your invite link again.',
   InviteNotUsable: 'This invite link has expired or has already been used.',
+  ResetNotUsable: 'This link has expired or has already been used.',
   EmailAlreadyInUse: 'There is already an account with that email address.',
   LastManager: 'A company needs at least one person who can manage users.',
   PrivilegeNotHeld: 'You can only give privileges you have yourself.',

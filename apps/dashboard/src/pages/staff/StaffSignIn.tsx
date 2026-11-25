@@ -90,6 +90,9 @@ export function StaffSignIn() {
           <button type="submit" disabled={pending || email === '' || password === ''}>
             {pending ? 'Checking…' : 'Continue'}
           </button>
+          <p style={{ marginTop: 16, fontSize: 13 }}>
+            <Link to="/forgot-password">Forgot your password?</Link>
+          </p>
         </form>
       ) : (
         <form
