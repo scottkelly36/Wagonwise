@@ -122,26 +122,19 @@ export function accountStanding(
 
 /**
  * What the Plan page says about the plan to a company still in its free period: that nothing is charged yet, and what it costs when
- * the period ends. `undefined` for any other state, where the page states the monthly amount as it is.
+ * the period ends (a price for each vehicle it uses, not for the room on its plan). `undefined` for any other state, where the page states the monthly amount as it is.
  */
 export function trialPlanText(
   state: Pick<OwnAccountStateDto, 'status' | 'trialEndsOn'>,
-  plan: {
-    readonly capacityToday: number;
-    readonly pricePerVehiclePence: number;
-    readonly monthlyPence: number;
-  },
+  plan: { readonly capacityToday: number; readonly pricePerVehiclePence: number },
 ): { readonly headline: string; readonly afterwards: string } | undefined {
   if (state.status !== 'trial') return undefined;
   const vehicles = `${plan.capacityToday} vehicle${plan.capacityToday === 1 ? '' : 's'}`;
   const ends = state.trialEndsOn === null ? '' : ` (it ends on ${longDay(state.trialEndsOn)})`;
-  const price = `${formatPence(plan.pricePerVehiclePence)} per vehicle a month`;
+  const price = `${formatPence(plan.pricePerVehiclePence)} a month`;
   return {
     headline: `Room for ${vehicles}. Free during your free period.`,
-    afterwards:
-      plan.capacityToday > 0
-        ? `After your free period${ends} it is ${price}: ${formatPence(plan.monthlyPence)} a month for the ${vehicles} on your plan.`
-        : `After your free period${ends} it is ${price} for the vehicles on your plan.`,
+    afterwards: `After your free period${ends} you pay ${price} for each vehicle you use: one given a job or checked in a month. A vehicle that sits idle costs nothing.`,
   };
 }
 

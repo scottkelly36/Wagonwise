@@ -86,6 +86,7 @@ describe('start a trial from a website sign-up (real RLS, real scopes)', () => {
       callers: { getCaller: (id) => companies.getStaffCaller(id) },
       companies: { list: () => Promise.resolve([]) },
       vehicles: { countFor: () => Promise.resolve(0) },
+      vehicleUse: { usedBetween: () => Promise.resolve([]) },
     });
     const signups = createSignupsModule({
       db,

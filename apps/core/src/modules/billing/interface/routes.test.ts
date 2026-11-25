@@ -33,6 +33,12 @@ const staff: Record<string, StaffCaller> = {
   },
 };
 
+// Each app's clock, so a test can let the month go by: invoices are drafted after the month they bill.
+const clocks = new WeakMap<FastifyInstance, FakeClock>();
+const monthIsOver = (app: FastifyInstance): void => {
+  clocks.get(app)?.set('2026-11-02T09:00:00.000Z');
+};
+
 function buildApp(): { app: FastifyInstance; scopes: RecordingDataScopes } {
   const scopes = new RecordingDataScopes();
   const app = Fastify();
@@ -54,6 +60,19 @@ function buildApp(): { app: FastifyInstance; scopes: RecordingDataScopes } {
       details,
       plans,
       companies,
+      // Five vehicles worked all of October, whatever the plan says.
+      vehicleUse: {
+        usedBetween: (companyId) =>
+          Promise.resolve(
+            companyId === ACME
+              ? Array.from({ length: 5 }, (_, i) => ({
+                  vehicleId: `v${i}`,
+                  firstDay: '2026-08-01',
+                  usedInMonth: true,
+                }))
+              : [],
+          ),
+      },
       ids: new SequentialIdGenerator(),
       clock,
     },
@@ -74,6 +93,7 @@ function buildApp(): { app: FastifyInstance; scopes: RecordingDataScopes } {
     callerDirectory: { getCaller: (id) => Promise.resolve(staff[id] ?? null) },
     dataScopes: scopes,
   });
+  clocks.set(app, clock);
   return { app, scopes };
 }
 
@@ -245,13 +265,15 @@ describe('/staff/billing/companies', () => {
 });
 
 describe('/staff/billing/invoices', () => {
-  const generate = (app: FastifyInstance, month = '2026-10') =>
-    app.inject({
+  const generate = (app: FastifyInstance, month = '2026-10') => {
+    monthIsOver(app);
+    return app.inject({
       method: 'POST',
       url: '/staff/billing/invoices/generate',
       payload: { month },
       ...as('admin'),
     });
+  };
   async function withDraft() {
     const { app } = buildApp();
     await app.inject({
@@ -267,8 +289,8 @@ describe('/staff/billing/invoices', () => {
 
   it('drafts the month’s invoice, lists it, and shows it with its lines', async () => {
     const { app, draft } = await withDraft();
-    // Capacity began on the 9th, after the 1st, so October is billed as a rise: 5 vehicles for 23 of 31 days.
-    expect(draft.totalPence).toBe(Math.round((5 * 1000 * 23) / 31));
+    // Five vehicles worked in October: five whole months, however late in the month the plan began.
+    expect(draft.totalPence).toBe(5000);
     const list = await app.inject({
       method: 'GET',
       url: '/staff/billing/invoices',
@@ -424,6 +446,7 @@ describe('a company’s own billing: /staff/billing/my', () => {
       payload: { capacity: 5, effectiveFrom: '2026-10-09' },
       ...as('admin'),
     });
+    monthIsOver(app);
     const generated = await app.inject({
       method: 'POST',
       url: '/staff/billing/invoices/generate',
