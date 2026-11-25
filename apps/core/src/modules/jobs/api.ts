@@ -24,6 +24,10 @@ import { CachingRouteEstimator } from './infrastructure/caching-route-estimator.
 import { PostgresJobNoticeRepository } from './infrastructure/postgres-job-notice-repository.js';
 import { PostgresJobPositionRepository } from './infrastructure/postgres-job-position-repository.js';
 import { PostgresJobRepository } from './infrastructure/postgres-job-repository.js';
+import {
+  PostgresVehicleJobActivity,
+  type VehicleJobDays,
+} from './infrastructure/postgres-vehicle-activity.js';
 import { registerJobsDriverRoutes, type JobsDriverRouteDeps } from './interface/driver-routes.js';
 import { registerJobsRoutes, type JobsRouteDeps } from './interface/routes.js';
 
@@ -85,6 +89,12 @@ export interface JobsModule {
   pruneOldPositions(retentionDays: number): Promise<number>;
   /** Deletes each company's proof-of-delivery photos older than its own retention (months, by company id). */
   pruneProofPhotos(retentionMonthsByCompany: ReadonlyMap<string, number>): Promise<number>;
+  /**
+   * Each of a company's vehicles that has been given a job (not a draft, not cancelled): the UK day of its first job ever, and
+   * whether it had one from `fromDay` (inclusive) to `toDay` (exclusive), as `YYYY-MM-DD`. For `billing`, supplied by composition.
+   * Reads in the caller's own data scope, so call it inside a request. A deleted vehicle's jobs remain, so it still shows.
+   */
+  vehicleJobDays(companyId: string, fromDay: string, toDay: string): Promise<VehicleJobDays[]>;
   /** The vehicle on the job a driver is on right now (assigned up to at_delivery), or null. For walk-round
    *  checks, which are done on the vehicle the driver is about to take out; supplied by composition. Reads in
    *  the caller's own data scope, so call it inside the driver's request. */
@@ -135,6 +145,7 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
   const positions = new PostgresJobPositionRepository(deps.db);
   const routes = new CachingRouteEstimator(deps.routes, deps.clock);
   const notices = new PostgresJobNoticeRepository(deps.db);
+  const vehicleActivity = new PostgresVehicleJobActivity(deps.db);
   const noticeDeps = {
     notifier: deps.notifier ?? { notify: () => Promise.resolve({ devices: 0, accepted: 0 }) },
     notices,
@@ -210,6 +221,8 @@ export function createJobsModule(deps: JobsModuleDeps): JobsModule {
         ];
       });
     },
+    vehicleJobDays: (companyId, fromDay, toDay) =>
+      vehicleActivity.forCompany(companyId, fromDay, toDay),
     async activeDriverIds(companyId: string): Promise<string[]> {
       const jobs = await repo.listOpenForCompany(makeId<'CompanyId'>(companyId));
       return jobs.flatMap((j) =>

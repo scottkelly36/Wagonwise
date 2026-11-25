@@ -14,12 +14,15 @@ import { PostgresInvoiceRepository } from './infrastructure/postgres-invoice-rep
 import { PostgresPlanRepository } from './infrastructure/postgres-plan-repository.js';
 import { registerBillingRoutes } from './interface/routes.js';
 import type { VehicleCount } from './application/ports/vehicle-count.js';
+import type { VehicleUseHistory } from './application/ports/vehicle-use.js';
 
 // Re-exported so composition/ can type its wiring without reaching past this facade.
 export type { UntypedDb } from './infrastructure/db.js';
 export type { CallerDirectory, StaffCaller } from './application/ports/directories.js';
 export type { CompanyDirectory } from './application/ports/company-directory.js';
 export type { VehicleCount } from './application/ports/vehicle-count.js';
+export type { VehicleUseHistory } from './application/ports/vehicle-use.js';
+export type { VehicleUse } from './domain/invoice.js';
 
 export interface BillingModuleDeps {
   readonly db: UntypedDb;
@@ -32,6 +35,8 @@ export interface BillingModuleDeps {
   readonly companies: CompanyDirectory;
   /** How many vehicles a company has now. Supplied by composition over `fleet`. */
   readonly vehicles: VehicleCount;
+  /** Which vehicles were used in a month (given a job, or checked), for invoices. Supplied by composition over `jobs` and `checks`. */
+  readonly vehicleUse: VehicleUseHistory;
 }
 
 export interface BillingModule {
@@ -84,6 +89,7 @@ export function createBillingModule(deps: BillingModuleDeps): BillingModule {
           details,
           plans,
           companies: deps.companies,
+          vehicleUse: deps.vehicleUse,
           ids: deps.ids,
           clock: deps.clock,
         },
