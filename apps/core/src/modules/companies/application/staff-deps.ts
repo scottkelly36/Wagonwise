@@ -8,7 +8,9 @@ import type { InviteMailer } from './ports/invite-mailer.js';
 import type { PasswordHasher } from './ports/password-hasher.js';
 import type { RandomCodes } from './ports/random-codes.js';
 import type { SecretBox } from './ports/secret-box.js';
+import type { ResetMailer } from './ports/reset-mailer.js';
 import type { StaffAuditLog } from './ports/staff-audit-log.js';
+import type { StaffPasswordResetRepository } from './ports/staff-password-reset-repository.js';
 import type { StaffAccountRepository } from './ports/staff-account-repository.js';
 import type { StaffChallengeRepository } from './ports/staff-challenge-repository.js';
 import type { StaffInviteRepository } from './ports/staff-invite-repository.js';
@@ -44,6 +46,9 @@ export interface StaffDeps {
   readonly totp: Totp;
   readonly codeSender: CodeSender;
   readonly inviteMailer: InviteMailer;
+  /** Links to choose a new password ("forgot your password"), and the email that carries them. */
+  readonly passwordResets: StaffPasswordResetRepository;
+  readonly resetMailer: ResetMailer;
   /** The dashboard's address (config's DASHBOARD_URL), for the link in an invitation email. Undefined:
    *  no email is sent and the inviter shares the link by hand. */
   readonly dashboardUrl: string | undefined;

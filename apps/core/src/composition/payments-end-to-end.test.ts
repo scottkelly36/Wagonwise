@@ -144,6 +144,7 @@ describe('payments end to end (real RLS, real hook, fake provider)', () => {
       callers: { getCaller: (id) => companies.getStaffCaller(id) },
       companies: { list: () => Promise.resolve([]) },
       vehicles: { countFor: () => Promise.resolve(0) },
+      vehicleUse: { usedBetween: () => Promise.resolve([]) },
     });
     payments = createPaymentsModule({
       db,

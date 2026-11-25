@@ -142,3 +142,24 @@ export async function vehicleCapacityToday(
 async function companyExists(deps: PlanDeps, companyId: CompanyId): Promise<boolean> {
   return (await deps.companies.list()).some((c) => c.id === companyId);
 }
+
+/**
+ * A company's first plan, set by WagonWise itself when it opens a trial for them: from today, the plan covers `capacity` vehicles.
+ * Without it a new company covers none, and fleet would refuse its first vehicle. No caller check (it is not a request: composition
+ * calls it right after WagonWise staff made the company); setting it again for today replaces it.
+ */
+export async function giveStartingCapacity(
+  deps: Pick<PlanDeps, 'plans' | 'clock'>,
+  staffId: StaffId,
+  companyId: CompanyId,
+  capacity: number,
+): Promise<void> {
+  const checked = validateCapacity(capacity);
+  if (!checked.ok) throw new Error('the starting capacity is not a valid number of vehicles');
+  const now = deps.clock.now();
+  await deps.plans.setCapacity(
+    { companyId, effectiveFrom: ukDay(now), capacity: checked.value },
+    staffId,
+    now,
+  );
+}

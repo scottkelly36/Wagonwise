@@ -28,7 +28,7 @@ import {
   type InvoiceNotFound,
   type NegativeTotal,
 } from '../domain/invoice.js';
-import type { EmptyInvoice, Forbidden, MonthNotStarted } from '../application/invoices.js';
+import type { EmptyInvoice, Forbidden, MonthNotFinished } from '../application/invoices.js';
 import type { Outcome } from './outcome.js';
 
 type AsStaff = (
@@ -66,7 +66,7 @@ type InvoiceError =
   | InvoiceNotFound
   | InvalidMonth
   | InvalidLine
-  | MonthNotStarted
+  | MonthNotFinished
   | InvalidInvoiceState
   | BillingDetailsIncomplete
   | EmptyInvoice
@@ -80,7 +80,7 @@ function statusFor(error: InvoiceError): number {
       return 404;
     case 'InvalidMonth':
     case 'InvalidLine':
-    case 'MonthNotStarted':
+    case 'MonthNotFinished':
       return 400;
     // The invoice is not in a state that allows this, or issuing is not possible yet.
     case 'InvalidInvoiceState':

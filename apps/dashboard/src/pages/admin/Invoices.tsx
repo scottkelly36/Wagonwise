@@ -28,7 +28,7 @@ function lastMonth(): string {
 }
 
 /**
- * Invoices. Draft the month's for every company from its plan, check each, add a credit or a one-off charge if
+ * Invoices. Draft the month's for every company from the vehicles it used, check each, add a credit or a one-off charge if
  * needed, then issue it: that gives it its number and freezes it. Print opens a page the browser saves as a PDF.
  * Marking paid is by hand. Issuing is refused while the billing details still hold [placeholders].
  */
@@ -103,7 +103,9 @@ export function Invoices() {
     <div>
       <h1>Invoices</h1>
       <p className="text-muted">
-        Each invoice bills a company for the vehicles its plan covers. Draft the month&apos;s, check
+        Each invoice bills a company for the vehicles it used in the month: one given a job or
+        checked counts as a whole month, an idle one costs nothing, and a vehicle first used in the
+        last 7 days of a month starts counting the month after. Draft a finished month&apos;s, check
         each one, then issue it. Issued invoices are numbered and can&apos;t be edited; cancel one
         to correct it.
       </p>
@@ -121,7 +123,7 @@ export function Invoices() {
           <input
             type="month"
             value={month}
-            max={ukToday().slice(0, 7)}
+            max={lastMonth()}
             onChange={(e) => setMonth(e.target.value)}
           />
         </label>

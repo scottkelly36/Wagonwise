@@ -8,6 +8,7 @@ const MESSAGES: Record<string, string> = {
   ChallengeNotUsable: 'That sign-in has expired or had too many tries. Please start again.',
   EnrolmentNotUsable: 'That set-up has expired or had too many tries. Open your invite link again.',
   InviteNotUsable: 'This invite link has expired or has already been used.',
+  ResetNotUsable: 'This link has expired or has already been used.',
   EmailAlreadyInUse: 'There is already an account with that email address.',
   LastManager: 'A company needs at least one person who can manage users.',
   PrivilegeNotHeld: 'You can only give privileges you have yourself.',
@@ -81,7 +82,8 @@ const MESSAGES: Record<string, string> = {
     "Fill in WagonWise's billing details first (Billing details page): invoices can't be issued while any are in [brackets].",
   EmptyInvoice: 'An invoice needs at least one line.',
   NegativeTotal: "An invoice can't total less than nothing. Remove the credit or add a charge.",
-  MonthNotStarted: "That month hasn't started yet.",
+  MonthNotFinished:
+    "That month isn't over yet. Invoices are for a finished month, because each vehicle is billed if it was used in it.",
   InvalidMonth: 'Pick a valid month.',
   InvalidLine: 'Enter a description and an amount in pounds and pence.',
   InvalidDay: 'Pick a valid date.',

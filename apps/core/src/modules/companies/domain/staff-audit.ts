@@ -17,6 +17,8 @@ export type StaffAuditEntryId = Id<'StaffAuditEntryId'>;
  * - `privileges_changed`: details `before`, `after`.
  * - `staff_removed`: details `email`.
  * - `company_settings_changed`: details `photoRetentionMonths` (before and after).
+ * - `password_reset_requested`: a link to choose a new password was emailed (the target is the account).
+ * - `password_reset`: the link was used and the password changed; every session of the account was ended.
  */
 export const STAFF_AUDIT_ACTIONS = [
   'invite_created',
@@ -27,6 +29,8 @@ export const STAFF_AUDIT_ACTIONS = [
   'privileges_changed',
   'staff_removed',
   'company_settings_changed',
+  'password_reset_requested',
+  'password_reset',
 ] as const;
 export type StaffAuditAction = (typeof STAFF_AUDIT_ACTIONS)[number];
 

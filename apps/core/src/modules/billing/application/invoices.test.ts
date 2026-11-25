@@ -3,7 +3,7 @@ import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
 import { SequentialIdGenerator } from '../../../shared/testing/sequential-id-generator.js';
 import type { BillingDetails } from '../domain/billing-details.js';
-import { totalPence, type Invoice } from '../domain/invoice.js';
+import { totalPence, type Invoice, type VehicleUse } from '../domain/invoice.js';
 import {
   addManualLine,
   deleteDraft,
@@ -37,7 +37,19 @@ const real: BillingDetails = {
   paymentTerms: '14 days',
 };
 
+/** `count` vehicles, all first used long before the month and used in it. */
+const busy = (count: number, prefix: string): VehicleUse[] =>
+  Array.from({ length: count }, (_, i) => ({
+    vehicleId: `${prefix}-${i}`,
+    firstDay: '2026-08-01',
+    usedInMonth: true,
+  }));
+
 async function setup() {
+  const use = new Map<string, VehicleUse[]>([
+    [acme, busy(5, 'a')],
+    [beta, busy(2, 'b')],
+  ]);
   const plans = new InMemoryPlanRepository();
   const details = new InMemoryBillingDetailsRepository();
   const invoices = new InMemoryInvoiceRepository();
@@ -48,6 +60,7 @@ async function setup() {
     plans,
     clock,
     ids: new SequentialIdGenerator(),
+    vehicleUse: { usedBetween: (companyId) => Promise.resolve(use.get(companyId) ?? []) },
     companies: {
       list: () =>
         Promise.resolve([
@@ -68,8 +81,8 @@ async function setup() {
     clock.now(),
   );
   await plans.setPrice(beta, 1500, staffId, clock.now());
-  // gamma has no capacity: nothing to bill.
-  return { deps, details, invoices, clock };
+  // gamma used no vehicles: nothing to bill.
+  return { deps, details, invoices, clock, use };
 }
 
 async function draftFor(deps: InvoiceDeps, company = acme): Promise<Invoice> {
@@ -109,13 +122,27 @@ describe('generateInvoices', () => {
     expect(await invoices.list()).toHaveLength(2);
   });
 
-  it('refuses a month that has not started, a bad month, and anyone but an admin', async () => {
+  it('bills the vehicles used, not what the plan covers or what the company has on the day', async () => {
+    const { deps, use } = await setup();
+    // acme's plan covers 5, but only 3 of them worked in October; the others were idle, or deleted before this ran.
+    use.set(acme, busy(3, 'a'));
+    const result = await generateInvoices(deps, admin, staffId, '2026-10');
+    expect(result.ok && result.value.created.find((i) => i.companyId === acme)).toMatchObject({
+      lines: [{ description: '3 vehicles used, October 2026', quantity: 3, amountPence: 3000 }],
+    });
+  });
+
+  it('refuses a month that is not over, a bad month, and anyone but an admin', async () => {
     const { deps } = await setup();
     expect(await generateInvoices(deps, admin, staffId, '2026-12')).toEqual({
       ok: false,
-      error: { tag: 'MonthNotStarted' },
+      error: { tag: 'MonthNotFinished' },
     });
-    expect((await generateInvoices(deps, admin, staffId, '2026-11')).ok).toBe(true);
+    // The clock is on 2 November: October is over, November is not.
+    expect(await generateInvoices(deps, admin, staffId, '2026-11')).toEqual({
+      ok: false,
+      error: { tag: 'MonthNotFinished' },
+    });
     expect(await generateInvoices(deps, admin, staffId, 'soon')).toEqual({
       ok: false,
       error: { tag: 'InvalidMonth' },

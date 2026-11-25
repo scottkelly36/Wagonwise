@@ -15,6 +15,9 @@ import { STAFF_INVITE_LIFETIME_MS } from '../domain/staff-invite.js';
 import { STAFF_LOCKOUT_WINDOW_MS } from '../domain/staff-lockout.js';
 import { STAFF_REFRESH_LIFETIME_MS } from '../domain/staff-session.js';
 import { acceptStaffInvite } from './accept-staff-invite.js';
+import { requestPasswordReset, resetPassword } from './password-reset.js';
+import { previewStaffInvite } from './preview-staff-invite.js';
+import { PASSWORD_RESET_LIFETIME_MS } from '../domain/staff-password-reset.js';
 import { bootstrapFirstAdmin } from './bootstrap-first-admin.js';
 import { confirmStaffEnrolment } from './confirm-staff-enrolment.js';
 import { createStaffInvite } from './create-staff-invite.js';
@@ -31,12 +34,14 @@ import {
   FakeTotp,
   RecordingCodeSender,
   RecordingInviteMailer,
+  RecordingResetMailer,
   SequentialRandomCodes,
 } from './testing/fake-staff-crypto.js';
 import {
   InMemoryStaffAccountRepository,
   InMemoryStaffChallengeRepository,
   InMemoryStaffInviteRepository,
+  InMemoryStaffPasswordResetRepository,
   InMemoryStaffAuditLog,
   InMemoryStaffRecoveryCodeRepository,
   InMemoryStaffSessionRepository,
@@ -54,6 +59,8 @@ let deps: StaffDeps & {
   readonly totp: FakeTotp;
   readonly accounts: InMemoryStaffAccountRepository;
   readonly auditLog: InMemoryStaffAuditLog;
+  readonly resetMailer: RecordingResetMailer;
+  readonly passwordResets: InMemoryStaffPasswordResetRepository;
 };
 let admin: PlatformStaff;
 
@@ -74,6 +81,8 @@ beforeEach(async () => {
     totp: new FakeTotp(),
     codeSender: new RecordingCodeSender(),
     inviteMailer: new RecordingInviteMailer(),
+    passwordResets: new InMemoryStaffPasswordResetRepository(),
+    resetMailer: new RecordingResetMailer(),
     dashboardUrl: 'https://dashboard.example.com',
     randomCodes: new SequentialRandomCodes(),
     tokenIssuer: new FakeStaffTokenIssuer(),
@@ -841,5 +850,152 @@ describe('bootstrapping the first WagonWise admin (P2-M1.12b)', () => {
       secondFactorMethod: 'email',
     });
     expect(accepted.ok).toBe(true);
+  });
+});
+
+describe('forgotten passwords', () => {
+  /** The token in the emailed link. */
+  const tokenSent = (): string => {
+    const link = deps.resetMailer.sent.at(-1)?.link ?? '';
+    return decodeURIComponent(link.split('token=')[1] ?? '');
+  };
+
+  it('emails a link to the account, and says nothing about whether an address has one', async () => {
+    await onboard({ email: 'boss@acme.example', companyId: acme, privileges: PRIVILEGES });
+    await requestPasswordReset(deps, { email: 'BOSS@acme.example' });
+    expect(deps.resetMailer.sent).toHaveLength(1);
+    expect(deps.resetMailer.sent[0]?.to).toBe('boss@acme.example');
+    expect(deps.resetMailer.sent[0]?.link).toMatch(
+      /^https:\/\/dashboard\.example\.com\/reset-password\?token=/,
+    );
+    // An address with no account: no email, no error, nothing recorded.
+    await requestPasswordReset(deps, { email: 'nobody@nowhere.example' });
+    expect(deps.resetMailer.sent).toHaveLength(1);
+    expect(deps.passwordResets.rows.size).toBe(1);
+  });
+
+  it('sends at most three links an hour to one account, quietly ignoring the rest', async () => {
+    await onboard({ email: 'boss@acme.example', companyId: acme, privileges: PRIVILEGES });
+    for (let i = 0; i < 5; i += 1) await requestPasswordReset(deps, { email: 'boss@acme.example' });
+    expect(deps.resetMailer.sent).toHaveLength(3);
+    deps.clock.advance(60 * 60 * 1000 + 1000);
+    await requestPasswordReset(deps, { email: 'boss@acme.example' });
+    expect(deps.resetMailer.sent).toHaveLength(4);
+  });
+
+  it('sends nothing without a dashboard address, and a failed email changes nothing for the caller', async () => {
+    await onboard({ email: 'boss@acme.example', companyId: acme, privileges: PRIVILEGES });
+    await requestPasswordReset(
+      { ...deps, dashboardUrl: undefined },
+      { email: 'boss@acme.example' },
+    );
+    expect(deps.resetMailer.sent).toHaveLength(0);
+    deps.resetMailer.fail = true;
+    await expect(
+      requestPasswordReset(deps, { email: 'boss@acme.example' }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('lets the link choose a new password once, and the old one stops working', async () => {
+    await onboard({ email: 'boss@acme.example', companyId: acme, privileges: PRIVILEGES });
+    await requestPasswordReset(deps, { email: 'boss@acme.example' });
+    const token = tokenSent();
+    expect(await resetPassword(deps, { token, password: 'a brand new password' })).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    const old = await staffSignIn(deps, { email: 'boss@acme.example', password: PASSWORD });
+    expect(old).toMatchObject({ ok: false, error: { tag: 'InvalidCredentials' } });
+    const fresh = await staffSignIn(deps, {
+      email: 'boss@acme.example',
+      password: 'a brand new password',
+    });
+    expect(fresh.ok).toBe(true);
+    // The same link a second time is refused.
+    expect(await resetPassword(deps, { token, password: 'another one entirely' })).toEqual({
+      ok: false,
+      error: { tag: 'ResetNotUsable' },
+    });
+  });
+
+  it('does not skip the second check: the new password still opens a challenge, not a session', async () => {
+    await onboard({ email: 'boss@acme.example', companyId: acme, privileges: PRIVILEGES }, 'email');
+    await requestPasswordReset(deps, { email: 'boss@acme.example' });
+    await resetPassword(deps, { token: tokenSent(), password: 'a brand new password' });
+    const signedIn = await staffSignIn(deps, {
+      email: 'boss@acme.example',
+      password: 'a brand new password',
+    });
+    expect(signedIn.ok && signedIn.value.method).toBe('email');
+  });
+
+  it('signs the account out everywhere', async () => {
+    const joined = await onboard({
+      email: 'boss@acme.example',
+      companyId: acme,
+      privileges: PRIVILEGES,
+    });
+    const refreshToken = joined.refreshToken;
+    await requestPasswordReset(deps, { email: 'boss@acme.example' });
+    await resetPassword(deps, { token: tokenSent(), password: 'a brand new password' });
+    const refreshed = await refreshStaffSession(deps, { refreshToken });
+    expect(refreshed.ok).toBe(false);
+  });
+
+  it('refuses an unknown, expired or altered link, all the same way', async () => {
+    await onboard({ email: 'boss@acme.example', companyId: acme, privileges: PRIVILEGES });
+    await requestPasswordReset(deps, { email: 'boss@acme.example' });
+    const token = tokenSent();
+    const refused = { ok: false, error: { tag: 'ResetNotUsable' } };
+    expect(
+      await resetPassword(deps, { token: 'nonsense', password: 'a brand new password' }),
+    ).toEqual(refused);
+    expect(
+      await resetPassword(deps, { token: token + 'x', password: 'a brand new password' }),
+    ).toEqual(refused);
+    deps.clock.advance(PASSWORD_RESET_LIFETIME_MS + 1000);
+    expect(await resetPassword(deps, { token, password: 'a brand new password' })).toEqual(refused);
+  });
+
+  it("records the request and the change in the account's audit trail", async () => {
+    const { staff } = await onboard({
+      email: 'boss@acme.example',
+      companyId: acme,
+      privileges: PRIVILEGES,
+    });
+    await requestPasswordReset(deps, { email: 'boss@acme.example' });
+    await resetPassword(deps, { token: tokenSent(), password: 'a brand new password' });
+    const actions = deps.auditLog.entries
+      .filter((e) => e.targetId === staff.id)
+      .map((e) => e.action);
+    expect(actions).toContain('password_reset_requested');
+    expect(actions).toContain('password_reset');
+  });
+});
+
+describe('previewing an invitation', () => {
+  it('names the person and the company, and refuses an unknown or used link the same way', async () => {
+    const invited = await createStaffInvite(deps, actorFor(admin), {
+      kind: 'fleet',
+      email: 'boss@acme.example',
+      name: 'Sam Hall',
+      companyId: acme,
+      privileges: PRIVILEGES,
+    });
+    if (!invited.ok) throw new Error('invite');
+    await (deps.companies as InMemoryCompanyRepository).save({
+      id: acme,
+      name: 'Acme Haulage',
+      createdAt: deps.clock.now(),
+      photoRetentionMonths: 12,
+    });
+    expect(await previewStaffInvite(deps, { inviteToken: invited.value.token })).toEqual({
+      ok: true,
+      value: { name: 'Sam Hall', companyName: 'Acme Haulage' },
+    });
+    expect(await previewStaffInvite(deps, { inviteToken: 'nonsense' })).toEqual({
+      ok: false,
+      error: { tag: 'InviteNotUsable' },
+    });
   });
 });

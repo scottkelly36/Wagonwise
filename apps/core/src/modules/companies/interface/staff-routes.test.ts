@@ -22,12 +22,14 @@ import {
   FakeTotp,
   RecordingCodeSender,
   RecordingInviteMailer,
+  RecordingResetMailer,
   SequentialRandomCodes,
 } from '../application/testing/fake-staff-crypto.js';
 import {
   InMemoryStaffAccountRepository,
   InMemoryStaffChallengeRepository,
   InMemoryStaffInviteRepository,
+  InMemoryStaffPasswordResetRepository,
   InMemoryStaffAuditLog,
   InMemoryStaffRecoveryCodeRepository,
   InMemoryStaffSessionRepository,
@@ -60,6 +62,7 @@ let deps: StaffDeps & {
   totp: FakeTotp;
   codeSender: RecordingCodeSender;
   inviteMailer: RecordingInviteMailer;
+  resetMailer: RecordingResetMailer;
 };
 
 beforeEach(async () => {
@@ -80,6 +83,8 @@ beforeEach(async () => {
     totp: new FakeTotp(),
     codeSender: new RecordingCodeSender(),
     inviteMailer: new RecordingInviteMailer(),
+    passwordResets: new InMemoryStaffPasswordResetRepository(),
+    resetMailer: new RecordingResetMailer(),
     dashboardUrl: 'https://dashboard.example.com',
     randomCodes: new SequentialRandomCodes(),
     tokenIssuer: new FakeStaffTokenIssuer(),

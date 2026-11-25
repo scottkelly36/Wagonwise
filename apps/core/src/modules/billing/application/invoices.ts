@@ -4,7 +4,8 @@ import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import { err, ok, type Result, type TaggedError } from '../../../shared/result.js';
 import { placeholderFields, type StaffId } from '../domain/billing-details.js';
 import {
-  buildPlanLines,
+  buildUsageLines,
+  nextMonthStart,
   totalPence,
   validateManualLine,
   validateMonth,
@@ -25,10 +26,11 @@ import type { CompanyDirectory } from './ports/company-directory.js';
 import type { StaffCaller } from './ports/directories.js';
 import type { InvoiceRepository } from './ports/invoice-repository.js';
 import type { PlanRepository } from './ports/plan-repository.js';
+import type { VehicleUseHistory } from './ports/vehicle-use.js';
 
 export type Forbidden = TaggedError<'Forbidden'>;
-/** Invoices are for a month that has started: not one still to come. */
-export type MonthNotStarted = TaggedError<'MonthNotStarted'>;
+/** Invoices are for a month that is over: each vehicle is billed if it was used in it, which is not known until the month ends. */
+export type MonthNotFinished = TaggedError<'MonthNotFinished'>;
 export type EmptyInvoice = TaggedError<'EmptyInvoice'>;
 
 export interface InvoiceDeps {
@@ -36,6 +38,7 @@ export interface InvoiceDeps {
   readonly details: BillingDetailsRepository;
   readonly plans: PlanRepository;
   readonly companies: CompanyDirectory;
+  readonly vehicleUse: VehicleUseHistory;
   readonly ids: IdGenerator;
   readonly clock: Clock;
 }
@@ -54,26 +57,24 @@ export interface GenerateOutcome {
 }
 
 /**
- * Drafts the month's invoice for every company that has something to bill and none yet: capacity times
- * price, split where capacity rose part-way through. Safe to run twice; a company with a live invoice for
- * the month is left alone, so nothing is invoiced twice. The drafts are reviewed before anything is issued.
+ * Drafts the month's invoice for every company that has something to bill and none yet: the vehicles it used in
+ * the month (a job or a walk-round check), whole months at its price per vehicle, with a vehicle's first week of
+ * use left for the next month (see `billableVehicles`). For a finished month only. Safe to run twice; a company with
+ * a live invoice for the month is left alone, so nothing is invoiced twice. The drafts are reviewed before anything is issued.
  */
 export async function generateInvoices(
   deps: InvoiceDeps,
   caller: StaffCaller,
   staffId: StaffId,
   rawMonth: string,
-): Promise<Result<GenerateOutcome, Forbidden | InvalidMonth | MonthNotStarted>> {
+): Promise<Result<GenerateOutcome, Forbidden | InvalidMonth | MonthNotFinished>> {
   if (!isAdmin(caller)) return forbidden();
   const month = validateMonth(rawMonth);
   if (!month.ok) return month;
-  if (`${month.value}-01` > ukDay(deps.clock.now())) return err({ tag: 'MonthNotStarted' });
+  const endsBefore = nextMonthStart(month.value);
+  if (endsBefore > ukDay(deps.clock.now())) return err({ tag: 'MonthNotFinished' });
 
-  const [companies, prices, changes] = await Promise.all([
-    deps.companies.list(),
-    deps.plans.listPrices(),
-    deps.plans.listAllChanges(),
-  ]);
+  const [companies, prices] = await Promise.all([deps.companies.list(), deps.plans.listPrices()]);
   const created: Invoice[] = [];
   const skipped: GenerateOutcome['skipped'][number][] = [];
 
@@ -82,8 +83,8 @@ export async function generateInvoices(
       skipped.push({ companyId: company.id, name: company.name, reason: 'already_invoiced' });
       continue;
     }
-    const planned = buildPlanLines(
-      changes.filter((c) => c.companyId === company.id),
+    const planned = buildUsageLines(
+      await deps.vehicleUse.usedBetween(company.id, `${month.value}-01`, endsBefore),
       prices.get(company.id) ?? DEFAULT_PRICE_PER_VEHICLE_PENCE,
       month.value,
     );

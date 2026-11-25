@@ -4,7 +4,7 @@ import type { Clock } from '../../shared/ports/clock.js';
 import type { DataScopes } from '../../shared/ports/data-scope.js';
 import type { IdGenerator } from '../../shared/ports/id-generator.js';
 import { totalPence } from './domain/invoice.js';
-import { vehicleCapacityToday } from './application/plans.js';
+import { giveStartingCapacity, vehicleCapacityToday } from './application/plans.js';
 import type { CompanyDirectory } from './application/ports/company-directory.js';
 import type { CallerDirectory } from './application/ports/directories.js';
 import type { UntypedDb } from './infrastructure/db.js';
@@ -14,12 +14,15 @@ import { PostgresInvoiceRepository } from './infrastructure/postgres-invoice-rep
 import { PostgresPlanRepository } from './infrastructure/postgres-plan-repository.js';
 import { registerBillingRoutes } from './interface/routes.js';
 import type { VehicleCount } from './application/ports/vehicle-count.js';
+import type { VehicleUseHistory } from './application/ports/vehicle-use.js';
 
 // Re-exported so composition/ can type its wiring without reaching past this facade.
 export type { UntypedDb } from './infrastructure/db.js';
 export type { CallerDirectory, StaffCaller } from './application/ports/directories.js';
 export type { CompanyDirectory } from './application/ports/company-directory.js';
 export type { VehicleCount } from './application/ports/vehicle-count.js';
+export type { VehicleUseHistory } from './application/ports/vehicle-use.js';
+export type { VehicleUse } from './domain/invoice.js';
 
 export interface BillingModuleDeps {
   readonly db: UntypedDb;
@@ -32,6 +35,8 @@ export interface BillingModuleDeps {
   readonly companies: CompanyDirectory;
   /** How many vehicles a company has now. Supplied by composition over `fleet`. */
   readonly vehicles: VehicleCount;
+  /** Which vehicles were used in a month (given a job, or checked), for invoices. Supplied by composition over `jobs` and `checks`. */
+  readonly vehicleUse: VehicleUseHistory;
 }
 
 export interface BillingModule {
@@ -47,6 +52,11 @@ export interface BillingModule {
    * WagonWise staff's.
    */
   findInvoiceForCollection(invoiceId: string): Promise<InvoiceForCollection | null>;
+  /**
+   * A company's first plan: from today it covers `capacity` vehicles (see `giveStartingCapacity`). For the trial WagonWise opens from a
+   * website sign-up. Opens its own platform scope, so call it outside any `DataScopes.run`.
+   */
+  giveStartingCapacity(companyId: string, capacity: number, staffId: string): Promise<void>;
   /** For `payments`: how many of a company's invoices are issued and not yet paid. Runs in the caller's data scope (WagonWise staff's). */
   countUnpaidInvoices(companyId: string): Promise<number>;
   /**
@@ -84,6 +94,7 @@ export function createBillingModule(deps: BillingModuleDeps): BillingModule {
           details,
           plans,
           companies: deps.companies,
+          vehicleUse: deps.vehicleUse,
           ids: deps.ids,
           clock: deps.clock,
         },
@@ -102,6 +113,15 @@ export function createBillingModule(deps: BillingModuleDeps): BillingModule {
     },
     vehicleCapacityFor: (companyId) =>
       vehicleCapacityToday({ plans, clock: deps.clock }, makeId<'CompanyId'>(companyId)),
+    giveStartingCapacity: (companyId, capacity, staffId) =>
+      deps.dataScopes.run({ kind: 'platform' }, () =>
+        giveStartingCapacity(
+          { plans, clock: deps.clock },
+          makeId<'StaffId'>(staffId),
+          makeId<'CompanyId'>(companyId),
+          capacity,
+        ),
+      ),
     async findInvoiceForCollection(invoiceId) {
       const invoice = await invoices.findById(makeId<'InvoiceId'>(invoiceId));
       return invoice === null

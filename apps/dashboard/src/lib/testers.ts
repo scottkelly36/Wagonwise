@@ -2,6 +2,7 @@ import type {
   SendInvitesResponse,
   SendLaunchEmailsResponse,
   TesterDto,
+  StartTrialResponse,
 } from '@wagonwise/contracts/signups';
 
 import { csvCell } from './job-report';
@@ -78,4 +79,42 @@ export function playTesterEmailsCsv(testers: readonly Pick<TesterDto, 'email'>[]
     (email) => email !== '',
   );
   return emails.join('\r\n') + (emails.length === 0 ? '' : '\r\n');
+}
+
+/** A firm can be given a trial once, and a driver's sign-up is not a firm. */
+export const canStartTrial = (t: TesterDto): boolean =>
+  t.trialStartedAt === undefined && t.role !== 'driver';
+
+/**
+ * What happened when a trial was started, in a sentence or two. When the email could not be sent, the join link is given so it can be
+ * sent by hand (`origin` is where the portal is served).
+ */
+function vehicleRoom(vehicles: number | undefined): string {
+  if (vehicles === undefined) return '';
+  return vehicles > 0
+    ? `Their plan has room for ${vehicles} vehicles (change it on the Plans page).`
+    : 'Their plan has no room for vehicles yet: set it on the Plans page, or they cannot add one.';
+}
+
+export function startTrialSummary(
+  response: StartTrialResponse,
+  email: string,
+  origin: string,
+): string {
+  switch (response.status) {
+    case 'started':
+      return (
+        response.emailed === false && response.inviteToken !== undefined
+          ? `The trial is made, but the email to ${email} could not be sent. Send them this link yourself (it works once, for a week): ${origin}/join?token=${encodeURIComponent(response.inviteToken)} ${vehicleRoom(response.vehicles)}`
+          : `The trial is made and ${email} has been emailed a link to set up their sign-in. ${vehicleRoom(response.vehicles)}`
+      ).trim();
+    case 'already_started':
+      return 'A trial was already started from this sign-up.';
+    case 'email_in_use':
+      return `${email} already has a WagonWise account, so no firm was made.`;
+    case 'not_a_firm':
+      return 'That sign-up is a driver, not a firm.';
+    case 'not_found':
+      return 'That sign-up is no longer on the list.';
+  }
 }
