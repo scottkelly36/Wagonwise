@@ -14,9 +14,9 @@ const KEY = ['billing-plans'] as const;
 const formatDay = (day: string) => new Date(`${day}T00:00:00`).toLocaleDateString('en-GB');
 
 /**
- * What each company pays for: a price per vehicle and the number of vehicles its plan covers. WagonWise
- * bills that commitment, not the vehicles in use, so changing capacity (from today or a day in the future)
- * is how a company grows or shrinks. A company can't add more vehicles than its plan covers.
+ * What each company pays: a price per vehicle, and the number of vehicles its plan lets it set up. WagonWise
+ * bills the vehicles used in a month (a job or a walk-round check), not the plan, so the plan is a limit on
+ * how many a company can add. A company can't add more vehicles than its plan covers.
  */
 export function Plans() {
   const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
@@ -31,7 +31,7 @@ export function Plans() {
     { key: 'name', header: 'Company', sortValue: (p) => p.name, cell: (p) => p.name },
     {
       key: 'capacity',
-      header: 'Vehicles covered',
+      header: 'Vehicles allowed',
       align: 'right',
       sortValue: (p) => p.capacityToday,
       cell: (p) => p.capacityToday,
@@ -45,7 +45,7 @@ export function Plans() {
     },
     {
       key: 'monthly',
-      header: 'Per month',
+      header: 'Most per month',
       align: 'right',
       sortValue: (p) => p.monthlyPence,
       cell: (p) => formatPence(p.monthlyPence),
@@ -77,9 +77,10 @@ export function Plans() {
     <div>
       <h1>Plans</h1>
       <p className="text-muted">
-        Each company is billed for the vehicles its plan covers, whether or not they are all in use.
-        A company can&apos;t add more vehicles than its plan covers, so raise the number here when
-        it asks. A new company starts with none.
+        Each company is billed, after the month, for the vehicles it used in it, at its price per
+        vehicle. The number here is a limit on how many vehicles it can set up, not what it pays. A
+        company can&apos;t add more vehicles than its plan covers, so raise the number here when it
+        asks. A new company starts with none.
       </p>
 
       {plans.isError && <ErrorNotice error={plans.error} />}
@@ -88,7 +89,7 @@ export function Plans() {
       ) : (
         <>
           <p>
-            <strong>Total per month at today&apos;s plans: {formatPence(total)}</strong>
+            <strong>Most the plans could bill in a month: {formatPence(total)}</strong>
           </p>
           <DataTable
             columns={columns}

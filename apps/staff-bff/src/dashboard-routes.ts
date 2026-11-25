@@ -25,6 +25,7 @@ import {
 import {
   sendInvitesRequestSchema,
   sendLaunchEmailsRequestSchema,
+  startTrialRequestSchema,
   testerIdParamsSchema,
 } from '@wagonwise/contracts/signups';
 import { portalEventsRequestSchema, usageSectionParamsSchema } from '@wagonwise/contracts/usage';
@@ -572,6 +573,13 @@ const FORWARDS: readonly Forward[] = [
     path: '/staff/signups/launch-email',
     params: noParams,
     body: sendLaunchEmailsRequestSchema,
+  },
+  // Make a registered firm a company on a free trial and email its first admin the join link (core decides who may).
+  {
+    method: 'POST',
+    path: '/staff/signups/:id/start-trial',
+    params: testerIdParamsSchema,
+    body: startTrialRequestSchema,
   },
   { method: 'DELETE', path: '/staff/signups/:id', params: testerIdParamsSchema },
   // A vehicle's audit pack: checks, defects, repairs and maintenance for a period (core decides who may read it).

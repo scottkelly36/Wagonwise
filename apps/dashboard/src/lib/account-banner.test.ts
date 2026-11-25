@@ -5,6 +5,7 @@ import {
   amountDue,
   daysBetween,
   exportsPausedMessage,
+  trialPlanText,
 } from './account-banner';
 
 const company = '71000000-0000-4000-8000-000000000001';
@@ -122,5 +123,40 @@ describe('amountDue', () => {
 
   it('is nothing when nothing is due', () => {
     expect(amountDue([])).toEqual({ pence: 0, count: 0 });
+  });
+});
+
+describe('trialPlanText', () => {
+  const plan = { capacityToday: 5, pricePerVehiclePence: 1000 };
+
+  it('says it is free now and what it costs afterwards, while on a trial', () => {
+    expect(trialPlanText({ status: 'trial', trialEndsOn: '2027-02-22' }, plan)).toEqual({
+      headline: 'Room for 5 vehicles. Free during your free period.',
+      afterwards:
+        'After your free period (it ends on 22 February 2027) you pay £10.00 a month for each vehicle you use: one given a job or checked in a month. A vehicle that sits idle costs nothing.',
+    });
+  });
+
+  it('copes with one vehicle, no end date, and a plan with no room yet', () => {
+    const one = trialPlanText(
+      { status: 'trial', trialEndsOn: null },
+      { capacityToday: 1, pricePerVehiclePence: 1000 },
+    );
+    expect(one?.headline).toBe('Room for 1 vehicle. Free during your free period.');
+    expect(one?.afterwards).toBe(
+      'After your free period you pay £10.00 a month for each vehicle you use: one given a job or checked in a month. A vehicle that sits idle costs nothing.',
+    );
+    expect(
+      trialPlanText(
+        { status: 'trial', trialEndsOn: '2027-02-22' },
+        { capacityToday: 0, pricePerVehiclePence: 1000 },
+      )?.headline,
+    ).toBe('Room for 0 vehicles. Free during your free period.');
+  });
+
+  it('is for a trial only: any other state keeps the plain monthly amount', () => {
+    for (const status of ['active', 'overdue', 'paused'] as const) {
+      expect(trialPlanText({ status, trialEndsOn: null }, plan)).toBeUndefined();
+    }
   });
 });

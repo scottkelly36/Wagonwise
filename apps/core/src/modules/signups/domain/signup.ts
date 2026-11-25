@@ -25,6 +25,9 @@ export interface Tester {
   readonly inviteCode?: string | undefined;
   /** When the "out now" email was sent to them. Absent until it is. */
   readonly launchEmailedAt?: Date | undefined;
+  /** When a trial firm was made from this sign-up, and its company id. Both or neither. */
+  readonly trialStartedAt?: Date | undefined;
+  readonly trialCompanyId?: string | undefined;
 }
 
 export interface InvalidSignup extends TaggedError<'InvalidSignup'> {

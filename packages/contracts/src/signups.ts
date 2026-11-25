@@ -36,6 +36,8 @@ export const testerSchema = z.object({
   inviteCode: z.string().optional(),
   /** When the "out now" email was sent to them. */
   launchEmailedAt: z.iso.datetime().optional(),
+  /** When a trial firm was made from this sign-up. */
+  trialStartedAt: z.iso.datetime().optional(),
 });
 export type TesterDto = z.infer<typeof testerSchema>;
 
@@ -85,3 +87,28 @@ export const sendLaunchEmailsResponseSchema = z.object({
   results: z.array(z.object({ id: z.string(), status: z.enum(LAUNCH_EMAIL_STATUSES) })),
 });
 export type SendLaunchEmailsResponse = z.infer<typeof sendLaunchEmailsResponseSchema>;
+
+/** `POST /staff/signups/:id/start-trial` (WagonWise staff only): make the firm on a free trial and email its first admin the join link. */
+export const startTrialRequestSchema = z.object({
+  firmName: z.string().trim().min(1).max(120),
+  contactName: z.string().trim().max(80).optional(),
+});
+export type StartTrialRequest = z.infer<typeof startTrialRequestSchema>;
+
+export const START_TRIAL_STATUSES = [
+  'started',
+  'already_started',
+  'not_found',
+  'not_a_firm',
+  'email_in_use',
+] as const;
+export const startTrialResponseSchema = z.object({
+  status: z.enum(START_TRIAL_STATUSES),
+  companyId: z.string().optional(),
+  /** How many vehicles the new company's plan covers; 0 when none could be set (raise it on the Plans page). */
+  vehicles: z.number().int().optional(),
+  /** False when the email with the join link could not be sent; `inviteToken` is then given so the owner can send the link. */
+  emailed: z.boolean().optional(),
+  inviteToken: z.string().optional(),
+});
+export type StartTrialResponse = z.infer<typeof startTrialResponseSchema>;

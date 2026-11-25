@@ -154,6 +154,19 @@ const envSchema = z.object({
   // Set means ResendOtpSender handles email identifiers (ClickSend still handles phone ones —
   // ChannelRoutingOtpSender in identity/api.ts picks between them per identifier).
   RESEND_API_KEY: z.string().min(1).optional(),
+  // Optional pair: Stripe, the payment provider (docs/modules.md, "Payments"). Both unset means no provider: the portal offers no
+  // payment setup and every payment message is refused. Use the test-mode pair (sk_test_, and the whsec_ of a test-mode webhook
+  // endpoint) until the owner decides to take real money.
+  STRIPE_SECRET_KEY: z
+    .string()
+    .regex(/^(sk|rk)_(test|live)_\S+$/, {
+      message: 'must be a Stripe secret key (sk_test_… or sk_live_…)',
+    })
+    .optional(),
+  STRIPE_WEBHOOK_SECRET: z
+    .string()
+    .regex(/^whsec_\S+$/, { message: 'must be a Stripe webhook signing secret (whsec_…)' })
+    .optional(),
   // Optional: Resend's own sandbox sender (works with zero setup, but only delivers to the
   // account owner's own address) is the default in resend-otp-sender.ts — only needed here to
   // override once a real sending domain is verified with Resend.
@@ -245,6 +258,8 @@ export interface Config {
   readonly clickSendUsername: string | undefined;
   readonly clickSendApiKey: string | undefined;
   readonly resendApiKey: string | undefined;
+  /** Set only when both Stripe values are. */
+  readonly stripe: { readonly secretKey: string; readonly webhookSecret: string } | undefined;
   readonly resendFromEmail: string | undefined;
   readonly resendReplyTo: string | undefined;
   readonly outboxPollIntervalMs: number;
@@ -297,6 +312,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     throw new ConfigError([
       `Fuel Finder needs FUEL_FINDER_ID and FUEL_FINDER_SECRET together; missing: ${
         values.FUEL_FINDER_ID === undefined ? 'FUEL_FINDER_ID' : 'FUEL_FINDER_SECRET'
+      }`,
+    ]);
+  }
+  if ((values.STRIPE_SECRET_KEY === undefined) !== (values.STRIPE_WEBHOOK_SECRET === undefined)) {
+    throw new ConfigError([
+      `Stripe needs STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET together; missing: ${
+        values.STRIPE_SECRET_KEY === undefined ? 'STRIPE_SECRET_KEY' : 'STRIPE_WEBHOOK_SECRET'
       }`,
     ]);
   }
@@ -363,6 +385,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     clickSendUsername: values.CLICKSEND_USERNAME,
     clickSendApiKey: values.CLICKSEND_API_KEY,
     resendApiKey: values.RESEND_API_KEY,
+    stripe:
+      values.STRIPE_SECRET_KEY === undefined || values.STRIPE_WEBHOOK_SECRET === undefined
+        ? undefined
+        : { secretKey: values.STRIPE_SECRET_KEY, webhookSecret: values.STRIPE_WEBHOOK_SECRET },
     resendFromEmail: values.RESEND_FROM_EMAIL,
     resendReplyTo: values.RESEND_REPLY_TO,
     outboxPollIntervalMs: values.OUTBOX_POLL_INTERVAL_MS,
