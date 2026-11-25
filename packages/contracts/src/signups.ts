@@ -112,3 +112,38 @@ export const startTrialResponseSchema = z.object({
   inviteToken: z.string().optional(),
 });
 export type StartTrialResponse = z.infer<typeof startTrialResponseSchema>;
+
+/**
+ * `POST /staff/trial/preview` (public): what a firm's trial link is for, before it presses the button. The link is the secret, so
+ * nothing else is asked. `valid` is false for a link that is wrong, expired or never existed (the answer never says which).
+ */
+export const trialLinkRequestSchema = z.object({ token: z.string().min(20).max(200) });
+export const trialLinkPreviewSchema = z.object({
+  valid: z.boolean(),
+  /** The trial was already started from this link. */
+  started: z.boolean().optional(),
+  /** The registration had no firm name, so the page asks for one. */
+  needsCompany: z.boolean().optional(),
+  email: z.string().optional(),
+  company: z.string().optional(),
+});
+export type TrialLinkPreview = z.infer<typeof trialLinkPreviewSchema>;
+
+/**
+ * `POST /staff/trial/start` (public): the firm presses "Start my trial". `company` is only needed when the registration had no firm name.
+ * `waiting` means the firm is not turned away but the owner will start it (a daily limit, or another firm from the same domain).
+ */
+export const trialStartRequestSchema = z.object({
+  token: z.string().min(20).max(200),
+  company: z.string().trim().min(1).max(120).optional(),
+});
+export const TRIAL_START_STATUSES = [
+  'started',
+  'waiting',
+  'already_started',
+  'invalid',
+  'needs_company',
+  'email_in_use',
+] as const;
+export const trialStartResponseSchema = z.object({ status: z.enum(TRIAL_START_STATUSES) });
+export type TrialStartResponse = z.infer<typeof trialStartResponseSchema>;

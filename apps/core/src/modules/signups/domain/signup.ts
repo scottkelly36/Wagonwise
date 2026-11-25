@@ -28,6 +28,8 @@ export interface Tester {
   /** When a trial firm was made from this sign-up, and its company id. Both or neither. */
   readonly trialStartedAt?: Date | undefined;
   readonly trialCompanyId?: string | undefined;
+  /** When the emailed link that lets the firm start its own trial stops working. Absent until one is sent. */
+  readonly trialLinkExpiresAt?: Date | undefined;
 }
 
 export interface InvalidSignup extends TaggedError<'InvalidSignup'> {

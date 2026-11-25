@@ -6,7 +6,7 @@ export class InMemoryPlanRepository implements PlanRepository {
   readonly prices = new Map<CompanyId, number>();
   #changes: CapacityChange[] = [];
   /** Who last set a price or a capacity, for tests. */
-  lastBy: StaffId | undefined;
+  lastBy: StaffId | null | undefined;
 
   listPrices(): Promise<ReadonlyMap<CompanyId, number>> {
     return Promise.resolve(new Map(this.prices));
@@ -26,7 +26,7 @@ export class InMemoryPlanRepository implements PlanRepository {
     return Promise.resolve([...this.#changes]);
   }
 
-  setCapacity(change: CapacityChange, by: StaffId, _at?: Date): Promise<void> {
+  setCapacity(change: CapacityChange, by: StaffId | null, _at?: Date): Promise<void> {
     this.#changes = this.#changes.filter(
       (c) => !(c.companyId === change.companyId && c.effectiveFrom === change.effectiveFrom),
     );

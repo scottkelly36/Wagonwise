@@ -19,10 +19,11 @@ interface Row {
   readonly launch_emailed_at: Date | null;
   readonly trial_started_at: Date | null;
   readonly trial_company_id: string | null;
+  readonly trial_token_expires_at: Date | null;
 }
 
 const COLUMNS =
-  'id, email, name, role, company, fleet_size, consented_at, created_at, invited_at, invite_code, launch_emailed_at, trial_started_at, trial_company_id';
+  'id, email, name, role, company, fleet_size, consented_at, created_at, invited_at, invite_code, launch_emailed_at, trial_started_at, trial_company_id, trial_token_expires_at';
 
 const toTester = (r: Row): Tester => ({
   id: makeId<'TesterId'>(r.id),
@@ -38,6 +39,7 @@ const toTester = (r: Row): Tester => ({
   launchEmailedAt: r.launch_emailed_at ?? undefined,
   trialStartedAt: r.trial_started_at ?? undefined,
   trialCompanyId: r.trial_company_id ?? undefined,
+  trialLinkExpiresAt: r.trial_token_expires_at ?? undefined,
 });
 
 /** Raw `sql` like every repository here (decision 26). Row-Level Security (migration 0058) lets only WagonWise staff in. */
@@ -78,6 +80,56 @@ export class PostgresTesterRepository implements TesterRepository {
     await sql`
       update signups.testers set trial_started_at = ${at}, trial_company_id = ${companyId} where id = ${id}
     `.execute(this.db);
+  }
+
+  async claimTrial(id: TesterId, at: Date): Promise<boolean> {
+    const result = await sql`
+      update signups.testers set trial_started_at = ${at}
+      where id = ${id} and trial_started_at is null
+    `.execute(this.db);
+    return Number(result.numAffectedRows ?? 0) > 0;
+  }
+
+  async releaseTrial(id: TesterId): Promise<void> {
+    await sql`
+      update signups.testers set trial_started_at = null, trial_company_id = null
+      where id = ${id} and trial_company_id is null
+    `.execute(this.db);
+  }
+
+  async findByEmail(email: string): Promise<Tester | null> {
+    const { rows } = await sql<Row>`
+      select ${sql.raw(COLUMNS)} from signups.testers where email = ${email}
+    `.execute(this.db);
+    return rows[0] === undefined ? null : toTester(rows[0]);
+  }
+
+  async setTrialLink(id: TesterId, tokenHash: string, expiresAt: Date): Promise<void> {
+    await sql`
+      update signups.testers set trial_token_hash = ${tokenHash}, trial_token_expires_at = ${expiresAt} where id = ${id}
+    `.execute(this.db);
+  }
+
+  async findByTrialLink(tokenHash: string): Promise<Tester | null> {
+    const { rows } = await sql<Row>`
+      select ${sql.raw(COLUMNS)} from signups.testers where trial_token_hash = ${tokenHash}
+    `.execute(this.db);
+    return rows[0] === undefined ? null : toTester(rows[0]);
+  }
+
+  async countTrialsStartedSince(since: Date): Promise<number> {
+    const { rows } = await sql<{ n: string }>`
+      select count(*) as n from signups.testers where trial_started_at >= ${since}
+    `.execute(this.db);
+    return Number(rows[0]?.n ?? 0);
+  }
+
+  async countTrialsStartedFromDomain(domain: string): Promise<number> {
+    const { rows } = await sql<{ n: string }>`
+      select count(*) as n from signups.testers
+      where trial_started_at is not null and lower(split_part(email, '@', 2)) = ${domain}
+    `.execute(this.db);
+    return Number(rows[0]?.n ?? 0);
   }
 
   async countSince(since: Date): Promise<number> {

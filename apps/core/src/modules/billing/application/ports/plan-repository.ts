@@ -8,5 +8,6 @@ export interface PlanRepository {
   listChanges(companyId: CompanyId): Promise<CapacityChange[]>;
   listAllChanges(): Promise<CapacityChange[]>;
   /** Replaces any change already set for the same company and day. */
-  setCapacity(change: CapacityChange, by: StaffId, at: Date): Promise<void>;
+  /** `by` is null when no staff member set it (a firm that signed itself up). */
+  setCapacity(change: CapacityChange, by: StaffId | null, at: Date): Promise<void>;
 }

@@ -1362,9 +1362,9 @@
             >
             <h2 style="margin-top: 10px">Ask for a demo, or to get started</h2>
             <p>
-              Tell us about your firm and we will email you, usually within one working day. We can
-              show you the dashboard with example data, or set up your firm if you would rather try
-              it yourself. No charge and no obligation.
+              Tell us about your firm and we will email you a link to start your free trial straight
+              away: open it, press the button, and choose a password. Or ask us for a demo with
+              example data first. No charge, no card and no obligation.
             </p>
             <ul>
               <li>Launch offer: £10 per vehicle, per month, for your first three years.</li>
@@ -1580,9 +1580,17 @@
             body: JSON.stringify(body),
           });
           if (response.status === 204) {
+            // A firm is emailed a link that starts its own trial; a driver is just thanked.
+            const isFirm = $('role').value !== 'driver';
             $('signup').reset();
             $('firm').hidden = !['company', 'both'].includes($('role').value);
-            show(result, 'Thank you. We will email you, usually within one working day.', true);
+            show(
+              result,
+              isFirm
+                ? 'Thank you. We have emailed you a link: open it and press Start my trial. It can take a minute to arrive, so check your spam folder if it does not.'
+                : 'Thank you. We will email you.',
+              true,
+            );
           } else if (response.status === 429) {
             show(
               result,

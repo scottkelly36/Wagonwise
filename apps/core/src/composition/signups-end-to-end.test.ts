@@ -81,7 +81,10 @@ describe('signups end to end (real RLS, real scopes)', () => {
         portalAddress: 'https://dashboard.example.test',
       },
       // Starting a trial has its own end-to-end test (signup-trial-end-to-end.test.ts).
-      firms: { startTrialFirm: () => Promise.reject(new Error('not used here')) },
+      firms: {
+        startTrialFirm: () => Promise.reject(new Error('not used here')),
+        startSelfServeTrialFirm: () => Promise.reject(new Error('not used here')),
+      },
     });
     app = Fastify();
     app.addHook('onRequest', (request, _reply, done) => {
@@ -302,7 +305,7 @@ describe('signups end to end (real RLS, real scopes)', () => {
     expect(ownerLines.length - before.owner).toBe(1);
     expect(thanks.length - before.thanks).toBe(1);
     expect(ownerLines.at(-1)?.subject).toBe('New firm registered: Carter Haulage');
-    expect(ownerLines.at(-1)?.text).toContain('https://dashboard.example.test/admin/testers');
+    expect(ownerLines.at(-1)?.text).toContain('You need do nothing');
     expect(thanks.at(-1)?.to).toBe('lee@carterhaulage.com');
   });
 });

@@ -136,6 +136,7 @@ describe('runMigrations', () => {
       '0104_payments.sql',
       '0105_signup_trial.sql',
       '0106_password_resets.sql',
+      '0107_signup_trial_link.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -355,6 +356,7 @@ describe('runMigrations', () => {
       '0104_payments.sql',
       '0105_signup_trial.sql',
       '0106_password_resets.sql',
+      '0107_signup_trial_link.sql',
     ]);
   });
 });

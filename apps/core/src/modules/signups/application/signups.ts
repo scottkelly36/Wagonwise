@@ -2,7 +2,21 @@ import { checkEmail } from '@wagonwise/contracts/email-check';
 
 import { makeId } from '../../../shared/brand.js';
 import { INVITE_SUBJECT, inviteEmail } from '../domain/invite-email.js';
-import { ownerAlert, REGISTRANT_SUBJECT, registrantReply } from '../domain/registration-emails.js';
+import {
+  ownerAlert,
+  REGISTRANT_SUBJECT,
+  registrantReply,
+  trialStartedAlert,
+  trialWaitingAlert,
+  type WaitingReason,
+} from '../domain/registration-emails.js';
+import {
+  AUTO_TRIAL_DAILY_CAP,
+  emailDomain,
+  isFreeMail,
+  LINK_RESEND_AFTER_MS,
+  TRIAL_LINK_LIFETIME_MS,
+} from '../domain/trial-link.js';
 import { LAUNCH_SUBJECT, launchEmailHtml, launchEmailText } from '../domain/launch-email.js';
 import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
@@ -39,6 +53,20 @@ export interface TesterRepository {
   markInvited(id: TesterId, inviteCode: string, at: Date): Promise<void>;
   markLaunchEmailed(id: TesterId, at: Date): Promise<void>;
   markTrialStarted(id: TesterId, companyId: string, at: Date): Promise<void>;
+  findByEmail(email: string): Promise<Tester | null>;
+  /** Keeps the hash of a new trial link and when it stops working, replacing any earlier one. */
+  setTrialLink(id: TesterId, tokenHash: string, expiresAt: Date): Promise<void>;
+  findByTrialLink(tokenHash: string): Promise<Tester | null>;
+  /** Trials started (by anyone, a button or a link) since a time, and how many from one email domain, ever. */
+  countTrialsStartedSince(since: Date): Promise<number>;
+  countTrialsStartedFromDomain(domain: string): Promise<number>;
+  /**
+   * Takes the right to start this sign-up's trial: true for the one caller that gets it, false for any other (a second press, the same
+   * link opened twice). Without it two quick presses could each make a firm, because an invitation is not yet an account.
+   */
+  claimTrial(id: TesterId, at: Date): Promise<boolean>;
+  /** Gives the claim back when the firm could not be made. */
+  releaseTrial(id: TesterId): Promise<void>;
   delete(id: TesterId): Promise<boolean>;
   deleteByEmail(email: string): Promise<void>;
 }
@@ -60,6 +88,15 @@ export interface SignupDeps {
   readonly ids: IdGenerator;
   readonly clock: Clock;
   readonly notify?: SignupNotifier | undefined;
+  /** Makes and checks the secret in a trial link. Without it no link is made and a firm waits for the owner, as before. */
+  readonly tokens?: TrialTokens | undefined;
+}
+
+export interface TrialTokens {
+  /** A new random secret, for the link. */
+  generate(): string;
+  /** What is kept of it: the secret itself is never stored. */
+  hash(token: string): string;
 }
 
 /** The first moment of the current UTC day. */
@@ -92,26 +129,190 @@ export async function signUp(
   if ((await deps.testers.countSince(startOfDay(now))) >= DAILY_CAP) {
     return err({ tag: 'TooManySignups' });
   }
+  const id = makeId<'TesterId'>(deps.ids.newId());
   const isNew = await deps.testers.insertIfNew({
-    id: makeId<'TesterId'>(deps.ids.newId()),
+    id,
     ...checked.value,
     consentedAt: now,
     createdAt: now,
   });
-  // A firm (not a driver) that was not already on the list: tell the owner, and thank them. Fired and forgotten, so a failed or slow
-  // email never changes the answer, and a repeated address, which was already thanked, is not written to again.
-  if (isNew && deps.notify !== undefined && checked.value.role !== 'driver') {
-    const alert = ownerAlert(checked.value, deps.notify.portalAddress);
+  if (deps.notify === undefined || checked.value.role === 'driver') return ok(undefined);
+  // A firm (not a driver) that was not already on the list: tell the owner, and send them the link that starts their own trial (or, with no
+  // link, thank them). Fired and forgotten, so a failed or slow email never changes the answer.
+  if (isNew) {
+    const link = await issueTrialLink(deps, id, now);
+    const alert = ownerAlert(checked.value, deps.notify.portalAddress, link !== undefined);
     void Promise.allSettled([
       deps.notify.toOwner(alert.subject, alert.text),
       deps.notify.toRegistrant(
         checked.value.email,
         REGISTRANT_SUBJECT,
-        registrantReply(checked.value),
+        registrantReply(checked.value, link),
       ),
     ]);
+    return ok(undefined);
+  }
+  // Seen before. A firm that has not started its trial and whose last link is more than an hour old gets a fresh one, so a lost email is not
+  // the end of it, and the form cannot be used to flood an inbox. The answer is the same either way: it never says who is on the list.
+  const existing = await deps.testers.findByEmail(checked.value.email);
+  if (existing !== null && existing.role !== 'driver' && existing.trialStartedAt === undefined) {
+    const issuedAt =
+      existing.trialLinkExpiresAt === undefined
+        ? undefined
+        : existing.trialLinkExpiresAt.getTime() - TRIAL_LINK_LIFETIME_MS;
+    if (issuedAt === undefined || now.getTime() - issuedAt >= LINK_RESEND_AFTER_MS) {
+      const link = await issueTrialLink(deps, existing.id, now);
+      if (link !== undefined) {
+        void Promise.allSettled([
+          deps.notify.toRegistrant(
+            existing.email,
+            REGISTRANT_SUBJECT,
+            registrantReply(existing, link),
+          ),
+        ]);
+      }
+    }
   }
   return ok(undefined);
+}
+
+/**
+ * A new link that lets this sign-up start its own trial, kept as a hash, and the address to put in the email. Nothing when there is no
+ * portal address to point at or nothing to make a secret with: the firm then waits for the owner, as it did before links.
+ */
+async function issueTrialLink(
+  deps: Pick<SignupDeps, 'testers' | 'tokens' | 'notify'>,
+  id: TesterId,
+  now: Date,
+): Promise<string | undefined> {
+  const portal = deps.notify?.portalAddress;
+  if (deps.tokens === undefined || portal === undefined) return undefined;
+  const token = deps.tokens.generate();
+  await deps.testers.setTrialLink(
+    id,
+    deps.tokens.hash(token),
+    new Date(now.getTime() + TRIAL_LINK_LIFETIME_MS),
+  );
+  return `${portal.replace(/\/+$/, '')}/start-trial?token=${encodeURIComponent(token)}`;
+}
+
+/** The sign-up a link belongs to, when the link is real, has not expired and is for a firm; otherwise null (the answer never says which). */
+async function testerForLink(
+  deps: Pick<SignupDeps, 'testers' | 'clock' | 'tokens'>,
+  token: string,
+): Promise<Tester | null> {
+  if (deps.tokens === undefined) return null;
+  const tester = await deps.testers.findByTrialLink(deps.tokens.hash(token));
+  if (tester === null || tester.role === 'driver') return null;
+  if (tester.trialLinkExpiresAt === undefined || tester.trialLinkExpiresAt <= deps.clock.now()) {
+    return null;
+  }
+  return tester;
+}
+
+export type TrialPreview =
+  | { readonly valid: false }
+  | {
+      readonly valid: true;
+      readonly started: boolean;
+      /** The registration had no firm name, so the page asks for one. */
+      readonly needsCompany: boolean;
+      readonly email: string;
+      readonly company?: string | undefined;
+    };
+
+/** What a link is for, before the firm presses the button: the page shows the address and asks for a firm name when there is none. */
+export async function previewTrial(
+  deps: Pick<SignupDeps, 'testers' | 'clock' | 'tokens'>,
+  token: string,
+): Promise<TrialPreview> {
+  const tester = await testerForLink(deps, token);
+  if (tester === null) return { valid: false };
+  return {
+    valid: true,
+    started: tester.trialStartedAt !== undefined,
+    needsCompany: tester.company === undefined,
+    email: tester.email,
+    ...(tester.company === undefined ? {} : { company: tester.company }),
+  };
+}
+
+export type ConfirmTrialOutcome =
+  | { readonly status: 'started'; readonly vehicles: number }
+  | {
+      readonly status: 'waiting' | 'already_started' | 'invalid' | 'needs_company' | 'email_in_use';
+    };
+
+/**
+ * The firm presses "Start my trial" on the page its emailed link opens. The link is the proof that the address is theirs, so no one at
+ * WagonWise presses a button: the company is made on a free trial and its first person invited, as the Testers page's button does. Two
+ * limits keep a bot from making a pile of trials, and past either the firm is not turned away: it waits for the owner, who is told. A
+ * day's automatic trials are capped, and a business email domain gets one (free-mail domains are limited by address, which a sign-up
+ * already is). `scoped` runs the reads and notes in WagonWise's data scope; the firm itself is made outside it, because `companies`
+ * opens its own scope and scopes cannot nest.
+ */
+export async function confirmTrial(
+  deps: Pick<SignupDeps, 'testers' | 'clock' | 'tokens' | 'notify'> & {
+    readonly firms: FirmStarter;
+  },
+  input: { readonly token: string; readonly company?: string | undefined },
+  scoped: <T>(work: () => Promise<T>) => Promise<T>,
+): Promise<ConfirmTrialOutcome> {
+  const tester = await scoped(() => testerForLink(deps, input.token));
+  if (tester === null) return { status: 'invalid' };
+  if (tester.trialStartedAt !== undefined) return { status: 'already_started' };
+  const firmName = (input.company?.trim() || tester.company?.trim() || '').slice(0, 120);
+  if (firmName === '') return { status: 'needs_company' };
+
+  const now = deps.clock.now();
+  const held = await scoped(async (): Promise<WaitingReason | undefined> => {
+    if ((await deps.testers.countTrialsStartedSince(startOfDay(now))) >= AUTO_TRIAL_DAILY_CAP) {
+      return 'daily_limit';
+    }
+    if (
+      !isFreeMail(tester.email) &&
+      (await deps.testers.countTrialsStartedFromDomain(emailDomain(tester.email))) > 0
+    ) {
+      return 'same_domain';
+    }
+    return undefined;
+  });
+  if (held !== undefined) {
+    if (deps.notify !== undefined) {
+      const alert = trialWaitingAlert({
+        email: tester.email,
+        firm: firmName,
+        reason: held,
+        portalAddress: deps.notify.portalAddress,
+      });
+      void Promise.allSettled([deps.notify.toOwner(alert.subject, alert.text)]);
+    }
+    return { status: 'waiting' };
+  }
+
+  // Take the right to start it before making anything: a second press, or the link opened twice, gets "already started" and makes nothing.
+  if (!(await scoped(() => deps.testers.claimTrial(tester.id, now)))) {
+    return { status: 'already_started' };
+  }
+  const made = await deps.firms.startSelfServeTrialFirm({
+    firmName,
+    contactName: (tester.name ?? '').trim() || 'there',
+    contactEmail: tester.email,
+  });
+  if (!made.ok) {
+    await scoped(() => deps.testers.releaseTrial(tester.id));
+    return { status: 'email_in_use' };
+  }
+  await scoped(() => deps.testers.markTrialStarted(tester.id, made.value.companyId, now));
+  if (deps.notify !== undefined) {
+    const alert = trialStartedAlert({
+      email: tester.email,
+      firm: firmName,
+      vehicles: made.value.vehicles,
+    });
+    void Promise.allSettled([deps.notify.toOwner(alert.subject, alert.text)]);
+  }
+  return { status: 'started', vehicles: made.value.vehicles };
 }
 
 /** Takes an address off the list. Always the same answer, whether or not it was there. */
@@ -249,6 +450,22 @@ export async function sendLaunchEmails(
 
 /** Supplied by composition over `companies`: makes a company on a free trial and invites its first admin. Opens its own data scope. */
 export interface FirmStarter {
+  /** The same, for a firm that confirmed its own email address: no WagonWise staff member is involved. */
+  startSelfServeTrialFirm(input: {
+    readonly firmName: string;
+    readonly contactName: string;
+    readonly contactEmail: string;
+  }): Promise<
+    Result<
+      {
+        readonly companyId: string;
+        readonly emailed: boolean;
+        readonly inviteToken: string;
+        readonly vehicles: number;
+      },
+      TaggedError<'EmailAlreadyInUse'>
+    >
+  >;
   startTrialFirm(input: {
     readonly staffId: string;
     readonly firmName: string;

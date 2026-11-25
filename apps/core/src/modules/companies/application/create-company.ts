@@ -34,6 +34,14 @@ export async function createCompany(
 ): Promise<Result<Company, Forbidden>> {
   const allowed = await requireCompanyAdmin(deps.admins, input.callerId);
   if (!allowed.ok) return allowed;
+  return ok(await makeCompany(deps, input));
+}
+
+/** The making itself, with no check of who asks: for the callers that have made their own (an admin, or a firm that signed itself up). */
+export async function makeCompany(
+  deps: Pick<CreateCompanyDeps, 'repo' | 'states' | 'clock'>,
+  input: { readonly id: CompanyId; readonly name: string },
+): Promise<Company> {
   const company: Company = {
     id: input.id,
     name: input.name,
@@ -42,5 +50,5 @@ export async function createCompany(
   };
   await deps.repo.save(company);
   await deps.states.save(await newCompanyState(deps, company.id));
-  return ok(company);
+  return company;
 }

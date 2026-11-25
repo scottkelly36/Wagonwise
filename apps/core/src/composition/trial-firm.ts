@@ -13,7 +13,7 @@ export const TRIAL_VEHICLES = 5;
  * answer says 0 vehicles, so the page tells the owner to set it on the Plans page.
  */
 export function trialFirmStarter(
-  companies: Pick<CompaniesModule, 'startTrialFirm'>,
+  companies: Pick<CompaniesModule, 'startTrialFirm' | 'startSelfServeTrialFirm'>,
   billing: Pick<BillingModule, 'giveStartingCapacity'>,
 ): FirmStarter {
   return {
@@ -23,6 +23,19 @@ export function trialFirmStarter(
       let vehicles = 0;
       try {
         await billing.giveStartingCapacity(made.value.companyId, TRIAL_VEHICLES, input.staffId);
+        vehicles = TRIAL_VEHICLES;
+      } catch {
+        // Left at 0: the owner sets the plan by hand.
+      }
+      return ok({ ...made.value, vehicles });
+    },
+    // A firm that confirmed its own email address: the same, with no WagonWise staff member involved (the plan's room has no setter).
+    startSelfServeTrialFirm: async (input) => {
+      const made = await companies.startSelfServeTrialFirm(input);
+      if (!made.ok) return made;
+      let vehicles = 0;
+      try {
+        await billing.giveStartingCapacity(made.value.companyId, TRIAL_VEHICLES, null);
         vehicles = TRIAL_VEHICLES;
       } catch {
         // Left at 0: the owner sets the plan by hand.

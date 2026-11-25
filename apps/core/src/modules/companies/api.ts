@@ -23,7 +23,10 @@ import { createStaffRequestGate, type StaffRequestGate } from './application/sta
 import { registerCompaniesRoutes, type CompaniesRouteDeps } from './interface/routes.js';
 import type { Forbidden } from './domain/staff-policy.js';
 import type { EmailAlreadyInUse } from './application/start-trial-firm.js';
-import { startTrialFirm as startTrialFirmUseCase } from './application/start-trial-firm.js';
+import {
+  startSelfServeTrialFirm as startSelfServeTrialFirmUseCase,
+  startTrialFirm as startTrialFirmUseCase,
+} from './application/start-trial-firm.js';
 import { bootstrapFirstAdmin as bootstrapFirstAdminUseCase } from './application/bootstrap-first-admin.js';
 import type { StaffDeps } from './application/staff-deps.js';
 import { AesGcmSecretBox } from './infrastructure/aes-gcm-secret-box.js';
@@ -146,6 +149,20 @@ export interface CompaniesModule {
     Result<
       { readonly companyId: string; readonly emailed: boolean; readonly inviteToken: string },
       Forbidden | EmailAlreadyInUse
+    >
+  >;
+  /**
+   * The same firm and invitation for a firm that confirmed its own email address on the website, with no WagonWise staff member
+   * involved (the invitation has no sender). Opens its own platform scope, so call it outside any `DataScopes.run`.
+   */
+  startSelfServeTrialFirm(input: {
+    readonly firmName: string;
+    readonly contactName: string;
+    readonly contactEmail: string;
+  }): Promise<
+    Result<
+      { readonly companyId: string; readonly emailed: boolean; readonly inviteToken: string },
+      EmailAlreadyInUse
     >
   >;
   describeStaff(
@@ -301,6 +318,13 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     startTrialFirm: (input) =>
       deps.dataScopes.run({ kind: 'platform' }, () =>
         startTrialFirmUseCase({ company: routeDeps.createCompany, staff: staffDeps }, input),
+      ),
+    startSelfServeTrialFirm: (input) =>
+      deps.dataScopes.run({ kind: 'platform' }, () =>
+        startSelfServeTrialFirmUseCase(
+          { company: routeDeps.createCompany, staff: staffDeps },
+          input,
+        ),
       ),
     async listCompanyNames() {
       const all = await repo.findAll();
