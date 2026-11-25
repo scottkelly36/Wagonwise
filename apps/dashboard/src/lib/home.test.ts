@@ -185,6 +185,22 @@ describe('complianceRows', () => {
     expect(complianceRows({}).rows).toEqual([]);
   });
 
+  it('shows the vehicle count with no limit once payment details are on file', () => {
+    const row = complianceRows({
+      capacity: { vehiclesInUse: 7, capacityToday: 5, detailsOnFile: true },
+    }).rows[0];
+    expect([row?.label, row?.value, row?.tone]).toEqual(['Vehicles', '7', 'quiet']);
+    // Not on file (or not known): the plan's limit, red when over it.
+    const limited = complianceRows({
+      capacity: { vehiclesInUse: 7, capacityToday: 5, detailsOnFile: false },
+    }).rows[0];
+    expect([limited?.label, limited?.value, limited?.tone]).toEqual([
+      'Vehicles on your plan',
+      '7 of 5',
+      'bad',
+    ]);
+  });
+
   it('is red when the fleet is over its plan, and good when every check is done', () => {
     const over = complianceRows({ capacity: { vehiclesInUse: 6, capacityToday: 5 } }).rows[0];
     expect(over?.tone).toBe('bad');

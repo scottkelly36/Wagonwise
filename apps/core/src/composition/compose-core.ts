@@ -82,6 +82,7 @@ import { createWeatherModule } from '../modules/weather/api.js';
 import { createSosModule, type UntypedDb as SosUntypedDb } from '../modules/sos/api.js';
 import { createWhat3wordsModule } from '../modules/what3words/api.js';
 import { createBillingModule, type UntypedDb as BillingUntypedDb } from '../modules/billing/api.js';
+import { vehicleLimit } from './vehicle-capacity.js';
 import { mergeVehicleUse } from './vehicle-use.js';
 import {
   createPaymentsModule,
@@ -477,7 +478,13 @@ export function composeCore(
       getName: (driverId) => identity.getDriverName(driverId),
     },
     companyNames: { namesFor: (ids) => companies.getCompanyNames(ids) },
-    vehicleCapacity: { capacityFor: (companyId) => billing.vehicleCapacityFor(companyId) },
+    // The plan's room until the company has payment details on file, then no limit: it is billed on the vehicles it uses.
+    vehicleCapacity: {
+      capacityFor: vehicleLimit(
+        (companyId) => billing.vehicleCapacityFor(companyId),
+        (companyId) => payments.hasPaymentMethod(companyId),
+      ),
+    },
   });
   const places = createPlacesModule({
     db: placesDb,

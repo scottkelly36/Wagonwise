@@ -78,9 +78,10 @@ export function Plans() {
       <h1>Plans</h1>
       <p className="text-muted">
         Each company is billed, after the month, for the vehicles it used in it, at its price per
-        vehicle. The number here is a limit on how many vehicles it can set up, not what it pays. A
-        company can&apos;t add more vehicles than its plan covers, so raise the number here when it
-        asks. A new company starts with none.
+        vehicle. The number here is a limit on how many vehicles it can set up, not what it pays,
+        and it applies only until the company adds payment details: after that there is no limit. A
+        company without payment details can&apos;t add more vehicles than its plan covers, so raise
+        the number here when it asks. A new company starts with none.
       </p>
 
       {plans.isError && <ErrorNotice error={plans.error} />}

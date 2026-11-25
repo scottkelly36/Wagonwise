@@ -190,7 +190,13 @@ export interface ComplianceData {
   readonly defects?: readonly DefectDto[] | undefined;
   readonly repairs?: readonly RepairDto[] | undefined;
   readonly capacity?:
-    { readonly vehiclesInUse: number; readonly capacityToday: number } | undefined;
+    | {
+        readonly vehiclesInUse: number;
+        readonly capacityToday: number;
+        /** Payment details are on file, so there is no limit on vehicles. */
+        readonly detailsOnFile?: boolean | undefined;
+      }
+    | undefined;
   readonly joinRequests?: number | undefined;
 }
 
@@ -220,12 +226,17 @@ export function complianceRows(data: ComplianceData): {
     rows.push({ label: 'Repairs overdue', value: String(late), tone: toneFor(late, 'bad') });
   }
   if (data.capacity !== undefined) {
-    const over = data.capacity.vehiclesInUse > data.capacity.capacityToday;
-    rows.push({
-      label: 'Vehicles on your plan',
-      value: `${data.capacity.vehiclesInUse} of ${data.capacity.capacityToday}`,
-      tone: over ? 'bad' : 'quiet',
-    });
+    if (data.capacity.detailsOnFile === true) {
+      // No limit once payment details are on file: the firm is billed on the vehicles it uses.
+      rows.push({ label: 'Vehicles', value: String(data.capacity.vehiclesInUse), tone: 'quiet' });
+    } else {
+      const over = data.capacity.vehiclesInUse > data.capacity.capacityToday;
+      rows.push({
+        label: 'Vehicles on your plan',
+        value: `${data.capacity.vehiclesInUse} of ${data.capacity.capacityToday}`,
+        tone: over ? 'bad' : 'quiet',
+      });
+    }
   }
   if (data.joinRequests !== undefined) {
     rows.push({

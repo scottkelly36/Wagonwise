@@ -7,6 +7,7 @@ import * as fleetApi from '../../api/fleet';
 import * as hoursApi from '../../api/hours';
 import * as jobsApi from '../../api/jobs';
 import * as maintenanceApi from '../../api/maintenance';
+import * as paymentsApi from '../../api/payments';
 import { HomeFailed, HomeNote, HomePanel, HomeRows, HomeTiles } from '../../components/HomeParts';
 import { driverNamesById } from '../../lib/driver-name';
 import { complianceRows, localDay, lowOnHours, managerTiles, onTheRoad } from '../../lib/home';
@@ -95,6 +96,13 @@ export function ManagerHome({ companyId }: { companyId: string }) {
     enabled: holds(me, 'manage_billing'),
     retry: false,
   });
+  // Whether payment details are on file decides whether the plan is a limit on vehicles (shared with the Plan page).
+  const payment = useQuery({
+    queryKey: ['payment-status'],
+    queryFn: () => withAccessToken((t) => paymentsApi.getPaymentStatus(t)),
+    enabled: holds(me, 'manage_billing'),
+    retry: false,
+  });
   const hours = useQuery({
     queryKey: ['hours-status', companyId],
     queryFn: () => withAccessToken((t) => hoursApi.listHoursStatuses(t, companyId)),
@@ -147,7 +155,10 @@ export function ManagerHome({ companyId }: { companyId: string }) {
     checksToday: seesChecks ? checksToday.data : undefined,
     defects: seesChecks ? defects.data : undefined,
     repairs: seesMaintenance ? repairs.data : undefined,
-    capacity: plan.data,
+    capacity:
+      plan.data === undefined
+        ? undefined
+        : { ...plan.data, detailsOnFile: payment.data?.detailsOnFile ?? false },
     joinRequests: drivers.data?.filter((l) => l.status === 'requested').length,
   });
 
