@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { BoundingBox, FlowReading, GeoPoint, TrafficIncident } from '../domain/traffic.js';
-import type { TrafficProvider } from './traffic-provider.js';
+import { ProviderRefused, type TrafficProvider } from './traffic-provider.js';
 import { TrafficService, type TrafficServiceOptions } from './traffic-service.js';
 
 class FakeProvider implements TrafficProvider {
   flowCalls = 0;
   incidentCalls = 0;
   failing = false;
+  refusing = false;
   constructor(
     private readonly reading: FlowReading | undefined = {
       currentSpeedKph: 30,
@@ -17,11 +18,13 @@ class FakeProvider implements TrafficProvider {
   ) {}
   flowAt(_point: GeoPoint): Promise<FlowReading | undefined> {
     this.flowCalls += 1;
+    if (this.refusing) return Promise.reject(new ProviderRefused('not enough credits', 403));
     if (this.failing) return Promise.reject(new Error('down'));
     return Promise.resolve(this.reading);
   }
   incidentsIn(_box: BoundingBox): Promise<TrafficIncident[]> {
     this.incidentCalls += 1;
+    if (this.refusing) return Promise.reject(new ProviderRefused('not enough credits', 403));
     if (this.failing) return Promise.reject(new Error('down'));
     return Promise.resolve(this.incidents);
   }
@@ -34,6 +37,7 @@ const options: TrafficServiceOptions = {
   nearHorizonM: 60_000,
   farEvery: 3,
   incidentCacheTtlMs: 900_000,
+  refusedPauseMs: 1_800_000,
   maxSamplesPerRoute: 30,
 };
 
@@ -197,6 +201,36 @@ describe('TrafficService spending', () => {
     clock.set('2026-10-10T09:16:00Z');
     await service.delayAlong(line);
     expect(provider.incidentCalls).toBe(2);
+  });
+});
+
+describe('TrafficService when the provider refuses the account', () => {
+  it('stops sending calls for a while after a refusal, and tries again after it', async () => {
+    const provider = new FakeProvider();
+    provider.refusing = true;
+    const clock = clockAt('2026-10-10T09:00:00Z');
+    const service = new TrafficService(provider, clock, options);
+    await service.delayAlong(line);
+    // The first refusal is learned from; the rest of that ask and the next asks send nothing.
+    const afterFirst = provider.flowCalls + provider.incidentCalls;
+    expect(afterFirst).toBeLessThanOrEqual(2);
+    clock.set('2026-10-10T09:10:00Z');
+    await service.delayAlong(line);
+    expect(provider.flowCalls + provider.incidentCalls).toBe(afterFirst);
+    // After the pause (30 minutes) it asks again, and once the account is fine again the readings come back.
+    provider.refusing = false;
+    clock.set('2026-10-10T09:31:00Z');
+    const back = await service.delayAlong(line);
+    expect(provider.flowCalls).toBeGreaterThan(afterFirst - 1);
+    expect(back.coverage).toBe(1);
+  });
+
+  it('does not pause for an ordinary failure: an outage may pass in a moment', async () => {
+    const provider = new FakeProvider();
+    provider.failing = true;
+    const service = new TrafficService(provider, clockAt('2026-10-10T09:00:00Z'), options);
+    await service.delayAlong(line);
+    expect(provider.flowCalls).toBeGreaterThan(2);
   });
 });
 

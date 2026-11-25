@@ -45,6 +45,7 @@ export function createTrafficModule(deps: TrafficModuleDeps): TrafficModule {
     nearHorizonM: 60_000,
     farEvery: 3,
     incidentCacheTtlMs: deps.incidentCacheTtlMs,
+    refusedPauseMs: 30 * 60_000,
     maxSamplesPerRoute: 30,
     onProblem: deps.onProblem,
   });

@@ -13,7 +13,7 @@ import {
   type RouteSample,
   type TrafficIncident,
 } from '../domain/traffic.js';
-import type { TrafficProvider } from './traffic-provider.js';
+import { ProviderRefused, type TrafficProvider } from './traffic-provider.js';
 
 export interface TrafficServiceOptions {
   /** How long a reading is reused. Traffic moves in minutes; this also keeps many drivers on one road to one call. */
@@ -27,6 +27,8 @@ export interface TrafficServiceOptions {
   readonly farEvery: number;
   /** How long a box of incidents is reused. They change more slowly than flow, so this can be longer. */
   readonly incidentCacheTtlMs: number;
+  /** After the provider refuses a call (a key or credits problem), no call is made for this long: a refused call gets nothing and still counts. */
+  readonly refusedPauseMs: number;
   /** The most flow samples taken for one route, so a long route cannot spend the day's allowance. */
   readonly maxSamplesPerRoute: number;
   /**
@@ -68,6 +70,7 @@ export class TrafficService {
   readonly #incidents = new Map<string, Cached<TrafficIncident[]>>();
   #day = '';
   #used = 0;
+  #pausedUntil = 0;
   readonly #lastProblem = new Map<string, number>();
 
   constructor(
@@ -147,7 +150,7 @@ export class TrafficService {
     const hit = this.#flow.get(key);
     if (hit !== undefined && this.#fresh(hit, this.options.cacheTtlMs)) return hit.value;
     const provider = this.provider;
-    if (provider === undefined) return hit?.value;
+    if (provider === undefined || this.#paused()) return hit?.value;
     if (!this.#spend()) {
       this.#problem('limit');
       return hit?.value;
@@ -157,6 +160,7 @@ export class TrafficService {
       this.#flow.set(key, { value, at: this.clock.now().getTime() });
       return value;
     } catch (error) {
+      this.#refused(error);
       this.#problem('flow', error);
       return hit?.value; // a stale reading beats none; the next call tries again
     }
@@ -169,6 +173,7 @@ export class TrafficService {
     const key = [box.minLat, box.minLon, box.maxLat, box.maxLon].join(',');
     const hit = this.#incidents.get(key);
     if (hit !== undefined && this.#fresh(hit, this.options.incidentCacheTtlMs)) return hit.value;
+    if (this.#paused()) return hit?.value ?? [];
     if (!this.#spend()) {
       this.#problem('limit');
       return hit?.value ?? [];
@@ -178,8 +183,20 @@ export class TrafficService {
       this.#incidents.set(key, { value, at: this.clock.now().getTime() });
       return value;
     } catch (error) {
+      this.#refused(error);
       this.#problem('incidents', error);
       return hit?.value ?? [];
+    }
+  }
+
+  /** True while the provider's last refusal is recent: no call is made, so a refused account is not hammered. */
+  #paused(): boolean {
+    return this.clock.now().getTime() < this.#pausedUntil;
+  }
+
+  #refused(error: unknown): void {
+    if (error instanceof ProviderRefused) {
+      this.#pausedUntil = this.clock.now().getTime() + this.options.refusedPauseMs;
     }
   }
 
