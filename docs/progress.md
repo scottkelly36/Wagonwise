@@ -20,16 +20,19 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
 - **What the product is:** driver app (routing for the vehicle's size and weight, hazards, parking, fuel, hours, checks, SOS, jobs)
   and a staff portal (fleet, jobs and proof of delivery, live map, checks, maintenance, reports, costing, billing, sales page).
   Phases 1 to 3 are built (`phase-3-scope.md`); module notes are in `modules.md`.
-- **Shipped 8 to 11 November** (details in `history/log.md`): the usage page ("Where drivers get to", new drivers by day); vehicle
-  **presets** beside Metres and Feet & inches (Add a vehicle and the route planner); Share sends both store links; **Load type**
-  Normal / Hill-sensitive; **tolls** named with a price on route cards and a Toll free card (seven crossings, including the Mersey Tunnels and Tamar Bridge); a **top speed** on a
-  vehicle; a steadier map when stopped; **Euro VI** yes / no / don't know on a vehicle (stored, nothing reads it yet); the Hauliers
-  page comparison with a tracker box; and **the receiver's signature**, required per job like the photo (vector strokes, kept
-  under the photo's retention). The app was released with the `release` label after the signature merged (2026-11-11), and the owner took a signature end to end on a phone;
-  whether the portal's signature viewer and reports are deployed was not checked.
 - **Done by the owner, 2026-11-11 (owner's word):** ICO registration, a business bank account, production secrets that were pasted
   into chat rotated, the landing site deployed (new privacy wording and the comparison table), Play production access, the Ross
   Silcock email sent, the Facebook posts made, and the reply to Apple on case 23398599 (CPManeuver mock-ups) sent.
+
+## Firms, payments and billing (2026-11-25)
+
+- **Merged (PRs 434 to 441):** the Stripe adapter (off until keys are set; run against a Stripe sandbox locally, `stripe-test-run.md`), **Start trial**, forgotten
+  passwords and recovery codes, a getting-started checklist, an email to the owner for each firm that registers, the For hauliers sections for owner-drivers and bigger fleets, and
+  **billing on the vehicles used** (a job or a check in the month; invoices drafted after it ends). `modules.md`, "Billing" and "Payments".
+- **Owner, in DigitalOcean on `core` only:** `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (together; sandbox first), `DASHBOARD_URL=https://dashboard.wagon-wise.co.uk`, `ALERT_EMAIL`. In Stripe, a webhook to
+  `https://api.wagon-wise.co.uk/webhooks/payments` (`checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed`). Sandbox and live have separate endpoints, secrets and keys.
+- **Open:** declined-card and Direct Debit runs; terms and privacy pages; real billing details (invoices cannot be issued while they hold brackets); a trial firm is still drafted an invoice (delete it).
+  Paying is still by hand (plan limit, monthly invoicing, collection): build it once there are more firms than can be invoiced by hand.
 
 ## Next up (in order)
 
@@ -122,7 +125,7 @@ Code comments cite "docs/progress.md, decision N" or "M6.4 deviations". Those li
 - `history/p2-m1-organisations-auth.md`, `p2-m2-driver-links.md`, `p2-m4-portal-jobs.md`, `p2-m5-driver-app-jobs.md`,
   `p2-m6-live-map.md`, `p2-m7-moderation.md`, `p2-m8-reports.md`, `p2-m10-spoken-directions.md`: Phase 2 by milestone
 - `history/saved-places.md`: saved places, public places, Just me or My company, the review screen
-- `company-account-states-scope.md`: trial, active, overdue and paused firms (planned, not built), then self-service firm sign-up (owner's order, 2026-11-22)
+- `company-account-states-scope.md`: trial, active, overdue and paused firms (built), then self-service firm sign-up (owner's order, 2026-11-22)
 - `phase-3-scope.md`: Phase 3 scope, modules and what is built; `ideas.md`: field-testing ideas backlog
 - `history/deployment-first-deploy.md`: the first deployment (2026-09-25) and the four bugs found getting there
 - `history/log.md`: the dated change log, newest first; `history/log-archive.md`: entries to 2026-10-15 (the faster-route check, built 2026-10-10, is in here)
