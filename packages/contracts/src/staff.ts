@@ -68,6 +68,28 @@ export const PASSWORD_MIN_LENGTH = 12;
 export const PASSWORD_MAX_LENGTH = 200;
 export const passwordSchema = z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH);
 
+/** `POST /staff/auth/forgot-password`: always answers 204, whether or not the address has an account. */
+export const forgotPasswordRequestSchema = z.object({ email: z.email() });
+export type ForgotPasswordRequest = z.infer<typeof forgotPasswordRequestSchema>;
+
+/** `POST /staff/auth/reset-password`: the token from the emailed link, and the new password. */
+export const resetPasswordRequestSchema = z.object({
+  token: z.string().min(1).max(200),
+  password: passwordSchema,
+});
+export type ResetPasswordRequest = z.infer<typeof resetPasswordRequestSchema>;
+
+/** `POST /staff/invites/preview`: whose invitation a link is, and which company it is for, for the join page to show. */
+export const previewStaffInviteRequestSchema = z.object({
+  inviteToken: z.string().min(1).max(200),
+});
+export type PreviewStaffInviteRequest = z.infer<typeof previewStaffInviteRequestSchema>;
+export const previewStaffInviteResponseSchema = z.object({
+  name: z.string(),
+  companyName: z.string().optional(),
+});
+export type PreviewStaffInviteResponse = z.infer<typeof previewStaffInviteResponseSchema>;
+
 /** UK mobile in international form (+44…), the only numbers the SMS provider is set up for. */
 export const ukMobileSchema = z.string().regex(/^\+447\d{9}$/);
 
@@ -285,6 +307,8 @@ export const STAFF_AUDIT_ACTIONS = [
   'privileges_changed',
   'staff_removed',
   'company_settings_changed',
+  'password_reset_requested',
+  'password_reset',
 ] as const;
 export const staffAuditActionSchema = z.enum(STAFF_AUDIT_ACTIONS);
 export type StaffAuditAction = z.infer<typeof staffAuditActionSchema>;

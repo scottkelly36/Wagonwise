@@ -1,7 +1,7 @@
 import type { Id } from '../../../shared/brand.js';
 import { err, ok, type Result, type TaggedError } from '../../../shared/result.js';
 import type { BillingDetails } from './billing-details.js';
-import { capacityOn, type CapacityChange, type CompanyId } from './plan.js';
+import type { CompanyId } from './plan.js';
 
 export type InvoiceId = Id<'InvoiceId'>;
 export type InvoiceLineId = Id<'InvoiceLineId'>;
@@ -108,49 +108,58 @@ export interface PlannedLine {
 
 const vehicles = (n: number): string => `${n} vehicle${n === 1 ? '' : 's'}`;
 
+/** A day as `YYYY-MM-DD`. */
+type Day = string;
+
+/** One vehicle's record of being used: the UK day of its first use ever, and whether it was used in the month being billed. */
+export interface VehicleUse {
+  readonly vehicleId: string;
+  readonly firstDay: Day;
+  readonly usedInMonth: boolean;
+}
+
+/** A vehicle first used in the last this-many days of a month is not billed for that month, only from the next month it is used in. */
+export const NEW_VEHICLE_GRACE_DAYS = 7;
+
+/** The first day of the month after `month`, as `YYYY-MM-DD`: where a month's range ends (exclusive). */
+export function nextMonthStart(month: MonthString): Day {
+  const [year, m] = month.split('-').map(Number) as [number, number];
+  return m === 12 ? `${year + 1}-01-01` : `${year}-${String(m + 1).padStart(2, '0')}-01`;
+}
+
 /**
- * The plan lines for one month, from the company's capacity changes and its price per vehicle.
- *
- * The capacity in force on the 1st is billed for the whole month. If capacity rises part-way through, the
- * extra vehicles are billed from that day, pro rata by days. If it falls part-way through, nothing changes
- * until next month: the company committed to that capacity for the month. A fall followed by a smaller rise
- * does not count as a rise, because the month was already billed at the higher level.
+ * The first day of a month's grace window: the vehicles first used on or after it are not billed for that month.
+ * A 30-day month's last 7 days start on the 24th.
  */
-export function buildPlanLines(
-  changes: readonly CapacityChange[],
+export function graceStart(month: MonthString): Day {
+  return `${month}-${String(daysInMonth(month) - NEW_VEHICLE_GRACE_DAYS + 1).padStart(2, '0')}`;
+}
+
+/**
+ * How many vehicles to bill for a month: each one used that month, whose first use ever was before the grace window. A
+ * vehicle that never worked costs nothing, and nothing is pro-rated: a vehicle used at all that month is a whole month.
+ * This reads what happened, not how many vehicles the company has on the day it is billed, so removing vehicles just before
+ * the invoice does not change it.
+ */
+export function billableVehicles(use: readonly VehicleUse[], month: MonthString): number {
+  const grace = graceStart(month);
+  return use.filter((v) => v.usedInMonth && v.firstDay < grace).length;
+}
+
+/** The plan line for one month: the vehicles used in it, at the company's price per vehicle. No line when none was used. */
+export function buildUsageLines(
+  use: readonly VehicleUse[],
   pricePerVehiclePence: number,
   month: MonthString,
 ): PlannedLine[] {
-  const days = daysInMonth(month);
-  const first = `${month}-01`;
-  const lines: PlannedLine[] = [];
-
-  const base = capacityOn(changes, first);
-  if (base > 0) {
-    lines.push({
-      description: `${vehicles(base)} covered, ${monthName(month)}`,
-      quantity: base,
+  const count = billableVehicles(use, month);
+  if (count === 0 || pricePerVehiclePence === 0) return [];
+  return [
+    {
+      description: `${vehicles(count)} used, ${monthName(month)}`,
+      quantity: count,
       unitPence: pricePerVehiclePence,
-      amountPence: base * pricePerVehiclePence,
-    });
-  }
-
-  let level = base;
-  const during = changes
-    .filter((c) => c.effectiveFrom > first && c.effectiveFrom.startsWith(month))
-    .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
-  for (const change of during) {
-    if (change.capacity <= level) continue;
-    const extra = change.capacity - level;
-    const day = Number(change.effectiveFrom.slice(8, 10));
-    const daysCovered = days - day + 1;
-    lines.push({
-      description: `${vehicles(extra)} added from ${day} ${monthName(month)} (${daysCovered} of ${days} days)`,
-      quantity: extra,
-      unitPence: pricePerVehiclePence,
-      amountPence: Math.round((extra * pricePerVehiclePence * daysCovered) / days),
-    });
-    level = change.capacity;
-  }
-  return lines;
+      amountPence: count * pricePerVehiclePence,
+    },
+  ];
 }

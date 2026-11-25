@@ -1,5 +1,6 @@
 import { makeId } from '../shared/brand.js';
 import { err, ok } from '../shared/result.js';
+import { trialFirmStarter } from './trial-firm.js';
 import type { FastifyInstance } from 'fastify';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Config } from '../config.js';
@@ -81,8 +82,10 @@ import { createWeatherModule } from '../modules/weather/api.js';
 import { createSosModule, type UntypedDb as SosUntypedDb } from '../modules/sos/api.js';
 import { createWhat3wordsModule } from '../modules/what3words/api.js';
 import { createBillingModule, type UntypedDb as BillingUntypedDb } from '../modules/billing/api.js';
+import { mergeVehicleUse } from './vehicle-use.js';
 import {
   createPaymentsModule,
+  StripePaymentProvider,
   type PaymentsModule,
   type UntypedDb as PaymentsUntypedDb,
 } from '../modules/payments/api.js';
@@ -418,6 +421,17 @@ export function composeCore(
     },
     // fleet is built just below and needs billing for its capacity check, so this is read only when called.
     vehicles: { countFor: (companyId) => fleet.countVehicles(companyId) },
+    // A vehicle was used in a month if it was given a job or had a walk-round check. jobs and checks are built further down, so they are
+    // read only when called. A vehicle's first day is the earlier of its first job and its first check.
+    vehicleUse: {
+      usedBetween: async (companyId, fromDay, toDay) => {
+        const [fromJobs, fromChecks] = await Promise.all([
+          jobs.vehicleJobDays(companyId, fromDay, toDay),
+          checks.vehicleCheckDays(companyId, fromDay, toDay),
+        ]);
+        return mergeVehicleUse(fromJobs, fromChecks);
+      },
+    },
   });
   // The payment provider's side of billing. No provider is connected yet (the owner opens the account first), so it is inert: nothing is
   // offered in the portal and every message to the webhook is refused.
@@ -437,6 +451,13 @@ export function composeCore(
       nameOf: async (companyId) => (await companies.getCompanyNames([companyId])).get(companyId),
     },
     dashboardUrl: config.dashboardUrl,
+    provider:
+      config.stripe === undefined
+        ? undefined
+        : new StripePaymentProvider({
+            secretKey: config.stripe.secretKey,
+            webhookSecret: config.stripe.webhookSecret,
+          }),
     ownerNotice:
       config.alertEmail === undefined
         ? undefined
@@ -571,6 +592,16 @@ export function composeCore(
       newInviteCode: () => identity.newInviteCode(),
       sendEmail: (to, subject, text, html) => identity.sendEmail(to, subject, text, html),
     },
+    // A firm that registers on the website: a line to the owner (when an alert address is set) and a thank-you to them.
+    notify: {
+      toOwner: (subject, text) =>
+        config.alertEmail === undefined
+          ? Promise.resolve()
+          : identity.sendEmail(config.alertEmail, subject, text),
+      toRegistrant: (to, subject, text) => identity.sendEmail(to, subject, text),
+      portalAddress: config.dashboardUrl,
+    },
+    firms: trialFirmStarter(companies, billing),
   });
   // A vehicle's checks, defects, repairs and maintenance for a period in one report (read-only; reads those contexts' tables).
   const audit = createAuditModule({

@@ -30,6 +30,8 @@ const staff: Record<string, StaffCaller> = {
  * nothing, and a trap field stores nothing.
  */
 const sentEmails: { to: string; subject: string; text: string; html?: string | undefined }[] = [];
+const ownerLines: { subject: string; text: string }[] = [];
+const thanks: { to: string; subject: string }[] = [];
 
 describe('signups end to end (real RLS, real scopes)', () => {
   let container: StartedPostgreSqlContainer;
@@ -67,6 +69,19 @@ describe('signups end to end (real RLS, real scopes)', () => {
           return Promise.resolve();
         },
       },
+      notify: {
+        toOwner: (subject, text) => {
+          ownerLines.push({ subject, text });
+          return Promise.resolve();
+        },
+        toRegistrant: (to, subject) => {
+          thanks.push({ to, subject });
+          return Promise.resolve();
+        },
+        portalAddress: 'https://dashboard.example.test',
+      },
+      // Starting a trial has its own end-to-end test (signup-trial-end-to-end.test.ts).
+      firms: { startTrialFirm: () => Promise.reject(new Error('not used here')) },
     });
     app = Fastify();
     app.addHook('onRequest', (request, _reply, done) => {
@@ -271,5 +286,23 @@ describe('signups end to end (real RLS, real scopes)', () => {
     expect((await post({ email: ' SAM@example.com ' }, '/signups/remove')).statusCode).toBe(204);
     expect((await post({ email: 'nobody@example.com' }, '/signups/remove')).statusCode).toBe(204);
     expect(await rows()).toEqual([]);
+  });
+
+  it('tells the owner about a firm that registers, and thanks it once, but not for a driver or a repeat', async () => {
+    const before = { owner: ownerLines.length, thanks: thanks.length };
+    await post({
+      email: 'lee@carterhaulage.com',
+      name: 'Lee',
+      role: 'company',
+      company: 'Carter Haulage',
+      consent: true,
+    });
+    await post({ email: 'lee@carterhaulage.com', role: 'company', consent: true });
+    await post({ email: 'pat@drivers.com', role: 'driver', consent: true });
+    expect(ownerLines.length - before.owner).toBe(1);
+    expect(thanks.length - before.thanks).toBe(1);
+    expect(ownerLines.at(-1)?.subject).toBe('New firm registered: Carter Haulage');
+    expect(ownerLines.at(-1)?.text).toContain('https://dashboard.example.test/admin/testers');
+    expect(thanks.at(-1)?.to).toBe('lee@carterhaulage.com');
   });
 });

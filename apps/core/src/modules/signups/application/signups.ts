@@ -2,6 +2,7 @@ import { checkEmail } from '@wagonwise/contracts/email-check';
 
 import { makeId } from '../../../shared/brand.js';
 import { INVITE_SUBJECT, inviteEmail } from '../domain/invite-email.js';
+import { ownerAlert, REGISTRANT_SUBJECT, registrantReply } from '../domain/registration-emails.js';
 import { LAUNCH_SUBJECT, launchEmailHtml, launchEmailText } from '../domain/launch-email.js';
 import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
@@ -37,14 +38,28 @@ export interface TesterRepository {
   findByIds(ids: readonly TesterId[]): Promise<Tester[]>;
   markInvited(id: TesterId, inviteCode: string, at: Date): Promise<void>;
   markLaunchEmailed(id: TesterId, at: Date): Promise<void>;
+  markTrialStarted(id: TesterId, companyId: string, at: Date): Promise<void>;
   delete(id: TesterId): Promise<boolean>;
   deleteByEmail(email: string): Promise<void>;
+}
+
+/**
+ * Supplied by composition: a line to the owner, and an email to the person who registered. Sending is never allowed to fail or slow a
+ * registration, so nothing waits on these.
+ */
+export interface SignupNotifier {
+  /** To the owner's alert address; nothing happens when none is set. */
+  toOwner(subject: string, text: string): Promise<void>;
+  toRegistrant(to: string, subject: string, text: string): Promise<void>;
+  /** The portal's address, for the owner's "start a trial" link. */
+  readonly portalAddress?: string | undefined;
 }
 
 export interface SignupDeps {
   readonly testers: TesterRepository;
   readonly ids: IdGenerator;
   readonly clock: Clock;
+  readonly notify?: SignupNotifier | undefined;
 }
 
 /** The first moment of the current UTC day. */
@@ -77,12 +92,25 @@ export async function signUp(
   if ((await deps.testers.countSince(startOfDay(now))) >= DAILY_CAP) {
     return err({ tag: 'TooManySignups' });
   }
-  await deps.testers.insertIfNew({
+  const isNew = await deps.testers.insertIfNew({
     id: makeId<'TesterId'>(deps.ids.newId()),
     ...checked.value,
     consentedAt: now,
     createdAt: now,
   });
+  // A firm (not a driver) that was not already on the list: tell the owner, and thank them. Fired and forgotten, so a failed or slow
+  // email never changes the answer, and a repeated address, which was already thanked, is not written to again.
+  if (isNew && deps.notify !== undefined && checked.value.role !== 'driver') {
+    const alert = ownerAlert(checked.value, deps.notify.portalAddress);
+    void Promise.allSettled([
+      deps.notify.toOwner(alert.subject, alert.text),
+      deps.notify.toRegistrant(
+        checked.value.email,
+        REGISTRANT_SUBJECT,
+        registrantReply(checked.value),
+      ),
+    ]);
+  }
   return ok(undefined);
 }
 
@@ -217,4 +245,80 @@ export async function sendLaunchEmails(
     }
   }
   return ok(results);
+}
+
+/** Supplied by composition over `companies`: makes a company on a free trial and invites its first admin. Opens its own data scope. */
+export interface FirmStarter {
+  startTrialFirm(input: {
+    readonly staffId: string;
+    readonly firmName: string;
+    readonly contactName: string;
+    readonly contactEmail: string;
+  }): Promise<
+    Result<
+      {
+        readonly companyId: string;
+        readonly emailed: boolean;
+        readonly inviteToken: string;
+        /** How many vehicles the new company's plan covers (0 when none could be set: raise it on the Plans page). */
+        readonly vehicles: number;
+      },
+      Forbidden | TaggedError<'EmailAlreadyInUse'>
+    >
+  >;
+}
+
+export type StartTrialOutcome =
+  | {
+      readonly status: 'started';
+      readonly companyId: string;
+      readonly vehicles: number;
+      /** Whether the email with the join link went. When it did not, `inviteToken` is given so the owner can send the link. */
+      readonly emailed: boolean;
+      readonly inviteToken?: string | undefined;
+    }
+  | { readonly status: 'already_started' | 'not_found' | 'not_a_firm' | 'email_in_use' };
+
+/**
+ * One button on a firm that registered on the website: makes the company on a free trial (the length in the owner's settings) and
+ * emails its first admin the link to join, then notes on the sign-up that this was done so it cannot be done twice. WagonWise staff
+ * only. A driver's sign-up is not a firm. `scoped` runs the reads and the note in WagonWise's data scope; the firm itself is made
+ * outside it, because `companies` opens its own scope and scopes cannot nest. If noting it fails after the firm is made, the firm
+ * still exists and the sign-up shows no trial: pressing again is refused because the address is already a user, so nothing doubles.
+ */
+export async function startTrial(
+  deps: Pick<SignupDeps, 'testers' | 'clock'> & { readonly firms: FirmStarter },
+  caller: StaffCaller,
+  input: {
+    readonly id: TesterId;
+    readonly staffId: string;
+    readonly firmName: string;
+    readonly contactName?: string | undefined;
+  },
+  scoped: <T>(work: () => Promise<T>) => Promise<T>,
+): Promise<Result<StartTrialOutcome, Forbidden>> {
+  if (caller.kind !== 'platform') return err({ tag: 'Forbidden' });
+  const tester = (await scoped(() => deps.testers.findByIds([input.id])))[0];
+  if (tester === undefined) return ok({ status: 'not_found' });
+  if (tester.trialStartedAt !== undefined) return ok({ status: 'already_started' });
+  if (tester.role === 'driver') return ok({ status: 'not_a_firm' });
+  const made = await deps.firms.startTrialFirm({
+    staffId: input.staffId,
+    firmName: input.firmName.trim(),
+    contactName: (input.contactName ?? tester.name ?? '').trim() || 'there',
+    contactEmail: tester.email,
+  });
+  if (!made.ok) {
+    return made.error.tag === 'Forbidden' ? err(made.error) : ok({ status: 'email_in_use' });
+  }
+  await scoped(() =>
+    deps.testers.markTrialStarted(tester.id, made.value.companyId, deps.clock.now()),
+  );
+  return ok({
+    status: 'started',
+    companyId: made.value.companyId,
+    vehicles: made.value.vehicles,
+    emailed: made.value.emailed,
+    ...(made.value.emailed ? {} : { inviteToken: made.value.inviteToken }),
+  });
 }

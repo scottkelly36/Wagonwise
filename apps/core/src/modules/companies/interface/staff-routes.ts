@@ -9,7 +9,10 @@ import {
   acceptStaffInviteRequestSchema,
   confirmStaffEnrolmentRequestSchema,
   createStaffInviteRequestSchema,
+  forgotPasswordRequestSchema,
   listStaffQuerySchema,
+  previewStaffInviteRequestSchema,
+  resetPasswordRequestSchema,
   setStaffPrivilegesRequestSchema,
   staffIdParamsSchema,
   staffRefreshTokenRequestSchema,
@@ -31,6 +34,8 @@ import {
 } from '../application/account-state.js';
 import { getCompanySettings, updateCompanySettings } from '../application/company-settings.js';
 import { acceptStaffInvite } from '../application/accept-staff-invite.js';
+import { requestPasswordReset, resetPassword } from '../application/password-reset.js';
+import { previewStaffInvite } from '../application/preview-staff-invite.js';
 import { confirmStaffEnrolment } from '../application/confirm-staff-enrolment.js';
 import { createStaffInvite } from '../application/create-staff-invite.js';
 import { listStaffAudit } from '../application/list-staff-audit.js';
@@ -221,6 +226,36 @@ export function registerStaffRoutes(
         secondFactorMethod: result.value.secondFactorMethod,
         ...(result.value.totpUri === undefined ? {} : { totpUri: result.value.totpUri }),
       });
+    });
+    return send(request, reply, outcome);
+  });
+
+  app.post('/staff/invites/preview', async (request, reply) => {
+    const body = previewStaffInviteRequestSchema.safeParse(request.body);
+    if (!body.success) return send(request, reply, badRequest());
+    const outcome = await scopes.run(STAFF_AUTH, async () => {
+      const result = await previewStaffInvite(deps, body.data);
+      if (!result.ok) return fail(result.error);
+      return ok(200, result.value);
+    });
+    return send(request, reply, outcome);
+  });
+
+  // "Forgot your password": always the same answer, whether or not the address has an account.
+  app.post('/staff/auth/forgot-password', async (request, reply) => {
+    const body = forgotPasswordRequestSchema.safeParse(request.body);
+    if (!body.success) return send(request, reply, badRequest());
+    await scopes.run(STAFF_AUTH, () => requestPasswordReset(deps, body.data));
+    return send(request, reply, ok(204));
+  });
+
+  app.post('/staff/auth/reset-password', async (request, reply) => {
+    const body = resetPasswordRequestSchema.safeParse(request.body);
+    if (!body.success) return send(request, reply, badRequest());
+    const outcome = await scopes.run(STAFF_AUTH, async () => {
+      const result = await resetPassword(deps, body.data);
+      if (!result.ok) return fail(result.error);
+      return ok(204);
     });
     return send(request, reply, outcome);
   });

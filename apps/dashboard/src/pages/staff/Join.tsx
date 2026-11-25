@@ -3,9 +3,10 @@ import {
   type ConfirmStaffEnrolmentResponse,
   type SecondFactorMethod,
 } from '@wagonwise/contracts/staff';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as staffApi from '../../api/staff';
+import { downloadText, recoveryCodesText } from '../../lib/recovery-codes';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 import { staffErrorMessage } from './messages';
 
@@ -47,6 +48,28 @@ export function Join() {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | undefined>(undefined);
   const [pending, setPending] = useState(false);
+  // Whose invitation this is and which company it is for, so a person knows they are joining the right firm.
+  const [preview, setPreview] = useState<{ name: string; companyName?: string } | undefined>(
+    undefined,
+  );
+  const [linkProblem, setLinkProblem] = useState<string | undefined>(undefined);
+  const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
+
+  useEffect(() => {
+    if (inviteToken === '') return;
+    let current = true;
+    staffApi
+      .previewInvite(inviteToken)
+      .then((found) => {
+        if (current) setPreview(found);
+      })
+      .catch((err: unknown) => {
+        if (current) setLinkProblem(staffErrorMessage(err));
+      });
+    return () => {
+      current = false;
+    };
+  }, [inviteToken]);
 
   const passwordProblem =
     password.length > 0 && password.length < PASSWORD_MIN_LENGTH
@@ -102,9 +125,30 @@ export function Join() {
     );
   }
 
+  if (linkProblem !== undefined) {
+    return (
+      <div style={pageStyle}>
+        <h1>Join WagonWise</h1>
+        <p className="text-danger">{linkProblem}</p>
+        <p>Ask the person who invited you to send a new invitation.</p>
+      </div>
+    );
+  }
+
   return (
     <div style={pageStyle}>
-      <h1>Join WagonWise</h1>
+      <h1>
+        {preview?.companyName === undefined ? 'Join WagonWise' : `Join ${preview.companyName}`}
+      </h1>
+      {preview !== undefined && step.kind === 'details' && (
+        <p>
+          Hello {preview.name}.{' '}
+          {preview.companyName === undefined
+            ? 'You have been invited to join the WagonWise team.'
+            : `You have been invited to join ${preview.companyName} on WagonWise.`}{' '}
+          Choose a password, then a way to check it's you when you sign in.
+        </p>
+      )}
 
       {step.kind === 'details' && (
         <form
@@ -232,6 +276,60 @@ export function Join() {
               <li key={recoveryCode}>{recoveryCode}</li>
             ))}
           </ol>
+          <p>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                const text = recoveryCodesText({
+                  codes: step.result.recoveryCodes,
+                  email: step.result.staff.email,
+                  companyName: preview?.companyName,
+                  today: new Date().toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  }),
+                });
+                navigator.clipboard.writeText(text).then(
+                  () => setCopy('copied'),
+                  () => setCopy('failed'),
+                );
+              }}
+            >
+              {copy === 'copied' ? 'Copied' : 'Copy'}
+            </button>{' '}
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() =>
+                downloadText(
+                  'wagonwise-recovery-codes.txt',
+                  recoveryCodesText({
+                    codes: step.result.recoveryCodes,
+                    email: step.result.staff.email,
+                    companyName: preview?.companyName,
+                    today: new Date().toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    }),
+                  }),
+                )
+              }
+            >
+              Download
+            </button>{' '}
+            <button type="button" className="btn-secondary" onClick={() => window.print()}>
+              Print
+            </button>
+          </p>
+          {copy === 'failed' && (
+            <p className="text-danger" role="status">
+              Your browser would not let us copy them. Use Download or Print instead, or select the
+              codes above and copy them yourself.
+            </p>
+          )}
           <button
             className="btn-primary"
             onClick={() => {
