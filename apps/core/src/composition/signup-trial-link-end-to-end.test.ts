@@ -241,7 +241,8 @@ describe('a firm starts its own trial from the emailed link (real RLS, real scop
     await register('pat@twice-haulage.example.com', 'company', 'Twice Haulage');
     const token = await tokenFor('pat@twice-haulage.example.com');
     const [a, b] = await Promise.all([startTrial(token), startTrial(token)]);
-    expect([a.json().status, b.json().status].sort()).toEqual(['already_started', 'started']);
+    const statuses = [a, b].map((r) => r.json<{ status: string }>().status).sort();
+    expect(statuses).toEqual(['already_started', 'started']);
     expect(await companyCount('Twice Haulage')).toBe(1);
   });
 
