@@ -2,8 +2,8 @@ import { makeId } from '../../../shared/brand.js';
 import { err, ok, type Result, type TaggedError } from '../../../shared/result.js';
 import { PRIVILEGES, actorFor } from '../domain/staff-account.js';
 import type { Forbidden } from '../domain/staff-policy.js';
-import { createCompany, type CreateCompanyDeps } from './create-company.js';
-import { createStaffInvite } from './create-staff-invite.js';
+import { createCompany, makeCompany, type CreateCompanyDeps } from './create-company.js';
+import { createStaffInvite, issueStaffInvite } from './create-staff-invite.js';
 import type { StaffDeps } from './staff-deps.js';
 
 export type EmailAlreadyInUse = TaggedError<'EmailAlreadyInUse'>;
@@ -58,6 +58,43 @@ export async function startTrialFirm(
   if (!invite.ok) throw new Error(`could not invite the first person: ${invite.error.tag}`);
   return ok({
     companyId: company.value.id,
+    emailed: invite.value.emailed,
+    inviteToken: invite.value.token,
+  });
+}
+
+/**
+ * The same company on a free trial and the same invitation to its first person, for a firm that confirmed its own email address on
+ * the website: no WagonWise staff member is involved, so nothing is checked about who asks (the caller has proved the address is
+ * theirs), and the invitation and its audit entry have no sender. Everything happens in the caller's scope (WagonWise's), so it is one
+ * transaction. Refused, before anything is made, when the address already has an account, so pressing the link twice cannot make two firms.
+ */
+export async function startSelfServeTrialFirm(
+  deps: { readonly company: CreateCompanyDeps; readonly staff: StaffDeps },
+  input: {
+    readonly firmName: string;
+    readonly contactName: string;
+    readonly contactEmail: string;
+  },
+): Promise<Result<StartedTrialFirm, EmailAlreadyInUse>> {
+  if ((await deps.staff.accounts.findByEmail(input.contactEmail)) !== null) {
+    return err({ tag: 'EmailAlreadyInUse' });
+  }
+  const company = await makeCompany(deps.company, {
+    id: makeId<'CompanyId'>(deps.staff.ids.newId()),
+    name: input.firmName,
+  });
+  const invite = await issueStaffInvite(deps.staff, null, {
+    kind: 'fleet',
+    email: input.contactEmail,
+    name: input.contactName,
+    companyId: company.id,
+    privileges: PRIVILEGES,
+  });
+  // Not expected (the address was checked just above), but never leave a company with no way in.
+  if (!invite.ok) throw new Error(`could not invite the first person: ${invite.error.tag}`);
+  return ok({
+    companyId: company.id,
     emailed: invite.value.emailed,
     inviteToken: invite.value.token,
   });

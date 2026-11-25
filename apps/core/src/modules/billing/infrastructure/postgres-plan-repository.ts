@@ -59,7 +59,7 @@ export class PostgresPlanRepository implements PlanRepository {
     return rows.map(toChange);
   }
 
-  async setCapacity(change: CapacityChange, by: StaffId, at: Date): Promise<void> {
+  async setCapacity(change: CapacityChange, by: StaffId | null, at: Date): Promise<void> {
     await sql`
       insert into billing.capacity_changes (id, company_id, effective_from, capacity, created_at, created_by)
       values (gen_random_uuid(), ${change.companyId}, ${change.effectiveFrom}::date, ${change.capacity}, ${at}, ${by})

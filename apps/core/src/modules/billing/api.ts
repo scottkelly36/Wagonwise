@@ -56,7 +56,7 @@ export interface BillingModule {
    * A company's first plan: from today it covers `capacity` vehicles (see `giveStartingCapacity`). For the trial WagonWise opens from a
    * website sign-up. Opens its own platform scope, so call it outside any `DataScopes.run`.
    */
-  giveStartingCapacity(companyId: string, capacity: number, staffId: string): Promise<void>;
+  giveStartingCapacity(companyId: string, capacity: number, staffId: string | null): Promise<void>;
   /** For `payments`: how many of a company's invoices are issued and not yet paid. Runs in the caller's data scope (WagonWise staff's). */
   countUnpaidInvoices(companyId: string): Promise<number>;
   /**
@@ -117,7 +117,7 @@ export function createBillingModule(deps: BillingModuleDeps): BillingModule {
       deps.dataScopes.run({ kind: 'platform' }, () =>
         giveStartingCapacity(
           { plans, clock: deps.clock },
-          makeId<'StaffId'>(staffId),
+          staffId === null ? null : makeId<'StaffId'>(staffId),
           makeId<'CompanyId'>(companyId),
           capacity,
         ),

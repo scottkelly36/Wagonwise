@@ -57,7 +57,28 @@ export async function createStaffInvite(
       ? checkPlatformInvite(actor)
       : checkFleetInvite(actor, input.companyId, input.privileges);
   if (!allowed.ok) return allowed;
+  return issueStaffInvite(deps, actor.staffId, input);
+}
 
+/**
+ * Makes the invitation and emails it, once someone has decided it may be made. `invitedBy` is the person who sent it, or null for the
+ * firm that signed itself up (no WagonWise staff member sent it; the audit entry has no actor, as for the first admin).
+ */
+export async function issueStaffInvite(
+  deps: Pick<
+    StaffDeps,
+    | 'accounts'
+    | 'invites'
+    | 'auditLog'
+    | 'randomCodes'
+    | 'clock'
+    | 'ids'
+    | 'inviteMailer'
+    | 'dashboardUrl'
+  >,
+  invitedBy: StaffInvite['invitedBy'],
+  input: CreateStaffInviteInput,
+): Promise<Result<CreatedStaffInvite, EmailAlreadyInUse>> {
   if ((await deps.accounts.findByEmail(input.email)) !== null) {
     return err({ tag: 'EmailAlreadyInUse' });
   }
@@ -72,7 +93,7 @@ export async function createStaffInvite(
     name: input.name.trim(),
     privileges: input.kind === 'fleet' ? [...input.privileges] : [],
     tokenHash: sha256Hex(token),
-    invitedBy: actor.staffId,
+    invitedBy,
     createdAt: now,
     expiresAt: new Date(now.getTime() + STAFF_INVITE_LIFETIME_MS),
     acceptedAt: null,
@@ -80,7 +101,7 @@ export async function createStaffInvite(
   await deps.invites.save(invite);
   await audit(deps, {
     action: 'invite_created',
-    actorId: actor.staffId,
+    actorId: invitedBy ?? undefined,
     companyId: invite.companyId,
     details: { email: invite.email, kind: invite.kind, privileges: invite.privileges },
   });

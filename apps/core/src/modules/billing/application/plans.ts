@@ -146,11 +146,11 @@ async function companyExists(deps: PlanDeps, companyId: CompanyId): Promise<bool
 /**
  * A company's first plan, set by WagonWise itself when it opens a trial for them: from today, the plan covers `capacity` vehicles.
  * Without it a new company covers none, and fleet would refuse its first vehicle. No caller check (it is not a request: composition
- * calls it right after WagonWise staff made the company); setting it again for today replaces it.
+ * calls it right after the company was made, by WagonWise staff or, with no staff id, by the firm signing itself up); setting it again for today replaces it.
  */
 export async function giveStartingCapacity(
   deps: Pick<PlanDeps, 'plans' | 'clock'>,
-  staffId: StaffId,
+  staffId: StaffId | null,
   companyId: CompanyId,
   capacity: number,
 ): Promise<void> {
