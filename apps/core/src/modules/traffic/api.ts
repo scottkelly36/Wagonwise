@@ -16,6 +16,8 @@ export interface TrafficModuleDeps {
   readonly provider?: TrafficProvider | undefined;
   readonly dailyRequestLimit: number;
   readonly cacheTtlMs: number;
+  /** How long a box of incidents is reused (they change more slowly than flow). */
+  readonly incidentCacheTtlMs: number;
   /** Told (rarely) when a provider call fails or the allowance runs out. */
   readonly onProblem?:
     ((what: 'flow' | 'incidents' | 'limit', error?: unknown) => void) | undefined;
@@ -39,7 +41,11 @@ export function createTrafficModule(deps: TrafficModuleDeps): TrafficModule {
   const service = new TrafficService(provider, deps.clock, {
     cacheTtlMs: deps.cacheTtlMs,
     dailyRequestLimit: deps.dailyRequestLimit,
-    sampleSpacingM: 5_000,
+    cellDegrees: 0.05,
+    nearHorizonM: 60_000,
+    farEvery: 3,
+    incidentCacheTtlMs: deps.incidentCacheTtlMs,
+    refusedPauseMs: 30 * 60_000,
     maxSamplesPerRoute: 30,
     onProblem: deps.onProblem,
   });

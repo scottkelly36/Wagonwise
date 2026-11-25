@@ -139,8 +139,10 @@ const envSchema = z.object({
   // plenty; the floor stops a typo from hammering the service (its limit is 10 requests a minute per key).
   CLOSURES_REFRESH_INTERVAL_MS: z.coerce.number().int().min(300_000).default(600_000),
   TRAFFIC_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(2000),
-  // Traffic moves in minutes; a reading is reused for this long, and shared by every driver on that road.
-  TRAFFIC_CACHE_TTL_MS: z.coerce.number().int().min(10_000).default(300_000),
+  // Traffic moves in tens of minutes; a reading is reused for this long, and shared by every driver on that road (and by the same driver on
+  // the next ask: readings are kept per grid cell). Incidents change more slowly, so a box of them is kept longer.
+  TRAFFIC_CACHE_TTL_MS: z.coerce.number().int().min(10_000).default(600_000),
+  TRAFFIC_INCIDENT_CACHE_TTL_MS: z.coerce.number().int().min(10_000).default(900_000),
   // Optional: where the dashboard is served (e.g. https://dashboard.wagon-wise.co.uk), so a staff invitation
   // can be emailed as a link. Unset means invitations are not emailed and the inviter shares the link.
   DASHBOARD_URL: z.url().optional(),
@@ -254,6 +256,7 @@ export interface Config {
   readonly closuresRefreshIntervalMs: number;
   readonly trafficDailyRequestLimit: number;
   readonly trafficCacheTtlMs: number;
+  readonly trafficIncidentCacheTtlMs: number;
   readonly dashboardUrl: string | undefined;
   readonly clickSendUsername: string | undefined;
   readonly clickSendApiKey: string | undefined;
@@ -381,6 +384,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     closuresRefreshIntervalMs: values.CLOSURES_REFRESH_INTERVAL_MS,
     trafficDailyRequestLimit: values.TRAFFIC_DAILY_REQUEST_LIMIT,
     trafficCacheTtlMs: values.TRAFFIC_CACHE_TTL_MS,
+    trafficIncidentCacheTtlMs: values.TRAFFIC_INCIDENT_CACHE_TTL_MS,
     dashboardUrl: values.DASHBOARD_URL,
     clickSendUsername: values.CLICKSEND_USERNAME,
     clickSendApiKey: values.CLICKSEND_API_KEY,

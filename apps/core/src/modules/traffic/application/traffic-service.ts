@@ -2,8 +2,10 @@ import type { Clock } from '../../../shared/ports/clock.js';
 import {
   congestionLevel,
   extraSeconds,
-  sampleAlong,
+  cellOf,
+  sampleByCell,
   snapToGrid,
+  thinFar,
   type BoundingBox,
   type FlowReading,
   type TrafficStretch,
@@ -11,15 +13,22 @@ import {
   type RouteSample,
   type TrafficIncident,
 } from '../domain/traffic.js';
-import type { TrafficProvider } from './traffic-provider.js';
+import { ProviderRefused, type TrafficProvider } from './traffic-provider.js';
 
 export interface TrafficServiceOptions {
   /** How long a reading is reused. Traffic moves in minutes; this also keeps many drivers on one road to one call. */
   readonly cacheTtlMs: number;
   /** Provider calls allowed per UTC day. At the limit the service answers "unknown" rather than overspend. */
   readonly dailyRequestLimit: number;
-  /** Distance between flow samples along a route. */
-  readonly sampleSpacingM: number;
+  /** Size of the grid a route is read on, in degrees: one reading per cell it crosses, kept and shared per cell (0.05 is about 5 km). */
+  readonly cellDegrees: number;
+  /** The road within this distance of the start is read in full; beyond it, one cell in every `farEvery` stands for the group. */
+  readonly nearHorizonM: number;
+  readonly farEvery: number;
+  /** How long a box of incidents is reused. They change more slowly than flow, so this can be longer. */
+  readonly incidentCacheTtlMs: number;
+  /** After the provider refuses a call (a key or credits problem), no call is made for this long: a refused call gets nothing and still counts. */
+  readonly refusedPauseMs: number;
   /** The most flow samples taken for one route, so a long route cannot spend the day's allowance. */
   readonly maxSamplesPerRoute: number;
   /**
@@ -61,6 +70,7 @@ export class TrafficService {
   readonly #incidents = new Map<string, Cached<TrafficIncident[]>>();
   #day = '';
   #used = 0;
+  #pausedUntil = 0;
   readonly #lastProblem = new Map<string, number>();
 
   constructor(
@@ -88,7 +98,12 @@ export class TrafficService {
     let covered = 0;
     let total = 0;
     const stretches: TrafficStretch[] = [];
-    for (const { point, lengthM } of this.#thin(sampleAlong(line, this.options.sampleSpacingM))) {
+    const samples = thinFar(
+      sampleByCell(line, this.options.cellDegrees),
+      this.options.nearHorizonM,
+      this.options.farEvery,
+    );
+    for (const { point, lengthM } of this.#thin(samples)) {
       const fromM = total;
       total += lengthM;
       const reading = await this.#flowAt(point);
@@ -129,12 +144,13 @@ export class TrafficService {
   }
 
   async #flowAt(point: GeoPoint): Promise<FlowReading | undefined> {
+    // Kept by grid cell, whatever point in it was read: the lorry moving on, or another driver on the same road, reuses the reading.
+    const key = cellOf(point, this.options.cellDegrees);
     const snapped = snapToGrid(point);
-    const key = `${snapped.lat},${snapped.lon}`;
     const hit = this.#flow.get(key);
-    if (hit !== undefined && this.#fresh(hit)) return hit.value;
+    if (hit !== undefined && this.#fresh(hit, this.options.cacheTtlMs)) return hit.value;
     const provider = this.provider;
-    if (provider === undefined) return hit?.value;
+    if (provider === undefined || this.#paused()) return hit?.value;
     if (!this.#spend()) {
       this.#problem('limit');
       return hit?.value;
@@ -144,6 +160,7 @@ export class TrafficService {
       this.#flow.set(key, { value, at: this.clock.now().getTime() });
       return value;
     } catch (error) {
+      this.#refused(error);
       this.#problem('flow', error);
       return hit?.value; // a stale reading beats none; the next call tries again
     }
@@ -155,7 +172,8 @@ export class TrafficService {
     const box = boxAround(line);
     const key = [box.minLat, box.minLon, box.maxLat, box.maxLon].join(',');
     const hit = this.#incidents.get(key);
-    if (hit !== undefined && this.#fresh(hit)) return hit.value;
+    if (hit !== undefined && this.#fresh(hit, this.options.incidentCacheTtlMs)) return hit.value;
+    if (this.#paused()) return hit?.value ?? [];
     if (!this.#spend()) {
       this.#problem('limit');
       return hit?.value ?? [];
@@ -165,8 +183,20 @@ export class TrafficService {
       this.#incidents.set(key, { value, at: this.clock.now().getTime() });
       return value;
     } catch (error) {
+      this.#refused(error);
       this.#problem('incidents', error);
       return hit?.value ?? [];
+    }
+  }
+
+  /** True while the provider's last refusal is recent: no call is made, so a refused account is not hammered. */
+  #paused(): boolean {
+    return this.clock.now().getTime() < this.#pausedUntil;
+  }
+
+  #refused(error: unknown): void {
+    if (error instanceof ProviderRefused) {
+      this.#pausedUntil = this.clock.now().getTime() + this.options.refusedPauseMs;
     }
   }
 
@@ -178,8 +208,8 @@ export class TrafficService {
     this.options.onProblem?.(what, error);
   }
 
-  #fresh(entry: Cached<unknown>): boolean {
-    return this.clock.now().getTime() - entry.at < this.options.cacheTtlMs;
+  #fresh(entry: Cached<unknown>, ttlMs: number): boolean {
+    return this.clock.now().getTime() - entry.at < ttlMs;
   }
 
   #rollDay(): void {

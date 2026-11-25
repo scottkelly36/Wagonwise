@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ProviderRefused } from '../application/traffic-provider.js';
 import {
   flowFromResponse,
   incidentFromFeature,
@@ -98,6 +99,26 @@ describe('TomTomTrafficClient', () => {
     );
     await expect(down.flowAt({ lat: 0, lon: 0 })).rejects.toThrow('TomTom flow responded 403');
     await expect(down.flowAt({ lat: 0, lon: 0 })).rejects.not.toThrow('secret-key');
+  });
+
+  it('says what TomTom said when it refuses the account, as a refusal the service can pause on, never repeating the key', async () => {
+    const refused = new TomTomTrafficClient('secret-key', () =>
+      Promise.resolve(
+        new Response('You do not have enough credits to perform this action', { status: 403 }),
+      ),
+    );
+    const failure = await refused.flowAt({ lat: 0, lon: 0 }).catch((e: unknown) => e);
+    expect(failure).toBeInstanceOf(ProviderRefused);
+    expect((failure as ProviderRefused).status).toBe(403);
+    expect((failure as Error).message).toBe(
+      'TomTom flow responded 403: You do not have enough credits to perform this action',
+    );
+    const limited = new TomTomTrafficClient('secret-key', () =>
+      Promise.resolve(new Response('', { status: 429 })),
+    );
+    await expect(
+      limited.incidentsIn({ minLat: 0, minLon: 0, maxLat: 0.1, maxLon: 0.1 }),
+    ).rejects.toBeInstanceOf(ProviderRefused);
   });
 
   it('lists incidents for a box, once each across pieces', async () => {

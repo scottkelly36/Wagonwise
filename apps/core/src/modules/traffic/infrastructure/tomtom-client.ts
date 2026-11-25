@@ -1,4 +1,4 @@
-import type { TrafficProvider } from '../application/traffic-provider.js';
+import { ProviderRefused, type TrafficProvider } from '../application/traffic-provider.js';
 import type {
   BoundingBox,
   FlowReading,
@@ -171,6 +171,17 @@ export class TomTomTrafficClient implements TrafficProvider {
   async #get(url: string, what: string): Promise<unknown> {
     const response = await this.fetchImpl(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     if (response.status === 400 && what === 'flow') return undefined;
+    if (response.status === 401 || response.status === 403 || response.status === 429) {
+      // What TomTom said ("not enough credits", "over the limit"), short, so the owner's email can say why. Never the request: it holds the key.
+      const said = (await response.text().catch(() => ''))
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 160);
+      throw new ProviderRefused(
+        `TomTom ${what} responded ${response.status}${said === '' ? '' : `: ${said}`}`,
+        response.status,
+      );
+    }
     if (!response.ok) throw new Error(`TomTom ${what} responded ${response.status}`);
     return response.json();
   }
