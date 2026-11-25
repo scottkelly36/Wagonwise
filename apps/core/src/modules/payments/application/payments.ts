@@ -120,10 +120,18 @@ export async function startPaymentSetup(
     companyName: (await deps.names.nameOf(companyId)) ?? 'your company',
     returnUrl: `${base}/staff/plan?payment=done`,
   });
+  const before = await deps.customers.get(companyId);
+  // A different customer than the one kept means the old one was not usable (made under the other mode's key, or deleted), and so
+  // were any details held against it: the company is not "on file" until the new page is finished.
+  const replaced =
+    before?.providerRef != null &&
+    session.providerRef != null &&
+    session.providerRef !== before.providerRef;
   await deps.customers.upsert({
     companyId,
     provider: deps.provider.name,
     providerRef: session.providerRef ?? null,
+    ...(replaced ? { detailsOnFile: false } : {}),
     at: deps.clock.now(),
   });
   return ok({ url: session.url });

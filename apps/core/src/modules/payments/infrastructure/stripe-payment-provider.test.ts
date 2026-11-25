@@ -76,6 +76,55 @@ describe('StripePaymentProvider: the hosted setup page', () => {
     expect(calls[0]?.url).toBe('https://api.stripe.com/v1/checkout/sessions');
   });
 
+  it('makes a fresh customer when the kept one is not known to this Stripe account (made under the other mode, or deleted)', async () => {
+    const { provider, calls } = fakeStripe(
+      {
+        status: 404,
+        json: { error: { code: 'resource_missing', message: 'No such customer: cus_old' } },
+      },
+      { json: { id: 'cus_new' } },
+      { json: { id: 'cs_3', url: 'https://x.test/cs_3' } },
+    );
+    const result = await provider.createSetupSession({
+      companyId: 'co-1',
+      companyName: 'Test Haulage Co',
+      returnUrl: 'https://dashboard.example/staff/plan?payment=done',
+      existingRef: 'cus_old',
+    });
+    expect(result).toEqual({ url: 'https://x.test/cs_3', providerRef: 'cus_new' });
+    expect(calls.map((c) => c.url)).toEqual([
+      'https://api.stripe.com/v1/checkout/sessions',
+      'https://api.stripe.com/v1/customers',
+      'https://api.stripe.com/v1/checkout/sessions',
+    ]);
+    expect(calls[2]?.form.get('customer')).toBe('cus_new');
+  });
+
+  it('does not make another customer for any other refusal, and fails once when the new one is refused too', async () => {
+    const down = fakeStripe({ status: 500, json: { error: { code: 'api_error' } } });
+    await expect(
+      down.provider.createSetupSession({
+        companyId: 'c',
+        companyName: 'n',
+        returnUrl: 'https://x.test/a',
+        existingRef: 'cus_old',
+      }),
+    ).rejects.toThrow('api_error');
+    expect(down.calls).toHaveLength(1);
+    const noRef = fakeStripe(
+      { json: { id: 'cus_1' } },
+      { status: 404, json: { error: { code: 'resource_missing' } } },
+    );
+    await expect(
+      noRef.provider.createSetupSession({
+        companyId: 'c',
+        companyName: 'n',
+        returnUrl: 'https://x.test/a',
+      }),
+    ).rejects.toThrow('resource_missing');
+    expect(noRef.calls).toHaveLength(2);
+  });
+
   it('says what Stripe refused without repeating the key', async () => {
     const { provider } = fakeStripe({
       status: 401,
