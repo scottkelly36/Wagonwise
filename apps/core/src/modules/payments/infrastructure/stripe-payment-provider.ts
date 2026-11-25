@@ -44,6 +44,17 @@ interface StripeEvent {
   readonly data?: { readonly object?: StripeObject };
 }
 
+/** What Stripe refused, kept apart from the message so a caller can tell "no such customer" from any other refusal. */
+class StripeRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: string | undefined,
+  ) {
+    super(message);
+  }
+}
+
 /**
  * Stripe as the payment provider (docs/company-account-states-scope.md, "Taking payment"). WagonWise uses three parts of it and nothing
  * else: a Customer per company, Checkout in setup mode (Stripe's hosted page, so no card or bank number reaches WagonWise and nothing is
@@ -85,8 +96,10 @@ export class StripePaymentProvider implements PaymentProvider {
     };
     if (!response.ok) {
       // The message and code only: the request (which carries the key) is never part of the error.
-      throw new Error(
+      throw new StripeRequestError(
         `Stripe refused ${method} ${path} (${response.status}): ${parsed.error?.code ?? parsed.error?.message ?? 'no reason given'}`,
+        response.status,
+        parsed.error?.code,
       );
     }
     return parsed;
@@ -98,25 +111,41 @@ export class StripePaymentProvider implements PaymentProvider {
     readonly returnUrl: string;
     readonly existingRef?: string | null | undefined;
   }): Promise<{ readonly url: string; readonly providerRef: string }> {
-    const customerId =
-      input.existingRef ??
-      (
-        await this.request('POST', '/customers', {
-          name: input.companyName,
-          'metadata[companyId]': input.companyId,
-        })
-      ).id;
-    if (customerId === undefined) throw new Error('Stripe did not return a customer');
-    const session = await this.request('POST', '/checkout/sessions', {
-      mode: 'setup',
-      currency: CURRENCY,
-      customer: customerId,
-      client_reference_id: input.companyId,
-      'metadata[companyId]': input.companyId,
-      'setup_intent_data[metadata][companyId]': input.companyId,
-      success_url: input.returnUrl,
-      cancel_url: input.returnUrl.split('?')[0],
-    });
+    const makeCustomer = async (): Promise<string> => {
+      const made = await this.request('POST', '/customers', {
+        name: input.companyName,
+        'metadata[companyId]': input.companyId,
+      });
+      if (made.id === undefined) throw new Error('Stripe did not return a customer');
+      return made.id;
+    };
+    const makeSession = (customerId: string) =>
+      this.request('POST', '/checkout/sessions', {
+        mode: 'setup',
+        currency: CURRENCY,
+        customer: customerId,
+        client_reference_id: input.companyId,
+        'metadata[companyId]': input.companyId,
+        'setup_intent_data[metadata][companyId]': input.companyId,
+        success_url: input.returnUrl,
+        cancel_url: input.returnUrl.split('?')[0],
+      });
+    let customerId = input.existingRef ?? (await makeCustomer());
+    let session: StripeObject;
+    try {
+      session = await makeSession(customerId);
+    } catch (error) {
+      // The customer kept for this company is not one this Stripe account knows: it was made under the other mode's key (test and
+      // live are separate worlds) or was deleted there. Make a fresh one rather than leave the company unable to add details.
+      const missing =
+        input.existingRef !== null &&
+        input.existingRef !== undefined &&
+        error instanceof StripeRequestError &&
+        error.code === 'resource_missing';
+      if (!missing) throw error;
+      customerId = await makeCustomer();
+      session = await makeSession(customerId);
+    }
     if (session.url === undefined) throw new Error('Stripe did not return a page address');
     return { url: session.url, providerRef: customerId };
   }

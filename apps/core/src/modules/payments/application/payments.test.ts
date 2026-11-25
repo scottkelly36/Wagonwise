@@ -109,6 +109,33 @@ describe('payment status and adding payment details', () => {
     expect(provider.existingRefs).toEqual([null, `cus_${ACME}`]);
   });
 
+  it('a different customer than the one kept clears "on file": the old details belonged to a customer that could not be used', async () => {
+    await customers.upsert({
+      companyId: ACME,
+      provider: 'fake',
+      providerRef: 'cus_made_under_the_other_mode',
+      detailsOnFile: true,
+      at: new Date('2026-11-20T09:00:00Z'),
+    });
+    await startPaymentSetup(deps, billing);
+    expect(customers.rows.get(ACME)).toMatchObject({
+      providerRef: `cus_${ACME}`,
+      detailsOnFile: false,
+    });
+  });
+
+  it('the same customer coming back leaves "on file" as it was', async () => {
+    await customers.upsert({
+      companyId: ACME,
+      provider: 'fake',
+      providerRef: `cus_${ACME}`,
+      detailsOnFile: true,
+      at: new Date('2026-11-20T09:00:00Z'),
+    });
+    await startPaymentSetup(deps, billing);
+    expect(customers.rows.get(ACME)?.detailsOnFile).toBe(true);
+  });
+
   it("starts the provider's hosted page, coming back to the plan page, and charges nothing", async () => {
     const result = await startPaymentSetup(deps, billing);
     expect(result).toEqual({ ok: true, value: { url: `https://pay.example.test/setup/${ACME}` } });

@@ -38,6 +38,12 @@ restart the two BFFs (they cache core's signing key). On the live site the two S
 4. Failures to try: card `4000 0000 0000 0341` (attaches, then declines when charged), Direct Debit account `22222227` (insufficient funds).
    Each should close the attempt as failed and email the owner.
 
+## Going live (test keys to live keys)
+
+Test mode and live mode are separate worlds: a customer, card or event made in one does not exist in the other, and each has its own webhook endpoint and signing secret. Swap `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` **together**, add the live endpoint
+(same address, same three events), and restart core. A company that had a test customer gets a fresh live one the next time it presses **Add payment details**, and its "on file" is cleared until it finishes the live page. Test collections and invoices
+paid in test mode stay in the database as they were: tidy them by hand.
+
 ## What was and was not checked
 
 Checked by tests with a stand-in for Stripe: the requests the adapter sends, the signature check (wrong secret, altered body, old and
