@@ -84,6 +84,7 @@ import { createBillingModule, type UntypedDb as BillingUntypedDb } from '../modu
 import { mergeVehicleUse } from './vehicle-use.js';
 import {
   createPaymentsModule,
+  StripePaymentProvider,
   type PaymentsModule,
   type UntypedDb as PaymentsUntypedDb,
 } from '../modules/payments/api.js';
@@ -449,6 +450,13 @@ export function composeCore(
       nameOf: async (companyId) => (await companies.getCompanyNames([companyId])).get(companyId),
     },
     dashboardUrl: config.dashboardUrl,
+    provider:
+      config.stripe === undefined
+        ? undefined
+        : new StripePaymentProvider({
+            secretKey: config.stripe.secretKey,
+            webhookSecret: config.stripe.webhookSecret,
+          }),
     ownerNotice:
       config.alertEmail === undefined
         ? undefined
