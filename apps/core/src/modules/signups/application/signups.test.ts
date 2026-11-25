@@ -10,17 +10,21 @@ import {
   type TesterId,
 } from '../domain/signup.js';
 import {
+  confirmTrial,
   deleteTester,
   listTesters,
   MAX_INVITES_PER_SEND,
+  previewTrial,
   sendInvites,
   sendLaunchEmails,
+  type FirmStarter,
   type InvitePorts,
   removeMe,
   signUp,
   type SignupDeps,
   type StaffCaller,
   type TesterRepository,
+  type TrialTokens,
 } from './signups.js';
 
 class InMemoryTesters implements TesterRepository {
@@ -63,6 +67,57 @@ class InMemoryTesters implements TesterRepository {
   markTrialStarted(id: TesterId, companyId: string, at: Date): Promise<void> {
     const t = this.rows.get(id);
     if (t !== undefined) this.rows.set(id, { ...t, trialStartedAt: at, trialCompanyId: companyId });
+    return Promise.resolve();
+  }
+
+  findByEmail(email: string): Promise<Tester | null> {
+    return Promise.resolve([...this.rows.values()].find((t) => t.email === email) ?? null);
+  }
+
+  readonly links = new Map<string, TesterId>();
+
+  setTrialLink(id: TesterId, tokenHash: string, expiresAt: Date): Promise<void> {
+    const t = this.rows.get(id);
+    if (t === undefined) return Promise.resolve();
+    for (const [hash, owner] of this.links) if (owner === id) this.links.delete(hash);
+    this.links.set(tokenHash, id);
+    this.rows.set(id, { ...t, trialLinkExpiresAt: expiresAt });
+    return Promise.resolve();
+  }
+
+  findByTrialLink(tokenHash: string): Promise<Tester | null> {
+    const id = this.links.get(tokenHash);
+    return Promise.resolve(id === undefined ? null : (this.rows.get(id) ?? null));
+  }
+
+  countTrialsStartedSince(since: Date): Promise<number> {
+    return Promise.resolve(
+      [...this.rows.values()].filter(
+        (t) => t.trialStartedAt !== undefined && t.trialStartedAt >= since,
+      ).length,
+    );
+  }
+
+  countTrialsStartedFromDomain(domain: string): Promise<number> {
+    return Promise.resolve(
+      [...this.rows.values()].filter(
+        (t) => t.trialStartedAt !== undefined && t.email.endsWith('@' + domain),
+      ).length,
+    );
+  }
+
+  claimTrial(id: TesterId, at: Date): Promise<boolean> {
+    const t = this.rows.get(id);
+    if (t === undefined || t.trialStartedAt !== undefined) return Promise.resolve(false);
+    this.rows.set(id, { ...t, trialStartedAt: at });
+    return Promise.resolve(true);
+  }
+
+  releaseTrial(id: TesterId): Promise<void> {
+    const t = this.rows.get(id);
+    if (t !== undefined && t.trialCompanyId === undefined) {
+      this.rows.set(id, { ...t, trialStartedAt: undefined });
+    }
     return Promise.resolve();
   }
 
@@ -484,5 +539,289 @@ describe('telling the owner, and thanking a firm that registers', () => {
     expect(owner[0]?.subject).toBe('New firm registered: zed@example.com');
     expect(registrant[0]?.text.startsWith('Hello,')).toBe(true);
     expect(registrant[0]?.text).toContain('your firm');
+  });
+});
+
+describe('a firm starting its own trial from the link it was emailed', () => {
+  const PORTAL = 'https://dashboard.example.com/';
+
+  class FakeTokens implements TrialTokens {
+    #n = 0;
+    generate(): string {
+      this.#n += 1;
+      return `secret-token-number-${String(this.#n).padStart(4, '0')}`;
+    }
+    hash(token: string): string {
+      return `hash:${token}`;
+    }
+  }
+
+  function linked() {
+    const { deps, testers, clock } = setup();
+    const owner: { subject: string; text: string }[] = [];
+    const registrant: { to: string; subject: string; text: string }[] = [];
+    const notify = {
+      toOwner: (subject: string, text: string) => {
+        owner.push({ subject, text });
+        return Promise.resolve();
+      },
+      toRegistrant: (to: string, subject: string, text: string) => {
+        registrant.push({ to, subject, text });
+        return Promise.resolve();
+      },
+      portalAddress: PORTAL,
+    };
+    const made: { firmName: string; contactName: string; contactEmail: string }[] = [];
+    const firms: FirmStarter = {
+      startTrialFirm: () => Promise.reject(new Error('not used here')),
+      startSelfServeTrialFirm: (input) => {
+        made.push(input);
+        return Promise.resolve({
+          ok: true as const,
+          value: {
+            companyId: `company-${made.length}`,
+            emailed: true,
+            inviteToken: 't',
+            vehicles: 5,
+          },
+        });
+      },
+    };
+    const all = { ...deps, notify, tokens: new FakeTokens() };
+    const scoped = <T>(work: () => Promise<T>): Promise<T> => work();
+    /** The link in the thank-you email sent to an address, as its token. */
+    const tokenSentTo = (to: string): string => {
+      const text = [...registrant].reverse().find((m) => m.to === to)?.text ?? '';
+      const found = /start-trial\?token=([^\s]+)/.exec(text);
+      if (found?.[1] === undefined) throw new Error('no link was sent to ' + to);
+      return decodeURIComponent(found[1]);
+    };
+    return { deps: all, firms, testers, clock, owner, registrant, made, scoped, tokenSentTo };
+  }
+
+  const firm = {
+    email: 'sam@carter-haulage.example.com',
+    name: 'Sam Carter',
+    role: 'company',
+    company: 'Carter Haulage',
+    consent: true,
+  };
+
+  it('is emailed a link that starts the trial, and the owner is told nothing is needed from them', async () => {
+    const { deps, owner, registrant, tokenSentTo, testers } = linked();
+    expect((await signUp(deps, firm)).ok).toBe(true);
+    expect(registrant).toHaveLength(1);
+    expect(registrant[0]?.text).toContain('https://dashboard.example.com/start-trial?token=');
+    expect(registrant[0]?.text).not.toContain('usually within one working day');
+    expect(tokenSentTo(firm.email)).toMatch(/^secret-token-number-/);
+    // Only a hash is kept.
+    expect([...testers.links.keys()].every((k) => k.startsWith('hash:'))).toBe(true);
+    expect(owner[0]?.text).toContain('You need do nothing');
+  });
+
+  it('keeps the old way with no link when there is nothing to point at or to make a secret with', async () => {
+    const { deps, registrant } = linked();
+    await signUp({ ...deps, tokens: undefined }, firm);
+    await signUp(
+      { ...deps, notify: { ...deps.notify, portalAddress: undefined } },
+      {
+        ...firm,
+        email: 'lee@other.example.com',
+      },
+    );
+    expect(registrant).toHaveLength(2);
+    for (const m of registrant) {
+      expect(m.text).toContain('usually within one working day');
+      expect(m.text).not.toContain('start-trial');
+    }
+  });
+
+  it('sends a driver no link', async () => {
+    const { deps, registrant, owner, testers } = linked();
+    await signUp(deps, { email: 'dan@example.com', role: 'driver', consent: true });
+    expect(registrant).toHaveLength(0);
+    expect(owner).toHaveLength(0);
+    expect(testers.links.size).toBe(0);
+  });
+
+  it('sends a fresh link to an address that registers again only after an hour, and then the old link no longer works', async () => {
+    const { deps, registrant, clock, tokenSentTo, scoped } = linked();
+    await signUp(deps, firm);
+    const first = tokenSentTo(firm.email);
+    await signUp(deps, firm);
+    clock.advance(30 * 60 * 1000);
+    await signUp(deps, firm);
+    expect(registrant).toHaveLength(1);
+    clock.advance(31 * 60 * 1000);
+    await signUp(deps, firm);
+    expect(registrant).toHaveLength(2);
+    const second = tokenSentTo(firm.email);
+    expect(second).not.toBe(first);
+    expect((await previewTrial(deps, first)).valid).toBe(false);
+    expect((await previewTrial(deps, second)).valid).toBe(true);
+    expect(scoped).toBeDefined();
+  });
+
+  it('sends nothing more to a firm that has already started its trial', async () => {
+    const { deps, registrant, clock, firms, tokenSentTo, scoped } = linked();
+    await signUp(deps, firm);
+    await confirmTrial({ ...deps, firms }, { token: tokenSentTo(firm.email) }, scoped);
+    clock.advance(5 * 60 * 60 * 1000);
+    await signUp(deps, firm);
+    expect(registrant).toHaveLength(1);
+  });
+
+  it('shows the link its address, and asks for a firm name only when there is none', async () => {
+    const { deps, tokenSentTo } = linked();
+    await signUp(deps, firm);
+    await signUp(deps, { email: 'zed@bare.example.com', role: 'company', consent: true });
+    expect(await previewTrial(deps, tokenSentTo(firm.email))).toEqual({
+      valid: true,
+      started: false,
+      needsCompany: false,
+      email: firm.email,
+      company: 'Carter Haulage',
+    });
+    expect(await previewTrial(deps, tokenSentTo('zed@bare.example.com'))).toMatchObject({
+      needsCompany: true,
+    });
+  });
+
+  it('says a wrong, empty or expired link is not valid, without saying which', async () => {
+    const { deps, clock, tokenSentTo } = linked();
+    await signUp(deps, firm);
+    expect(await previewTrial(deps, 'not-a-real-token-at-all-nope')).toEqual({ valid: false });
+    expect(await previewTrial({ ...deps, tokens: undefined }, tokenSentTo(firm.email))).toEqual({
+      valid: false,
+    });
+    clock.advance(49 * 60 * 60 * 1000);
+    expect(await previewTrial(deps, tokenSentTo(firm.email))).toEqual({ valid: false });
+  });
+
+  it('starts the trial: makes the firm once, notes it, tells the owner, and a second press makes nothing', async () => {
+    const { deps, firms, made, owner, tokenSentTo, scoped, testers } = linked();
+    await signUp(deps, firm);
+    const token = tokenSentTo(firm.email);
+    const first = await confirmTrial({ ...deps, firms }, { token }, scoped);
+    expect(first).toEqual({ status: 'started', vehicles: 5 });
+    expect(made).toEqual([
+      { firmName: 'Carter Haulage', contactName: 'Sam Carter', contactEmail: firm.email },
+    ]);
+    const tester = [...testers.rows.values()][0];
+    expect(tester?.trialCompanyId).toBe('company-1');
+    expect(owner.at(-1)?.subject).toBe('Trial started: Carter Haulage');
+    expect(await confirmTrial({ ...deps, firms }, { token }, scoped)).toEqual({
+      status: 'already_started',
+    });
+    expect(made).toHaveLength(1);
+  });
+
+  it('makes one firm when the button is pressed twice at once', async () => {
+    const { deps, firms, made, tokenSentTo, scoped } = linked();
+    await signUp(deps, firm);
+    const token = tokenSentTo(firm.email);
+    const results = await Promise.all([
+      confirmTrial({ ...deps, firms }, { token }, scoped),
+      confirmTrial({ ...deps, firms }, { token }, scoped),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual(['already_started', 'started']);
+    expect(made).toHaveLength(1);
+  });
+
+  it('asks for a firm name when the registration had none, and uses the one typed', async () => {
+    const { deps, firms, made, tokenSentTo, scoped } = linked();
+    await signUp(deps, { email: 'zed@bare.example.com', role: 'company', consent: true });
+    const token = tokenSentTo('zed@bare.example.com');
+    expect(await confirmTrial({ ...deps, firms }, { token }, scoped)).toEqual({
+      status: 'needs_company',
+    });
+    expect(made).toHaveLength(0);
+    const started = await confirmTrial(
+      { ...deps, firms },
+      { token, company: '  Zed Haulage  ' },
+      scoped,
+    );
+    expect(started.status).toBe('started');
+    expect(made[0]?.firmName).toBe('Zed Haulage');
+    expect(made[0]?.contactName).toBe('there');
+  });
+
+  it('turns an invalid link away and makes nothing', async () => {
+    const { deps, firms, made, scoped } = linked();
+    expect(await confirmTrial({ ...deps, firms }, { token: 'x'.repeat(30) }, scoped)).toEqual({
+      status: 'invalid',
+    });
+    expect(made).toHaveLength(0);
+  });
+
+  it('gives the claim back and says so when the address already has an account, so it can try again', async () => {
+    const { deps, tokenSentTo, scoped, testers } = linked();
+    await signUp(deps, firm);
+    const inUse: FirmStarter = {
+      startTrialFirm: () => Promise.reject(new Error('not used here')),
+      startSelfServeTrialFirm: () =>
+        Promise.resolve({ ok: false as const, error: { tag: 'EmailAlreadyInUse' as const } }),
+    };
+    const result = await confirmTrial(
+      { ...deps, firms: inUse },
+      { token: tokenSentTo(firm.email) },
+      scoped,
+    );
+    expect(result).toEqual({ status: 'email_in_use' });
+    expect([...testers.rows.values()][0]?.trialStartedAt).toBeUndefined();
+  });
+
+  it('holds the firm for the owner, and tells them, once the day has had its limit of automatic trials', async () => {
+    const { deps, firms, made, owner, tokenSentTo, scoped } = linked();
+    for (let i = 0; i < 10; i++) {
+      const email = `firm${i}@fleet${i}.example.com`;
+      await signUp(deps, { ...firm, email, company: `Firm ${i}` });
+      expect(
+        (await confirmTrial({ ...deps, firms }, { token: tokenSentTo(email) }, scoped)).status,
+      ).toBe('started');
+    }
+    await signUp(deps, firm);
+    const result = await confirmTrial(
+      { ...deps, firms },
+      { token: tokenSentTo(firm.email) },
+      scoped,
+    );
+    expect(result).toEqual({ status: 'waiting' });
+    expect(made).toHaveLength(10);
+    expect(owner.at(-1)?.subject).toBe('Trial waiting for you: Carter Haulage');
+    expect(owner.at(-1)?.text).toContain('limit on trials started without you for today');
+  });
+
+  it('holds a second firm from the same business domain, but not a second from a free-mail one', async () => {
+    const { deps, firms, made, owner, tokenSentTo, scoped } = linked();
+    await signUp(deps, { ...firm, email: 'a@acme-haulage.example.com' });
+    await signUp(deps, { ...firm, email: 'b@acme-haulage.example.com', company: 'Acme North' });
+    expect(
+      (
+        await confirmTrial(
+          { ...deps, firms },
+          { token: tokenSentTo('a@acme-haulage.example.com') },
+          scoped,
+        )
+      ).status,
+    ).toBe('started');
+    expect(
+      (
+        await confirmTrial(
+          { ...deps, firms },
+          { token: tokenSentTo('b@acme-haulage.example.com') },
+          scoped,
+        )
+      ).status,
+    ).toBe('waiting');
+    expect(owner.at(-1)?.text).toContain('same email domain');
+    // Free-mail owner-drivers are each their own firm.
+    for (const who of ['one@gmail.com', 'two@gmail.com', 'three@outlook.com']) {
+      await signUp(deps, { ...firm, email: who, company: who });
+      expect(
+        (await confirmTrial({ ...deps, firms }, { token: tokenSentTo(who) }, scoped)).status,
+      ).toBe('started');
+    }
+    expect(made).toHaveLength(4);
   });
 });

@@ -24,6 +24,12 @@ import {
   type StaffSignInResponse,
   type StaffTokensResponse,
 } from '@wagonwise/contracts/staff';
+import {
+  trialLinkPreviewSchema,
+  trialStartResponseSchema,
+  type TrialLinkPreview,
+  type TrialStartResponse,
+} from '@wagonwise/contracts/signups';
 import { requestJson, throwUnlessSuccess, type HttpMethod } from './http';
 
 function call(method: HttpMethod, path: string, body?: unknown, accessToken?: string) {
@@ -65,6 +71,23 @@ export async function signOut(refreshToken: string): Promise<void> {
 export async function forgotPassword(email: string): Promise<void> {
   const { status, json } = await call('POST', '/staff/auth/forgot-password', { email });
   throwUnlessSuccess(status, json, [204]);
+}
+
+/** What an emailed trial link is for, before the firm presses the button. No sign-in: the link is the proof. */
+export async function previewTrialLink(token: string): Promise<TrialLinkPreview> {
+  const { status, json } = await call('POST', '/staff/trial/preview', { token });
+  throwUnlessSuccess(status, json, [200]);
+  return trialLinkPreviewSchema.parse(json);
+}
+
+/** The firm presses Start my trial. `company` is only needed when its registration had no name. */
+export async function startTrial(token: string, company?: string): Promise<TrialStartResponse> {
+  const { status, json } = await call('POST', '/staff/trial/start', {
+    token,
+    ...(company === undefined ? {} : { company }),
+  });
+  throwUnlessSuccess(status, json, [200]);
+  return trialStartResponseSchema.parse(json);
 }
 
 export async function resetPassword(token: string, password: string): Promise<void> {

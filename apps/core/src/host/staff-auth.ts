@@ -24,6 +24,8 @@ export const STAFF_PUBLIC_PATHS: readonly string[] = [
   '/staff/invites/accept',
   '/staff/invites/preview',
   '/staff/auth/forgot-password',
+  '/staff/trial/preview',
+  '/staff/trial/start',
   '/staff/auth/reset-password',
   '/staff/invites/confirm',
 ];

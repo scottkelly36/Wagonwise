@@ -82,6 +82,21 @@ export class PostgresTesterRepository implements TesterRepository {
     `.execute(this.db);
   }
 
+  async claimTrial(id: TesterId, at: Date): Promise<boolean> {
+    const result = await sql`
+      update signups.testers set trial_started_at = ${at}
+      where id = ${id} and trial_started_at is null
+    `.execute(this.db);
+    return Number(result.numAffectedRows ?? 0) > 0;
+  }
+
+  async releaseTrial(id: TesterId): Promise<void> {
+    await sql`
+      update signups.testers set trial_started_at = null, trial_company_id = null
+      where id = ${id} and trial_company_id is null
+    `.execute(this.db);
+  }
+
   async findByEmail(email: string): Promise<Tester | null> {
     const { rows } = await sql<Row>`
       select ${sql.raw(COLUMNS)} from signups.testers where email = ${email}

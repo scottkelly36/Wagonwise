@@ -52,7 +52,10 @@ export const FREE_MAIL_DOMAINS: ReadonlySet<string> = new Set([
 
 /** "Sam@Example.COM" is "example.com". */
 export function emailDomain(email: string): string {
-  return email.slice(email.lastIndexOf('@') + 1).trim().toLowerCase();
+  return email
+    .slice(email.lastIndexOf('@') + 1)
+    .trim()
+    .toLowerCase();
 }
 
 export const isFreeMail = (email: string): boolean => FREE_MAIL_DOMAINS.has(emailDomain(email));

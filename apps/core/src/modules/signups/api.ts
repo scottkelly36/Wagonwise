@@ -8,6 +8,7 @@ import type {
   InvitePorts,
   SignupNotifier,
 } from './application/signups.js';
+import { CryptoTrialTokens } from './infrastructure/crypto-trial-tokens.js';
 import {
   PostgresTesterRepository,
   type UntypedDb,
@@ -52,7 +53,13 @@ export function createSignupsModule(deps: SignupsModuleDeps): SignupsModule {
   return {
     registerRoutes(app: FastifyInstance): void {
       registerSignupRoutes(app, {
-        signups: { testers, ids: deps.ids, clock: deps.clock, notify: deps.notify },
+        signups: {
+          testers,
+          ids: deps.ids,
+          clock: deps.clock,
+          notify: deps.notify,
+          tokens: new CryptoTrialTokens(),
+        },
         invites: deps.invites,
         firms: deps.firms,
         callerDirectory: deps.callers,

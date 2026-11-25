@@ -12,6 +12,7 @@ import {
   staffSignInRequestSchema,
   staffVerifySecondFactorRequestSchema,
 } from '@wagonwise/contracts/staff';
+import { trialLinkRequestSchema, trialStartRequestSchema } from '@wagonwise/contracts/signups';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { z } from 'zod';
 import { authenticateOrReject } from './auth/authenticate.js';
@@ -40,6 +41,9 @@ const PUBLIC_POSTS: ReadonlyArray<readonly [path: string, schema: z.ZodType]> = 
   ['/staff/invites/accept', acceptStaffInviteRequestSchema],
   ['/staff/invites/preview', previewStaffInviteRequestSchema],
   ['/staff/auth/forgot-password', forgotPasswordRequestSchema],
+  // A firm starting its own trial from the link it was emailed: no sign-in yet, the link is the proof.
+  ['/staff/trial/preview', trialLinkRequestSchema],
+  ['/staff/trial/start', trialStartRequestSchema],
   ['/staff/auth/reset-password', resetPasswordRequestSchema],
   ['/staff/invites/confirm', confirmStaffEnrolmentRequestSchema],
 ];

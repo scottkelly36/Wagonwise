@@ -5,13 +5,17 @@ import {
   signupRequestSchema,
   startTrialRequestSchema,
   testerIdParamsSchema,
+  trialLinkRequestSchema,
+  trialStartRequestSchema,
 } from '@wagonwise/contracts/signups';
 import type { FastifyInstance } from 'fastify';
 import { makeId } from '../../../shared/brand.js';
 import type { DataScopes } from '../../../shared/ports/data-scope.js';
 import {
+  confirmTrial,
   deleteTester,
   listTesters,
+  previewTrial,
   removeMe,
   sendInvites,
   sendLaunchEmails,
@@ -53,6 +57,30 @@ export function registerSignupRoutes(app: FastifyInstance, deps: SignupRouteDeps
     return reply
       .status(result.error.tag === 'TooManySignups' ? 429 : 400)
       .send({ ...result.error, requestId: request.id });
+  });
+
+  // A firm's own trial: the emailed link is the proof the address is theirs, so these two take no sign-in and answer the same for a wrong
+  // link as for an expired one. They run in WagonWise's scope in pieces (the firm itself is made outside it: see `confirmTrial`).
+  app.post('/staff/trial/preview', async (request, reply) => {
+    const body = trialLinkRequestSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const result = await deps.dataScopes.run({ kind: 'platform' }, () =>
+      previewTrial(deps.signups, body.data.token),
+    );
+    return reply.status(200).send(result);
+  });
+
+  app.post('/staff/trial/start', async (request, reply) => {
+    const body = trialStartRequestSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    }
+    const outcome = await confirmTrial({ ...deps.signups, firms: deps.firms }, body.data, (work) =>
+      deps.dataScopes.run({ kind: 'platform' }, work),
+    );
+    return reply.status(200).send({ status: outcome.status });
   });
 
   app.post('/signups/remove', async (request, reply) => {

@@ -42,6 +42,7 @@ import { Settings } from './pages/staff/Settings';
 import { PlanAndInvoices } from './pages/staff/PlanAndInvoices';
 import { ForgotPassword } from './pages/staff/ForgotPassword';
 import { Join } from './pages/staff/Join';
+import { StartTrial } from './pages/staff/StartTrial';
 import { ResetPassword } from './pages/staff/ResetPassword';
 import { StaffSignIn } from './pages/staff/StaffSignIn';
 import { Users } from './pages/staff/Users';
@@ -60,6 +61,7 @@ export function App() {
         <Route path="/staff/sign-in" element={<StaffSignIn />} />
         <Route path="/sign-in" element={<Navigate to="/staff/sign-in" replace />} />
         <Route path="/join" element={<Join />} />
+        <Route path="/start-trial" element={<StartTrial />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route element={<RequireStaff />}>
