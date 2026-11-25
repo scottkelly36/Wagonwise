@@ -102,6 +102,69 @@ export function sampleAlong(line: readonly GeoPoint[], spacingM: number): RouteS
   return samples;
 }
 
+/** The grid cell a point is in (cells `cellDegrees` on a side), so readings can be shared between asks and between drivers on the same road. */
+export function cellOf(point: GeoPoint, cellDegrees: number): string {
+  return `${Math.floor(point.lat / cellDegrees)}:${Math.floor(point.lon / cellDegrees)}`;
+}
+
+/**
+ * One sample for each stretch of the line that stays in one grid cell, always including the first point. The samples depend on the road
+ * and the grid, not on where the lorry is, so the same stretch of route is the same cell however far along it the lorry has got: its
+ * reading is reused on the next ask, and by every driver on that road. (Points a fixed distance apart, measured from the lorry, moved at
+ * every ask and so were never reused.)
+ */
+export function sampleByCell(line: readonly GeoPoint[], cellDegrees: number): RouteSample[] {
+  const first = line[0];
+  if (first === undefined) return [];
+  const samples: { point: GeoPoint; lengthM: number }[] = [{ point: first, lengthM: 0 }];
+  let cell = cellOf(first, cellDegrees);
+  for (let i = 1; i < line.length; i++) {
+    const prev = line[i - 1] as GeoPoint;
+    const cur = line[i] as GeoPoint;
+    (samples[samples.length - 1] as { lengthM: number }).lengthM += distanceM(prev, cur);
+    const here = cellOf(cur, cellDegrees);
+    if (here !== cell && i < line.length - 1) {
+      samples.push({ point: cur, lengthM: 0 });
+      cell = here;
+    }
+  }
+  return samples;
+}
+
+/**
+ * Keeps every sample within `nearM` of the start, and beyond that one in every `every`, the kept one standing for its whole group's
+ * length. The road just ahead matters most to a driver and is read in full; a reading far ahead is stale by the time it is reached anyway.
+ */
+export function thinFar(
+  samples: readonly RouteSample[],
+  nearM: number,
+  every: number,
+): RouteSample[] {
+  const out: RouteSample[] = [];
+  let travelled = 0;
+  let group: RouteSample[] = [];
+  const flush = (): void => {
+    if (group.length === 0) return;
+    out.push({
+      point: (group[0] as RouteSample).point,
+      lengthM: group.reduce((sum, s) => sum + s.lengthM, 0),
+    });
+    group = [];
+  };
+  for (const sample of samples) {
+    if (travelled < nearM || every <= 1) {
+      flush();
+      out.push(sample);
+    } else {
+      group.push(sample);
+      if (group.length === every) flush();
+    }
+    travelled += sample.lengthM;
+  }
+  flush();
+  return out;
+}
+
 /** Snaps a point to a grid of 0.005 degrees (about 500 m), so nearby requests share one provider call. */
 export function snapToGrid(point: GeoPoint): GeoPoint {
   const snap = (v: number): number => Number((Math.round(v / 0.005) * 0.005).toFixed(3));

@@ -205,7 +205,7 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
      BFFs, the portal or the apps. **DVSA's API key is revoked if unused for 90 days, and its client secret expires every 2 years**:
      diarise both (a new secret is issued through DVSA's `/credentials` endpoint),
      `TOMTOM_API_KEY` (TomTom live traffic; optional, unset means no traffic data; core only, never the
-     BFFs or apps; `TRAFFIC_DAILY_REQUEST_LIMIT` caps calls a day, default 2000, under the free tier's 2,500),
+     BFFs or apps; `TRAFFIC_DAILY_REQUEST_LIMIT` caps calls a day, default 2000, counted in memory so a restart resets it; `TRAFFIC_CACHE_TTL_MS`, default ten minutes, and `TRAFFIC_INCIDENT_CACHE_TTL_MS`, default fifteen, say how long a reading is reused. **TomTom's free allowance:** its pricing page (2026-11-25) lists 20,000 free Flow calls and 2,500 free Incidents calls a month, while older notes say 2,500 a day: look at the usage page in your TomTom account to see which applies. At 403 "not enough credits" no traffic comes through and core emails `ALERT_EMAIL`),
      `W3W_API_KEY` (what3words: search by three words, and the three words for where a driver is; optional, unset means
      no lookup and the app says it is not available; core only, never the BFFs or apps; the Basic plan is 1,000 lookups
      a month and the app asks only when the driver asks, so watch the count in the what3words account),

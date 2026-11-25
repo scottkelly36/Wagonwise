@@ -82,6 +82,7 @@ import { createWeatherModule } from '../modules/weather/api.js';
 import { createSosModule, type UntypedDb as SosUntypedDb } from '../modules/sos/api.js';
 import { createWhat3wordsModule } from '../modules/what3words/api.js';
 import { createBillingModule, type UntypedDb as BillingUntypedDb } from '../modules/billing/api.js';
+import { trafficProblemHandler } from './traffic-alert.js';
 import { vehicleLimit } from './vehicle-capacity.js';
 import { mergeVehicleUse } from './vehicle-use.js';
 import {
@@ -304,10 +305,21 @@ export function composeCore(
     tomtomApiKey: config.tomtomApiKey,
     dailyRequestLimit: config.trafficDailyRequestLimit,
     cacheTtlMs: config.trafficCacheTtlMs,
-    // A failed TomTom call (a refused key, an outage) or the day's allowance running out is logged, rarely, so it is not silent.
-    // `app` is built further down; this only runs on a request, after it exists.
-    onProblem: (what, error) =>
-      app.log.warn({ err: error, what }, 'live traffic: provider call failed or allowance used up'),
+    incidentCacheTtlMs: config.trafficIncidentCacheTtlMs,
+    // A failed TomTom call (a refused key, an outage) or the day's allowance running out is logged, and the owner is emailed (at most once
+    // every few hours for each kind), so it is not silent. `app` is built further down; this only runs on a request, after it exists.
+    onProblem: trafficProblemHandler({
+      now: () => clock.now(),
+      log: (what, error) =>
+        app.log.warn(
+          { err: error, what },
+          'live traffic: provider call failed or allowance used up',
+        ),
+      email:
+        config.alertEmail === undefined
+          ? undefined
+          : (subject, text) => identity.sendEmail(config.alertEmail as string, subject, text),
+    }),
   });
   // what3words: three words to a spot and a spot to three words (the driver app's Where to? screen, and SOS).
   const what3words = createWhat3wordsModule({
