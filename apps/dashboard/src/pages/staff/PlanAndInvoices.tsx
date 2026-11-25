@@ -23,7 +23,7 @@ const formatDay = (day: string) => new Date(`${day}T00:00:00`).toLocaleDateStrin
 
 /**
  * The company's own plan and invoices, for the people it has trusted with billing (`manage_billing`). The plan
- * is what WagonWise bills: the vehicles it covers, whether or not all are set up. Invoices are the issued ones;
+ * is what WagonWise bills by: each vehicle used in a month, up to the vehicles the plan covers. Invoices are the issued ones;
  * Print opens a page the browser saves as a PDF.
  */
 export function PlanAndInvoices() {
@@ -124,12 +124,18 @@ export function PlanAndInvoices() {
         <section className="mb-24 box">
           <h2 className="mt-0">Your plan</h2>
           <p style={{ fontSize: 18, margin: '4px 0' }}>
-            Covers <strong>{p.capacityToday}</strong> vehicle{p.capacityToday === 1 ? '' : 's'} at{' '}
-            {formatPence(p.pricePerVehiclePence)} each:{' '}
-            <strong>{formatPence(p.monthlyPence)} a month</strong>.
+            <strong>{formatPence(p.pricePerVehiclePence)}</strong> a month for each vehicle you use.
+          </p>
+          <p style={{ margin: '4px 0', color: 'var(--text-muted)' }}>
+            A vehicle counts for a month if it was given a job or had a walk-round check in it. One
+            that sits idle costs nothing, and a vehicle first used in the last week of a month is
+            not billed until the next month. You are billed once the month is over.
           </p>
           <p style={{ margin: '4px 0' }}>
-            You have {p.vehiclesInUse} vehicle{p.vehiclesInUse === 1 ? '' : 's'} set up
+            Your plan lets you set up to <strong>{p.capacityToday}</strong> vehicle
+            {p.capacityToday === 1 ? '' : 's'}, so at most{' '}
+            <strong>{formatPence(p.monthlyPence)} a month</strong>. You have {p.vehiclesInUse}{' '}
+            vehicle{p.vehiclesInUse === 1 ? '' : 's'} set up
             {p.capacityToday > p.vehiclesInUse
               ? `, so you can add ${p.capacityToday - p.vehiclesInUse} more.`
               : p.vehiclesInUse > p.capacityToday
