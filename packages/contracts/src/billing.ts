@@ -130,7 +130,7 @@ export const generateInvoicesResponseSchema = z.object({
     z.object({
       companyId: z.string(),
       name: z.string(),
-      reason: z.enum(['already_invoiced', 'nothing_to_bill']),
+      reason: z.enum(['already_invoiced', 'nothing_to_bill', 'on_trial']),
     }),
   ),
 });

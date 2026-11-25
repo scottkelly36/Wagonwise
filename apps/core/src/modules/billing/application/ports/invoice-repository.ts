@@ -17,7 +17,8 @@ export interface InvoiceRepository {
   /** A company's own invoices that have been issued (never its drafts), newest month first. */
   listIssuedForCompany(companyId: CompanyId): Promise<Invoice[]>;
   /** A new draft with its lines. */
-  insertDraft(invoice: Invoice, createdBy: StaffId): Promise<void>;
+  /** `createdBy` is null for the drafts the monthly run makes by itself. */
+  insertDraft(invoice: Invoice, createdBy: StaffId | null): Promise<void>;
   addLine(invoiceId: InvoiceId, line: InvoiceLine): Promise<void>;
   removeLine(invoiceId: InvoiceId, lineId: InvoiceLineId): Promise<void>;
   deleteDraft(id: InvoiceId): Promise<void>;

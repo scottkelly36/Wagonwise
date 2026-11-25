@@ -7,6 +7,7 @@ import {
   buildUsageLines,
   nextMonthStart,
   totalPence,
+  trialCoversMonth,
   validateManualLine,
   validateMonth,
   type BillingDetailsIncomplete,
@@ -52,7 +53,7 @@ export interface GenerateOutcome {
   readonly skipped: readonly {
     readonly companyId: string;
     readonly name: string;
-    readonly reason: 'already_invoiced' | 'nothing_to_bill';
+    readonly reason: 'already_invoiced' | 'nothing_to_bill' | 'on_trial';
   }[];
 }
 
@@ -71,22 +72,38 @@ export async function generateInvoices(
   if (!isAdmin(caller)) return forbidden();
   const month = validateMonth(rawMonth);
   if (!month.ok) return month;
-  const endsBefore = nextMonthStart(month.value);
-  if (endsBefore > ukDay(deps.clock.now())) return err({ tag: 'MonthNotFinished' });
+  if (nextMonthStart(month.value) > ukDay(deps.clock.now()))
+    return err({ tag: 'MonthNotFinished' });
+  return ok(await draftMonth(deps, staffId, month.value));
+}
 
+/**
+ * The drafting itself, once the month is known to be a real, finished one and whoever asked is allowed to: shared by an admin pressing the
+ * button and the monthly run (`createdBy` null). A company whose free trial covers the month is skipped, so a trial firm is never billed.
+ */
+export async function draftMonth(
+  deps: InvoiceDeps,
+  createdBy: StaffId | null,
+  month: MonthString,
+): Promise<GenerateOutcome> {
+  const endsBefore = nextMonthStart(month);
   const [companies, prices] = await Promise.all([deps.companies.list(), deps.plans.listPrices()]);
   const created: Invoice[] = [];
   const skipped: GenerateOutcome['skipped'][number][] = [];
 
   for (const company of companies) {
-    if ((await deps.invoices.findLive(company.id, month.value)) !== null) {
+    if ((await deps.invoices.findLive(company.id, month)) !== null) {
       skipped.push({ companyId: company.id, name: company.name, reason: 'already_invoiced' });
       continue;
     }
+    if (trialCoversMonth(company.trialEndsOn, month)) {
+      skipped.push({ companyId: company.id, name: company.name, reason: 'on_trial' });
+      continue;
+    }
     const planned = buildUsageLines(
-      await deps.vehicleUse.usedBetween(company.id, `${month.value}-01`, endsBefore),
+      await deps.vehicleUse.usedBetween(company.id, `${month}-01`, endsBefore),
       prices.get(company.id) ?? DEFAULT_PRICE_PER_VEHICLE_PENCE,
-      month.value,
+      month,
     );
     if (planned.length === 0) {
       skipped.push({ companyId: company.id, name: company.name, reason: 'nothing_to_bill' });
@@ -96,7 +113,7 @@ export async function generateInvoices(
       id: makeId<'InvoiceId'>(deps.ids.newId()),
       companyId: company.id,
       companyName: company.name,
-      month: month.value,
+      month,
       status: 'draft',
       number: undefined,
       lines: planned.map((l) => ({ ...l, id: makeId<'InvoiceLineId'>(deps.ids.newId()) })),
@@ -106,10 +123,10 @@ export async function generateInvoices(
       voidedAt: undefined,
       issuedDetails: undefined,
     };
-    await deps.invoices.insertDraft(invoice, staffId);
+    await deps.invoices.insertDraft(invoice, createdBy);
     created.push(invoice);
   }
-  return ok({ created, skipped });
+  return { created, skipped };
 }
 
 export async function listInvoices(

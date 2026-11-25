@@ -15,6 +15,9 @@ import { PostgresPlanRepository } from './infrastructure/postgres-plan-repositor
 import { registerBillingRoutes } from './interface/routes.js';
 import type { VehicleCount } from './application/ports/vehicle-count.js';
 import type { VehicleUseHistory } from './application/ports/vehicle-use.js';
+import { runMonthlyDrafts, type MonthlyRunOutcome } from './application/monthly-run.js';
+import { monthlyRunEmail } from './domain/monthly-run-email.js';
+import { PostgresDraftRunRepository } from './infrastructure/postgres-draft-run-repository.js';
 
 // Re-exported so composition/ can type its wiring without reaching past this facade.
 export type { UntypedDb } from './infrastructure/db.js';
@@ -37,10 +40,19 @@ export interface BillingModuleDeps {
   readonly vehicles: VehicleCount;
   /** Which vehicles were used in a month (given a job, or checked), for invoices. Supplied by composition over `jobs` and `checks`. */
   readonly vehicleUse: VehicleUseHistory;
+  /** A line to the owner (their alert address), when the monthly run has drafted the invoices. Optional: unset, nothing is sent. */
+  readonly tellOwner?: ((subject: string, text: string) => Promise<void>) | undefined;
+  /** The portal's address, for the link in that line. */
+  readonly portalAddress?: string | undefined;
 }
 
 export interface BillingModule {
   registerRoutes(app: FastifyInstance): void;
+  /**
+   * The monthly run: from the 2nd of a month, drafts last month's invoices once, by itself, and tells the owner. Does nothing before the
+   * 2nd or when the month was already done. Opens its own platform scope, so call it outside any `DataScopes.run`. Nothing is issued or charged.
+   */
+  draftLastMonth(): Promise<MonthlyRunOutcome>;
   /**
    * How many vehicles a company's plan covers today (0 when it has no plan). For `fleet`, which refuses to
    * create a vehicle beyond it; supplied by composition. Reads inside the caller's own data scope: a
@@ -84,7 +96,28 @@ export function createBillingModule(deps: BillingModuleDeps): BillingModule {
   const plans = new PostgresPlanRepository(deps.db);
   const invoices = new PostgresInvoiceRepository(deps.db);
   const costs = new PostgresCostRepository(deps.db);
+  const runs = new PostgresDraftRunRepository(deps.db);
   return {
+    async draftLastMonth() {
+      const outcome = await deps.dataScopes.run({ kind: 'platform' }, () =>
+        runMonthlyDrafts({
+          invoices,
+          details,
+          plans,
+          companies: deps.companies,
+          vehicleUse: deps.vehicleUse,
+          ids: deps.ids,
+          clock: deps.clock,
+          runs,
+        }),
+      );
+      // After the scope has committed, so a slow or failing email cannot undo the drafts or the note that the month was done.
+      if (outcome.ran && deps.tellOwner !== undefined) {
+        const mail = monthlyRunEmail(outcome, deps.portalAddress);
+        await deps.tellOwner(mail.subject, mail.text).catch(() => undefined);
+      }
+      return outcome;
+    },
     registerRoutes(app: FastifyInstance): void {
       registerBillingRoutes(app, {
         billing: { repo: details, clock: deps.clock },

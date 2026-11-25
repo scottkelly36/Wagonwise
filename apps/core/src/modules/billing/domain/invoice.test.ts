@@ -6,6 +6,8 @@ import {
   graceStart,
   monthName,
   nextMonthStart,
+  previousMonth,
+  trialCoversMonth,
   totalPence,
   validateManualLine,
   validateMonth,
@@ -126,5 +128,31 @@ describe('months and manual lines', () => {
     expect(validateManualLine('   ', 100).ok).toBe(false);
     expect(validateManualLine('Set-up', 10.5).ok).toBe(false);
     expect(validateManualLine('x'.repeat(201), 100).ok).toBe(false);
+  });
+});
+
+describe('a free trial and the first month billed', () => {
+  it('covers the month the trial ends in and every month before, so billing starts the first full month after', () => {
+    // A trial ending on 23 February is billed from March.
+    expect(trialCoversMonth('2027-02-23', '2027-01')).toBe(true);
+    expect(trialCoversMonth('2027-02-23', '2027-02')).toBe(true);
+    expect(trialCoversMonth('2027-02-23', '2027-03')).toBe(false);
+  });
+
+  it('treats the last and the first day of a month the way the rule reads', () => {
+    expect(trialCoversMonth('2027-02-28', '2027-02')).toBe(true);
+    expect(trialCoversMonth('2027-03-01', '2027-03')).toBe(true);
+    expect(trialCoversMonth('2027-03-01', '2027-04')).toBe(false);
+  });
+
+  it('bills a company with no trial end as usual', () => {
+    expect(trialCoversMonth(null, '2027-03')).toBe(false);
+    expect(trialCoversMonth(undefined, '2027-03')).toBe(false);
+  });
+
+  it('knows the month before, across a year end', () => {
+    expect(previousMonth('2026-11')).toBe('2026-10');
+    expect(previousMonth('2027-01')).toBe('2026-12');
+    expect(previousMonth('2026-03')).toBe('2026-02');
   });
 });

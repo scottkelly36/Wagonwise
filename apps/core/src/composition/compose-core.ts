@@ -426,12 +426,22 @@ export function composeCore(
     dataScopes,
     callers: { getCaller: staffCaller },
     companies: {
-      list: async () =>
-        (await companies.listCompanyNames()).map((c) => ({
+      list: async () => {
+        const trialEnds = await companies.listTrialEnds();
+        return (await companies.listCompanyNames()).map((c) => ({
           id: makeId<'CompanyId'>(c.id),
           name: c.name,
-        })),
+          // A company on a free trial is not billed for a month the trial covers.
+          trialEndsOn: trialEnds.get(c.id) ?? null,
+        }));
+      },
     },
+    // The monthly run tells the owner (at their alert address, when one is set) that last month's invoices are drafted.
+    tellOwner:
+      config.alertEmail === undefined
+        ? undefined
+        : (subject, text) => identity.sendEmail(config.alertEmail as string, subject, text),
+    portalAddress: config.dashboardUrl,
     // fleet is built just below and needs billing for its capacity check, so this is read only when called.
     vehicles: { countFor: (companyId) => fleet.countVehicles(companyId) },
     // A vehicle was used in a month if it was given a job or had a walk-round check. jobs and checks are built further down, so they are
@@ -1083,6 +1093,22 @@ export function composeCore(
       const done = await companies.runAccountRules();
       if (done.moved > 0 || done.emailed > 0 || done.nobodyToWrite > 0 || done.failed > 0) {
         app.log.info(done, 'company account rules');
+      }
+    },
+  });
+
+  // From the 2nd of each month, last month's invoices are drafted once, for the owner to check (nothing is issued or charged). Checked
+  // every few hours so a restart on the 2nd cannot skip the month; the run records the month, so it is done once.
+  periodicTasks.start({
+    name: 'monthly-invoice-drafts',
+    intervalMs: 4 * 60 * 60 * 1000,
+    run: async () => {
+      const done = await billing.draftLastMonth();
+      if (done.ran) {
+        app.log.info(
+          { month: done.month, drafts: done.drafts.length, totalPence: done.totalPence },
+          "drafted last month's invoices",
+        );
       }
     },
   });
