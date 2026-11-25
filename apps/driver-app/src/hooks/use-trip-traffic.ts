@@ -4,7 +4,7 @@ import { AppState } from 'react-native';
 
 import * as routingApi from '../api/routing';
 import type { MapPoint } from '../components/route-map';
-import { FIRST_TRAFFIC_DELAY_MS, TRAFFIC_INTERVAL_MS } from '../lib/trip-traffic';
+import { FIRST_TRAFFIC_DELAY_MS, TRAFFIC_INTERVAL_MS, worthAsking } from '../lib/trip-traffic';
 import { useAccessToken } from './use-access-token';
 
 /**
@@ -31,12 +31,16 @@ export function useTripTraffic(
     if (tripId === undefined) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // Where the lorry was at the last answer, so an ask is skipped when it has hardly moved (see `worthAsking`).
+    let lastAnswerAt: MapPoint | undefined;
 
     const ask = async (): Promise<void> => {
       const here = latest.current;
       if (AppState.currentState !== 'active' || here === undefined) return;
+      if (!worthAsking(lastAnswerAt, here)) return;
       try {
         const traffic = await routingApi.getTripTraffic(accessToken, tripId, here);
+        lastAnswerAt = here;
         if (!cancelled) setHeld({ tripId, traffic });
       } catch {
         // Silent: keep what we had and try again at the next ask.

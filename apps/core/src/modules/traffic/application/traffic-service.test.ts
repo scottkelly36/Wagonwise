@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { BoundingBox, FlowReading, GeoPoint, TrafficIncident } from '../domain/traffic.js';
-import type { TrafficProvider } from './traffic-provider.js';
+import { ProviderRefused, type TrafficProvider } from './traffic-provider.js';
 import { TrafficService, type TrafficServiceOptions } from './traffic-service.js';
 
 class FakeProvider implements TrafficProvider {
   flowCalls = 0;
   incidentCalls = 0;
   failing = false;
+  refusing = false;
   constructor(
     private readonly reading: FlowReading | undefined = {
       currentSpeedKph: 30,
@@ -17,11 +18,13 @@ class FakeProvider implements TrafficProvider {
   ) {}
   flowAt(_point: GeoPoint): Promise<FlowReading | undefined> {
     this.flowCalls += 1;
+    if (this.refusing) return Promise.reject(new ProviderRefused('not enough credits', 403));
     if (this.failing) return Promise.reject(new Error('down'));
     return Promise.resolve(this.reading);
   }
   incidentsIn(_box: BoundingBox): Promise<TrafficIncident[]> {
     this.incidentCalls += 1;
+    if (this.refusing) return Promise.reject(new ProviderRefused('not enough credits', 403));
     if (this.failing) return Promise.reject(new Error('down'));
     return Promise.resolve(this.incidents);
   }
@@ -30,7 +33,11 @@ class FakeProvider implements TrafficProvider {
 const options: TrafficServiceOptions = {
   cacheTtlMs: 300_000,
   dailyRequestLimit: 100,
-  sampleSpacingM: 5_000,
+  cellDegrees: 0.05,
+  nearHorizonM: 60_000,
+  farEvery: 3,
+  incidentCacheTtlMs: 900_000,
+  refusedPauseMs: 1_800_000,
   maxSamplesPerRoute: 30,
 };
 
@@ -102,7 +109,7 @@ describe('TrafficService.delayAlong', () => {
     const provider = new FakeProvider();
     const service = new TrafficService(provider, clockAt('2026-10-10T09:00:00Z'), {
       ...options,
-      sampleSpacingM: 1_000,
+      cellDegrees: 0.005,
       maxSamplesPerRoute: 4,
     });
     const result = await service.delayAlong(line);
@@ -137,6 +144,93 @@ describe('TrafficService.delayAlong', () => {
       options,
     );
     expect((await service.delayAlong(line)).incidents).toEqual([incident]);
+  });
+});
+
+describe('TrafficService spending', () => {
+  it('reuses readings as the lorry moves along the route: the same road is the same cells, not new points', async () => {
+    const provider = new FakeProvider();
+    const clock = clockAt('2026-10-10T09:00:00Z');
+    const service = new TrafficService(provider, clock, options);
+    await service.delayAlong(line);
+    const spent = provider.flowCalls + provider.incidentCalls;
+    // Four minutes on, the lorry is three points further along and asks again with what is left of the route.
+    clock.set('2026-10-10T09:04:00Z');
+    const later = await service.delayAlong(line.slice(3));
+    expect(provider.flowCalls + provider.incidentCalls).toBe(spent);
+    expect(later.coverage).toBe(1);
+  });
+
+  it('shares a reading between two drivers on the same road', async () => {
+    const provider = new FakeProvider();
+    const service = new TrafficService(provider, clockAt('2026-10-10T09:00:00Z'), options);
+    await service.delayAlong(line);
+    const spent = provider.flowCalls;
+    // Another driver, joining the same road a little further on, with a slightly different line.
+    await service.delayAlong(line.slice(5).map((p) => ({ lat: p.lat, lon: p.lon + 0.0004 })));
+    expect(provider.flowCalls).toBe(spent);
+  });
+
+  it('reads the road just ahead in full and the road far ahead one reading for each few cells', async () => {
+    // About 330 km north: 3 degrees of latitude, a point every 0.01 degree, so a new 0.05 degree cell every 5 points.
+    const long: GeoPoint[] = Array.from({ length: 301 }, (_, i) => ({
+      lat: 52 + i * 0.01,
+      lon: -2,
+    }));
+    const provider = new FakeProvider();
+    const service = new TrafficService(provider, clockAt('2026-10-10T09:00:00Z'), {
+      ...options,
+      maxSamplesPerRoute: 200,
+    });
+    const result = await service.delayAlong(long);
+    // 60 cells in all. 60 km is about 11 cells read one by one, and the other 49 are read one in three, so about 28 readings, not 60.
+    expect(provider.flowCalls).toBeGreaterThanOrEqual(25);
+    expect(provider.flowCalls).toBeLessThanOrEqual(32);
+    // The whole route still has a reading standing for it.
+    expect(result.coverage).toBe(1);
+  });
+
+  it('keeps a box of incidents longer than a flow reading', async () => {
+    const provider = new FakeProvider();
+    const clock = clockAt('2026-10-10T09:00:00Z');
+    const service = new TrafficService(provider, clock, options);
+    await service.delayAlong(line);
+    clock.set('2026-10-10T09:12:00Z'); // past the 5 minute flow time used in these tests, inside the 15 minute incident time
+    await service.delayAlong(line);
+    expect(provider.incidentCalls).toBe(1);
+    clock.set('2026-10-10T09:16:00Z');
+    await service.delayAlong(line);
+    expect(provider.incidentCalls).toBe(2);
+  });
+});
+
+describe('TrafficService when the provider refuses the account', () => {
+  it('stops sending calls for a while after a refusal, and tries again after it', async () => {
+    const provider = new FakeProvider();
+    provider.refusing = true;
+    const clock = clockAt('2026-10-10T09:00:00Z');
+    const service = new TrafficService(provider, clock, options);
+    await service.delayAlong(line);
+    // The first refusal is learned from; the rest of that ask and the next asks send nothing.
+    const afterFirst = provider.flowCalls + provider.incidentCalls;
+    expect(afterFirst).toBeLessThanOrEqual(2);
+    clock.set('2026-10-10T09:10:00Z');
+    await service.delayAlong(line);
+    expect(provider.flowCalls + provider.incidentCalls).toBe(afterFirst);
+    // After the pause (30 minutes) it asks again, and once the account is fine again the readings come back.
+    provider.refusing = false;
+    clock.set('2026-10-10T09:31:00Z');
+    const back = await service.delayAlong(line);
+    expect(provider.flowCalls).toBeGreaterThan(afterFirst - 1);
+    expect(back.coverage).toBe(1);
+  });
+
+  it('does not pause for an ordinary failure: an outage may pass in a moment', async () => {
+    const provider = new FakeProvider();
+    provider.failing = true;
+    const service = new TrafficService(provider, clockAt('2026-10-10T09:00:00Z'), options);
+    await service.delayAlong(line);
+    expect(provider.flowCalls).toBeGreaterThan(2);
   });
 });
 
