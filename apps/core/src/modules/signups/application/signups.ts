@@ -2,6 +2,7 @@ import { checkEmail } from '@wagonwise/contracts/email-check';
 
 import { makeId } from '../../../shared/brand.js';
 import { INVITE_SUBJECT, inviteEmail } from '../domain/invite-email.js';
+import { ownerAlert, REGISTRANT_SUBJECT, registrantReply } from '../domain/registration-emails.js';
 import { LAUNCH_SUBJECT, launchEmailHtml, launchEmailText } from '../domain/launch-email.js';
 import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
@@ -42,10 +43,23 @@ export interface TesterRepository {
   deleteByEmail(email: string): Promise<void>;
 }
 
+/**
+ * Supplied by composition: a line to the owner, and an email to the person who registered. Sending is never allowed to fail or slow a
+ * registration, so nothing waits on these.
+ */
+export interface SignupNotifier {
+  /** To the owner's alert address; nothing happens when none is set. */
+  toOwner(subject: string, text: string): Promise<void>;
+  toRegistrant(to: string, subject: string, text: string): Promise<void>;
+  /** The portal's address, for the owner's "start a trial" link. */
+  readonly portalAddress?: string | undefined;
+}
+
 export interface SignupDeps {
   readonly testers: TesterRepository;
   readonly ids: IdGenerator;
   readonly clock: Clock;
+  readonly notify?: SignupNotifier | undefined;
 }
 
 /** The first moment of the current UTC day. */
@@ -78,12 +92,25 @@ export async function signUp(
   if ((await deps.testers.countSince(startOfDay(now))) >= DAILY_CAP) {
     return err({ tag: 'TooManySignups' });
   }
-  await deps.testers.insertIfNew({
+  const isNew = await deps.testers.insertIfNew({
     id: makeId<'TesterId'>(deps.ids.newId()),
     ...checked.value,
     consentedAt: now,
     createdAt: now,
   });
+  // A firm (not a driver) that was not already on the list: tell the owner, and thank them. Fired and forgotten, so a failed or slow
+  // email never changes the answer, and a repeated address, which was already thanked, is not written to again.
+  if (isNew && deps.notify !== undefined && checked.value.role !== 'driver') {
+    const alert = ownerAlert(checked.value, deps.notify.portalAddress);
+    void Promise.allSettled([
+      deps.notify.toOwner(alert.subject, alert.text),
+      deps.notify.toRegistrant(
+        checked.value.email,
+        REGISTRANT_SUBJECT,
+        registrantReply(checked.value),
+      ),
+    ]);
+  }
   return ok(undefined);
 }
 
