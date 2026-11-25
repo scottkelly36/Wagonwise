@@ -22,10 +22,7 @@ export function StartTrial() {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    if (token === '') {
-      setPreview({ valid: false });
-      return;
-    }
+    if (token === '') return;
     let cancelled = false;
     staffApi
       .previewTrialLink(token)
@@ -58,6 +55,8 @@ export function StartTrial() {
   }
 
   const heading = <h1>Start your free trial</h1>;
+  // A page opened with no link in it has nothing to check: it is the same as a link that is no good.
+  const shown: TrialLinkPreview | undefined = token === '' ? { valid: false } : preview;
   if (done !== undefined) {
     return (
       <div style={{ maxWidth: 420, margin: '80px auto' }}>
@@ -71,7 +70,7 @@ export function StartTrial() {
       </div>
     );
   }
-  if (preview === undefined) {
+  if (shown === undefined) {
     return (
       <div style={{ maxWidth: 420, margin: '80px auto' }}>
         {heading}
@@ -79,7 +78,7 @@ export function StartTrial() {
       </div>
     );
   }
-  if (!preview.valid) {
+  if (!shown.valid) {
     const outcome = startTrialOutcome('invalid', undefined);
     return (
       <div style={{ maxWidth: 420, margin: '80px auto' }}>
@@ -88,8 +87,8 @@ export function StartTrial() {
       </div>
     );
   }
-  if (preview.started === true) {
-    const outcome = startTrialOutcome('already_started', preview.email);
+  if (shown.started === true) {
+    const outcome = startTrialOutcome('already_started', shown.email);
     return (
       <div style={{ maxWidth: 420, margin: '80px auto' }}>
         <h1>{outcome.title}</h1>
@@ -105,7 +104,7 @@ export function StartTrial() {
     <div style={{ maxWidth: 420, margin: '80px auto' }}>
       {heading}
       <p>
-        This confirms <strong>{preview.email}</strong> and opens your WagonWise trial: the fleet
+        This confirms <strong>{shown.email}</strong> and opens your WagonWise trial: the fleet
         portal with room for 5 vehicles, free while you try it, with no card needed. We will email
         an invitation so you can choose your password.
       </p>
@@ -115,7 +114,7 @@ export function StartTrial() {
           void press();
         }}
       >
-        {preview.needsCompany === true && (
+        {shown.needsCompany === true && (
           <>
             <label htmlFor="company">Your firm&apos;s name</label>
             <input
@@ -129,16 +128,16 @@ export function StartTrial() {
             />
           </>
         )}
-        {preview.company !== undefined && (
+        {shown.company !== undefined && (
           <p>
-            Firm: <strong>{preview.company}</strong>
+            Firm: <strong>{shown.company}</strong>
           </p>
         )}
         {error !== undefined && <p className="text-danger">{error}</p>}
         <button
           type="submit"
           className="btn-primary"
-          disabled={pending || (preview.needsCompany === true && company.trim() === '')}
+          disabled={pending || (shown.needsCompany === true && company.trim() === '')}
         >
           {pending ? 'Starting…' : 'Start my trial'}
         </button>
