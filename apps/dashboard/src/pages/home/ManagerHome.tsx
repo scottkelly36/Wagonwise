@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import * as billingApi from '../../api/billing';
 import * as checksApi from '../../api/checks';
 import * as fleetApi from '../../api/fleet';
@@ -9,6 +10,7 @@ import * as maintenanceApi from '../../api/maintenance';
 import { HomeFailed, HomeNote, HomePanel, HomeRows, HomeTiles } from '../../components/HomeParts';
 import { driverNamesById } from '../../lib/driver-name';
 import { complianceRows, localDay, lowOnHours, managerTiles, onTheRoad } from '../../lib/home';
+import { firstRunSteps, isBrandNew, showFirstRun } from '../../lib/first-run';
 import { byUrgency, managerSummary, todaysJobs } from '../../lib/home-summary';
 import { holds } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -126,6 +128,20 @@ export function ManagerHome({ companyId }: { companyId: string }) {
     lowHours: lowHours.length,
   });
 
+  // A firm that has only just started is led through three steps instead of a wall of zeros.
+  const vehicleCount = vehicles.isSuccess ? vehicles.data.length : undefined;
+  const jobCount = jobs.isSuccess ? jobs.data.length : undefined;
+  const steps = firstRunSteps({
+    vehicles: vehicleCount,
+    activeDrivers: drivers.isSuccess
+      ? drivers.data.filter((l) => l.status === 'active').length
+      : undefined,
+    jobs: jobCount,
+    canManageFleet: holds(me, 'manage_fleet'),
+    canDispatch: holds(me, 'dispatch'),
+  });
+  const brandNew = isBrandNew({ vehicles: vehicleCount, jobs: jobCount }) && steps.length > 0;
+
   const { rows, checksShare } = complianceRows({
     vehicles: vehicles.data,
     checksToday: seesChecks ? checksToday.data : undefined,
@@ -146,77 +162,108 @@ export function ManagerHome({ companyId }: { companyId: string }) {
           ? 'Checking the fleet…'
           : jobs.isError
             ? 'The jobs could not be loaded, so nothing here can be trusted yet.'
-            : summary}
+            : brandNew
+              ? 'Welcome. Three short steps will get your fleet set up.'
+              : summary}
       </p>
-      <HomeTiles tiles={byUrgency(tiles)} loading={jobs.isPending || jobs.isError} />
+      {showFirstRun(steps) && (
+        <section className="home-panel" aria-label="Getting started" style={{ marginBottom: 16 }}>
+          <h2>
+            <span className="home-dot" data-area="ops" aria-hidden="true" />
+            Getting started
+          </h2>
+          {steps.map((step, index) => (
+            <div key={step.key} className="home-row">
+              <span>
+                <strong>
+                  {index + 1}. <Link to={step.to}>{step.title}</Link>
+                </strong>
+                <br />
+                <span className="muted">{step.detail}</span>
+              </span>
+              <span className={step.done ? 'tone-good' : 'muted'}>
+                {step.done ? 'Done' : 'To do'}
+              </span>
+            </div>
+          ))}
+          <HomeNote>
+            Stuck? <Link to="/guide/start">Read the getting-started guide</Link>.
+          </HomeNote>
+        </section>
+      )}
+      {!brandNew && <HomeTiles tiles={byUrgency(tiles)} loading={jobs.isPending || jobs.isError} />}
       <div className="home-panels">
-        <HomePanel title="Today's jobs" area="ops" to="/fleet/jobs" linkLabel="Open jobs">
-          {jobs.isPending ? (
-            <HomeNote>Loading…</HomeNote>
-          ) : jobs.isError ? (
-            <HomeFailed onRetry={() => void jobs.refetch()}>
-              Today's jobs could not be loaded.
-            </HomeFailed>
-          ) : dayJobs.total === 0 ? (
-            <HomeNote>No jobs are planned for today.</HomeNote>
-          ) : (
-            <div>
-              {dayJobs.rows.map((row) => (
-                <div key={row.jobId} className="home-row">
-                  <span>
-                    <strong>{row.reference}</strong>
-                    {row.route === '' ? '' : `, ${row.route}`}
-                  </span>
-                  <span className={row.tone === 'quiet' ? 'muted' : `tone-${row.tone}`}>
-                    {row.status}
-                  </span>
-                </div>
-              ))}
-              <HomeNote>
-                {dayJobs.delivered} of {dayJobs.total} delivered
-                {dayJobs.more > 0 ? `, ${dayJobs.more} more not shown` : ''}
-              </HomeNote>
-            </div>
-          )}
-        </HomePanel>
+        {!brandNew && (
+          <HomePanel title="Today's jobs" area="ops" to="/fleet/jobs" linkLabel="Open jobs">
+            {jobs.isPending ? (
+              <HomeNote>Loading…</HomeNote>
+            ) : jobs.isError ? (
+              <HomeFailed onRetry={() => void jobs.refetch()}>
+                Today's jobs could not be loaded.
+              </HomeFailed>
+            ) : dayJobs.total === 0 ? (
+              <HomeNote>No jobs are planned for today.</HomeNote>
+            ) : (
+              <div>
+                {dayJobs.rows.map((row) => (
+                  <div key={row.jobId} className="home-row">
+                    <span>
+                      <strong>{row.reference}</strong>
+                      {row.route === '' ? '' : `, ${row.route}`}
+                    </span>
+                    <span className={row.tone === 'quiet' ? 'muted' : `tone-${row.tone}`}>
+                      {row.status}
+                    </span>
+                  </div>
+                ))}
+                <HomeNote>
+                  {dayJobs.delivered} of {dayJobs.total} delivered
+                  {dayJobs.more > 0 ? `, ${dayJobs.more} more not shown` : ''}
+                </HomeNote>
+              </div>
+            )}
+          </HomePanel>
+        )}
 
-        <HomePanel
-          title="On the road now"
-          area="ops"
-          to="/fleet/live-trips"
-          linkLabel="Open live trips"
-        >
-          {jobs.isPending ? (
-            <HomeNote>Loading…</HomeNote>
-          ) : jobs.isError ? (
-            <HomeFailed onRetry={() => void jobs.refetch()}>
-              Jobs on the road could not be loaded.
-            </HomeFailed>
-          ) : road.length === 0 ? (
-            <HomeNote>No vehicles are on a job right now.</HomeNote>
-          ) : (
-            <div>
-              {road.map((row) => (
-                <div key={row.jobId} className="home-row">
-                  <span>
-                    <strong>{row.reference}</strong>, {row.who}
-                  </span>
-                  <span className={row.late ? 'tone-warn' : 'muted'}>
-                    {row.late ? `Late by ${row.lateBy ?? ''}`.trim() : row.eta}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          {lowHours.length > 0 && (
-            <div className="home-row">
-              <span className="muted">Driving hours</span>
-              <span className="tone-bad">{lowHours.join('; ')}</span>
-            </div>
-          )}
-        </HomePanel>
+        {!brandNew && (
+          <HomePanel
+            title="On the road now"
+            area="ops"
+            to="/fleet/live-trips"
+            linkLabel="Open live trips"
+          >
+            {jobs.isPending ? (
+              <HomeNote>Loading…</HomeNote>
+            ) : jobs.isError ? (
+              <HomeFailed onRetry={() => void jobs.refetch()}>
+                Jobs on the road could not be loaded.
+              </HomeFailed>
+            ) : road.length === 0 ? (
+              <HomeNote>No vehicles are on a job right now.</HomeNote>
+            ) : (
+              <div>
+                {road.map((row) => (
+                  <div key={row.jobId} className="home-row">
+                    <span>
+                      <strong>{row.reference}</strong>, {row.who}
+                    </span>
+                    <span className={row.late ? 'tone-warn' : 'muted'}>
+                      {row.late ? `Late by ${row.lateBy ?? ''}`.trim() : row.eta}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {lowHours.length > 0 && (
+              <div className="home-row">
+                <span className="muted">Driving hours</span>
+                <span className="tone-bad">{lowHours.join('; ')}</span>
+              </div>
+            )}
+          </HomePanel>
+        )}
 
-        {rows.length > 0 && (
+        {!brandNew && rows.length > 0 && (
           <HomePanel
             title="Compliance today"
             area="compliance"
