@@ -132,6 +132,25 @@ describe('generateInvoices', () => {
     });
   });
 
+  it('leaves a company alone whose free trial covers the month, and bills it from the first full month after', async () => {
+    const { deps } = await setup();
+    const trialling: InvoiceDeps = {
+      ...deps,
+      companies: {
+        list: () =>
+          Promise.resolve([
+            { id: acme, name: 'Acme Freight', trialEndsOn: '2026-10-31' },
+            { id: beta, name: 'Beta Haulage', trialEndsOn: '2026-09-30' },
+          ]),
+      },
+    };
+    const result = await generateInvoices(trialling, admin, staffId, '2026-10');
+    expect(result.ok && result.value.created.map((i) => i.companyName)).toEqual(['Beta Haulage']);
+    expect(result.ok && result.value.skipped).toEqual([
+      { companyId: acme, name: 'Acme Freight', reason: 'on_trial' },
+    ]);
+  });
+
   it('refuses a month that is not over, a bad month, and anyone but an admin', async () => {
     const { deps } = await setup();
     expect(await generateInvoices(deps, admin, staffId, '2026-12')).toEqual({

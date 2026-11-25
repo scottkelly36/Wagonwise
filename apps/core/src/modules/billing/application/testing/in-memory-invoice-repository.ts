@@ -38,7 +38,7 @@ export class InMemoryInvoiceRepository implements InvoiceRepository {
     );
   }
 
-  insertDraft(invoice: Invoice, _createdBy: StaffId): Promise<void> {
+  insertDraft(invoice: Invoice, _createdBy: StaffId | null): Promise<void> {
     this.#byId.set(invoice.id, invoice);
     return Promise.resolve();
   }

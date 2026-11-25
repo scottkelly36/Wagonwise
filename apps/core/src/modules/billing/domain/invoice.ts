@@ -121,6 +121,24 @@ export interface VehicleUse {
 /** A vehicle first used in the last this-many days of a month is not billed for that month, only from the next month it is used in. */
 export const NEW_VEHICLE_GRACE_DAYS = 7;
 
+/**
+ * Whether a company's free trial covers the month, so it is not billed for it. A trial that ends on a day in the month, or later, covers
+ * it; the first month billed is the first full month after the trial ends (the owner's rule: a trial ending on 23 February bills from
+ * March). A company with no trial end (one set up by hand, or from before trials) is billed as usual.
+ */
+export function trialCoversMonth(
+  trialEndsOn: string | null | undefined,
+  month: MonthString,
+): boolean {
+  return trialEndsOn !== null && trialEndsOn !== undefined && trialEndsOn >= `${month}-01`;
+}
+
+/** The month before `month`, across a year end: `2027-01` is `2026-12`. */
+export function previousMonth(month: MonthString): MonthString {
+  const [year, m] = month.split('-').map(Number) as [number, number];
+  return m === 1 ? `${year - 1}-12` : `${year}-${String(m - 1).padStart(2, '0')}`;
+}
+
 /** The first day of the month after `month`, as `YYYY-MM-DD`: where a month's range ends (exclusive). */
 export function nextMonthStart(month: MonthString): Day {
   const [year, m] = month.split('-').map(Number) as [number, number];

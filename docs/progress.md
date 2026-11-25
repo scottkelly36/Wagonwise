@@ -31,8 +31,8 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
   **billing on the vehicles used** (a job or a check in the month; invoices drafted after it ends). `modules.md`, "Billing" and "Payments".
 - **Owner, in DigitalOcean on `core` only:** `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (together; sandbox first), `DASHBOARD_URL=https://dashboard.wagon-wise.co.uk`, `ALERT_EMAIL`. In Stripe, a webhook to
   `https://api.wagon-wise.co.uk/webhooks/payments` (`checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed`). Sandbox and live have separate endpoints, secrets and keys.
-- **Open:** declined-card and Direct Debit runs; terms and privacy pages; real billing details (invoices cannot be issued while they hold brackets); a trial firm is still drafted an invoice (delete it).
-  Paying is still by hand (plan limit, monthly invoicing, collection): build it once there are more firms than can be invoiced by hand.
+- **Self-serve, built 2026-11-25:** the vehicle limit lifts with a card on file; a firm starts its own trial from an emailed link; last month is drafted on the 2nd; "Issue and collect all" issues and charges. Billed from the first full month after a trial.
+- **Open:** declined-card and Direct Debit runs; terms and privacy pages; real billing details (invoices cannot be issued while they hold brackets).
 
 ## Next up (in order)
 

@@ -120,6 +120,8 @@ export interface CompaniesModule {
   listPhotoRetention(): Promise<ReadonlyMap<string, number>>;
   /** Every company's id and name, for billing's admin screens. */
   listCompanyNames(): Promise<readonly { readonly id: string; readonly name: string }[]>;
+  /** The last day of each company's free trial, by company id (null when it has none), so billing does not bill a month a trial covers. */
+  listTrialEnds(): Promise<ReadonlyMap<string, string | null>>;
   /**
    * The live fleet accounts of a company, with their email and what they may do, for maintenance's morning reminder.
    * Opens its own data scope, so call it outside any other `DataScopes.run`.
@@ -329,6 +331,9 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     async listCompanyNames() {
       const all = await repo.findAll();
       return all.map((c) => ({ id: c.id, name: c.name }));
+    },
+    async listTrialEnds(): Promise<ReadonlyMap<string, string | null>> {
+      return new Map((await accountStates.getAll()).map((s) => [s.companyId, s.trialEndsOn]));
     },
     async listPhotoRetention(): Promise<ReadonlyMap<string, number>> {
       const all = await repo.findAll();

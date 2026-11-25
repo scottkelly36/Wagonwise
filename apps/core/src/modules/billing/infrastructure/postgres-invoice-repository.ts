@@ -99,7 +99,7 @@ export class PostgresInvoiceRepository implements InvoiceRepository {
     return this.#withLines(rows);
   }
 
-  async insertDraft(invoice: Invoice, createdBy: StaffId): Promise<void> {
+  async insertDraft(invoice: Invoice, createdBy: StaffId | null): Promise<void> {
     await sql`
       insert into billing.invoices (id, company_id, company_name, month, status, created_at, created_by)
       values (${invoice.id}, ${invoice.companyId}, ${invoice.companyName}, ${invoice.month}, 'draft',

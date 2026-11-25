@@ -7,6 +7,7 @@ import { useState } from 'react';
 import * as billingApi from '../../api/billing';
 import * as paymentsApi from '../../api/payments';
 import { DataTable, type Column } from '../../components/DataTable';
+import { MonthRunPanel } from '../../components/MonthRunPanel';
 import { invoiceHtml, monthLabel } from '../../lib/invoice-print';
 import { formatPence, parsePounds, ukToday } from '../../lib/money';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
@@ -51,9 +52,10 @@ export function Invoices() {
       refresh();
       const already = result.skipped.filter((s) => s.reason === 'already_invoiced').length;
       const nothing = result.skipped.filter((s) => s.reason === 'nothing_to_bill').length;
+      const trial = result.skipped.filter((s) => s.reason === 'on_trial').length;
       setNotice(
         `${result.created.length} draft${result.created.length === 1 ? '' : 's'} made for ${monthLabel(month)}. ` +
-          `${already} already invoiced, ${nothing} with nothing to bill.`,
+          `${already} already invoiced, ${nothing} with nothing to bill${trial === 0 ? '' : `, ${trial} on a free trial`}.`,
       );
     },
   });
@@ -134,6 +136,7 @@ export function Invoices() {
       {notice !== undefined && <p className="text-success">{notice}</p>}
       {generate.isError && <p className="text-danger">{staffErrorMessage(generate.error)}</p>}
       {invoices.isError && <ErrorNotice error={invoices.error} />}
+      <MonthRunPanel month={month} invoices={invoices.data ?? []} onDone={refresh} />
 
       {invoices.isPending ? (
         <Loading />
