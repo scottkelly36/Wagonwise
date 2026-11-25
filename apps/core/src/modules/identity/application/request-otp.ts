@@ -5,10 +5,21 @@ import { identifierForms, type InvalidIdentifier } from '../domain/identifier.js
 import { isRedeemed } from '../domain/invite-code.js';
 import type {
   CodeNotSent,
+  DisposableEmail,
   InvalidInviteCode,
   InviteCodeRequired,
   PasswordRequired,
+  SendsPaused,
+  SignUpsPaused,
+  TooManyCodes,
+  UkMobileRequired,
 } from './errors.js';
+import {
+  acceptableNewIdentifier,
+  signUpsPaused,
+  type NewAccountLimits,
+} from './new-account-guard.js';
+import type { SendThrottle } from './ports/send-throttle.js';
 import { deliverableEmail } from './email-ending.js';
 import { issueOtp, OTP_TTL_MS as ISSUED_OTP_TTL_MS } from './issue-otp.js';
 import type { CredentialRepository } from './ports/credential-repository.js';
@@ -18,7 +29,8 @@ import type { OtpCodeGenerator } from './ports/otp-code-generator.js';
 import type { OtpRepository } from './ports/otp-repository.js';
 import type { OtpSender } from './ports/otp-sender.js';
 
-export interface RequestOtpDeps {
+export interface RequestOtpDeps extends NewAccountLimits {
+  readonly sendThrottle?: SendThrottle | undefined;
   readonly driverRepo: DriverRepository;
   readonly inviteCodeRepo: InviteCodeRepository;
   readonly credentialRepo: CredentialRepository;
@@ -42,7 +54,16 @@ export interface RequestOtpInput {
 export const OTP_TTL_MS = ISSUED_OTP_TTL_MS;
 
 export type RequestOtpError =
-  InvalidIdentifier | InviteCodeRequired | InvalidInviteCode | CodeNotSent | PasswordRequired;
+  | InvalidIdentifier
+  | InviteCodeRequired
+  | InvalidInviteCode
+  | CodeNotSent
+  | PasswordRequired
+  | TooManyCodes
+  | SendsPaused
+  | SignUpsPaused
+  | DisposableEmail
+  | UkMobileRequired;
 
 /**
  * Sends a one-time code. For a new identifier, validates an invite code without redeeming it —
@@ -68,6 +89,13 @@ export async function requestOtp(
     return err({ tag: 'PasswordRequired' });
   }
   const identifier = existingDriver?.identifier ?? forms.value[0];
+  if (!existingDriver) {
+    // A new account: not a throwaway email, a UK mobile for a text, and not past today's limit. All before any code is sent.
+    const acceptable = acceptableNewIdentifier(identifier);
+    if (!acceptable.ok) return acceptable;
+    const open = await signUpsPaused(deps, deps.clock.now());
+    if (!open.ok) return open;
+  }
   if (!existingDriver && deps.inviteRequired) {
     if (!input.inviteCode) {
       return err({ tag: 'InviteCodeRequired' });

@@ -44,6 +44,9 @@ export type IdentityError =
   | ConfirmEmailAdditionError;
 
 /**
+ * New in open sign-up (docs/driver-sign-in-plan.md): `DisposableEmail` and `UkMobileRequired` are 400 (the app words them itself); `TooManyCodes` is 429, which the
+ * released app already shows as "wait a minute"; `SendsPaused` and `SignUpsPaused` (today's texts or new accounts used up) are 503, which it shows as "not something you did".
+ *
  * Tag -> HTTP status, in exactly one table (AGENTS.md rule 13). `switch-exhaustiveness-check`
  * means a new domain error tag breaks compilation here instead of silently becoming a 500.
  */
@@ -58,6 +61,8 @@ export function statusFor(error: IdentityError): number {
     case 'PasswordTooShort':
     case 'PasswordTooLong':
     case 'PasswordIsEmail':
+    case 'DisposableEmail':
+    case 'UkMobileRequired':
       return 400;
     case 'OtpNotFound':
     case 'SessionNotFound':
@@ -81,10 +86,13 @@ export function statusFor(error: IdentityError): number {
     case 'RefreshTokenInvalid':
       return 401;
     case 'TooManyAttempts':
+    case 'TooManyCodes':
       return 429;
     case 'CodeNotSent':
       return 502;
     case 'ProviderNotConfigured':
+    case 'SendsPaused':
+    case 'SignUpsPaused':
       return 503;
     case 'Forbidden':
     case 'EmailNotVerified':

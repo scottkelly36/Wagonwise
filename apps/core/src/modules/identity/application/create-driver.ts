@@ -5,12 +5,13 @@ import { err, ok, type Result } from '../../../shared/result.js';
 import type { Driver, DriverId } from '../domain/driver.js';
 import { isRedeemed, redeem } from '../domain/invite-code.js';
 import { newCredential } from '../domain/password.js';
-import type { InvalidInviteCode, InviteCodeRequired } from './errors.js';
+import type { InvalidInviteCode, InviteCodeRequired, SignUpsPaused } from './errors.js';
+import { signUpsPaused, type NewAccountLimits } from './new-account-guard.js';
 import type { CredentialRepository } from './ports/credential-repository.js';
 import type { DriverRepository } from './ports/driver-repository.js';
 import type { InviteCodeRepository } from './ports/invite-code-repository.js';
 
-export interface CreateDriverDeps {
+export interface CreateDriverDeps extends NewAccountLimits {
   readonly driverRepo: DriverRepository;
   readonly inviteCodeRepo: InviteCodeRepository;
   readonly credentialRepo: CredentialRepository;
@@ -37,7 +38,10 @@ export interface CreateDriverInput {
 export async function createDriver(
   deps: CreateDriverDeps,
   input: CreateDriverInput,
-): Promise<Result<Driver, InviteCodeRequired | InvalidInviteCode>> {
+): Promise<Result<Driver, InviteCodeRequired | InvalidInviteCode | SignUpsPaused>> {
+  // Google and Apple sign-in never pass through the code request, so the limit on new accounts is checked here too.
+  const open = await signUpsPaused(deps, input.now);
+  if (!open.ok) return open;
   let invite = input.inviteCode ? await deps.inviteCodeRepo.findByCode(input.inviteCode) : null;
   if (invite && isRedeemed(invite)) invite = null;
   if (deps.inviteRequired) {

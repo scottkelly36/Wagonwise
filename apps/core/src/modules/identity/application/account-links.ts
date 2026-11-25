@@ -15,7 +15,10 @@ import type {
   CodeNotSent,
   DriverNotFound,
   EmailAlreadySet,
+  SendsPaused,
+  TooManyCodes,
 } from './errors.js';
+import type { SendThrottle } from './ports/send-throttle.js';
 import { deliverableEmail } from './email-ending.js';
 import { issueOtp } from './issue-otp.js';
 import type { DriverRepository } from './ports/driver-repository.js';
@@ -32,6 +35,7 @@ import { consumeOtp, type OtpCheckError } from './password-accounts.js';
  * (`requestEmailAddition`, `confirmEmailAddition`). They are signed in, so the session is the proof of whose account it is.
  */
 export interface AccountLinkDeps {
+  readonly sendThrottle?: SendThrottle | undefined;
   readonly driverRepo: DriverRepository;
   readonly federatedRepo: FederatedIdentityRepository;
   readonly idTokenVerifier: IdTokenVerifier;
@@ -84,7 +88,9 @@ export type RequestEmailAdditionError =
   | EmailRequired
   | EmailAlreadySet
   | AccountExists
-  | CodeNotSent;
+  | CodeNotSent
+  | TooManyCodes
+  | SendsPaused;
 
 /** Only an account made with a phone number can add an email, and not one that another account already uses. */
 async function checkEmailCanBeAdded(

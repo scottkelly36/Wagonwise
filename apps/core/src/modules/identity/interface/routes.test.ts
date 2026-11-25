@@ -19,6 +19,7 @@ import { SequentialInviteCodeGenerator } from '../application/testing/sequential
 import { SequentialOtpCodeGenerator } from '../application/testing/sequential-otp-code-generator.js';
 import { SequentialRefreshTokenGenerator } from '../application/testing/sequential-refresh-token-generator.js';
 import { StubPlatformStaff } from '../application/testing/stub-platform-staff.js';
+import { InMemorySendThrottle } from '../application/in-memory-send-throttle.js';
 import { registerIdentityRoutes, type IdentityRouteDeps } from './routes.js';
 
 const now = new Date('2026-06-15T08:00:00.000Z');
@@ -43,7 +44,10 @@ function asStaff(staffId: string): { headers: Record<string, string> } {
   return { headers: { [STAFF_HEADER]: staffId } };
 }
 
-function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
+function buildApp(requestOtpOverrides: Partial<IdentityRouteDeps['requestOtp']> = {}): {
+  app: FastifyInstance;
+  deps: IdentityRouteDeps;
+} {
   const driverRepo = new InMemoryDriverRepository();
   const inviteCodeRepo = new InMemoryInviteCodeRepository();
   const otpRepo = new InMemoryOtpRepository();
@@ -67,6 +71,7 @@ function buildApp(): { app: FastifyInstance; deps: IdentityRouteDeps } {
       inviteRequired: true,
       clock,
       ids,
+      ...requestOtpOverrides,
     },
     verifyOtp: {
       driverRepo,
@@ -660,5 +665,59 @@ describe('/staff/invite-codes', () => {
       const response = await app.inject({ method, url, ...asDriver('driver-1') });
       expect(response.statusCode).toBe(404);
     }
+  });
+});
+
+describe('POST /identity/otp/request: guards on open sign-up', () => {
+  const ask = (app: FastifyInstance, identifier: string) =>
+    app.inject({ method: 'POST', url: '/identity/otp/request', payload: { identifier } });
+
+  it('answers 429 TooManyCodes when a second code is asked for within half a minute', async () => {
+    const { app } = buildApp({
+      inviteRequired: false,
+      sendThrottle: new InMemorySendThrottle(new FakeClock(now), 0),
+    });
+    expect((await ask(app, 'sam@example.com')).statusCode).toBe(200);
+    const held = await ask(app, 'sam@example.com');
+    expect(held.statusCode).toBe(429);
+    expect(held.json()).toMatchObject({ tag: 'TooManyCodes' });
+  });
+
+  it('answers 400 for a throwaway email and for a number outside the UK, with no invite code needed', async () => {
+    const { app } = buildApp({ inviteRequired: false });
+    const disposable = await ask(app, 'bot@mailinator.com');
+    expect(disposable.statusCode).toBe(400);
+    expect(disposable.json()).toMatchObject({ tag: 'DisposableEmail' });
+    const abroad = await ask(app, '+33612345678');
+    expect(abroad.statusCode).toBe(400);
+    expect(abroad.json()).toMatchObject({ tag: 'UkMobileRequired' });
+  });
+
+  it('answers 503 SendsPaused when the day of texts is used up, and an email still goes', async () => {
+    const { app } = buildApp({
+      inviteRequired: false,
+      sendThrottle: new InMemorySendThrottle(new FakeClock(now), 1),
+    });
+    expect((await ask(app, '+447700900001')).statusCode).toBe(200);
+    const paused = await ask(app, '+447700900002');
+    expect(paused.statusCode).toBe(503);
+    expect(paused.json()).toMatchObject({ tag: 'SendsPaused' });
+    expect((await ask(app, 'sam@example.com')).statusCode).toBe(200);
+  });
+
+  it('answers 503 SignUpsPaused once the day has had its limit of new accounts, and still lets an existing driver in', async () => {
+    const { app, deps } = buildApp({ inviteRequired: false, newDriversPerDay: 1 });
+    await deps.requestOtp.driverRepo.save({
+      id: makeId<'DriverId'>('d-today'),
+      identifier: 'first@example.com',
+      createdAt: new Date(now),
+      name: undefined,
+      consentedAt: undefined,
+      deletedAt: undefined,
+    });
+    const paused = await ask(app, 'new@example.com');
+    expect(paused.statusCode).toBe(503);
+    expect(paused.json()).toMatchObject({ tag: 'SignUpsPaused' });
+    expect((await ask(app, 'first@example.com')).statusCode).toBe(200);
   });
 });

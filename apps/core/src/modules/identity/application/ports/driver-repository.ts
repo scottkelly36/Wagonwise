@@ -6,6 +6,8 @@ export interface DriverRepository {
   /** The driver stored under any one of these forms of the same email or number, the first form preferred. */
   findByAnyIdentifier(identifiers: readonly string[]): Promise<Driver | null>;
   findById(id: DriverId): Promise<Driver | null>;
+  /** How many driver accounts were made since a time, for the daily limit on new accounts. Counted in the database, so a restart does not reset it. */
+  countCreatedSince(since: Date): Promise<number>;
   /**
    * Upsert — a Driver is created once (`verify-otp.ts`) but now also mutates in place (M8:
    * `consent()`, `anonymize()`), same "save is upsert" convention every other repository in this

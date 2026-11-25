@@ -11,6 +11,11 @@ export const REQUEST_OTP_MESSAGES: Record<string, string> = {
     "We couldn't send your sign-in code. Try again in a minute. If it keeps happening, let your company or WagonWise know.",
   PasswordRequired:
     'This account has a password. Sign in with your email and password instead of a code.',
+  DisposableEmail: 'Please use a real email address that you keep, not a temporary one.',
+  UkMobileRequired: 'A new account needs a UK mobile number (starting 07) or an email address.',
+  SignUpsPaused: 'We have a lot of new sign-ups today. Please try again tomorrow.',
+  SendsPaused:
+    "We can't send text messages just now. Sign in with your email address, or try again later.",
 };
 
 export const VERIFY_OTP_MESSAGES: Record<string, string> = {

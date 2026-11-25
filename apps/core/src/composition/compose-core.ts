@@ -82,6 +82,7 @@ import { createWeatherModule } from '../modules/weather/api.js';
 import { createSosModule, type UntypedDb as SosUntypedDb } from '../modules/sos/api.js';
 import { createWhat3wordsModule } from '../modules/what3words/api.js';
 import { createBillingModule, type UntypedDb as BillingUntypedDb } from '../modules/billing/api.js';
+import { limitHandler } from './limit-alert.js';
 import { trafficProblemHandler } from './traffic-alert.js';
 import { vehicleLimit } from './vehicle-capacity.js';
 import { mergeVehicleUse } from './vehicle-use.js';
@@ -234,6 +235,18 @@ export function composeCore(
     resendReplyTo: config.resendReplyTo,
     otpSender: overrides.otpSender,
     inviteRequired: config.driverInviteRequired,
+    newDriversPerDay: config.newDriverDailyLimit,
+    otpTextsPerDay: config.otpSmsDailyLimit,
+    // Sign-up that needs no invite code is guarded by a limit on new accounts and one on texts: when either turns someone away the owner is
+    // emailed (at most once every few hours for each), so a surge or a bot is heard about. `app` is built further down; this only runs on a request.
+    onLimitReached: limitHandler({
+      now: () => clock.now(),
+      log: (what) => app.log.warn({ what }, 'sign-up limit reached'),
+      email:
+        config.alertEmail === undefined
+          ? undefined
+          : (subject, text) => identity.sendEmail(config.alertEmail as string, subject, text),
+    }),
     passwordSignIn: config.driverPasswordSignIn,
     googleClientIds: config.googleOauthClientIds,
     appleClientIds: config.appleClientIds,

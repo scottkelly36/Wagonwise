@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../config.js';
 import { buildApp } from './build-app.js';
-import { FixedWindowLimiter, LIMITS } from './rate-limit.js';
+import { FixedWindowLimiter, LIMITS, OPEN_ROUTES } from './rate-limit.js';
 
 describe('FixedWindowLimiter', () => {
   it('allows up to the limit per key per window, then says when to retry', () => {
@@ -112,5 +112,41 @@ describe('rate limit', () => {
       const res = await app.inject({ method: 'GET', url: '/health', headers: from('10.0.0.1') });
       expect(res.statusCode).toBe(200);
     }
+  });
+});
+
+describe('the routes that send a code or open an account get the tighter limit', () => {
+  it('includes the email-and-password sign-up and sign-in routes, not only the code routes', () => {
+    for (const route of [
+      '/identity/otp/request',
+      '/identity/signup/request',
+      '/identity/signup/confirm',
+      '/identity/password/sign-in',
+      '/identity/password/verify',
+      '/identity/password/reset/request',
+      '/identity/password/reset/confirm',
+      '/identity/social/sign-in',
+    ]) {
+      expect(OPEN_ROUTES.has(route)).toBe(true);
+    }
+  });
+
+  it('429s one address on a sign-up route after its allowance', async () => {
+    const app = buildApp(loadConfig({ LOG_LEVEL: 'silent', TRUST_PROXY_HOPS: '1' }));
+    app.post('/identity/signup/request', () => ({ ok: true }));
+    for (let i = 0; i < LIMITS.open.limit; i++) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/identity/signup/request',
+        headers: { 'x-forwarded-for': '203.0.113.9' },
+      });
+      expect(res.statusCode).toBe(200);
+    }
+    const blocked = await app.inject({
+      method: 'POST',
+      url: '/identity/signup/request',
+      headers: { 'x-forwarded-for': '203.0.113.9' },
+    });
+    expect(blocked.statusCode).toBe(429);
   });
 });

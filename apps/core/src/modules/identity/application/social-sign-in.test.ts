@@ -160,3 +160,27 @@ describe('socialSignIn', () => {
     expect((await socialSignIn(deps, { provider: 'google', idToken: 'good' })).ok).toBe(true);
   });
 });
+
+describe('socialSignIn: the daily limit on new accounts', () => {
+  it('refuses a first sign-in once today has had its limit, because Google and Apple never pass through the code request', async () => {
+    const { deps, idTokenVerifier } = build({ newDriversPerDay: 1 });
+    idTokenVerifier.tokens.set('google:new', {
+      subject: 'g-new',
+      email: 'new@example.com',
+      emailVerified: true,
+    });
+    await deps.driverRepo.save({
+      id: makeId<'DriverId'>('d-existing'),
+      identifier: 'someone@example.com',
+      createdAt: deps.clock.now(),
+      name: undefined,
+      consentedAt: undefined,
+      deletedAt: undefined,
+    });
+    const result = await socialSignIn(deps, {
+      provider: 'google',
+      idToken: 'new',
+    });
+    expect(result).toEqual({ ok: false, error: { tag: 'SignUpsPaused' } });
+  });
+});

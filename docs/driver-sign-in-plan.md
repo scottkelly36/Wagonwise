@@ -123,6 +123,7 @@ Switches (read only in `config.ts`):
 
 ## Risks
 
+- **(2026-11-26: the guards below are built; see the log.)** The risks as they stood when written:
 - **Open sign-up means anyone can create accounts:** each email code costs a send (a code lasts 10 minutes and
   allows 5 guesses), and the account lockout stops password guessing. **The driver BFF has no per-address rate
   limit** (the staff BFF has), so a flood of sign-up requests is not slowed down: add one before opening

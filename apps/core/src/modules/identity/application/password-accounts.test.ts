@@ -18,6 +18,7 @@ import {
 } from './password-accounts.js';
 import { requestOtp } from './request-otp.js';
 import { verifyOtp } from './verify-otp.js';
+import { InMemorySendThrottle } from './in-memory-send-throttle.js';
 import { FakeOtpSender } from './testing/fake-otp-sender.js';
 import { FakePasswordHasher } from './testing/fake-password-hasher.js';
 import { FakeTokenSigner } from './testing/fake-token-signer.js';
@@ -351,5 +352,57 @@ describe('adding a password to an existing account', () => {
     expect(
       await setPassword(other, { driverId: makeId<'DriverId'>('nobody'), password: PASSWORD }),
     ).toEqual({ ok: false, error: { tag: 'DriverNotFound' } });
+  });
+});
+
+describe('guards on open sign-up', () => {
+  it('turns away a throwaway email before a code is sent', async () => {
+    const { deps, sender } = build();
+    expect(await requestSignupCode(deps, { email: 'bot@mailinator.com' })).toEqual({
+      ok: false,
+      error: { tag: 'DisposableEmail' },
+    });
+    expect(sender.sent).toHaveLength(0);
+  });
+
+  it('refuses a new account once today has had its limit, and an existing account is not held by it', async () => {
+    const { deps, sender } = build({ newDriversPerDay: 1 });
+    await deps.driverRepo.save({
+      id: makeId<'DriverId'>('d1'),
+      identifier: 'first@example.com',
+      createdAt: deps.clock.now(),
+      name: undefined,
+      consentedAt: undefined,
+      deletedAt: undefined,
+    });
+    expect(await requestSignupCode(deps, { email: EMAIL })).toEqual({
+      ok: false,
+      error: { tag: 'SignUpsPaused' },
+    });
+    expect(sender.sent).toHaveLength(0);
+  });
+
+  it('holds a second signup code to the same address for half a minute', async () => {
+    const clock = new FakeClock('2026-11-26T10:00:00.000Z');
+    const { deps, sender } = build({ clock, sendThrottle: new InMemorySendThrottle(clock, 0) });
+    expect((await requestSignupCode(deps, { email: EMAIL })).ok).toBe(true);
+    expect(await requestSignupCode(deps, { email: EMAIL })).toEqual({
+      ok: false,
+      error: { tag: 'TooManyCodes', retryAfterSeconds: 30 },
+    });
+    expect(sender.sent).toHaveLength(1);
+  });
+
+  it('answers a forgotten-password request the same whether or not the code was held, so the limit does not say who has an account', async () => {
+    const clock = new FakeClock('2026-11-26T10:00:00.000Z');
+    const { deps, sender } = build({ clock, sendThrottle: new InMemorySendThrottle(clock, 0) });
+    await signedUp(deps, sender);
+    clock.advance(31_000);
+    const first = await requestPasswordReset(deps, { email: EMAIL });
+    const sentAfterFirst = sender.sent.length;
+    const held = await requestPasswordReset(deps, { email: EMAIL });
+    expect(first).toEqual({ ok: true, value: undefined });
+    expect(held).toEqual({ ok: true, value: undefined });
+    expect(sender.sent).toHaveLength(sentAfterFirst);
   });
 });

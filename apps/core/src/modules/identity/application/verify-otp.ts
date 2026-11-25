@@ -12,7 +12,13 @@ import {
   type TooManyAttempts,
 } from '../domain/otp.js';
 import { createDriver } from './create-driver.js';
-import type { InvalidInviteCode, InviteCodeRequired, PasswordRequired } from './errors.js';
+import type {
+  InvalidInviteCode,
+  InviteCodeRequired,
+  PasswordRequired,
+  SignUpsPaused,
+} from './errors.js';
+import type { NewAccountLimits } from './new-account-guard.js';
 import { sha256Hex } from './hash.js';
 import { issueSession } from './issue-session.js';
 import type { CredentialRepository } from './ports/credential-repository.js';
@@ -25,7 +31,7 @@ import type { TokenSigner } from './ports/token-signer.js';
 
 export type OtpNotFound = TaggedError<'OtpNotFound'>;
 
-export interface VerifyOtpDeps {
+export interface VerifyOtpDeps extends NewAccountLimits {
   readonly driverRepo: DriverRepository;
   readonly inviteCodeRepo: InviteCodeRepository;
   readonly credentialRepo: CredentialRepository;
@@ -64,6 +70,7 @@ export type VerifyOtpError =
   | TooManyAttempts
   | InviteCodeRequired
   | InvalidInviteCode
+  | SignUpsPaused
   | PasswordRequired;
 
 /**
