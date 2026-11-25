@@ -3,6 +3,7 @@ import {
   sendInvitesRequestSchema,
   sendLaunchEmailsRequestSchema,
   signupRequestSchema,
+  startTrialRequestSchema,
   testerIdParamsSchema,
 } from '@wagonwise/contracts/signups';
 import type { FastifyInstance } from 'fastify';
@@ -15,7 +16,9 @@ import {
   sendInvites,
   sendLaunchEmails,
   signUp,
+  startTrial,
   type CallerDirectory,
+  type FirmStarter,
   type InvitePorts,
   type SignupDeps,
 } from '../application/signups.js';
@@ -23,6 +26,7 @@ import {
 export interface SignupRouteDeps {
   readonly signups: SignupDeps;
   readonly invites: InvitePorts;
+  readonly firms: FirmStarter;
   readonly callerDirectory: CallerDirectory;
   readonly dataScopes: DataScopes;
 }
@@ -86,6 +90,9 @@ export function registerSignupRoutes(app: FastifyInstance, deps: SignupRouteDeps
         ...(t.launchEmailedAt === undefined
           ? {}
           : { launchEmailedAt: t.launchEmailedAt.toISOString() }),
+        ...(t.trialStartedAt === undefined
+          ? {}
+          : { trialStartedAt: t.trialStartedAt.toISOString() }),
       })),
     });
   });
@@ -131,6 +138,34 @@ export function registerSignupRoutes(app: FastifyInstance, deps: SignupRouteDeps
     );
     if (!result.ok) return reply.status(403).send({ ...result.error, requestId: request.id });
     return reply.status(200).send({ results: result.value });
+  });
+
+  app.post('/staff/signups/:id/start-trial', async (request, reply) => {
+    if (request.staffId === undefined) {
+      return reply.status(401).send({ error: 'unauthenticated', requestId: request.id });
+    }
+    const params = testerIdParamsSchema.safeParse(request.params);
+    const body = startTrialRequestSchema.safeParse(request.body);
+    if (!params.success || !body.success)
+      return reply.status(400).send({ error: 'invalid_request', requestId: request.id });
+    const caller = await deps.callerDirectory.getCaller(request.staffId);
+    if (caller === null || caller.kind !== 'platform') {
+      return reply.status(403).send({ tag: 'Forbidden', requestId: request.id });
+    }
+    // Not wrapped in one scope: the firm is made by companies in a scope of its own (the use case says which parts run where).
+    const result = await startTrial(
+      { ...deps.signups, firms: deps.firms },
+      caller,
+      {
+        id: makeId<'TesterId'>(params.data.id),
+        staffId: request.staffId,
+        firmName: body.data.firmName,
+        contactName: body.data.contactName,
+      },
+      (work) => deps.dataScopes.run({ kind: 'platform' }, work),
+    );
+    if (!result.ok) return reply.status(403).send({ ...result.error, requestId: request.id });
+    return reply.status(200).send(result.value);
   });
 
   app.delete('/staff/signups/:id', async (request, reply) => {

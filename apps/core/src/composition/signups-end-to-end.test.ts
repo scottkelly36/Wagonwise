@@ -67,6 +67,8 @@ describe('signups end to end (real RLS, real scopes)', () => {
           return Promise.resolve();
         },
       },
+      // Starting a trial has its own end-to-end test (signup-trial-end-to-end.test.ts).
+      firms: { startTrialFirm: () => Promise.reject(new Error('not used here')) },
     });
     app = Fastify();
     app.addHook('onRequest', (request, _reply, done) => {
