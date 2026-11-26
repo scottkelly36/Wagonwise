@@ -7,6 +7,7 @@ import { queryClient } from '../api/query-client';
 import { announcementIdFrom } from '../lib/announcement-notification';
 import { assignedJobIdFrom } from '../lib/job-notification';
 import { newRoutePlanIdFrom } from '../lib/reroute-notification';
+import { isTachographReminder } from '../lib/tachograph-notification';
 import { trackFlow } from '../lib/flow-events';
 import { tripReminderIdFrom } from '../lib/trip-reminder-notification';
 import { useAuthStore } from '../state/auth-store';
@@ -62,6 +63,13 @@ export function useRerouteNotifications(): void {
       if (opened) router.push('/jobs');
     }
 
+    // A reminder that a tachograph download is due: nothing to refresh, only take them to the screen that sends it when they tap it.
+    function handleTachograph(data: unknown, opened: boolean): void {
+      if (!opened || !isTachographReminder(data)) return;
+      if (useAuthStore.getState().state.status !== 'signedIn') return;
+      router.push('/tachograph');
+    }
+
     // News: refresh the note, so the "What's new" card is there on the home screen. Nothing else: no navigation, so a driver on a trip is never moved off it.
     function handleNews(data: unknown): void {
       if (announcementIdFrom(data) === undefined) return;
@@ -81,6 +89,7 @@ export function useRerouteNotifications(): void {
       handleNews(response.notification.request.content.data);
       handle(newRoutePlanIdFrom(response.notification.request.content.data));
       handleAssigned(response.notification.request.content.data, true);
+      handleTachograph(response.notification.request.content.data, true);
     });
 
     return () => {

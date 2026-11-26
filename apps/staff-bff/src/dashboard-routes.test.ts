@@ -145,6 +145,73 @@ describe('a proof-of-delivery photo for one stop of a job', () => {
   });
 });
 
+describe('tachograph files', () => {
+  const unit = {
+    kind: 'vehicle_unit',
+    vehicleId: ID,
+    fileName: 'V.ddd',
+    downloadedOn: '2026-11-20',
+    dataBase64: 'AAEC',
+  };
+
+  it('forwards the choices, the list, an upload, a download and a delete to core with the token', async () => {
+    for (const [method, url, payload] of [
+      ['GET', `/staff/tachograph/companies/${ACME}/settings`, undefined],
+      [
+        'PUT',
+        `/staff/tachograph/companies/${ACME}/settings`,
+        { driversMaySend: true, retentionMonths: 12 },
+      ],
+      ['GET', `/staff/tachograph/companies/${ACME}/files`, undefined],
+      ['POST', `/staff/tachograph/companies/${ACME}/files`, unit],
+      ['GET', `/staff/tachograph/companies/${ACME}/files/${ID}`, undefined],
+      ['DELETE', `/staff/tachograph/companies/${ACME}/files/${ID}`, undefined],
+    ] as const) {
+      const { app, core } = buildApp();
+      core.nextResponse = { status: 200, body: { relayed: true } };
+      const response = await app.inject({
+        method,
+        url,
+        ...(payload === undefined ? {} : { payload }),
+        headers: AUTH,
+      });
+      expect(response.statusCode).toBe(200);
+      expect(core.calls[0]).toMatchObject({
+        method,
+        path: url,
+        authorization: `Bearer ${STAFF_TOKEN}`,
+      });
+    }
+  });
+
+  it('400s a card file that names no driver, a retention under 12 months and a bad file id, without calling core', async () => {
+    const { app, core } = buildApp();
+    const bad = [
+      [
+        'POST',
+        `/staff/tachograph/companies/${ACME}/files`,
+        { ...unit, kind: 'driver_card', vehicleId: undefined },
+      ],
+      [
+        'PUT',
+        `/staff/tachograph/companies/${ACME}/settings`,
+        { driversMaySend: true, retentionMonths: 6 },
+      ],
+      ['GET', `/staff/tachograph/companies/${ACME}/files/not-an-id`, undefined],
+    ] as const;
+    for (const [method, url, payload] of bad) {
+      const response = await app.inject({
+        method,
+        url,
+        ...(payload === undefined ? {} : { payload }),
+        headers: AUTH,
+      });
+      expect(response.statusCode).toBe(400);
+    }
+    expect(core.calls).toEqual([]);
+  });
+});
+
 describe('the moved dashboard pages (P2-M1.12c)', () => {
   it.each(VALID)(
     '%s %s forwards to the same core path with the token, relaying core as it is',

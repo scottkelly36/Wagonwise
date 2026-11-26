@@ -22,9 +22,14 @@ A digital tachograph keeps two records: the **driver card** (that driver's activ
 that vehicle did, about a year). The firm must copy both off regularly, keep the files, and produce them when asked. The files are signed by
 the card or the unit, so a copy that has been altered can be told from one that has not. The usual file is a `.ddd`.
 
-**Figures to check on GOV.UK:** driver card at least every 28 days and vehicle unit at least every 90 days are what most sources give (one
-gave 21 days for the card, and a DVSA blog 56 days for the unit); files kept for at least 12 months was **not confirmed**. The vehicle unit
-download needs a **company card**.
+**Figures, checked on GOV.UK 2026-11-26** ("Drivers' hours: goods vehicles", responsibilities of vehicle operators): download a driver card
+at least every **28** calendar days and a vehicle unit at least every **90**, and be able to produce records to enforcement officers for
+**12 months**. The vehicle unit download needs a **company card**. (Earlier secondary sources gave other figures for the card and unit; the
+GOV.UK page is the one the product uses.) The page does not say how the files must be kept or handed over, so "unaltered" is our own
+safe practice, not a quoted rule.
+
+**Stage 1 built 2026-11-26** (`modules.md`, "Tachograph files"): the portal tracker, upload from any tool, and the driver app sending a
+driver card file the driver picked from the phone. No reader and no Bluetooth: the file comes from whatever tool the driver or firm already uses.
 
 ## Ways to get the data, and how hard each is
 

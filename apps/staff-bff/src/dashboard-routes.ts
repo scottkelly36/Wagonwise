@@ -31,6 +31,12 @@ import {
 import { portalEventsRequestSchema, usageSectionParamsSchema } from '@wagonwise/contracts/usage';
 import { hoursCompanyParamsSchema, hoursSettingsSchema } from '@wagonwise/contracts/hours';
 import {
+  tachographCompanyParamsSchema,
+  tachographFileParamsSchema,
+  tachographSettingsSchema,
+  uploadTachographFileRequestSchema,
+} from '@wagonwise/contracts/tachograph';
+import {
   listParkingSpotsQuerySchema,
   safeParkingSpotIdParamsSchema,
   saveParkingSpotRequestSchema,
@@ -647,6 +653,40 @@ const FORWARDS: readonly Forward[] = [
     method: 'GET',
     path: '/staff/hours/companies/:companyId/status',
     params: hoursCompanyParamsSchema,
+  },
+  // Tachograph files: the firm's choices, uploading a driver card or vehicle unit file, the tracker's data, a file back as received, and
+  // deleting one. Core decides who may.
+  {
+    method: 'GET',
+    path: '/staff/tachograph/companies/:companyId/settings',
+    params: tachographCompanyParamsSchema,
+  },
+  {
+    method: 'PUT',
+    path: '/staff/tachograph/companies/:companyId/settings',
+    params: tachographCompanyParamsSchema,
+    body: tachographSettingsSchema,
+  },
+  {
+    method: 'GET',
+    path: '/staff/tachograph/companies/:companyId/files',
+    params: tachographCompanyParamsSchema,
+  },
+  {
+    method: 'POST',
+    path: '/staff/tachograph/companies/:companyId/files',
+    params: tachographCompanyParamsSchema,
+    body: uploadTachographFileRequestSchema,
+  },
+  {
+    method: 'GET',
+    path: '/staff/tachograph/companies/:companyId/files/:fileId',
+    params: tachographFileParamsSchema,
+  },
+  {
+    method: 'DELETE',
+    path: '/staff/tachograph/companies/:companyId/files/:fileId',
+    params: tachographFileParamsSchema,
   },
   // Repairs: a defect a driver found, booked for fixing, then done (which can mark the defect fixed).
   {
