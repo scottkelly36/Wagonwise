@@ -4,6 +4,7 @@ import {
   sizeText,
   summarise,
   withDelay,
+  condenseLog,
   type CardReadState,
 } from './card-flow';
 import { downloadDriverCard } from './download-card';
@@ -119,5 +120,29 @@ describe('the pretend cards', () => {
       unsigned: 'signature_failed',
       damaged: 'file_missing',
     });
+  });
+});
+
+describe('condenseLog', () => {
+  it('leaves a short log alone', () => {
+    expect(condenseLog(['a', 'b'])).toEqual(['a', 'b']);
+  });
+
+  it('keeps the start and the end of a long one and says how much it left out', () => {
+    const lines = Array.from({ length: 1000 }, (_, i) => String(i));
+    const out = condenseLog(lines, 10);
+    expect(out).toEqual([
+      '0',
+      '1',
+      '2',
+      '3',
+      '4',
+      '... 990 lines left out ...',
+      '995',
+      '996',
+      '997',
+      '998',
+      '999',
+    ]);
   });
 });

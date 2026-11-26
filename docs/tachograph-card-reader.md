@@ -79,6 +79,23 @@ A genuine test driver card is not something I know a source for; a real driver c
   It is offered only in development and in `preview` builds (`eas.json` sets `EXPO_PUBLIC_CARD_SIMULATOR`; `lib/card-simulator.ts`), never in a store
   build, and it is JavaScript only so it can reach a preview build over the air. Nothing is sent anywhere. **Still to do:** end in the same
   send-to-my-firm confirmation as a picked file, once the file-sending screen (PR 449) is merged.
-- Step 2: the native USB module (new native package, so a new store build), tried on the real reader and card, then the checks above.
+- Step 2 (built 2026-11-26, branch `tachograph-usb-reader`, **not yet tried on a real reader**): the real USB reader, for a `preview` build.
+  - **Native, thin** (`modules/usb-card-reader`, Kotlin, Android only, compiled against the real SDK): lists USB devices, asks the driver's
+    permission, opens a reader (USB class 0x0B), moves raw bytes over its two bulk endpoints, says when it is unplugged. No card knowledge.
+  - **In TypeScript, tested** (`lib/tachograph-card/ccid.ts`, `usb-reader.ts`): the standard USB card-reader messages (power on, send a block,
+    power off, slot status, parameters), the reader's class descriptor (what level it works at, which protocols), "still working" answers, stray
+    messages, pieces of a long answer, and an empty slot or pulled card. It runs the same download as the simulator. `FakeCcidReader` plays a
+    reader in tests (whole commands or transport level, small packets, time extensions, no card, silent), written from the same specification as
+    the code, so it finds our mistakes and not a misreading of the standard or one maker's quirks.
+  - **Refused, not guessed:** a transport-level reader that chooses T=1 (block framing is not written) and a reader that works one character at a time.
+  - **The screen** (More, "Read my card (test)", a switch between "Real reader" and "Pretend card") reads a real card, keeps the file in memory,
+    and offers "Share the file" (the share sheet, so the driver chooses where it goes; nothing is sent by the app) and "Delete the saved copy".
+    It also keeps a **log** of what the reader and card said (device numbers, the descriptor bytes, status words, sizes; never what is on the card)
+    with "Share the log". Without it a first run on a real reader would tell us nothing.
+  - **New packages:** `expo-sharing`, `expo-file-system` and the module, so this needs a new native build; the store 1.3.1 build does not have
+    them. All JavaScript that uses them checks for them first. The Android manifest says USB host is optional so Play still shows the app to
+    phones without it. Do not merge before the 1.3.1 store build unless that is wanted: the build would carry an untested native module.
+  - **Trial order:** the owner's phone and a reader first; a training card if one can be had; a real card only with the holder's clear OK, not while
+    they need it to drive. Compare the saved `.ddd` with one from a free app (checklist above), and send the log if anything fails.
 - Step 3: showing what is in the file (the period it covers first; days of activity only after it matches a real download), labelled as
   from the card file and not the legal record.

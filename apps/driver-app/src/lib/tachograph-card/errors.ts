@@ -1,5 +1,6 @@
 export type CardErrorCode =
   | 'no_reader'
+  | 'no_permission'
   | 'no_card'
   | 'card_removed'
   | 'not_driver_card'
@@ -22,6 +23,8 @@ export class CardError extends Error {
 
 const TEXT: Record<CardErrorCode, string> = {
   no_reader: 'No card reader found. Plug your reader into the phone and try again.',
+  no_permission:
+    'The phone needs your OK to use the reader. Unplug it, plug it back in and tap Allow when the phone asks.',
   no_card: 'No card in the reader. Put your driver card in, chip first, and try again.',
   card_removed: 'The card was taken out while it was being read. Put it back and start again.',
   not_driver_card: 'That is not a driver card. Put your own driver card in the reader.',

@@ -139,4 +139,20 @@ const withOptionalPortraitScreen: ConfigPlugin = (cfg) =>
     return mod;
   });
 
-export default withOptionalPortraitScreen(config);
+/**
+ * The USB card reader needs a phone that can act as a USB host. Saying so as optional keeps Google Play showing the app to phones
+ * without it (the card reader is one small part of the app), where a required feature would hide the app from them.
+ */
+const withOptionalUsbHost: ConfigPlugin = (cfg) =>
+  withAndroidManifest(cfg, (mod) => {
+    const manifest = mod.modResults.manifest;
+    const name = 'android.hardware.usb.host';
+    const others = (manifest['uses-feature'] ?? []).filter((f) => f.$['android:name'] !== name);
+    manifest['uses-feature'] = [
+      ...others,
+      { $: { 'android:name': name, 'android:required': 'false' } },
+    ];
+    return mod;
+  });
+
+export default withOptionalUsbHost(withOptionalPortraitScreen(config));

@@ -1,42 +1,89 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
-import { cardReadReducer, summarise, withDelay } from '../lib/tachograph-card/card-flow';
+import {
+  cardReadReducer,
+  condenseLog,
+  summarise,
+  withDelay,
+} from '../lib/tachograph-card/card-flow';
 import { downloadDriverCard } from '../lib/tachograph-card/download-card';
 import { CardError, cardErrorText } from '../lib/tachograph-card/errors';
+import type { CardReader } from '../lib/tachograph-card/reader';
 import type { Scenario } from '../lib/tachograph-card/scenarios';
 import { SimulatedCard } from '../lib/tachograph-card/simulated-card';
+import { createUsbReaderProvider, usbReaderNative } from '../lib/tachograph-card/usb-reader';
 
 /** Pause before each command so the progress can be watched; a real card is slow too. */
 export const DEFAULT_STEP_DELAY_MS = 25;
 
+/** The card's file, as read from a real reader: kept in memory until the driver shares it or leaves the screen. */
+export interface CardDownload {
+  readonly ddd: Uint8Array;
+  readonly fileName: string;
+}
+
+/** Opens the phone's USB card reader, telling `log` what happened. The default uses the native module; a test passes its own. */
+export type OpenUsbReader = (log: (line: string) => void) => Promise<CardReader>;
+
+const openUsbReader: OpenUsbReader = async (log) => {
+  const native = usbReaderNative();
+  if (native === null) throw new CardError('no_reader', 'this build has no USB reader support');
+  return createUsbReaderProvider(native, log).open();
+};
+
 /**
- * Runs a read of a pretend card for the test screen and says where it has got to. It uses the simulated card only, so nothing leaves the
- * phone. When a real reader exists this is where it is chosen instead.
+ * Runs a read of a card for the test screen and says where it has got to: of a pretend card (nothing real is read and nothing leaves
+ * the phone), or of a real one in a USB reader plugged into the phone. A real read keeps a log of what the reader and card said
+ * (never what is on the card) and the file it made, for the driver to share if they choose; neither goes anywhere by itself.
  */
-export function useCardRead(stepDelayMs: number = DEFAULT_STEP_DELAY_MS) {
+export function useCardRead(
+  stepDelayMs: number = DEFAULT_STEP_DELAY_MS,
+  openUsb: OpenUsbReader = openUsbReader,
+) {
   const [state, dispatch] = useReducer(cardReadReducer, { status: 'idle' });
+  const [log, setLog] = useState<readonly string[]>([]);
+  const [download, setDownload] = useState<CardDownload | undefined>(undefined);
   const controller = useRef<AbortController | undefined>(undefined);
 
   useEffect(() => () => controller.current?.abort(), []);
 
-  const start = useCallback(
-    async (scenario: Scenario) => {
+  const run = useCallback(
+    async (
+      makeReader: (note: (line: string) => void) => Promise<CardReader>,
+      keepFile: boolean,
+    ) => {
       controller.current?.abort();
       const stop = new AbortController();
       controller.current = stop;
+      const lines: string[] = [];
+      const note = (line: string) => lines.push(line);
+      setLog([]);
+      setDownload(undefined);
       dispatch({ type: 'start' });
       try {
-        const reader = withDelay(new SimulatedCard(scenario.options), stepDelayMs);
+        const reader = await makeReader(note);
         const result = await downloadDriverCard(reader, {
           signal: stop.signal,
           onProgress: (p) => {
+            note(`reading ${p.file} (${p.step} of ${p.steps})`);
             if (controller.current === stop) dispatch({ type: 'progress', ...p });
           },
         });
         // A newer read has replaced this one: leave the screen to it.
-        if (controller.current === stop) dispatch({ type: 'done', summary: summarise(result) });
+        if (controller.current !== stop) return;
+        const summary = summarise(result);
+        note(`done: ${summary.files.length} parts, ${summary.totalBytes} bytes`);
+        setLog(condenseLog(lines));
+        if (keepFile) setDownload({ ddd: result.ddd, fileName: summary.fileName });
+        dispatch({ type: 'done', summary });
       } catch (error) {
         if (controller.current !== stop) return;
+        note(
+          error instanceof CardError
+            ? `stopped: ${error.code}: ${error.message}`
+            : `stopped: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        setLog(condenseLog(lines));
         if (error instanceof CardError && error.code === 'cancelled') {
           dispatch({ type: 'reset' });
         } else {
@@ -44,14 +91,24 @@ export function useCardRead(stepDelayMs: number = DEFAULT_STEP_DELAY_MS) {
         }
       }
     },
-    [stepDelayMs],
+    [],
   );
+
+  const start = useCallback(
+    (scenario: Scenario) =>
+      run(async () => withDelay(new SimulatedCard(scenario.options), stepDelayMs), false),
+    [run, stepDelayMs],
+  );
+
+  const startReal = useCallback(() => run((note) => openUsb(note), true), [run, openUsb]);
 
   const cancel = useCallback(() => controller.current?.abort(), []);
   const reset = useCallback(() => {
     controller.current?.abort();
+    setLog([]);
+    setDownload(undefined);
     dispatch({ type: 'reset' });
   }, []);
 
-  return { state, start, cancel, reset };
+  return { state, start, startReal, cancel, reset, log, download };
 }

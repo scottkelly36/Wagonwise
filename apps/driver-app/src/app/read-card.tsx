@@ -1,56 +1,130 @@
+import * as Device from 'expo-device';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Platform,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useCardRead } from '../hooks/use-card-read';
 import { ScreenHeader } from '../components/ui/screen-header';
+import { useCardRead } from '../hooks/use-card-read';
+import { canShareFiles, deleteSavedFile, shareBytes } from '../lib/share-card-file';
 import { sizeText } from '../lib/tachograph-card/card-flow';
 import { SCENARIOS } from '../lib/tachograph-card/scenarios';
+import { usbReaderSupported } from '../lib/tachograph-card/usb-reader';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
 
+type Source = 'real' | 'pretend';
+
+/** The text a log is shared as: what built it, what phone, when, then the lines. Never anything from the card itself. */
+function logText(lines: readonly string[]): string {
+  return [
+    'WagonWise card read log',
+    new Date().toISOString(),
+    `phone: ${Device.manufacturer ?? '?'} ${Device.modelName ?? '?'}, ${Platform.OS} ${String(Platform.Version)}`,
+    '',
+    ...lines,
+  ].join('\n');
+}
+
 /**
- * Read my card, with a PRETEND card. For test builds only (More shows it only there): it runs the same reading logic a real card reader
- * will use against a simulated card, so every outcome can be watched on a phone with no reader and no card. Nothing is sent anywhere
- * and nothing real is read. When a real reader exists, this screen reads from it and ends in sending the file to the firm.
+ * Read my card, for test builds only (More shows it only there). It reads a PRETEND card with the same reading logic, or, in a build
+ * that has the USB reader support, a REAL card in a reader plugged into the phone. A real read makes the card's file on the phone and
+ * a log of what the reader and card said (sizes and status words, never what is on the card). Nothing is sent by the app: the driver
+ * chooses whether to share the file or the log, and where.
  */
 export default function ReadCardScreen() {
-  const { state, start, cancel, reset } = useCardRead();
+  const { state, start, startReal, cancel, reset, log, download } = useCardRead();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const realAvailable = usbReaderSupported();
+  const [source, setSource] = useState<Source>(realAvailable ? 'real' : 'pretend');
   const [scenarioId, setScenarioId] = useState(SCENARIOS[0]?.id ?? '');
+  const [showLog, setShowLog] = useState(false);
+  const [shareError, setShareError] = useState<string | undefined>(undefined);
   const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
   const busy = state.status === 'reading';
+  const real = source === 'real';
+
+  const shareFile = async () => {
+    if (download === undefined) return;
+    setShareError(undefined);
+    try {
+      await shareBytes(download.fileName, download.ddd, 'application/octet-stream');
+    } catch {
+      setShareError('The file could not be shared from this phone.');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <ScreenHeader title="Read my card (test)" />
+
+        {realAvailable && (
+          <View style={styles.row}>
+            {(['real', 'pretend'] as const).map((s) => (
+              <TouchableOpacity
+                key={s}
+                style={[styles.tab, s === source && styles.tabOn]}
+                disabled={busy}
+                onPress={() => {
+                  setSource(s);
+                  reset();
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: s === source, disabled: busy }}
+                testID={`source-${s}`}
+              >
+                <Text style={styles.choiceLabel}>
+                  {s === 'real' ? 'Real reader' : 'Pretend card'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         <View style={styles.notice} testID="read-card-notice">
           <Text style={styles.noticeText}>
-            This reads a pretend card. Nothing real is read and nothing is sent anywhere. It is here
-            so the steps can be tried before a real card reader is connected.
+            {real
+              ? 'This reads the driver card in a USB card reader plugged into the phone. The file holds the card holder’s name, licence number and recent driving. It stays on this phone unless you share it. Only read a card you have the holder’s OK to read, and not while they need it to drive.'
+              : 'This reads a pretend card. Nothing real is read and nothing is sent anywhere. It is here so the steps can be tried without a real card reader.'}
           </Text>
         </View>
 
-        <Text style={styles.heading}>Pick a pretend card</Text>
-        {SCENARIOS.map((s) => (
-          <TouchableOpacity
-            key={s.id}
-            style={[styles.choice, s.id === scenarioId && styles.choiceOn]}
-            disabled={busy}
-            onPress={() => {
-              setScenarioId(s.id);
-              reset();
-            }}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: s.id === scenarioId, disabled: busy }}
-            testID={`scenario-${s.id}`}
-          >
-            <Text style={styles.choiceLabel}>{s.label}</Text>
-            <Text style={styles.small}>{s.expect}</Text>
-          </TouchableOpacity>
-        ))}
+        {real ? (
+          <Text style={styles.body}>
+            Plug the reader into the phone and tap Allow if the phone asks. Put the driver card in
+            with the chip facing the right way, then tap Read the card.
+          </Text>
+        ) : (
+          <>
+            <Text style={styles.heading}>Pick a pretend card</Text>
+            {SCENARIOS.map((s) => (
+              <TouchableOpacity
+                key={s.id}
+                style={[styles.choice, s.id === scenarioId && styles.choiceOn]}
+                disabled={busy}
+                onPress={() => {
+                  setScenarioId(s.id);
+                  reset();
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: s.id === scenarioId, disabled: busy }}
+                testID={`scenario-${s.id}`}
+              >
+                <Text style={styles.choiceLabel}>{s.label}</Text>
+                <Text style={styles.small}>{s.expect}</Text>
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
 
         {busy ? (
           <View style={styles.card} testID="read-card-progress">
@@ -73,7 +147,10 @@ export default function ReadCardScreen() {
         ) : (
           <TouchableOpacity
             style={styles.button}
-            onPress={() => scenario !== undefined && void start(scenario)}
+            onPress={() => {
+              if (real) void startReal();
+              else if (scenario !== undefined) void start(scenario);
+            }}
             accessibilityRole="button"
             testID="read-card-start"
           >
@@ -108,6 +185,55 @@ export default function ReadCardScreen() {
               The file is kept exactly as the card gave it. Nothing in it has been read or checked
               yet.
             </Text>
+            {download !== undefined && canShareFiles() && (
+              <>
+                <TouchableOpacity
+                  style={styles.button}
+                  onPress={() => void shareFile()}
+                  accessibilityRole="button"
+                  testID="read-card-share-file"
+                >
+                  <Text style={styles.buttonText}>Share the file</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    deleteSavedFile(download.fileName);
+                    reset();
+                  }}
+                  accessibilityRole="button"
+                  testID="read-card-delete"
+                >
+                  <Text style={styles.link}>Delete the saved copy</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {shareError !== undefined && <Text style={styles.error}>{shareError}</Text>}
+          </View>
+        )}
+
+        {real && log.length > 0 && (
+          <View style={styles.card} testID="read-card-log">
+            <Text style={styles.heading}>What the reader said</Text>
+            <Text style={styles.small}>
+              Sizes and status words only, not what is on the card. Share it if something went
+              wrong.
+            </Text>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => void Share.share({ message: logText(log) })}
+              accessibilityRole="button"
+              testID="read-card-share-log"
+            >
+              <Text style={styles.buttonText}>Share the log</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowLog((v) => !v)} accessibilityRole="button">
+              <Text style={styles.link}>{showLog ? 'Hide the log' : 'Show the log'}</Text>
+            </TouchableOpacity>
+            {showLog && (
+              <Text style={styles.mono} selectable>
+                {log.join('\n')}
+              </Text>
+            )}
           </View>
         )}
       </ScrollView>
@@ -119,11 +245,21 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     content: { padding: 16, gap: 12 },
+    row: { flexDirection: 'row', gap: 8 },
+    tab: {
+      flex: 1,
+      padding: 12,
+      borderRadius: radius.card,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+    },
+    tabOn: { borderWidth: 2, borderColor: colors.accent },
     notice: { padding: 14, borderRadius: radius.card, backgroundColor: colors.accentSoft },
     noticeText: { fontSize: 15, lineHeight: 21, color: colors.text },
     heading: { fontSize: 18, fontWeight: '700', color: colors.text },
     body: { fontSize: 15, lineHeight: 21, color: colors.textSecondary },
     small: { fontSize: 13, lineHeight: 18, color: colors.textMuted },
+    mono: { fontSize: 11, lineHeight: 15, color: colors.textMuted, fontFamily: 'monospace' },
     link: { fontSize: 15, fontWeight: '600', color: colors.accentBlue },
     error: { fontSize: 15, lineHeight: 21, color: colors.danger },
     choice: { gap: 2, padding: 12, borderRadius: radius.card, backgroundColor: colors.surface },

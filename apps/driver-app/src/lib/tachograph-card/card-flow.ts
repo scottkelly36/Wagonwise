@@ -100,6 +100,20 @@ export function summarise(result: DownloadResult): CardSummary {
   };
 }
 
+/**
+ * A log short enough to share: a whole card is over a thousand commands, so past `keep` lines it keeps the first and last halves and
+ * says how many it left out. The start shows how the reader and card introduced themselves; the end shows where it stopped.
+ */
+export function condenseLog(lines: readonly string[], keep = 240): readonly string[] {
+  if (lines.length <= keep) return lines;
+  const half = Math.floor(keep / 2);
+  return [
+    ...lines.slice(0, half),
+    `... ${lines.length - half * 2} lines left out ...`,
+    ...lines.slice(lines.length - half),
+  ];
+}
+
 /** Slows a reader down so progress can be watched. A real card is slow; a fake one is not. */
 export function withDelay(reader: CardReader, ms: number): CardReader {
   if (ms <= 0) return reader;
