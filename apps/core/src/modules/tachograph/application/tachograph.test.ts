@@ -209,6 +209,7 @@ describe('a driver sends their own card file', () => {
     await setFirmSettings(deps, manager, STAFF, ACME, {
       driversMaySend: true,
       retentionMonths: 12,
+      remindersEnabled: true,
     });
     expect(await sendMyFile(deps, SAM, 'sam@example.com', ACME, send)).toEqual({
       ok: true,
@@ -225,7 +226,11 @@ describe('a driver sends their own card file', () => {
 
   it('only goes to a firm the driver drives for', async () => {
     const deps = build();
-    await setFirmSettings(deps, rival, STAFF, BETA, { driversMaySend: true, retentionMonths: 12 });
+    await setFirmSettings(deps, rival, STAFF, BETA, {
+      driversMaySend: true,
+      retentionMonths: 12,
+      remindersEnabled: true,
+    });
     expect(await sendMyFile(deps, SAM, 'sam@example.com', BETA, send)).toEqual({
       ok: false,
       error: { tag: 'CompanyNotFound' },
@@ -237,6 +242,7 @@ describe('a driver sends their own card file', () => {
     await setFirmSettings(deps, manager, STAFF, ACME, {
       driversMaySend: true,
       retentionMonths: 12,
+      remindersEnabled: true,
     });
     expect((await sendMyFile(deps, SAM, 'sam@example.com', ACME, send)).ok).toBe(false);
   });
@@ -246,6 +252,7 @@ describe('a driver sends their own card file', () => {
     await setFirmSettings(deps, manager, STAFF, ACME, {
       driversMaySend: true,
       retentionMonths: 12,
+      remindersEnabled: true,
     });
     expect(await listMine(deps, SAM, 'sam@example.com')).toEqual([
       {

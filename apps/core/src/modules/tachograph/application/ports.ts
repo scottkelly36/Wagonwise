@@ -66,3 +66,39 @@ export interface FileRepository {
   /** Deletes files older than each company's retention (12 months unless the firm chose longer); says how many went. */
   deleteExpired(now: Date): Promise<number>;
 }
+
+/** One reminder, as it is recorded so it is sent once. */
+export interface ReminderClaim {
+  readonly companyId: CompanyId;
+  readonly kind: 'driver_card' | 'vehicle_unit';
+  readonly subjectId: string;
+  readonly downloadedOn: string;
+  readonly stage: string;
+}
+
+export interface ReminderLog {
+  /** Records the reminder; false when it was already sent (or is being sent), so it is not sent twice. */
+  claim(claim: ReminderClaim, at: Date): Promise<boolean>;
+  /** Gives claims back after a failed send, so the next pass tries again. */
+  release(claims: readonly ReminderClaim[]): Promise<void>;
+  /** Forgets reminders recorded before the given time. */
+  deleteOlderThan(before: Date): Promise<number>;
+}
+
+/** Names for the email. Supplied by composition over fleet and identity; each opens its own data scope as needed. */
+export interface ReminderDirectory {
+  driverName(driverId: string): Promise<string>;
+  vehicleName(companyId: CompanyId, vehicleId: string): Promise<string>;
+}
+
+/** Sends a push to every phone a driver has registered; says how many phones there are and how many took it. Supplied by composition over identity. */
+export interface DriverPusher {
+  push(
+    driverId: string,
+    message: { title: string; body: string },
+  ): Promise<{ devices: number; accepted: number }>;
+}
+
+export interface Mailer {
+  send(to: string, subject: string, text: string): Promise<void>;
+}

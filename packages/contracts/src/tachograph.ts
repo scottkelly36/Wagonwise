@@ -82,6 +82,8 @@ export const tachographSettingsSchema = z.object({
   driversMaySend: z.boolean(),
   /** How long files are kept, in months. Never below the 12 months records must be producible for. */
   retentionMonths: z.number().int().min(MIN_RETENTION_MONTHS).max(MAX_RETENTION_MONTHS),
+  /** Whether the office is emailed, and drivers who send files are pushed, when a download is coming due or overdue. On unless turned off. */
+  remindersEnabled: z.boolean().default(true),
 });
 export type TachographSettingsDto = z.infer<typeof tachographSettingsSchema>;
 

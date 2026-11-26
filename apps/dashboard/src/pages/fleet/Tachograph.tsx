@@ -9,6 +9,7 @@ import {
   type TachographFileRow,
   type TachographKind,
 } from '@wagonwise/contracts/tachograph';
+import type { DriverLinkDto } from '@wagonwise/contracts/fleet';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import * as fleetApi from '../../api/fleet';
@@ -18,6 +19,7 @@ import { CompanySelect } from '../../components/CompanySelect';
 import { DataTable, type Column } from '../../components/DataTable';
 import { useConfirm, useNotify } from '../../components/feedback-context';
 import { driverDisplayName } from '../../lib/driver-name';
+import { ownDriverState } from '../../lib/own-driver';
 import { ukToday } from '../../lib/money';
 import {
   base64ToBlob,
@@ -324,6 +326,10 @@ export function Tachograph() {
                 emptyText="Add drivers and vehicles first, then their files will be tracked here."
               />
 
+              {me?.kind === 'fleet' && (
+                <OwnDriver companyId={companyId} email={me.email} links={links.data ?? []} />
+              )}
+
               <UploadForm
                 ref={formRef}
                 companyId={companyId}
@@ -556,7 +562,96 @@ function Settings({ companyId }: { companyId: string }) {
         Never less than 12 months, the period GOV.UK says operators must be able to produce records
         for. Older files are deleted for you.
       </p>
+      <label className="block mt-12">
+        <input
+          type="checkbox"
+          checked={current.remindersEnabled}
+          disabled={change.isPending}
+          onChange={(e) => change.mutate({ ...current, remindersEnabled: e.target.checked })}
+        />{' '}
+        Remind me when a download is coming due
+      </label>
+      <p className="text-muted">
+        On unless you turn it off. Everyone who manages vehicles and drivers gets an email a week
+        before a download is due, two days before, on the day, and each week it is overdue. A driver
+        who sends files also gets a notification about their own card. It only follows files already
+        sent here.
+      </p>
       {change.isError && <p className="text-danger">{staffErrorMessage(change.error)}</p>}
+    </section>
+  );
+}
+
+/**
+ * For a firm run by someone who also drives its lorry: one button invites their own email as a driver and lets drivers send files,
+ * so the rest is accepting in the app. Not shown once they are linked.
+ */
+function OwnDriver({
+  companyId,
+  email,
+  links,
+}: {
+  companyId: string;
+  email: string;
+  links: readonly DriverLinkDto[];
+}) {
+  const withAccessToken = useStaffAuthStore((s) => s.withAccessToken);
+  const queryClient = useQueryClient();
+  const state = ownDriverState(links, email);
+  const [done, setDone] = useState(false);
+  const setup = useMutation({
+    mutationFn: async () => {
+      if (state === 'none') {
+        await withAccessToken((token) =>
+          fleetApi.inviteDriver(token, companyId, { identifier: email }),
+        );
+      }
+      const current = await withAccessToken((token) =>
+        tachographApi.getTachographSettings(token, companyId),
+      );
+      if (!current.driversMaySend) {
+        await withAccessToken((token) =>
+          tachographApi.setTachographSettings(token, companyId, {
+            ...current,
+            driversMaySend: true,
+          }),
+        );
+      }
+    },
+    onSuccess: () => {
+      setDone(true);
+      void queryClient.invalidateQueries({ queryKey: ['driver-links', companyId] });
+      void queryClient.invalidateQueries({ queryKey: ['tachograph-settings', companyId] });
+    },
+  });
+  if (state === 'active') return null;
+
+  return (
+    <section className="mt-24 box" aria-labelledby="tachograph-own-driver">
+      <h2 id="tachograph-own-driver">Do you drive for this firm yourself?</h2>
+      {state === 'invited' || done ? (
+        <p>
+          You are set up as a driver. Open the WagonWise app and sign in with{' '}
+          <strong>{email}</strong>, then accept the invitation under More, My companies. After that,
+          More, Send my tachograph file sends your card here.
+        </p>
+      ) : (
+        <>
+          <p className="text-muted">
+            One button adds you as a driver of your own firm and lets drivers send their card file
+            from the app. Then you accept the invitation in the app, signed in with {email}.
+          </p>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={setup.isPending}
+            onClick={() => setup.mutate()}
+          >
+            {setup.isPending ? 'Setting up…' : 'Add me as a driver'}
+          </button>
+          {setup.isError && <p className="text-danger">{staffErrorMessage(setup.error)}</p>}
+        </>
+      )}
     </section>
   );
 }

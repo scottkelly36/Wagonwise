@@ -21,21 +21,29 @@ export class PostgresSettingsRepository implements SettingsRepository {
   constructor(private readonly db: UntypedDb) {}
 
   async get(companyId: CompanyId): Promise<FirmSettings> {
-    const { rows } = await sql<{ drivers_may_send: boolean; retention_months: number }>`
-      select drivers_may_send, retention_months from tachograph.settings where company_id = ${companyId}
+    const { rows } = await sql<{
+      drivers_may_send: boolean;
+      retention_months: number;
+      reminders_enabled: boolean;
+    }>`
+      select drivers_may_send, retention_months, reminders_enabled from tachograph.settings where company_id = ${companyId}
     `.execute(this.db);
     const row = rows[0];
     return row === undefined
       ? DEFAULT_SETTINGS
-      : { driversMaySend: row.drivers_may_send, retentionMonths: row.retention_months };
+      : {
+          driversMaySend: row.drivers_may_send,
+          retentionMonths: row.retention_months,
+          remindersEnabled: row.reminders_enabled,
+        };
   }
 
   async set(companyId: CompanyId, settings: FirmSettings, by: StaffId, at: Date): Promise<void> {
     await sql`
-      insert into tachograph.settings (company_id, drivers_may_send, retention_months, updated_at, updated_by)
-      values (${companyId}, ${settings.driversMaySend}, ${settings.retentionMonths}, ${at}, ${by})
+      insert into tachograph.settings (company_id, drivers_may_send, retention_months, reminders_enabled, updated_at, updated_by)
+      values (${companyId}, ${settings.driversMaySend}, ${settings.retentionMonths}, ${settings.remindersEnabled}, ${at}, ${by})
       on conflict (company_id) do update
-        set drivers_may_send = excluded.drivers_may_send, retention_months = excluded.retention_months,
+        set drivers_may_send = excluded.drivers_may_send, retention_months = excluded.retention_months, reminders_enabled = excluded.reminders_enabled,
             updated_at = excluded.updated_at, updated_by = excluded.updated_by
     `.execute(this.db);
   }

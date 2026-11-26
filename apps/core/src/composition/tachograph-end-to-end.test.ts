@@ -61,6 +61,9 @@ describe('tachograph files end to end (real RLS, real scopes)', () => {
   let tachograph: TachographModule;
   const clock = new FakeClock('2026-11-26T09:00:00.000Z');
   let n = 0;
+  const emails: { to: string; subject: string; text: string }[] = [];
+  const pushes: { driverId: string; title: string }[] = [];
+  let mailDown = false;
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgis/postgis:16-3.4').start();
@@ -108,6 +111,26 @@ describe('tachograph files end to end (real RLS, real scopes)', () => {
           ),
         hasVehicle: (companyId, vehicleId) =>
           Promise.resolve(companyId === ACME && vehicleId === SAM_VEHICLE),
+      },
+      reminders: {
+        directory: {
+          driverName: (id) => Promise.resolve(id === SAM ? 'Sam Taylor' : 'A driver'),
+          vehicleName: () => Promise.resolve('Scania (AB12 CDE)'),
+        },
+        pusher: {
+          push: (driverId, message) => {
+            pushes.push({ driverId, title: message.title });
+            return Promise.resolve({ devices: 1, accepted: 1 });
+          },
+        },
+        mailer: {
+          send: (to, subject, text) => {
+            if (mailDown) return Promise.reject(new Error('mail down'));
+            emails.push({ to, subject, text });
+            return Promise.resolve();
+          },
+        },
+        dashboardUrl: 'https://dashboard.example.test',
       },
     });
     app = Fastify();
@@ -159,7 +182,7 @@ describe('tachograph files end to end (real RLS, real scopes)', () => {
 
   it("lets only the firm's fleet managers change the choices", async () => {
     const url = `/staff/tachograph/companies/${ACME}/settings`;
-    const body = { driversMaySend: true, retentionMonths: 12 };
+    const body = { driversMaySend: true, retentionMonths: 12, remindersEnabled: true };
     expect(
       (await app.inject({ method: 'PUT', url, payload: body, ...as(DISPATCHER) })).statusCode,
     ).toBe(403);
@@ -330,6 +353,63 @@ describe('tachograph files end to end (real RLS, real scopes)', () => {
     clock.set(new Date('2027-11-27T09:00:00.000Z'));
     expect(await tachograph.pruneExpiredFiles()).toBe(1);
     expect(await count()).toBe(0);
+  });
+
+  it('reminds the office and the driver once about a download coming due, and tries again after a failure', async () => {
+    clock.set(new Date('2026-11-26T09:00:00.000Z'));
+    // Sam's card was downloaded on 5 November: due on 3 December, 7 days away.
+    await ownerPool.query(
+      `insert into tachograph.files (id, company_id, kind, driver_id, file_name, size_bytes, sha256, data, downloaded_on, uploaded_at)
+       values ('a1000000-0000-4000-8000-000000000001', '${ACME}', 'driver_card', '${SAM}', 'sam.ddd', 1, 'rem-1', '\\x00', '2026-11-05', now())`,
+    );
+    await ownerPool.query(
+      `update tachograph.settings set drivers_may_send = true where company_id = '${ACME}'`,
+    );
+    const firm = {
+      id: makeId<'CompanyId'>(ACME),
+      name: 'Acme Haulage',
+      recipients: [
+        {
+          staffId: makeId<'StaffId'>(MANAGER),
+          name: 'Alex',
+          email: 'alex@acme.test',
+          privileges: ['manage_fleet'],
+        },
+      ],
+    };
+    const logged = async () =>
+      (await ownerPool.query('select count(*)::int as n from tachograph.reminder_log')).rows[0] as {
+        n: number;
+      };
+
+    mailDown = true;
+    const failed = await tachograph.sendDueReminders([firm]);
+    expect(failed).toMatchObject({ emailed: 0, pushed: 1, failed: 1 });
+    // The push went, but the email did not, and someone could have been told: nothing sticks only if no one was reached.
+    // One was reached (the push), so the record stays and the email is not retried.
+    expect((await logged()).n).toBe(1);
+
+    mailDown = false;
+    expect(await tachograph.sendDueReminders([firm])).toEqual({ emailed: 0, pushed: 0, failed: 0 });
+
+    // A fresh stage (one day left) is a new reminder, and now the mail works.
+    clock.set(new Date('2026-12-02T09:00:00.000Z'));
+    expect(await tachograph.sendDueReminders([firm])).toEqual({ emailed: 1, pushed: 1, failed: 0 });
+    expect(emails).toHaveLength(1);
+    expect(emails[0]?.subject).toBe('Tachograph downloads due soon: Acme Haulage');
+    expect(emails[0]?.text).toContain('Sam Taylor (driver card): due by 3 Dec 2026');
+    expect(pushes.map((p) => p.driverId)).toEqual([SAM, SAM]);
+    expect((await logged()).n).toBe(2);
+
+    // The firm switches reminders off: nothing more is sent.
+    await app.inject({
+      method: 'PUT',
+      url: `/staff/tachograph/companies/${ACME}/settings`,
+      payload: { driversMaySend: true, retentionMonths: 12, remindersEnabled: false },
+      ...as(MANAGER),
+    });
+    clock.set(new Date('2026-12-03T09:00:00.000Z'));
+    expect(await tachograph.sendDueReminders([firm])).toEqual({ emailed: 0, pushed: 0, failed: 0 });
   });
 
   it('refuses a retention under 12 months', async () => {

@@ -11,7 +11,12 @@ import {
 import type {
   CompanyRoster,
   DriverCompanies,
+  DriverPusher,
   FileRepository,
+  Mailer,
+  ReminderClaim,
+  ReminderDirectory,
+  ReminderLog,
   SettingsRepository,
 } from '../ports.js';
 
@@ -130,5 +135,63 @@ export class InMemoryRoster implements CompanyRoster {
 
   hasVehicle(companyId: CompanyId, vehicleId: string): Promise<boolean> {
     return Promise.resolve(this.vehicles.has(`${companyId}|${vehicleId}`));
+  }
+}
+
+const keyOf = (c: ReminderClaim): string =>
+  [c.companyId, c.kind, c.subjectId, c.downloadedOn, c.stage].join('|');
+
+export class InMemoryReminderLog implements ReminderLog {
+  readonly claims = new Set<string>();
+
+  claim(claim: ReminderClaim, _at: Date): Promise<boolean> {
+    const key = keyOf(claim);
+    if (this.claims.has(key)) return Promise.resolve(false);
+    this.claims.add(key);
+    return Promise.resolve(true);
+  }
+
+  release(claims: readonly ReminderClaim[]): Promise<void> {
+    for (const c of claims) this.claims.delete(keyOf(c));
+    return Promise.resolve();
+  }
+
+  deleteOlderThan(_before: Date): Promise<number> {
+    return Promise.resolve(0);
+  }
+}
+
+export class FakeReminderDirectory implements ReminderDirectory {
+  driverName(driverId: string): Promise<string> {
+    return Promise.resolve('Driver ' + driverId);
+  }
+
+  vehicleName(_companyId: CompanyId, vehicleId: string): Promise<string> {
+    return Promise.resolve('Vehicle ' + vehicleId);
+  }
+}
+
+export class FakePusher implements DriverPusher {
+  readonly sent: { driverId: string; title: string; body: string }[] = [];
+  /** Phones registered, by driver; a driver not listed has none. */
+  readonly devices = new Map<string, number>();
+  fail = false;
+
+  push(driverId: string, message: { title: string; body: string }) {
+    if (this.fail) return Promise.reject(new Error('push down'));
+    const devices = this.devices.get(driverId) ?? 0;
+    if (devices > 0) this.sent.push({ driverId, ...message });
+    return Promise.resolve({ devices, accepted: devices });
+  }
+}
+
+export class FakeMailer implements Mailer {
+  readonly sent: { to: string; subject: string; text: string }[] = [];
+  fail = false;
+
+  send(to: string, subject: string, text: string): Promise<void> {
+    if (this.fail) return Promise.reject(new Error('mail down'));
+    this.sent.push({ to, subject, text });
+    return Promise.resolve();
   }
 }

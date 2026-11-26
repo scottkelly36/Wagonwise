@@ -49,9 +49,14 @@ export interface StoredFile {
 export interface FirmSettings {
   readonly driversMaySend: boolean;
   readonly retentionMonths: number;
+  readonly remindersEnabled: boolean;
 }
 
-export const DEFAULT_SETTINGS: FirmSettings = { driversMaySend: false, retentionMonths: 12 };
+export const DEFAULT_SETTINGS: FirmSettings = {
+  driversMaySend: false,
+  retentionMonths: 12,
+  remindersEnabled: true,
+};
 
 export interface InvalidFile extends TaggedError<'InvalidFile'> {
   readonly reason: 'empty' | 'too_big' | 'bad_date' | 'bad_name';

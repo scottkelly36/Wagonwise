@@ -484,8 +484,19 @@ download tracker works from. Scope and reasoning: `tachograph-download-scope.md`
 - **Driver app:** More, "Send my tachograph file" (`app/tachograph.tsx`, `lib/tachograph-send.ts`, `lib/pick-card-file.ts`, `api/tachograph.ts`). Uses the
   native `expo-document-picker`, so it needs the 1.3.1 store build (1.3.0 was already out); the row and screen check `requireOptionalNativeModule('ExpoDocumentPicker')`
   and are hidden or say "update the app" on a build without it. The file is read with `fetch` and `FileReader`, so no file-system package is added.
-- **Not built:** a USB or Bluetooth reader, reading hours or infringements out of a file, emailing a firm when a download is overdue, a
-  per-driver reminder in the app beyond the date of the last file.
+- **Reminders** (migration 0110; `domain/reminders.ts`, `application/reminders.ts`): the hourly `tachograph-reminders` task, from 7am UK, finds each driver card and
+  vehicle unit that has a file and is in its last week, due today or overdue (`reminderStage`: soon, urgent, today, then once a week overdue),
+  records it in `tachograph.reminder_log` (once for each download and stage, so a new file starts again and a restart sends nothing twice; a
+  gap skips to the stage it is at), then sends **one email to each person with `manage_fleet`** listing everything due, and **a push to the
+  driver about their own card** when the firm lets drivers send files. A firm's `reminders_enabled` (on unless turned off, the portal's "Remind me
+  when a download is coming due") stops both. Nothing is said about a driver or vehicle with no file yet (nothing to count from; the tracker
+  shows it). Planned inside the platform scope, sent outside it (the name and phone lookups open their own), and the records are given back only
+  when someone could have been told and no one was. The push carries `data.type: 'tachograph_due'`; the app (`lib/tachograph-notification.ts`,
+  `use-reroute-notifications.ts`) opens Send my tachograph file when it is tapped. `ExpoDriverPusher` is the module's own, like jobs'.
+- **Owner-driver setup** (portal, `pages/fleet/Tachograph.tsx`, `lib/own-driver.ts`): for a firm run by someone who also drives, "Do you drive for this
+  firm yourself?" is one button that invites the signed-in email as a driver and switches on drivers sending files; the rest is accepting the
+  invitation in the app signed in with that email. It stays until the link is active. No new endpoint: it uses the existing invite and settings calls.
+- **Not built:** a USB or Bluetooth reader, reading hours or infringements out of a file, a way to keep a file on the phone for a driver with no firm.
 
 ## Driver hours sharing
 
