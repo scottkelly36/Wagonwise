@@ -482,7 +482,7 @@ download tracker works from. Scope and reasoning: `tachograph-download-scope.md`
   `POST /tachograph/companies/:companyId/files`. Proof against real Postgres: `composition/tachograph-end-to-end.test.ts`.
 - **Portal:** Compliance, "Tachograph files" (`pages/fleet/Tachograph.tsx`, `lib/tachograph.ts`): the tracker, upload, files received, and the firm's two choices.
 - **Driver app:** More, "Send my tachograph file" (`app/tachograph.tsx`, `lib/tachograph-send.ts`, `lib/pick-card-file.ts`, `api/tachograph.ts`). Uses the
-  native `expo-document-picker`, so it needs the 1.3.0 store build; the row and screen check `requireOptionalNativeModule('ExpoDocumentPicker')`
+  native `expo-document-picker`, so it needs the 1.3.1 store build (1.3.0 was already out); the row and screen check `requireOptionalNativeModule('ExpoDocumentPicker')`
   and are hidden or say "update the app" on a build without it. The file is read with `fetch` and `FileReader`, so no file-system package is added.
 - **Not built:** a USB or Bluetooth reader, reading hours or infringements out of a file, emailing a firm when a download is overdue, a
   per-driver reminder in the app beyond the date of the last file.
