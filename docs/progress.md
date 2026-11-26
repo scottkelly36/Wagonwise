@@ -58,7 +58,7 @@ Use bullets, not tables: a formatted table pads every cell with spaces, which co
    Google and Apple sign-in need a store build and the owner's set-up. Nothing is switched on.
 10. **Native build 1.3.0, prepared 2026-11-20** (`history/log.md`): Firebase for Android push, R8, and the in-app store rating prompt. Waits on the owner's Firebase set-up; then Android by the `release` label and iPhone by hand. Not in it: the other two Play warnings, Google and Apple sign-in, Android Auto.
 11. **Small code left:** road tax by registration is
-    **parked** (DVLA is not taking new Vehicle Enquiry Service keys); a tachograph source for driver hours waits on the pilot's lorries. Tachograph downloads are scoped, not built (`tachograph-download-scope.md`).
+    **parked** (DVLA is not taking new Vehicle Enquiry Service keys); a tachograph source for driver hours waits on the pilot's lorries. Tachograph files stage 1 (upload from the app, portal tracker) is built, 2026-11-26, and needs the 1.3.0 build for the app side; reading a card with a USB reader or Bluetooth is not (`tachograph-download-scope.md`).
     Unscheduled ideas are in `ideas.md` and `phase-5-ideas.md`.
 
 **How the driver app ships:** JavaScript-only changes go out over the air to the installed version (`runtimeVersion` follows

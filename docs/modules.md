@@ -458,6 +458,35 @@ second check on top — core alone decides ownership/authorization for those.
 - **Office:** `GET /staff/jobs/companies/:companyId/notices` (anyone in the company) and `POST /staff/jobs/:id/resend-notice` (`dispatch`; refused with 409 once the job is not `assigned`).
 - **Driver app:** `use-reroute-notifications.ts` also handles `data.type === 'job_assigned'` (`lib/job-notification.ts`): refresh the current job, and open the Jobs tab on a tap.
 
+## Tachograph files (2026-11-26)
+
+`apps/core/src/modules/tachograph`: copies of driver card and vehicle unit downloads, kept unaltered for the firm, and the dates the portal's
+download tracker works from. Scope and reasoning: `tachograph-download-scope.md` (stage 1). The rules and wording are in
+`packages/contracts/src/tachograph.ts`, shared with the portal and the app.
+
+- **Tables** (migration 0109): `tachograph.settings` (per firm: `drivers_may_send`, off until chosen; `retention_months`, 12 to 120) and
+  `tachograph.files` (bytes as `bytea`, `sha256`, unique per company; kind; `driver_id` or `vehicle_id`; `downloaded_on`, the day the uploader
+  gave, not read from the file; who sent it; the wording version when from the app). Nothing in a file is opened or judged.
+- **Rules:** the download tracker's due days (28 driver card, 90 vehicle unit, due soon in the last 7) are `downloadStatus` in contracts, from
+  GOV.UK (checked 2026-11-26). The tracker works from files sent to WagonWise only and never says anyone is compliant or up to date.
+  The office uploads either kind (the driver must be one of the company's active drivers, the vehicle one of its vehicles); a driver sends
+  only their own card file, to a company they drive for that has the switch on and is not paused. The same bytes are kept once per company
+  (`duplicate: true` the second time). File names are cleaned to the name only; size limit 6 MB (`MAX_TACHOGRAPH_FILE_BYTES`, base64 over
+  JSON, so the servers' 10 MB body limit leaves room; the staff BFF was raised from Fastify's 1 MB for this).
+- **Who sees what:** staff with `manage_fleet` (and WagonWise) read, upload, download and delete for their company, because a card file is a
+  person's working record. A driver reads only their own card files (to show the day of the last one) and cannot change or delete any (RLS).
+- **Retention:** the daily `prune-tachograph-files` task deletes files older than the firm's retention from the day received, never under 12 months.
+  A driver deleting their account does **not** remove files they sent: the firm holds them as its own record (to be confirmed with the solicitor).
+- **Routes:** staff `GET/PUT /staff/tachograph/companies/:companyId/settings`, `GET/POST .../files`, `GET/DELETE .../files/:fileId` (the download
+  is the file as received, base64 over JSON, with its original name and SHA-256); driver `GET /tachograph/mine` and
+  `POST /tachograph/companies/:companyId/files`. Proof against real Postgres: `composition/tachograph-end-to-end.test.ts`.
+- **Portal:** Compliance, "Tachograph files" (`pages/fleet/Tachograph.tsx`, `lib/tachograph.ts`): the tracker, upload, files received, and the firm's two choices.
+- **Driver app:** More, "Send my tachograph file" (`app/tachograph.tsx`, `lib/tachograph-send.ts`, `lib/pick-card-file.ts`, `api/tachograph.ts`). Uses the
+  native `expo-document-picker`, so it needs the 1.3.0 store build; the row and screen check `requireOptionalNativeModule('ExpoDocumentPicker')`
+  and are hidden or say "update the app" on a build without it. The file is read with `fetch` and `FileReader`, so no file-system package is added.
+- **Not built:** a USB or Bluetooth reader, reading hours or infringements out of a file, emailing a firm when a download is overdue, a
+  per-driver reminder in the app beyond the date of the last file.
+
 ## Driver hours sharing
 
 The shared status also carries optional `breakMin`, `stretchMin` and `untilLimitMin` (migration 0059) so the dashboard's live map can put a sharing driver's breaks into their ETA (`lib/breaks-in-journey.ts`, mirroring the driver app's `planBreak`).

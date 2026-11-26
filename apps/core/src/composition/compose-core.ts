@@ -21,6 +21,10 @@ import { createSignupsModule, type UntypedDb as SignupsUntypedDb } from '../modu
 import { createCostingModule, type UntypedDb as CostingUntypedDb } from '../modules/costing/api.js';
 import { createHoursModule, type UntypedDb as HoursUntypedDb } from '../modules/hours/api.js';
 import {
+  createTachographModule,
+  type UntypedDb as TachographUntypedDb,
+} from '../modules/tachograph/api.js';
+import {
   createMaintenanceModule,
   CombinedVehicleLookup,
   DvlaVehicleEnquiry,
@@ -562,6 +566,33 @@ export function composeCore(
         (await jobs.activeDriverIds(companyId)).map((id) => makeId<'DriverId'>(id)),
     },
   });
+  // Tachograph files: a copy of a driver card or a vehicle unit, kept unaltered for the firm, and the dates the portal's download
+  // tracker works from. Composition is where fleet and companies meet it (AGENTS.md rule 7).
+  const tachographDb: TachographUntypedDb = identityDb;
+  const tachograph = createTachographModule({
+    db: tachographDb,
+    clock,
+    ids,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+    driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+    driverCompanies: {
+      activeCompanies: async (driverId, identifier) =>
+        (await fleet.activeCompaniesOfDriver(driverId, identifier)).map((c) => ({
+          id: makeId<'CompanyId'>(c.id),
+          name: c.name,
+        })),
+    },
+    roster: {
+      isActiveDriver: (companyId, driverId) => fleet.isActiveDriverOfCompany(driverId, companyId),
+      hasVehicle: async (companyId, vehicleId) =>
+        (await fleet.getVehicleCompanyId(vehicleId)) === companyId,
+    },
+    // A paused firm takes no files from its drivers (docs/company-account-states-scope.md).
+    companyAccounts: {
+      pausedCompanyName: (companyId) => companies.pausedCompanyName(companyId),
+    },
+  });
   // SOS: a driver presses and holds a button and the companies they drive for are told where they are, by email and in the portal.
   // Composition is where identity, fleet, jobs, companies and what3words meet it (AGENTS.md rule 7); `jobs` is built further down,
   // so what needs it is read only when called.
@@ -1063,6 +1094,16 @@ export function composeCore(
   });
 
   periodicTasks.start({
+    name: 'prune-tachograph-files',
+    intervalMs: config.positionSweepIntervalMs,
+    run: async () => {
+      // Each company chooses how long its tachograph files are kept, and never for less than 12 months.
+      const removed = await tachograph.pruneExpiredFiles();
+      if (removed > 0) app.log.info({ removed }, 'deleted old tachograph files');
+    },
+  });
+
+  periodicTasks.start({
     name: 'prune-checks',
     intervalMs: config.positionSweepIntervalMs,
     run: async () => {
@@ -1173,6 +1214,7 @@ export function composeCore(
   checks.registerRoutes(app);
   maintenance.registerRoutes(app);
   hours.registerRoutes(app);
+  tachograph.registerRoutes(app);
   costing.registerRoutes(app);
   signups.registerRoutes(app);
   sales.registerRoutes(app);

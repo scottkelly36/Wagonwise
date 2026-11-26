@@ -51,6 +51,10 @@ const MESSAGES: Record<string, string> = {
   InvalidRepair:
     'Pick a due date from today on, or a done date no later than today; notes are 500 characters at most.',
   FirmNotEnabled: 'Your company has not turned this on.',
+  SubjectNotFound: "That driver or vehicle doesn't belong to this company.",
+  FileNotFound: 'That file could not be found. It may already have been deleted.',
+  InvalidFile:
+    'That file could not be saved. Check it is not empty or over 6 MB, and that the download day is a real day that is not in the future.',
   NotOnAJob: 'You are not on a job.',
   NotSharing: 'Sharing is switched off.',
   InvalidRunningCost:

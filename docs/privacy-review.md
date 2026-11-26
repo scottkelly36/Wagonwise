@@ -74,7 +74,8 @@ or another third party by the company; the notice does not need to change for th
 ## Store forms (match the notice)
 
 - **Google Play Data safety:** precise location (collected, shared with the company on a job and on SOS, not for ads), email and
-  phone number, name, photos (delivery and check photos), user content (reports, places, feedback), device ids (push token). Encrypted in
+  phone number, name, photos (delivery and check photos), files (a tachograph driver card file the driver chooses to send to a company, from
+  2026-11-26), user content (reports, places, feedback), device ids (push token). Encrypted in
   transit; deletion available in the app and at `/delete-account`.
 - **Apple privacy labels:** the same list, plus contact info for sign-in; location is linked to the user. Not tracking.
 - **Flow events (2026-11-17, `flow-tracking-plan.md`):** Play: "App activity: app interactions", collected, not shared, for analytics,
