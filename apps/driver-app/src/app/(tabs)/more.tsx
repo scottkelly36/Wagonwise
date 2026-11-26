@@ -21,6 +21,7 @@ import { useAnnouncementPreference } from '../../hooks/use-announcement-preferen
 import { Icon, type IconName } from '../../components/ui/icon';
 import { SegmentedControl } from '../../components/ui/segmented-control';
 import { identityErrorMessage } from '../../lib/error-messages';
+import { cardSimulatorEnabled } from '../../lib/card-simulator';
 import { needsEmail } from '../../lib/sign-in-form';
 import { DISTANCE_UNIT_OPTIONS, FUEL_UNIT_OPTIONS } from '../../lib/units';
 import {
@@ -92,6 +93,17 @@ const ROWS: readonly MenuRow[] = [
     href: '/shift',
     testID: 'shift-button',
   },
+  // A pretend card, for test builds only: reads the card logic against a simulation, so the steps can be tried with no reader.
+  ...(cardSimulatorEnabled()
+    ? ([
+        {
+          label: 'Read my card (test)',
+          icon: 'card-account-details-outline',
+          href: '/read-card',
+          testID: 'read-card-button',
+        },
+      ] as const satisfies readonly MenuRow[])
+    : []),
   { label: 'Feedback', icon: 'message-text-outline', href: '/feedback', testID: 'feedback-button' },
   {
     label: 'How it works',

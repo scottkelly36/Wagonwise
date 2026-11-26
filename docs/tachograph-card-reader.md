@@ -73,8 +73,12 @@ A genuine test driver card is not something I know a source for; a real driver c
 ## Next
 
 - Step 1 (this): reading logic, simulator, tests. Done.
-- Step 1b: a screen ("Read my card") using the simulator, in builds made for testing only, ending in the same send-to-my-firm confirmation as a
-  picked file. Waits for the file-sending screen to be merged.
+- Step 1b (built): a test-only screen, More, "Read my card (test)" (`app/read-card.tsx`, `hooks/use-card-read.ts`, `lib/tachograph-card/scenarios.ts`).
+  The driver picks a pretend card (a good one, one that answers in pieces, an older one, no card, pulled out part way, the wrong kind, one that will
+  not sign, one missing a file), watches the read with progress, and sees either the summary (parts, sizes, how many signed) or the plain-word error.
+  It is offered only in development and in `preview` builds (`eas.json` sets `EXPO_PUBLIC_CARD_SIMULATOR`; `lib/card-simulator.ts`), never in a store
+  build, and it is JavaScript only so it can reach a preview build over the air. Nothing is sent anywhere. **Still to do:** end in the same
+  send-to-my-firm confirmation as a picked file, once the file-sending screen (PR 449) is merged.
 - Step 2: the native USB module (new native package, so a new store build), tried on the real reader and card, then the checks above.
 - Step 3: showing what is in the file (the period it covers first; days of activity only after it matches a real download), labelled as
   from the card file and not the legal record.
