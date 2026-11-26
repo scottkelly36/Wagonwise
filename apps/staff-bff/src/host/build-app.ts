@@ -19,6 +19,8 @@ export function buildApp(config: Config): FastifyInstance {
     logger: { level: config.logLevel },
     requestIdHeader: REQUEST_ID_HEADER,
     genReqId: () => randomUUID(),
+    // A tachograph file is uploaded as base64 over JSON (up to about 8 MB), like the driver BFF and core accept.
+    bodyLimit: 10 * 1024 * 1024,
     // `request.ip` must be the real caller for the sign-in rate limit (TRUST_PROXY_HOPS).
     // Trusting the nearest N hops is what a hop count means to proxy-addr.
     trustProxy: (_address: string, hop: number) => hop < config.trustProxyHops,

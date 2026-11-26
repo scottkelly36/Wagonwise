@@ -21,6 +21,11 @@ import { createSignupsModule, type UntypedDb as SignupsUntypedDb } from '../modu
 import { createCostingModule, type UntypedDb as CostingUntypedDb } from '../modules/costing/api.js';
 import { createHoursModule, type UntypedDb as HoursUntypedDb } from '../modules/hours/api.js';
 import {
+  createTachographModule,
+  ExpoDriverPusher,
+  type UntypedDb as TachographUntypedDb,
+} from '../modules/tachograph/api.js';
+import {
   createMaintenanceModule,
   CombinedVehicleLookup,
   DvlaVehicleEnquiry,
@@ -562,6 +567,56 @@ export function composeCore(
         (await jobs.activeDriverIds(companyId)).map((id) => makeId<'DriverId'>(id)),
     },
   });
+  // Tachograph files: a copy of a driver card or a vehicle unit, kept unaltered for the firm, and the dates the portal's download
+  // tracker works from. Composition is where fleet and companies meet it (AGENTS.md rule 7).
+  const tachographDb: TachographUntypedDb = identityDb;
+  const tachograph = createTachographModule({
+    db: tachographDb,
+    clock,
+    ids,
+    dataScopes,
+    callers: { getCaller: staffCaller },
+    driverIdentities: { getIdentifier: (driverId) => identity.getDriverIdentifier(driverId) },
+    driverCompanies: {
+      activeCompanies: async (driverId, identifier) =>
+        (await fleet.activeCompaniesOfDriver(driverId, identifier)).map((c) => ({
+          id: makeId<'CompanyId'>(c.id),
+          name: c.name,
+        })),
+    },
+    roster: {
+      isActiveDriver: (companyId, driverId) => fleet.isActiveDriverOfCompany(driverId, companyId),
+      hasVehicle: async (companyId, vehicleId) =>
+        (await fleet.getVehicleCompanyId(vehicleId)) === companyId,
+    },
+    // A paused firm takes no files from its drivers (docs/company-account-states-scope.md).
+    companyAccounts: {
+      pausedCompanyName: (companyId) => companies.pausedCompanyName(companyId),
+    },
+    // Reminders when a download is coming due: the office by email, a driver who sends files by push. Names are looked up outside any
+    // data scope, so the fleet lookup opens its own.
+    reminders: {
+      directory: {
+        driverName: async (driverId) => (await identity.getDriverName(driverId)) ?? 'A driver',
+        vehicleName: async (companyId, vehicleId) => {
+          const v = await dataScopes.run({ kind: 'company', companyId }, () =>
+            fleet.getVehicleSummary(vehicleId),
+          );
+          if (v === null) return 'A vehicle';
+          return v.registration === undefined ? v.name : `${v.name} (${v.registration})`;
+        },
+      },
+      pusher: new ExpoDriverPusher(
+        {
+          pushTokensFor: (driverId) =>
+            identity.getPushTokensForDriver(makeId<'DriverId'>(driverId)),
+        },
+        config.expoAccessToken,
+      ),
+      mailer: { send: (to, subject, text) => identity.sendEmail(to, subject, text) },
+      dashboardUrl: config.dashboardUrl,
+    },
+  });
   // SOS: a driver presses and holds a button and the companies they drive for are told where they are, by email and in the portal.
   // Composition is where identity, fleet, jobs, companies and what3words meet it (AGENTS.md rule 7); `jobs` is built further down,
   // so what needs it is read only when called.
@@ -1063,6 +1118,41 @@ export function composeCore(
   });
 
   periodicTasks.start({
+    name: 'tachograph-reminders',
+    intervalMs: 60 * 60 * 1000,
+    run: async () => {
+      // The people to tell are gathered first, each lookup in its own data scope; the run then works in its own.
+      const all = await companies.listCompanyNames();
+      const recipients = await Promise.all(
+        all.map(async (c) => ({
+          id: makeId<'CompanyId'>(c.id),
+          name: c.name,
+          recipients: (await companies.listFleetContacts(c.id)).map((p) => ({
+            staffId: makeId<'StaffId'>(p.staffId),
+            name: p.name,
+            email: p.email,
+            privileges: p.privileges,
+          })),
+        })),
+      );
+      const { emailed, pushed, failed } = await tachograph.sendDueReminders(recipients);
+      if (emailed > 0 || pushed > 0 || failed > 0) {
+        app.log.info({ emailed, pushed, failed }, 'tachograph download reminders');
+      }
+    },
+  });
+
+  periodicTasks.start({
+    name: 'prune-tachograph-files',
+    intervalMs: config.positionSweepIntervalMs,
+    run: async () => {
+      // Each company chooses how long its tachograph files are kept, and never for less than 12 months.
+      const removed = await tachograph.pruneExpiredFiles();
+      if (removed > 0) app.log.info({ removed }, 'deleted old tachograph files');
+    },
+  });
+
+  periodicTasks.start({
     name: 'prune-checks',
     intervalMs: config.positionSweepIntervalMs,
     run: async () => {
@@ -1173,6 +1263,7 @@ export function composeCore(
   checks.registerRoutes(app);
   maintenance.registerRoutes(app);
   hours.registerRoutes(app);
+  tachograph.registerRoutes(app);
   costing.registerRoutes(app);
   signups.registerRoutes(app);
   sales.registerRoutes(app);

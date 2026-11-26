@@ -71,10 +71,17 @@ A check's defect history is deleted with the check: a check that found a defect 
 **not** deleted by any retention rule today. Question for the solicitor: how long should they be kept? The pack can be handed to an inspector
 or another third party by the company; the notice does not need to change for that, but the company should know the names are in it.
 
+## Tachograph files (added 2026-11-26)
+
+Notice, section 1, 2, 4 and 7, and the delete-account page, now cover them. Company is controller, WagonWise processor; held only by
+DigitalOcean. **For the solicitor:** the files stay with the company when a driver deletes their account (legal duty to keep); a driver must
+be told by the company (terms draft, 4.4); whether the app notice is enough for the driver. Draft terms and processing: `terms-draft.md`.
+
 ## Store forms (match the notice)
 
 - **Google Play Data safety:** precise location (collected, shared with the company on a job and on SOS, not for ads), email and
-  phone number, name, photos (delivery and check photos), user content (reports, places, feedback), device ids (push token). Encrypted in
+  phone number, name, photos (delivery and check photos), files (a tachograph driver card file the driver chooses to send to a company, from
+  2026-11-26), user content (reports, places, feedback), device ids (push token). Encrypted in
   transit; deletion available in the app and at `/delete-account`.
 - **Apple privacy labels:** the same list, plus contact info for sign-in; location is linked to the user. Not tracking.
 - **Flow events (2026-11-17, `flow-tracking-plan.md`):** Play: "App activity: app interactions", collected, not shared, for analytics,

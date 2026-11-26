@@ -17,6 +17,7 @@ import { Jobs } from './pages/fleet/Jobs';
 import { Places } from './pages/fleet/Places';
 import { Maintenance } from './pages/fleet/Maintenance';
 import { Checks } from './pages/fleet/Checks';
+import { Tachograph } from './pages/fleet/Tachograph';
 import { CheckResults } from './pages/fleet/CheckResults';
 import { Defects } from './pages/fleet/Defects';
 import { Reports } from './pages/fleet/Reports';
@@ -87,6 +88,7 @@ export function App() {
             <Route path="/fleet/check-results" element={<CheckResults />} />
             <Route path="/fleet/defects" element={<Defects />} />
             <Route path="/fleet/audit-pack" element={<AuditPack />} />
+            <Route path="/fleet/tachograph" element={<Tachograph />} />
             <Route path="/fleet/reports" element={<Reports />} />
             <Route path="/fleet/drivers" element={<Drivers />} />
             <Route path="/fleet/vehicle-profiles" element={<VehicleProfiles />} />

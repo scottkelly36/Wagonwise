@@ -138,6 +138,8 @@ describe('runMigrations', () => {
       '0106_password_resets.sql',
       '0107_signup_trial_link.sql',
       '0108_billing_draft_runs.sql',
+      '0109_tachograph_files.sql',
+      '0110_tachograph_reminders.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -359,6 +361,8 @@ describe('runMigrations', () => {
       '0106_password_resets.sql',
       '0107_signup_trial_link.sql',
       '0108_billing_draft_runs.sql',
+      '0109_tachograph_files.sql',
+      '0110_tachograph_reminders.sql',
     ]);
   });
 });

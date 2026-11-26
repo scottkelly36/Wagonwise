@@ -458,6 +458,46 @@ second check on top — core alone decides ownership/authorization for those.
 - **Office:** `GET /staff/jobs/companies/:companyId/notices` (anyone in the company) and `POST /staff/jobs/:id/resend-notice` (`dispatch`; refused with 409 once the job is not `assigned`).
 - **Driver app:** `use-reroute-notifications.ts` also handles `data.type === 'job_assigned'` (`lib/job-notification.ts`): refresh the current job, and open the Jobs tab on a tap.
 
+## Tachograph files (2026-11-26)
+
+`apps/core/src/modules/tachograph`: copies of driver card and vehicle unit downloads, kept unaltered for the firm, and the dates the portal's
+download tracker works from. Scope and reasoning: `tachograph-download-scope.md` (stage 1). The rules and wording are in
+`packages/contracts/src/tachograph.ts`, shared with the portal and the app.
+
+- **Tables** (migration 0109): `tachograph.settings` (per firm: `drivers_may_send`, off until chosen; `retention_months`, 12 to 120) and
+  `tachograph.files` (bytes as `bytea`, `sha256`, unique per company; kind; `driver_id` or `vehicle_id`; `downloaded_on`, the day the uploader
+  gave, not read from the file; who sent it; the wording version when from the app). Nothing in a file is opened or judged.
+- **Rules:** the download tracker's due days (28 driver card, 90 vehicle unit, due soon in the last 7) are `downloadStatus` in contracts, from
+  GOV.UK (checked 2026-11-26). The tracker works from files sent to WagonWise only and never says anyone is compliant or up to date.
+  The office uploads either kind (the driver must be one of the company's active drivers, the vehicle one of its vehicles); a driver sends
+  only their own card file, to a company they drive for that has the switch on and is not paused. The same bytes are kept once per company
+  (`duplicate: true` the second time). File names are cleaned to the name only; size limit 6 MB (`MAX_TACHOGRAPH_FILE_BYTES`, base64 over
+  JSON, so the servers' 10 MB body limit leaves room; the staff BFF was raised from Fastify's 1 MB for this).
+- **Who sees what:** staff with `manage_fleet` (and WagonWise) read, upload, download and delete for their company, because a card file is a
+  person's working record. A driver reads only their own card files (to show the day of the last one) and cannot change or delete any (RLS).
+- **Retention:** the daily `prune-tachograph-files` task deletes files older than the firm's retention from the day received, never under 12 months.
+  A driver deleting their account does **not** remove files they sent: the firm holds them as its own record (to be confirmed with the solicitor).
+- **Routes:** staff `GET/PUT /staff/tachograph/companies/:companyId/settings`, `GET/POST .../files`, `GET/DELETE .../files/:fileId` (the download
+  is the file as received, base64 over JSON, with its original name and SHA-256); driver `GET /tachograph/mine` and
+  `POST /tachograph/companies/:companyId/files`. Proof against real Postgres: `composition/tachograph-end-to-end.test.ts`.
+- **Portal:** Compliance, "Tachograph files" (`pages/fleet/Tachograph.tsx`, `lib/tachograph.ts`): the tracker, upload, files received, and the firm's two choices.
+- **Driver app:** More, "Send my tachograph file" (`app/tachograph.tsx`, `lib/tachograph-send.ts`, `lib/pick-card-file.ts`, `api/tachograph.ts`). Uses the
+  native `expo-document-picker`, so it needs the 1.3.1 store build (1.3.0 was already out); the row and screen check `requireOptionalNativeModule('ExpoDocumentPicker')`
+  and are hidden or say "update the app" on a build without it. The file is read with `fetch` and `FileReader`, so no file-system package is added.
+- **Reminders** (migration 0110; `domain/reminders.ts`, `application/reminders.ts`): the hourly `tachograph-reminders` task, from 7am UK, finds each driver card and
+  vehicle unit that has a file and is in its last week, due today or overdue (`reminderStage`: soon, urgent, today, then once a week overdue),
+  records it in `tachograph.reminder_log` (once for each download and stage, so a new file starts again and a restart sends nothing twice; a
+  gap skips to the stage it is at), then sends **one email to each person with `manage_fleet`** listing everything due, and **a push to the
+  driver about their own card** when the firm lets drivers send files. A firm's `reminders_enabled` (on unless turned off, the portal's "Remind me
+  when a download is coming due") stops both. Nothing is said about a driver or vehicle with no file yet (nothing to count from; the tracker
+  shows it). Planned inside the platform scope, sent outside it (the name and phone lookups open their own), and the records are given back only
+  when someone could have been told and no one was. The push carries `data.type: 'tachograph_due'`; the app (`lib/tachograph-notification.ts`,
+  `use-reroute-notifications.ts`) opens Send my tachograph file when it is tapped. `ExpoDriverPusher` is the module's own, like jobs'.
+- **Owner-driver setup** (portal, `pages/fleet/Tachograph.tsx`, `lib/own-driver.ts`): for a firm run by someone who also drives, "Do you drive for this
+  firm yourself?" is one button that invites the signed-in email as a driver and switches on drivers sending files; the rest is accepting the
+  invitation in the app signed in with that email. It stays until the link is active. No new endpoint: it uses the existing invite and settings calls.
+- **Not built:** a USB or Bluetooth reader, reading hours or infringements out of a file, a way to keep a file on the phone for a driver with no firm.
+
 ## Driver hours sharing
 
 The shared status also carries optional `breakMin`, `stretchMin` and `untilLimitMin` (migration 0059) so the dashboard's live map can put a sharing driver's breaks into their ETA (`lib/breaks-in-journey.ts`, mirroring the driver app's `planBreak`).

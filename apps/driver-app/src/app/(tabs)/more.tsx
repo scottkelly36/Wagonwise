@@ -22,6 +22,7 @@ import { Icon, type IconName } from '../../components/ui/icon';
 import { SegmentedControl } from '../../components/ui/segmented-control';
 import { identityErrorMessage } from '../../lib/error-messages';
 import { cardSimulatorEnabled } from '../../lib/card-simulator';
+import { canPickFiles } from '../../lib/pick-card-file';
 import { needsEmail } from '../../lib/sign-in-form';
 import { DISTANCE_UNIT_OPTIONS, FUEL_UNIT_OPTIONS } from '../../lib/units';
 import {
@@ -65,6 +66,14 @@ const PASSWORD_ROW: MenuRow = {
   icon: 'lock-outline',
   href: '/set-password',
   testID: 'password-button',
+};
+
+/** Only on a build that has the file picker in it: an older build cannot get it from a JavaScript update. */
+const TACHOGRAPH_ROW: MenuRow = {
+  label: 'Send my tachograph file',
+  icon: 'file-upload-outline',
+  href: '/tachograph',
+  testID: 'tachograph-button',
 };
 
 const ROWS: readonly MenuRow[] = [
@@ -145,14 +154,17 @@ export default function MoreScreen() {
   }
 
   // Password sign-in, when the server has it on: a phone-number account adds an email first, any other adds a password.
+  const base: readonly MenuRow[] = canPickFiles()
+    ? [...ROWS.slice(0, 5), TACHOGRAPH_ROW, ...ROWS.slice(5)]
+    : ROWS;
   const rows: readonly MenuRow[] =
     signInOptions.data?.passwordSignIn === true
       ? [
-          ...ROWS.slice(0, 1),
+          ...base.slice(0, 1),
           needsEmail(state.driver.identifier) ? ADD_EMAIL_ROW : PASSWORD_ROW,
-          ...ROWS.slice(1),
+          ...base.slice(1),
         ]
-      : ROWS;
+      : base;
 
   function handleSignOut(): void {
     Alert.alert('Sign out?', 'You will need to sign in again to use the app.', [
@@ -182,7 +194,7 @@ export default function MoreScreen() {
   function handleDeleteAccount(): void {
     Alert.alert(
       'Delete your account?',
-      'This removes your sign-in, vehicle profiles, routes and feedback, and signs you out. Hazard reports you filed stay, with nothing linking them to you, and a company keeps its own job records. This cannot be undone.',
+      'This removes your sign-in, vehicle profiles, routes and feedback, and signs you out. Hazard reports you filed stay, with nothing linking them to you, and a company keeps its own job records and any tachograph files you sent it. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

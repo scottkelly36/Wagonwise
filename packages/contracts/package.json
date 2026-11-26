@@ -99,6 +99,11 @@
       "import": "./dist/costing.js",
       "default": "./dist/costing.js"
     },
+    "./tachograph": {
+      "types": "./dist/tachograph.d.ts",
+      "import": "./dist/tachograph.js",
+      "default": "./dist/tachograph.js"
+    },
     "./hours": {
       "types": "./dist/hours.d.ts",
       "import": "./dist/hours.js",
