@@ -46,6 +46,14 @@ export const OPEN_ROUTES: ReadonlySet<string> = new Set([
   '/identity/otp/request',
   '/identity/otp/verify',
   '/identity/sign-in-options',
+  // Email-and-password sign-up and sign-in send a code or open an account (switched off unless DRIVER_PASSWORD_SIGN_IN, harmless then).
+  '/identity/signup/request',
+  '/identity/signup/confirm',
+  '/identity/password/sign-in',
+  '/identity/password/verify',
+  '/identity/password/reset/request',
+  '/identity/password/reset/confirm',
+  '/identity/social/sign-in',
   '/signups',
   '/signups/remove',
 ]);

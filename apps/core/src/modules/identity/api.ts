@@ -8,6 +8,7 @@ import type { TokenSigner } from './application/ports/token-signer.js';
 import type { DriverId } from './domain/driver.js';
 import type { PlatformStaffDirectory } from './application/ports/platform-staff.js';
 import { ChannelRoutingOtpSender } from './infrastructure/channel-routing-otp-sender.js';
+import { InMemorySendThrottle } from './application/in-memory-send-throttle.js';
 import { ClickSendOtpSender } from './infrastructure/clicksend-otp-sender.js';
 import { ClickSendTextSender } from './infrastructure/clicksend-text-sender.js';
 import { ConsoleOtpSender } from './infrastructure/console-otp-sender.js';
@@ -91,6 +92,12 @@ export interface IdentityModuleDeps {
   readonly otpSender?: OtpSender | undefined;
   /** Does a first sign-in need an invite code? (`DRIVER_INVITE_REQUIRED`) */
   readonly inviteRequired: boolean;
+  /** New driver accounts a UTC day, across everyone (`NEW_DRIVER_DAILY_LIMIT`); 0 means no limit. A guard against a bot filling the table. */
+  readonly newDriversPerDay?: number | undefined;
+  /** Text messages carrying a sign-in code a UTC day (`OTP_SMS_DAILY_LIMIT`); 0 means no limit. A guard on the text message bill. */
+  readonly otpTextsPerDay?: number | undefined;
+  /** Told when either limit is what turned someone away (at most once for the texts each day), so the owner hears of it. */
+  readonly onLimitReached?: ((what: 'new_accounts' | 'texts') => void) | undefined;
   /** Registers the email-and-password sign-in routes (`DRIVER_PASSWORD_SIGN_IN`). */
   readonly passwordSignIn: boolean;
   /** Our client ids at Google and at Apple (`GOOGLE_OAUTH_CLIENT_IDS`, `APPLE_CLIENT_IDS`). A provider with none answers `ProviderNotConfigured`. */
@@ -170,6 +177,14 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
       : undefined;
   const otpSender = deps.otpSender ?? new ChannelRoutingOtpSender(smsSender, emailSender);
   const otpCodeGenerator = new CryptoOtpCodeGenerator();
+  // How often a code may go to one address or number, and how many texts a day: asked before any code is made.
+  const sendThrottle = new InMemorySendThrottle(deps.clock, deps.otpTextsPerDay ?? 0, () =>
+    deps.onLimitReached?.('texts'),
+  );
+  const newAccountLimits = {
+    newDriversPerDay: deps.newDriversPerDay,
+    onSignUpsPaused: () => deps.onLimitReached?.('new_accounts'),
+  };
   const refreshTokenGenerator = new CryptoRefreshTokenGenerator();
   const inviteCodeGenerator = new CryptoInviteCodeGenerator();
 
@@ -188,6 +203,8 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     inviteRequired: deps.inviteRequired,
     clock: deps.clock,
     ids: deps.ids,
+    sendThrottle,
+    ...newAccountLimits,
   };
 
   const socialSignIn: SocialSignInDeps = {
@@ -208,6 +225,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     inviteRequired: deps.inviteRequired,
     clock: deps.clock,
     ids: deps.ids,
+    ...newAccountLimits,
   };
 
   const accountLinks: AccountLinkDeps = {
@@ -219,6 +237,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
     otpCodeGenerator,
     clock: deps.clock,
     ids: deps.ids,
+    sendThrottle,
   };
 
   const routeDeps: IdentityRouteDeps = {
@@ -241,6 +260,8 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
       inviteRequired: deps.inviteRequired,
       clock: deps.clock,
       ids: deps.ids,
+      sendThrottle,
+      ...newAccountLimits,
     },
     verifyOtp: {
       driverRepo,
@@ -254,6 +275,7 @@ export function createIdentityModule(deps: IdentityModuleDeps): IdentityModule {
       inviteRequired: deps.inviteRequired,
       clock: deps.clock,
       ids: deps.ids,
+      ...newAccountLimits,
     },
     refreshToken: {
       sessionRepo,

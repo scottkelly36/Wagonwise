@@ -34,7 +34,17 @@ import type {
   InvalidInviteCode,
   InviteCodeRequired,
   PasswordAlreadySet,
+  DisposableEmail,
+  SendsPaused,
+  SignUpsPaused,
+  TooManyCodes,
 } from './errors.js';
+import {
+  acceptableNewIdentifier,
+  signUpsPaused,
+  type NewAccountLimits,
+} from './new-account-guard.js';
+import type { SendThrottle } from './ports/send-throttle.js';
 import { sha256Hex } from './hash.js';
 import { issueOtp } from './issue-otp.js';
 import { issueSession, type IssuedSession } from './issue-session.js';
@@ -58,7 +68,8 @@ import type { OtpNotFound } from './verify-otp.js';
  *   forgotten  requestPasswordReset → confirmPasswordReset
  *   migrating  setPassword                                (a signed-in driver who has none yet)
  */
-export interface PasswordAccountDeps {
+export interface PasswordAccountDeps extends NewAccountLimits {
+  readonly sendThrottle?: SendThrottle | undefined;
   readonly driverRepo: DriverRepository;
   readonly inviteCodeRepo: InviteCodeRepository;
   readonly credentialRepo: CredentialRepository;
@@ -122,7 +133,11 @@ export type RequestSignupCodeError =
   | AccountExists
   | InviteCodeRequired
   | InvalidInviteCode
-  | CodeNotSent;
+  | CodeNotSent
+  | TooManyCodes
+  | SendsPaused
+  | SignUpsPaused
+  | DisposableEmail;
 
 /** Step 1: emails a code to a new address. Nothing is stored about the driver yet, so no password is held waiting. */
 export async function requestSignupCode(
@@ -134,6 +149,14 @@ export async function requestSignupCode(
   const email = deliverableEmail(typed.value);
   if (!email.ok) return email;
   if (await deps.driverRepo.findByIdentifier(email.value)) return err({ tag: 'AccountExists' });
+  // A new account: not a throwaway address, and not past today's limit, before a code is sent.
+  const acceptable = acceptableNewIdentifier(email.value);
+  if (!acceptable.ok)
+    return acceptable.error.tag === 'DisposableEmail'
+      ? err(acceptable.error)
+      : err({ tag: 'InvalidIdentifier', reason: 'not_email_or_phone' });
+  const open = await signUpsPaused(deps, deps.clock.now());
+  if (!open.ok) return open;
   const invite = await inviteIsUsable(deps, input.inviteCode);
   if (!invite.ok) return invite;
   return issueOtp(deps, email.value);
@@ -146,7 +169,8 @@ export type ConfirmSignupError =
   | OtpCheckError
   | AccountExists
   | InviteCodeRequired
-  | InvalidInviteCode;
+  | InvalidInviteCode
+  | SignUpsPaused;
 
 /** Step 2: the code proves the email is theirs, then the account and its password are made together and they are signed in. */
 export async function confirmSignup(
@@ -182,7 +206,12 @@ export async function confirmSignup(
 // ---- Sign-in ------------------------------------------------------------------------------
 
 export type PasswordSignInError =
-  InvalidIdentifier | InvalidCredentials | TooManyAttempts | CodeNotSent;
+  | InvalidIdentifier
+  | InvalidCredentials
+  | TooManyAttempts
+  | CodeNotSent
+  | TooManyCodes
+  | SendsPaused;
 
 /**
  * Step 1 of signing in. A right password never signs anyone in on its own: it sends a code, and the code does. A wrong email and a wrong

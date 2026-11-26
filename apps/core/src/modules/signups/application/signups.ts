@@ -1,3 +1,4 @@
+import { isDisposableEmail } from '@wagonwise/contracts/disposable-email';
 import { checkEmail } from '@wagonwise/contracts/email-check';
 
 import { makeId } from '../../../shared/brand.js';
@@ -122,7 +123,10 @@ export async function signUp(
   const checked = validateSignup(input);
   if (!checked.ok) return checked;
   // An ending that does not exist (sam@gmail.comg) can only bounce: the page asks about likelier slips, this is the one that stands.
-  if (checkEmail(checked.value.email).kind === 'impossible') {
+  if (
+    checkEmail(checked.value.email).kind === 'impossible' ||
+    isDisposableEmail(checked.value.email)
+  ) {
     return err({ tag: 'InvalidSignup', reason: 'email' });
   }
   const now = deps.clock.now();

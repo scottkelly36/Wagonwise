@@ -70,6 +70,21 @@ describe('identity Postgres repositories', () => {
       expect((await repo().findById(driver.id))?.name).toBeUndefined();
     });
 
+    it('counts the accounts made since a time, from the database, for the daily limit on new accounts', async () => {
+      const day = (n: number, hour: number) => new Date(Date.UTC(2031, 5, n, hour));
+      for (const [i, createdAt] of [day(10, 23), day(11, 1), day(11, 9), day(11, 20)].entries()) {
+        await repo().save({
+          id: makeId<'DriverId'>(`5000000${i}-0000-4000-8000-000000000000`),
+          identifier: `counted-${i}@example.com`,
+          createdAt,
+        });
+      }
+      // Everyone made on 11 June or later, and nobody from the 10th.
+      expect(await repo().countCreatedSince(day(11, 0))).toBe(3);
+      expect(await repo().countCreatedSince(day(11, 10))).toBe(1);
+      expect(await repo().countCreatedSince(day(12, 0))).toBe(0);
+    });
+
     it('returns null for an unknown driver', async () => {
       expect(
         await repo().findById(makeId<'DriverId'>('00000000-0000-4000-8000-000000000000')),

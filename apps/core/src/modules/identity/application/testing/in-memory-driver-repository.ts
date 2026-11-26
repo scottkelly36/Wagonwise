@@ -26,6 +26,10 @@ export class InMemoryDriverRepository implements DriverRepository {
     return Promise.resolve(this.#byId.get(id) ?? null);
   }
 
+  countCreatedSince(since: Date): Promise<number> {
+    return Promise.resolve([...this.#byId.values()].filter((d) => d.createdAt >= since).length);
+  }
+
   save(driver: Driver): Promise<void> {
     this.#byId.set(driver.id, driver);
     return Promise.resolve();

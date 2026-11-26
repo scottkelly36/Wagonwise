@@ -542,6 +542,29 @@ describe('telling the owner, and thanking a firm that registers', () => {
   });
 });
 
+describe('a throwaway email address', () => {
+  it('is turned away on a firm registration, so no trial link goes to it', async () => {
+    const { deps, testers } = setup();
+    for (const email of ['bot@mailinator.com', 'x@guerrillamail.com', 'y@sub.yopmail.com']) {
+      expect(
+        await signUp(deps, { email, role: 'company', company: 'Bot Haulage', consent: true }),
+      ).toEqual({
+        ok: false,
+        error: { tag: 'InvalidSignup', reason: 'email' },
+      });
+    }
+    expect(testers.rows.size).toBe(0);
+  });
+
+  it('does not get in the way of a real address', async () => {
+    const { deps } = setup();
+    expect(
+      (await signUp(deps, { email: 'sam@carter-haulage.co.uk', role: 'company', consent: true }))
+        .ok,
+    ).toBe(true);
+  });
+});
+
 describe('a firm starting its own trial from the link it was emailed', () => {
   const PORTAL = 'https://dashboard.example.com/';
 

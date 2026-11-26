@@ -98,6 +98,10 @@ const envSchema = z.object({
   // Whether a driver's first sign-in needs an invite code. Default true; 'false' opens sign-up (the released app already sends no
   // code when its box is empty, so this works with no app update). A valid code typed anyway is still redeemed.
   DRIVER_INVITE_REQUIRED: z.enum(['true', 'false']).default('true'),
+  // Guards for sign-up that needs no invite code. New driver accounts a UTC day, across everyone (the first day had 293, so 1000 is a bot, not a
+  // launch), and sign-in codes sent by text message a UTC day (each costs money; emails cost almost nothing and are not counted). 0 means no limit.
+  NEW_DRIVER_DAILY_LIMIT: z.coerce.number().int().min(0).default(1000),
+  OTP_SMS_DAILY_LIMIT: z.coerce.number().int().min(0).default(500),
   // Our client ids at Google and at Apple, comma separated, for checking their sign-in tokens. Unset: that provider's sign-in is off.
   GOOGLE_OAUTH_CLIENT_IDS: z.string().optional(),
   APPLE_CLIENT_IDS: z.string().optional(),
@@ -228,6 +232,8 @@ export interface Config {
   readonly alertEmail: string | undefined;
   /** False opens sign-up with no invite code. */
   readonly driverInviteRequired: boolean;
+  readonly newDriverDailyLimit: number;
+  readonly otpSmsDailyLimit: number;
   /** True registers the password sign-in routes. */
   readonly driverPasswordSignIn: boolean;
   /** True shows the market research contact switch in the portal and takes answers. */
@@ -342,6 +348,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     what3wordsApiKey: values.W3W_API_KEY,
     alertEmail: values.ALERT_EMAIL,
     driverInviteRequired: values.DRIVER_INVITE_REQUIRED === 'true',
+    newDriverDailyLimit: values.NEW_DRIVER_DAILY_LIMIT,
+    otpSmsDailyLimit: values.OTP_SMS_DAILY_LIMIT,
     driverPasswordSignIn: values.DRIVER_PASSWORD_SIGN_IN === 'true',
     researchContactEnabled: values.RESEARCH_CONTACT_ENABLED === 'true',
     googleOauthClientIds: commaList(values.GOOGLE_OAUTH_CLIENT_IDS),

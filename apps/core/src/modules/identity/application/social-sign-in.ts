@@ -11,7 +11,13 @@ import type {
 } from '../domain/federated-identity.js';
 import { emailIdentifier } from '../domain/password.js';
 import { createDriver } from './create-driver.js';
-import type { DriverNotFound, InvalidInviteCode, InviteCodeRequired } from './errors.js';
+import type {
+  DriverNotFound,
+  InvalidInviteCode,
+  InviteCodeRequired,
+  SignUpsPaused,
+} from './errors.js';
+import type { NewAccountLimits } from './new-account-guard.js';
 import { issueSession } from './issue-session.js';
 import type { CredentialRepository } from './ports/credential-repository.js';
 import type { DriverRepository } from './ports/driver-repository.js';
@@ -23,7 +29,7 @@ import type { SessionRepository } from './ports/session-repository.js';
 import type { TokenSigner } from './ports/token-signer.js';
 import type { SignedIn } from './password-accounts.js';
 
-export interface SocialSignInDeps {
+export interface SocialSignInDeps extends NewAccountLimits {
   readonly driverRepo: DriverRepository;
   readonly inviteCodeRepo: InviteCodeRepository;
   readonly credentialRepo: CredentialRepository;
@@ -45,7 +51,8 @@ export type SocialSignInError =
   | EmailNotVerified
   | DriverNotFound
   | InviteCodeRequired
-  | InvalidInviteCode;
+  | InvalidInviteCode
+  | SignUpsPaused;
 
 /**
  * Signs a driver in with a Google or Apple ID token. No code and no password: the provider has already proved who they are, and that is

@@ -2,7 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import Fastify, { type FastifyInstance } from 'fastify';
 import { fileURLToPath } from 'node:url';
 import type { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   createIdentityModule,
   createTokenSigner,
@@ -79,6 +79,12 @@ describe('driver sign-in end to end (real Postgres)', () => {
     });
     identity.registerRoutes(app);
   }, 120_000);
+
+  // Each test is a different moment: a code to one address is held for half a minute and six an hour (the real limit on sending codes), so a
+  // test that asks for a code does so a quarter of an hour after the last one.
+  beforeEach(() => {
+    clock.advance(15 * 60 * 1000);
+  });
 
   afterAll(async () => {
     await app.close();

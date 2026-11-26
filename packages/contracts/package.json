@@ -163,6 +163,11 @@
       "types": "./dist/what3words.d.ts",
       "import": "./dist/what3words.js",
       "default": "./dist/what3words.js"
+    },
+    "./disposable-email": {
+      "types": "./dist/disposable-email.d.ts",
+      "import": "./dist/disposable-email.js",
+      "default": "./dist/disposable-email.js"
     }
   },
   "scripts": {

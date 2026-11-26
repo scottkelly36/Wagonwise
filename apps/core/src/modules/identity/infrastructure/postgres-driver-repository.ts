@@ -66,6 +66,13 @@ export class PostgresDriverRepository implements DriverRepository {
   }
 
   /** Upsert (the port's contract, M8) — `consent()`/`anonymize()` re-save an existing row. */
+  async countCreatedSince(since: Date): Promise<number> {
+    const { rows } = await sql<{ n: string }>`
+      select count(*) as n from identity.drivers where created_at >= ${since}
+    `.execute(this.db);
+    return Number(rows[0]?.n ?? 0);
+  }
+
   async save(driver: Driver, tx?: Transaction): Promise<void> {
     const executor = tx ? (tx as unknown as UntypedDb) : this.db;
     await sql`

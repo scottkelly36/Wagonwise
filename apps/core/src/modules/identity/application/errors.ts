@@ -11,6 +11,17 @@ export type InvalidInviteCode = TaggedError<'InvalidInviteCode'>;
  *  is for the log only and never sent to the caller. */
 export type CodeNotSent = TaggedError<'CodeNotSent'> & { readonly cause: unknown };
 
+/** Too many codes to this address or number just now. The app shows its "wait a minute" message for any 429. */
+export type TooManyCodes = TaggedError<'TooManyCodes'> & { readonly retryAfterSeconds: number };
+/** Today's text messages are used up (a cost guard). Answered as a server problem, so the app says "try again in a minute", and an email still works. */
+export type SendsPaused = TaggedError<'SendsPaused'>;
+/** Today's limit on new accounts is reached (a guard against a bot filling the table). */
+export type SignUpsPaused = TaggedError<'SignUpsPaused'>;
+/** A new account cannot use a throwaway email address (the well-known providers). Existing drivers are never asked. */
+export type DisposableEmail = TaggedError<'DisposableEmail'>;
+/** A new account made by text must use a UK mobile number: a text to a number anywhere else costs more and is the way a bot runs up the bill. */
+export type UkMobileRequired = TaggedError<'UkMobileRequired'>;
+
 /** Only reachable if `request.driverId` (a verified token's own claim) names a driver that
  *  somehow no longer exists — a data-integrity bug, not a request shape a driver can trigger
  *  (`give-consent.ts`, `delete-account.ts`). */

@@ -235,7 +235,8 @@ filtered `pnpm install --filter "<package>..."`, which pulls in `packages/contra
    - `driver-bff`: public route on your domain. Env: `CORE_INTERNAL_URL=http://core:3001`,
      `CORE_INTERNAL_KEY` (must match one of `core`'s `INTERNAL_KEYS`), `NODE_ENV=production`,
      `TRUST_PROXY_HOPS=1` (App Platform's router is the one proxy in front; without it the
-     per-address rate limit stays off).
+     per-address rate limit stays off, and with sign-up open that limit is what slows a flood from one address: **check it is set**).
+   - **Open driver sign-up guards (2026-11-26), on `core`:** `NEW_DRIVER_DAILY_LIMIT` (default 1000 new accounts a UTC day) and `OTP_SMS_DAILY_LIMIT` (default 500 sign-in texts a UTC day; emails are not counted); both optional, 0 means no limit, and when either is reached `ALERT_EMAIL` is emailed. `DRIVER_INVITE_REQUIRED=true` closes open sign-up at once.
    - Basic containers, $5/mo each, to start.
    - **`migrate` job (`kind: PRE_DEPLOY`), added 2026-09-26.** Same image as `core`, entrypoint
      overridden to `pnpm --filter @wagonwise/core run db:migrate`. DO runs this once before

@@ -60,6 +60,26 @@ describe('POST /identity/otp/request', () => {
     expect(coreClient.calls).toEqual([]);
   });
 
+  it('relays core refusing too many codes (429), a paused day (503) and a bad new account (400) to the app unchanged', async () => {
+    const { app, coreClient } = buildApp();
+    for (const [status, tag] of [
+      [429, 'TooManyCodes'],
+      [503, 'SignUpsPaused'],
+      [503, 'SendsPaused'],
+      [400, 'DisposableEmail'],
+      [400, 'UkMobileRequired'],
+    ] as const) {
+      coreClient.nextResponse = { status, body: { tag } };
+      const response = await app.inject({
+        method: 'POST',
+        url: '/identity/otp/request',
+        payload: { identifier: 'a@example.com' },
+      });
+      expect(response.statusCode).toBe(status);
+      expect(response.json()).toEqual({ tag });
+    }
+  });
+
   it('relays a non-200 status from core unchanged', async () => {
     const { app, coreClient } = buildApp();
     coreClient.nextResponse = { status: 429, body: { tag: 'TooManyAttempts' } };
