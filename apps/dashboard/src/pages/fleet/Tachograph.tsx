@@ -8,6 +8,7 @@ import {
   MIN_RETENTION_MONTHS,
   type TachographFileRow,
   type TachographKind,
+  type TachographSettingsDto,
 } from '@wagonwise/contracts/tachograph';
 import type { DriverLinkDto } from '@wagonwise/contracts/fleet';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -512,7 +513,7 @@ function Settings({ companyId }: { companyId: string }) {
       withAccessToken((token) => tachographApi.getTachographSettings(token, companyId)),
   });
   const change = useMutation({
-    mutationFn: (next: { driversMaySend: boolean; retentionMonths: number }) =>
+    mutationFn: (next: TachographSettingsDto) =>
       withAccessToken((token) => tachographApi.setTachographSettings(token, companyId, next)),
     onSuccess: (saved) => {
       queryClient.setQueryData(key, saved);
