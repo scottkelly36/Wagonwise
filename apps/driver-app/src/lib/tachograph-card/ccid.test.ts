@@ -143,6 +143,20 @@ describe('what goes wrong', () => {
     expect(log.join('\n')).toContain('reader chose protocol T=1');
   });
 
+  it('tries each voltage, lowest first, when the reader cannot choose for itself', async () => {
+    const fake = new FakeCcidReader(new SimulatedCard(), {
+      level: 'apdu',
+      refuseAutoVoltage: true,
+    });
+    const manual = parseCcidDescriptor(descriptors(0x20000)) as CcidInfo;
+    const log: string[] = [];
+    const ccid = new CcidReader(fake, manual, { log: (l) => log.push(l) });
+    expect((await downloadDriverCard(ccid)).files).toHaveLength(16);
+    const selects = fake.written.filter((m) => m[0] === 0x62).map((m) => m[7]);
+    expect(selects).toEqual([3, 2, 1].slice(0, selects.length));
+    expect(selects[0]).toBe(3);
+  });
+
   it('refuses a reader that works one character at a time', async () => {
     const fake = new FakeCcidReader(new SimulatedCard());
     const character = parseCcidDescriptor(descriptors(0)) as CcidInfo;

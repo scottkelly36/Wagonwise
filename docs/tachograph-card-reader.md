@@ -97,5 +97,11 @@ A genuine test driver card is not something I know a source for; a real driver c
     phones without it. Do not merge before the 1.3.1 store build unless that is wanted: the build would carry an untested native module.
   - **Trial order:** the owner's phone and a reader first; a training card if one can be had; a real card only with the holder's clear OK, not while
     they need it to drive. Compare the saved `.ddd` with one from a free app (checklist above), and send the log if anything fails.
+  - **Order on the day, safest first:** the reader with no card in it (expect "No card in the reader"; the log shows permission, the descriptor and
+    the slot status), then an old expired chip card (expect a plain-words error; it tests power-on and the protocol), then the real card.
+  - **Installing:** an internal build is signed with a different key from the store app, so uninstall the store app first and sign in again.
+  - **Over-the-air fixes to this build:** publish from this branch (not main) with `EXPO_PUBLIC_CARD_SIMULATOR=true` in the environment of
+    `eas update --channel preview`: `eas.json`'s `build.preview.env` applies to builds only, and without it More loses the screen.
+  - **Power on:** the reader is asked to pick the voltage; if it cannot, each voltage it supports is tried, lowest first.
 - Step 3: showing what is in the file (the period it covers first; days of activity only after it matches a real download), labelled as
   from the card file and not the legal record.

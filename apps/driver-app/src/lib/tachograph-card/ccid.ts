@@ -35,6 +35,8 @@ export interface UsbTransport {
 export interface CcidInfo {
   readonly bcdCcid: number;
   readonly maxSlotIndex: number;
+  /** Bit 0: 5 V cards, bit 1: 3 V, bit 2: 1.8 V. */
+  readonly voltageSupport: number;
   /** Bit 0: T=0 cards, bit 1: T=1 cards. */
   readonly protocols: number;
   readonly features: number;
@@ -44,6 +46,7 @@ export interface CcidInfo {
 }
 
 const LEVEL_MASK = 0x00070000;
+const AUTOMATIC_VOLTAGE = 0x08;
 
 /** Reads the CCID class descriptor out of a device's raw USB descriptors. `undefined` when there is none. */
 export function parseCcidDescriptor(raw: Uint8Array): CcidInfo | undefined {
@@ -66,6 +69,7 @@ export function parseCcidDescriptor(raw: Uint8Array): CcidInfo | undefined {
       return {
         bcdCcid: (raw[i + 2] as number) | ((raw[i + 3] as number) << 8),
         maxSlotIndex: raw[i + 4] as number,
+        voltageSupport: raw[i + 5] as number,
         protocols: u32(6),
         features,
         maxMessageLength: u32(44),
@@ -163,6 +167,7 @@ const ERROR_NAMES: Readonly<Record<number, string>> = {
   0xfb: 'hardware error',
   0xf7: 'bad answer-to-reset',
   0xf6: 'bad answer-to-reset checksum',
+  0x07: 'power select not supported',
   0xf5: 'protocol not supported',
   0xf4: 'class not supported',
   0xf3: 'procedure byte conflict',
@@ -198,9 +203,7 @@ export class CcidReader implements CardReader {
     }
     const status = await this.#send(GET_SLOT_STATUS, [0, 0, 0]);
     if (status.iccStatus === 2) throw new CardError('no_card', 'no card in the reader');
-    const response = await this.#send(ICC_POWER_ON, [0, 0, 0]);
-    if (response.iccStatus === 2) throw new CardError('no_card', 'no card in the reader');
-    const atr = response.data;
+    const atr = await this.#powerOnCard();
     this.#log(`card answered: ${atr.length} bytes, first protocol offered T=${atrProtocol(atr)}`);
     if (this.#info.level === 'tpdu') await this.#checkProtocol();
     return atr;
@@ -233,6 +236,33 @@ export class CcidReader implements CardReader {
     } catch {
       // Turning the card off is a courtesy: a reader already unplugged cannot do it.
     }
+  }
+
+  /**
+   * Turns the card on. A reader that picks the voltage itself is asked to; one that cannot (or whose pick the card ignores) is tried
+   * with each voltage it supports, lowest first, so a low-voltage card is never given more than it takes.
+   */
+  async #powerOnCard(): Promise<Uint8Array> {
+    const automatic = (this.#info.features & AUTOMATIC_VOLTAGE) !== 0;
+    const explicit = [3, 2, 1].filter(
+      (select) => (this.#info.voltageSupport & (1 << (select - 1))) !== 0,
+    );
+    const tries = [...(automatic || explicit.length === 0 ? [0] : []), ...explicit];
+    let last: unknown;
+    for (const select of tries) {
+      try {
+        const response = await this.#send(ICC_POWER_ON, [select, 0, 0]);
+        if (response.iccStatus === 2) throw new CardError('no_card', 'no card in the reader');
+        return response.data;
+      } catch (error) {
+        // Only a refused voltage or a silent card is worth trying another voltage for.
+        if (!(error instanceof CardError) || !['read_failed', 'protocol'].includes(error.code))
+          throw error;
+        this.#log(`power on at select ${select} failed: ${error.message}`);
+        last = error;
+      }
+    }
+    throw last;
   }
 
   /**

@@ -54,6 +54,8 @@ export interface FakeCcidOptions {
   readonly strayFirst?: boolean;
   /** The reader never answers. */
   readonly silent?: boolean;
+  /** A reader that cannot pick the voltage itself: power on with an automatic choice is refused. */
+  readonly refuseAutoVoltage?: boolean;
   /** No card in the reader: the slot says so. */
   readonly noCard?: boolean;
 }
@@ -94,6 +96,10 @@ export class FakeCcidReader implements UsbTransport {
         return;
       case 0x62: {
         // IccPowerOn
+        if (this.#options.refuseAutoVoltage === true && bytes[7] === 0) {
+          this.#queue(this.#reply(0x80, seq, 0x40 | 1, 0x07, 0));
+          return;
+        }
         try {
           const atr = await this.#card.powerOn();
           this.#powered = true;
