@@ -102,13 +102,13 @@ describe('useCardRead', () => {
       expect(result.current.log.at(-1)).toBe('stopped: no_reader: no USB card reader plugged in');
     });
 
-    it('does not keep a file from a pretend card', async () => {
+    it('keeps a file from a pretend card too, named so it cannot be taken for a real one', async () => {
       const { result } = await renderHook(() => useCardRead(0));
       await act(async () => {
         await result.current.start(scenario('good'));
       });
       expect(result.current.state.status).toBe('done');
-      expect(result.current.download).toBeUndefined();
+      expect(result.current.download?.fileName).toMatch(/^PRETEND_C_\d{8}_\d{4}\.DDD$/);
     });
   });
 });

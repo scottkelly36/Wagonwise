@@ -30,7 +30,9 @@ const mockSummary = {
   skippedCount: 0,
 };
 const mockDdd = new Uint8Array([1, 2, 3]);
+const mockFile = { name: 'C_20261127_1005.DDD' };
 jest.mock('../hooks/use-card-read', () => ({
+  PRETEND_FILE_PREFIX: 'PRETEND_',
   useCardRead: () => ({
     state: { status: 'done', summary: mockSummary },
     start: jest.fn(),
@@ -38,7 +40,7 @@ jest.mock('../hooks/use-card-read', () => ({
     cancel: jest.fn(),
     reset: jest.fn(),
     log: ['a line'],
-    download: { ddd: mockDdd, fileName: 'C_20261127_1005.DDD' },
+    download: { ddd: mockDdd, fileName: mockFile.name },
   }),
 }));
 
@@ -56,6 +58,7 @@ const COMPANY = { companyId: 'c1', companyName: 'Wear Freight', firmEnabled: tru
 beforeEach(() => {
   jest.clearAllMocks();
   mockMine.current = { data: [COMPANY], isSuccess: true };
+  mockFile.name = 'C_20261127_1005.DDD';
 });
 
 describe('uploading a card file to the portal', () => {
@@ -75,6 +78,19 @@ describe('uploading a card file to the portal', () => {
     expect(input.file.fileName).toBe('C_20261127_1005.DDD');
     expect(input.file.dataBase64).toBe('AQID');
     expect(input.file.wordingVersion).toBeGreaterThanOrEqual(1);
+  });
+
+  it('warns before a PRETEND file goes to a company, and never on a real one', async () => {
+    const { unmount } = await render(<ReadCardScreen />);
+    await fireEvent.press(screen.getByTestId('read-card-upload-c1'));
+    expect(screen.queryByTestId('read-card-pretend-warning')).toBeNull();
+    await unmount();
+
+    mockFile.name = 'PRETEND_C_20261127_1005.DDD';
+    await render(<ReadCardScreen />);
+    await fireEvent.press(screen.getByTestId('read-card-upload-c1'));
+    expect(screen.getByTestId('read-card-pretend-warning')).toBeTruthy();
+    expect(screen.getByText(/Ask them to delete\s+it afterwards/)).toBeTruthy();
   });
 
   it('says so when the upload goes through', async () => {

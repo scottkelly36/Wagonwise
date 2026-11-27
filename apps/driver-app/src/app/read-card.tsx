@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '../components/ui/screen-header';
 import { useMyTachograph, useSendTachographFile } from '../api/use-tachograph';
-import { useCardRead } from '../hooks/use-card-read';
+import { PRETEND_FILE_PREFIX, useCardRead } from '../hooks/use-card-read';
 import { canShareFiles, deleteSavedFile, shareBytes } from '../lib/share-card-file';
 import { toBase64 } from '../lib/tachograph-card/base64';
 import { sizeText } from '../lib/tachograph-card/card-flow';
@@ -151,7 +151,7 @@ export default function ReadCardScreen() {
           <Text style={styles.noticeText}>
             {real
               ? 'This reads the driver card in a USB card reader plugged into the phone. The file holds the card holder’s name, licence number and recent driving. It stays on this phone unless you share it. Only read a card you have the holder’s OK to read, and not while they need it to drive.'
-              : 'This reads a pretend card. Nothing real is read and nothing is sent anywhere. It is here so the steps can be tried without a real card reader.'}
+              : 'This reads a pretend card. Nothing real is read, and nothing is sent unless you choose to upload the pretend file to a company, so the steps can be tried without a real card or reader. The file is named PRETEND_ so it can be told apart.'}
           </Text>
         </View>
 
@@ -245,6 +245,13 @@ export default function ReadCardScreen() {
             {download !== undefined && confirming !== undefined && (
               <View style={styles.card} testID="read-card-confirm">
                 <Text style={styles.heading}>Upload to {confirming.companyName}?</Text>
+                {download.fileName.startsWith(PRETEND_FILE_PREFIX) && (
+                  <Text style={styles.error} testID="read-card-pretend-warning">
+                    This is a PRETEND card file. {confirming.companyName} will see it in their
+                    portal as a file from you, and it counts as your latest card download. Ask them
+                    to delete it afterwards.
+                  </Text>
+                )}
                 {sendNotice(confirming.companyName).map((line) => (
                   <Text key={line} style={styles.body}>
                     {line}
