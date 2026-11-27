@@ -74,4 +74,14 @@ export function sendNotice(companyName: string): readonly string[] {
   ];
 }
 
+/**
+ * Shown to a driver whose company is not on WagonWise yet. It says what the office gets and where to find out more; it names no price and
+ * makes no promise about the law, and the driver chooses whether to tell anyone.
+ */
+export const INTEREST_HEADING = 'Want your firm to see this too?';
+export const INTEREST_TEXT =
+  'In the WagonWise portal your company sees when each driver’s card download is due, gets a reminder before it is late, and keeps the files in one place. It is made for haulage firms and is free to try.';
+export const INTEREST_BOSS_BUTTON = 'Tell your boss about it';
+export const INTEREST_OWN_FIRM_LINK = 'Run your own firm? Start a free trial';
+
 export const INTERVAL_TEXT = `Your company needs a copy of your driver card at least every ${DOWNLOAD_EVERY_DAYS.driver_card} days.`;
