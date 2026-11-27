@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/errors';
 import { useMyTachograph, useSendTachographFile } from '../api/use-tachograph';
 import { ScreenHeader } from '../components/ui/screen-header';
+import { cardSimulatorEnabled } from '../lib/card-simulator';
 import { canPickFiles, pickCardFile, type PickedFile } from '../lib/pick-card-file';
 import {
   dayText,
@@ -37,6 +38,12 @@ interface Chosen {
   readonly file: PickedFile;
   /** The day the download was made, `YYYY-MM-DD`. */
   readonly day: string;
+}
+
+/** For test builds only: what actually failed, so a report says more than "could not load". */
+function errorDetail(error: unknown): string {
+  if (error instanceof ApiError) return `${error.tag} (${error.status})`;
+  return error instanceof Error ? `${error.name}: ${error.message}`.slice(0, 200) : 'unknown error';
 }
 
 function sendProblem(error: unknown): string {
@@ -132,9 +139,23 @@ export default function TachographScreen() {
         ) : mine.isLoading ? (
           <ActivityIndicator color={colors.text} />
         ) : mine.isError ? (
-          <Text style={styles.error}>
-            Could not load your companies. Check your signal and try again.
-          </Text>
+          <>
+            <Text style={styles.error}>
+              Could not load your companies. Check your signal and try again.
+            </Text>
+            {cardSimulatorEnabled() && (
+              <Text style={styles.small} testID="tachograph-error-detail">
+                Test build: {errorDetail(mine.error)}
+              </Text>
+            )}
+            <TouchableOpacity
+              onPress={() => void mine.refetch()}
+              accessibilityRole="button"
+              testID="tachograph-retry"
+            >
+              <Text style={styles.link}>Try again</Text>
+            </TouchableOpacity>
+          </>
         ) : companies.length === 0 ? (
           <Text style={styles.body}>
             You are not linked to a company yet. Join one from My companies, then you can send them
@@ -254,6 +275,7 @@ function createStyles(colors: ThemeColors) {
     body: { fontSize: 15, lineHeight: 21, color: colors.textSecondary },
     link: { fontSize: 15, fontWeight: '600', color: colors.accentBlue },
     error: { fontSize: 14, color: colors.danger },
+    small: { fontSize: 13, lineHeight: 18, color: colors.textMuted },
     success: { fontSize: 15, fontWeight: '600', color: colors.text },
     dateRow: { gap: 4 },
     button: {
