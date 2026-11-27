@@ -8,11 +8,14 @@ import * as hoursApi from '../../api/hours';
 import * as jobsApi from '../../api/jobs';
 import * as maintenanceApi from '../../api/maintenance';
 import * as paymentsApi from '../../api/payments';
+import * as tachographApi from '../../api/tachograph';
 import { HomeFailed, HomeNote, HomePanel, HomeRows, HomeTiles } from '../../components/HomeParts';
-import { driverNamesById } from '../../lib/driver-name';
+import { driverDisplayName, driverNamesById } from '../../lib/driver-name';
 import { complianceRows, localDay, lowOnHours, managerTiles, onTheRoad } from '../../lib/home';
 import { firstRunSteps, isBrandNew, showFirstRun } from '../../lib/first-run';
 import { byUrgency, managerSummary, todaysJobs } from '../../lib/home-summary';
+import { ukToday } from '../../lib/money';
+import { downloadCounts, trackerRows } from '../../lib/tachograph';
 import { holds } from '../../state/access';
 import { useStaffAuthStore } from '../../state/staff-auth-store';
 
@@ -103,6 +106,13 @@ export function ManagerHome({ companyId }: { companyId: string }) {
     enabled: holds(me, 'manage_billing'),
     retry: false,
   });
+  // The files sent to WagonWise, for the tachograph download line. Only for someone who may manage the fleet, and shown once the firm has sent a file.
+  const tachographFiles = useQuery({
+    queryKey: ['tachograph-files', companyId],
+    queryFn: () => withAccessToken((t) => tachographApi.listTachographFiles(t, companyId)),
+    enabled: holds(me, 'manage_fleet'),
+    ...live,
+  });
   const hours = useQuery({
     queryKey: ['hours-status', companyId],
     queryFn: () => withAccessToken((t) => hoursApi.listHoursStatuses(t, companyId)),
@@ -150,7 +160,27 @@ export function ManagerHome({ companyId }: { companyId: string }) {
   });
   const brandNew = isBrandNew({ vehicles: vehicleCount, jobs: jobCount }) && steps.length > 0;
 
+  const downloads =
+    tachographFiles.isSuccess &&
+    tachographFiles.data.latest.length > 0 &&
+    drivers.isSuccess &&
+    vehicles.isSuccess
+      ? downloadCounts(
+          trackerRows(
+            drivers.data.flatMap((l) =>
+              l.status === 'active' && l.driverId !== undefined
+                ? [{ id: l.driverId, name: driverDisplayName(l) }]
+                : [],
+            ),
+            vehicles.data.map((v) => ({ id: v.id, name: v.name })),
+            tachographFiles.data.latest,
+            ukToday(now),
+          ),
+        )
+      : undefined;
+
   const { rows, checksShare } = complianceRows({
+    tachograph: downloads,
     vehicles: vehicles.data,
     checksToday: seesChecks ? checksToday.data : undefined,
     defects: seesChecks ? defects.data : undefined,

@@ -96,6 +96,18 @@ export function needsAction(rows: readonly TrackerRow[]): number {
   return rows.filter((r) => r.status.state === 'overdue' || r.status.state === 'no_file').length;
 }
 
+/** How many driver cards and vehicle units are overdue, due soon, or have no file yet. For the line on the home page. */
+export interface DownloadCounts {
+  readonly overdue: number;
+  readonly dueSoon: number;
+  readonly noFile: number;
+}
+
+export function downloadCounts(rows: readonly TrackerRow[]): DownloadCounts {
+  const count = (state: DownloadState) => rows.filter((r) => r.status.state === state).length;
+  return { overdue: count('overdue'), dueSoon: count('due_soon'), noFile: count('no_file') };
+}
+
 /** A size in the units a person reads: "280 KB", "2.4 MB". */
 export function sizeText(bytes: number): string {
   if (bytes < 1000) return `${bytes} B`;

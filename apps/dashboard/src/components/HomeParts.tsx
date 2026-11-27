@@ -54,7 +54,7 @@ export function HomeRows({ rows }: { rows: readonly Row[] }) {
     <div>
       {rows.map((row) => (
         <div key={row.label} className="home-row">
-          <span>{row.label}</span>
+          <span>{row.to === undefined ? row.label : <Link to={row.to}>{row.label}</Link>}</span>
           <span className={`tone-${row.tone}`}>{row.value}</span>
         </div>
       ))}

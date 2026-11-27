@@ -1,6 +1,13 @@
 import type { TachographFileRow } from '@wagonwise/contracts/tachograph';
 import { describe, expect, it } from 'vitest';
-import { dueText, needsAction, sizeText, STATE_LABELS, trackerRows } from './tachograph';
+import {
+  downloadCounts,
+  dueText,
+  needsAction,
+  sizeText,
+  STATE_LABELS,
+  trackerRows,
+} from './tachograph';
 
 const TODAY = '2026-11-26';
 const file = (over: Partial<TachographFileRow>): TachographFileRow => ({
@@ -60,6 +67,27 @@ describe('trackerRows', () => {
       TODAY,
     );
     expect(rows[0]?.status.state).toBe('no_file');
+  });
+});
+
+describe('downloadCounts', () => {
+  it('counts the cards and units that are overdue, due soon and without a file', () => {
+    const rows = trackerRows(
+      [
+        { id: 'sam', name: 'Sam' },
+        { id: 'kim', name: 'Kim' },
+        { id: 'lee', name: 'Lee' },
+        { id: 'pat', name: 'Pat' },
+      ],
+      [],
+      [
+        file({ driverId: 'sam', downloadedOn: '2026-10-01' }),
+        file({ id: 'g', driverId: 'kim', downloadedOn: '2026-10-30' }),
+        file({ id: 'h', driverId: 'lee', downloadedOn: '2026-11-20' }),
+      ],
+      TODAY,
+    );
+    expect(downloadCounts(rows)).toEqual({ overdue: 1, dueSoon: 1, noFile: 1 });
   });
 });
 
