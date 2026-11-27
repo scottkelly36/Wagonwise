@@ -185,6 +185,26 @@ describe('complianceRows', () => {
     expect(complianceRows({}).rows).toEqual([]);
   });
 
+  it('says how many tachograph downloads are overdue, and links to the page', () => {
+    const only = (tachograph: { overdue: number; dueSoon: number; noFile: number }) =>
+      complianceRows({ tachograph }).rows[0];
+    expect(only({ overdue: 2, dueSoon: 1, noFile: 0 })).toEqual({
+      label: 'Tachograph downloads',
+      value: '2 overdue, 1 due soon',
+      tone: 'bad',
+      to: '/fleet/tachograph',
+    });
+    expect(only({ overdue: 0, dueSoon: 0, noFile: 3 })).toMatchObject({
+      value: '3 with no file yet',
+      tone: 'warn',
+    });
+    expect(only({ overdue: 0, dueSoon: 0, noFile: 0 })).toMatchObject({
+      value: 'None overdue',
+      tone: 'good',
+    });
+    expect(complianceRows({}).rows).toEqual([]);
+  });
+
   it('shows the vehicle count with no limit once payment details are on file', () => {
     const row = complianceRows({
       capacity: { vehiclesInUse: 7, capacityToday: 5, detailsOnFile: true },

@@ -6,6 +6,7 @@ import type { JobDto, JobEtaDto, JobNoticeDto } from '@wagonwise/contracts/jobs'
 import type { OverviewRowDto, RepairDto } from '@wagonwise/contracts/maintenance';
 import { formatDuration, isOnTheRoad } from './live-map';
 import { minutesText } from './hours-status';
+import type { DownloadCounts } from './tachograph';
 
 /** How a tile reads: quiet when there is nothing to do, amber or red when there is. */
 export type Tone = 'quiet' | 'warn' | 'bad' | 'good';
@@ -180,6 +181,8 @@ export interface Row {
   readonly label: string;
   readonly value: string;
   readonly tone: Tone;
+  /** Where the row leads, when it is a link. */
+  readonly to?: string | undefined;
 }
 
 /** Inputs for the compliance panel. Left out when the person cannot see it. */
@@ -198,6 +201,8 @@ export interface ComplianceData {
       }
     | undefined;
   readonly joinRequests?: number | undefined;
+  /** Where the firm's tachograph downloads stand. Left out when the person cannot see them or the firm has not sent a file yet. */
+  readonly tachograph?: DownloadCounts | undefined;
 }
 
 /** The rows of the compliance panel, and how far through today's checks the fleet is (0 to 1), if known. */
@@ -224,6 +229,20 @@ export function complianceRows(data: ComplianceData): {
   if (data.repairs !== undefined) {
     const late = data.repairs.filter((r) => r.overdue).length;
     rows.push({ label: 'Repairs overdue', value: String(late), tone: toneFor(late, 'bad') });
+  }
+  if (data.tachograph !== undefined) {
+    const { overdue, dueSoon, noFile } = data.tachograph;
+    const parts = [
+      overdue > 0 ? `${overdue} overdue` : '',
+      dueSoon > 0 ? `${dueSoon} due soon` : '',
+      noFile > 0 ? `${noFile} with no file yet` : '',
+    ].filter((part) => part !== '');
+    rows.push({
+      label: 'Tachograph downloads',
+      value: parts.length === 0 ? 'None overdue' : parts.join(', '),
+      tone: overdue > 0 ? 'bad' : parts.length > 0 ? 'warn' : 'good',
+      to: '/fleet/tachograph',
+    });
   }
   if (data.capacity !== undefined) {
     if (data.capacity.detailsOnFile === true) {
