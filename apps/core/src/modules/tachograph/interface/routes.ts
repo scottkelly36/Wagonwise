@@ -78,6 +78,7 @@ const row = (f: FileSummary) => ({
   downloadedOn: f.downloadedOn,
   receivedAt: f.receivedAt.toISOString(),
   source: f.source,
+  ...(f.card === undefined ? {} : { card: f.card }),
 });
 
 /**

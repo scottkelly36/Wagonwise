@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { makeId } from '../../../shared/brand.js';
 import { FakeClock } from '../../../shared/testing/fake-clock.js';
+import { cardFile } from '../domain/testing/card-file.js';
 import type { StaffCaller } from './ports.js';
 import {
   deleteFile,
@@ -264,5 +265,63 @@ describe('a driver sends their own card file', () => {
     ]);
     await sendMyFile(deps, SAM, 'sam@example.com', ACME, send);
     expect((await listMine(deps, SAM, 'sam@example.com'))[0]?.lastDownloadedOn).toBe('2026-11-25');
+  });
+});
+
+describe('what a driver card file says about its card', () => {
+  const file = cardFile({
+    cardNumber: 'TEST000000000100',
+    surname: 'Smith',
+    firstNames: 'Sam',
+    expiresAt: '2027-02-28T23:59:59Z',
+  });
+  const readable = { ...card, dataBase64: file.toString('base64') };
+
+  it('is read when the office uploads a card file, and shown with the file', async () => {
+    const deps = build();
+    await uploadFile(deps, manager, STAFF, ACME, readable);
+    const listed = await listFiles(deps, manager, ACME);
+    expect(listed.ok && listed.value.latest[0]?.card).toEqual({
+      cardNumber: 'TEST000000000100',
+      holderName: 'Sam Smith',
+      expiresOn: '2027-02-28',
+      generations: '1',
+    });
+    // The bytes are the same as were sent.
+    expect(deps.files.stored[0]?.data.equals(file)).toBe(true);
+  });
+
+  it('is read when a driver sends their own card file', async () => {
+    const deps = build();
+    await setFirmSettings(deps, manager, STAFF, ACME, {
+      driversMaySend: true,
+      retentionMonths: 12,
+      remindersEnabled: true,
+    });
+    await sendMyFile(deps, SAM, 'sam@example.com', ACME, {
+      fileName: 'C_sam.DDD',
+      downloadedOn: '2026-11-20',
+      dataBase64: readable.dataBase64,
+    });
+    expect(deps.files.stored[0]?.card?.holderName).toBe('Sam Smith');
+  });
+
+  it('is nothing for a file that does not read, and the file is kept all the same', async () => {
+    const deps = build();
+    const r = await uploadFile(deps, manager, STAFF, ACME, card);
+    expect(r).toEqual({ ok: true, value: { duplicate: false } });
+    expect(deps.files.stored[0]?.card).toBeUndefined();
+  });
+
+  it('is not read from a vehicle unit file', async () => {
+    const deps = build();
+    await uploadFile(deps, manager, STAFF, ACME, {
+      kind: 'vehicle_unit',
+      vehicleId: 'veh-1',
+      fileName: 'V_ab12.ddd',
+      downloadedOn: '2026-11-01',
+      dataBase64: file.toString('base64'),
+    });
+    expect(deps.files.stored[0]?.card).toBeUndefined();
   });
 });

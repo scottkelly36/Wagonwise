@@ -3,11 +3,13 @@ import { MAX_TACHOGRAPH_FILE_BYTES } from '@wagonwise/contracts/tachograph';
 import type { Clock } from '../../../shared/ports/clock.js';
 import type { IdGenerator } from '../../../shared/ports/id-generator.js';
 import { err, ok, type Result, type TaggedError } from '../../../shared/result.js';
+import { readCardIdentity } from '../domain/card-identity.js';
 import {
   cleanFileName,
   validDownloadDate,
   type CompanyId,
   type DriverId,
+  type FileCardInfo,
   type FileKind,
   type FileSummary,
   type FirmSettings,
@@ -63,8 +65,9 @@ interface Decoded {
 }
 
 /**
- * The bytes exactly as sent, with their SHA-256. The content is not opened or judged: there is no sample file to check a rule
- * against, and a wrong refusal is worse than keeping a file that turns out to be the wrong one.
+ * The bytes exactly as sent, with their SHA-256. The content is not judged: a file is never refused for what is in it, because a wrong
+ * refusal is worse than keeping a file that turns out to be the wrong one. A driver card file is read for the card and its holder
+ * (`cardOf`) as a courtesy, and a file that does not read is kept all the same.
  */
 function decode(
   raw: { fileName: string; dataBase64: string; downloadedOn: string },
@@ -81,6 +84,11 @@ function decode(
     return err({ tag: 'InvalidFile', reason: 'too_big' });
   }
   return ok({ fileName, data, sha256: createHash('sha256').update(data).digest('hex') });
+}
+
+/** What a driver card file says about its card, or nothing when it does not read as one. */
+function cardOf(data: Buffer): FileCardInfo | undefined {
+  return readCardIdentity(data);
 }
 
 // --- the firm's choices ----------------------------------------------------------------------------------------------------
@@ -154,6 +162,7 @@ export async function uploadFile(
     downloadedOn: input.downloadedOn,
     receivedAt: deps.clock.now(),
     uploadedByStaffId: staffId,
+    card: input.kind === 'driver_card' ? cardOf(decoded.value.data) : undefined,
   });
   return ok({ duplicate: result === 'duplicate' });
 }
@@ -263,6 +272,7 @@ export async function sendMyFile(
     receivedAt: deps.clock.now(),
     uploadedByDriverId: driverId,
     wordingVersion: input.wordingVersion,
+    card: cardOf(decoded.value.data),
   });
   return ok({ duplicate: result === 'duplicate' });
 }

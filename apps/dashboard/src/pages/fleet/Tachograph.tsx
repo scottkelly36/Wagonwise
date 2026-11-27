@@ -6,6 +6,7 @@ import {
   MAX_TACHOGRAPH_FILE_BYTES,
   MAX_RETENTION_MONTHS,
   MIN_RETENTION_MONTHS,
+  type TachographCardInfo,
   type TachographFileRow,
   type TachographKind,
   type TachographSettingsDto,
@@ -26,6 +27,8 @@ import {
   base64ToBlob,
   dueText,
   fileToBase64,
+  cardFlagCounts,
+  cardFlagText,
   needsAction,
   sizeText,
   STATE_LABELS,
@@ -165,6 +168,28 @@ export function Tachograph() {
       cell: (r) => (
         <>
           {r.name} <span className="text-muted">({KIND_LABELS[r.kind].toLowerCase()})</span>
+          {r.card !== undefined && (
+            <div className="text-muted" data-testid={`card-${r.subjectId}`}>
+              Card in the file: {r.card.holderName}, {r.card.cardNumber}, runs out{' '}
+              {dayText(r.card.expiresOn)}
+              {r.cardFlags.map((flag) => (
+                <div key={flag}>
+                  <Badge
+                    tone={
+                      flag === 'expires_soon'
+                        ? 'warning'
+                        : flag === 'expired'
+                          ? 'danger'
+                          : 'warning'
+                    }
+                    icon="warning"
+                  >
+                    {cardFlagText(flag, r.card as TachographCardInfo, today)}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       ),
     },
@@ -266,6 +291,7 @@ export function Tachograph() {
   ];
 
   const needing = needsAction(rows);
+  const cardCounts = cardFlagCounts(rows);
 
   return (
     <div>
@@ -279,7 +305,8 @@ export function Tachograph() {
         tool.
       </p>
       <p className="text-muted">
-        This page only knows about files sent to WagonWise, and it does not open them. A download
+        This page only knows about files sent to WagonWise. From a driver card file it reads only
+        the card number, the holder's name and the day the card runs out: not the hours. A download
         you made and have not uploaded here does not appear, and a tick here is not a statement that
         you are meeting your duties.
       </p>
@@ -319,6 +346,24 @@ export function Tachograph() {
                   &ldquo;Due soon&rdquo; means within {DUE_SOON_DAYS} days.
                 </span>
               </p>
+              {(cardCounts.expiry > 0 || cardCounts.nameDiffers > 0) && (
+                <p data-testid="card-flags-summary">
+                  <strong>
+                    {[
+                      cardCounts.expiry > 0
+                        ? `${cardCounts.expiry} driver ${cardCounts.expiry === 1 ? 'card has' : 'cards have'} run out or ${cardCounts.expiry === 1 ? 'runs' : 'run'} out soon`
+                        : '',
+                      cardCounts.nameDiffers > 0
+                        ? `${cardCounts.nameDiffers} ${cardCounts.nameDiffers === 1 ? 'file carries' : 'files carry'} a name that is not the driver's`
+                        : '',
+                    ]
+                      .filter((t) => t !== '')
+                      .join('; ')}
+                    .
+                  </strong>{' '}
+                  <span className="text-muted">From the card files, not the legal record.</span>
+                </p>
+              )}
               <DataTable
                 columns={columns}
                 rows={rows}

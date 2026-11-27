@@ -13,6 +13,7 @@ import {
 import { runMigrations } from '../platform/migrations/run-migrations.js';
 import { attachPoolErrorHandler } from '../platform/db.js';
 import { PostgresDataScopes } from '../platform/postgres-data-scopes.js';
+import { cardFile } from '../modules/tachograph/domain/testing/card-file.js';
 import { makeId } from '../shared/brand.js';
 import { FakeClock } from '../shared/testing/fake-clock.js';
 
@@ -420,5 +421,37 @@ describe('tachograph files end to end (real RLS, real scopes)', () => {
       ...as(MANAGER),
     });
     expect(r.statusCode).toBe(400);
+  });
+
+  it('reads the card and its holder from a card file and shows them beside it, and keeps a file that does not read', async () => {
+    const url = `/staff/tachograph/companies/${ACME}/files`;
+    const file = cardFile({
+      cardNumber: 'TEST000000000100',
+      surname: 'Smith',
+      firstNames: 'Sam',
+      expiresAt: '2027-02-28T23:59:59Z',
+    });
+    const upload = await app.inject({
+      method: 'POST',
+      url,
+      payload: {
+        kind: 'driver_card',
+        driverId: SAM,
+        fileName: 'C_sam_read.DDD',
+        downloadedOn: '2026-11-25',
+        dataBase64: file.toString('base64'),
+      },
+      ...as(MANAGER),
+    });
+    expect(upload.statusCode).toBe(201);
+    const listed = jsonOf<{ recent: { fileName: string; card?: unknown }[] }>(await files(MANAGER));
+    expect(listed.recent.find((f) => f.fileName === 'C_sam_read.DDD')?.card).toEqual({
+      cardNumber: 'TEST000000000100',
+      holderName: 'Sam Smith',
+      expiresOn: '2027-02-28',
+      generations: '1',
+    });
+    // The earlier file, which is not a card download, has no card details and is still there.
+    expect(listed.recent.find((f) => f.fileName === 'C_sam.DDD')?.card).toBeUndefined();
   });
 });

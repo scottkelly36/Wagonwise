@@ -8,6 +8,15 @@ export type StaffId = Id<'StaffId'>;
 export type FileKind = 'driver_card' | 'vehicle_unit';
 export type FileSource = 'driver_app' | 'office';
 
+/** What a driver card file says about its card (`readCardIdentity`), kept beside the file so the portal need not open it. */
+export interface FileCardInfo {
+  readonly cardNumber: string;
+  readonly holderName: string;
+  /** The day the card runs out, `YYYY-MM-DD`. */
+  readonly expiresOn: string;
+  readonly generations: string;
+}
+
 /** A file's details without its bytes: what the portal lists. */
 export interface FileSummary {
   readonly id: string;
@@ -21,6 +30,8 @@ export interface FileSummary {
   readonly downloadedOn: string;
   readonly receivedAt: Date;
   readonly source: FileSource;
+  /** Absent for a vehicle unit file, a file received before this was read, or one that did not read as a driver card download. */
+  readonly card?: FileCardInfo | undefined;
 }
 
 /** A file to be stored: the bytes exactly as received, and the hash they were checked against. */
@@ -38,6 +49,7 @@ export interface NewFile {
   readonly uploadedByDriverId?: DriverId | undefined;
   readonly uploadedByStaffId?: StaffId | undefined;
   readonly wordingVersion?: number | undefined;
+  readonly card?: FileCardInfo | undefined;
 }
 
 export interface StoredFile {

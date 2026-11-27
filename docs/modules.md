@@ -475,6 +475,10 @@ download tracker works from. Scope and reasoning: `tachograph-download-scope.md`
   JSON, so the servers' 10 MB body limit leaves room; the staff BFF was raised from Fastify's 1 MB for this).
 - **Who sees what:** staff with `manage_fleet` (and WagonWise) read, upload, download and delete for their company, because a card file is a
   person's working record. A driver reads only their own card files (to show the day of the last one) and cannot change or delete any (RLS).
+- **Reading a card file (migration 0111):** at upload, `domain/card-identity.ts` reads the identification record (tag `0520`, 143 bytes, second
+  generation copy preferred) for card number, holder name, expiry and generations, into nullable columns beside the file. Best effort and never
+  a reason to refuse: a file that does not read, or a vehicle unit file, keeps null. Layout checked against way-platform/tachograph-go's anonymised
+  test record. The portal flags a card that has run out or runs out within 60 days, and a file whose name shares nothing with its driver.
 - **Retention:** the daily `prune-tachograph-files` task deletes files older than the firm's retention from the day received, never under 12 months.
   A driver deleting their account does **not** remove files they sent: the firm holds them as its own record (to be confirmed with the solicitor).
 - **Routes:** staff `GET/PUT /staff/tachograph/companies/:companyId/settings`, `GET/POST .../files`, `GET/DELETE .../files/:fileId` (the download

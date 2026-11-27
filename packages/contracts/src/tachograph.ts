@@ -127,6 +127,19 @@ export type SendMyTachographFileRequest = z.infer<typeof sendMyTachographFileReq
 /** The answer to either upload. `duplicate` is true when the firm already held exactly this file, which is then left as it was. */
 export const tachographStoredSchema = z.object({ duplicate: z.boolean() });
 
+/** What a driver card file says about its card, read from the file when it was received. From the card file, not the legal record: a
+ *  file that did not read has none. */
+export const tachographCardInfoSchema = z.object({
+  cardNumber: z.string(),
+  /** As printed on the card: first names then surname. */
+  holderName: z.string(),
+  /** The day the card runs out. */
+  expiresOn: isoDateSchema,
+  /** Which generations of the card the file holds: `1`, `2` or `1,2`. */
+  generations: z.enum(['1', '2', '1,2']),
+});
+export type TachographCardInfo = z.infer<typeof tachographCardInfoSchema>;
+
 /** One file as the portal lists it (the bytes are fetched separately). */
 export const tachographFileRowSchema = z.object({
   id: z.string(),
@@ -139,6 +152,7 @@ export const tachographFileRowSchema = z.object({
   receivedAt: z.iso.datetime(),
   /** Whether it came from the driver app or was uploaded by the office. */
   source: z.enum(['driver_app', 'office']),
+  card: tachographCardInfoSchema.optional(),
 });
 export type TachographFileRow = z.infer<typeof tachographFileRowSchema>;
 

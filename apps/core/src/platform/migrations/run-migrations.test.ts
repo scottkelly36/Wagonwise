@@ -140,6 +140,7 @@ describe('runMigrations', () => {
       '0108_billing_draft_runs.sql',
       '0109_tachograph_files.sql',
       '0110_tachograph_reminders.sql',
+      '0111_tachograph_card_identity.sql',
     ]);
 
     const { rows: schemas } = await pool.query<{ schema_name: string }>(
@@ -363,6 +364,7 @@ describe('runMigrations', () => {
       '0108_billing_draft_runs.sql',
       '0109_tachograph_files.sql',
       '0110_tachograph_reminders.sql',
+      '0111_tachograph_card_identity.sql',
     ]);
   });
 });
