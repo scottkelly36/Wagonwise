@@ -125,6 +125,7 @@ describe('driver auth (M4.2, M4.3, M6.2)', () => {
     ['/identity/consent/protected'],
     ['/identity/name/protected'],
     ['/identity/account/protected'],
+    ['/tachograph/protected'],
   ])('rejects a %s request with no access token, even with a valid internal key', async (path) => {
     const { app } = makeApp();
     app.get(path, () => 'never reached');
@@ -145,6 +146,7 @@ describe('driver auth (M4.2, M4.3, M6.2)', () => {
     ['/identity/consent/protected'],
     ['/identity/name/protected'],
     ['/identity/account/protected'],
+    ['/tachograph/protected'],
   ])('accepts a %s request with a valid internal key and a valid access token', async (path) => {
     const { app } = makeApp();
     app.get(path, () => ({ ok: true }));

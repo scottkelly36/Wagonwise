@@ -43,6 +43,7 @@ const DRIVER_AUTH_PREFIXES = [
   '/fleet/',
   '/jobs/',
   '/hours/',
+  '/tachograph/',
   '/announcements/',
   '/referrals/',
   '/usage/',
