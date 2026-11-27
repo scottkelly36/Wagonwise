@@ -2,6 +2,7 @@ import {
   downloadStatus,
   type DownloadState,
   type DownloadStatus,
+  type TachographCardInfo,
   type TachographFileRow,
   type TachographKind,
 } from '@wagonwise/contracts/tachograph';
@@ -17,6 +18,83 @@ export interface TrackerRow {
   readonly lastDownloadedOn: string | undefined;
   readonly lastFileId: string | undefined;
   readonly status: DownloadStatus;
+  /** What the latest card file says about its card, when it read. From the card file, not the legal record. */
+  readonly card: TachographCardInfo | undefined;
+  readonly cardFlags: readonly CardFlag[];
+}
+
+/** Things in a card file worth a look: the card has run out or is about to, or the name on it is not the driver's. */
+export type CardFlag = 'expired' | 'expires_soon' | 'name_differs';
+
+/** A card is flagged this many days before it runs out, so there is time to renew it. */
+export const CARD_EXPIRY_WARNING_DAYS = 60;
+
+const DAY_MS = 86_400_000;
+
+/** Days from `today` to the day the card runs out (negative once it has), both `YYYY-MM-DD`. */
+export function daysToExpiry(expiresOn: string, today: string): number {
+  return Math.round(
+    (Date.parse(`${expiresOn}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / DAY_MS,
+  );
+}
+
+const words = (name: string): string[] =>
+  name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((w) => w.length >= 2);
+
+/**
+ * Whether the name on a card file and the driver it is filed under could be the same person: they share a name. It is a hint, not a
+ * test (a nickname, a married name, a double-barrelled name can all differ), so it only says when nothing is shared at all.
+ */
+export function namesCouldMatch(driverName: string, holderName: string): boolean {
+  const driver = new Set(words(driverName));
+  const holder = words(holderName);
+  // No name to compare, so nothing to say.
+  return driver.size === 0 || holder.length === 0 || holder.some((w) => driver.has(w));
+}
+
+/** What a flag says, in plain words. */
+export function cardFlagText(flag: CardFlag, card: TachographCardInfo, today: string): string {
+  if (flag === 'name_differs') {
+    return `The name in the file (${card.holderName}) is not this driver's: check it is the right file`;
+  }
+  const days = daysToExpiry(card.expiresOn, today);
+  if (flag === 'expired') return 'Card has run out';
+  return days === 0
+    ? 'Card runs out today'
+    : `Card runs out in ${days} ${days === 1 ? 'day' : 'days'}`;
+}
+
+/** How many driver cards have run out or are about to, and how many files carry another name. For a line above the list. */
+export function cardFlagCounts(rows: readonly TrackerRow[]): {
+  readonly expiry: number;
+  readonly nameDiffers: number;
+} {
+  return {
+    expiry: rows.filter(
+      (r) => r.cardFlags.includes('expired') || r.cardFlags.includes('expires_soon'),
+    ).length,
+    nameDiffers: rows.filter((r) => r.cardFlags.includes('name_differs')).length,
+  };
+}
+
+/** What is worth a look in a driver's latest card file. */
+export function cardFlags(
+  driverName: string,
+  card: TachographCardInfo | undefined,
+  today: string,
+): CardFlag[] {
+  if (card === undefined) return [];
+  const flags: CardFlag[] = [];
+  const days = daysToExpiry(card.expiresOn, today);
+  if (days < 0) flags.push('expired');
+  else if (days <= CARD_EXPIRY_WARNING_DAYS) flags.push('expires_soon');
+  if (!namesCouldMatch(driverName, card.holderName)) flags.push('name_differs');
+  return flags;
 }
 
 export interface Subject {
@@ -56,6 +134,8 @@ export function trackerRows(
     lastDownloadedOn: file?.downloadedOn,
     lastFileId: file?.id,
     status: downloadStatus(kind, file?.downloadedOn, today),
+    card: file?.card,
+    cardFlags: kind === 'driver_card' ? cardFlags(subject.name, file?.card, today) : [],
   });
   const rows = [
     ...drivers.map((d) => make('driver_card', d, byCard.get(d.id))),

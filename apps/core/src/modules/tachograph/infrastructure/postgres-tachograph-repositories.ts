@@ -60,12 +60,17 @@ interface SummaryRow {
   readonly downloaded_on: string;
   readonly uploaded_at: Date;
   readonly from_driver: boolean;
+  readonly card_number: string | null;
+  readonly card_holder_name: string | null;
+  readonly card_expires_on: string | null;
+  readonly card_generations: string | null;
 }
 
 /** Everything but the bytes. `downloaded_on` is cast to text so it stays the plain date the uploader gave. */
 const SUMMARY_COLUMNS = sql`
   id, company_id, kind, driver_id, vehicle_id, file_name, size_bytes, downloaded_on::text as downloaded_on,
-  uploaded_at, (uploaded_by_driver_id is not null) as from_driver
+  uploaded_at, (uploaded_by_driver_id is not null) as from_driver,
+  card_number, card_holder_name, card_expires_on::text as card_expires_on, card_generations
 `;
 
 function toSummary(row: SummaryRow): FileSummary {
@@ -81,6 +86,18 @@ function toSummary(row: SummaryRow): FileSummary {
     downloadedOn: row.downloaded_on,
     receivedAt: row.uploaded_at,
     source,
+    card:
+      row.card_number === null ||
+      row.card_holder_name === null ||
+      row.card_expires_on === null ||
+      row.card_generations === null
+        ? undefined
+        : {
+            cardNumber: row.card_number,
+            holderName: row.card_holder_name,
+            expiresOn: row.card_expires_on,
+            generations: row.card_generations,
+          },
   };
 }
 
@@ -91,11 +108,13 @@ export class PostgresFileRepository implements FileRepository {
     // The same bytes are kept once for a company: the unique (company_id, sha256) turns a second copy into no change.
     const { rows } = await sql<{ id: string }>`
       insert into tachograph.files (id, company_id, kind, driver_id, vehicle_id, file_name, size_bytes, sha256, data,
-                                    downloaded_on, uploaded_at, uploaded_by_driver_id, uploaded_by_staff_id, wording_version)
+                                    downloaded_on, uploaded_at, uploaded_by_driver_id, uploaded_by_staff_id, wording_version,
+                                    card_number, card_holder_name, card_expires_on, card_generations)
       values (${file.id}, ${file.companyId}, ${file.kind}, ${file.driverId ?? null}, ${file.vehicleId ?? null},
               ${file.fileName}, ${file.data.length}, ${file.sha256}, ${file.data}, ${file.downloadedOn}::date,
               ${file.receivedAt}, ${file.uploadedByDriverId ?? null}, ${file.uploadedByStaffId ?? null},
-              ${file.wordingVersion ?? null})
+              ${file.wordingVersion ?? null}, ${file.card?.cardNumber ?? null}, ${file.card?.holderName ?? null},
+              ${file.card?.expiresOn ?? null}::date, ${file.card?.generations ?? null})
       on conflict (company_id, sha256) do nothing
       returning id
     `.execute(this.db);

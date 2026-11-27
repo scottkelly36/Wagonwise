@@ -1,7 +1,12 @@
 import type { TachographFileRow } from '@wagonwise/contracts/tachograph';
 import { describe, expect, it } from 'vitest';
 import {
+  cardFlagCounts,
+  cardFlagText,
+  cardFlags,
+  daysToExpiry,
   downloadCounts,
+  namesCouldMatch,
   dueText,
   needsAction,
   sizeText,
@@ -119,5 +124,70 @@ describe('wording', () => {
     expect(sizeText(500)).toBe('500 B');
     expect(sizeText(280_000)).toBe('280 KB');
     expect(sizeText(2_400_000)).toBe('2.4 MB');
+  });
+});
+
+describe('what a card file says about its card', () => {
+  const card = (expiresOn: string, holderName = 'Sam Smith') => ({
+    cardNumber: 'TEST000000000100',
+    holderName,
+    expiresOn,
+    generations: '1' as const,
+  });
+
+  it('counts the days to the day the card runs out', () => {
+    expect(daysToExpiry('2026-12-26', TODAY)).toBe(30);
+    expect(daysToExpiry('2026-11-26', TODAY)).toBe(0);
+    expect(daysToExpiry('2026-11-25', TODAY)).toBe(-1);
+  });
+
+  it('flags a card that has run out, or runs out within 60 days, and says nothing otherwise', () => {
+    expect(cardFlags('Sam Smith', card('2026-11-25'), TODAY)).toEqual(['expired']);
+    expect(cardFlags('Sam Smith', card('2027-01-25'), TODAY)).toEqual(['expires_soon']);
+    expect(cardFlags('Sam Smith', card('2027-01-26'), TODAY)).toEqual([]);
+    expect(cardFlags('Sam Smith', undefined, TODAY)).toEqual([]);
+  });
+
+  it('flags a name that shares nothing with the driver, and lets nicknames and middle names through', () => {
+    expect(namesCouldMatch('Sam Smith', 'Samuel Smith')).toBe(true);
+    expect(namesCouldMatch('S. Smith', 'Samuel James Smith')).toBe(true);
+    expect(namesCouldMatch('José Núñez', 'JOSE NUNEZ')).toBe(true);
+    expect(namesCouldMatch('Sam Smith', 'Kim Jones')).toBe(false);
+    // Nothing to compare: say nothing.
+    expect(namesCouldMatch('', 'Kim Jones')).toBe(true);
+    expect(cardFlags('Sam Smith', card('2030-01-01', 'Kim Jones'), TODAY)).toEqual([
+      'name_differs',
+    ]);
+  });
+
+  it('puts the flags on the driver rows, not the vehicles, and counts them', () => {
+    const rows = trackerRows(
+      [
+        { id: 'sam', name: 'Sam Smith' },
+        { id: 'kim', name: 'Kim Jones' },
+      ],
+      [{ id: 'v1', name: 'AB12 CDE' }],
+      [
+        file({ id: 'a', driverId: 'sam', card: card('2027-01-01') }),
+        file({ id: 'b', driverId: 'kim', card: card('2030-01-01') }),
+      ],
+      TODAY,
+    );
+    expect(rows.find((r) => r.name === 'Sam Smith')?.cardFlags).toEqual(['expires_soon']);
+    expect(rows.find((r) => r.name === 'Kim Jones')?.cardFlags).toEqual(['name_differs']);
+    expect(rows.find((r) => r.kind === 'vehicle_unit')?.cardFlags).toEqual([]);
+    expect(cardFlagCounts(rows)).toEqual({ expiry: 1, nameDiffers: 1 });
+  });
+
+  it('words each flag plainly', () => {
+    expect(cardFlagText('expires_soon', card('2026-12-06'), TODAY)).toBe(
+      'Card runs out in 10 days',
+    );
+    expect(cardFlagText('expires_soon', card('2026-11-27'), TODAY)).toBe('Card runs out in 1 day');
+    expect(cardFlagText('expires_soon', card(TODAY), TODAY)).toBe('Card runs out today');
+    expect(cardFlagText('expired', card('2026-01-01'), TODAY)).toBe('Card has run out');
+    expect(cardFlagText('name_differs', card('2030-01-01', 'Kim Jones'), TODAY)).toContain(
+      'Kim Jones',
+    );
   });
 });

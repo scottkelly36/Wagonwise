@@ -77,6 +77,11 @@ Notice, section 1, 2, 4 and 7, and the delete-account page, now cover them. Comp
 DigitalOcean. **For the solicitor:** the files stay with the company when a driver deletes their account (legal duty to keep); a driver must
 be told by the company (terms draft, 4.4); whether the app notice is enough for the driver. Draft terms and processing: `terms-draft.md`.
 
+**Reading the card file (2026-11-27, migration 0111):** from a driver card file we also keep the card number, the holder's name, the day the card
+runs out and which generations the file holds, so the portal can flag a card that is running out or a file with another person's name. Not kept:
+the birth date and the issuing authority. Each is already in the file we hold, so no new kind of data, but it is a new stored copy: the notice's
+table of what we hold now says so. Files received earlier have none. For the DPIA and the solicitor.
+
 ## Store forms (match the notice)
 
 - **Google Play Data safety:** precise location (collected, shared with the company on a job and on SOS, not for ads), email and

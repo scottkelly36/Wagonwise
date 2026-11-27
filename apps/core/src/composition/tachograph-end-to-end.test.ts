@@ -48,6 +48,39 @@ const send = {
   wordingVersion: 1,
 };
 
+/** A driver card download built by hand: one identification record (tag 0520, 143 bytes). Invented people only. */
+function cardFile(card: {
+  cardNumber: string;
+  surname: string;
+  firstNames: string;
+  expiresAt: string;
+}): Buffer {
+  const text = (value: string, length: number) => Buffer.from(value.padEnd(length, ' '), 'latin1');
+  const time = (iso: string) => {
+    const t = Buffer.alloc(4);
+    t.writeUInt32BE(Date.parse(iso) / 1000);
+    return t;
+  };
+  const identification = Buffer.concat([
+    Buffer.from([0x01]),
+    text(card.cardNumber, 16),
+    Buffer.from([0x01]),
+    text('Test Authority', 35),
+    time('2021-03-01T00:00:00Z'),
+    time('2021-03-01T00:00:00Z'),
+    time(card.expiresAt),
+    Buffer.from([0x01]),
+    text(card.surname, 35),
+    Buffer.from([0x01]),
+    text(card.firstNames, 35),
+    Buffer.from([0x19, 0x90, 0x01, 0x01, 0x65, 0x6e]),
+  ]);
+  return Buffer.concat([
+    Buffer.from([0x05, 0x20, 0x00, 0x00, identification.length]),
+    identification,
+  ]);
+}
+
 /**
  * Tachograph files, on real Postgres with Row-Level Security: the bytes come back exactly as sent, a driver can send only their own
  * card file and only to a firm they drive for that has switched it on, another company sees none of it, and files past their
@@ -420,5 +453,37 @@ describe('tachograph files end to end (real RLS, real scopes)', () => {
       ...as(MANAGER),
     });
     expect(r.statusCode).toBe(400);
+  });
+
+  it('reads the card and its holder from a card file and shows them beside it, and keeps a file that does not read', async () => {
+    const url = `/staff/tachograph/companies/${ACME}/files`;
+    const file = cardFile({
+      cardNumber: 'TEST000000000100',
+      surname: 'Smith',
+      firstNames: 'Sam',
+      expiresAt: '2027-02-28T23:59:59Z',
+    });
+    const upload = await app.inject({
+      method: 'POST',
+      url,
+      payload: {
+        kind: 'driver_card',
+        driverId: SAM,
+        fileName: 'C_sam_read.DDD',
+        downloadedOn: '2026-11-25',
+        dataBase64: file.toString('base64'),
+      },
+      ...as(MANAGER),
+    });
+    expect(upload.statusCode).toBe(201);
+    const listed = jsonOf<{ recent: { fileName: string; card?: unknown }[] }>(await files(MANAGER));
+    expect(listed.recent.find((f) => f.fileName === 'C_sam_read.DDD')?.card).toEqual({
+      cardNumber: 'TEST000000000100',
+      holderName: 'Sam Smith',
+      expiresOn: '2027-02-28',
+      generations: '1',
+    });
+    // The earlier file, which is not a card download, has no card details and is still there.
+    expect(listed.recent.find((f) => f.fileName === 'C_sam.DDD')?.card).toBeUndefined();
   });
 });
