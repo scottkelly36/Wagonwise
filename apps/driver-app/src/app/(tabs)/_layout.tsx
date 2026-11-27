@@ -10,7 +10,7 @@ function tabIcon(name: IconName) {
 }
 
 /**
- * The four places a driver goes: the map (home), their jobs, saved things, and everything else. The
+ * The five places a driver goes: the map (home), their jobs, saved things, their hours and tachograph card, and everything else. The
  * bar is a floating-card white (or dark slate) so it matches the cards on the map. React Navigation's
  * bottom tabs add the bottom safe-area inset themselves, so the bar sits above an Android three-button
  * or gesture bar instead of under it. Screens like planning a route or the job detail open above this,
@@ -40,6 +40,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="saved"
         options={{ title: 'Saved', tabBarIcon: tabIcon('bookmark-outline') }}
+      />
+      <Tabs.Screen
+        name="hours"
+        options={{ title: 'Hours', tabBarIcon: tabIcon('timer-outline') }}
       />
       <Tabs.Screen
         name="more"

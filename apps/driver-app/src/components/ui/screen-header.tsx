@@ -10,7 +10,7 @@ interface Props {
   readonly title: string;
   readonly subtitle?: string | undefined;
   /** Where Back goes when there is nothing to go back to (a screen opened cold). */
-  readonly fallbackHref?: '/home' | '/more';
+  readonly fallbackHref?: '/home' | '/more' | '/hours';
   /** Something to sit on the right, e.g. a status chip. */
   readonly right?: ReactNode;
 }

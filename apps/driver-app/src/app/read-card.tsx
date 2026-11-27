@@ -1,3 +1,7 @@
+import {
+  TACHOGRAPH_WORDING_VERSION,
+  type TachographMineRow,
+} from '@wagonwise/contracts/tachograph';
 import * as Device from 'expo-device';
 import { useMemo, useState } from 'react';
 import {
@@ -12,15 +16,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '../components/ui/screen-header';
+import { useMyTachograph, useSendTachographFile } from '../api/use-tachograph';
 import { useCardRead } from '../hooks/use-card-read';
 import { canShareFiles, deleteSavedFile, shareBytes } from '../lib/share-card-file';
+import { toBase64 } from '../lib/tachograph-card/base64';
 import { sizeText } from '../lib/tachograph-card/card-flow';
 import { SCENARIOS } from '../lib/tachograph-card/scenarios';
 import { usbReaderSupported } from '../lib/tachograph-card/usb-reader';
+import { sendNotice, ukDay } from '../lib/tachograph-send';
 import { useThemeColors, type ThemeColors } from '../theme/colors';
 import { radius } from '../theme/tokens';
 
 type Source = 'real' | 'pretend';
+
+interface UploadStep {
+  readonly ddd: Uint8Array;
+  readonly confirming?: TachographMineRow | undefined;
+  readonly sentTo?: string | undefined;
+  readonly error?: string | undefined;
+}
 
 /** The text a log is shared as: what built it, what phone, when, then the lines. Never anything from the card itself. */
 function logText(lines: readonly string[]): string {
@@ -48,6 +62,15 @@ export default function ReadCardScreen() {
   const [scenarioId, setScenarioId] = useState(SCENARIOS[0]?.id ?? '');
   const [showLog, setShowLog] = useState(false);
   const [shareError, setShareError] = useState<string | undefined>(undefined);
+  const mine = useMyTachograph();
+  const send = useSendTachographFile();
+  // Where the driver is in uploading this read's file: who they tapped Upload for (they see who gets it and what that means, then
+  // confirm), then the outcome. It belongs to one file, so a new read starts it again.
+  const [step, setStep] = useState<UploadStep | undefined>(undefined);
+  const current = download !== undefined && step?.ddd === download.ddd ? step : undefined;
+  const confirming = current?.confirming;
+  const sentTo = current?.sentTo;
+  const uploadError = current?.error;
   const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
   const busy = state.status === 'reading';
   const real = source === 'real';
@@ -61,6 +84,40 @@ export default function ReadCardScreen() {
       setShareError('The file could not be shared from this phone.');
     }
   };
+
+  function upload(company: TachographMineRow) {
+    if (download === undefined) return;
+    setStep({ ddd: download.ddd, confirming: company });
+    send.mutate(
+      {
+        companyId: company.companyId,
+        file: {
+          fileName: download.fileName,
+          downloadedOn: ukDay(new Date()),
+          dataBase64: toBase64(download.ddd),
+          wordingVersion: TACHOGRAPH_WORDING_VERSION,
+        },
+      },
+      {
+        onSuccess: (result) => {
+          setStep({
+            ddd: download.ddd,
+            sentTo: result.duplicate
+              ? `${company.companyName} already had exactly this file, so nothing changed.`
+              : `Uploaded to ${company.companyName}'s portal.`,
+          });
+        },
+        onError: () =>
+          setStep({
+            ddd: download.ddd,
+            confirming: company,
+            error: 'That did not go through. Check your signal and try again.',
+          }),
+      },
+    );
+  }
+
+  const companies = mine.data ?? [];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -185,26 +242,88 @@ export default function ReadCardScreen() {
               The file is kept exactly as the card gave it. Nothing in it has been read or checked
               yet.
             </Text>
-            {download !== undefined && canShareFiles() && (
+            {download !== undefined && confirming !== undefined && (
+              <View style={styles.card} testID="read-card-confirm">
+                <Text style={styles.heading}>Upload to {confirming.companyName}?</Text>
+                {sendNotice(confirming.companyName).map((line) => (
+                  <Text key={line} style={styles.body}>
+                    {line}
+                  </Text>
+                ))}
+                {uploadError !== undefined && <Text style={styles.error}>{uploadError}</Text>}
+                <TouchableOpacity
+                  style={[styles.button, send.isPending && styles.disabled]}
+                  disabled={send.isPending}
+                  onPress={() => upload(confirming)}
+                  accessibilityRole="button"
+                  testID="read-card-upload-confirm"
+                >
+                  <Text style={styles.buttonText}>
+                    {send.isPending ? 'Uploading…' : `Upload to ${confirming.companyName}`}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setStep(undefined)}
+                  accessibilityRole="button"
+                  testID="read-card-upload-cancel"
+                >
+                  <Text style={styles.link}>Go back</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {download !== undefined && confirming === undefined && (
               <>
-                <TouchableOpacity
-                  style={styles.button}
-                  onPress={() => void shareFile()}
-                  accessibilityRole="button"
-                  testID="read-card-share-file"
-                >
-                  <Text style={styles.buttonText}>Share the file</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    deleteSavedFile(download.fileName);
-                    reset();
-                  }}
-                  accessibilityRole="button"
-                  testID="read-card-delete"
-                >
-                  <Text style={styles.link}>Delete the saved copy</Text>
-                </TouchableOpacity>
+                {sentTo !== undefined && (
+                  <Text style={styles.success} testID="read-card-uploaded">
+                    {sentTo}
+                  </Text>
+                )}
+                {companies.map((company) =>
+                  company.firmEnabled ? (
+                    <TouchableOpacity
+                      key={company.companyId}
+                      style={styles.button}
+                      onPress={() => setStep({ ddd: download.ddd, confirming: company })}
+                      accessibilityRole="button"
+                      testID={`read-card-upload-${company.companyId}`}
+                    >
+                      <Text style={styles.buttonText}>
+                        Upload to {company.companyName}’s portal
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text key={company.companyId} style={styles.small}>
+                      {company.companyName} has not switched this on yet, so the file cannot go to
+                      its portal.
+                    </Text>
+                  ),
+                )}
+                {mine.isSuccess && companies.length === 0 && (
+                  <Text style={styles.small}>
+                    You are not linked to a company, so the file stays on this phone.
+                  </Text>
+                )}
+                {canShareFiles() && (
+                  <>
+                    <TouchableOpacity
+                      onPress={() => void shareFile()}
+                      accessibilityRole="button"
+                      testID="read-card-share-file"
+                    >
+                      <Text style={styles.link}>Save or share the file instead</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        deleteSavedFile(download.fileName);
+                        reset();
+                      }}
+                      accessibilityRole="button"
+                      testID="read-card-delete"
+                    >
+                      <Text style={styles.link}>Delete the saved copy</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
               </>
             )}
             {shareError !== undefined && <Text style={styles.error}>{shareError}</Text>}
@@ -262,6 +381,8 @@ function createStyles(colors: ThemeColors) {
     mono: { fontSize: 11, lineHeight: 15, color: colors.textMuted, fontFamily: 'monospace' },
     link: { fontSize: 15, fontWeight: '600', color: colors.accentBlue },
     error: { fontSize: 15, lineHeight: 21, color: colors.danger },
+    success: { fontSize: 15, fontWeight: '600', color: colors.text },
+    disabled: { opacity: 0.5 },
     choice: { gap: 2, padding: 12, borderRadius: radius.card, backgroundColor: colors.surface },
     choiceOn: { borderWidth: 2, borderColor: colors.accent },
     choiceLabel: { fontSize: 16, fontWeight: '700', color: colors.text },

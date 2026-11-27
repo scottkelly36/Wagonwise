@@ -30,7 +30,7 @@ export function useAutoStartHours(tripId: string | undefined): void {
       Alert.alert(
         'Count your driving hours?',
         'WagonWise can keep a driving-hours clock and plan your breaks into the route. Start it whenever you set off on a route? ' +
-          'You can stop it with the clock buttons on the map, and change this on the Driving hours screen (More tab). ' +
+          'You can stop it with the clock buttons on the map, and change this on the Driving hours screen (Hours tab). ' +
           'It is a guide: your tachograph is the legal record.',
         [
           {

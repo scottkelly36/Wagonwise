@@ -21,8 +21,6 @@ import { useAnnouncementPreference } from '../../hooks/use-announcement-preferen
 import { Icon, type IconName } from '../../components/ui/icon';
 import { SegmentedControl } from '../../components/ui/segmented-control';
 import { identityErrorMessage } from '../../lib/error-messages';
-import { cardSimulatorEnabled } from '../../lib/card-simulator';
-import { canPickFiles } from '../../lib/pick-card-file';
 import { needsEmail } from '../../lib/sign-in-form';
 import { DISTANCE_UNIT_OPTIONS, FUEL_UNIT_OPTIONS } from '../../lib/units';
 import {
@@ -68,14 +66,6 @@ const PASSWORD_ROW: MenuRow = {
   testID: 'password-button',
 };
 
-/** Only on a build that has the file picker in it: an older build cannot get it from a JavaScript update. */
-const TACHOGRAPH_ROW: MenuRow = {
-  label: 'Send my tachograph file',
-  icon: 'file-upload-outline',
-  href: '/tachograph',
-  testID: 'tachograph-button',
-};
-
 const ROWS: readonly MenuRow[] = [
   { label: 'Your name', icon: 'account-outline', href: '/your-name', testID: 'your-name-button' },
   {
@@ -96,23 +86,6 @@ const ROWS: readonly MenuRow[] = [
     href: '/companies',
     testID: 'companies-button',
   },
-  {
-    label: 'Driving hours',
-    icon: 'timer-outline',
-    href: '/shift',
-    testID: 'shift-button',
-  },
-  // A pretend card, for test builds only: reads the card logic against a simulation, so the steps can be tried with no reader.
-  ...(cardSimulatorEnabled()
-    ? ([
-        {
-          label: 'Read my card (test)',
-          icon: 'card-account-details-outline',
-          href: '/read-card',
-          testID: 'read-card-button',
-        },
-      ] as const satisfies readonly MenuRow[])
-    : []),
   { label: 'Feedback', icon: 'message-text-outline', href: '/feedback', testID: 'feedback-button' },
   {
     label: 'How it works',
@@ -154,9 +127,7 @@ export default function MoreScreen() {
   }
 
   // Password sign-in, when the server has it on: a phone-number account adds an email first, any other adds a password.
-  const base: readonly MenuRow[] = canPickFiles()
-    ? [...ROWS.slice(0, 5), TACHOGRAPH_ROW, ...ROWS.slice(5)]
-    : ROWS;
+  const base: readonly MenuRow[] = ROWS;
   const rows: readonly MenuRow[] =
     signInOptions.data?.passwordSignIn === true
       ? [

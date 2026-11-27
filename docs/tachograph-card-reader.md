@@ -89,7 +89,10 @@ A genuine test driver card is not something I know a source for; a real driver c
     the code, so it finds our mistakes and not a misreading of the standard or one maker's quirks.
   - **Refused, not guessed:** a transport-level reader that chooses T=1 (block framing is not written) and a reader that works one character at a time.
   - **The screen** (More, "Read my card (test)", a switch between "Real reader" and "Pretend card") reads a real card, keeps the file in memory,
-    and offers "Share the file" (the share sheet, so the driver chooses where it goes; nothing is sent by the app) and "Delete the saved copy".
+    and offers **"Upload to {company}'s portal"** for each company that has switched on card files (the same notice and confirm as the picked-file
+    screen, then the same send), with "Save or share the file instead" (the share sheet; nothing is sent by the app) and "Delete the saved copy".
+    **Where it is:** a new **Hours** tab (Driving hours, each company's download status, "Read my card (test)" in test builds, "Send a card file"),
+    no longer More.
     It also keeps a **log** of what the reader and card said (device numbers, the descriptor bytes, status words, sizes; never what is on the card)
     with "Share the log". Without it a first run on a real reader would tell us nothing.
   - **New packages:** `expo-sharing`, `expo-file-system` and the module, so this needs a new native build; the store 1.3.1 build does not have

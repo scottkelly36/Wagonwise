@@ -104,7 +104,7 @@ export default function ShiftScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ScreenHeader title="Driving hours" subtitle="Advice only" fallbackHref="/more" />
+        <ScreenHeader title="Driving hours" subtitle="Advice only" fallbackHref="/hours" />
 
         <View style={styles.card} testID="hours-status">
           <Text style={styles.state}>{STATE_TEXT[status.state]}</Text>
