@@ -3,9 +3,11 @@ import {
   TACHOGRAPH_WORDING_VERSION,
   type TachographMineRow,
 } from '@wagonwise/contracts/tachograph';
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -19,10 +21,15 @@ import { ApiError } from '../api/errors';
 import { useMyTachograph, useSendTachographFile } from '../api/use-tachograph';
 import { ScreenHeader } from '../components/ui/screen-header';
 import { canPickFiles, pickCardFile, type PickedFile } from '../lib/pick-card-file';
+import { HAULIERS_SIGNUP_URL } from '../lib/referral-share';
 import {
   dayText,
   downloadedDay,
   fileProblem,
+  INTEREST_BOSS_BUTTON,
+  INTEREST_HEADING,
+  INTEREST_OWN_FIRM_LINK,
+  INTEREST_TEXT,
   INTERVAL_TEXT,
   sendNotice,
   sizeText,
@@ -57,6 +64,7 @@ function sendProblem(error: unknown): string {
 export default function TachographScreen() {
   const mine = useMyTachograph();
   const send = useSendTachographFile();
+  const router = useRouter();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [chosen, setChosen] = useState<Chosen | undefined>(undefined);
@@ -136,10 +144,31 @@ export default function TachographScreen() {
             Could not load your companies. Check your signal and try again.
           </Text>
         ) : companies.length === 0 ? (
-          <Text style={styles.body}>
-            You are not linked to a company yet. Join one from My companies, then you can send them
-            your file here.
-          </Text>
+          <>
+            <Text style={styles.body}>
+              You are not linked to a company yet. Join one from My companies, then you can send
+              them your file here.
+            </Text>
+            <View style={styles.card} testID="tachograph-interest">
+              <Text style={styles.heading}>{INTEREST_HEADING}</Text>
+              <Text style={styles.body}>{INTEREST_TEXT}</Text>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={() => router.push('/refer')}
+                accessibilityRole="button"
+                testID="tachograph-interest-boss"
+              >
+                <Text style={styles.buttonText}>{INTEREST_BOSS_BUTTON}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => void Linking.openURL(HAULIERS_SIGNUP_URL).catch(() => undefined)}
+                accessibilityRole="link"
+                testID="tachograph-interest-own"
+              >
+                <Text style={styles.link}>{INTEREST_OWN_FIRM_LINK}</Text>
+              </TouchableOpacity>
+            </View>
+          </>
         ) : chosen !== undefined ? (
           <View style={styles.card} testID="tachograph-confirm">
             <Text style={styles.heading}>Send to {chosen.company.companyName}?</Text>
