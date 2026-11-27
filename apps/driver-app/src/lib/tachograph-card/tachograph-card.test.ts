@@ -197,6 +197,21 @@ describe('when something is not right', () => {
     fails(new SimulatedCard({ removeAfterCommands: 40 }), 'card_removed'));
   it('says it is not a driver card', () =>
     fails(new SimulatedCard({ cardType: 2 }), 'not_driver_card'));
+  it.each([0x6a86, 0x6a82, 0x6d00])(
+    'says a bank card is not a driver card, whatever its refusal (%#x)',
+    async (sw) => {
+      const bankCard = {
+        powerOn: async () => Uint8Array.from([0x3b, 0x00]),
+        transmit: async () => Uint8Array.from([sw >> 8, sw & 0xff]),
+        powerOff: async () => undefined,
+      };
+      await expect(downloadDriverCard(bankCard)).rejects.toMatchObject({
+        code: 'not_driver_card',
+      });
+    },
+  );
+  it('still calls a damaged driver card damaged when a later file is missing', () =>
+    fails(new SimulatedCard({ missing: [FID.DRIVER_ACTIVITY_DATA] }), 'file_missing'));
   it('says a needed file is missing', () =>
     fails(new SimulatedCard({ missing: [FID.DRIVER_ACTIVITY_DATA] }), 'file_missing'));
   it('says the card would not sign', () =>

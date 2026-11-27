@@ -5,6 +5,7 @@ import {
   readBinary,
   SIGNATURE_LENGTH,
   SW_FILE_NOT_FOUND,
+  SW_NOT_OUR_KIND_OF_CARD,
   SW_OK,
   selectApplication,
   selectFile,
@@ -90,6 +91,14 @@ export async function downloadDriverCard(
   ): Promise<Uint8Array | undefined> {
     report(spec.name);
     const selected = await send(selectFile(spec.fid));
+    // The first file of a driver card is always there. A card that says it has no such file, or does not know the command, is
+    // some other kind of card (a bank card, say), not a damaged driver card.
+    if (spec === ROOT_FILES[0] && SW_NOT_OUR_KIND_OF_CARD.includes(selected.sw)) {
+      throw new CardError(
+        'not_driver_card',
+        `select ${fidText(spec.fid)} answered ${swText(selected.sw)}`,
+      );
+    }
     if (selected.sw === SW_FILE_NOT_FOUND) {
       if (spec.optional) {
         summaries.push({ fid: spec.fid, name: spec.name, bytes: 0, signed: false, skipped: true });

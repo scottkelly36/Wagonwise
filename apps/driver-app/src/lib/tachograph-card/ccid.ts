@@ -204,7 +204,9 @@ export class CcidReader implements CardReader {
     const status = await this.#send(GET_SLOT_STATUS, [0, 0, 0]);
     if (status.iccStatus === 2) throw new CardError('no_card', 'no card in the reader');
     const atr = await this.#powerOnCard();
-    this.#log(`card answered: ${atr.length} bytes, first protocol offered T=${atrProtocol(atr)}`);
+    this.#log(
+      `card answered: ${atr.length} bytes, first protocol offered T=${atrProtocol(atr)}, reset response ${hex(atr)}`,
+    );
     if (this.#info.level === 'tpdu') await this.#checkProtocol();
     return atr;
   }

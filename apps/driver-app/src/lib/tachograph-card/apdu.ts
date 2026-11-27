@@ -10,6 +10,10 @@ export const SW1_MORE_DATA = 0x61;
 /** The length asked for was wrong (`6Cxx`): ask again with the length the card says. */
 export const SW1_WRONG_LE = 0x6c;
 export const SW_FILE_NOT_FOUND = 0x6a82;
+/** What a card with no such file, or that does not know the command, answers: a bank card asked for a driver card's first file says 6A86 or 6A82. */
+export const SW_NOT_OUR_KIND_OF_CARD: readonly number[] = [
+  0x6a81, 0x6a82, 0x6a86, 0x6a88, 0x6d00, 0x6e00,
+];
 export const SW_END_OF_FILE = 0x6282;
 export const SW_CONDITIONS_NOT_SATISFIED = 0x6985;
 

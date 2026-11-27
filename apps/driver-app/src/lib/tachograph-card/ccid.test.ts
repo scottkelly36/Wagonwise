@@ -167,7 +167,11 @@ describe('what goes wrong', () => {
     const { ccid, log } = reader();
     await downloadDriverCard(ccid);
     expect(log.length).toBeGreaterThan(10);
-    expect(log.every((line) => line.length < 60)).toBe(true);
+    // Only the card's reset response (a few bytes that name its chip, not its holder) may run longer.
+    expect(log.every((line) => line.length < 60 || line.startsWith('card answered: '))).toBe(true);
+    expect(log.find((line) => line.startsWith('card answered: '))).toMatch(
+      /reset response [0-9a-f]+/,
+    );
     expect(log.join('\n')).not.toMatch(/SIMULATED/);
   });
 });
