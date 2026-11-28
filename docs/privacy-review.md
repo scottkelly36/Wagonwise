@@ -82,6 +82,13 @@ runs out and which generations the file holds, so the portal can flag a card tha
 the birth date and the issuing authority. Each is already in the file we hold, so no new kind of data, but it is a new stored copy: the notice's
 table of what we hold now says so. Files received earlier have none. For the DPIA and the solicitor.
 
+**Reading the activity on the card file (2026-11-28, migration 0112):** from a driver card file we also keep the first and last day it holds
+records for and the number of those days on which the card was in use for driving, work or availability, so the portal can show what period a
+file covers. This is more personal than the card number: it is a count of a person's working days. It is still only a count and two dates:
+not the times, the distances, the rests or the vehicles, which stay in the file we already hold. Same basis and same retention as the file
+(deleted with it). Files received earlier have none. The notice's table says so. For the DPIA (a count of days worked is a pattern of work)
+and the solicitor.
+
 ## Store forms (match the notice)
 
 - **Google Play Data safety:** precise location (collected, shared with the company on a job and on SOS, not for ads), email and

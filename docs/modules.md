@@ -479,6 +479,12 @@ download tracker works from. Scope and reasoning: `tachograph-download-scope.md`
   generation copy preferred) for card number, holder name, expiry and generations, into nullable columns beside the file. Best effort and never
   a reason to refuse: a file that does not read, or a vehicle unit file, keeps null. Layout checked against way-platform/tachograph-go's anonymised
   test record. The portal flags a card that has run out or runs out within 60 days, and a file whose name shares nothing with its driver.
+- **Reading the activity on a card file (migration 0112):** `domain/card-activity.ts` walks the driver activity file (tag `0504`, a cyclic buffer
+  of day records, newest back to oldest through the previous-length links) for the first and last day with records and the number of days with the
+  card in a tachograph and driving, work or availability on it (`activity_from`, `activity_to`, `activity_work_days`, all or none). It gives nothing
+  rather than a shorter period when the records do not agree with each other (lengths, dates, pointers). First generation copy preferred (the only
+  one checked against data), the second generation one when it is all there is. Checked against way-platform/tachograph-go's anonymised file:
+  189 days, 83 with the card in use, also with the buffer turned so a record crosses its end. Shared record splitting is `domain/card-file-records.ts`.
 - **Retention:** the daily `prune-tachograph-files` task deletes files older than the firm's retention from the day received, never under 12 months.
   A driver deleting their account does **not** remove files they sent: the firm holds them as its own record (to be confirmed with the solicitor).
 - **Routes:** staff `GET/PUT /staff/tachograph/companies/:companyId/settings`, `GET/POST .../files`, `GET/DELETE .../files/:fileId` (the download

@@ -6,6 +6,7 @@ import {
   MAX_TACHOGRAPH_FILE_BYTES,
   MAX_RETENTION_MONTHS,
   MIN_RETENTION_MONTHS,
+  type TachographActivityInfo,
   type TachographCardInfo,
   type TachographFileRow,
   type TachographKind,
@@ -50,6 +51,12 @@ const KIND_LABELS: Record<TachographKind, string> = {
   driver_card: 'Driver card',
   vehicle_unit: 'Vehicle unit',
 };
+
+/** The period a card file holds records for and the days the card was in use in it: from the card file, not the legal record. */
+function activityText(activity: TachographActivityInfo): string {
+  const days = activity.workDays === 1 ? '1 day' : `${activity.workDays} days`;
+  return `${dayText(activity.from)} to ${dayText(activity.to)}, with driving, work or availability on ${days}`;
+}
 
 function dayText(isoDate: string): string {
   return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString('en-GB', {
@@ -168,6 +175,11 @@ export function Tachograph() {
       cell: (r) => (
         <>
           {r.name} <span className="text-muted">({KIND_LABELS[r.kind].toLowerCase()})</span>
+          {r.activity !== undefined && (
+            <div className="text-muted" data-testid={`activity-${r.subjectId}`}>
+              Records in the file: {activityText(r.activity)}
+            </div>
+          )}
           {r.card !== undefined && (
             <div className="text-muted" data-testid={`card-${r.subjectId}`}>
               Card in the file: {r.card.holderName}, {r.card.cardNumber}, runs out{' '}
@@ -267,6 +279,12 @@ export function Tachograph() {
       cell: (f) => dayText(f.downloadedOn),
     },
     {
+      key: 'covers',
+      header: 'Records in the file',
+      sortValue: (f) => f.activity?.to ?? '',
+      cell: (f) => (f.activity === undefined ? '—' : activityText(f.activity)),
+    },
+    {
       key: 'from',
       header: 'Sent',
       sortValue: (f) => f.receivedAt,
@@ -306,9 +324,10 @@ export function Tachograph() {
       </p>
       <p className="text-muted">
         This page only knows about files sent to WagonWise. From a driver card file it reads only
-        the card number, the holder's name and the day the card runs out: not the hours. A download
-        you made and have not uploaded here does not appear, and a tick here is not a statement that
-        you are meeting your duties.
+        the card number, the holder's name, the day the card runs out, and the first and last day
+        with records and how many of those days the card was used: not the hours. A download you
+        made and have not uploaded here does not appear, and a tick here is not a statement that you
+        are meeting your duties.
       </p>
 
       {everyCompany && (
@@ -488,8 +507,9 @@ const UploadForm = function UploadForm({
       <h2 id="tachograph-upload">Upload a file</h2>
       <p className="text-muted">
         Use the file exactly as your download tool saved it (usually ending .ddd). WagonWise keeps
-        the bytes as they are so the copy can be handed on unaltered, and does not read what is in
-        it.
+        the bytes as they are so the copy can be handed on unaltered. From a driver card file it
+        reads only the card number, the holder's name, the day the card runs out and the days the
+        file has records for, to show beside the file.
       </p>
       <form onSubmit={submit}>
         <div className="flex gap-12 wrap mb-12">

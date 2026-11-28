@@ -64,13 +64,17 @@ interface SummaryRow {
   readonly card_holder_name: string | null;
   readonly card_expires_on: string | null;
   readonly card_generations: string | null;
+  readonly activity_from: string | null;
+  readonly activity_to: string | null;
+  readonly activity_work_days: number | null;
 }
 
 /** Everything but the bytes. `downloaded_on` is cast to text so it stays the plain date the uploader gave. */
 const SUMMARY_COLUMNS = sql`
   id, company_id, kind, driver_id, vehicle_id, file_name, size_bytes, downloaded_on::text as downloaded_on,
   uploaded_at, (uploaded_by_driver_id is not null) as from_driver,
-  card_number, card_holder_name, card_expires_on::text as card_expires_on, card_generations
+  card_number, card_holder_name, card_expires_on::text as card_expires_on, card_generations,
+  activity_from::text as activity_from, activity_to::text as activity_to, activity_work_days
 `;
 
 function toSummary(row: SummaryRow): FileSummary {
@@ -98,6 +102,10 @@ function toSummary(row: SummaryRow): FileSummary {
             expiresOn: row.card_expires_on,
             generations: row.card_generations,
           },
+    activity:
+      row.activity_from === null || row.activity_to === null || row.activity_work_days === null
+        ? undefined
+        : { from: row.activity_from, to: row.activity_to, workDays: row.activity_work_days },
   };
 }
 
@@ -109,12 +117,14 @@ export class PostgresFileRepository implements FileRepository {
     const { rows } = await sql<{ id: string }>`
       insert into tachograph.files (id, company_id, kind, driver_id, vehicle_id, file_name, size_bytes, sha256, data,
                                     downloaded_on, uploaded_at, uploaded_by_driver_id, uploaded_by_staff_id, wording_version,
-                                    card_number, card_holder_name, card_expires_on, card_generations)
+                                    card_number, card_holder_name, card_expires_on, card_generations,
+                                    activity_from, activity_to, activity_work_days)
       values (${file.id}, ${file.companyId}, ${file.kind}, ${file.driverId ?? null}, ${file.vehicleId ?? null},
               ${file.fileName}, ${file.data.length}, ${file.sha256}, ${file.data}, ${file.downloadedOn}::date,
               ${file.receivedAt}, ${file.uploadedByDriverId ?? null}, ${file.uploadedByStaffId ?? null},
               ${file.wordingVersion ?? null}, ${file.card?.cardNumber ?? null}, ${file.card?.holderName ?? null},
-              ${file.card?.expiresOn ?? null}::date, ${file.card?.generations ?? null})
+              ${file.card?.expiresOn ?? null}::date, ${file.card?.generations ?? null},
+              ${file.activity?.from ?? null}::date, ${file.activity?.to ?? null}::date, ${file.activity?.workDays ?? null})
       on conflict (company_id, sha256) do nothing
       returning id
     `.execute(this.db);

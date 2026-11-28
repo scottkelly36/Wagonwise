@@ -191,3 +191,31 @@ describe('what a card file says about its card', () => {
     );
   });
 });
+
+describe('what a card file says about the activity on it', () => {
+  const activity = { from: '2026-11-02', to: '2026-11-25', workDays: 14 };
+
+  it('puts the period of the latest card file on the driver rows only', () => {
+    const rows = trackerRows(
+      [{ id: 'sam', name: 'Sam Smith' }],
+      [{ id: 'v1', name: 'AB12 CDE' }],
+      [
+        file({ id: 'a', driverId: 'sam', activity }),
+        file({ id: 'b', kind: 'vehicle_unit', driverId: undefined, vehicleId: 'v1', activity }),
+      ],
+      TODAY,
+    );
+    expect(rows.find((r) => r.name === 'Sam Smith')?.activity).toEqual(activity);
+    expect(rows.find((r) => r.kind === 'vehicle_unit')?.activity).toBeUndefined();
+  });
+
+  it('is nothing for a file that did not read', () => {
+    const rows = trackerRows(
+      [{ id: 'sam', name: 'Sam Smith' }],
+      [],
+      [file({ id: 'a', driverId: 'sam' })],
+      TODAY,
+    );
+    expect(rows[0]?.activity).toBeUndefined();
+  });
+});

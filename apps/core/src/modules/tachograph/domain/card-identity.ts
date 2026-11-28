@@ -18,6 +18,8 @@
  * The birth date and the issuing authority are not kept.
  */
 
+import { FIRST_GENERATION_DATA, records, SECOND_GENERATION_DATA } from './card-file-records.js';
+
 export interface CardIdentity {
   /** The 16 character card number. */
   readonly cardNumber: string;
@@ -30,8 +32,6 @@ export interface CardIdentity {
 }
 
 const IDENTIFICATION_FILE = 0x0520;
-const FIRST_GENERATION_DATA = 0x00;
-const SECOND_GENERATION_DATA = 0x02;
 const IDENTIFICATION_LENGTH = 143;
 const NAME_LENGTH = 36;
 const CARD_NUMBER_AT = 1;
@@ -42,27 +42,6 @@ const FIRST_NAMES_AT = SURNAME_AT + NAME_LENGTH;
 /** A card whose date is outside this is not read: 2000 is before cards of this kind, 2100 is a corrupt date. */
 const EARLIEST_EXPIRY = Date.UTC(2000, 0, 1) / 1000;
 const LATEST_EXPIRY = Date.UTC(2100, 0, 1) / 1000;
-
-interface FileRecord {
-  readonly file: number;
-  readonly appendix: number;
-  readonly data: Uint8Array;
-}
-
-/** The records of a download, up to the first one that does not fit (a truncated copy still gives what came before). */
-function records(bytes: Uint8Array): FileRecord[] {
-  const found: FileRecord[] = [];
-  let at = 0;
-  while (at + 5 <= bytes.length) {
-    const file = ((bytes[at] as number) << 8) | (bytes[at + 1] as number);
-    const appendix = bytes[at + 2] as number;
-    const length = ((bytes[at + 3] as number) << 8) | (bytes[at + 4] as number);
-    if (at + 5 + length > bytes.length) break;
-    found.push({ file, appendix, data: bytes.subarray(at + 5, at + 5 + length) });
-    at += 5 + length;
-  }
-  return found;
-}
 
 /** A name field: a code page byte and 35 characters. Only the Western European page (1, ISO 8859-1) is read; another gives
  *  `undefined` rather than a name with the wrong letters. */

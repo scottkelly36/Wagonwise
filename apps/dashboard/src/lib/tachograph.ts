@@ -2,6 +2,7 @@ import {
   downloadStatus,
   type DownloadState,
   type DownloadStatus,
+  type TachographActivityInfo,
   type TachographCardInfo,
   type TachographFileRow,
   type TachographKind,
@@ -20,6 +21,8 @@ export interface TrackerRow {
   readonly status: DownloadStatus;
   /** What the latest card file says about its card, when it read. From the card file, not the legal record. */
   readonly card: TachographCardInfo | undefined;
+  /** The period the latest card file holds records for, and the days the card was in use, when it read. From the card file. */
+  readonly activity: TachographActivityInfo | undefined;
   readonly cardFlags: readonly CardFlag[];
 }
 
@@ -135,6 +138,7 @@ export function trackerRows(
     lastFileId: file?.id,
     status: downloadStatus(kind, file?.downloadedOn, today),
     card: file?.card,
+    activity: kind === 'driver_card' ? file?.activity : undefined,
     cardFlags: kind === 'driver_card' ? cardFlags(subject.name, file?.card, today) : [],
   });
   const rows = [
