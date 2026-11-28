@@ -507,8 +507,9 @@ const UploadForm = function UploadForm({
       <h2 id="tachograph-upload">Upload a file</h2>
       <p className="text-muted">
         Use the file exactly as your download tool saved it (usually ending .ddd). WagonWise keeps
-        the bytes as they are so the copy can be handed on unaltered, and does not read what is in
-        it.
+        the bytes as they are so the copy can be handed on unaltered. From a driver card file it
+        reads only the card number, the holder's name, the day the card runs out and the days the
+        file has records for, to show beside the file.
       </p>
       <form onSubmit={submit}>
         <div className="flex gap-12 wrap mb-12">

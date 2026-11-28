@@ -84,7 +84,7 @@ export interface TachographModule {
 
 /**
  * `tachograph`'s only public surface (AGENTS.md rule 6): copies of driver card and vehicle unit downloads, kept unaltered for the
- * firm, with the dates the portal's download tracker works from, and reminders when one is coming due. Nothing is read out of a file.
+ * firm, with the dates the portal's download tracker works from, and reminders when one is coming due. From a driver card file only the card's number, holder and expiry and the period of its activity are read (never a reason to refuse it).
  */
 export function createTachographModule(deps: TachographModuleDeps): TachographModule {
   const settings = new PostgresSettingsRepository(deps.db);
