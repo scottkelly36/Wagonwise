@@ -311,6 +311,7 @@ describe('what a driver card file says about its card', () => {
     const r = await uploadFile(deps, manager, STAFF, ACME, card);
     expect(r).toEqual({ ok: true, value: { duplicate: false } });
     expect(deps.files.stored[0]?.card).toBeUndefined();
+    expect(deps.files.stored[0]?.activity).toBeUndefined();
   });
 
   it('is not read from a vehicle unit file', async () => {
@@ -323,5 +324,71 @@ describe('what a driver card file says about its card', () => {
       dataBase64: file.toString('base64'),
     });
     expect(deps.files.stored[0]?.card).toBeUndefined();
+  });
+});
+
+describe('what a driver card file says about the activity on it', () => {
+  const file = cardFile({
+    cardNumber: 'TEST000000000100',
+    surname: 'Smith',
+    firstNames: 'Sam',
+    expiresAt: '2027-02-28T23:59:59Z',
+    days: [
+      { date: '2026-11-02', worked: true },
+      { date: '2026-11-03', worked: false },
+      { date: '2026-11-04', worked: true },
+    ],
+  });
+  const withActivity = { ...card, dataBase64: file.toString('base64') };
+
+  it('is read when the office uploads a card file, and shown with the file', async () => {
+    const deps = build();
+    await uploadFile(deps, manager, STAFF, ACME, withActivity);
+    const listed = await listFiles(deps, manager, ACME);
+    expect(listed.ok && listed.value.latest[0]?.activity).toEqual({
+      from: '2026-11-02',
+      to: '2026-11-04',
+      workDays: 2,
+    });
+  });
+
+  it('is read when a driver sends their own card file', async () => {
+    const deps = build();
+    await setFirmSettings(deps, manager, STAFF, ACME, {
+      driversMaySend: true,
+      retentionMonths: 12,
+      remindersEnabled: true,
+    });
+    await sendMyFile(deps, SAM, 'sam@example.com', ACME, {
+      fileName: 'C_sam.DDD',
+      downloadedOn: '2026-11-20',
+      dataBase64: withActivity.dataBase64,
+    });
+    expect(deps.files.stored[0]?.activity?.workDays).toBe(2);
+  });
+
+  it('is nothing for a card file with no activity on it, which still has its card', async () => {
+    const deps = build();
+    const bare = cardFile({
+      cardNumber: 'TEST000000000100',
+      surname: 'Smith',
+      firstNames: 'Sam',
+      expiresAt: '2027-02-28T23:59:59Z',
+    });
+    await uploadFile(deps, manager, STAFF, ACME, { ...card, dataBase64: bare.toString('base64') });
+    expect(deps.files.stored[0]?.activity).toBeUndefined();
+    expect(deps.files.stored[0]?.card?.holderName).toBe('Sam Smith');
+  });
+
+  it('is not read from a vehicle unit file', async () => {
+    const deps = build();
+    await uploadFile(deps, manager, STAFF, ACME, {
+      kind: 'vehicle_unit',
+      vehicleId: 'veh-1',
+      fileName: 'V_ab12.ddd',
+      downloadedOn: '2026-11-01',
+      dataBase64: file.toString('base64'),
+    });
+    expect(deps.files.stored[0]?.activity).toBeUndefined();
   });
 });

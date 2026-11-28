@@ -57,6 +57,7 @@ export class InMemoryFiles implements FileRepository {
       receivedAt: f.receivedAt,
       source: f.uploadedByDriverId === undefined ? 'office' : 'driver_app',
       card: f.card,
+      activity: f.activity,
     };
   }
 

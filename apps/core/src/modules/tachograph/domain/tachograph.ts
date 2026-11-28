@@ -17,6 +17,15 @@ export interface FileCardInfo {
   readonly generations: string;
 }
 
+/** What a driver card file says about the activity it holds (`readCardActivity`): the period, and the days the card was in use. */
+export interface FileActivityInfo {
+  /** The first and last day the file holds records for, `YYYY-MM-DD`. */
+  readonly from: string;
+  readonly to: string;
+  /** Days in that period with driving, work or availability recorded with the card in a tachograph. */
+  readonly workDays: number;
+}
+
 /** A file's details without its bytes: what the portal lists. */
 export interface FileSummary {
   readonly id: string;
@@ -32,6 +41,8 @@ export interface FileSummary {
   readonly source: FileSource;
   /** Absent for a vehicle unit file, a file received before this was read, or one that did not read as a driver card download. */
   readonly card?: FileCardInfo | undefined;
+  /** Absent for a vehicle unit file, a file received before this was read, or one with no activity that read. */
+  readonly activity?: FileActivityInfo | undefined;
 }
 
 /** A file to be stored: the bytes exactly as received, and the hash they were checked against. */
@@ -50,6 +61,7 @@ export interface NewFile {
   readonly uploadedByStaffId?: StaffId | undefined;
   readonly wordingVersion?: number | undefined;
   readonly card?: FileCardInfo | undefined;
+  readonly activity?: FileActivityInfo | undefined;
 }
 
 export interface StoredFile {

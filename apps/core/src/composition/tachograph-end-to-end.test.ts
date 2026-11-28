@@ -54,6 +54,8 @@ function cardFile(card: {
   surname: string;
   firstNames: string;
   expiresAt: string;
+  /** Days on the card, oldest first: `worked` is the card in a tachograph with driving on it. */
+  days?: { date: string; worked: boolean }[];
 }): Buffer {
   const text = (value: string, length: number) => Buffer.from(value.padEnd(length, ' '), 'latin1');
   const time = (iso: string) => {
@@ -75,9 +77,33 @@ function cardFile(card: {
     text(card.firstNames, 35),
     Buffer.from([0x19, 0x90, 0x01, 0x01, 0x65, 0x6e]),
   ]);
+  const be16 = (n: number) => [(n >> 8) & 0xff, n & 0xff];
+  const buffer: number[] = [];
+  let previousLength = 0;
+  let newest = 0;
+  for (const day of card.days ?? []) {
+    const changes = day.worked ? [(3 << 11) | 60, 600] : [0x2000];
+    const length = 12 + 2 * changes.length;
+    newest = buffer.length;
+    buffer.push(
+      ...be16(previousLength),
+      ...be16(length),
+      ...time(`${day.date}T00:00:00Z`),
+      0,
+      1,
+      0,
+      0,
+    );
+    for (const change of changes) buffer.push(...be16(change));
+    previousLength = length;
+  }
+  const activityData = [...be16(0), ...be16(newest), ...buffer, ...new Array<number>(40).fill(0)];
   return Buffer.concat([
     Buffer.from([0x05, 0x20, 0x00, 0x00, identification.length]),
     identification,
+    ...(card.days === undefined
+      ? []
+      : [Buffer.from([0x05, 0x04, 0x00, ...be16(activityData.length), ...activityData])]),
   ]);
 }
 
@@ -462,6 +488,11 @@ describe('tachograph files end to end (real RLS, real scopes)', () => {
       surname: 'Smith',
       firstNames: 'Sam',
       expiresAt: '2027-02-28T23:59:59Z',
+      days: [
+        { date: '2026-11-02', worked: true },
+        { date: '2026-11-03', worked: false },
+        { date: '2026-11-04', worked: true },
+      ],
     });
     const upload = await app.inject({
       method: 'POST',
@@ -476,14 +507,22 @@ describe('tachograph files end to end (real RLS, real scopes)', () => {
       ...as(MANAGER),
     });
     expect(upload.statusCode).toBe(201);
-    const listed = jsonOf<{ recent: { fileName: string; card?: unknown }[] }>(await files(MANAGER));
+    const listed = jsonOf<{ recent: { fileName: string; card?: unknown; activity?: unknown }[] }>(
+      await files(MANAGER),
+    );
     expect(listed.recent.find((f) => f.fileName === 'C_sam_read.DDD')?.card).toEqual({
       cardNumber: 'TEST000000000100',
       holderName: 'Sam Smith',
       expiresOn: '2027-02-28',
       generations: '1',
     });
-    // The earlier file, which is not a card download, has no card details and is still there.
+    expect(listed.recent.find((f) => f.fileName === 'C_sam_read.DDD')?.activity).toEqual({
+      from: '2026-11-02',
+      to: '2026-11-04',
+      workDays: 2,
+    });
+    // The earlier file, which is not a card download, has no card details or activity and is still there.
     expect(listed.recent.find((f) => f.fileName === 'C_sam.DDD')?.card).toBeUndefined();
+    expect(listed.recent.find((f) => f.fileName === 'C_sam.DDD')?.activity).toBeUndefined();
   });
 });

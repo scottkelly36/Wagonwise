@@ -104,8 +104,8 @@ the phone and shares it themselves.
 4. **Vehicle unit:** upload only. Do not build a download.
 5. **Reading the files:** not until a paying firm asks, and then consider a partner before writing a rules engine.
    **Owner decision 2026-11-27: the feature is to be a complete suite, so reading starts now, in small steps.** Step 1 (built): the card number,
-   holder, expiry and generations from a driver card file, at upload (`domain/card-identity.ts`), flagged in the portal. Next: the period a
-   file covers and the days of activity, then the rules as "possible infringements" (from the card file, not the legal record). The partner
+   holder, expiry and generations from a driver card file, at upload (`domain/card-identity.ts`), flagged in the portal. Step 2 (built 2026-11-28): the first and last day with records and the
+   days the card was in use for driving, work or availability (`domain/card-activity.ts`), shown in the portal. Next: the rules as "possible infringements" (from the card file, not the legal record). The partner
    question for the rules engine is still open. Layout facts: traconiq/tachoparser (AGPL: facts only, no code), EU 2016/799 Annex 1C, and
    way-platform/tachograph-go (MIT) anonymised test records, which have real-format records for every driver card file (a sample source for later steps).
 

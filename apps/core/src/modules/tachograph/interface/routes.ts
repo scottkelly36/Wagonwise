@@ -79,6 +79,7 @@ const row = (f: FileSummary) => ({
   receivedAt: f.receivedAt.toISOString(),
   source: f.source,
   ...(f.card === undefined ? {} : { card: f.card }),
+  ...(f.activity === undefined ? {} : { activity: f.activity }),
 });
 
 /**

@@ -140,6 +140,18 @@ export const tachographCardInfoSchema = z.object({
 });
 export type TachographCardInfo = z.infer<typeof tachographCardInfoSchema>;
 
+/** What a driver card file says about the activity on it, read from the file when it was received: the period it holds records for and
+ *  the days in it the card was in use for driving, work or availability. From the card file, not the legal record. */
+export const tachographActivityInfoSchema = z.object({
+  /** The first day the file holds records for. */
+  from: isoDateSchema,
+  /** The last day the file holds records for. */
+  to: isoDateSchema,
+  /** Days in that period with driving, work or availability recorded with the card in a tachograph. */
+  workDays: z.number().int().min(0),
+});
+export type TachographActivityInfo = z.infer<typeof tachographActivityInfoSchema>;
+
 /** One file as the portal lists it (the bytes are fetched separately). */
 export const tachographFileRowSchema = z.object({
   id: z.string(),
@@ -153,6 +165,7 @@ export const tachographFileRowSchema = z.object({
   /** Whether it came from the driver app or was uploaded by the office. */
   source: z.enum(['driver_app', 'office']),
   card: tachographCardInfoSchema.optional(),
+  activity: tachographActivityInfoSchema.optional(),
 });
 export type TachographFileRow = z.infer<typeof tachographFileRowSchema>;
 
